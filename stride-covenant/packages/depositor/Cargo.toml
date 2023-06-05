@@ -14,3 +14,7 @@ serde = { workspace = true }
 cw2 = { workspace = true }
 thiserror = { workspace = true }
 cw-multi-test = { workspace = true }
+neutron-sdk = { workspace = true }
+cosmos-sdk-proto = { workspace = true }
+protobuf = { workspace = true }
+schemars = "0.8.10"

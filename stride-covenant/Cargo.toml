@@ -26,7 +26,9 @@ cosmwasm-std    = { version = "1.2.4", features = ["ibc3"] }
 cw-storage-plus = "1.0.1"
 cw-utils        = "1.0.1"
 cw2             = "1.0.1"
-
+neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk", default-features = false, version = "0.5.0" }
+cosmos-sdk-proto = { version = "0.12.2", default-features = false }
+protobuf = { version = "3", features = ["with-bytes"] }
 serde     = { version = "1.0.145", default-features = false, features = ["derive"] }
 thiserror = "1.0.31"
 # the sha2 version here is the same as the one used by

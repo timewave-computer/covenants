@@ -15,6 +15,7 @@ fn depositor_contract() -> Box<dyn Contract<Empty>> {
         crate::contract::instantiate,
         crate::contract::query,
     );
+    // todo
     Box::new(contract)
 }
 
