@@ -20,6 +20,17 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+type InstantiateMsg struct {
+	StAtomReceiver WeightedReceiver `json:"st_atom_receiver"`
+	AtomReceiver   WeightedReceiver `json:"atom_receiver"`
+	ClockAddress   string           `json:"clock_address,string"`
+}
+
+type WeightedReceiver struct {
+	Amount  uint64 `json:"amount,string"`
+	Address string `json:"address,string"`
+}
+
 // Sets custom fields for the Neutron genesis file that interchaintest isn't aware of by default.
 //
 // soft_opt_out_threshold - the bottom `soft_opt_out_threshold`
@@ -238,5 +249,34 @@ func TestICS(t *testing.T) {
 	// by interchaintest in the genesis file.
 	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(100_000_000), atom, neutron, stride)
 	gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
-	_, _, _ = gaiaUser, neutronUser, strideUser
+	_, _ = gaiaUser, strideUser
+
+	t.Run("depositor", func(t *testing.T) {
+		// Store and instantiate the Neutron ICA example contract. The
+		// wasm file is placed in `wasms/` by the `just test` command.
+		codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/stride_depositor.wasm")
+		require.NoError(t, err, "failed to store neutron ICA contract")
+
+		msg := InstantiateMsg{
+			StAtomReceiver: WeightedReceiver{
+				Amount:  10,
+				Address: "st_atom_addr",
+			},
+			AtomReceiver: WeightedReceiver{
+				Amount:  10,
+				Address: "atom_addr",
+			},
+			ClockAddress: "clock_addr",
+		}
+
+		str, err := json.Marshal(msg)
+		require.NoError(t, err, "Failed to marshall instantiateMsg")
+
+		address, err := cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
+
+		require.NoError(t, err, "failed to instantiate ICA contract: ", err)
+
+		print("contract: ", address)
+	})
+
 }

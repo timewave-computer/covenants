@@ -1,2 +1,13 @@
-test:
+build:
+    cargo build
+
+optimize:
+    cd packages/* && docker run --platform linux/amd64 --rm -v "$(pwd)":/code \
+      --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+      --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+      cosmwasm/rust-optimizer:0.12.13
+
+test: optimize
+    mkdir -p tests/interchaintest/wasms
+    cp packages/*/artifacts/*.wasm tests/interchaintest/wasms
     cd tests/interchaintest && go test -v ./...
