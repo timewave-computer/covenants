@@ -5,7 +5,7 @@ use cosmwasm_std::{Uint128, Addr};
 pub struct InstantiateMsg {
     pub st_atom_receiver: WeightedReceiver,
     pub atom_receiver: WeightedReceiver,
-    pub clock_address: Addr,
+    pub clock_address: String,
 }
 
 #[cw_serde]
@@ -23,7 +23,7 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct WeightedReceiver {
-    pub amount: Uint128,
-    pub address: String,
+        pub amount: u128,
+        pub address: String,
 }
 

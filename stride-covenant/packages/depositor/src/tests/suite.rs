@@ -9,15 +9,15 @@ pub const NATIVE_ATOM_DENOM: &str = "native-atom";
 pub const DEFAULT_RECEIVER_AMOUNT: Uint128 = Uint128::new(10);
 pub const DEFAULT_CLOCK_ADDRESS: &str = "clock-address";
 
-fn depositor_contract() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(
-        crate::contract::execute,
-        crate::contract::instantiate,
-        crate::contract::query,
-    );
-    // todo
-    Box::new(contract)
-}
+// fn depositor_contract() -> Box<dyn Contract<Empty>> {
+//     let contract = ContractWrapper::new(
+//         crate::contract::execute,
+//         crate::contract::instantiate,
+//         crate::contract::query,
+//     );
+//     // todo
+//     Box::new(contract)
+// }
 
 pub(crate) struct Suite {
     app: App,
@@ -54,8 +54,8 @@ impl SuiteBuilder {
     pub fn build(self) -> Suite {
         let mut app = App::default();
 
-        let depositor_code = app.store_code(depositor_contract());
-
+        // let depositor_code = app.store_code(depositor_contract());
+        let depositor_code = 1;
         let depositor_address = app
             .instantiate_contract(
                 depositor_code,
