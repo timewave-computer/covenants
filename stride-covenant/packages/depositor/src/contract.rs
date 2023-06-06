@@ -66,19 +66,20 @@ pub fn instantiate(
     // can we do better with validation here?
     // deps.api.addr_validate(&msg.st_atom_receiver.address)?;
     // deps.api.addr_validate(&msg.atom_receiver.address)?;
-    let clock_address = deps.api.addr_validate(&msg.clock_address)?;
-    
+    // let clock_address = deps.api.addr_validate(&msg.clock_address)?;
+
     // avoid zero deposit configurations
     // if msg.st_atom_receiver.amount == 0 || msg.atom_receiver.amount == 0 {
     //     return Err(NeutronError::Std(
     //         StdError::GenericErr { msg: "Zero deposit config".to_string() })
     //     )
     // }
-
+    deps.api
+    .debug(format!("WASMDEBUG: instantiate: received msg: {:?}", msg).as_str());
     // minations and amounts
-    // STRIDE_ATOM_RECEIVER.save(deps.storage, &msg.st_atom_receiver)?;
-    // NATIVE_ATOM_RECEIVER.save(deps.storage, &msg.atom_receiver)?;
-    // CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
+    STRIDE_ATOM_RECEIVER.save(deps.storage, &msg.st_atom_receiver)?;
+    NATIVE_ATOM_RECEIVER.save(deps.storage, &msg.atom_receiver)?;
+    CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
 
     Ok(Response::default())
 }

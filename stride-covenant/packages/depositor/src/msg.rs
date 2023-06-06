@@ -10,7 +10,6 @@ pub struct InstantiateMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
 pub struct WeightedReceiver {
     pub amount: u128,
     pub address: String,
