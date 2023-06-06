@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Empty, Uint128};
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use crate::msg::{InstantiateMsg, WeightedReceiver, QueryMsg};
+use crate::msg::{InstantiateMsg, QueryMsg, WeightedReceiver};
 
 pub const CREATOR_ADDR: &str = "creator";
 pub const ST_ATOM_DENOM: &str = "stride-atom";
@@ -37,14 +37,14 @@ impl Default for SuiteBuilder {
         Self {
             instantiate: InstantiateMsg {
                 st_atom_receiver: WeightedReceiver { 
-                    amount: DEFAULT_RECEIVER_AMOUNT, 
+                    amount: 10, 
                     address: ST_ATOM_DENOM.to_string(),
                 },
                 atom_receiver: WeightedReceiver { 
-                    amount: DEFAULT_RECEIVER_AMOUNT, 
+                    amount: 10, 
                     address: NATIVE_ATOM_DENOM.to_string(),
                 },
-                clock_address: Addr::unchecked(DEFAULT_CLOCK_ADDRESS),
+                clock_address: "default-clock".to_string(),
             },
         }
     }

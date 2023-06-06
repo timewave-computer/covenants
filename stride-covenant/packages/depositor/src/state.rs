@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Binary, from_binary, Storage, StdResult, to_vec, Order};
+use cosmwasm_std::{from_binary, to_vec, Binary, Order, StdResult, Storage, Addr};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

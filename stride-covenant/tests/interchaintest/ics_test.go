@@ -258,14 +258,14 @@ func TestICS(t *testing.T) {
 		require.NoError(t, err, "failed to store neutron ICA contract")
 
 		msg := InstantiateMsg{
-			StAtomReceiver: WeightedReceiver{
-				Amount:  10,
-				Address: "st_atom_addr",
-			},
-			AtomReceiver: WeightedReceiver{
-				Amount:  10,
-				Address: "atom_addr",
-			},
+			// StAtomReceiver: WeightedReceiver{
+			// 	Amount:  10,
+			// 	Address: "st_atom_addr",
+			// },
+			// AtomReceiver: WeightedReceiver{
+			// 	Amount:  10,
+			// 	Address: "atom_addr",
+			// },
 			ClockAddress: "clock_addr",
 		}
 
@@ -276,7 +276,7 @@ func TestICS(t *testing.T) {
 
 		require.NoError(t, err, "failed to instantiate ICA contract: ", err)
 
-		print("contract: ", address)
+		print("\n\ncontract: ", address)
 	})
 
 }

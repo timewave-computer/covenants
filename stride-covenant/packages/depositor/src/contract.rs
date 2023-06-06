@@ -1,21 +1,45 @@
-use cosmos_sdk_proto::cosmos::staking::v1beta1::{MsgDelegateResponse, MsgUndelegateResponse};
+use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
+use cosmos_sdk_proto::cosmos::staking::v1beta1::{
+    MsgDelegate, MsgDelegateResponse, MsgUndelegate, MsgUndelegateResponse,
+};
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+use cosmwasm_std::{
+    to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdError, StdResult, SubMsg, Addr,
+};
 use cw2::set_contract_version;
-use cosmwasm_std::{entry_point, DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, StdError, CosmosMsg, SubMsg, Reply, CustomQuery};
-use neutron_sdk::bindings::query::NeutronQuery;
-use neutron_sdk::sudo::msg::{SudoMsg, RequestPacket};
-use neutron_sdk::{NeutronResult, NeutronError};
-use neutron_sdk::bindings::msg::{NeutronMsg, MsgSubmitTxResponse, IbcFee};
-use neutron_sdk::interchain_txs::helpers::{get_port_id, decode_message_response, decode_acknowledgement_response};
-use serde::{Serialize, Deserialize};
+use prost::Message;
 use schemars::JsonSchema;
-use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg};
-use crate::state::{STRIDE_ATOM_RECEIVER, CLOCK_ADDRESS, NATIVE_ATOM_RECEIVER, INTERCHAIN_ACCOUNTS, ICS_PORT_ID, AcknowledgementResult, ACKNOWLEDGEMENT_RESULTS, read_sudo_payload, add_error_to_queue, SudoPayload, save_reply_payload, SUDO_PAYLOAD_REPLY_ID, read_reply_payload, save_sudo_payload};
+use serde::{Deserialize, Serialize};
+
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use neutron_sdk::bindings::msg::IbcFee;
+use neutron_sdk::{
+    bindings::{
+        msg::{MsgSubmitTxResponse, NeutronMsg},
+        query::{NeutronQuery, QueryInterchainAccountAddressResponse},
+        types::ProtobufAny,
+    },
+    interchain_txs::helpers::{
+        decode_acknowledgement_response, decode_message_response, get_port_id,
+    },
+    query::min_ibc_fee::query_min_ibc_fee,
+    sudo::msg::{RequestPacket, SudoMsg},
+    NeutronError, NeutronResult,
+};
+
+use crate::state::{
+    add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
+    save_reply_payload, save_sudo_payload, AcknowledgementResult, SudoPayload,
+    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, ICS_PORT_ID,
+};
 
 // Default timeout for SubmitTX is two weeks
 const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 const FEE_DENOM: &str = "untrn";
 
-const CONTRACT_NAME: &str = "crates.io:stride-depositor";
+const CONTRACT_NAME: &str = concat!("crates.io:neutron-sdk__", env!("CARGO_PKG_NAME"));
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -33,49 +57,83 @@ struct OpenAckVersion {
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
+    deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // can we do better with validation here?
-    let st_atom_receiver_address = deps.api.addr_validate(&msg.st_atom_receiver.address)?;
-    let atom_receiver_address = deps.api.addr_validate(&msg.atom_receiver.address)?;
+    // deps.api.addr_validate(&msg.st_atom_receiver.address)?;
+    // deps.api.addr_validate(&msg.atom_receiver.address)?;
     let clock_address = deps.api.addr_validate(&msg.clock_address)?;
-    // TODO: consider validating that clock should already exist,
-    // and be instantiated by the same covenant contract
-
+    
     // avoid zero deposit configurations
-    if msg.st_atom_receiver.amount == 0 || msg.atom_receiver.amount == 0 {
-        return Err(NeutronError::Std(
-            StdError::GenericErr { msg: "Zero deposit config".to_string() })
-        )
-    }
+    // if msg.st_atom_receiver.amount == 0 || msg.atom_receiver.amount == 0 {
+    //     return Err(NeutronError::Std(
+    //         StdError::GenericErr { msg: "Zero deposit config".to_string() })
+    //     )
+    // }
 
-    // store the denominations and amounts
-    STRIDE_ATOM_RECEIVER.save(deps.storage, &msg.st_atom_receiver)?;
-    NATIVE_ATOM_RECEIVER.save(deps.storage, &msg.atom_receiver)?;
-
-    // store the clock address that will be authorized to tick
-    CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
+    // minations and amounts
+    // STRIDE_ATOM_RECEIVER.save(deps.storage, &msg.st_atom_receiver)?;
+    // NATIVE_ATOM_RECEIVER.save(deps.storage, &msg.atom_receiver)?;
+    // CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
 
     Ok(Response::default())
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
+#[entry_point]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<NeutronQuery>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
+    deps.api
+        .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
     match msg {
-        ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Received {} => try_handle_received(),
+        ExecuteMsg::Tick {  } => try_tick(deps, env, info),
+        ExecuteMsg::Received {  } =>  try_handle_received(),
+        ExecuteMsg::Register {
+            connection_id,
+            interchain_account_id,
+        } => execute_register_ica(deps, env, connection_id, interchain_account_id),
+        ExecuteMsg::Delegate {
+            validator,
+            interchain_account_id,
+            amount,
+            denom,
+            timeout,
+        } => execute_delegate(
+            deps,
+            env,
+            interchain_account_id,
+            validator,
+            amount,
+            denom,
+            timeout,
+        ),
+        ExecuteMsg::Undelegate {
+            validator,
+            interchain_account_id,
+            amount,
+            denom,
+            timeout,
+        } => execute_undelegate(
+            deps,
+            env,
+            interchain_account_id,
+            validator,
+            amount,
+            denom,
+            timeout,
+        ),
     }
 }
 
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+
+fn try_tick(deps: DepsMut<NeutronQuery>, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // validate called is clock
 
     // retrieve the existing interchain account (s?)
@@ -94,7 +152,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 }
 
 fn try_register_gaia_ica(
-    deps: DepsMut,
+    deps: DepsMut<NeutronQuery>, 
     env: Env,
 ) -> NeutronResult<Response<NeutronMsg>> {
     // store the account identifier
@@ -116,7 +174,7 @@ fn try_register_gaia_ica(
 }
 
 fn try_execute_transfers(
-    deps: DepsMut, 
+    deps: DepsMut<NeutronQuery>, 
     info: MessageInfo, 
     gaia_account_address: String
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -144,12 +202,73 @@ fn try_handle_received() -> NeutronResult<Response<NeutronMsg>> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
-        QueryMsg::StAtomReceiver {} => to_binary(&STRIDE_ATOM_RECEIVER.may_load(deps.storage)?),
-        QueryMsg::AtomReceiver {} => to_binary(&NATIVE_ATOM_RECEIVER.may_load(deps.storage)?),
-        QueryMsg::ClockAddress {} => to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?),
+        QueryMsg::StAtomReceiver {} => Ok(
+            to_binary(&STRIDE_ATOM_RECEIVER.may_load(deps.storage)?)?
+        ),
+        QueryMsg::AtomReceiver {} => Ok(
+            to_binary(&NATIVE_ATOM_RECEIVER.may_load(deps.storage)?)?
+        ),
+        QueryMsg::ClockAddress {} => Ok(
+            to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?
+        ),
+        QueryMsg::InterchainAccountAddress {
+            interchain_account_id,
+            connection_id,
+        } => query_interchain_address(deps, env, interchain_account_id, connection_id),
+        QueryMsg::InterchainAccountAddressFromContract {
+            interchain_account_id,
+        } => query_interchain_address_contract(deps, env, interchain_account_id),
+        QueryMsg::AcknowledgementResult {
+            interchain_account_id,
+            sequence_id,
+        } => query_acknowledgement_result(deps, env, interchain_account_id, sequence_id),
+        QueryMsg::ErrorsQueue {} => query_errors_queue(deps),
     }
+}
+
+// returns ICA address from Neutron ICA SDK module
+pub fn query_interchain_address(
+    deps: Deps<NeutronQuery>,
+    env: Env,
+    interchain_account_id: String,
+    connection_id: String,
+) -> NeutronResult<Binary> {
+    let query = NeutronQuery::InterchainAccountAddress {
+        owner_address: env.contract.address.to_string(),
+        interchain_account_id,
+        connection_id,
+    };
+
+    let res: QueryInterchainAccountAddressResponse = deps.querier.query(&query.into())?;
+    Ok(to_binary(&res)?)
+}
+
+// returns ICA address from the contract storage. The address was saved in sudo_open_ack method
+pub fn query_interchain_address_contract(
+    deps: Deps<NeutronQuery>,
+    env: Env,
+    interchain_account_id: String,
+) -> NeutronResult<Binary> {
+    Ok(to_binary(&get_ica(deps, &env, &interchain_account_id)?)?)
+}
+
+// returns the result
+pub fn query_acknowledgement_result(
+    deps: Deps<NeutronQuery>,
+    env: Env,
+    interchain_account_id: String,
+    sequence_id: u64,
+) -> NeutronResult<Binary> {
+    let port_id = get_port_id(env.contract.address.as_str(), &interchain_account_id);
+    let res = ACKNOWLEDGEMENT_RESULTS.may_load(deps.storage, (port_id, sequence_id))?;
+    Ok(to_binary(&res)?)
+}
+
+pub fn query_errors_queue(deps: Deps<NeutronQuery>) -> NeutronResult<Binary> {
+    let res = read_errors_from_queue(deps.storage)?;
+    Ok(to_binary(&res)?)
 }
 
 // saves payload to process later to the storage and returns a SubmitTX Cosmos SubMsg with necessary reply id
@@ -160,6 +279,138 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
 ) -> StdResult<SubMsg<T>> {
     save_reply_payload(deps.storage, payload)?;
     Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
+}
+
+fn execute_register_ica(
+    deps: DepsMut<NeutronQuery>,
+    env: Env,
+    connection_id: String,
+    interchain_account_id: String,
+) -> NeutronResult<Response<NeutronMsg>> {
+    let register =
+        NeutronMsg::register_interchain_account(connection_id, interchain_account_id.clone());
+    let key = get_port_id(env.contract.address.as_str(), &interchain_account_id);
+    // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
+    INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
+    Ok(Response::new().add_message(register))
+}
+
+fn execute_delegate(
+    mut deps: DepsMut<NeutronQuery>,
+    env: Env,
+    interchain_account_id: String,
+    validator: String,
+    amount: u128,
+    denom: String,
+    timeout: Option<u64>,
+) -> NeutronResult<Response<NeutronMsg>> {
+    // contract must pay for relaying of acknowledgements
+    // See more info here: https://docs.neutron.org/neutron/feerefunder/overview
+    let fee = min_ntrn_ibc_fee(query_min_ibc_fee(deps.as_ref())?.min_fee);
+    let (delegator, connection_id) = get_ica(deps.as_ref(), &env, &interchain_account_id)?;
+    let delegate_msg = MsgDelegate {
+        delegator_address: delegator,
+        validator_address: validator,
+        amount: Some(Coin {
+            denom,
+            amount: amount.to_string(),
+        }),
+    };
+    let mut buf = Vec::new();
+    buf.reserve(delegate_msg.encoded_len());
+
+    if let Err(e) = delegate_msg.encode(&mut buf) {
+        return Err(NeutronError::Std(StdError::generic_err(format!(
+            "Encode error: {}",
+            e
+        ))));
+    }
+
+    let any_msg = ProtobufAny {
+        type_url: "/cosmos.staking.v1beta1.MsgDelegate".to_string(),
+        value: Binary::from(buf),
+    };
+
+    let cosmos_msg = NeutronMsg::submit_tx(
+        connection_id,
+        interchain_account_id.clone(),
+        vec![any_msg],
+        "".to_string(),
+        timeout.unwrap_or(DEFAULT_TIMEOUT_SECONDS),
+        fee,
+    );
+
+    // We use a submessage here because we need the process message reply to save
+    // the outgoing IBC packet identifier for later.
+    let submsg = msg_with_sudo_callback(
+        deps.branch(),
+        cosmos_msg,
+        SudoPayload {
+            port_id: get_port_id(env.contract.address.as_str(), &interchain_account_id),
+            message: "message".to_string(),
+        },
+    )?;
+
+    Ok(Response::default().add_submessages(vec![submsg]))
+}
+
+fn execute_undelegate(
+    mut deps: DepsMut<NeutronQuery>,
+    env: Env,
+    interchain_account_id: String,
+    validator: String,
+    amount: u128,
+    denom: String,
+    timeout: Option<u64>,
+) -> NeutronResult<Response<NeutronMsg>> {
+    // contract must pay for relaying of acknowledgements
+    // See more info here: https://docs.neutron.org/neutron/feerefunder/overview
+    let fee = min_ntrn_ibc_fee(query_min_ibc_fee(deps.as_ref())?.min_fee);
+    let (delegator, connection_id) = get_ica(deps.as_ref(), &env, &interchain_account_id)?;
+    let delegate_msg = MsgUndelegate {
+        delegator_address: delegator,
+        validator_address: validator,
+        amount: Some(Coin {
+            denom,
+            amount: amount.to_string(),
+        }),
+    };
+    let mut buf = Vec::new();
+    buf.reserve(delegate_msg.encoded_len());
+
+    if let Err(e) = delegate_msg.encode(&mut buf) {
+        return Err(NeutronError::Std(StdError::generic_err(format!(
+            "Encode error: {}",
+            e
+        ))));
+    }
+
+    let any_msg = ProtobufAny {
+        type_url: "/cosmos.staking.v1beta1.MsgUndelegate".to_string(),
+        value: Binary::from(buf),
+    };
+
+    let cosmos_msg = NeutronMsg::submit_tx(
+        connection_id,
+        interchain_account_id.clone(),
+        vec![any_msg],
+        "".to_string(),
+        timeout.unwrap_or(DEFAULT_TIMEOUT_SECONDS),
+        fee,
+    );
+
+    // We use a submessage here because we need the process message reply to save
+    // the outgoing IBC packet identifier for later.
+    let submsg = msg_with_sudo_callback(
+        deps.branch(),
+        cosmos_msg,
+        SudoPayload {
+            port_id: get_port_id(env.contract.address.as_str(), &interchain_account_id),
+            message: "message".to_string(),
+        },
+    )?;
+
+    Ok(Response::default().add_submessages(vec![submsg]))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -195,6 +446,11 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
     }
 }
 
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: migrate");
+    Ok(Response::default())
+}
 
 // handler
 fn sudo_open_ack(
@@ -461,7 +717,6 @@ fn prepare_sudo_payload(mut deps: DepsMut, _env: Env, msg: Reply) -> StdResult<R
     save_sudo_payload(deps.branch().storage, channel_id, seq_id, payload)?;
     Ok(Response::new())
 }
-
 
 fn get_ica(
     deps: Deps<impl CustomQuery>,
