@@ -24,20 +24,6 @@ pub enum ExecuteMsg {
         connection_id: String,
         interchain_account_id: String,
     },
-    Delegate {
-        interchain_account_id: String,
-        validator: String,
-        amount: u128,
-        denom: String,
-        timeout: Option<u64>,
-    },
-    Undelegate {
-        interchain_account_id: String,
-        validator: String,
-        amount: u128,
-        denom: String,
-        timeout: Option<u64>,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -46,6 +32,7 @@ pub enum QueryMsg {
     StAtomReceiver {},
     AtomReceiver {},
     ClockAddress {},
+    DepositorInterchainAccountAddress {},
     /// this query goes to neutron and get stored ICA with a specific query
     InterchainAccountAddress {
         interchain_account_id: String,

@@ -45,6 +45,12 @@ type InterchainAccountAddressQuery struct {
 	ConnectionId        string `json:"connection_id"`
 }
 
+type DepositorICAContractQuery struct {
+	DepositorInterchainAccountAddress DepositorInterchainAccountAddressQuery `json:"depositor_interchain_account_address,omitempty"`
+}
+
+type DepositorInterchainAccountAddressQuery struct{}
+
 type DepositorContractQuery struct {
 	ClockAddress ClockAddressQuery `json:"clock_address"`
 }
@@ -79,6 +85,10 @@ type QueryResponse struct {
 
 type InterchainAccountAddressQueryResponse struct {
 	InterchainAccountAddress string `json:"interchain_account_address"`
+}
+
+type DepositorInterchainAccountAddressQueryResponse struct {
+	DepositorInterchainAccountAddress string `json:"depositor_interchain_account_address"`
 }
 
 // Sets custom fields for the Neutron genesis file that interchaintest isn't aware of by default.
@@ -326,8 +336,7 @@ func TestICS(t *testing.T) {
 		require.NoError(t, err, "Failed to marshall instantiateMsg")
 
 		address, err := cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
-
-		require.NoError(t, err, "failed to instantiate ICA contract: ", err)
+		require.NoError(t, err, "failed to instantiate depositor contract: ", err)
 
 		t.Run("query instantiated clock", func(t *testing.T) {
 			var response ClockQueryResponse
@@ -353,6 +362,58 @@ func TestICS(t *testing.T) {
 			}, &atomReceiver)
 			require.NoError(t, err, "failed to query atom weighted receiver")
 			require.Equal(t, atomWeightedReceiver, atomReceiver.Data)
+		})
+
+		t.Run("first tick instantiates ICA", func(t *testing.T) {
+			cmd = []string{"neutrond", "tx", "wasm", "execute", address,
+				`{"tick":{}}`,
+				"--from", neutronUser.KeyName,
+				"--gas-prices", "0.0untrn",
+				"--gas-adjustment", `10.5`,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--home", neutron.HomeDir(),
+				"--chain-id", neutron.Config().ChainID,
+				"--from", "faucet",
+				"--gas", "100.0untrn",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			_, _, err = neutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			// Wait a bit for the ICA packet to get relayed. This takes a
+			// long time as the relayer has to do an entire IBC handshake
+			// because ICA creates a channel per account.
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			connections, err := r.GetConnections(ctx, eRep, "neutron-2")
+			require.NoError(t, err, "failed to get neturon-2 IBC connections from relayer")
+			var connectionId string
+			for _, connection := range connections {
+				for _, version := range connection.Versions {
+					if version.String() != "transfer" {
+						connectionId = connection.ID
+						break
+					}
+				}
+			}
+			print("\n connection id : ", connectionId, " \n")
+			// Finally, we query the contract for the address of the
+			// account on Atom.
+			var response QueryResponse
+			err = cosmosNeutron.QueryContract(ctx, address, IcaExampleContractQuery{
+				InterchainAccountAddress: InterchainAccountAddressQuery{
+					InterchainAccountId: "gaia-acc",
+					ConnectionId:        connectionId,
+				},
+			}, &response)
+			print(string(response.Data.InterchainAccountAddress))
+			require.NoError(t, err, "failed to query ICA account address")
+			require.NotEmpty(t, response.Data.InterchainAccountAddress, "an account should have been created")
 		})
 	})
 
