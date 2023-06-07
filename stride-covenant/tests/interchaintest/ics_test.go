@@ -32,6 +32,41 @@ type WeightedReceiver struct {
 	Address string `json:"address,string"`
 }
 
+// A query against the Neutron example contract. Note the usage of
+// `omitempty` on fields. This means that if that field has no value,
+// it will not have a key in the serialized representaiton of the
+// struct, thus mimicing the serialization of Rust enums.
+type IcaExampleContractQuery struct {
+	InterchainAccountAddress InterchainAccountAddressQuery `json:"interchain_account_address,omitempty"`
+}
+
+type DepositorContractQuery struct {
+	ClockAddress ClockAddressQuery `json:"clock_address"`
+}
+
+type InterchainAccountAddressQuery struct {
+	InterchainAccountId string `json:"interchain_account_id"`
+	ConnectionId        string `json:"connection_id"`
+}
+
+type ClockAddressQuery struct{}
+
+type ClockQueryResponse struct {
+	Data string `json:"data"`
+}
+
+// A query response from the Neutron contract. Note that when
+// interchaintest returns query responses, it does so in the form
+// `{"data": <RESPONSE>}`, so we need this outer data key, which is
+// not present in the neutron contract, to properly deserialze.
+type QueryResponse struct {
+	Data InterchainAccountAddressQueryResponse `json:"data"`
+}
+
+type InterchainAccountAddressQueryResponse struct {
+	InterchainAccountAddress string `json:"interchain_account_address"`
+}
+
 // Sets custom fields for the Neutron genesis file that interchaintest isn't aware of by default.
 //
 // soft_opt_out_threshold - the bottom `soft_opt_out_threshold`
@@ -88,7 +123,7 @@ func TestICS(t *testing.T) {
 	ctx := context.Background()
 
 	// Chain Factory
-	cf := ibctest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*ibctest.ChainSpec{
+	cf := ibctest.NewBuiltinChainFactory(zaptest.NewLogger(t, zaptest.Level(zap.WarnLevel)), []*ibctest.ChainSpec{
 		{Name: "gaia", Version: "v9.1.0", ChainConfig: ibc.ChainConfig{GasAdjustment: 1.5}},
 		{
 			ChainConfig: ibc.ChainConfig{
@@ -148,7 +183,7 @@ func TestICS(t *testing.T) {
 	client, network := ibctest.DockerSetup(t)
 	r := ibctest.NewBuiltinRelayerFactory(
 		ibc.CosmosRly,
-		zaptest.NewLogger(t, zaptest.Level(zap.WarnLevel)),
+		zaptest.NewLogger(t, zaptest.Level(zap.DebugLevel)),
 		relayer.CustomDockerImage("ghcr.io/cosmos/relayer", "v2.3.1", rly.RlyDefaultUidGid),
 		relayer.RelayerOptionExtraStartFlags{Flags: []string{"-d", "--log-format", "console"}},
 	).Build(t, client, network)
@@ -259,15 +294,15 @@ func TestICS(t *testing.T) {
 		require.NoError(t, err, "failed to store neutron ICA contract")
 
 		msg := InstantiateMsg{
-			// StAtomReceiver: WeightedReceiver{
-			// 	Amount:  10,
-			// 	Address: "st_atom_addr",
-			// },
-			// AtomReceiver: WeightedReceiver{
-			// 	Amount:  10,
-			// 	Address: "atom_addr",
-			// },
-			ClockAddress: "clock_addr",
+			StAtomReceiver: WeightedReceiver{
+				Amount:  10,
+				Address: "st_atom_addr",
+			},
+			AtomReceiver: WeightedReceiver{
+				Amount:  10,
+				Address: "atom_addr",
+			},
+			ClockAddress: "clock_contract_addr",
 		}
 
 		str, err := json.Marshal(msg)
@@ -277,7 +312,14 @@ func TestICS(t *testing.T) {
 
 		require.NoError(t, err, "failed to instantiate ICA contract: ", err)
 
-		print("\n\ncontract: ", address)
+		var response ClockQueryResponse
+		err = cosmosNeutron.QueryContract(ctx, address, DepositorContractQuery{
+			ClockAddress: ClockAddressQuery{},
+		}, &response)
+		require.NoError(t, err, "failed to query clock address")
+		respStr, err := json.Marshal(response)
+		require.NoError(t, err, "failed to marshall clock address response")
+		print("\n query resp: ", string(respStr))
 	})
 
 }
