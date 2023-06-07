@@ -40,16 +40,30 @@ type IcaExampleContractQuery struct {
 	InterchainAccountAddress InterchainAccountAddressQuery `json:"interchain_account_address,omitempty"`
 }
 
-type DepositorContractQuery struct {
-	ClockAddress ClockAddressQuery `json:"clock_address"`
-}
-
 type InterchainAccountAddressQuery struct {
 	InterchainAccountId string `json:"interchain_account_id"`
 	ConnectionId        string `json:"connection_id"`
 }
 
+type DepositorContractQuery struct {
+	ClockAddress ClockAddressQuery `json:"clock_address"`
+}
+
+type StAtomWeightedReceiverQuery struct {
+	StAtomReceiver StAtomReceiverQuery `json:"st_atom_receiver"`
+}
+
+type AtomWeightedReceiverQuery struct {
+	AtomReceiver AtomReceiverQuery `json:"atom_receiver"`
+}
+
 type ClockAddressQuery struct{}
+type StAtomReceiverQuery struct{}
+type AtomReceiverQuery struct{}
+
+type WeightedReceiverResponse struct {
+	Data WeightedReceiver `json:"data"`
+}
 
 type ClockQueryResponse struct {
 	Data string `json:"data"`
@@ -287,22 +301,25 @@ func TestICS(t *testing.T) {
 	gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
 	_, _ = gaiaUser, strideUser
 
-	t.Run("depositor", func(t *testing.T) {
+	t.Run("instantiate depositor", func(t *testing.T) {
 		// Store and instantiate the Neutron ICA example contract. The
 		// wasm file is placed in `wasms/` by the `just test` command.
 		codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/stride_depositor.wasm")
 		require.NoError(t, err, "failed to store neutron ICA contract")
+		stAtomWeightedReceiver := WeightedReceiver{
+			Amount:  10,
+			Address: "st_atom_addr",
+		}
+		atomWeightedReceiver := WeightedReceiver{
+			Amount:  10,
+			Address: "atom_addr",
+		}
+		clockContractAddress := "clock_contract_address"
 
 		msg := InstantiateMsg{
-			StAtomReceiver: WeightedReceiver{
-				Amount:  10,
-				Address: "st_atom_addr",
-			},
-			AtomReceiver: WeightedReceiver{
-				Amount:  10,
-				Address: "atom_addr",
-			},
-			ClockAddress: "clock_contract_addr",
+			StAtomReceiver: stAtomWeightedReceiver,
+			AtomReceiver:   atomWeightedReceiver,
+			ClockAddress:   clockContractAddress,
 		}
 
 		str, err := json.Marshal(msg)
@@ -312,14 +329,31 @@ func TestICS(t *testing.T) {
 
 		require.NoError(t, err, "failed to instantiate ICA contract: ", err)
 
-		var response ClockQueryResponse
-		err = cosmosNeutron.QueryContract(ctx, address, DepositorContractQuery{
-			ClockAddress: ClockAddressQuery{},
-		}, &response)
-		require.NoError(t, err, "failed to query clock address")
-		respStr, err := json.Marshal(response)
-		require.NoError(t, err, "failed to marshall clock address response")
-		print("\n query resp: ", string(respStr))
+		t.Run("query instantiated clock", func(t *testing.T) {
+			var response ClockQueryResponse
+			err = cosmosNeutron.QueryContract(ctx, address, DepositorContractQuery{
+				ClockAddress: ClockAddressQuery{},
+			}, &response)
+			require.NoError(t, err, "failed to query clock address")
+			expectedAddrJson, _ := json.Marshal(clockContractAddress)
+			require.Equal(t, string(expectedAddrJson), response.Data)
+		})
+
+		t.Run("query instantiated weighted receivers", func(t *testing.T) {
+			var stAtomReceiver WeightedReceiverResponse
+			err = cosmosNeutron.QueryContract(ctx, address, StAtomWeightedReceiverQuery{
+				StAtomReceiver: StAtomReceiverQuery{},
+			}, &stAtomReceiver)
+			require.NoError(t, err, "failed to query stAtom weighted receiver")
+			require.Equal(t, stAtomWeightedReceiver, stAtomReceiver.Data)
+
+			var atomReceiver WeightedReceiverResponse
+			err = cosmosNeutron.QueryContract(ctx, address, AtomWeightedReceiverQuery{
+				AtomReceiver: AtomReceiverQuery{},
+			}, &atomReceiver)
+			require.NoError(t, err, "failed to query atom weighted receiver")
+			require.Equal(t, atomWeightedReceiver, atomReceiver.Data)
+		})
 	})
 
 }
