@@ -16,12 +16,20 @@ impl<'a, T> FIFOQueue<'a, T>
 where
     T: Serialize + DeserializeOwned + PrimaryKey<'a>,
 {
+    pub const fn new(forward_namespace: &'a str, reverse_namespace: &'a str) -> Self {
+        Self(ReversableMap::new(forward_namespace, reverse_namespace))
+    }
+
     /// Enqueue's an element in the queue. The timestamp of the
     /// provided block is used as the elements entry time.
     ///
     /// - O(1) over the number of elements in the queue.
     /// - O(N) over the number of times that an element has been added
     ///   to the queue in the current block.
+    ///
+    /// Using the block timestamp isn't strictly nesecary (which is
+    /// what gives us the O(N) case) (see cw-storage-plus's
+    /// src/deque.rs), though it adds a fair bit of complexity.
     pub fn enqueue(&self, storage: &mut dyn Storage, block: &BlockInfo, t: T) -> StdResult<()> {
         let mut time = block.time.nanos();
         while self.0.has(storage, time) {
@@ -49,6 +57,13 @@ where
     pub fn remove(&self, storage: &mut dyn Storage, t: T) -> StdResult<()> {
         self.0.reverse().remove(storage, t)
     }
+
+    /// Returns true if `t` is in the queue, false otherwise.
+    pub fn has(&self, storage: &dyn Storage, t: T) -> bool {
+        self.0.reverse().has(storage, t)
+    }
 }
 
 mod reversable_map;
+#[cfg(test)]
+mod tests;

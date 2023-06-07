@@ -1,0 +1,30 @@
+[package]
+name = "covenant-clock"
+authors = ["ekez <ekez@withoutdoing.com>"]
+description = "A clock that advances the covenant state machine."
+edition = { workspace = true }
+license = { workspace = true }
+rust-version = { workspace = true }
+version = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+# disables #[entry_point] (i.e. instantiate/execute/query) export
+library = []
+
+[dependencies]
+cosmwasm-schema = { workspace = true }
+cosmwasm-std = { workspace = true }
+covenant-clock-derive = { workspace = true }
+cw-fifo = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw2 = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+cw-multi-test = { workspace = true }

@@ -1,7 +1,7 @@
 [workspace]
 members = [
   "packages/*",
-  # "contracts/*",
+  "contracts/*",
 ]
 
 [workspace.package]
@@ -22,25 +22,26 @@ panic            = 'abort'
 rpath            = false
 
 [workspace.dependencies]
-polytone       = { path = "packages/polytone" }
-polytone-proxy = { path = "contracts/main/proxy" }
-polytone-note  = { path = "contracts/main/note" }
-polytone-voice = { path = "contracts/main/voice" }
+cosmwasm-schema = "1.2"
+cosmwasm-std    = { version = "1.2", features = ["ibc3"] }
+cw-storage-plus = "1.0"
+cw-utils        = "1.0"
+cw2             = "1.0"
 
-cosmwasm-schema = "1.2.1"
-cosmwasm-std    = { version = "1.2.4", features = ["ibc3"] }
-cw-storage-plus = "1.0.1"
-cw-utils        = "1.0.1"
-cw2             = "1.0.1"
+serde     = { version = "1", default-features = false, features = ["derive"] }
+thiserror = "1"
 
-serde     = { version = "1.0.145", default-features = false, features = ["derive"] }
-thiserror = "1.0.31"
 # the sha2 version here is the same as the one used by
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
 # updated. to find cosmwasm_std's sha function:
 # ```cargo tree --package cosmwasm-std```
 sha2 = "0.10.6"
 
+covenant-clock-derive = { path = "packages/clock-derive" }
+cw-fifo = { path = "packages/cw-fifo" }
+
+covenant-clock = { path = "contracts/clock" }
+
 # dev-dependencies
-cw-multi-test   = "0.16.2"
-anyhow          = { version = "1.0.51" }
+cw-multi-test   = "0.16"
+anyhow          = "1"
