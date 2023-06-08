@@ -14,6 +14,7 @@ pub const NATIVE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("native_atom_
 // store the clock address to verify calls
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 
+pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
 // ICA
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");

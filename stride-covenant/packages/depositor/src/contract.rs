@@ -32,7 +32,7 @@ use neutron_sdk::{
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, ICS_PORT_ID,
+    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, ICS_PORT_ID, ICA_ADDRESS,
 };
 
 // Default timeout for SubmitTX is two weeks
@@ -104,20 +104,13 @@ pub fn execute(
 
 
 fn try_tick(deps: DepsMut<NeutronQuery>, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-    // validate called is clock
-
-    // retrieve the existing interchain account (s?)
-    let gaia_key = ICS_PORT_ID.load(deps.storage)?;
-    let gaia_interchain_account = INTERCHAIN_ACCOUNTS.load(
-        deps.as_ref().storage, 
-        gaia_key
-    )?;
-    match gaia_interchain_account {
+    // TODO: validate caller is clock
+    let ica_address = ICA_ADDRESS.load(deps.storage);
+    match ica_address {
+        Ok(gaia_account_address) => try_execute_transfers(deps, info, gaia_account_address),
         // if it's the first tick and no ica exist, create an ica
-        None => try_register_gaia_ica(deps, env),
         // with an existing ica, proceed to transfers
-        Some((_, gaia_account_address)
-        ) => try_execute_transfers(deps, info, gaia_account_address),
+        _ => try_register_gaia_ica(deps, env),
     }
 }
 
@@ -125,7 +118,7 @@ fn try_register_gaia_ica(
     deps: DepsMut<NeutronQuery>, 
     env: Env,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let gaia_acc_id = String::from("gaia-acc");
+    let gaia_acc_id = String::from("test");
     let ics_connection_id = String::from("connection-1");
     let register = NeutronMsg::register_interchain_account(
         ics_connection_id, 
@@ -213,13 +206,24 @@ pub fn query_depositor_interchain_address(
     deps: Deps<NeutronQuery>,
     env: Env,
 ) -> NeutronResult<Binary> {
+    let addr = ICA_ADDRESS.load(deps.storage);
 
-    let gaia_acc_id = String::from("gaia-acc");
-    let ics_connection_id = String::from("connection-1");
+    match addr {
+        Ok(val) => {
+            let address_response = QueryInterchainAccountAddressResponse {
+                interchain_account_address: val,
+            };
+            Ok(to_binary(&address_response)?)
+        },
+        Err(_) => Err(NeutronError::Std(StdError::not_found("no ica stored"))),
+    }
+    
+    // let gaia_acc_id = String::from("gaia-acc");
+    // let ics_connection_id = String::from("connection-1");
     // let account_key = get_port_id(env.contract.address.as_str(), &gaia_acc_id);
     // let interchain_account_addr = INTERCHAIN_ACCOUNTS.load(deps.storage, account_key)?;
     
-    query_interchain_address(deps, env, gaia_acc_id, ics_connection_id)
+    // query_interchain_address(deps, env, gaia_acc_id, ics_connection_id)
     // let query = NeutronQuery::InterchainAccountAddress {
     //     owner_address: env.contract.address.to_string(),
     //     interchain_account_id: gaia_acc_id,
@@ -331,10 +335,11 @@ fn sudo_open_ack(
             deps.storage,
             port_id,
             &Some((
-                parsed_version.address,
-                parsed_version.controller_connection_id,
+                parsed_version.clone().address,
+                parsed_version.clone().controller_connection_id,
             )),
         )?;
+        ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
         return Ok(Response::default());
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))

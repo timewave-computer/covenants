@@ -45,11 +45,21 @@ type InterchainAccountAddressQuery struct {
 	ConnectionId        string `json:"connection_id"`
 }
 
-type DepositorICAContractQuery struct {
-	DepositorInterchainAccountAddress DepositorInterchainAccountAddressQuery `json:"depositor_interchain_account_address,omitempty"`
+type QueryResponse struct {
+	Data InterchainAccountAddressQueryResponse `json:"data"`
 }
 
-type DepositorInterchainAccountAddressQuery struct{}
+type ICAQueryResponse struct {
+	Data DepositorInterchainAccountAddressQueryResponse `json:"data"`
+}
+
+type InterchainAccountAddressQueryResponse struct {
+	InterchainAccountAddress string `json:"interchain_account_address"`
+}
+
+type DepositorICAAddressQuery struct {
+	DepositorInterchainAccountAddress DepositorInterchainAccountAddressQuery `json:"depositor_interchain_account_address"`
+}
 
 type DepositorContractQuery struct {
 	ClockAddress ClockAddressQuery `json:"clock_address"`
@@ -66,6 +76,7 @@ type AtomWeightedReceiverQuery struct {
 type ClockAddressQuery struct{}
 type StAtomReceiverQuery struct{}
 type AtomReceiverQuery struct{}
+type DepositorInterchainAccountAddressQuery struct{}
 
 type WeightedReceiverResponse struct {
 	Data WeightedReceiver `json:"data"`
@@ -79,13 +90,6 @@ type ClockQueryResponse struct {
 // interchaintest returns query responses, it does so in the form
 // `{"data": <RESPONSE>}`, so we need this outer data key, which is
 // not present in the neutron contract, to properly deserialze.
-type QueryResponse struct {
-	Data InterchainAccountAddressQueryResponse `json:"data"`
-}
-
-type InterchainAccountAddressQueryResponse struct {
-	InterchainAccountAddress string `json:"interchain_account_address"`
-}
 
 type DepositorInterchainAccountAddressQueryResponse struct {
 	DepositorInterchainAccountAddress string `json:"depositor_interchain_account_address"`
@@ -365,18 +369,20 @@ func TestICS(t *testing.T) {
 		})
 
 		t.Run("first tick instantiates ICA", func(t *testing.T) {
+			// should remain constant
+			connectionId := "connection-1"
 			cmd = []string{"neutrond", "tx", "wasm", "execute", address,
 				`{"tick":{}}`,
 				"--from", neutronUser.KeyName,
 				"--gas-prices", "0.0untrn",
-				"--gas-adjustment", `10.5`,
+				"--gas-adjustment", `1.5`,
 				"--output", "json",
 				"--home", "/var/cosmos-chain/neutron-2",
 				"--node", neutron.GetRPCAddress(),
 				"--home", neutron.HomeDir(),
 				"--chain-id", neutron.Config().ChainID,
 				"--from", "faucet",
-				"--gas", "100.0untrn",
+				"--gas", "auto",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
@@ -390,30 +396,31 @@ func TestICS(t *testing.T) {
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
-			connections, err := r.GetConnections(ctx, eRep, "neutron-2")
-			require.NoError(t, err, "failed to get neturon-2 IBC connections from relayer")
-			var connectionId string
-			for _, connection := range connections {
-				for _, version := range connection.Versions {
-					if version.String() != "transfer" {
-						connectionId = connection.ID
-						break
-					}
-				}
-			}
-			print("\n connection id : ", connectionId, " \n")
 			// Finally, we query the contract for the address of the
 			// account on Atom.
 			var response QueryResponse
 			err = cosmosNeutron.QueryContract(ctx, address, IcaExampleContractQuery{
 				InterchainAccountAddress: InterchainAccountAddressQuery{
-					InterchainAccountId: "gaia-acc",
+					InterchainAccountId: "test",
 					ConnectionId:        connectionId,
 				},
 			}, &response)
-			print(string(response.Data.InterchainAccountAddress))
 			require.NoError(t, err, "failed to query ICA account address")
-			require.NotEmpty(t, response.Data.InterchainAccountAddress, "an account should have been created")
+			require.NotEmpty(t, response.Data.InterchainAccountAddress)
+
+			var addrResponse QueryResponse
+			err = cosmosNeutron.QueryContract(ctx, address, DepositorICAAddressQuery{
+				DepositorInterchainAccountAddress: DepositorInterchainAccountAddressQuery{},
+			}, &addrResponse)
+			require.NoError(t, err, "failed to query ICA account address")
+			require.NotEmpty(t, addrResponse.Data.InterchainAccountAddress)
+
+			// validate that querying an address via neutron query
+			// and by retrieving it from store is the same
+			require.EqualValues(t,
+				response.Data.InterchainAccountAddress,
+				addrResponse.Data.InterchainAccountAddress,
+			)
 		})
 	})
 
