@@ -1,14 +1,19 @@
-use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
+use cosmos_sdk_proto::cosmos::base::v1beta1;
 use cosmos_sdk_proto::cosmos::staking::v1beta1::{
-    MsgDelegate, MsgDelegateResponse, MsgUndelegate, MsgUndelegateResponse,
+    MsgDelegateResponse, MsgUndelegateResponse,
 };
+use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdError, StdResult, SubMsg, Addr,
+    StdError, StdResult, SubMsg, Addr, Coin, Uint128,
 };
 use cw2::set_contract_version;
+use neutron_sdk::bindings::types::ProtobufAny;
+use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
+use neutron_sdk::query::min_ibc_fee::query_min_ibc_fee;
+use neutron_sdk::sudo::msg::RequestPacketTimeoutHeight;
 use prost::Message;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -19,25 +24,27 @@ use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
         query::{NeutronQuery, QueryInterchainAccountAddressResponse},
-        types::ProtobufAny,
     },
     interchain_txs::helpers::{
         decode_acknowledgement_response, decode_message_response, get_port_id,
     },
-    query::min_ibc_fee::query_min_ibc_fee,
     sudo::msg::{RequestPacket, SudoMsg},
     NeutronError, NeutronResult,
 };
 
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
-    save_reply_payload, save_sudo_payload, AcknowledgementResult, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, ICS_PORT_ID, ICA_ADDRESS,
+    save_sudo_payload, AcknowledgementResult,
+    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, ICS_PORT_ID, ICA_ADDRESS, SudoPayload, save_reply_payload,
 };
 
 // Default timeout for SubmitTX is two weeks
 const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
+const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const FEE_DENOM: &str = "untrn";
+const ATOM_DENOM: &str = "uatom";
+const DEFAULT_CONNECTION: &str = "connection-1";
+const IBC_CONNECTION: &str = "connection-0";
 
 const CONTRACT_NAME: &str = concat!("crates.io:neutron-sdk__", env!("CARGO_PKG_NAME"));
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -52,6 +59,12 @@ struct OpenAckVersion {
     encoding: String,
     tx_type: String,
 }
+
+// #[derive(Serialize, Deserialize)]
+// pub enum SudoPayload {
+//     HandlerPayload1(Type1),
+//     HandlerPayload2(Type2),
+// }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -85,7 +98,7 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn execute(
-    deps: DepsMut<NeutronQuery>,
+    mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -103,11 +116,11 @@ pub fn execute(
 }
 
 
-fn try_tick(deps: DepsMut<NeutronQuery>, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // TODO: validate caller is clock
     let ica_address = ICA_ADDRESS.load(deps.storage);
     match ica_address {
-        Ok(gaia_account_address) => try_execute_transfers(deps, info, gaia_account_address),
+        Ok(gaia_account_address) => try_execute_transfers(deps, env, info, gaia_account_address),
         // if it's the first tick and no ica exist, create an ica
         // with an existing ica, proceed to transfers
         _ => try_register_gaia_ica(deps, env),
@@ -115,7 +128,7 @@ fn try_tick(deps: DepsMut<NeutronQuery>, env: Env, info: MessageInfo) -> Neutron
 }
 
 fn try_register_gaia_ica(
-    deps: DepsMut<NeutronQuery>, 
+    mut deps: DepsMut, 
     env: Env,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = String::from("test");
@@ -133,7 +146,7 @@ fn try_register_gaia_ica(
 }
 
 fn execute_register_ica(
-    deps: DepsMut<NeutronQuery>,
+    deps: DepsMut,
     env: Env,
     connection_id: String,
     interchain_account_id: String,
@@ -147,26 +160,168 @@ fn execute_register_ica(
 }
 
 fn try_execute_transfers(
-    deps: DepsMut<NeutronQuery>, 
+    mut deps: DepsMut,
+    env: Env,
     info: MessageInfo, 
     gaia_account_address: String
 ) -> NeutronResult<Response<NeutronMsg>> {
     // validate that tick was triggered by the authorized clock
-    let clock = CLOCK_ADDRESS.load(deps.as_ref().storage)?;
-    if info.sender != clock {
-        return Err(NeutronError::Std(
-            StdError::GenericErr { msg: "Unauthorized".to_string() })
-        )
+    // validate whether ICA has enough atom?
+
+    let stride_atom_receiver = STRIDE_ATOM_RECEIVER.load(deps.branch().storage)?;
+    let native_atom_receiver = NATIVE_ATOM_RECEIVER.load(deps.branch().storage)?;
+    
+    // match bal {
+        // Ok(coin) => {
+    // validate depositor ICA has enough atoms to perform both transfers?
+    
+    // 1. transfer 1/2 of atoms to liquid-staker module
+
+    // // 2. transfer 1/2 of atoms from ICA to liquidity-pooler module
+
+    // let fee = min_ntrn_ibc_fee(query_min_ibc_fee(deps.as_ref())?.min_fee);
+    let fee = IbcFee {
+        recv_fee: vec![], // must be empty
+        ack_fee: vec![Coin::new(1000u128, "untrn")],
+        timeout_fee: vec![Coin::new(1000u128, "untrn")],
+    };
+
+    let ls_coin = v1beta1::Coin {
+        denom: ATOM_DENOM.to_string(),
+        amount: stride_atom_receiver.amount.to_string(),
+    };
+    let lp_coin = v1beta1::Coin {
+        denom: ATOM_DENOM.to_string(),
+        amount: native_atom_receiver.amount.to_string(),
+    };
+
+    let ls_msg = MsgTransfer {
+        source_port: "transfer".to_string(),
+        source_channel: "channel-0".to_string(),
+        token: Some(ls_coin),
+        sender: gaia_account_address.clone(),
+        receiver: stride_atom_receiver.address,
+        timeout_height: None,
+        timeout_timestamp: 0,
+    };
+
+    
+    let lp_msg = MsgTransfer {
+        source_port: "transfer".to_string(),
+        source_channel: "channel-0".to_string(),
+        token: Some(lp_coin),
+        sender: gaia_account_address.clone(),
+        receiver: native_atom_receiver.address,
+        timeout_height: None,
+        timeout_timestamp: 0,
+    };
+
+    // Serialize the Transfer messages 
+    let mut ls_buf = Vec::new();
+    ls_buf.reserve(ls_msg.encoded_len());
+
+    if let Err(e) = ls_msg.encode(&mut ls_buf) {
+        return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
     }
 
-    let stride_atom_receiver = STRIDE_ATOM_RECEIVER.load(deps.storage)?;
-    let native_atom_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
+    let mut lp_buf = Vec::new();
+    lp_buf.reserve(lp_msg.encoded_len());
 
-    // receiving a tick means depositor is ready to attempt to:
-    // 1. transfer 1/2 of atoms to liquid-staker module
-    // 2. transfer 1/2 of atoms from ICA to liquidity-pooler module
+    if let Err(e) = lp_msg.encode(&mut lp_buf) {
+        return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
+    }
 
-    Ok(Response::default())
+    let ls_protobuf = ProtobufAny {
+        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+        value: Binary::from(ls_buf),
+    };
+    let lp_protobuf = ProtobufAny {
+        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+        value: Binary::from(lp_buf),
+    };
+
+    let ls_cosmos_msg = NeutronMsg::submit_tx(
+        DEFAULT_CONNECTION.to_string(),
+        "test".to_string(),
+        vec![ls_protobuf],
+        "".to_string(),
+        DEFAULT_TIMEOUT_SECONDS,
+        fee.clone()
+    );
+    let lp_cosmos_msg = NeutronMsg::submit_tx(
+        DEFAULT_CONNECTION.to_string(),
+        "test".to_string(),
+        vec![lp_protobuf],
+        "".to_string(),
+        DEFAULT_TIMEOUT_SECONDS,
+        fee
+    );
+
+    let ls_submsg = msg_with_sudo_callback(
+        deps.branch(), 
+        ls_cosmos_msg,
+        SudoPayload {
+            port_id: get_port_id(
+                env.contract.address.to_string(), 
+                "test".to_string(),
+            ),
+            // Here you can store some information about the transaction to help you parse
+            // the acknowledgement later.
+            message: "ls transfer".to_string(),  
+        },
+    )?;
+
+    let lp_submsg = msg_with_sudo_callback(
+        deps,
+        lp_cosmos_msg,
+        SudoPayload {
+            port_id: get_port_id(
+                env.contract.address.to_string(), 
+                "test".to_string()
+            ),
+            // Here you can store some information about the transaction to help you parse
+            // the acknowledgement later.
+            message: "lp transfer".to_string(),  
+        },
+    )?;
+
+    Ok(Response::default()
+        .add_submessages(vec![ls_submsg, lp_submsg])
+    )
+        // },
+        // Err(_) => return Err(NeutronError::from(StdError::generic_err("failed to query atom balance on depositor"))),
+    // }
+
+}
+
+fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
+    deps: DepsMut,
+    msg: C,
+    payload: SudoPayload,
+) -> StdResult<SubMsg<T>> {
+    save_reply_payload(deps.storage, payload)?;
+    Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
+}
+
+// fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
+//     deps: DepsMut<NeutronQuery>,
+//     msg: C,
+//     payload: SudoPayload,
+// ) -> StdResult<SubMsg<T>> {
+//     let id = save_reply_payload(deps.storage, payload)?;
+//     Ok(SubMsg::reply_on_success(msg, id))
+// }
+
+pub fn register_transfers_query(
+    connection_id: String,
+    recipient: String,
+    update_period: u64,
+    min_height: Option<u64>,
+) -> NeutronResult<Response<NeutronMsg>> {
+    let msg =
+        new_register_transfers_query_msg(connection_id, recipient, update_period, min_height)?;
+
+    Ok(Response::new().add_message(msg))
 }
 
 fn try_handle_received() -> NeutronResult<Response<NeutronMsg>> {
