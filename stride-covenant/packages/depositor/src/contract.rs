@@ -118,13 +118,94 @@ pub fn execute(
 
 fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // TODO: validate caller is clock
+    // TODO: introduce some state variable to determine next action
     let ica_address = ICA_ADDRESS.load(deps.storage);
     match ica_address {
-        Ok(gaia_account_address) => try_execute_transfers(deps, env, info, gaia_account_address),
+        Ok(gaia_account_address) => {
+            let atom_bal = deps.querier.query_balance(
+                env.clone().contract.address,
+                ATOM_DENOM,
+            )?;
+            // if atom_bal.amount.is_zero() {
+            try_receive_atom_from_ica(deps, env, info, gaia_account_address)
+            // } 
+            // else {
+            //     try_execute_transfers(deps, env, info, gaia_account_address)
+            // }
+        },
         // if it's the first tick and no ica exist, create an ica
         // with an existing ica, proceed to transfers
         _ => try_register_gaia_ica(deps, env),
     }
+}
+
+fn try_receive_atom_from_ica(
+    mut deps: DepsMut,
+    env: Env,
+    info: MessageInfo, 
+    gaia_account_address: String
+) -> NeutronResult<Response<NeutronMsg>> {
+    let (gaia_ica, connection_id) = get_ica(deps.as_ref(), &env, &"test")?;
+
+    let fee = IbcFee {
+        recv_fee: vec![], // must be empty
+        ack_fee: vec![Coin::new(1000u128, "untrn")],
+        timeout_fee: vec![Coin::new(1000u128, "untrn")],
+    };
+
+    let coin = v1beta1::Coin {
+        denom: ATOM_DENOM.to_string(),
+        amount: Uint128::new(20).to_string(),
+    };
+
+    let msg = MsgTransfer {
+        source_port: "transfer".to_string(),
+        source_channel: "channel-0".to_string(),
+        token: Some(coin),
+        sender: gaia_account_address.clone(),
+        receiver: env.contract.address.to_string(),
+        timeout_height: None,
+        timeout_timestamp: 0,
+    };
+
+
+    // Serialize the Transfer messages 
+    let mut buf = Vec::new();
+    buf.reserve(msg.encoded_len());
+
+    if let Err(e) = msg.encode(&mut buf) {
+        return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
+    }
+
+    let protobuf = ProtobufAny {
+        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+        value: Binary::from(buf),
+    };
+
+    let cosmos_msg = NeutronMsg::submit_tx(
+        connection_id,
+        "test".to_string(),
+        vec![protobuf],
+        "".to_string(),
+        DEFAULT_TIMEOUT_SECONDS,
+        fee.clone()
+    );
+
+    let submsg = msg_with_sudo_callback(
+        deps.branch(), 
+        cosmos_msg,
+        SudoPayload {
+            port_id: get_port_id(
+                env.contract.address.to_string(), 
+                "test".to_string(),
+            ),
+            message: "ica transfer".to_string(),  
+        },
+    )?;
+
+    Ok(Response::default()
+        .add_submessage(submsg)
+    )
 }
 
 fn try_register_gaia_ica(
@@ -204,7 +285,6 @@ fn try_execute_transfers(
         timeout_height: None,
         timeout_timestamp: 0,
     };
-
     
     let lp_msg = MsgTransfer {
         source_port: "transfer".to_string(),
@@ -234,14 +314,14 @@ fn try_execute_transfers(
     let ls_protobuf = ProtobufAny {
         type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
         value: Binary::from(ls_buf),
-    };
+    };  
     let lp_protobuf = ProtobufAny {
         type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
         value: Binary::from(lp_buf),
     };
 
     let ls_cosmos_msg = NeutronMsg::submit_tx(
-        DEFAULT_CONNECTION.to_string(),
+        IBC_CONNECTION.to_string(),
         "test".to_string(),
         vec![ls_protobuf],
         "".to_string(),
@@ -249,7 +329,7 @@ fn try_execute_transfers(
         fee.clone()
     );
     let lp_cosmos_msg = NeutronMsg::submit_tx(
-        DEFAULT_CONNECTION.to_string(),
+        IBC_CONNECTION.to_string(),
         "test".to_string(),
         vec![lp_protobuf],
         "".to_string(),

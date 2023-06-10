@@ -377,16 +377,6 @@ func TestICS(t *testing.T) {
 		})
 
 		var addrResponse QueryResponse
-		gaiaChannels, err := r.GetChannels(ctx, eRep, "gaia-1")
-		require.NoError(t, err, "failed to get gaia-1 IBC channels from relayer")
-		gaiaChans, _ := json.Marshal(gaiaChannels)
-		print(string(gaiaChans))
-
-		neutronChannels, err := r.GetChannels(ctx, eRep, "neutron-2")
-		require.NoError(t, err, "failed to get neutron-2 IBC channels from relayer")
-		neutronChans, _ := json.Marshal(neutronChannels)
-		print(string(neutronChans))
-
 		// TODO: determine gaia-neutron channels for ibc transfers
 		t.Run("first tick instantiates ICA", func(t *testing.T) {
 			// should remain constant
@@ -459,7 +449,39 @@ func TestICS(t *testing.T) {
 			require.EqualValues(t, 20, atomBal)
 		})
 
-		t.Run("second tick transfers", func(t *testing.T) {
+		t.Run("second tick ibc transfers atom from ICA account to neutron", func(t *testing.T) {
+			cmd = []string{"neutrond", "tx", "wasm", "execute", address,
+				`{"tick":{}}`,
+				"--from", neutronUser.KeyName,
+				"--gas-prices", "0.0untrn",
+				"--gas-adjustment", `1.5`,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--home", neutron.HomeDir(),
+				"--chain-id", neutron.Config().ChainID,
+				"--from", "faucet",
+				"--gas", "50000.0untrn",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			_, _, err = neutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			atomICABal, err := atom.GetBalance(ctx, addrResponse.Data.InterchainAccountAddress, "uatom")
+			require.NoError(t, err, "failed to query ICA balance")
+			require.Equal(t, 0, atomICABal)
+
+			neutronAtomBal, err := neutron.GetBalance(ctx, address, "uatom")
+			require.NoError(t, err, "failed to query neutron atom balance")
+			require.Equal(t, 20, neutronAtomBal)
+		})
+
+		t.Run("third tick transfers to LS and LP modules", func(t *testing.T) {
 			initLiquidStakerAtomBal, err := neutron.GetBalance(ctx, lsAddress, "uatom")
 			require.NoError(t, err, "failed to get LSer balance")
 			initLiquidityPoolerAtomBal, err := neutron.GetBalance(ctx, lpAddress, "uatom")
@@ -479,7 +501,7 @@ func TestICS(t *testing.T) {
 				"--home", neutron.HomeDir(),
 				"--chain-id", neutron.Config().ChainID,
 				"--from", "faucet",
-				"--gas", "100.0untrn",
+				"--gas", "50000.0untrn",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
@@ -493,9 +515,9 @@ func TestICS(t *testing.T) {
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
-			atomICABal, err := atom.GetBalance(ctx, addrResponse.Data.InterchainAccountAddress, "uatom")
-			require.NoError(t, err, "failed to ICA balance")
-			require.Equal(t, 0, atomICABal)
+			depositorAtomBal, err := neutron.GetBalance(ctx, address, "uatom")
+			require.NoError(t, err, "failed to query depositor atom balance")
+			require.Equal(t, 0, depositorAtomBal)
 
 			// query respective accounts and validate they received the funds
 			liquidStakerAtomBal, err := cosmosNeutron.GetBalance(ctx, lsAddress, "uatom")
