@@ -20,6 +20,16 @@ pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
 pub const ICS_PORT_ID: Item<String> = Item::new("ics_port_id");
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ContractState {
+    INSTANTIATED,
+    ICA_CREATED,
+    RECEIVED_FUNDS,
+    COMPLETE,
+}
+
+pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
 /// SudoPayload is a type that stores information about a transaction that we try to execute
 /// on the host chain. This is a type introduced for our convenience.
