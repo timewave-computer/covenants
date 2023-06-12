@@ -472,6 +472,31 @@ func TestICS(t *testing.T) {
 			require.EqualValues(t, 20, atomBal)
 		})
 
+		t.Run("multisig test ibc transfer to neutron user", func(t *testing.T) {
+			tx, err := atom.SendIBCTransfer(
+				ctx,
+				"channel-0",
+				gaiaUser.KeyName,
+				ibc.WalletAmount{
+					Address: neutronUser.Address,
+					Amount:  20,
+					Denom:   atom.Config().Denom,
+				},
+				ibc.TransferOptions{
+					Timeout: &ibc.IBCTimeout{
+						NanoSeconds: 999999,
+						Height:      999999,
+					},
+					Memo: "hi",
+				})
+			require.NoError(t, err, "failed to ibc transfer from gaia to neutron")
+			print(string(tx.Packet.Data))
+
+			neutronBal, err := neutron.GetBalance(ctx, address, atom.Config().Denom)
+			require.NoError(t, err, "failed to ibc transfer to neutron")
+			require.EqualValues(t, 20, neutronBal)
+		})
+
 		t.Run("fund depositor contract with some neutron", func(t *testing.T) {
 			err := neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: address,
@@ -505,11 +530,12 @@ func TestICS(t *testing.T) {
 				"-y",
 			}
 
-			stdout, _, err := neutron.Exec(ctx, cmd, nil)
+			stdout, stderr, err := neutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
-			print("\n ", string(stdout))
+			print("\n stdout: ", string(stdout))
+			print("\n stderr: ", string(stderr), "\n")
 
-			err = testutil.WaitForBlocks(ctx, 20, atom, neutron)
+			err = testutil.WaitForBlocks(ctx, 100000, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
@@ -519,6 +545,29 @@ func TestICS(t *testing.T) {
 			neutronAtomBal, err := neutron.GetBalance(ctx, address, atom.Config().Denom)
 			require.NoError(t, err, "failed to query neutron atom balance")
 			require.Equal(t, int64(20), neutronAtomBal)
+		})
+
+		t.Run("reading errors queue", func(t *testing.T) {
+			cmd = []string{"neutrond", "query", "wasm", "contract-state", "smart", address,
+				"--from", neutronUser.KeyName,
+				"--gas-prices", "0.0untrn",
+				"--gas-adjustment", `1.5`,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--home", neutron.HomeDir(),
+				"--chain-id", neutron.Config().ChainID,
+				"--from", "faucet",
+				"--gas", "50000.0untrn",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			stdout, stderr, err := neutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+			print("\n errors queue: \n")
+			print("\n stdout: ", string(stdout))
+			print("\n stderr: ", string(stderr), "\n")
 		})
 
 		t.Run("third tick transfers to LS and LP modules", func(t *testing.T) {

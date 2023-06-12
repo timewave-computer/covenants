@@ -1,10 +1,10 @@
-use cosmos_sdk_proto::cosmos;
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 
 use cosmos_sdk_proto::cosmos::staking::v1beta1::{
     MsgDelegateResponse, MsgUndelegateResponse,
 };
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -14,6 +14,9 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
+
+
+use neutron_sdk::sudo::msg::RequestPacketTimeoutHeight;
 use prost::Message;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -35,7 +38,7 @@ use neutron_sdk::{
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_sudo_payload, AcknowledgementResult,
-    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, ICS_PORT_ID, ICA_ADDRESS, SudoPayload, save_reply_payload, CONTRACT_STATE, ContractState,
+    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, IBC_PORT_ID, ICA_ADDRESS, SudoPayload, save_reply_payload, CONTRACT_STATE, ContractState,
 };
 
 // Default timeout for SubmitTX is two weeks
@@ -90,7 +93,7 @@ pub fn instantiate(
     NATIVE_ATOM_RECEIVER.save(deps.storage, &msg.atom_receiver)?;
     CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
     CONTRACT_STATE.save(deps.storage, &ContractState::INSTANTIATED)?;
-    
+
     Ok(Response::default())
 }
 
@@ -148,62 +151,54 @@ fn try_receive_atom_from_ica(
             amount: Uint128::new(1000u128) 
         }],
     };
+    let port_id = IBC_PORT_ID.load(deps.storage)?;
 
-    let (ica, connection_id) = get_ica(deps.as_ref(), &env, &INTERCHAIN_ACCOUNT_ID)?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
+    
+    match interchain_account {
+        Some((address, controller_conn_id)) => {
+            let coin = Coin {
+                denom: ATOM_DENOM.to_string(),
+                amount: Uint128::new(20).to_string(),
+            };
 
-    let coin = Coin {
-        denom: ATOM_DENOM.to_string(),
-        amount: Uint128::new(20).to_string(),
-    };
+            let msg = MsgTransfer {
+                source_port: "transfer".to_string(),
+                source_channel: "channel-0".to_string(),
+                token: Some(coin),
+                sender: address,
+                receiver: env.contract.address.to_string(),
+                timeout_height: None,
+                timeout_timestamp: 0,
+            };
+        
+            // Serialize the Transfer message
+            let mut buf = Vec::new();
+            buf.reserve(msg.encoded_len());
+            if let Err(e) = msg.encode(&mut buf) {
+                return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
+            }
+        
+            let protobuf = ProtobufAny {
+                type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+                value: Binary::from(buf),
+            };
 
-    let msg = MsgTransfer {
-        source_port: TRANSFER_PORT.to_string(),
-        source_channel: GAIA_NEUTRON_IBC_CHANNEL_ID.to_string(),
-        token: Some(coin),
-        sender: ica.clone(),
-        receiver: env.contract.address.to_string(),
-        timeout_height: None,
-        timeout_timestamp: 0,
-    };
+            let submit_msg = NeutronMsg::submit_tx(
+                controller_conn_id, 
+                INTERCHAIN_ACCOUNT_ID.to_string(), 
+                vec![protobuf], 
+                "ibc transfer memo".to_string(), 
+                100000, 
+                fee
+            );
 
-    // Serialize the Transfer message
-    let mut buf = Vec::new();
-    buf.reserve(msg.encoded_len());
-    if let Err(e) = msg.encode(&mut buf) {
-        return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
-    }
-
-    let protobuf = ProtobufAny {
-        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-        value: Binary::from(buf),
-    };
-
-    let cosmos_msg = NeutronMsg::submit_tx(
-        connection_id.clone(),
-        INTERCHAIN_ACCOUNT_ID.to_string(),
-        vec![protobuf],
-        "ica transaction memo".to_string(),
-        DEFAULT_TIMEOUT_SECONDS,
-        fee.clone()
-    );
-
-    let submsg = msg_with_sudo_callback(
-        deps.branch(), 
-        cosmos_msg,
-        SudoPayload {
-            port_id: get_port_id(
-                env.contract.address.to_string(), 
-                "test".to_string(),
-            ),
-            message: "ica transfer".to_string(),  
+            Ok(Response::default()
+                .add_submessage(SubMsg::new(submit_msg))
+            )
         },
-    )?.with_gas_limit(252814);
-
-    Ok(Response::default()
-        .add_attribute("ica address: ", ica)
-        .add_attribute("connection_id: ", connection_id)
-        .add_submessage(submsg)
-    )
+        None => return Err(NeutronError::Std(StdError::NotFound { kind: "no ica found".to_string() })),
+    }   
 }
 
 fn try_register_gaia_ica(
@@ -218,12 +213,12 @@ fn try_register_gaia_ica(
         gaia_acc_id.clone()
     );
     let key = get_port_id(env.contract.address.as_str(), &gaia_acc_id);
-    ICS_PORT_ID.save(deps.storage, &key)?;
+    IBC_PORT_ID.save(deps.storage, &key)?;
     
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
-    INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
+    // INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
 
-    CONTRACT_STATE.save(deps.storage, &ContractState::ICA_CREATED)?;
+    // CONTRACT_STATE.save(deps.storage, &ContractState::ICA_CREATED)?;
     Ok(Response::new().add_message(register))
 }
 
@@ -387,15 +382,6 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
     Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
 }
 
-// fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
-//     deps: DepsMut<NeutronQuery>,
-//     msg: C,
-//     payload: SudoPayload,
-// ) -> StdResult<SubMsg<T>> {
-//     let id = save_reply_payload(deps.storage, payload)?;
-//     Ok(SubMsg::reply_on_success(msg, id))
-// }
-
 pub fn register_transfers_query(
     connection_id: String,
     recipient: String,
@@ -410,7 +396,7 @@ pub fn register_transfers_query(
 
 fn try_handle_received() -> NeutronResult<Response<NeutronMsg>> {
 
-    Ok(Response::default())
+    Ok(Response::default().add_attribute("try_handle_received", "received msg`"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -579,6 +565,7 @@ fn sudo_open_ack(
             )),
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
+        CONTRACT_STATE.save(deps.storage, &ContractState::ICA_CREATED)?;
         return Ok(Response::default());
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
@@ -641,35 +628,11 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         let item_type = item.msg_type.as_str();
         item_types.push(item_type.to_string());
         match item_type {
-            "/cosmos.staking.v1beta1.MsgUndelegate" => {
-                // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-                // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-                // FOR LATER INSPECTION.
-                // In this particular case, a mismatch between the string message type and the
-                // serialised data layout looks like a fatal error that has to be investigated.
-                let out: MsgUndelegateResponse = decode_message_response(&item.data)?;
-
-                // NOTE: NO ERROR IS RETURNED HERE. THE CHANNEL LIVES ON.
-                // In this particular case, we demonstrate that minor errors should not
-                // close the channel, and should be treated in a forgiving manner.
-                let completion_time = out.completion_time.or_else(|| {
-                    let error_msg = "WASMDEBUG: sudo_response: Recoverable error. Failed to get completion time";
-                    deps.api
-                        .debug(error_msg);
-                    add_error_to_queue(deps.storage, error_msg.to_string());
-                    Some(prost_types::Timestamp::default())
-                });
-                deps.api
-                    .debug(format!("Undelegation completion time: {:?}", completion_time).as_str());
-            }
-            "/cosmos.staking.v1beta1.MsgDelegate" => {
-                // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-                // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-                // FOR LATER INSPECTION.
-                // In this particular case, a mismatch between the string message type and the
-                // serialised data layout looks like a fatal error that has to be investigated.
-                let _out: MsgDelegateResponse = decode_message_response(&item.data)?;
-            }
+            "/ibc.applications.transfer.v1.MsgTransfer" => {
+                deps.api.debug(
+                    format!("MsgTransfer response: {:?}", item.data).as_str()
+                );
+            },
             _ => {
                 deps.api.debug(
                     format!(

@@ -1,4 +1,4 @@
-use cosmwasm_std::{from_binary, to_vec, Binary, Order, StdResult, Storage, Addr};
+use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
 // ICA
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
-pub const ICS_PORT_ID: Item<String> = Item::new("ics_port_id");
+pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
