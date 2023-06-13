@@ -7,6 +7,7 @@ pub struct InstantiateMsg {
     pub st_atom_receiver: WeightedReceiver,
     pub atom_receiver: WeightedReceiver,
     pub clock_address: String,
+    pub gaia_neutron_ibc_transfer_channel_id: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

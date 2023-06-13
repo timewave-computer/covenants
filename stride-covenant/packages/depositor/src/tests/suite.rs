@@ -45,6 +45,8 @@ impl Default for SuiteBuilder {
                     address: NATIVE_ATOM_DENOM.to_string(),
                 },
                 clock_address: "default-clock".to_string(),
+                gaia_neutron_ibc_transfer_channel_id: "channel-3".to_string(),
+                
             },
         }
     }

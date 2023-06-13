@@ -38,7 +38,7 @@ use neutron_sdk::{
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_sudo_payload, AcknowledgementResult,
-    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, IBC_PORT_ID, ICA_ADDRESS, SudoPayload, save_reply_payload, CONTRACT_STATE, ContractState,
+    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, IBC_PORT_ID, ICA_ADDRESS, SudoPayload, save_reply_payload, CONTRACT_STATE, ContractState, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
 };
 
 // Default timeout for SubmitTX is two weeks
@@ -50,14 +50,14 @@ const IBC_CONNECTION: &str = "connection-0";
 const ICS_CONNECTION_ID: &str = "connection-1";
 const INTERCHAIN_ACCOUNT_ID: &str = "test";
 const TRANSFER_PORT: &str = "transfer";
-const GAIA_NEUTRON_IBC_CHANNEL_ID: &str =  "channel-0";
+// const GAIA_NEUTRON_IBC_CHANNEL_ID: &str =  "channel-0";
 
 const CONTRACT_NAME: &str = concat!("crates.io:neutron-sdk__", env!("CARGO_PKG_NAME"));
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-struct OpenAckVersion {
+struct  OpenAckVersion {
     version: String,
     controller_connection_id: String,
     host_connection_id: String,
@@ -93,6 +93,7 @@ pub fn instantiate(
     NATIVE_ATOM_RECEIVER.save(deps.storage, &msg.atom_receiver)?;
     CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
     CONTRACT_STATE.save(deps.storage, &ContractState::INSTANTIATED)?;
+    GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &msg.gaia_neutron_ibc_transfer_channel_id)?;
 
     Ok(Response::default())
 }
@@ -157,6 +158,8 @@ fn try_receive_atom_from_ica(
     
     match interchain_account {
         Some((address, controller_conn_id)) => {
+            let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
                 amount: Uint128::new(20).to_string(),
@@ -164,9 +167,9 @@ fn try_receive_atom_from_ica(
 
             let msg = MsgTransfer {
                 source_port: "transfer".to_string(),
-                source_channel: "channel-0".to_string(),
+                source_channel: source_channel,
                 token: Some(coin),
-                sender: address,
+                sender: address.clone(),
                 receiver: env.contract.address.to_string(),
                 timeout_height: None,
                 timeout_timestamp: 0,
@@ -188,7 +191,7 @@ fn try_receive_atom_from_ica(
                 controller_conn_id, 
                 INTERCHAIN_ACCOUNT_ID.to_string(), 
                 vec![protobuf], 
-                "ibc transfer memo".to_string(), 
+                address, 
                 100000, 
                 fee
             );
