@@ -143,6 +143,38 @@ func setupNeutronGenesis(
 	}
 }
 
+func setupGaiaGenesis() func(ibc.ChainConfig, []byte) ([]byte, error) {
+	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
+		g := make(map[string]interface{})
+		if err := json.Unmarshal(genbz, &g); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal genesis file: %w", err)
+		}
+
+		arr := []string{
+			"/cosmos.bank.v1beta1.MsgSend",
+			"/cosmos.bank.v1beta1.MsgMultiSend",
+			"/cosmos.staking.v1beta1.MsgDelegate",
+			"/cosmos.staking.v1beta1.MsgUndelegate",
+			"/cosmos.staking.v1beta1.MsgBeginRedelegate",
+			"/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
+			"/cosmos.staking.v1beta1.MsgTokenizeShares",
+			"/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+			"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+			"/ibc.applications.transfer.v1.MsgTransfer",
+		}
+
+		if err := dyno.Set(g, arr, "app_state", "interchainaccounts", "host_genesis_state", "params", "allow_messages"); err != nil {
+			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w", err)
+		}
+
+		out, err := json.Marshal(g)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
+		}
+		return out, nil
+	}
+}
+
 // This tests Cosmos Interchain Security, spinning up gaia, neutron, and stride
 func TestICS(t *testing.T) {
 	if testing.Short() {
@@ -158,6 +190,7 @@ func TestICS(t *testing.T) {
 		{Name: "gaia", Version: "v9.1.0", ChainConfig: ibc.ChainConfig{
 			GasAdjustment: 1.3,
 			GasPrices:     "0.0atom",
+			ModifyGenesis: setupGaiaGenesis(),
 		}},
 		{
 			ChainConfig: ibc.ChainConfig{
@@ -552,6 +585,13 @@ func TestICS(t *testing.T) {
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
+			atomICABal, err := atom.GetBalance(
+				ctx,
+				icaAccountAddress,
+				atom.Config().Denom)
+			require.NoError(t, err, "failed to query ICA balance")
+			require.Equal(t, int64(0), atomICABal)
+
 			neutronUserBalNew, err := neutron.GetBalance(
 				ctx,
 				neutronAddress,
@@ -559,12 +599,6 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err, "failed to query neutron atom balance")
 			require.Equal(t, int64(20), neutronUserBalNew)
 
-			atomICABal, err := atom.GetBalance(
-				ctx,
-				icaAccountAddress,
-				atom.Config().Denom)
-			require.NoError(t, err, "failed to query ICA balance")
-			require.Equal(t, int64(0), atomICABal)
 		})
 
 		t.Run("multisig test ibc transfer to neutron user", func(t *testing.T) {
