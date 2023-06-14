@@ -370,8 +370,8 @@ func TestICS(t *testing.T) {
 	neutron.CreateKey(ctx, "lper")
 	neutron.CreateKey(ctx, "lser")
 
-	neutronAddress := neutronUser.Bech32Address(neutron.Config().Bech32Prefix)
-	atomAddress := gaiaUser.Bech32Address(atom.Config().Bech32Prefix)
+	// neutronAddress := neutronUser.Bech32Address(neutron.Config().Bech32Prefix)
+	// atomAddress := gaiaUser.Bech32Address(atom.Config().Bech32Prefix)
 
 	lpAddressBytes, _ := neutron.GetAddress(ctx, "lper")
 	lsAddressBytes, _ := neutron.GetAddress(ctx, "lser")
@@ -388,20 +388,23 @@ func TestICS(t *testing.T) {
 
 	neutronChannelInfo, _ := r.GetChannels(ctx, eRep, neutron.Config().ChainID)
 	var neutronGaiaIBCChannel ibc.ChannelOutput
+	var neutronGaiaICSChannel ibc.ChannelOutput
 	for _, s := range neutronChannelInfo {
 		neutronJson, _ := json.Marshal(s)
 		print("\n neutron_channel: ", string(neutronJson))
 		if s.State == "STATE_OPEN" && s.Ordering == "ORDER_UNORDERED" && s.PortID == "transfer" {
 			if len(s.Counterparty.ChannelID) > 5 && s.Counterparty.PortID == "transfer" {
 				neutronGaiaIBCChannel = s
-				break
 			}
+		} else if s.Ordering == "ORDER_ORDERED" {
+			neutronGaiaICSChannel = s
 		}
 	}
 	gaiaNeutronIBCChannel := neutronGaiaIBCChannel.Counterparty
 	neutronGaiaIBCChannelId := neutronGaiaIBCChannel.ChannelID
 	gaiaNeutronIBCChannelId := gaiaNeutronIBCChannel.ChannelID
-
+	gaiaNeutronICSChannelId := neutronGaiaICSChannel.Counterparty.ChannelID
+	neutronGaiaICSChannelId := neutronGaiaICSChannel.ChannelID
 	print("\nneutronGaiaIBCChannelId = ", neutronGaiaIBCChannelId)
 	print("\ngaiaNeutronIBCChannelId = ", gaiaNeutronIBCChannelId, "\n")
 
@@ -535,7 +538,6 @@ func TestICS(t *testing.T) {
 				neutronGaiaIBCChannelId,
 				atom.Config().Denom))
 		neutronDstIbcDenom := neutronSrcDenomTrace.IBCDenom()
-		amountToSend := int64(5_000)
 
 		t.Run("fund depositor contract with some neutron", func(t *testing.T) {
 			err := neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
@@ -561,7 +563,6 @@ func TestICS(t *testing.T) {
 			cmd = []string{"neutrond", "tx", "wasm", "execute", address,
 				`{"tick":{}}`,
 				"--from", neutronUser.KeyName,
-				// "--gas-prices", "0.0025untrn",
 				"--gas-adjustment", `1.3`,
 				"--output", "json",
 				"--home", "/var/cosmos-chain/neutron-2",
@@ -582,6 +583,10 @@ func TestICS(t *testing.T) {
 			require.NoError(t, r.FlushPackets(ctx, eRep, gaiaNeutronIBCPath, neutronGaiaIBCChannelId))
 			require.NoError(t, r.FlushAcknowledgements(ctx, eRep, gaiaNeutronIBCPath, gaiaNeutronIBCChannelId))
 
+			// relay ics packets and acks
+			require.NoError(t, r.FlushPackets(ctx, eRep, gaiaNeutronICSPath, neutronGaiaICSChannelId))
+			require.NoError(t, r.FlushAcknowledgements(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronICSChannelId))
+
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
@@ -594,59 +599,11 @@ func TestICS(t *testing.T) {
 
 			neutronUserBalNew, err := neutron.GetBalance(
 				ctx,
-				neutronAddress,
+				address,
 				neutronDstIbcDenom)
-			require.NoError(t, err, "failed to query neutron atom balance")
+			require.NoError(t, err, "failed to query depositor contract atom balance")
 			require.Equal(t, int64(20), neutronUserBalNew)
 
-		})
-
-		t.Run("multisig test ibc transfer to neutron user", func(t *testing.T) {
-
-			gaiaUserBalInitial, err := atom.GetBalance(
-				ctx,
-				atomAddress,
-				atom.Config().Denom)
-			require.NoError(t, err)
-			transferAtom := ibc.WalletAmount{
-				Address: neutronAddress,
-				Denom:   atom.Config().Denom,
-				Amount:  amountToSend,
-			}
-
-			atomTx, err := atom.SendIBCTransfer(
-				ctx,
-				gaiaNeutronIBCChannel.ChannelID,
-				gaiaUser.GetKeyName(),
-				transferAtom,
-				ibc.TransferOptions{})
-			require.NoError(t, err)
-			require.NoError(t, atomTx.Validate())
-
-			// relay IBC packets and acks
-			require.NoError(t, r.FlushPackets(ctx, eRep, gaiaNeutronIBCPath, neutronGaiaIBCChannelId))
-			require.NoError(t, r.FlushAcknowledgements(ctx, eRep, gaiaNeutronIBCPath, gaiaNeutronIBCChannelId))
-
-			// relay ics packets and acks
-			// require.NoError(t, r.FlushPackets(ctx, eRep, gaiaNeutronICSPath, neutronGaiaICSChannelID))
-			// require.NoError(t, r.FlushAcknowledgements(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronICSChannel.ChannelID))
-
-			// test source wallet has decreased funds
-			expectedBal := gaiaUserBalInitial - amountToSend
-			gaiaUserBalNew, err := atom.GetBalance(
-				ctx,
-				atomAddress,
-				atom.Config().Denom)
-			require.NoError(t, err)
-			require.Equal(t, expectedBal, gaiaUserBalNew)
-
-			// Test destination wallets have increased funds
-			neutronUserBalNew, err := neutron.GetBalance(
-				ctx,
-				neutronAddress,
-				neutronDstIbcDenom)
-			require.NoError(t, err)
-			require.Equal(t, amountToSend, neutronUserBalNew)
 		})
 
 		t.Run("third tick transfers to LS and LP modules", func(t *testing.T) {

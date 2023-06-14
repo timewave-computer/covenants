@@ -5,6 +5,7 @@ use cosmos_sdk_proto::cosmos::staking::v1beta1::{
 };
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
+use cosmos_sdk_proto::ibc::core::client::v1::Height;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -162,7 +163,7 @@ fn try_receive_atom_from_ica(
 
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
-                amount: Uint128::new(20).to_string(),
+                amount: "20".to_string(),
             };
 
             let msg = MsgTransfer {
@@ -171,7 +172,11 @@ fn try_receive_atom_from_ica(
                 token: Some(coin),
                 sender: address.clone(),
                 receiver: env.contract.address.to_string(),
-                timeout_height: None,
+                // TODO: look into what the timeout_height should be
+                timeout_height: Some(Height {
+                    revision_number: 2, 
+                    revision_height: 123,
+                }),
                 timeout_timestamp: 0,
             };
         
