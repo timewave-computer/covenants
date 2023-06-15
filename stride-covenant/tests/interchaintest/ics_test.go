@@ -249,7 +249,7 @@ func TestICS(t *testing.T) {
 	client, network := ibctest.DockerSetup(t)
 	r := ibctest.NewBuiltinRelayerFactory(
 		ibc.CosmosRly,
-		zaptest.NewLogger(t, zaptest.Level(zap.DebugLevel)),
+		zaptest.NewLogger(t),
 		relayer.CustomDockerImage("ghcr.io/cosmos/relayer", "v2.3.1", rly.RlyDefaultUidGid),
 		relayer.RelayerOptionExtraStartFlags{Flags: []string{"-d", "--log-format", "console"}},
 	).Build(t, client, network)
@@ -566,7 +566,7 @@ func TestICS(t *testing.T) {
 			_, _, err = neutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
 
-			err = testutil.WaitForBlocks(ctx, 20, atom, neutron)
+			err = testutil.WaitForBlocks(ctx, 50, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)

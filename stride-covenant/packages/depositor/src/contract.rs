@@ -145,14 +145,13 @@ fn try_receive_atom_from_ica(
     match interchain_account {
         Some((address, controller_conn_id)) => {
             let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
-            // let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
-            
-            // we should parse the amount from WeightedReceiver here.
-            // parsing it to string does not work so temporarily hardcoded.
-            // see: docs.rs/cosmos-sdk-proto/latest/cosmos_sdk_proto/cosmos/base/v1beta1/struct.Coin.html
+            let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
+            let amount = String::from(lp_receiver.amount.to_string());
+            let receiver = String::from(lp_receiver.address.to_string());
+
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
-                amount: "10".to_string(),
+                amount,
             };
 
             let msg = MsgTransfer {
@@ -160,7 +159,7 @@ fn try_receive_atom_from_ica(
                 source_channel: source_channel,
                 token: Some(coin),
                 sender: address.clone().to_string(),
-                receiver: env.contract.address.to_string(),
+                receiver,
                 // TODO: look into what the timeout_height should be
                 timeout_height: Some(Height {
                     revision_number: 2, 
@@ -213,23 +212,8 @@ fn try_register_gaia_ica(
     IBC_PORT_ID.save(deps.storage, &key)?;
     
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
-    // INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
-
-    // CONTRACT_STATE.save(deps.storage, &ContractState::ICA_CREATED)?;
-    Ok(Response::new().add_message(register))
-}
-
-fn execute_register_ica(
-    deps: DepsMut,
-    env: Env,
-    connection_id: String,
-    interchain_account_id: String,
-) -> NeutronResult<Response<NeutronMsg>> {
-    let register =
-        NeutronMsg::register_interchain_account(connection_id, interchain_account_id.clone());
-    let key = get_port_id(env.contract.address.as_str(), &interchain_account_id);
-    // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
     INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
+
     Ok(Response::new().add_message(register))
 }
 
@@ -364,10 +348,6 @@ fn try_execute_transfers(
     Ok(Response::default()
         .add_submessages(vec![ls_submsg, lp_submsg])
     )
-        // },
-        // Err(_) => return Err(NeutronError::from(StdError::generic_err("failed to query atom balance on depositor"))),
-    // }
-
 }
 
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
