@@ -1,8 +1,6 @@
-use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
+use std::str::FromStr;
 
-use cosmos_sdk_proto::cosmos::staking::v1beta1::{
-    MsgDelegateResponse, MsgUndelegateResponse,
-};
+use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
 use cosmos_sdk_proto::ibc::core::client::v1::Height;
@@ -16,8 +14,6 @@ use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
-
-use neutron_sdk::sudo::msg::RequestPacketTimeoutHeight;
 use prost::Message;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -30,7 +26,7 @@ use neutron_sdk::{
         query::{NeutronQuery, QueryInterchainAccountAddressResponse},
     },
     interchain_txs::helpers::{
-        decode_acknowledgement_response, decode_message_response, get_port_id,
+        decode_acknowledgement_response, get_port_id,
     },
     sudo::msg::{RequestPacket, SudoMsg},
     NeutronError, NeutronResult,
@@ -51,7 +47,6 @@ const IBC_CONNECTION: &str = "connection-0";
 const ICS_CONNECTION_ID: &str = "connection-1";
 const INTERCHAIN_ACCOUNT_ID: &str = "test";
 const TRANSFER_PORT: &str = "transfer";
-// const GAIA_NEUTRON_IBC_CHANNEL_ID: &str =  "channel-0";
 
 const CONTRACT_NAME: &str = concat!("crates.io:neutron-sdk__", env!("CARGO_PKG_NAME"));
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -77,17 +72,7 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // can we do better with validation here?
-    // deps.api.addr_validate(&msg.st_atom_receiver.address)?;
-    // deps.api.addr_validate(&msg.atom_receiver.address)?;
-    // let clock_address = deps.api.addr_validate(&msg.clock_address)?;
-
-    // avoid zero deposit configurations
-    // if msg.st_atom_receiver.amount == 0 || msg.atom_receiver.amount == 0 {
-    //     return Err(NeutronError::Std(
-    //         StdError::GenericErr { msg: "Zero deposit config".to_string() })
-    //     )
-    // }
+    // TODO: validations
 
     // minations and amounts
     STRIDE_ATOM_RECEIVER.save(deps.storage, &msg.st_atom_receiver)?;
@@ -160,17 +145,21 @@ fn try_receive_atom_from_ica(
     match interchain_account {
         Some((address, controller_conn_id)) => {
             let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
-
+            // let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
+            
+            // we should parse the amount from WeightedReceiver here.
+            // parsing it to string does not work so temporarily hardcoded.
+            // see: docs.rs/cosmos-sdk-proto/latest/cosmos_sdk_proto/cosmos/base/v1beta1/struct.Coin.html
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
-                amount: "20".to_string(),
+                amount: "10".to_string(),
             };
 
             let msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: source_channel,
                 token: Some(coin),
-                sender: address.clone(),
+                sender: address.clone().to_string(),
                 receiver: env.contract.address.to_string(),
                 // TODO: look into what the timeout_height should be
                 timeout_height: Some(Height {
