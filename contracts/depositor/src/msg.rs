@@ -21,10 +21,6 @@ pub struct WeightedReceiver {
 pub enum ExecuteMsg {
     Tick {},
     Received {},
-    Register {
-        connection_id: String,
-        interchain_account_id: String,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

@@ -22,11 +22,21 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
-type InstantiateMsg struct {
+type DepositorInstantiateMsg struct {
 	StAtomReceiver                  WeightedReceiver `json:"st_atom_receiver"`
 	AtomReceiver                    WeightedReceiver `json:"atom_receiver"`
 	ClockAddress                    string           `json:"clock_address,string"`
 	GaiaNeutronIBCTransferChannelId string           `json:"gaia_neutron_ibc_transfer_channel_id"`
+}
+
+type LPerInstantiateMsg struct {
+	LpPosition    LpInfo `json:"lp_position"`
+	ClockAddress  string `json:"clock_address,string"`
+	HolderAddress string `json:"holder_address,string"`
+}
+
+type LpInfo struct {
+	Addr string `json:"addr,string"`
 }
 
 type WeightedReceiver struct {
@@ -255,6 +265,7 @@ func TestICS(t *testing.T) {
 	).Build(t, client, network)
 
 	const clockContractAddress = "clock_contract_address"
+	const holderContractAddress = "holder_contract_address"
 	const icaAccountId = "test"
 	var icaAccountAddress string
 	// Prep Interchain
@@ -401,6 +412,26 @@ func TestICS(t *testing.T) {
 	neutronGaiaICSChannelId := neutronGaiaICSChannel.ChannelID
 	_, _ = gaiaNeutronICSChannelId, neutronGaiaICSChannelId
 
+	t.Run("instantiate LPer", func(t *testing.T) {
+		codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/stride_lper.wasm")
+		require.NoError(t, err, "failed to store neutron ICA contract")
+		lpinfo := LpInfo{
+			Addr: "test",
+		}
+		msg := LPerInstantiateMsg{
+			LpPosition:    lpinfo,
+			ClockAddress:  clockContractAddress,
+			HolderAddress: holderContractAddress,
+		}
+
+		str, err := json.Marshal(msg)
+		require.NoError(t, err, "Failed to marshall LPerInstantiateMsg")
+
+		lpAddress, err := cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
+		require.NoError(t, err, "failed to instantiate lper contract: ", err)
+		print(lpAddress)
+	})
+
 	t.Run("instantiate depositor", func(t *testing.T) {
 		// Store and instantiate the Neutron ICA example contract. The
 		// wasm file is placed in `wasms/` by the `just test` command.
@@ -415,7 +446,7 @@ func TestICS(t *testing.T) {
 			Amount:  int64(10),
 			Address: "neutron1ud6resqzgewt92njs826m5st98n9r6kkjnurup",
 		}
-		msg := InstantiateMsg{
+		msg := DepositorInstantiateMsg{
 			StAtomReceiver:                  stAtomWeightedReceiver,
 			AtomReceiver:                    atomWeightedReceiver,
 			ClockAddress:                    clockContractAddress,
@@ -423,7 +454,7 @@ func TestICS(t *testing.T) {
 		}
 
 		str, err := json.Marshal(msg)
-		require.NoError(t, err, "Failed to marshall instantiateMsg")
+		require.NoError(t, err, "Failed to marshall DepositorInstantiateMsg")
 
 		address, err := cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
 		require.NoError(t, err, "failed to instantiate depositor contract: ", err)

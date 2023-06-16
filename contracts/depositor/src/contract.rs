@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
@@ -48,7 +46,7 @@ const ICS_CONNECTION_ID: &str = "connection-1";
 const INTERCHAIN_ACCOUNT_ID: &str = "test";
 const TRANSFER_PORT: &str = "transfer";
 
-const CONTRACT_NAME: &str = concat!("crates.io:neutron-sdk__", env!("CARGO_PKG_NAME"));
+const CONTRACT_NAME: &str = "crates.io:stride-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -78,7 +76,7 @@ pub fn instantiate(
     STRIDE_ATOM_RECEIVER.save(deps.storage, &msg.st_atom_receiver)?;
     NATIVE_ATOM_RECEIVER.save(deps.storage, &msg.atom_receiver)?;
     CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::INSTANTIATED)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &msg.gaia_neutron_ibc_transfer_channel_id)?;
 
     Ok(Response::default())
@@ -96,10 +94,6 @@ pub fn execute(
     match msg {
         ExecuteMsg::Tick {  } => try_tick(deps, env, info),
         ExecuteMsg::Received {  } =>  try_handle_received(),
-        ExecuteMsg::Register {
-            connection_id,
-            interchain_account_id,
-        } => execute_register_ica(deps, env, connection_id, interchain_account_id),
     }
 }
 
@@ -114,10 +108,10 @@ fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Res
     // TODO: validate caller is clock
 
     match current_state {
-        ContractState::INSTANTIATED => try_register_gaia_ica(deps, env),
-        ContractState::ICA_CREATED => try_receive_atom_from_ica(deps, env, info, gaia_account_address),
-        ContractState::RECEIVED_FUNDS => try_execute_transfers(deps, env, info, gaia_account_address),
-        ContractState::COMPLETE => Ok(Response::default()),
+        ContractState::Instantiated => try_register_gaia_ica(deps, env),
+        ContractState::ICACreated => try_receive_atom_from_ica(deps, env, info, gaia_account_address),
+        ContractState::ReceivedFunds => try_execute_transfers(deps, env, info, gaia_account_address),
+        ContractState::Complete => Ok(Response::default()),
     }
 }
 
@@ -542,7 +536,7 @@ fn sudo_open_ack(
             )),
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
-        CONTRACT_STATE.save(deps.storage, &ContractState::ICA_CREATED)?;
+        CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
         return Ok(Response::default());
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))

@@ -27,10 +27,10 @@ pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ContractState {
-    INSTANTIATED,
-    ICA_CREATED,
-    RECEIVED_FUNDS,
-    COMPLETE,
+    Instantiated,
+    ICACreated,
+    ReceivedFunds,
+    Complete,
 }
 
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
