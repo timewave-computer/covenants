@@ -95,11 +95,10 @@ fn try_withdraw(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
-        
         QueryMsg::ClockAddress {} => Ok(
             to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?
         ),
-        QueryMsg::LPPosition {} => Ok(
+        QueryMsg::LpPosition {} => Ok(
             to_binary(&LP_POSITION.may_load(deps.storage)?)?
         )
     }

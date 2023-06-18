@@ -55,6 +55,14 @@ type DepositorContractQuery struct {
 	ClockAddress ClockAddressQuery `json:"clock_address"`
 }
 
+type LPContractQuery struct {
+	ClockAddress ClockAddressQuery `json:"clock_address"`
+}
+
+type LPPositionQuery struct {
+	LpPosition LpPositionQuery `json:"lp_position"`
+}
+
 type StAtomWeightedReceiverQuery struct {
 	StAtomReceiver StAtomReceiverQuery `json:"st_atom_receiver"`
 }
@@ -67,6 +75,7 @@ type ClockAddressQuery struct{}
 type StAtomReceiverQuery struct{}
 type AtomReceiverQuery struct{}
 type DepositorInterchainAccountAddressQuery struct{}
+type LpPositionQuery struct{}
 
 type WeightedReceiverResponse struct {
 	Data WeightedReceiver `json:"data"`
@@ -74,6 +83,10 @@ type WeightedReceiverResponse struct {
 
 type ClockQueryResponse struct {
 	Data string `json:"data"`
+}
+
+type LpPositionQueryResponse struct {
+	Data LpInfo `json:"data"`
 }
 
 // A query response from the Neutron contract. Note that when

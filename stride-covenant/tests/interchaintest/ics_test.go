@@ -245,24 +245,30 @@ func TestICS(t *testing.T) {
 	gaiaNeutronICSChannelId := neutronGaiaICSChannel.Counterparty.ChannelID
 	neutronGaiaICSChannelId := neutronGaiaICSChannel.ChannelID
 
-	print("\n picked gaiaChannelId: ", gaiaNeutronIBCChannelId, "\n neutronChannelId: ", neutronGaiaIBCChannelId)
 	_, _ = gaiaNeutronICSChannelId, neutronGaiaICSChannelId
 
 	t.Run("stride covenant tests", func(t *testing.T) {
 		const clockContractAddress = "clock_contract_address"
 		const holderContractAddress = "holder_contract_address"
+		lpInfo := LpInfo{
+			Addr: "test",
+		}
 
 		var lperContractAddress string
 		var depositorContractAddress string
 		var stAtomWeightedReceiver WeightedReceiver
 		var atomWeightedReceiver WeightedReceiver
 
+		neutronSrcDenomTrace := transfertypes.ParseDenomTrace(
+			transfertypes.GetPrefixedDenom("transfer",
+				neutronGaiaIBCChannelId,
+				atom.Config().Denom))
+		neutronDstIbcDenom := neutronSrcDenomTrace.IBCDenom()
+
 		t.Run("instantiate lper contract", func(t *testing.T) {
 			codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/stride_lper.wasm")
 			require.NoError(t, err, "failed to store neutron ICA contract")
-			lpInfo := LpInfo{
-				Addr: "test",
-			}
+
 			lpMsg := LPerInstantiateMsg{
 				LpPosition:    lpInfo,
 				ClockAddress:  clockContractAddress,
@@ -276,6 +282,25 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err, "failed to instantiate lper contract: ", err)
 
 			print("\n LP contract instantiated with addr: ", lperContractAddress, "\n")
+
+			t.Run("query instantiated clock", func(t *testing.T) {
+				var response ClockQueryResponse
+				err = cosmosNeutron.QueryContract(ctx, lperContractAddress, LPContractQuery{
+					ClockAddress: ClockAddressQuery{},
+				}, &response)
+				require.NoError(t, err, "failed to query clock address")
+				expectedAddrJson, _ := json.Marshal(clockContractAddress)
+				require.Equal(t, string(expectedAddrJson), response.Data)
+			})
+
+			t.Run("query lp position", func(t *testing.T) {
+				var response LpPositionQueryResponse
+				err := cosmosNeutron.QueryContract(ctx, lperContractAddress, LPPositionQuery{
+					LpPosition: LpPositionQuery{},
+				}, &response)
+				require.NoError(t, err, "failed to query lp position address")
+				require.Equal(t, lpInfo.Addr, response.Data.Addr)
+			})
 		})
 
 		t.Run("instantiate depositor contract", func(t *testing.T) {
@@ -334,12 +359,6 @@ func TestICS(t *testing.T) {
 				require.Equal(t, lperContractAddress, atomReceiver.Data.Address)
 			})
 		})
-
-		neutronSrcDenomTrace := transfertypes.ParseDenomTrace(
-			transfertypes.GetPrefixedDenom("transfer",
-				neutronGaiaIBCChannelId,
-				atom.Config().Denom))
-		neutronDstIbcDenom := neutronSrcDenomTrace.IBCDenom()
 
 		var addrResponse QueryResponse
 		t.Run("first tick instantiates ICA", func(t *testing.T) {
