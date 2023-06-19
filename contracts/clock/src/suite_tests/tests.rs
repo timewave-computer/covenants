@@ -68,6 +68,12 @@ fn test_queue() {
 
     // Ticks work but do nothing if there are no elements in the queue.
     suite.tick().unwrap();
+
+    // Check that the testers received the expected number of ticks.
+    let non_erroring_tick_count = suite.query_tester_tick_count(&non_erroring);
+    assert_eq!(non_erroring_tick_count, 1);
+    let erroring_tick_count = suite.query_tester_tick_count(&erroring);
+    assert_eq!(erroring_tick_count, 0);
 }
 
 // checks that no execute messages can be called while the contract is

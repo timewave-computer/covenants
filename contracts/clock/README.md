@@ -8,4 +8,3 @@ example.
 
 To advance the clock, call `ExecuteMsg::Tick {}` on this
 contract. Anyone may call this method.
-

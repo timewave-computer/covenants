@@ -184,4 +184,16 @@ impl Suite {
         queue.sort_by_key(|(_, time)| time.clone());
         queue.into_iter().map(|(addr, _)| addr).collect()
     }
+
+    pub fn query_tester_tick_count(&self, tester: &Addr) -> u64 {
+        let res: Uint64 = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                tester.to_string(),
+                &covenant_clock_tester::msg::QueryMsg::TickCount {},
+            )
+            .unwrap();
+        res.u64()
+    }
 }
