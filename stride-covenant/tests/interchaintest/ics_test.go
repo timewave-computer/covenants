@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -233,19 +235,14 @@ func TestICS(t *testing.T) {
 		}
 	}
 
+	gaiaNeutronIBCChannel := neutronGaiaIBCChannel.Counterparty
+
 	print("\n gaia channels:\n")
 	gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, atom.Config().ChainID)
 	for _, s := range gaiaChannelInfo {
 		channelJson, _ := json.Marshal(s)
 		print("\n", string(channelJson), "\n")
 	}
-
-	neutronGaiaIBCChannelId := neutronGaiaIBCChannel.ChannelID
-	gaiaNeutronIBCChannelId := neutronGaiaIBCChannel.Counterparty.ChannelID
-	gaiaNeutronICSChannelId := neutronGaiaICSChannel.Counterparty.ChannelID
-	neutronGaiaICSChannelId := neutronGaiaICSChannel.ChannelID
-
-	_, _ = gaiaNeutronICSChannelId, neutronGaiaICSChannelId
 
 	t.Run("stride covenant tests", func(t *testing.T) {
 		const clockContractAddress = "clock_contract_address"
@@ -261,7 +258,7 @@ func TestICS(t *testing.T) {
 
 		neutronSrcDenomTrace := transfertypes.ParseDenomTrace(
 			transfertypes.GetPrefixedDenom("transfer",
-				neutronGaiaIBCChannelId,
+				neutronGaiaIBCChannel.ChannelID,
 				atom.Config().Denom))
 		neutronDstIbcDenom := neutronSrcDenomTrace.IBCDenom()
 
@@ -321,7 +318,7 @@ func TestICS(t *testing.T) {
 				StAtomReceiver:                  stAtomWeightedReceiver,
 				AtomReceiver:                    atomWeightedReceiver,
 				ClockAddress:                    clockContractAddress,
-				GaiaNeutronIBCTransferChannelId: gaiaNeutronIBCChannelId,
+				GaiaNeutronIBCTransferChannelId: gaiaNeutronIBCChannel.ChannelID,
 			}
 
 			str, err := json.Marshal(msg)
@@ -358,6 +355,76 @@ func TestICS(t *testing.T) {
 				require.Equal(t, int64(10), atomReceiver.Data.Amount)
 				require.Equal(t, lperContractAddress, atomReceiver.Data.Address)
 			})
+		})
+
+		t.Run("deploy astroport contracts", func(t *testing.T) {
+			t.Run("factory", func(t *testing.T) {
+				// codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_factory.wasm")
+				// require.NoError(t, err, "failed to store astroport factory contract")
+			})
+
+			t.Run("stableswap", func(t *testing.T) {
+				codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_pair_stable.wasm")
+				require.NoError(t, err, "failed to store astroport stableswap contract")
+
+				numCodeId, err := strconv.ParseUint(codeId, 10, 64)
+				require.NoError(t, err, "failed to parse codeId into uint64")
+
+				initParams := StablePoolParams{
+					Amp:   9001,
+					Owner: nil,
+				}
+				binaryData, err := json.Marshal(initParams)
+				require.NoError(t, err, "error encoding stable pool params to binary")
+
+				msg := StableswapInstantiateMsg{
+					TokenCodeId: numCodeId,
+					FactoryAddr: depositorContractAddress, // random
+					AssetInfos: []AssetInfo{
+						{
+							NativeToken: &NativeToken{
+								Denom: "statom",
+							},
+						},
+						{
+							NativeToken: &NativeToken{
+								Denom: atom.Config().Denom,
+							},
+						},
+					},
+					InitParams: binaryData,
+				}
+
+				str, err := json.Marshal(msg)
+				require.NoError(t, err, "Failed to marshall DepositorInstantiateMsg")
+				print("\n stableswap init msg: ", string(str), "\n")
+
+				cmd = []string{"neutrond", "tx", "wasm", "instantiate",
+					codeId,
+					string(str),
+					"--from", neutronUser.KeyName,
+					"--label", "stableswap",
+					"--no-admin",
+					"--gas-prices", "0.0untrn",
+					"--gas-adjustment", `1.5`,
+					"--output", "json",
+					"--home", "/var/cosmos-chain/neutron-2",
+					"--node", neutron.GetRPCAddress(),
+					"--home", neutron.HomeDir(),
+					"--chain-id", neutron.Config().ChainID,
+					"--from", neutronUser.KeyName,
+					"--gas", "auto",
+					"--keyring-backend", keyring.BackendTest,
+					"-y",
+				}
+
+				print(strings.Join(cmd, " "))
+				stdout, stderr, err := neutron.Exec(ctx, cmd, nil)
+				require.NoError(t, err)
+				print("\nstdout: ", stdout)
+				print("\nstderr: ", stderr)
+			})
+
 		})
 
 		var addrResponse QueryResponse
@@ -467,7 +534,7 @@ func TestICS(t *testing.T) {
 			_, _, err = neutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
 
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			err = testutil.WaitForBlocks(ctx, 20, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)

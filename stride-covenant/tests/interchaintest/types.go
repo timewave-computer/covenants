@@ -97,3 +97,53 @@ type LpPositionQueryResponse struct {
 type DepositorInterchainAccountAddressQueryResponse struct {
 	DepositorInterchainAccountAddress string `json:"depositor_interchain_account_address"`
 }
+
+// astroport stableswap
+type StableswapInstantiateMsg struct {
+	TokenCodeId uint64      `json:"token_code_id"`
+	FactoryAddr string      `json:"factory_addr"`
+	AssetInfos  []AssetInfo `json:"asset_infos"`
+	InitParams  []byte      `json:"init_params"`
+}
+
+type AssetInfo struct {
+	Token       *Token       `json:"token,omitempty"`
+	NativeToken *NativeToken `json:"native_token,omitempty"`
+}
+
+type StablePoolParams struct {
+	Amp   uint64  `json:"amp"`
+	Owner *string `json:"owner"`
+}
+
+type Token struct {
+	ContractAddr string `json:"contract_addr"`
+}
+
+type NativeToken struct {
+	Denom string `json:"denom"`
+}
+
+// astroport factory
+type FactoryInstantiateMsg struct {
+	PairConfigs      []PairConfig `json:"pair_configs"`
+	TokenCodeId      uint64       `json:"token_code_id"`
+	FeeAddress       string       `json:"fee_address"`
+	GeneratorAddress string       `json:"generator_address"`
+	Owner            string       `json:"owner"`
+	WhitelistCodeId  uint64       `json:"whitelist_code_id"`
+}
+
+type PairConfig struct {
+	CodeId              uint64   `json:"token_code_id"`
+	PairType            PairType `json:"pair_type"`
+	TotalFeeBps         uint64   `json:"total_fee_bps"`
+	MakerFeeBps         uint64   `json:"maker_fee_bps"`
+	IsDisabled          bool     `json:"is_disabled"`
+	IsGeneratorDisabled bool     `json:"is_generator_disabled"`
+}
+
+type PairType struct {
+	Xyk    string `json:"xyk,omitempty"`
+	Stable string `json:"stable,omitempty"`
+}

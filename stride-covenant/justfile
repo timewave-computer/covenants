@@ -26,6 +26,8 @@ simtest: optimize
         mv ./../artifacts/stride_lper-aarch64.wasm ./../artifacts/stride_lper.wasm \
     ;fi
 
+    cp ./astroport/*.wasm ./../artifacts
+
     mkdir -p tests/interchaintest/wasms
 
     cp -R ./../artifacts/*.wasm tests/interchaintest/wasms

@@ -59,7 +59,7 @@ pub fn execute(
 }
 
 
-fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     let current_state = CONTRACT_STATE.load(deps.storage)?;
 
     match current_state {
@@ -75,7 +75,7 @@ fn no_op() -> NeutronResult<Response<NeutronMsg>> {
 }
 
 fn try_enter_lp_position(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo, 
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -84,7 +84,7 @@ fn try_enter_lp_position(
 }
 
 fn try_withdraw(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo, 
 ) -> NeutronResult<Response<NeutronMsg>> {
