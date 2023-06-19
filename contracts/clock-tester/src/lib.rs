@@ -4,4 +4,4 @@ pub mod msg;
 pub mod state;
 
 #[cfg(test)]
-mod suite_tests;
+mod tests;

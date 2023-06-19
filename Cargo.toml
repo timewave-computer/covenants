@@ -41,6 +41,7 @@ covenant-clock-derive = { path = "packages/clock-derive" }
 cw-fifo = { path = "packages/cw-fifo" }
 
 covenant-clock = { path = "contracts/clock" }
+covenant-clock-tester = { path = "contracts/clock-tester" }
 
 # dev-dependencies
 cw-multi-test   = "0.16"

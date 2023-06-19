@@ -41,8 +41,9 @@ pub fn clocked(metadata: TokenStream, input: TokenStream) -> TokenStream {
         input,
         quote!(
             enum Clocked {
-                /// Wakes the state machine up. Likely the caller does
-                /// not need to be checked.
+                /// Wakes the state machine up. The caller should
+                /// check the sender of the tick is the clock if
+                /// they'd like to pause when the clock does.
                 Tick {},
             }
         )

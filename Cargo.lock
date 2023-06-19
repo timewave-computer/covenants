@@ -149,9 +149,11 @@ dependencies = [
 name = "covenant-clock"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock-derive",
+ "covenant-clock-tester",
  "cw-fifo",
  "cw-multi-test",
  "cw-storage-plus",
@@ -167,6 +169,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "covenant-clock-tester"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw2",
+ "thiserror",
 ]
 
 [[package]]
