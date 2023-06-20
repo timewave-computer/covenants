@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -358,17 +357,166 @@ func TestICS(t *testing.T) {
 		})
 
 		t.Run("deploy astroport contracts", func(t *testing.T) {
+			stablePairCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_pair_stable.wasm")
+			require.NoError(t, err, "failed to store astroport stableswap contract")
+			stablePairCodeId, err := strconv.ParseUint(stablePairCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			factoryCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_factory.wasm")
+			require.NoError(t, err, "failed to store astroport factory contract")
+			// factoryCodeId, err := strconv.ParseUint(factoryCodeIdStr, 10, 64)
+			// require.NoError(t, err, "failed to parse codeId into uint64")
+
+			whitelistCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_whitelist.wasm")
+			require.NoError(t, err, "failed to store astroport whitelist contract")
+			whitelistCodeId, err := strconv.ParseUint(whitelistCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			tokenCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_token.wasm")
+			require.NoError(t, err, "failed to store astroport token contract")
+			tokenCodeId, err := strconv.ParseUint(tokenCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			var coinRegistryAddress string
+			var factoryAddress string
+			var stableswapAddress string
+			_ = stableswapAddress
+			t.Run("astroport token", func(t *testing.T) {
+
+				// cap := uint64(1)
+				msg := NativeTokenInstantiateMsg{
+					Name:            "nativetoken",
+					Symbol:          "ntk",
+					Decimals:        5,
+					InitialBalances: []Cw20Coin{
+						// Cw20Coin{
+						// 	Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+						// 	Amount:  1,
+						// },
+					},
+					// Mint: &MinterResponse{
+					// 	Minter: depositorContractAddress,
+					// 	Cap:    &cap,
+					// },
+					Mint:      nil,
+					Marketing: nil,
+				}
+
+				str, err := json.Marshal(msg)
+				require.NoError(t, err, "Failed to marshall NativeTokenInstantiateMsg")
+
+				tokenAddress, err := cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, tokenCodeIdStr, string(str), true)
+				require.NoError(t, err, "Failed to instantiate Native Token")
+				print("\nNative token: ", tokenAddress, "\n")
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
+			})
+
+			t.Run("whitelist", func(t *testing.T) {
+
+				admins := []string{neutronUser.Bech32Address(neutron.Config().Bech32Prefix)}
+
+				msg := WhitelistInstantiateMsg{
+					Admins:  admins,
+					Mutable: false,
+				}
+
+				str, err := json.Marshal(msg)
+				require.NoError(t, err, "Failed to marshall WhitelistInstantiateMsg")
+
+				whitelistAddress, err := cosmosNeutron.InstantiateContract(
+					ctx, neutronUser.KeyName, whitelistCodeIdStr, string(str), true)
+				require.NoError(t, err, "Failed to instantiate Whitelist")
+				print("\nWhitelist: ", whitelistAddress, "\n")
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
+			})
+
+			t.Run("native coins registry", func(t *testing.T) {
+				coinRegistryCodeId, err := cosmosNeutron.StoreContract(
+					ctx, neutronUser.KeyName, "wasms/astroport_native_coin_registry.wasm")
+				require.NoError(t, err, "failed to store astroport native coin registry contract")
+
+				msg := NativeCoinRegistryInstantiateMsg{
+					Owner: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				}
+				str, err := json.Marshal(msg)
+				require.NoError(t, err, "Failed to marshall NativeCoinRegistryInstantiateMsg")
+
+				nativeCoinRegistryAddress, err := cosmosNeutron.InstantiateContract(
+					ctx, neutronUser.KeyName, coinRegistryCodeId, string(str), true)
+				require.NoError(t, err, "Failed to instantiate NativeCoinRegistry")
+				coinRegistryAddress = nativeCoinRegistryAddress
+				print("\nNativeCoinRegistry: ", nativeCoinRegistryAddress, "\n")
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
+			})
+
+			t.Run("add coins to registry", func(t *testing.T) {
+				// no clue how to marshall go struct fields into rust Vec<(String, u8)>
+				// so passing a string
+				addMessage := `{"add":{"native_coins":[["statom",10],["uatom",10]]}}`
+				addCmd := []string{"neutrond", "tx", "wasm", "execute",
+					coinRegistryAddress,
+					addMessage,
+					"--from", neutronUser.KeyName,
+					"--gas-prices", "0.0untrn",
+					"--gas-adjustment", `1.5`,
+					"--output", "json",
+					"--home", "/var/cosmos-chain/neutron-2",
+					"--node", neutron.GetRPCAddress(),
+					"--home", neutron.HomeDir(),
+					"--chain-id", neutron.Config().ChainID,
+					"--from", neutronUser.KeyName,
+					"--gas", "auto",
+					"--keyring-backend", keyring.BackendTest,
+					"-y",
+				}
+				_, _, err = cosmosNeutron.Exec(ctx, addCmd, nil)
+				require.NoError(t, err, err)
+
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
+			})
+
 			t.Run("factory", func(t *testing.T) {
-				// codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_factory.wasm")
-				// require.NoError(t, err, "failed to store astroport factory contract")
+				pairConfigs := []PairConfig{
+					PairConfig{
+						CodeId: stablePairCodeId,
+						PairType: PairType{
+							Stable: struct{}{},
+						},
+						TotalFeeBps:         0,
+						MakerFeeBps:         0,
+						IsDisabled:          false,
+						IsGeneratorDisabled: true,
+					},
+				}
+
+				msg := FactoryInstantiateMsg{
+					PairConfigs:         pairConfigs,
+					TokenCodeId:         tokenCodeId,
+					FeeAddress:          nil,
+					GeneratorAddress:    nil,
+					Owner:               neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+					WhitelistCodeId:     whitelistCodeId,
+					CoinRegistryAddress: coinRegistryAddress,
+				}
+
+				str, err := json.Marshal(msg)
+				require.NoError(t, err, "Failed to marshall FactoryInstantiateMsg")
+
+				factoryAddr, err := cosmosNeutron.InstantiateContract(
+					ctx, neutronUser.KeyName, factoryCodeIdStr, string(str), true)
+				require.NoError(t, err, "Failed to instantiate Factory")
+				factoryAddress = factoryAddr
+				print("\nFactory: ", factoryAddress, "\n")
+
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
 			})
 
 			t.Run("stableswap", func(t *testing.T) {
-				codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_pair_stable.wasm")
-				require.NoError(t, err, "failed to store astroport stableswap contract")
-
-				numCodeId, err := strconv.ParseUint(codeId, 10, 64)
-				require.NoError(t, err, "failed to parse codeId into uint64")
 
 				initParams := StablePoolParams{
 					Amp:   9001,
@@ -377,30 +525,42 @@ func TestICS(t *testing.T) {
 				binaryData, err := json.Marshal(initParams)
 				require.NoError(t, err, "error encoding stable pool params to binary")
 
-				msg := StableswapInstantiateMsg{
-					TokenCodeId: numCodeId,
-					FactoryAddr: depositorContractAddress, // random
-					AssetInfos: []AssetInfo{
-						{
-							NativeToken: &NativeToken{
-								Denom: "statom",
-							},
-						},
-						{
-							NativeToken: &NativeToken{
-								Denom: atom.Config().Denom,
-							},
+				assetInfos := []AssetInfo{
+					{
+						NativeToken: &NativeToken{
+							Denom: "statom",
 						},
 					},
-					InitParams: binaryData,
+					{
+						NativeToken: &NativeToken{
+							Denom: atom.Config().Denom,
+						},
+					},
+				}
+
+				msg := StableswapInstantiateMsg{
+					TokenCodeId: tokenCodeId,
+					FactoryAddr: factoryAddress,
+					AssetInfos:  assetInfos,
+					InitParams:  binaryData,
 				}
 
 				str, err := json.Marshal(msg)
 				require.NoError(t, err, "Failed to marshall DepositorInstantiateMsg")
 				print("\n stableswap init msg: ", string(str), "\n")
 
+				// stableswapAddr, err := cosmosNeutron.InstantiateContract(
+				// 	ctx, neutronUser.KeyName, stablePairCodeIdStr, string(str), true,
+				// )
+				// require.NoError(t, err, "Failed to instantiate Factory")
+				// stableswapAddress = stableswapAddr
+				// print("\nstableswap: ", stableswapAddress, "\n")
+
+				// err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				// require.NoError(t, err, "failed to wait for blocks")
+
 				cmd = []string{"neutrond", "tx", "wasm", "instantiate",
-					codeId,
+					stablePairCodeIdStr,
 					string(str),
 					"--from", neutronUser.KeyName,
 					"--label", "stableswap",
@@ -417,12 +577,13 @@ func TestICS(t *testing.T) {
 					"--keyring-backend", keyring.BackendTest,
 					"-y",
 				}
-
-				print(strings.Join(cmd, " "))
-				stdout, stderr, err := neutron.Exec(ctx, cmd, nil)
+				// print(strings.Join(cmd, " "))
+				stdout, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 				require.NoError(t, err)
-				print("\nstdout: ", stdout)
-				print("\nstderr: ", stderr)
+
+				stableswapAddress = string(stdout)
+				print("\nstdout: ", string(stdout))
+				// print("\nstderr: ", string(stderr))
 			})
 
 		})

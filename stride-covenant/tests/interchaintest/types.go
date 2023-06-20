@@ -126,16 +126,17 @@ type NativeToken struct {
 
 // astroport factory
 type FactoryInstantiateMsg struct {
-	PairConfigs      []PairConfig `json:"pair_configs"`
-	TokenCodeId      uint64       `json:"token_code_id"`
-	FeeAddress       string       `json:"fee_address"`
-	GeneratorAddress string       `json:"generator_address"`
-	Owner            string       `json:"owner"`
-	WhitelistCodeId  uint64       `json:"whitelist_code_id"`
+	PairConfigs         []PairConfig `json:"pair_configs"`
+	TokenCodeId         uint64       `json:"token_code_id"`
+	FeeAddress          *string      `json:"fee_address"`
+	GeneratorAddress    *string      `json:"generator_address"`
+	Owner               string       `json:"owner"`
+	WhitelistCodeId     uint64       `json:"whitelist_code_id"`
+	CoinRegistryAddress string       `json:"coin_registry_address"`
 }
 
 type PairConfig struct {
-	CodeId              uint64   `json:"token_code_id"`
+	CodeId              uint64   `json:"code_id"`
 	PairType            PairType `json:"pair_type"`
 	TotalFeeBps         uint64   `json:"total_fee_bps"`
 	MakerFeeBps         uint64   `json:"maker_fee_bps"`
@@ -144,6 +145,65 @@ type PairConfig struct {
 }
 
 type PairType struct {
-	Xyk    string `json:"xyk,omitempty"`
-	Stable string `json:"stable,omitempty"`
+	// Xyk    struct{} `json:"xyk,omitempty"`
+	Stable struct{} `json:"stable,omitempty"`
+	// Custom struct{} `json:"custom,omitempty"`
+}
+
+// astroport native coin registry
+
+type NativeCoinRegistryInstantiateMsg struct {
+	Owner string `json:"owner"`
+}
+
+type AddExecuteMsg struct {
+	Add Add `json:"add"`
+}
+
+type Add struct {
+	NativeCoins []NativeCoin `json:"native_coins"`
+}
+
+type NativeCoin struct {
+	Name  string `json:"name"`
+	Value uint8  `json:"value"`
+}
+
+// Add { native_coins: Vec<(String, u8)> },
+
+// astroport native token
+type NativeTokenInstantiateMsg struct {
+	Name            string                    `json:"name"`
+	Symbol          string                    `json:"symbol"`
+	Decimals        uint8                     `json:"decimals"`
+	InitialBalances []Cw20Coin                `json:"initial_balances"`
+	Mint            *MinterResponse           `json:"mint"`
+	Marketing       *InstantiateMarketingInfo `json:"marketing"`
+}
+
+type Cw20Coin struct {
+	Address string `json:"address"`
+	Amount  uint64 `json:"amount"`
+}
+
+type MinterResponse struct {
+	Minter string  `json:"minter"`
+	Cap    *uint64 `json:"cap,omitempty"`
+}
+
+type InstantiateMarketingInfo struct {
+	Project     string `json:"project"`
+	Description string `json:"description"`
+	Marketing   string `json:"marketing"`
+	Logo        Logo   `json:"logo"`
+}
+
+type Logo struct {
+	Url string `json:"url"`
+}
+
+// astroport whitelist
+type WhitelistInstantiateMsg struct {
+	Admins  []string `json:"admins"`
+	Mutable bool     `json:"mutable"`
 }
