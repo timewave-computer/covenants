@@ -24,11 +24,11 @@ pub fn instantiate(
     // We cannot deserialize the address without first validating it
     let withdrawer = msg
         .withdrawer
-        .map(|human| deps.api.addr_validate(&human))
+        .map(|addr| deps.api.addr_validate(&addr))
         .transpose()?;
-    match &withdrawer {
+    match withdrawer {
         // If there is a withdrawer, save it to state
-        Some(withdrawer) => WITHDRAWER.save(deps.storage, &withdrawer)?,
+        Some(addr) => WITHDRAWER.save(deps.storage, &addr)?,
         // Error if no withdrawer
         None => return Err(ContractError::NoInitialWithdrawer {}),
     }
@@ -38,10 +38,9 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    use QueryMsg::*;
 
     match msg {
-        Withdrawer {} => Ok(
+        QueryMsg::Withdrawer {} => Ok(
             to_binary(&WITHDRAWER.may_load(deps.storage)?)?
         )
     }
@@ -54,10 +53,9 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    use ExecuteMsg::*;
 
     match msg {
-        Withdraw {quantity}=> withdraw(deps, env, info, quantity),
+        ExecuteMsg::Withdraw {quantity}=> withdraw(deps, env, info, quantity),
     }
 }
 
