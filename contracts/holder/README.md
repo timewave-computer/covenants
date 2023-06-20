@@ -1,0 +1,1 @@
+A holder contract holds funds in the covenant until withdrawn by an authorized `withdrawer` address. API is in src/msg.rs.
