@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
@@ -40,7 +38,7 @@ use crate::state::{
 
 // Default timeout for SubmitTX is two weeks
 const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
-const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
+// const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
 const IBC_CONNECTION: &str = "connection-0";
@@ -48,7 +46,7 @@ const ICS_CONNECTION_ID: &str = "connection-1";
 const INTERCHAIN_ACCOUNT_ID: &str = "test";
 const TRANSFER_PORT: &str = "transfer";
 
-const CONTRACT_NAME: &str = concat!("crates.io:neutron-sdk__", env!("CARGO_PKG_NAME"));
+const CONTRACT_NAME: &str = "crates.io:stride-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -78,7 +76,7 @@ pub fn instantiate(
     STRIDE_ATOM_RECEIVER.save(deps.storage, &msg.st_atom_receiver)?;
     NATIVE_ATOM_RECEIVER.save(deps.storage, &msg.atom_receiver)?;
     CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::INSTANTIATED)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &msg.gaia_neutron_ibc_transfer_channel_id)?;
 
     Ok(Response::default())
@@ -86,7 +84,7 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn execute(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -96,15 +94,11 @@ pub fn execute(
     match msg {
         ExecuteMsg::Tick {  } => try_tick(deps, env, info),
         ExecuteMsg::Received {  } =>  try_handle_received(),
-        ExecuteMsg::Register {
-            connection_id,
-            interchain_account_id,
-        } => execute_register_ica(deps, env, connection_id, interchain_account_id),
     }
 }
 
 
-fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
     let gaia_account_address = match ica_address {
@@ -114,18 +108,18 @@ fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Res
     // TODO: validate caller is clock
 
     match current_state {
-        ContractState::INSTANTIATED => try_register_gaia_ica(deps, env),
-        ContractState::ICA_CREATED => try_receive_atom_from_ica(deps, env, info, gaia_account_address),
-        ContractState::RECEIVED_FUNDS => try_execute_transfers(deps, env, info, gaia_account_address),
-        ContractState::COMPLETE => Ok(Response::default()),
+        ContractState::Instantiated => try_register_gaia_ica(deps, env),
+        ContractState::ICACreated => try_receive_atom_from_ica(deps, env, info, gaia_account_address),
+        ContractState::ReceivedFunds => try_execute_transfers(deps, env, info, gaia_account_address),
+        ContractState::Complete => Ok(Response::default()),
     }
 }
 
 fn try_receive_atom_from_ica(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
-    info: MessageInfo, 
-    gaia_account_address: String
+    _info: MessageInfo, 
+    _gaia_account_address: String
 ) -> NeutronResult<Response<NeutronMsg>> {
     let fee = IbcFee {
         recv_fee: vec![], // must be empty
@@ -147,7 +141,7 @@ fn try_receive_atom_from_ica(
             let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
             let amount = String::from(lp_receiver.amount.to_string());
-            let receiver = String::from(lp_receiver.address.to_string());
+            // let receiver = String::from(lp_receiver.address.to_string());
 
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
@@ -158,12 +152,13 @@ fn try_receive_atom_from_ica(
                 source_port: "transfer".to_string(),
                 source_channel: source_channel,
                 token: Some(coin),
-                sender: address.clone().to_string(),
-                receiver,
+                sender: address.clone(),
+                // receiver: String::from(lp_receiver.address.to_string()),
+                receiver: env.contract.address.to_string(),
                 // TODO: look into what the timeout_height should be
                 timeout_height: Some(Height {
                     revision_number: 2, 
-                    revision_height: 123,
+                    revision_height: 500,
                 }),
                 timeout_timestamp: 0,
             };
@@ -198,7 +193,7 @@ fn try_receive_atom_from_ica(
 }
 
 fn try_register_gaia_ica(
-    mut deps: DepsMut, 
+    deps: DepsMut, 
     env: Env,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
@@ -220,7 +215,7 @@ fn try_register_gaia_ica(
 fn try_execute_transfers(
     mut deps: DepsMut,
     env: Env,
-    info: MessageInfo, 
+    _info: MessageInfo, 
     gaia_account_address: String
 ) -> NeutronResult<Response<NeutronMsg>> {
     // validate that tick was triggered by the authorized clock
@@ -237,7 +232,7 @@ fn try_execute_transfers(
     // 2. transfer 1/2 of atoms from ICA to liquidity-pooler module
 
     // let fee = min_ntrn_ibc_fee(query_min_ibc_fee(deps.as_ref())?.min_fee);
-    let neutron_coin = Coin {
+    let _neutron_coin = Coin {
         denom: NEUTRON_DENOM.to_string(),
         amount: 1000u128.to_string(),
     };
@@ -406,7 +401,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
 
 pub fn query_depositor_interchain_address(
     deps: Deps<NeutronQuery>,
-    env: Env,
+    _env: Env,
 ) -> NeutronResult<Binary> {
     let addr = ICA_ADDRESS.load(deps.storage);
 
@@ -542,7 +537,7 @@ fn sudo_open_ack(
             )),
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
-        CONTRACT_STATE.save(deps.storage, &ContractState::ICA_CREATED)?;
+        CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
         return Ok(Response::default());
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
@@ -785,19 +780,4 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
         ))),
     }
 }
-
-fn min_ntrn_ibc_fee(fee: IbcFee) -> IbcFee {
-    IbcFee {
-        recv_fee: fee.recv_fee,
-        ack_fee: fee
-            .ack_fee
-            .into_iter()
-            .filter(|a| a.denom == NEUTRON_DENOM)
-            .collect(),
-        timeout_fee: fee
-            .timeout_fee
-            .into_iter()
-            .filter(|a| a.denom == NEUTRON_DENOM)
-            .collect(),
-    }
-}
+    

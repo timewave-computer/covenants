@@ -7,7 +7,7 @@ members = [
 [workspace.package]
 edition      = "2021"
 license      = "BSD-3"
-rust-version = "1.67"
+rust-version = "1.66"
 version      = "0.1.0"
 
 [profile.release]
@@ -42,6 +42,7 @@ cw-fifo = { path = "packages/cw-fifo" }
 
 covenant-clock = { path = "contracts/clock" }
 covenant-clock-tester = { path = "contracts/clock-tester" }
+covenant-depositor = { path = "contracts/depositor" }
 
 # dev-dependencies
 cw-multi-test   = "0.16"

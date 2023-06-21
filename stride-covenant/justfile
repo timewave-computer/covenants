@@ -1,13 +1,28 @@
 build:
     cargo build
 
-optimize:
-    cd packages/* && docker run --platform linux/amd64 --rm -v "$(pwd)":/code \
-      --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
-      --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-      cosmwasm/rust-optimizer:0.12.13
+gen: build gen-schema
 
-test: optimize
+gen-schema:
+	START_DIR=$(pwd); \
+	for f in ./packages/*; do \
+		echo "generating schema"; \
+		cd "$f"; \
+		CMD="cargo run --example schema"; \
+		eval ${CMD} > /dev/null; \
+		rm -rf ./schema/raw; \
+		cd "$START_DIR"; \
+	done
+
+test:
+    cargo test
+
+optimize:
+    ./optimize.sh
+
+simtest: optimize
     mkdir -p tests/interchaintest/wasms
-    cp packages/*/artifacts/*.wasm tests/interchaintest/wasms
-    cd tests/interchaintest && go test -v ./...
+
+    cp -R ./../artifacts/*.wasm tests/interchaintest/wasms
+    go clean -testcache
+    cd tests/interchaintest/ && go test -v ./...
