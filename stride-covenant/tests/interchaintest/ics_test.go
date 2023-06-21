@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	transfertypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
 	"github.com/icza/dyno"
 	ibctest "github.com/strangelove-ventures/interchaintest/v3"
 	"github.com/strangelove-ventures/interchaintest/v3/chain/cosmos"
@@ -17,8 +18,84 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v3/testreporter"
 	"github.com/strangelove-ventures/interchaintest/v3/testutil"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )
+
+type InstantiateMsg struct {
+	StAtomReceiver                  WeightedReceiver `json:"st_atom_receiver"`
+	AtomReceiver                    WeightedReceiver `json:"atom_receiver"`
+	ClockAddress                    string           `json:"clock_address,string"`
+	GaiaNeutronIBCTransferChannelId string           `json:"gaia_neutron_ibc_transfer_channel_id"`
+}
+
+type WeightedReceiver struct {
+	Amount  int64  `json:"amount"`
+	Address string `json:"address,string"`
+}
+
+// A query against the Neutron example contract. Note the usage of
+// `omitempty` on fields. This means that if that field has no value,
+// it will not have a key in the serialized representaiton of the
+// struct, thus mimicing the serialization of Rust enums.
+type IcaExampleContractQuery struct {
+	InterchainAccountAddress InterchainAccountAddressQuery `json:"interchain_account_address,omitempty"`
+}
+
+type InterchainAccountAddressQuery struct {
+	InterchainAccountId string `json:"interchain_account_id"`
+	ConnectionId        string `json:"connection_id"`
+}
+
+type QueryResponse struct {
+	Data InterchainAccountAddressQueryResponse `json:"data"`
+}
+
+type ICAQueryResponse struct {
+	Data DepositorInterchainAccountAddressQueryResponse `json:"data"`
+}
+
+type InterchainAccountAddressQueryResponse struct {
+	InterchainAccountAddress string `json:"interchain_account_address"`
+}
+
+type DepositorICAAddressQuery struct {
+	DepositorInterchainAccountAddress DepositorInterchainAccountAddressQuery `json:"depositor_interchain_account_address"`
+}
+
+type DepositorContractQuery struct {
+	ClockAddress ClockAddressQuery `json:"clock_address"`
+}
+
+type StAtomWeightedReceiverQuery struct {
+	StAtomReceiver StAtomReceiverQuery `json:"st_atom_receiver"`
+}
+
+type AtomWeightedReceiverQuery struct {
+	AtomReceiver AtomReceiverQuery `json:"atom_receiver"`
+}
+
+type ClockAddressQuery struct{}
+type StAtomReceiverQuery struct{}
+type AtomReceiverQuery struct{}
+type DepositorInterchainAccountAddressQuery struct{}
+
+type WeightedReceiverResponse struct {
+	Data WeightedReceiver `json:"data"`
+}
+
+type ClockQueryResponse struct {
+	Data string `json:"data"`
+}
+
+// A query response from the Neutron contract. Note that when
+// interchaintest returns query responses, it does so in the form
+// `{"data": <RESPONSE>}`, so we need this outer data key, which is
+// not present in the neutron contract, to properly deserialze.
+
+type DepositorInterchainAccountAddressQueryResponse struct {
+	DepositorInterchainAccountAddress string `json:"depositor_interchain_account_address"`
+}
 
 // Sets custom fields for the Neutron genesis file that interchaintest isn't aware of by default.
 //
@@ -65,6 +142,28 @@ func setupNeutronGenesis(
 	}
 }
 
+// Sets custom fields for the Gaia genesis file that interchaintest isn't aware of by default.
+//
+// allowed_messages - explicitly allowed messages to be accepted by the the interchainaccounts section
+func setupGaiaGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
+	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
+		g := make(map[string]interface{})
+		if err := json.Unmarshal(genbz, &g); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal genesis file: %w", err)
+		}
+
+		if err := dyno.Set(g, allowed_messages, "app_state", "interchainaccounts", "host_genesis_state", "params", "allow_messages"); err != nil {
+			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w", err)
+		}
+
+		out, err := json.Marshal(g)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
+		}
+		return out, nil
+	}
+}
+
 // This tests Cosmos Interchain Security, spinning up gaia, neutron, and stride
 func TestICS(t *testing.T) {
 	if testing.Short() {
@@ -76,8 +175,23 @@ func TestICS(t *testing.T) {
 	ctx := context.Background()
 
 	// Chain Factory
-	cf := ibctest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*ibctest.ChainSpec{
-		{Name: "gaia", Version: "v9.1.0", ChainConfig: ibc.ChainConfig{GasAdjustment: 1.5}},
+	cf := ibctest.NewBuiltinChainFactory(zaptest.NewLogger(t, zaptest.Level(zap.WarnLevel)), []*ibctest.ChainSpec{
+		{Name: "gaia", Version: "v9.1.0", ChainConfig: ibc.ChainConfig{
+			GasAdjustment: 1.3,
+			GasPrices:     "0.0atom",
+			ModifyGenesis: setupGaiaGenesis([]string{
+				"/cosmos.bank.v1beta1.MsgSend",
+				"/cosmos.bank.v1beta1.MsgMultiSend",
+				"/cosmos.staking.v1beta1.MsgDelegate",
+				"/cosmos.staking.v1beta1.MsgUndelegate",
+				"/cosmos.staking.v1beta1.MsgBeginRedelegate",
+				"/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
+				"/cosmos.staking.v1beta1.MsgTokenizeShares",
+				"/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+				"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+				"/ibc.applications.transfer.v1.MsgTransfer",
+			}),
+		}},
 		{
 			ChainConfig: ibc.ChainConfig{
 				Type:    "cosmos",
@@ -93,8 +207,8 @@ func TestICS(t *testing.T) {
 				Bin:            "neutrond",
 				Bech32Prefix:   "neutron",
 				Denom:          "untrn",
-				GasPrices:      "0.0untrn",
-				GasAdjustment:  10.3,
+				GasPrices:      "0.0untrn,0.0uatom",
+				GasAdjustment:  1.3,
 				TrustingPeriod: "1197504s",
 				NoHostMount:    false,
 				ModifyGenesis:  setupNeutronGenesis("0.05", []string{"untrn"}, []string{"uatom"}),
@@ -108,7 +222,7 @@ func TestICS(t *testing.T) {
 				Images: []ibc.DockerImage{
 					{
 						Repository: "ghcr.io/strangelove-ventures/heighliner/stride",
-						Version:    "v9.1.1",
+						Version:    "v9.2.1",
 						UidGid:     "1025:1025",
 					},
 				},
@@ -130,7 +244,6 @@ func TestICS(t *testing.T) {
 	// support, and another for a Cosmos blockchain.
 	atom, neutron, stride := chains[0], chains[1], chains[2]
 	_, cosmosNeutron := atom.(*cosmos.CosmosChain), neutron.(*cosmos.CosmosChain)
-	_ = cosmosNeutron
 
 	// Relayer Factory
 	client, network := ibctest.DockerSetup(t)
@@ -141,10 +254,14 @@ func TestICS(t *testing.T) {
 		relayer.RelayerOptionExtraStartFlags{Flags: []string{"-d", "--log-format", "console"}},
 	).Build(t, client, network)
 
+	const clockContractAddress = "clock_contract_address"
+	const icaAccountId = "test"
+	var icaAccountAddress string
 	// Prep Interchain
 	const gaiaNeutronICSPath = "gn-ics-path"
 	const gaiaNeutronIBCPath = "gn-ibc-path"
 	const gaiaStrideIBCPath = "gs-ibc-path"
+
 	ic := ibctest.NewInterchain().
 		AddChain(atom).
 		AddChain(neutron).
@@ -203,6 +320,18 @@ func TestICS(t *testing.T) {
 	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
 	require.NoError(t, err, "failed to wait for blocks")
 
+	connections, err := r.GetConnections(ctx, eRep, "neutron-2")
+	require.NoError(t, err, "failed to get neutron-2 IBC connections from relayer")
+	var neutronIcsConnectionId string
+	for _, connection := range connections {
+		for _, version := range connection.Versions {
+			if version.String() != "transfer" {
+				neutronIcsConnectionId = connection.ID
+				break
+			}
+		}
+	}
+
 	// Before receiving a validator set change (VSC) packet,
 	// consumer chains disallow bank transfers. To trigger a VSC
 	// packet, this creates a validator (from a random public key)
@@ -238,5 +367,243 @@ func TestICS(t *testing.T) {
 	// by interchaintest in the genesis file.
 	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(100_000_000), atom, neutron, stride)
 	gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
-	_, _, _ = gaiaUser, neutronUser, strideUser
+	_, _ = gaiaUser, strideUser
+
+	neutronUserBal, err := neutron.GetBalance(
+		ctx,
+		neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+		neutron.Config().Denom)
+	require.NoError(t, err, "failed to fund neutron user")
+	require.EqualValues(t, int64(100_000_000), neutronUserBal)
+
+	neutronChannelInfo, _ := r.GetChannels(ctx, eRep, neutron.Config().ChainID)
+	var neutronGaiaIBCChannel ibc.ChannelOutput
+	var neutronGaiaICSChannel ibc.ChannelOutput
+	// find the ics channel
+	for _, s := range neutronChannelInfo {
+		if s.Ordering == "ORDER_ORDERED" {
+			neutronGaiaICSChannel = s
+			break
+		}
+	}
+	// find the ibc transfer channel to gaia (same connection hops)
+	for _, s := range neutronChannelInfo {
+		if s.State == "STATE_OPEN" && s.Ordering == "ORDER_UNORDERED" && s.PortID == "transfer" {
+			if len(s.Counterparty.ChannelID) > 5 && s.Counterparty.PortID == "transfer" && s.ConnectionHops[0] == neutronGaiaICSChannel.ConnectionHops[0] {
+				neutronGaiaIBCChannel = s
+			}
+		}
+	}
+	gaiaNeutronIBCChannel := neutronGaiaIBCChannel.Counterparty
+	neutronGaiaIBCChannelId := neutronGaiaIBCChannel.ChannelID
+	gaiaNeutronIBCChannelId := gaiaNeutronIBCChannel.ChannelID
+	gaiaNeutronICSChannelId := neutronGaiaICSChannel.Counterparty.ChannelID
+	neutronGaiaICSChannelId := neutronGaiaICSChannel.ChannelID
+	_, _ = gaiaNeutronICSChannelId, neutronGaiaICSChannelId
+
+	t.Run("instantiate depositor", func(t *testing.T) {
+		// Store and instantiate the Neutron ICA example contract. The
+		// wasm file is placed in `wasms/` by the `just test` command.
+		codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/stride_depositor.wasm")
+		require.NoError(t, err, "failed to store neutron ICA contract")
+
+		stAtomWeightedReceiver := WeightedReceiver{
+			Amount:  int64(10),
+			Address: "neutron1ud6resqzgewt92njs826m5st98n9r6kkjnurup",
+		}
+		atomWeightedReceiver := WeightedReceiver{
+			Amount:  int64(10),
+			Address: "neutron1ud6resqzgewt92njs826m5st98n9r6kkjnurup",
+		}
+		msg := InstantiateMsg{
+			StAtomReceiver:                  stAtomWeightedReceiver,
+			AtomReceiver:                    atomWeightedReceiver,
+			ClockAddress:                    clockContractAddress,
+			GaiaNeutronIBCTransferChannelId: gaiaNeutronIBCChannelId,
+		}
+
+		str, err := json.Marshal(msg)
+		require.NoError(t, err, "Failed to marshall instantiateMsg")
+
+		address, err := cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
+		require.NoError(t, err, "failed to instantiate depositor contract: ", err)
+
+		neutronSrcDenomTrace := transfertypes.ParseDenomTrace(
+			transfertypes.GetPrefixedDenom("transfer",
+				neutronGaiaIBCChannelId,
+				atom.Config().Denom))
+		neutronDstIbcDenom := neutronSrcDenomTrace.IBCDenom()
+
+		t.Run("query instantiated clock", func(t *testing.T) {
+			var response ClockQueryResponse
+			err = cosmosNeutron.QueryContract(ctx, address, DepositorContractQuery{
+				ClockAddress: ClockAddressQuery{},
+			}, &response)
+			require.NoError(t, err, "failed to query clock address")
+			expectedAddrJson, _ := json.Marshal(clockContractAddress)
+			require.Equal(t, string(expectedAddrJson), response.Data)
+		})
+
+		t.Run("query instantiated weighted receivers", func(t *testing.T) {
+			var stAtomReceiver WeightedReceiverResponse
+			err = cosmosNeutron.QueryContract(ctx, address, StAtomWeightedReceiverQuery{
+				StAtomReceiver: StAtomReceiverQuery{},
+			}, &stAtomReceiver)
+			require.NoError(t, err, "failed to query stAtom weighted receiver")
+			require.Equal(t, stAtomWeightedReceiver, stAtomReceiver.Data)
+
+			var atomReceiver WeightedReceiverResponse
+			err = cosmosNeutron.QueryContract(ctx, address, AtomWeightedReceiverQuery{
+				AtomReceiver: AtomReceiverQuery{},
+			}, &atomReceiver)
+			require.NoError(t, err, "failed to query atom weighted receiver")
+			require.Equal(t, int64(10), atomReceiver.Data.Amount)
+			require.Equal(t, "neutron1ud6resqzgewt92njs826m5st98n9r6kkjnurup", atomReceiver.Data.Address)
+		})
+
+		var addrResponse QueryResponse
+		t.Run("first tick instantiates ICA", func(t *testing.T) {
+			// should remain constant
+			cmd = []string{"neutrond", "tx", "wasm", "execute", address,
+				`{"tick":{}}`,
+				"--from", neutronUser.KeyName,
+				"--gas-prices", "0.0untrn",
+				"--gas-adjustment", `1.5`,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--home", neutron.HomeDir(),
+				"--chain-id", neutron.Config().ChainID,
+				"--from", neutronUser.KeyName,
+				"--gas", "auto",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			_, _, err = neutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			var response QueryResponse
+			err = cosmosNeutron.QueryContract(ctx, address, IcaExampleContractQuery{
+				InterchainAccountAddress: InterchainAccountAddressQuery{
+					InterchainAccountId: icaAccountId,
+					ConnectionId:        neutronIcsConnectionId,
+				},
+			}, &response)
+			require.NoError(t, err, "failed to query ICA account address")
+			require.NotEmpty(t, response.Data.InterchainAccountAddress)
+			icaAccountAddress = response.Data.InterchainAccountAddress
+			err = cosmosNeutron.QueryContract(ctx, address, DepositorICAAddressQuery{
+				DepositorInterchainAccountAddress: DepositorInterchainAccountAddressQuery{},
+			}, &addrResponse)
+			require.NoError(t, err, "failed to query ICA account address")
+			require.NotEmpty(t, addrResponse.Data.InterchainAccountAddress)
+
+			// validate that querying an address via neutron query
+			// and by retrieving it from store is the same
+			require.EqualValues(t,
+				response.Data.InterchainAccountAddress,
+				icaAccountAddress,
+			)
+		})
+
+		t.Run("multisig transfers atom to ICA account", func(t *testing.T) {
+			// transfer funds from gaiaUser to the newly generated ICA account
+			err := atom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
+				Address: icaAccountAddress,
+				Amount:  20,
+				Denom:   atom.Config().Denom,
+			})
+
+			require.NoError(t, err, "failed to send funds from gaia to neutron ICA")
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
+			require.NoError(t, err, "failed to get ICA balance")
+			require.EqualValues(t, 20, atomBal)
+		})
+
+		t.Run("fund depositor contract with some neutron", func(t *testing.T) {
+			err := neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: address,
+				Amount:  500001,
+				Denom:   neutron.Config().Denom,
+			})
+
+			require.NoError(t, err, "failed to send funds from neutron user to depositor contract")
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			neutronBal, err := neutron.GetBalance(ctx, address, neutron.Config().Denom)
+			require.NoError(t, err, "failed to get depositor neutron balance")
+			require.EqualValues(t, 500001, neutronBal)
+		})
+
+		t.Run("second tick ibc transfers atom from ICA account to neutron", func(t *testing.T) {
+			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
+			require.NoError(t, err, "failed to get ICA balance")
+			require.EqualValues(t, 20, atomBal)
+
+			cmd = []string{"neutrond", "tx", "wasm", "execute", address,
+				`{"tick":{}}`,
+				"--from", neutronUser.KeyName,
+				"--gas-adjustment", `1.3`,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--home", neutron.HomeDir(),
+				"--chain-id", neutron.Config().ChainID,
+				"--gas", "auto",
+				"--fees", "500000untrn",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			_, _, err = neutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			err = testutil.WaitForBlocks(ctx, 50, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
+			require.NoError(t, err, "failed to query ICA balance")
+			require.Equal(t, int64(10), atomICABal)
+
+			neutronUserBalNew, err := neutron.GetBalance(
+				ctx,
+				address,
+				neutronDstIbcDenom)
+			require.NoError(t, err, "failed to query depositor contract atom balance")
+			require.Equal(t, int64(10), neutronUserBalNew)
+		})
+
+		t.Run("subsequent ticks do nothing", func(t *testing.T) {
+			cmd = []string{"neutrond", "tx", "wasm", "execute", address,
+				`{"tick":{}}`,
+				"--from", neutronUser.KeyName,
+				"--gas-prices", "0.0untrn",
+				"--gas-adjustment", `1.5`,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--home", neutron.HomeDir(),
+				"--chain-id", neutron.Config().ChainID,
+				"--from", "faucet",
+				"--gas", "50000.0untrn",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			_, _, err = neutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+		})
+	})
+
 }
