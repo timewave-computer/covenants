@@ -246,9 +246,6 @@ func TestICS(t *testing.T) {
 	t.Run("stride covenant tests", func(t *testing.T) {
 		const clockContractAddress = "clock_contract_address"
 		const holderContractAddress = "holder_contract_address"
-		lpInfo := LpInfo{
-			Addr: "test",
-		}
 
 		var lperContractAddress string
 		var depositorContractAddress string
@@ -261,100 +258,12 @@ func TestICS(t *testing.T) {
 				atom.Config().Denom))
 		neutronDstIbcDenom := neutronSrcDenomTrace.IBCDenom()
 
-		t.Run("instantiate lper contract", func(t *testing.T) {
-			codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/stride_lper.wasm")
-			require.NoError(t, err, "failed to store neutron ICA contract")
-
-			lpMsg := LPerInstantiateMsg{
-				LpPosition:    lpInfo,
-				ClockAddress:  clockContractAddress,
-				HolderAddress: holderContractAddress,
-			}
-
-			str, err := json.Marshal(lpMsg)
-			require.NoError(t, err, "Failed to marshall LPerInstantiateMsg")
-
-			lperContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
-			require.NoError(t, err, "failed to instantiate lper contract: ", err)
-
-			print("\n LP contract instantiated with addr: ", lperContractAddress, "\n")
-
-			t.Run("query instantiated clock", func(t *testing.T) {
-				var response ClockQueryResponse
-				err = cosmosNeutron.QueryContract(ctx, lperContractAddress, LPContractQuery{
-					ClockAddress: ClockAddressQuery{},
-				}, &response)
-				require.NoError(t, err, "failed to query clock address")
-				expectedAddrJson, _ := json.Marshal(clockContractAddress)
-				require.Equal(t, string(expectedAddrJson), response.Data)
-			})
-
-			t.Run("query lp position", func(t *testing.T) {
-				var response LpPositionQueryResponse
-				err := cosmosNeutron.QueryContract(ctx, lperContractAddress, LPPositionQuery{
-					LpPosition: LpPositionQuery{},
-				}, &response)
-				require.NoError(t, err, "failed to query lp position address")
-				require.Equal(t, lpInfo.Addr, response.Data.Addr)
-			})
-		})
-
-		t.Run("instantiate depositor contract", func(t *testing.T) {
-			codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/stride_depositor.wasm")
-			require.NoError(t, err, "failed to store neutron ICA contract")
-
-			stAtomWeightedReceiver = WeightedReceiver{
-				Amount:  int64(10),
-				Address: lperContractAddress,
-			}
-
-			atomWeightedReceiver = WeightedReceiver{
-				Amount:  int64(10),
-				Address: lperContractAddress,
-			}
-
-			msg := DepositorInstantiateMsg{
-				StAtomReceiver:                  stAtomWeightedReceiver,
-				AtomReceiver:                    atomWeightedReceiver,
-				ClockAddress:                    clockContractAddress,
-				GaiaNeutronIBCTransferChannelId: gaiaNeutronIBCChannel.ChannelID,
-			}
-
-			str, err := json.Marshal(msg)
-			require.NoError(t, err, "Failed to marshall DepositorInstantiateMsg")
-
-			depositorContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
-			require.NoError(t, err, "failed to instantiate depositor contract: ", err)
-
-			print("\n depositor contract instantiated with addr: ", depositorContractAddress, "\n")
-
-			t.Run("query instantiated clock", func(t *testing.T) {
-				var response ClockQueryResponse
-				err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, DepositorContractQuery{
-					ClockAddress: ClockAddressQuery{},
-				}, &response)
-				require.NoError(t, err, "failed to query clock address")
-				expectedAddrJson, _ := json.Marshal(clockContractAddress)
-				require.Equal(t, string(expectedAddrJson), response.Data)
-			})
-
-			t.Run("query instantiated weighted receivers", func(t *testing.T) {
-				var stAtomReceiver WeightedReceiverResponse
-				err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, StAtomWeightedReceiverQuery{
-					StAtomReceiver: StAtomReceiverQuery{},
-				}, &stAtomReceiver)
-				require.NoError(t, err, "failed to query stAtom weighted receiver")
-				require.Equal(t, stAtomWeightedReceiver, stAtomReceiver.Data)
-
-				var atomReceiver WeightedReceiverResponse
-				err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, AtomWeightedReceiverQuery{
-					AtomReceiver: AtomReceiverQuery{},
-				}, &atomReceiver)
-				require.NoError(t, err, "failed to query atom weighted receiver")
-				require.Equal(t, int64(10), atomReceiver.Data.Amount)
-				require.Equal(t, lperContractAddress, atomReceiver.Data.Address)
-			})
-		})
+		var coinRegistryAddress string
+		var factoryAddress string
+		var stableswapAddress string
+		var tokenAddress string
+		var whitelistAddress string
+		_, _ = tokenAddress, whitelistAddress
 
 		t.Run("deploy astroport contracts", func(t *testing.T) {
 			stablePairCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_pair_stable.wasm")
@@ -377,10 +286,6 @@ func TestICS(t *testing.T) {
 			tokenCodeId, err := strconv.ParseUint(tokenCodeIdStr, 10, 64)
 			require.NoError(t, err, "failed to parse codeId into uint64")
 
-			var coinRegistryAddress string
-			var factoryAddress string
-			var stableswapAddress string
-			_ = stableswapAddress
 			t.Run("astroport token", func(t *testing.T) {
 
 				// cap := uint64(1)
@@ -405,9 +310,8 @@ func TestICS(t *testing.T) {
 				str, err := json.Marshal(msg)
 				require.NoError(t, err, "Failed to marshall NativeTokenInstantiateMsg")
 
-				tokenAddress, err := cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, tokenCodeIdStr, string(str), true)
+				tokenAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, tokenCodeIdStr, string(str), true)
 				require.NoError(t, err, "Failed to instantiate Native Token")
-				print("\nNative token: ", tokenAddress, "\n")
 				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
@@ -424,10 +328,10 @@ func TestICS(t *testing.T) {
 				str, err := json.Marshal(msg)
 				require.NoError(t, err, "Failed to marshall WhitelistInstantiateMsg")
 
-				whitelistAddress, err := cosmosNeutron.InstantiateContract(
+				whitelistAddress, err = cosmosNeutron.InstantiateContract(
 					ctx, neutronUser.KeyName, whitelistCodeIdStr, string(str), true)
 				require.NoError(t, err, "Failed to instantiate Whitelist")
-				print("\nWhitelist: ", whitelistAddress, "\n")
+
 				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
@@ -447,14 +351,13 @@ func TestICS(t *testing.T) {
 					ctx, neutronUser.KeyName, coinRegistryCodeId, string(str), true)
 				require.NoError(t, err, "Failed to instantiate NativeCoinRegistry")
 				coinRegistryAddress = nativeCoinRegistryAddress
-				print("\nNativeCoinRegistry: ", nativeCoinRegistryAddress, "\n")
 				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
 
 			t.Run("add coins to registry", func(t *testing.T) {
 				// no clue how to marshall go struct fields into rust Vec<(String, u8)>
-				// so passing a string
+				// so passing as a string for now
 				addMessage := `{"add":{"native_coins":[["statom",10],["uatom",10]]}}`
 				addCmd := []string{"neutrond", "tx", "wasm", "execute",
 					coinRegistryAddress,
@@ -510,7 +413,6 @@ func TestICS(t *testing.T) {
 					ctx, neutronUser.KeyName, factoryCodeIdStr, string(str), true)
 				require.NoError(t, err, "Failed to instantiate Factory")
 				factoryAddress = factoryAddr
-				print("\nFactory: ", factoryAddress, "\n")
 
 				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
 				require.NoError(t, err, "failed to wait for blocks")
@@ -525,16 +427,18 @@ func TestICS(t *testing.T) {
 				binaryData, err := json.Marshal(initParams)
 				require.NoError(t, err, "error encoding stable pool params to binary")
 
+				stAtom := NativeToken{
+					Denom: "statom",
+				}
+				nativeAtom := NativeToken{
+					Denom: atom.Config().Denom,
+				}
 				assetInfos := []AssetInfo{
 					{
-						NativeToken: &NativeToken{
-							Denom: "statom",
-						},
+						NativeToken: &stAtom,
 					},
 					{
-						NativeToken: &NativeToken{
-							Denom: atom.Config().Denom,
-						},
+						NativeToken: &nativeAtom,
 					},
 				}
 
@@ -547,45 +451,121 @@ func TestICS(t *testing.T) {
 
 				str, err := json.Marshal(msg)
 				require.NoError(t, err, "Failed to marshall DepositorInstantiateMsg")
-				print("\n stableswap init msg: ", string(str), "\n")
 
-				// stableswapAddr, err := cosmosNeutron.InstantiateContract(
-				// 	ctx, neutronUser.KeyName, stablePairCodeIdStr, string(str), true,
-				// )
-				// require.NoError(t, err, "Failed to instantiate Factory")
-				// stableswapAddress = stableswapAddr
-				// print("\nstableswap: ", stableswapAddress, "\n")
-
-				// err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
-				// require.NoError(t, err, "failed to wait for blocks")
-
-				cmd = []string{"neutrond", "tx", "wasm", "instantiate",
-					stablePairCodeIdStr,
-					string(str),
-					"--from", neutronUser.KeyName,
+				stableswapAddr, err := cosmosNeutron.InstantiateContract(
+					ctx, neutronUser.KeyName, stablePairCodeIdStr, string(str), true,
 					"--label", "stableswap",
-					"--no-admin",
 					"--gas-prices", "0.0untrn",
 					"--gas-adjustment", `1.5`,
 					"--output", "json",
-					"--home", "/var/cosmos-chain/neutron-2",
 					"--node", neutron.GetRPCAddress(),
 					"--home", neutron.HomeDir(),
 					"--chain-id", neutron.Config().ChainID,
-					"--from", neutronUser.KeyName,
 					"--gas", "auto",
 					"--keyring-backend", keyring.BackendTest,
 					"-y",
-				}
-				// print(strings.Join(cmd, " "))
-				stdout, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
-				require.NoError(t, err)
+				)
+				require.NoError(t, err, "Failed to instantiate stableswap")
+				stableswapAddress = stableswapAddr
 
-				stableswapAddress = string(stdout)
-				print("\nstdout: ", string(stdout))
-				// print("\nstderr: ", string(stderr))
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
 			})
 
+		})
+
+		t.Run("instantiate lper contract", func(t *testing.T) {
+			codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/stride_lper.wasm")
+			require.NoError(t, err, "failed to store neutron ICA contract")
+			lpInfo := LpInfo{
+				Addr: stableswapAddress,
+			}
+
+			lpMsg := LPerInstantiateMsg{
+				LpPosition:    lpInfo,
+				ClockAddress:  clockContractAddress,
+				HolderAddress: holderContractAddress,
+			}
+
+			str, err := json.Marshal(lpMsg)
+			require.NoError(t, err, "Failed to marshall LPerInstantiateMsg")
+
+			lperContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
+			require.NoError(t, err, "failed to instantiate lper contract: ", err)
+
+			t.Run("query instantiated clock", func(t *testing.T) {
+				var response ClockQueryResponse
+				err = cosmosNeutron.QueryContract(ctx, lperContractAddress, LPContractQuery{
+					ClockAddress: ClockAddressQuery{},
+				}, &response)
+				require.NoError(t, err, "failed to query clock address")
+				expectedAddrJson, _ := json.Marshal(clockContractAddress)
+				require.Equal(t, string(expectedAddrJson), response.Data)
+			})
+
+			t.Run("query lp position", func(t *testing.T) {
+				var response LpPositionQueryResponse
+				err := cosmosNeutron.QueryContract(ctx, lperContractAddress, LPPositionQuery{
+					LpPosition: LpPositionQuery{},
+				}, &response)
+				require.NoError(t, err, "failed to query lp position address")
+				require.Equal(t, stableswapAddress, response.Data.Addr)
+			})
+		})
+
+		t.Run("instantiate depositor contract", func(t *testing.T) {
+			codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/stride_depositor.wasm")
+			require.NoError(t, err, "failed to store neutron ICA contract")
+
+			stAtomWeightedReceiver = WeightedReceiver{
+				Amount:  int64(10),
+				Address: lperContractAddress,
+			}
+
+			atomWeightedReceiver = WeightedReceiver{
+				Amount:  int64(10),
+				Address: lperContractAddress,
+			}
+
+			msg := DepositorInstantiateMsg{
+				StAtomReceiver:                  stAtomWeightedReceiver,
+				AtomReceiver:                    atomWeightedReceiver,
+				ClockAddress:                    clockContractAddress,
+				GaiaNeutronIBCTransferChannelId: gaiaNeutronIBCChannel.ChannelID,
+			}
+
+			str, err := json.Marshal(msg)
+			require.NoError(t, err, "Failed to marshall DepositorInstantiateMsg")
+
+			depositorContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
+			require.NoError(t, err, "failed to instantiate depositor contract: ", err)
+
+			t.Run("query instantiated clock", func(t *testing.T) {
+				var response ClockQueryResponse
+				err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, DepositorContractQuery{
+					ClockAddress: ClockAddressQuery{},
+				}, &response)
+				require.NoError(t, err, "failed to query clock address")
+				expectedAddrJson, _ := json.Marshal(clockContractAddress)
+				require.Equal(t, string(expectedAddrJson), response.Data)
+			})
+
+			t.Run("query instantiated weighted receivers", func(t *testing.T) {
+				var stAtomReceiver WeightedReceiverResponse
+				err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, StAtomWeightedReceiverQuery{
+					StAtomReceiver: StAtomReceiverQuery{},
+				}, &stAtomReceiver)
+				require.NoError(t, err, "failed to query stAtom weighted receiver")
+				require.Equal(t, stAtomWeightedReceiver, stAtomReceiver.Data)
+
+				var atomReceiver WeightedReceiverResponse
+				err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, AtomWeightedReceiverQuery{
+					AtomReceiver: AtomReceiverQuery{},
+				}, &atomReceiver)
+				require.NoError(t, err, "failed to query atom weighted receiver")
+				require.Equal(t, int64(10), atomReceiver.Data.Amount)
+				require.Equal(t, lperContractAddress, atomReceiver.Data.Address)
+			})
 		})
 
 		var addrResponse QueryResponse
