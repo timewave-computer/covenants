@@ -14,6 +14,7 @@ replace (
 
 require (
 	github.com/cosmos/cosmos-sdk v0.45.15
+	github.com/cosmos/ibc-go/v3 v3.4.0
 	github.com/icza/dyno v0.0.0-20220812133438-f0b6f8a18845
 	github.com/strangelove-ventures/interchaintest/v3 v3.0.0-20230424185430-002b69e57bc7
 	github.com/stretchr/testify v1.8.2
@@ -43,7 +44,6 @@ require (
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gorocksdb v1.2.0 // indirect
 	github.com/cosmos/iavl v0.19.4 // indirect
-	github.com/cosmos/ibc-go/v3 v3.4.0 // indirect
 	github.com/cosmos/interchain-security v1.0.0-rc2 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.11.1 // indirect
 	github.com/cosmos/ledger-go v0.9.3 // indirect
