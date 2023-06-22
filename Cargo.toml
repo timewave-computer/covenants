@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "packages/*",
   "contracts/*",
 ]
 
@@ -9,6 +10,7 @@ license      = "BSD-3"
 version      = "1.0.0"
 repository = "https://github.com/timewave-computer/covenants/stride-covenant"
 
+rust-version = "1.66"
 
 [profile.release]
 codegen-units    = 1
@@ -22,16 +24,16 @@ panic            = 'abort'
 rpath            = false
 
 [workspace.dependencies]
-stride-depositor       = { path = "./packages/depositor", version = "*" }
-stride-lper = { path = "./packages/lper", version = "*" }
+covenant-depositor       = { path = "./packages/depositor", version = "*" }
+covenant-lper = { path = "./packages/lper", version = "*" }
+covenant-clock = { path = "contracts/clock" }
+covenant-clock-tester = { path = "contracts/clock-tester" }
+covenant-lp = { path = "contracts/lper" }
+covenant-clock-derive = { path = "packages/clock-derive" }
+cw-fifo = { path = "packages/cw-fifo" }
 
-cosmwasm-schema = "1.2.1"
-cosmwasm-std    = { version = "1.2.4", features = ["ibc3"] }
-cw-storage-plus = "1.0.1"
-cw-utils        = "1.0.1"
-cw2             = "1.0.1"
-serde     = { version = "1.0.145", default-features = false, features = ["derive"] }
-thiserror = "1.0.31"
+
+
 # the sha2 version here is the same as the one used by
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
 # updated. to find cosmwasm_std's sha function:
@@ -40,13 +42,21 @@ sha2 = "0.10.6"
 neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk", default-features = false, version = "0.5.0" }
 cosmos-sdk-proto = { version = "0.14.0", default-features = false }
 protobuf = { version = "3.2.0", features = ["with-bytes"] }
-schemars = "0.8.10"
 serde-json-wasm = { version = "0.4.1" }
 base64 = "0.13.0"
 prost = "0.11"
 prost-types = "0.11"
 bech32 = "0.9.0"
+cosmwasm-schema = "1.2.1"
+cosmwasm-std    = { version = "1.2.4", features = ["ibc3"] }
+cw-storage-plus = "1.0.1"
+cw-utils        = "1.0.1"
+cw2             = "1.0.1"
+serde     = { version = "1.0.145", default-features = false, features = ["derive"] }
+thiserror = "1.0.31"
+schemars = "0.8.10"
 
 # dev-dependencies
 cw-multi-test   = "0.16.2"
 anyhow          = { version = "1.0.51" }
+

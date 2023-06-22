@@ -22,8 +22,8 @@ optimize:
 
 simtest: optimize
     if [[ $(uname -m) =~ "arm64" ]]; then \
-        mv ./../artifacts/stride_depositor-aarch64.wasm ./../artifacts/stride_depositor.wasm && \
-        mv ./../artifacts/stride_lper-aarch64.wasm ./../artifacts/stride_lper.wasm \
+        mv ./../artifacts/covenant_depositor-aarch64.wasm ./../artifacts/covenant_depositor.wasm && \
+        mv ./../artifacts/covenant_lper-aarch64.wasm ./../artifacts/covenant_lper.wasm \
     ;fi
 
     cp ./astroport/*.wasm ./../artifacts

@@ -1,5 +1,5 @@
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
-use stride_lper::msg::{InstantiateMsg, ExecuteMsg, QueryMsg};
+use covenant_lper::msg::{InstantiateMsg, ExecuteMsg, QueryMsg};
 use std::env::current_dir;
 use std::fs::create_dir_all;
 

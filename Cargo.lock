@@ -204,6 +204,94 @@ dependencies = [
 ]
 
 [[package]]
+name = "covenant-clock"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-clock-derive",
+ "covenant-clock-tester",
+ "cw-fifo",
+ "cw-multi-test",
+ "cw-storage-plus 1.1.0",
+ "cw2 1.0.1",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "covenant-clock-derive"
+version = "0.0.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "covenant-clock-tester"
+version = "1.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 1.1.0",
+ "cw2 1.0.1",
+ "thiserror",
+]
+
+[[package]]
+name = "covenant-depositor"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "base64 0.13.1",
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus 1.1.0",
+ "cw-utils 1.0.1",
+ "cw2 1.0.1",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types",
+ "protobuf",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "sha2 0.10.7",
+ "thiserror",
+]
+
+[[package]]
+name = "covenant-lper"
+version = "1.0.0"
+dependencies = [
+ "astroport",
+ "base64 0.13.1",
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus 1.1.0",
+ "cw-utils 1.0.1",
+ "cw2 1.0.1",
+ "cw20",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types",
+ "protobuf",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "sha2 0.10.7",
+ "thiserror",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -251,6 +339,16 @@ dependencies = [
  "rand_core 0.5.1",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "cw-fifo"
+version = "0.0.1"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 1.1.0",
+ "serde",
 ]
 
 [[package]]
@@ -942,57 +1040,6 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
-
-[[package]]
-name = "stride-depositor"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "base64 0.13.1",
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-multi-test",
- "cw-storage-plus 1.1.0",
- "cw-utils 1.0.1",
- "cw2 1.0.1",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types",
- "protobuf",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "sha2 0.10.7",
- "thiserror",
-]
-
-[[package]]
-name = "stride-lper"
-version = "1.0.0"
-dependencies = [
- "astroport",
- "base64 0.13.1",
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-multi-test",
- "cw-storage-plus 1.1.0",
- "cw-utils 1.0.1",
- "cw2 1.0.1",
- "cw20",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types",
- "protobuf",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "sha2 0.10.7",
- "thiserror",
-]
 
 [[package]]
 name = "subtle"
