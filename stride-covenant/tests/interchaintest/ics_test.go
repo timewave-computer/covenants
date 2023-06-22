@@ -218,13 +218,16 @@ func TestICS(t *testing.T) {
 
 	for _, s := range strideChannelInfo {
 		for _, n := range neutronChannelInfo {
-			if s.ChannelID == n.Counterparty.ChannelID && s.PortID == n.Counterparty.PortID && n.Ordering == "UNORDERED" {
+			if s.ChannelID == n.Counterparty.ChannelID && s.PortID == n.Counterparty.PortID &&
+				n.Ordering == "UNORDERED" && s.Counterparty.ChannelID == n.ChannelID &&
+				s.Counterparty.PortID == n.PortID {
 				strideNeutronChannelId = s.ChannelID
 				neutronStrideChannelId = n.ChannelID
 			}
 		}
 		for _, g := range gaiaChannelInfo {
-			if s.ChannelID == g.Counterparty.ChannelID && s.PortID == g.Counterparty.PortID && g.Ordering == "UNORDERED" {
+			if s.ChannelID == g.Counterparty.ChannelID && g.ChannelID == s.Counterparty.ChannelID &&
+				s.PortID == g.Counterparty.PortID && g.PortID == s.Counterparty.PortID && g.Ordering == "UNORDERED" {
 				strideGaiaChannelId = s.ChannelID
 				gaiaStrideChannelId = g.ChannelID
 			}
@@ -234,12 +237,15 @@ func TestICS(t *testing.T) {
 
 	var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
 
+	var neutronGaiaICSConnectionHopId string
 	for _, n := range neutronChannelInfo {
 		for _, g := range gaiaChannelInfo {
 			if n.Ordering == "ORDERED" && g.Ordering == "ORDERED" {
 				neutronGaiaICSChannelId = n.ChannelID
 				gaiaNeutronICSChannelId = g.ChannelID
-			} else if n.ChannelID == g.Counterparty.ChannelID && n.PortID == g.Counterparty.PortID {
+				neutronGaiaICSConnectionHopId = n.ConnectionHops[0]
+			} else if n.ChannelID == g.Counterparty.ChannelID && g.ChannelID == n.Counterparty.ChannelID &&
+				n.PortID == g.Counterparty.PortID && n.Counterparty.PortID == g.PortID {
 				neutronGaiaTransferChannelId = n.ChannelID
 				gaiaNeutronTransferChannelId = g.ChannelID
 			}
@@ -252,15 +258,13 @@ func TestICS(t *testing.T) {
 	// we iterate over stride connections
 	for _, strideConn := range strideConnectionInfo {
 		for _, neutronConn := range neutronConnectionInfo {
-			if neutronConn.ClientID == strideConn.Counterparty.ClientId &&
-				neutronConn.ID == strideConn.Counterparty.ConnectionId {
+			if neutronConn.ClientID == strideConn.Counterparty.ClientId {
 				strideNeutronConnectionId = strideConn.ID
 				neutronStrideConnectionId = neutronConn.ID
 			}
 		}
 		for _, gaiaConn := range gaiaConnectionInfo {
-			if strideConn.ClientID == gaiaConn.Counterparty.ClientId &&
-				strideConn.ID == gaiaConn.Counterparty.ConnectionId {
+			if strideConn.ClientID == gaiaConn.Counterparty.ClientId {
 				strideGaiaConnectionId = strideConn.ID
 				gaiaStrideConnectionId = gaiaConn.ID
 			}
@@ -275,22 +279,22 @@ func TestICS(t *testing.T) {
 	var gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId string
 	_, _ = gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId
 	for _, neutronConn := range neutronConnectionInfo {
-		for _, version := range neutronConn.Versions {
-			if version.String() != "transfer" {
-				neutronGaiaICSConnectionId = neutronConn.ID
-				gaiaNeutronICSConnectionId = neutronConn.Counterparty.ConnectionId
-				break
-			}
+		if neutronGaiaICSConnectionHopId == neutronConn.Counterparty.ConnectionId {
+			neutronGaiaICSConnectionId = neutronConn.ID
+			gaiaNeutronICSConnectionId = neutronConn.Counterparty.ConnectionId
+			break
 		}
 	}
-
+	_ = neutronGaiaICSConnectionHopId
 	for _, neutronConn := range neutronConnectionInfo {
 		for _, gaiaConn := range gaiaConnectionInfo {
-			if neutronConn.ID != neutronGaiaICSConnectionId &&
-				neutronConn.ClientID == gaiaConn.Counterparty.ClientId &&
-				neutronConn.ID == gaiaConn.Counterparty.ConnectionId {
+			// if neutronConn.ID != neutronGaiaICSConnectionHopId &&
+			// if neutronConn.ClientID == gaiaConn.Counterparty.ClientId && gaiaConn.ClientID == neutronConn.Counterparty.ClientId &&
+			// 	neutronConn.ID == gaiaConn.Counterparty.ConnectionId && gaiaConn.ID == neutronConn.Counterparty.ClientId {
+			if neutronConn.ID != neutronGaiaICSConnectionId && gaiaConn.ID != gaiaNeutronICSConnectionId &&
+				neutronConn.ClientID == gaiaConn.Counterparty.ClientId && gaiaConn.ClientID == neutronConn.Counterparty.ClientId {
 				neutronGaiaTransferConnectionId = neutronConn.ID
-				gaiaNeutronTransferConnectionId = neutronConn.Counterparty.ConnectionId
+				gaiaNeutronTransferConnectionId = gaiaConn.ID
 				break
 			}
 		}
