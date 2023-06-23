@@ -47,6 +47,7 @@ impl Default for SuiteBuilder {
                 clock_address: "default-clock".to_string(),
                 gaia_neutron_ibc_transfer_channel_id: "channel-3".to_string(),
                 neutron_gaia_connection_id: "connection-0".to_string(),
+                gaia_stride_ibc_transfer_channel_id: "channel-3".to_string(),
             },
         }
     }

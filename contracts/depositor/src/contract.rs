@@ -33,7 +33,7 @@ use neutron_sdk::{
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_sudo_payload, AcknowledgementResult,
-    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, IBC_PORT_ID, ICA_ADDRESS, SudoPayload, save_reply_payload, CONTRACT_STATE, ContractState, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, NEUTRON_GAIA_CONNECTION_ID,
+    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, IBC_PORT_ID, ICA_ADDRESS, SudoPayload, save_reply_payload, CONTRACT_STATE, ContractState, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, NEUTRON_GAIA_CONNECTION_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, LP_ADDRESS,
 };
 
 // Default timeout for SubmitTX is two weeks
@@ -77,6 +77,7 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &msg.gaia_neutron_ibc_transfer_channel_id)?;
     NEUTRON_GAIA_CONNECTION_ID.save(deps.storage, &msg.neutron_gaia_connection_id)?;
+    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
 
     Ok(Response::default())
 }
@@ -108,11 +109,109 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 
     match current_state {
         ContractState::Instantiated => try_register_gaia_ica(deps, env),
-        ContractState::ICACreated => try_receive_atom_from_ica(deps, env, info, gaia_account_address),
-        ContractState::ReceivedFunds => try_execute_transfers(deps, env, info, gaia_account_address),
+        ContractState::ICACreated => try_liquid_stake(deps, env, info, gaia_account_address),
+        ContractState::LiquidStaked => try_receive_atom_from_ica(deps, env, info, gaia_account_address),
         ContractState::Complete => Ok(Response::default()),
     }
 }
+
+fn try_liquid_stake(
+    deps: DepsMut,
+    env: Env,
+    _info: MessageInfo, 
+    _gaia_account_address: String
+) -> NeutronResult<Response<NeutronMsg>> {
+    let fee = IbcFee {
+        recv_fee: vec![], // must be empty
+        ack_fee: vec![cosmwasm_std::Coin { 
+            denom: NEUTRON_DENOM.to_string(),
+            amount: Uint128::new(1000u128)
+        }],
+        timeout_fee: vec![cosmwasm_std::Coin { 
+            denom: NEUTRON_DENOM.to_string(), 
+            amount: Uint128::new(1000u128) 
+        }],
+    };
+    let port_id = IBC_PORT_ID.load(deps.storage)?;
+
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
+    
+    match interchain_account {
+        Some((address, controller_conn_id)) => {
+            let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
+            let amount = String::from(lp_receiver.amount.to_string());
+            // let receiver = String::from(lp_receiver.address.to_string());
+
+            let coin = Coin {
+                denom: ATOM_DENOM.to_string(),
+                amount,
+            };
+
+            // stride autopilot msg
+            let stride_receiver = STRIDE_ATOM_RECEIVER.load(deps.storage)?;
+            let st_amount = String::from(stride_receiver.amount.to_string());
+            let st_ica = String::from(stride_receiver.address.to_string());
+            let gaia_stride_channel = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+
+            let stride_msg = MsgTransfer {
+                source_port: "transfer".to_string(),
+                source_channel: gaia_stride_channel,
+                token: Some(coin),
+                sender: address.clone(),
+                receiver: st_ica.clone(),
+                timeout_height: Some(Height {
+                    revision_number: 3, 
+                    revision_height: 800,
+                }),
+                timeout_timestamp: 0,
+            };
+        
+            // Serialize the Transfer message
+            let mut buf = Vec::new();
+            buf.reserve(stride_msg.encoded_len());
+            if let Err(e) = stride_msg.encode(&mut buf) {
+                return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
+            }
+        
+            let protobuf = ProtobufAny {
+                type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+                value: Binary::from(buf),
+            };
+
+            let lper_addr = LP_ADDRESS.load(deps.storage)?;
+            let gaia_stride_channel = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+
+            let mut autopilot_memo = String::from("\"{\"autopilot\":{\"receiver\":\"");
+            autopilot_memo.push_str(&st_ica);
+            autopilot_memo.push_str("\",\"stakeibc\":{\"stride_address\":\"");
+            autopilot_memo.push_str(&st_ica);
+            autopilot_memo.push_str("\",\"action\":\"LiquidStake\",\"ibc_receiver\":\"");
+            autopilot_memo.push_str(&lper_addr);
+            autopilot_memo.push_str("\",\"transfer_channel\":\"");
+            autopilot_memo.push_str(&gaia_stride_channel);
+            autopilot_memo.push_str("\"}}}\"");
+
+            let memo = autopilot_memo.to_string();
+
+            let stride_submit_msg = NeutronMsg::submit_tx(
+                controller_conn_id, 
+                INTERCHAIN_ACCOUNT_ID.to_string(), 
+                vec![protobuf], 
+                memo, 
+                100000, 
+                fee
+            );
+
+            CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
+
+            Ok(Response::default()
+                .add_submessage(SubMsg::new(stride_submit_msg))
+            )
+        },
+        None => return Err(NeutronError::Std(StdError::NotFound { kind: "no ica found".to_string() })),
+    }   
+}
+
 
 fn try_receive_atom_from_ica(
     deps: DepsMut,
@@ -140,7 +239,6 @@ fn try_receive_atom_from_ica(
             let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
             let amount = String::from(lp_receiver.amount.to_string());
-            // let receiver = String::from(lp_receiver.address.to_string());
 
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
@@ -150,11 +248,9 @@ fn try_receive_atom_from_ica(
             let msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: source_channel,
-                token: Some(coin),
+                token: Some(coin.clone()),
                 sender: address.clone(),
-                // receiver: String::from(lp_receiver.address.to_string()),
                 receiver: env.contract.address.to_string(),
-                // TODO: look into what the timeout_height should be
                 timeout_height: Some(Height {
                     revision_number: 2, 
                     revision_height: 500,
@@ -175,12 +271,12 @@ fn try_receive_atom_from_ica(
             };
 
             let submit_msg = NeutronMsg::submit_tx(
-                controller_conn_id, 
+                controller_conn_id.clone(), 
                 INTERCHAIN_ACCOUNT_ID.to_string(), 
                 vec![protobuf], 
-                address, 
+                address.clone(), 
                 100000, 
-                fee
+                fee.clone(),
             );
 
             Ok(Response::default()

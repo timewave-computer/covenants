@@ -209,38 +209,21 @@ func TestICS(t *testing.T) {
 
 	neutronChannelInfo, _ := r.GetChannels(ctx, eRep, neutron.Config().ChainID)
 	gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, atom.Config().ChainID)
-	strideChannelInfo, _ := r.GetChannels(ctx, eRep, stride.Config().ChainID)
 	strideConnectionInfo, _ := r.GetConnections(ctx, eRep, stride.Config().ChainID)
 	neutronConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosNeutron.Config().ChainID)
 	gaiaConnectionInfo, _ := r.GetConnections(ctx, eRep, atom.Config().ChainID)
 
-	var strideNeutronChannelId, strideGaiaChannelId, gaiaStrideChannelId, neutronStrideChannelId string
-
-	for _, s := range strideChannelInfo {
-		for _, n := range neutronChannelInfo {
-			if s.ChannelID == n.Counterparty.ChannelID && s.PortID == n.Counterparty.PortID &&
-				n.Ordering == "UNORDERED" && s.Counterparty.ChannelID == n.ChannelID &&
-				s.Counterparty.PortID == n.PortID {
-				strideNeutronChannelId = s.ChannelID
-				neutronStrideChannelId = n.ChannelID
-			}
-		}
-		for _, g := range gaiaChannelInfo {
-			if s.ChannelID == g.Counterparty.ChannelID && g.ChannelID == s.Counterparty.ChannelID &&
-				s.PortID == g.Counterparty.PortID && g.PortID == s.Counterparty.PortID && g.Ordering == "UNORDERED" {
-				strideGaiaChannelId = s.ChannelID
-				gaiaStrideChannelId = g.ChannelID
-			}
-		}
-	}
-	_, _, _, _ = strideNeutronChannelId, strideGaiaChannelId, gaiaStrideChannelId, neutronStrideChannelId
-
-	var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
-
+	strideGaiaTransferChannel, err := ibc.GetTransferChannel(ctx, r, eRep, stride.Config().ChainID, atom.Config().ChainID)
+	strideNeutronTransferChannel, err := ibc.GetTransferChannel(ctx, r, eRep, stride.Config().ChainID, neutron.Config().ChainID)
+	neutronStrideTransferChannel, err := ibc.GetTransferChannel(ctx, r, eRep, neutron.Config().ChainID, stride.Config().ChainID)
+	gaiaStrideTransferChannel, err := ibc.GetTransferChannel(ctx, r, eRep, atom.Config().ChainID, stride.Config().ChainID)
+	var neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
+	var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId string
 	var neutronGaiaICSConnectionHopId string
+
 	for _, n := range neutronChannelInfo {
 		for _, g := range gaiaChannelInfo {
-			if n.Ordering == "ORDERED" && g.Ordering == "ORDERED" {
+			if n.PortID == "consumer" && g.PortID == "provider" {
 				neutronGaiaICSChannelId = n.ChannelID
 				gaiaNeutronICSChannelId = g.ChannelID
 				neutronGaiaICSConnectionHopId = n.ConnectionHops[0]
@@ -251,46 +234,39 @@ func TestICS(t *testing.T) {
 			}
 		}
 	}
-	_, _, _, _ = neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId
 
 	var strideGaiaConnectionId, gaiaStrideConnectionId, strideNeutronConnectionId, neutronStrideConnectionId string
 
 	// we iterate over stride connections
 	for _, strideConn := range strideConnectionInfo {
 		for _, neutronConn := range neutronConnectionInfo {
-			if neutronConn.ClientID == strideConn.Counterparty.ClientId {
+			if neutronConn.ClientID == strideConn.Counterparty.ClientId && strideConn.ClientID == neutronConn.Counterparty.ClientId {
+				// strideNeutronTransferChannel.ConnectionHops[0] == strideConn.ID {
 				strideNeutronConnectionId = strideConn.ID
 				neutronStrideConnectionId = neutronConn.ID
 			}
 		}
 		for _, gaiaConn := range gaiaConnectionInfo {
-			if strideConn.ClientID == gaiaConn.Counterparty.ClientId {
+			if strideConn.ClientID == gaiaConn.Counterparty.ClientId && strideConn.Counterparty.ClientId == gaiaConn.ClientID {
+				// strideGaiaTransferChannel.ConnectionHops[0] == strideConn.ID {
 				strideGaiaConnectionId = strideConn.ID
 				gaiaStrideConnectionId = gaiaConn.ID
 			}
 		}
 	}
-	_ = gaiaStrideConnectionId
-
-	print("\nstrideNeutronConnection id : ", strideNeutronConnectionId)
-	print("\nstrideGaiaConnection id : ", strideGaiaConnectionId)
 
 	var neutronGaiaTransferConnectionId, neutronGaiaICSConnectionId string
 	var gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId string
 	_, _ = gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId
 	for _, neutronConn := range neutronConnectionInfo {
-		if neutronGaiaICSConnectionHopId == neutronConn.Counterparty.ConnectionId {
+		if neutronGaiaICSConnectionHopId == neutronConn.ID {
 			neutronGaiaICSConnectionId = neutronConn.ID
 			gaiaNeutronICSConnectionId = neutronConn.Counterparty.ConnectionId
 			break
 		}
 	}
-	_ = neutronGaiaICSConnectionHopId
 	for _, neutronConn := range neutronConnectionInfo {
 		for _, gaiaConn := range gaiaConnectionInfo {
-			// if neutronConn.ID != neutronGaiaICSConnectionHopId &&
-			// if neutronConn.ClientID == gaiaConn.Counterparty.ClientId && gaiaConn.ClientID == neutronConn.Counterparty.ClientId &&
-			// 	neutronConn.ID == gaiaConn.Counterparty.ConnectionId && gaiaConn.ID == neutronConn.Counterparty.ClientId {
 			if neutronConn.ID != neutronGaiaICSConnectionId && gaiaConn.ID != gaiaNeutronICSConnectionId &&
 				neutronConn.ClientID == gaiaConn.Counterparty.ClientId && gaiaConn.ClientID == neutronConn.Counterparty.ClientId {
 				neutronGaiaTransferConnectionId = neutronConn.ID
@@ -299,8 +275,10 @@ func TestICS(t *testing.T) {
 			}
 		}
 	}
-	print("\nneutronGaiaTransferConnection id : ", neutronGaiaTransferConnectionId)
-	print("\nneutronGaiaICSConnection id : ", neutronGaiaICSConnectionId)
+
+	_, _, _, _ = neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId
+	_, _, _ = gaiaStrideConnectionId, strideGaiaConnectionId, strideNeutronConnectionId
+	_, _, _ = strideGaiaTransferChannel, neutronStrideTransferChannel, gaiaStrideTransferChannel
 
 	t.Run("stride covenant tests", func(t *testing.T) {
 		const clockContractAddress = "clock_contract_address"
@@ -311,6 +289,7 @@ func TestICS(t *testing.T) {
 		var lsContractAddress string
 		var stAtomWeightedReceiver WeightedReceiver
 		var atomWeightedReceiver WeightedReceiver
+		var strideICAAddress string
 
 		neutronSrcDenomTrace := transfertypes.ParseDenomTrace(
 			transfertypes.GetPrefixedDenom("transfer",
@@ -318,6 +297,12 @@ func TestICS(t *testing.T) {
 				atom.Config().Denom))
 		neutronDstIbcDenom := neutronSrcDenomTrace.IBCDenom()
 
+		atomSrcDenomTrace := transfertypes.ParseDenomTrace(
+			transfertypes.GetPrefixedDenom("transfer",
+				gaiaStrideTransferChannel.ChannelID,
+				atom.Config().Denom))
+		strideAtomIbcDenom := atomSrcDenomTrace.IBCDenom()
+		_ = strideAtomIbcDenom
 		var coinRegistryAddress string
 		var factoryAddress string
 		var stableswapAddress string
@@ -580,7 +565,7 @@ func TestICS(t *testing.T) {
 			msg := LsInstantiateMsg{
 				AutopilotPosition:                 "todo",
 				ClockAddress:                      clockContractAddress,
-				StrideNeutronIBCTransferChannelId: strideNeutronChannelId,
+				StrideNeutronIBCTransferChannelId: strideNeutronTransferChannel.ChannelID,
 				LpAddress:                         lperContractAddress,
 				NeutronStrideIBCConnectionId:      neutronStrideConnectionId,
 			}
@@ -626,7 +611,7 @@ func TestICS(t *testing.T) {
 			}, &response)
 			require.NoError(t, err, "failed to query ICA account address")
 			require.NotEmpty(t, response.Data.InterchainAccountAddress)
-			strideICAAddress := response.Data.InterchainAccountAddress
+			strideICAAddress = response.Data.InterchainAccountAddress
 
 			print("\nstride ICA instantiated with address ", strideICAAddress, "\n")
 		})
@@ -637,7 +622,7 @@ func TestICS(t *testing.T) {
 
 			stAtomWeightedReceiver = WeightedReceiver{
 				Amount:  int64(10),
-				Address: lperContractAddress,
+				Address: strideICAAddress,
 			}
 
 			atomWeightedReceiver = WeightedReceiver{
@@ -650,6 +635,7 @@ func TestICS(t *testing.T) {
 				AtomReceiver:                    atomWeightedReceiver,
 				ClockAddress:                    clockContractAddress,
 				GaiaNeutronIBCTransferChannelId: gaiaNeutronTransferChannelId,
+				GaiaStrideIBCTransferChannelId:  gaiaStrideTransferChannel.ChannelID,
 				NeutronGaiaConnectionId:         neutronGaiaTransferConnectionId,
 			}
 
@@ -771,10 +757,80 @@ func TestICS(t *testing.T) {
 			require.EqualValues(t, 500001, neutronBal)
 		})
 
-		t.Run("second tick ibc transfers atom from ICA account to neutron", func(t *testing.T) {
+		t.Run("manual autopilot", func(t *testing.T) {
+			memo := fmt.Sprintf(
+				`"{"autopilot":{"receiver":"%s","stakeibc":{"stride_address":"%s","action":"LiquidStake","ibc_receiver":"%s","transfer_channel":"%s"}}}"`,
+				strideICAAddress, strideICAAddress, lperContractAddress, strideNeutronTransferChannel.ChannelID)
+			gaiaAddr := gaiaUser.Bech32Address(atom.Config().Bech32Prefix)
+			atomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
+			print(memo)
+			ibcTx, _ := atom.SendIBCTransfer(
+				ctx,
+				gaiaStrideTransferChannel.ChannelID,
+				gaiaUser.KeyName,
+				ibc.WalletAmount{
+					Address: strideICAAddress,
+					Denom:   atom.Config().Denom,
+					Amount:  100,
+				},
+				ibc.TransferOptions{
+					Timeout: &ibc.IBCTimeout{
+						Height: 700,
+					},
+					Memo: memo,
+				})
+
+			str, _ := json.Marshal(ibcTx)
+			print(string(str))
+
+			err = testutil.WaitForBlocks(ctx, 20, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+			newAtomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
+			require.EqualValues(t, atomBal-100, newAtomBal)
+
+			// strideBal, err := stride.GetBalance(ctx, strideICAAddress, strideAtomIbcDenom)
+			// require.Equal(t, 100, strideBal)
+			// require.NoError(t, err, "failed to wait for blocks")
+
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+		})
+
+		t.Run("second tick liquid stakes on stride", func(t *testing.T) {
 			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to get ICA balance")
 			require.EqualValues(t, 20, atomBal)
+
+			cmd = []string{"neutrond", "tx", "wasm", "execute", depositorContractAddress,
+				`{"tick":{}}`,
+				"--from", neutronUser.KeyName,
+				"--gas-adjustment", `1.3`,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--home", neutron.HomeDir(),
+				"--chain-id", neutron.Config().ChainID,
+				"--gas", "auto",
+				"--fees", "500000untrn",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			_, _, err = neutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			err = testutil.WaitForBlocks(ctx, 20, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
+			require.NoError(t, err, "failed to query ICA balance")
+			require.Equal(t, int64(10), atomICABal)
+		})
+
+		t.Run("third tick ibc transfers atom from ICA account to neutron", func(t *testing.T) {
+			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
+			require.NoError(t, err, "failed to get ICA balance")
+			require.EqualValues(t, 10, atomBal)
 
 			cmd = []string{"neutrond", "tx", "wasm", "execute", depositorContractAddress,
 				`{"tick":{}}`,
@@ -799,7 +855,7 @@ func TestICS(t *testing.T) {
 
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to query ICA balance")
-			require.Equal(t, int64(10), atomICABal)
+			require.Equal(t, int64(0), atomICABal)
 
 			neutronUserBalNew, err := neutron.GetBalance(
 				ctx,

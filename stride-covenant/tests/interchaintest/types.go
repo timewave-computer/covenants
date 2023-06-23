@@ -5,6 +5,7 @@ type DepositorInstantiateMsg struct {
 	AtomReceiver                    WeightedReceiver `json:"atom_receiver"`
 	ClockAddress                    string           `json:"clock_address,string"`
 	GaiaNeutronIBCTransferChannelId string           `json:"gaia_neutron_ibc_transfer_channel_id"`
+	GaiaStrideIBCTransferChannelId  string           `json:"gaia_stride_ibc_transfer_channel_id"`
 	NeutronGaiaConnectionId         string           `json:"neutron_gaia_connection_id"`
 }
 

@@ -9,6 +9,7 @@ pub struct InstantiateMsg {
     pub clock_address: String,
     pub gaia_neutron_ibc_transfer_channel_id: String,
     pub neutron_gaia_connection_id: String,
+    pub gaia_stride_ibc_transfer_channel_id: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

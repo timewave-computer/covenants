@@ -17,6 +17,7 @@ pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 pub const LP_ADDRESS: Item<String> = Item::new("lp_address");
 // the ibc transfer channel
 pub const GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gn_ibc_chann_id");
+pub const GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gs_ibc_chan_id");
 
 pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
 
@@ -31,7 +32,7 @@ pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 pub enum ContractState {
     Instantiated,
     ICACreated,
-    ReceivedFunds,
+    LiquidStaked,
     Complete,
 }
 
