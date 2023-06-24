@@ -152,13 +152,26 @@ fn try_liquid_stake(
             let st_amount = String::from(stride_receiver.amount.to_string());
             let st_ica = String::from(stride_receiver.address.to_string());
             let gaia_stride_channel = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+            let lper_addr = LP_ADDRESS.load(deps.storage)?;
+            let gaia_stride_channel = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+
+            let mut autopilot_memo = String::from("\"{\"autopilot\":{\"receiver\":\"");
+            autopilot_memo.push_str(&st_ica);
+            autopilot_memo.push_str("\",\"stakeibc\":{\"stride_address\":\"");
+            autopilot_memo.push_str(&st_ica);
+            autopilot_memo.push_str("\",\"action\":\"LiquidStake\",\"ibc_receiver\":\"");
+            autopilot_memo.push_str(&lper_addr);
+            autopilot_memo.push_str("\",\"transfer_channel\":\"");
+            autopilot_memo.push_str(&gaia_stride_channel);
+            autopilot_memo.push_str("\"}}}\"");
+            let memo = autopilot_memo.to_string();
 
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: gaia_stride_channel,
                 token: Some(coin),
                 sender: address.clone(),
-                receiver: st_ica.clone(),
+                receiver: memo,
                 timeout_height: Some(Height {
                     revision_number: 3, 
                     revision_height: 800,
@@ -178,26 +191,14 @@ fn try_liquid_stake(
                 value: Binary::from(buf),
             };
 
-            let lper_addr = LP_ADDRESS.load(deps.storage)?;
-            let gaia_stride_channel = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
 
-            let mut autopilot_memo = String::from("\"{\"autopilot\":{\"receiver\":\"");
-            autopilot_memo.push_str(&st_ica);
-            autopilot_memo.push_str("\",\"stakeibc\":{\"stride_address\":\"");
-            autopilot_memo.push_str(&st_ica);
-            autopilot_memo.push_str("\",\"action\":\"LiquidStake\",\"ibc_receiver\":\"");
-            autopilot_memo.push_str(&lper_addr);
-            autopilot_memo.push_str("\",\"transfer_channel\":\"");
-            autopilot_memo.push_str(&gaia_stride_channel);
-            autopilot_memo.push_str("\"}}}\"");
 
-            let memo = autopilot_memo.to_string();
 
             let stride_submit_msg = NeutronMsg::submit_tx(
                 controller_conn_id, 
                 INTERCHAIN_ACCOUNT_ID.to_string(), 
                 vec![protobuf], 
-                memo, 
+                "".to_string(), 
                 100000, 
                 fee
             );

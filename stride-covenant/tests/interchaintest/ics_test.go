@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -91,6 +92,7 @@ func TestICS(t *testing.T) {
 				GasAdjustment:  1.3,
 				TrustingPeriod: "1197504s",
 				NoHostMount:    false,
+				ModifyGenesis:  setupStrideGenesis(),
 			},
 		},
 	})
@@ -101,7 +103,7 @@ func TestICS(t *testing.T) {
 	// interchaintest has one interface for a chain with IBC
 	// support, and another for a Cosmos blockchain.
 	atom, neutron, stride := chains[0], chains[1], chains[2]
-	_, cosmosNeutron := atom.(*cosmos.CosmosChain), neutron.(*cosmos.CosmosChain)
+	cosmosAtom, cosmosNeutron, cosmosStride := atom.(*cosmos.CosmosChain), neutron.(*cosmos.CosmosChain), stride.(*cosmos.CosmosChain)
 
 	// Relayer Factory
 	client, network := ibctest.DockerSetup(t)
@@ -207,16 +209,33 @@ func TestICS(t *testing.T) {
 	require.NoError(t, err, "failed to fund neutron user")
 	require.EqualValues(t, int64(100_000_000), neutronUserBal)
 
-	neutronChannelInfo, _ := r.GetChannels(ctx, eRep, neutron.Config().ChainID)
-	gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, atom.Config().ChainID)
-	strideConnectionInfo, _ := r.GetConnections(ctx, eRep, stride.Config().ChainID)
+	neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
+	gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosAtom.Config().ChainID)
+	strideChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosStride.Config().ChainID)
+	strideConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosStride.Config().ChainID)
 	neutronConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosNeutron.Config().ChainID)
-	gaiaConnectionInfo, _ := r.GetConnections(ctx, eRep, atom.Config().ChainID)
+	gaiaConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosAtom.Config().ChainID)
 
-	strideGaiaTransferChannel, err := ibc.GetTransferChannel(ctx, r, eRep, stride.Config().ChainID, atom.Config().ChainID)
-	strideNeutronTransferChannel, err := ibc.GetTransferChannel(ctx, r, eRep, stride.Config().ChainID, neutron.Config().ChainID)
-	neutronStrideTransferChannel, err := ibc.GetTransferChannel(ctx, r, eRep, neutron.Config().ChainID, stride.Config().ChainID)
-	gaiaStrideTransferChannel, err := ibc.GetTransferChannel(ctx, r, eRep, atom.Config().ChainID, stride.Config().ChainID)
+	var strideNeutronChannelId, strideGaiaChannelId, gaiaStrideChannelId, neutronStrideChannelId string
+
+	for _, s := range strideChannelInfo {
+		for _, n := range neutronChannelInfo {
+			if s.ChannelID == n.Counterparty.ChannelID && s.Counterparty.ChannelID == n.ChannelID &&
+				s.PortID == n.Counterparty.PortID && n.Ordering == "ORDER_UNORDERED" {
+				strideNeutronChannelId = s.ChannelID
+				neutronStrideChannelId = n.ChannelID
+			}
+		}
+		for _, g := range gaiaChannelInfo {
+			if s.ChannelID == g.Counterparty.ChannelID && g.ChannelID == s.Counterparty.ChannelID &&
+				s.PortID == g.Counterparty.PortID && g.Ordering == "ORDER_UNORDERED" {
+				strideGaiaChannelId = s.ChannelID
+				gaiaStrideChannelId = g.ChannelID
+			}
+		}
+	}
+	_, _ = strideGaiaChannelId, neutronStrideChannelId
+
 	var neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
 	var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId string
 	var neutronGaiaICSConnectionHopId string
@@ -234,6 +253,15 @@ func TestICS(t *testing.T) {
 			}
 		}
 	}
+
+	print("\n gaiaStrideChannelId: ", gaiaStrideChannelId)
+	print("\n strideGaiaChannelId: ", strideGaiaChannelId)
+	print("\n strideNeutronChannelId: ", strideNeutronChannelId)
+	print("\n neutronStrideChannelId: ", neutronStrideChannelId)
+	print("\n neutronGaiaTransferChannelId: ", neutronGaiaTransferChannelId)
+	print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
+	print("\n neutronGaiaICSChannelId: ", neutronGaiaICSChannelId)
+	print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
 
 	var strideGaiaConnectionId, gaiaStrideConnectionId, strideNeutronConnectionId, neutronStrideConnectionId string
 
@@ -276,9 +304,17 @@ func TestICS(t *testing.T) {
 		}
 	}
 
+	print("\n strideGaiaConnectionId: ", strideGaiaConnectionId)
+	print("\n gaiaStrideConnectionId: ", gaiaStrideConnectionId)
+	print("\n strideNeutronConnectionId: ", strideNeutronConnectionId)
+	print("\n neutronStrideConnectionId: ", neutronStrideConnectionId)
+	print("\n neutronGaiaTransferConnectionId: ", neutronGaiaTransferConnectionId)
+	print("\n neutronGaiaICSConnectionId: ", neutronGaiaICSConnectionId)
+	print("\n gaiaNeutronTransferConnectionId: ", gaiaNeutronTransferConnectionId)
+	print("\n gaiaNeutronICSConnectionId: ", gaiaNeutronICSConnectionId)
+
 	_, _, _, _ = neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId
 	_, _, _ = gaiaStrideConnectionId, strideGaiaConnectionId, strideNeutronConnectionId
-	_, _, _ = strideGaiaTransferChannel, neutronStrideTransferChannel, gaiaStrideTransferChannel
 
 	t.Run("stride covenant tests", func(t *testing.T) {
 		const clockContractAddress = "clock_contract_address"
@@ -296,12 +332,16 @@ func TestICS(t *testing.T) {
 				neutronGaiaTransferChannelId,
 				atom.Config().Denom))
 		neutronDstIbcDenom := neutronSrcDenomTrace.IBCDenom()
+		gaiaAddr := gaiaUser.Bech32Address(atom.Config().Bech32Prefix)
 
 		atomSrcDenomTrace := transfertypes.ParseDenomTrace(
 			transfertypes.GetPrefixedDenom("transfer",
-				gaiaStrideTransferChannel.ChannelID,
+				gaiaStrideChannelId,
 				atom.Config().Denom))
 		strideAtomIbcDenom := atomSrcDenomTrace.IBCDenom()
+		print("\nneutronDstIbcDenom: ", neutronDstIbcDenom)
+		print("\nstrideAtomIbcDenom: ", strideAtomIbcDenom)
+
 		_ = strideAtomIbcDenom
 		var coinRegistryAddress string
 		var factoryAddress string
@@ -565,7 +605,7 @@ func TestICS(t *testing.T) {
 			msg := LsInstantiateMsg{
 				AutopilotPosition:                 "todo",
 				ClockAddress:                      clockContractAddress,
-				StrideNeutronIBCTransferChannelId: strideNeutronTransferChannel.ChannelID,
+				StrideNeutronIBCTransferChannelId: strideNeutronChannelId,
 				LpAddress:                         lperContractAddress,
 				NeutronStrideIBCConnectionId:      neutronStrideConnectionId,
 			}
@@ -635,7 +675,7 @@ func TestICS(t *testing.T) {
 				AtomReceiver:                    atomWeightedReceiver,
 				ClockAddress:                    clockContractAddress,
 				GaiaNeutronIBCTransferChannelId: gaiaNeutronTransferChannelId,
-				GaiaStrideIBCTransferChannelId:  gaiaStrideTransferChannel.ChannelID,
+				GaiaStrideIBCTransferChannelId:  gaiaStrideChannelId,
 				NeutronGaiaConnectionId:         neutronGaiaTransferConnectionId,
 			}
 
@@ -726,7 +766,7 @@ func TestICS(t *testing.T) {
 
 		t.Run("multisig transfers atom to ICA account", func(t *testing.T) {
 			// transfer funds from gaiaUser to the newly generated ICA account
-			err := atom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
+			err := cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
 				Address: icaAccountAddress,
 				Amount:  20,
 				Denom:   atom.Config().Denom,
@@ -757,36 +797,134 @@ func TestICS(t *testing.T) {
 			require.EqualValues(t, 500001, neutronBal)
 		})
 
-		t.Run("manual autopilot", func(t *testing.T) {
-			memo := fmt.Sprintf(
-				`"{"autopilot":{"receiver":"%s","stakeibc":{"stride_address":"%s","action":"LiquidStake","ibc_receiver":"%s","transfer_channel":"%s"}}}"`,
-				strideICAAddress, strideICAAddress, lperContractAddress, strideNeutronTransferChannel.ChannelID)
-			gaiaAddr := gaiaUser.Bech32Address(atom.Config().Bech32Prefix)
+		t.Run("ibc transfer to stride ica", func(t *testing.T) {
 			atomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
-			print(memo)
-			ibcTx, _ := atom.SendIBCTransfer(
-				ctx,
-				gaiaStrideTransferChannel.ChannelID,
-				gaiaUser.KeyName,
-				ibc.WalletAmount{
-					Address: strideICAAddress,
-					Denom:   atom.Config().Denom,
-					Amount:  100,
-				},
-				ibc.TransferOptions{
-					Timeout: &ibc.IBCTimeout{
-						Height: 700,
-					},
-					Memo: memo,
-				})
 
-			str, _ := json.Marshal(ibcTx)
-			print(string(str))
+			cmd := []string{"gaiad", "tx", "ibc-transfer", "transfer", "transfer",
+				gaiaStrideChannelId,
+				strideICAAddress,
+				"100uatom",
+				"--from", gaiaUser.KeyName,
+				"--gas", "auto",
+				"--gas-adjustment", `1.3`,
+				"--output", "json",
+				"--node", atom.GetRPCAddress(),
+				"--home", atom.HomeDir(),
+				"--chain-id", atom.Config().ChainID,
+				"--fees", "10uatom",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			print("\ncmd: \n")
+			print(strings.Join(cmd, " "))
+			print("\n")
+			_, _, err = cosmosAtom.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			err = testutil.WaitForBlocks(ctx, 25, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			newAtomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
+			require.EqualValues(t, atomBal-110, newAtomBal)
+
+			strideBal, _ := stride.GetBalance(ctx, strideICAAddress, strideAtomIbcDenom)
+			print("\n stride bal: ", strideBal)
+		})
+
+		t.Run("stride one click LS", func(t *testing.T) {
+			atomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
+
+			noForwardMemo := fmt.Sprintf(`"{"autopilot": {"receiver": "%s", "stakeibc": {"action": "LiquidStake",}}}"`,
+				strideICAAddress)
+
+			cmd := []string{"gaiad", "tx", "ibc-transfer", "transfer", "transfer",
+				gaiaStrideChannelId,
+				noForwardMemo,
+				"100uatom",
+				"--from", gaiaUser.KeyName,
+				"--gas", "auto",
+				"--gas-adjustment", `1.3`,
+				"--output", "json",
+				"--node", atom.GetRPCAddress(),
+				"--home", atom.HomeDir(),
+				"--chain-id", atom.Config().ChainID,
+				"--fees", "10uatom",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			print("\ncmd: \n")
+			print(strings.Join(cmd, " "))
+
+			_, _, err = cosmosAtom.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
 
 			err = testutil.WaitForBlocks(ctx, 20, atom, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
+
 			newAtomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
-			require.EqualValues(t, atomBal-100, newAtomBal)
+			require.EqualValues(t, atomBal-110, newAtomBal)
+
+			strideBal, _ := stride.GetBalance(ctx, strideICAAddress, strideAtomIbcDenom)
+			print("\n stride bal: ", strideBal)
+
+			// strideBalStatom, _ := stride.GetBalance(ctx, strideICAAddress, strideAtomIbcDenom)
+			// print("\n stride bal: ", strideBal)
+		})
+
+		t.Run("manual autopilot", func(t *testing.T) {
+
+			memo := fmt.Sprintf(
+				`"{"autopilot":{"receiver":"%s","stakeibc":{"stride_address":"%s","action":"LiquidStake","ibc_receiver":"%s","transfer_channel":"%s"}}}`,
+				strideICAAddress, strideICAAddress, lperContractAddress, strideNeutronChannelId)
+
+			cmd := []string{"gaiad", "tx", "ibc-transfer", "transfer", "transfer",
+				gaiaStrideChannelId,
+				memo,
+				"100uatom",
+				"--from", gaiaUser.KeyName,
+				"--gas", "auto",
+				"--gas-adjustment", `1.3`,
+				"--output", "json",
+				"--node", atom.GetRPCAddress(),
+				"--home", atom.HomeDir(),
+				"--chain-id", atom.Config().ChainID,
+				"--fees", "10uatom",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			print("\n cmd: \n")
+			print(strings.Join(cmd, " "))
+			_, _, err = cosmosAtom.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			// print("\n", cmd, "\n")
+			// _, _, err = atom.Exec(ctx, cmd, nil)
+			// require.NoError(t, err)
+
+			// ibcTx, _ := atom.SendIBCTransfer(
+			// 	ctx,
+			// 	gaiaStrideTransferChannel.ChannelID,
+			// 	gaiaUser.KeyName,
+			// 	ibc.WalletAmount{
+			// 		Address: memo,
+			// 		Denom:   atom.Config().Denom,
+			// 		Amount:  100,
+			// 	},
+			// 	ibc.TransferOptions{
+			// 		Timeout: &ibc.IBCTimeout{
+			// 			Height: 700,
+			// 		},
+			// 		Memo: "",
+			// 	})
+
+			// str, _ := json.Marshal(ibcTx)
+			// print(string(str))
+
+			err = testutil.WaitForBlocks(ctx, 200, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
 
 			// strideBal, err := stride.GetBalance(ctx, strideICAAddress, strideAtomIbcDenom)
 			// require.Equal(t, 100, strideBal)
