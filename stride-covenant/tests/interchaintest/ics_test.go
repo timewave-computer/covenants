@@ -80,8 +80,10 @@ func TestICS(t *testing.T) {
 				ChainID: "stride-3",
 				Images: []ibc.DockerImage{
 					{
-						Repository: "ghcr.io/strangelove-ventures/heighliner/stride",
-						Version:    "v9.2.1",
+						// Repository: "ghcr.io/strangelove-ventures/heighliner/stride",
+						// Version:    "v9.2.1",
+						Repository: "stride",
+						Version:    "local",
 						UidGid:     "1025:1025",
 					},
 				},
@@ -123,31 +125,31 @@ func TestICS(t *testing.T) {
 	const neutronStrideIBCPath = "ns-ibc-path"
 
 	ic := ibctest.NewInterchain().
-		AddChain(atom).
-		AddChain(neutron).
-		AddChain(stride).
+		AddChain(cosmosAtom).
+		AddChain(cosmosNeutron).
+		AddChain(cosmosStride).
 		AddRelayer(r, "relayer").
 		AddProviderConsumerLink(ibctest.ProviderConsumerLink{
-			Provider: atom,
-			Consumer: neutron,
+			Provider: cosmosAtom,
+			Consumer: cosmosNeutron,
 			Relayer:  r,
 			Path:     gaiaNeutronICSPath,
 		}).
 		AddLink(ibctest.InterchainLink{
-			Chain1:  atom,
-			Chain2:  neutron,
+			Chain1:  cosmosAtom,
+			Chain2:  cosmosNeutron,
 			Relayer: r,
 			Path:    gaiaNeutronIBCPath,
 		}).
 		AddLink(ibctest.InterchainLink{
-			Chain1:  atom,
-			Chain2:  stride,
+			Chain1:  cosmosAtom,
+			Chain2:  cosmosStride,
 			Relayer: r,
 			Path:    gaiaStrideIBCPath,
 		}).
 		AddLink(ibctest.InterchainLink{
-			Chain1:  neutron,
-			Chain2:  stride,
+			Chain1:  cosmosNeutron,
+			Chain2:  cosmosStride,
 			Relayer: r,
 			Path:    neutronStrideIBCPath,
 		})
@@ -198,9 +200,15 @@ func TestICS(t *testing.T) {
 	// enabled on Neutron and we can fund its account.
 	// The funds for this are sent from a "faucet" account created
 	// by interchaintest in the genesis file.
-	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(100_000_000), atom, neutron, stride)
-	gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
-	_, _ = gaiaUser, strideUser
+	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(100_000_000), atom, neutron)
+	// gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
+	// _, _ = gaiaUser, strideUser
+	gaiaUser, neutronUser := users[0], users[1]
+
+	strideAdminMnemonic := "tone cause tribe this switch near host damage idle fragile antique tail soda alien depth write wool they rapid unfold body scan pledge soft"
+	strideAdmin, _ := ibctest.GetAndFundTestUserWithMnemonic(ctx, "default", strideAdminMnemonic, (100_000_000), cosmosStride)
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+	require.NoError(t, err, "failed to wait for blocks")
 
 	neutronUserBal, err := neutron.GetBalance(
 		ctx,
@@ -349,6 +357,36 @@ func TestICS(t *testing.T) {
 		var tokenAddress string
 		var whitelistAddress string
 		_, _ = tokenAddress, whitelistAddress
+
+		t.Run("register stride host zone", func(t *testing.T) {
+
+			cmd := []string{"strided", "tx", "stakeibc", "register-host-zone",
+				strideGaiaConnectionId,
+				cosmosAtom.Config().Denom,
+				cosmosAtom.Config().Bech32Prefix,
+				strideAtomIbcDenom,
+				strideGaiaChannelId,
+				"1",
+				"--from", strideAdmin.KeyName,
+				"--gas", "auto",
+				"--gas-adjustment", `1.3`,
+				"--output", "json",
+				"--chain-id", cosmosStride.Config().ChainID,
+				"--node", cosmosStride.GetRPCAddress(),
+				"--home", cosmosStride.HomeDir(),
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			print("\ncmd: \n")
+			print(strings.Join(cmd, " "))
+
+			_, _, err = cosmosStride.Exec(ctx, cmd, nil)
+			require.NoError(t, err, "failed to register host zone on stride")
+
+			err = testutil.WaitForBlocks(ctx, 5, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+		})
 
 		t.Run("deploy astroport contracts", func(t *testing.T) {
 			stablePairCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_pair_stable.wasm")
@@ -560,7 +598,7 @@ func TestICS(t *testing.T) {
 		})
 
 		t.Run("instantiate lper contract", func(t *testing.T) {
-			codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/stride_lper.wasm")
+			codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/covenant_lper.wasm")
 			require.NoError(t, err, "failed to store neutron ICA contract")
 			lpInfo := LpInfo{
 				Addr: stableswapAddress,

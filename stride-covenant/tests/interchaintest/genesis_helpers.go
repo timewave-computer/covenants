@@ -91,6 +91,7 @@ func setupStrideGenesis() func(ibc.ChainConfig, []byte) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
 		}
+
 		return out, nil
 	}
 }
