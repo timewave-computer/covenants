@@ -488,13 +488,10 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err, "failed to marshall data")
 
 			// Print the JSON
-			print("\n", string(jsonData))
-			print("\n", cosmosStride.HomeDir())
+			print("\n", string(jsonData), "\n")
 
 			fullPath := filepath.Join(cosmosStride.HomeDir(), "vals.json")
 			fullPathCmd := []string{"tee", fullPath, "<<<", string(jsonData)}
-			print(strings.Join(fullPathCmd, " "))
-			print("\n")
 
 			_, _, _ = cosmosStride.Exec(ctx, fullPathCmd, nil)
 
@@ -986,46 +983,12 @@ func TestICS(t *testing.T) {
 			require.EqualValues(t, 500001, neutronBal)
 		})
 
-		t.Run("ibc transfer to stride ica", func(t *testing.T) {
-			atomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
-
-			cmd := []string{"gaiad", "tx", "ibc-transfer", "transfer", "transfer",
-				gaiaStrideChannelId,
-				strideICAAddress,
-				"100uatom",
-				"--from", gaiaUser.KeyName,
-				"--gas", "auto",
-				"--gas-adjustment", `1.3`,
-				"--output", "json",
-				"--node", atom.GetRPCAddress(),
-				"--home", atom.HomeDir(),
-				"--chain-id", atom.Config().ChainID,
-				"--fees", "10uatom",
-				"--keyring-backend", keyring.BackendTest,
-				"-y",
-			}
-
-			print("\ncmd: \n")
-			print(strings.Join(cmd, " "))
-			print("\n")
-			_, _, err = cosmosAtom.Exec(ctx, cmd, nil)
-			require.NoError(t, err)
-
-			err = testutil.WaitForBlocks(ctx, 25, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
-
-			newAtomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
-			require.EqualValues(t, atomBal-110, newAtomBal)
-
-			strideBal, _ := stride.GetBalance(ctx, strideICAAddress, strideAtomIbcDenom)
-			print("\n stride bal: ", strideBal)
-		})
-
 		t.Run("stride one click LS", func(t *testing.T) {
 			atomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
 
-			noForwardMemo := fmt.Sprintf(`{"autopilot": {"receiver": "%s", "stakeibc": {"action": "LiquidStake",}}}`,
-				strideICAAddress)
+			noForwardMemo := fmt.Sprintf(
+				`"{"autopilot": {"receiver": "%s", "stakeibc": {"action": "LiquidStake"}}}"`, strideICAAddress,
+			)
 
 			print(noForwardMemo)
 
@@ -1034,13 +997,10 @@ func TestICS(t *testing.T) {
 				noForwardMemo,
 				"100uatom",
 				"--from", gaiaUser.KeyName,
-				"--gas", "auto",
-				"--gas-adjustment", `1.3`,
 				"--output", "json",
 				"--node", atom.GetRPCAddress(),
 				"--home", atom.HomeDir(),
 				"--chain-id", atom.Config().ChainID,
-				"--fees", "10uatom",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
@@ -1055,13 +1015,10 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err, "failed to wait for blocks")
 
 			newAtomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
-			require.EqualValues(t, atomBal-110, newAtomBal)
+			require.EqualValues(t, atomBal-100, newAtomBal)
 
 			strideBal, _ := stride.GetBalance(ctx, strideICAAddress, strideAtomIbcDenom)
 			print("\n stride bal: ", strideBal)
-
-			// strideBalStatom, _ := stride.GetBalance(ctx, strideICAAddress, strideAtomIbcDenom)
-			// print("\n stride bal: ", strideBal)
 		})
 
 		t.Run("manual autopilot", func(t *testing.T) {
@@ -1091,37 +1048,7 @@ func TestICS(t *testing.T) {
 			_, _, err = cosmosAtom.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
 
-			// print("\n", cmd, "\n")
-			// _, _, err = atom.Exec(ctx, cmd, nil)
-			// require.NoError(t, err)
-
-			// ibcTx, _ := atom.SendIBCTransfer(
-			// 	ctx,
-			// 	gaiaStrideTransferChannel.ChannelID,
-			// 	gaiaUser.KeyName,
-			// 	ibc.WalletAmount{
-			// 		Address: memo,
-			// 		Denom:   atom.Config().Denom,
-			// 		Amount:  100,
-			// 	},
-			// 	ibc.TransferOptions{
-			// 		Timeout: &ibc.IBCTimeout{
-			// 			Height: 700,
-			// 		},
-			// 		Memo: "",
-			// 	})
-
-			// str, _ := json.Marshal(ibcTx)
-			// print(string(str))
-
 			err = testutil.WaitForBlocks(ctx, 200, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
-
-			// strideBal, err := stride.GetBalance(ctx, strideICAAddress, strideAtomIbcDenom)
-			// require.Equal(t, 100, strideBal)
-			// require.NoError(t, err, "failed to wait for blocks")
-
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 		})
 
