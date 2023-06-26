@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -202,12 +203,16 @@ func TestICS(t *testing.T) {
 	// The funds for this are sent from a "faucet" account created
 	// by interchaintest in the genesis file.
 	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(100_000_000), atom, neutron, stride)
-	// gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
-	// _, _ = gaiaUser, strideUser
-	gaiaUser, neutronUser := users[0], users[1]
+	gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
 
 	strideAdminMnemonic := "tone cause tribe this switch near host damage idle fragile antique tail soda alien depth write wool they rapid unfold body scan pledge soft"
 	strideAdmin, _ := ibctest.GetAndFundTestUserWithMnemonic(ctx, "default", strideAdminMnemonic, (100_000_000), cosmosStride)
+
+	cosmosStride.SendFunds(ctx, strideUser.KeyName, ibc.WalletAmount{
+		Address: strideAdmin.Bech32Address(stride.Config().Bech32Prefix),
+		Denom:   "ustride",
+		Amount:  10000000,
+	})
 
 	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
 	require.NoError(t, err, "failed to wait for blocks")
@@ -229,19 +234,48 @@ func TestICS(t *testing.T) {
 	var strideNeutronChannelId, strideGaiaChannelId, gaiaStrideChannelId, neutronStrideChannelId string
 
 	for _, s := range strideChannelInfo {
-		for _, n := range neutronChannelInfo {
-			if s.ChannelID == n.Counterparty.ChannelID && s.Counterparty.ChannelID == n.ChannelID &&
-				s.PortID == n.Counterparty.PortID && n.Ordering == "ORDER_UNORDERED" {
-				strideNeutronChannelId = s.ChannelID
-				neutronStrideChannelId = n.ChannelID
+		found := false
+		sJson, _ := json.Marshal(s)
+		print("\n stride channel: ", string(sJson))
+		if !found {
+			for _, n := range neutronChannelInfo {
+				nJson, _ := json.Marshal(n)
+				print("\n neutron channel: ", string(nJson))
+				if s.ChannelID == n.Counterparty.ChannelID && s.Counterparty.ChannelID == n.ChannelID &&
+					s.PortID == n.Counterparty.PortID && n.Ordering == "ORDER_UNORDERED" {
+					strideNeutronChannelId = s.ChannelID
+					neutronStrideChannelId = n.ChannelID
+					print("\nfound\n")
+					found = true
+					break
+				}
 			}
 		}
-		for _, g := range gaiaChannelInfo {
-			if s.ChannelID == g.Counterparty.ChannelID && g.ChannelID == s.Counterparty.ChannelID &&
-				s.PortID == g.Counterparty.PortID && g.Ordering == "ORDER_UNORDERED" {
-				strideGaiaChannelId = s.ChannelID
-				gaiaStrideChannelId = g.ChannelID
+		if found {
+			break
+		}
+	}
+
+	for _, s := range strideChannelInfo {
+		found := false
+		sJson, _ := json.Marshal(s)
+		print("\n stride channel: ", string(sJson))
+		if !found {
+			for _, g := range gaiaChannelInfo {
+				gJson, _ := json.Marshal(g)
+				print("\n gaia channel: ", string(gJson))
+				if s.ChannelID == g.Counterparty.ChannelID && g.ChannelID == s.Counterparty.ChannelID &&
+					s.PortID == g.Counterparty.PortID && g.Ordering == "ORDER_UNORDERED" {
+					strideGaiaChannelId = s.ChannelID
+					gaiaStrideChannelId = g.ChannelID
+					found = true
+					print("\nfound\n")
+					break
+				}
 			}
+		}
+		if found {
+			break
 		}
 	}
 	_, _ = strideGaiaChannelId, neutronStrideChannelId
@@ -346,11 +380,12 @@ func TestICS(t *testing.T) {
 
 		atomSrcDenomTrace := transfertypes.ParseDenomTrace(
 			transfertypes.GetPrefixedDenom("transfer",
-				gaiaStrideChannelId,
+				strideGaiaChannelId,
 				atom.Config().Denom))
 		strideAtomIbcDenom := atomSrcDenomTrace.IBCDenom()
 		print("\nneutronDstIbcDenom: ", neutronDstIbcDenom)
 		print("\nstrideAtomIbcDenom: ", strideAtomIbcDenom)
+		print("\n")
 
 		_ = strideAtomIbcDenom
 		var coinRegistryAddress string
@@ -452,26 +487,23 @@ func TestICS(t *testing.T) {
 			jsonData, err := json.Marshal(data)
 			require.NoError(t, err, "failed to marshall data")
 
-			// strideFn := cosmosStride.FullNodes[0]
-			// print("\nstride fn home dir : ", strideFn.HomeDir())
-
 			// Print the JSON
 			print("\n", string(jsonData))
+			print("\n", cosmosStride.HomeDir())
 
-			// path := filepath.Join(strideFn.HomeDir(), "vals.json")
-			// fmt.Println(path)
-			// file, err := os.Create(path)
-			// require.NoError(t, err, "failed to create file")
-			// fmt.Println("File created successfully")
-			// defer file.Close()
+			fullPath := filepath.Join(cosmosStride.HomeDir(), "vals.json")
+			fullPathCmd := []string{"tee", fullPath, "<<<", string(jsonData)}
+			print(strings.Join(fullPathCmd, " "))
+			print("\n")
 
-			// jsonPath := filepath.Join(strideFn.HomeDir(), "vals.json")
+			_, _, _ = cosmosStride.Exec(ctx, fullPathCmd, nil)
+
 			err = testutil.WaitForBlocks(ctx, 15, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			cmd := []string{"strided", "tx", "stakeibc", "add-validators",
 				cosmosAtom.Config().ChainID,
-				"vals.json",
+				fullPath,
 				"--from", strideAdmin.KeyName,
 				"--gas", "auto",
 				"--gas-adjustment", `1.3`,
@@ -482,6 +514,8 @@ func TestICS(t *testing.T) {
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
+			print(strings.Join(cmd, " "))
+			print("\n")
 
 			_, _, err = cosmosStride.Exec(ctx, cmd, nil)
 			require.NoError(t, err, "failed to register host zone on stride")
@@ -489,10 +523,20 @@ func TestICS(t *testing.T) {
 			err = testutil.WaitForBlocks(ctx, 5, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
-			// # Add host zone validators to Stride's host zone struct
-			// $STRIDE_MAIN_CMD tx stakeibc add-validators $CHAIN_ID $validator_json \
-			// 	--from $STRIDE_ADMIN_ACCT -y | TRIM_TX
+			queryCmd := []string{"strided", "query", "stakeibc",
+				"show-validators",
+				cosmosAtom.Config().ChainID,
+				"--chain-id", cosmosStride.Config().ChainID,
+				"--node", cosmosStride.GetRPCAddress(),
+				"--home", cosmosStride.HomeDir(),
+			}
 
+			resp, _, err = cosmosStride.Exec(ctx, queryCmd, nil)
+			require.NoError(t, err, "failed to query host validators")
+
+			print(string(resp), "\n")
+			respJson, _ := json.Marshal(resp)
+			print(string(respJson))
 		})
 
 		t.Run("deploy astroport contracts", func(t *testing.T) {
@@ -980,8 +1024,10 @@ func TestICS(t *testing.T) {
 		t.Run("stride one click LS", func(t *testing.T) {
 			atomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
 
-			noForwardMemo := fmt.Sprintf(`"{"autopilot": {"receiver": "%s", "stakeibc": {"action": "LiquidStake",}}}"`,
+			noForwardMemo := fmt.Sprintf(`{"autopilot": {"receiver": "%s", "stakeibc": {"action": "LiquidStake",}}}`,
 				strideICAAddress)
+
+			print(noForwardMemo)
 
 			cmd := []string{"gaiad", "tx", "ibc-transfer", "transfer", "transfer",
 				gaiaStrideChannelId,
