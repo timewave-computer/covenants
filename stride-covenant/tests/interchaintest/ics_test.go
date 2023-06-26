@@ -14,6 +14,7 @@ import (
 	ibctest "github.com/strangelove-ventures/interchaintest/v3"
 	"github.com/strangelove-ventures/interchaintest/v3/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v3/ibc"
+
 	"github.com/strangelove-ventures/interchaintest/v3/relayer"
 	"github.com/strangelove-ventures/interchaintest/v3/relayer/rly"
 	"github.com/strangelove-ventures/interchaintest/v3/testreporter"
@@ -200,13 +201,14 @@ func TestICS(t *testing.T) {
 	// enabled on Neutron and we can fund its account.
 	// The funds for this are sent from a "faucet" account created
 	// by interchaintest in the genesis file.
-	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(100_000_000), atom, neutron)
+	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(100_000_000), atom, neutron, stride)
 	// gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
 	// _, _ = gaiaUser, strideUser
 	gaiaUser, neutronUser := users[0], users[1]
 
 	strideAdminMnemonic := "tone cause tribe this switch near host damage idle fragile antique tail soda alien depth write wool they rapid unfold body scan pledge soft"
 	strideAdmin, _ := ibctest.GetAndFundTestUserWithMnemonic(ctx, "default", strideAdminMnemonic, (100_000_000), cosmosStride)
+
 	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
 	require.NoError(t, err, "failed to wait for blocks")
 
@@ -378,14 +380,119 @@ func TestICS(t *testing.T) {
 				"-y",
 			}
 
-			print("\ncmd: \n")
-			print(strings.Join(cmd, " "))
+			_, _, err = cosmosStride.Exec(ctx, cmd, nil)
+			require.NoError(t, err, "failed to register host zone on stride")
+
+			err = testutil.WaitForBlocks(ctx, 5, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+		})
+
+		t.Run("register gaia validators on stride", func(t *testing.T) {
+
+			type Validator struct {
+				Name    string `json:"name"`
+				Address string `json:"address"`
+				Weight  int    `json:"weight"`
+			}
+
+			type Data struct {
+				BlockHeight string      `json:"block_height"`
+				Total       string      `json:"total"`
+				Validators  []Validator `json:"validators"`
+			}
+
+			valcmd := []string{"gaiad", "query", "tendermint-validator-set",
+				"50",
+				"--chain-id", cosmosAtom.Config().ChainID,
+				"--node", cosmosAtom.GetRPCAddress(),
+				"--home", cosmosAtom.HomeDir(),
+			}
+			resp, _, err := cosmosAtom.Exec(ctx, valcmd, nil)
+			require.NoError(t, err, "Failed to query valset")
+			err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			var addresses []string
+			var votingPowers []string
+
+			lines := strings.Split(string(resp), "\n")
+
+			for _, line := range lines {
+				if strings.HasPrefix(line, "- address: ") {
+					address := strings.TrimPrefix(line, "- address: ")
+					addresses = append(addresses, address)
+				} else if strings.HasPrefix(line, "  voting_power: ") {
+					votingPower := strings.TrimPrefix(line, "  voting_power: ")
+					votingPowers = append(votingPowers, votingPower)
+				}
+			}
+
+			// Create validators slice
+			var validators []Validator
+
+			for i := 1; i <= len(addresses); i++ {
+				votingPowStr := strings.ReplaceAll(votingPowers[i-1], "\"", "")
+				valWeight, err := strconv.Atoi(votingPowStr)
+				require.NoError(t, err, "failed to parse voting power")
+
+				validator := Validator{
+					Name:    fmt.Sprintf("val%d", i),
+					Address: addresses[i-1],
+					Weight:  valWeight,
+				}
+				validators = append(validators, validator)
+			}
+
+			// Create JSON object
+			data := map[string][]Validator{
+				"validators": validators,
+			}
+
+			// Convert to JSON
+			jsonData, err := json.Marshal(data)
+			require.NoError(t, err, "failed to marshall data")
+
+			// strideFn := cosmosStride.FullNodes[0]
+			// print("\nstride fn home dir : ", strideFn.HomeDir())
+
+			// Print the JSON
+			print("\n", string(jsonData))
+
+			// path := filepath.Join(strideFn.HomeDir(), "vals.json")
+			// fmt.Println(path)
+			// file, err := os.Create(path)
+			// require.NoError(t, err, "failed to create file")
+			// fmt.Println("File created successfully")
+			// defer file.Close()
+
+			// jsonPath := filepath.Join(strideFn.HomeDir(), "vals.json")
+			err = testutil.WaitForBlocks(ctx, 15, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			cmd := []string{"strided", "tx", "stakeibc", "add-validators",
+				cosmosAtom.Config().ChainID,
+				"vals.json",
+				"--from", strideAdmin.KeyName,
+				"--gas", "auto",
+				"--gas-adjustment", `1.3`,
+				"--output", "json",
+				"--chain-id", cosmosStride.Config().ChainID,
+				"--node", cosmosStride.GetRPCAddress(),
+				"--home", cosmosStride.HomeDir(),
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
 
 			_, _, err = cosmosStride.Exec(ctx, cmd, nil)
 			require.NoError(t, err, "failed to register host zone on stride")
 
 			err = testutil.WaitForBlocks(ctx, 5, stride)
 			require.NoError(t, err, "failed to wait for blocks")
+
+			// # Add host zone validators to Stride's host zone struct
+			// $STRIDE_MAIN_CMD tx stakeibc add-validators $CHAIN_ID $validator_json \
+			// 	--from $STRIDE_ADMIN_ACCT -y | TRIM_TX
+
 		})
 
 		t.Run("deploy astroport contracts", func(t *testing.T) {
