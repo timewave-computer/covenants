@@ -312,14 +312,20 @@ func TestICS(t *testing.T) {
 	// we iterate over stride connections
 	for _, strideConn := range strideConnectionInfo {
 		for _, neutronConn := range neutronConnectionInfo {
-			if neutronConn.ClientID == strideConn.Counterparty.ClientId && strideConn.ClientID == neutronConn.Counterparty.ClientId {
+			if neutronConn.ClientID == strideConn.Counterparty.ClientId &&
+				strideConn.ClientID == neutronConn.Counterparty.ClientId &&
+				neutronConn.ID == strideConn.Counterparty.ConnectionId &&
+				strideConn.ID == neutronConn.Counterparty.ConnectionId {
 				// strideNeutronTransferChannel.ConnectionHops[0] == strideConn.ID {
 				strideNeutronConnectionId = strideConn.ID
 				neutronStrideConnectionId = neutronConn.ID
 			}
 		}
 		for _, gaiaConn := range gaiaConnectionInfo {
-			if strideConn.ClientID == gaiaConn.Counterparty.ClientId && strideConn.Counterparty.ClientId == gaiaConn.ClientID {
+			if strideConn.ClientID == gaiaConn.Counterparty.ClientId &&
+				strideConn.Counterparty.ClientId == gaiaConn.ClientID &&
+				gaiaConn.ID == strideConn.Counterparty.ConnectionId &&
+				strideConn.ID == gaiaConn.Counterparty.ConnectionId {
 				// strideGaiaTransferChannel.ConnectionHops[0] == strideConn.ID {
 				strideGaiaConnectionId = strideConn.ID
 				gaiaStrideConnectionId = gaiaConn.ID
