@@ -491,9 +491,13 @@ func TestICS(t *testing.T) {
 			print("\n", string(jsonData), "\n")
 
 			fullPath := filepath.Join(cosmosStride.HomeDir(), "vals.json")
-			fullPathCmd := []string{"tee", fullPath, "<<<", string(jsonData)}
+			bashCommand := "echo '" + string(jsonData) + "' > " + fullPath
+			fullPathCmd := []string{"/bin/sh", "-c", bashCommand}
+			print(strings.Join(fullPathCmd, " "))
+			print("\n")
 
-			_, _, _ = cosmosStride.Exec(ctx, fullPathCmd, nil)
+			_, _, err = cosmosStride.Exec(ctx, fullPathCmd, nil)
+			require.NoError(t, err, "failed to create json with gaia LS validator set on stride")
 
 			err = testutil.WaitForBlocks(ctx, 15, stride)
 			require.NoError(t, err, "failed to wait for blocks")
@@ -984,10 +988,16 @@ func TestICS(t *testing.T) {
 		})
 
 		t.Run("stride one click LS", func(t *testing.T) {
-			atomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
+			// 1 click LS command looks like this in stride v9
+			// gaiad tx ibc-transfer transfer transfer channel-2
+			// '{"autopilot": {"receiver": "stride154tnguxckd0tx3zphut4m58a09p2p944cwh70h5p9szlav9scunswyjyst",
+			// "stakeibc": {"stride_address": "stride154tnguxckd0tx3zphut4m58a09p2p944cwh70h5p9szlav9scunswyjyst",
+			// "action": "LiquidStake"}}}' 31uatom --from default-gaia-1-vjv --output json
+			// --node http://gaia-1-fn-0-TestICS:26657 --home /var/cosmos-chain/gaia-1 --chain-id gaia-1 --keyring-backend test
 
+			atomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
 			noForwardMemo := fmt.Sprintf(
-				`"{"autopilot": {"receiver": "%s", "stakeibc": {"action": "LiquidStake"}}}"`, strideICAAddress,
+				`'{"autopilot":{"receiver":"%s","stakeibc":{"stride_address": "%s","action":"LiquidStake"}}}'`, strideICAAddress, strideICAAddress,
 			)
 
 			print(noForwardMemo)
