@@ -382,7 +382,7 @@ func TestICS(t *testing.T) {
 				neutronGaiaTransferChannelId,
 				atom.Config().Denom))
 		neutronDstIbcDenom := neutronSrcDenomTrace.IBCDenom()
-		gaiaAddr := gaiaUser.Bech32Address(atom.Config().Bech32Prefix)
+		// gaiaAddr := gaiaUser.Bech32Address(atom.Config().Bech32Prefix)
 
 		atomSrcDenomTrace := transfertypes.ParseDenomTrace(
 			transfertypes.GetPrefixedDenom("transfer",
@@ -494,13 +494,13 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err, "failed to marshall data")
 
 			// Print the JSON
-			print("\n", string(jsonData), "\n")
+			// print("\n", string(jsonData), "\n")
 
 			fullPath := filepath.Join(cosmosStride.HomeDir(), "vals.json")
 			bashCommand := "echo '" + string(jsonData) + "' > " + fullPath
 			fullPathCmd := []string{"/bin/sh", "-c", bashCommand}
-			print(strings.Join(fullPathCmd, " "))
-			print("\n")
+			// print(strings.Join(fullPathCmd, " "))
+			// print("\n")
 
 			_, _, err = cosmosStride.Exec(ctx, fullPathCmd, nil)
 			require.NoError(t, err, "failed to create json with gaia LS validator set on stride")
@@ -521,8 +521,8 @@ func TestICS(t *testing.T) {
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
-			print(strings.Join(cmd, " "))
-			print("\n")
+			// print(strings.Join(cmd, " "))
+			// print("\n")
 
 			_, _, err = cosmosStride.Exec(ctx, cmd, nil)
 			require.NoError(t, err, "failed to register host zone on stride")
@@ -538,12 +538,12 @@ func TestICS(t *testing.T) {
 				"--home", cosmosStride.HomeDir(),
 			}
 
-			resp, _, err = cosmosStride.Exec(ctx, queryCmd, nil)
+			_, _, err = cosmosStride.Exec(ctx, queryCmd, nil)
 			require.NoError(t, err, "failed to query host validators")
 
-			print(string(resp), "\n")
-			respJson, _ := json.Marshal(resp)
-			print(string(respJson))
+			// print(string(resp), "\n")
+			// respJson, _ := json.Marshal(resp)
+			// print(string(respJson))
 		})
 
 		t.Run("deploy astroport contracts", func(t *testing.T) {
@@ -804,6 +804,7 @@ func TestICS(t *testing.T) {
 				StrideNeutronIBCTransferChannelId: strideNeutronChannelId,
 				LpAddress:                         lperContractAddress,
 				NeutronStrideIBCConnectionId:      neutronStrideConnectionId,
+				LsDenom:                           strideAtomIbcDenom,
 			}
 
 			str, err := json.Marshal(msg)
@@ -835,7 +836,7 @@ func TestICS(t *testing.T) {
 			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
 
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			var response QueryResponse
@@ -931,7 +932,7 @@ func TestICS(t *testing.T) {
 			_, _, err = neutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
 
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			err = testutil.WaitForBlocks(ctx, 5, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			var response QueryResponse
@@ -969,7 +970,7 @@ func TestICS(t *testing.T) {
 			})
 
 			require.NoError(t, err, "failed to send funds from gaia to neutron ICA")
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			err = testutil.WaitForBlocks(ctx, 5, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
@@ -977,7 +978,7 @@ func TestICS(t *testing.T) {
 			require.EqualValues(t, 20, atomBal)
 		})
 
-		t.Run("fund depositor contract with some neutron", func(t *testing.T) {
+		t.Run("fund contracts with neutron", func(t *testing.T) {
 			err := neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: depositorContractAddress,
 				Amount:  500001,
@@ -985,87 +986,25 @@ func TestICS(t *testing.T) {
 			})
 
 			require.NoError(t, err, "failed to send funds from neutron user to depositor contract")
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+
+			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: lsContractAddress,
+				Amount:  500001,
+				Denom:   neutron.Config().Denom,
+			})
+
+			require.NoError(t, err, "failed to send funds from neutron user to ls contract")
+
+			err = testutil.WaitForBlocks(ctx, 5, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
-			neutronBal, err := neutron.GetBalance(ctx, depositorContractAddress, neutron.Config().Denom)
+			depositorNeutronBal, err := neutron.GetBalance(ctx, depositorContractAddress, neutron.Config().Denom)
 			require.NoError(t, err, "failed to get depositor neutron balance")
-			require.EqualValues(t, 500001, neutronBal)
-		})
+			require.EqualValues(t, 500001, depositorNeutronBal)
 
-		t.Run("stride one click LS", func(t *testing.T) {
-			// 1 click LS command looks like this in stride v9
-			// gaiad tx ibc-transfer transfer transfer channel-2
-			// '{"autopilot": {"receiver": "stride154tnguxckd0tx3zphut4m58a09p2p944cwh70h5p9szlav9scunswyjyst",
-			// "stakeibc": {"stride_address": "stride154tnguxckd0tx3zphut4m58a09p2p944cwh70h5p9szlav9scunswyjyst",
-			// "action": "LiquidStake"}}}' 31uatom --from default-gaia-1-vjv --output json
-			// --node http://gaia-1-fn-0-TestICS:26657 --home /var/cosmos-chain/gaia-1 --chain-id gaia-1 --keyring-backend test
-
-			atomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
-			noForwardMemo := fmt.Sprintf(
-				`'{"autopilot":{"receiver":"%s","stakeibc":{"stride_address": "%s","action":"LiquidStake"}}}'`, strideICAAddress, strideICAAddress,
-			)
-
-			print(noForwardMemo)
-
-			cmd := []string{"gaiad", "tx", "ibc-transfer", "transfer", "transfer",
-				gaiaStrideChannelId,
-				noForwardMemo,
-				"100uatom",
-				"--from", gaiaUser.KeyName,
-				"--output", "json",
-				"--node", atom.GetRPCAddress(),
-				"--home", atom.HomeDir(),
-				"--chain-id", atom.Config().ChainID,
-				"--keyring-backend", keyring.BackendTest,
-				"-y",
-			}
-
-			print("\ncmd: \n")
-			print(strings.Join(cmd, " "))
-
-			_, _, err = cosmosAtom.Exec(ctx, cmd, nil)
-			require.NoError(t, err)
-
-			err = testutil.WaitForBlocks(ctx, 20, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
-
-			newAtomBal, _ := atom.GetBalance(ctx, gaiaAddr, atom.Config().Denom)
-			require.EqualValues(t, atomBal-100, newAtomBal)
-
-			strideBal, _ := stride.GetBalance(ctx, strideICAAddress, strideAtomIbcDenom)
-			print("\n stride bal: ", strideBal)
-		})
-
-		t.Run("manual autopilot", func(t *testing.T) {
-
-			memo := fmt.Sprintf(
-				`"{"autopilot":{"receiver":"%s","stakeibc":{"stride_address":"%s","action":"LiquidStake","ibc_receiver":"%s","transfer_channel":"%s"}}}`,
-				strideICAAddress, strideICAAddress, lperContractAddress, strideNeutronChannelId)
-
-			cmd := []string{"gaiad", "tx", "ibc-transfer", "transfer", "transfer",
-				gaiaStrideChannelId,
-				memo,
-				"100uatom",
-				"--from", gaiaUser.KeyName,
-				"--gas", "auto",
-				"--gas-adjustment", `1.3`,
-				"--output", "json",
-				"--node", atom.GetRPCAddress(),
-				"--home", atom.HomeDir(),
-				"--chain-id", atom.Config().ChainID,
-				"--fees", "10uatom",
-				"--keyring-backend", keyring.BackendTest,
-				"-y",
-			}
-
-			print("\n cmd: \n")
-			print(strings.Join(cmd, " "))
-			_, _, err = cosmosAtom.Exec(ctx, cmd, nil)
-			require.NoError(t, err)
-
-			err = testutil.WaitForBlocks(ctx, 200, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
+			lsNeutronBal, err := neutron.GetBalance(ctx, lsContractAddress, neutron.Config().Denom)
+			require.NoError(t, err, "failed to get depositor neutron balance")
+			require.EqualValues(t, 500001, lsNeutronBal)
 		})
 
 		t.Run("second tick liquid stakes on stride", func(t *testing.T) {
@@ -1073,30 +1012,37 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err, "failed to get ICA balance")
 			require.EqualValues(t, 20, atomBal)
 
+			require.NoError(t, err, "failed to wait for blocks")
 			cmd = []string{"neutrond", "tx", "wasm", "execute", depositorContractAddress,
 				`{"tick":{}}`,
 				"--from", neutronUser.KeyName,
 				"--gas-adjustment", `1.3`,
+				"--gas-prices", "0.0untrn",
 				"--output", "json",
 				"--home", "/var/cosmos-chain/neutron-2",
-				"--node", neutron.GetRPCAddress(),
-				"--home", neutron.HomeDir(),
-				"--chain-id", neutron.Config().ChainID,
+				"--node", cosmosNeutron.GetRPCAddress(),
+				"--home", cosmosNeutron.HomeDir(),
+				"--chain-id", cosmosNeutron.Config().ChainID,
 				"--gas", "auto",
-				"--fees", "500000untrn",
+				"--fees", "5000untrn",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
 
-			_, _, err = neutron.Exec(ctx, cmd, nil)
+			stdout, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
+			print(string(stdout))
 
-			err = testutil.WaitForBlocks(ctx, 20, atom, neutron, stride)
+			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to query ICA balance")
 			require.Equal(t, int64(10), atomICABal)
+
+			strideICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
+			require.NoError(t, err, "failed to query ICA balance")
+			require.Equal(t, int64(10), strideICABal)
 		})
 
 		t.Run("third tick ibc transfers atom from ICA account to neutron", func(t *testing.T) {
@@ -1114,7 +1060,7 @@ func TestICS(t *testing.T) {
 				"--home", neutron.HomeDir(),
 				"--chain-id", neutron.Config().ChainID,
 				"--gas", "auto",
-				"--fees", "500000untrn",
+				"--fees", "5000untrn",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
@@ -1122,7 +1068,7 @@ func TestICS(t *testing.T) {
 			_, _, err = neutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
 
-			err = testutil.WaitForBlocks(ctx, 20, atom, neutron)
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
@@ -1137,8 +1083,33 @@ func TestICS(t *testing.T) {
 			require.Equal(t, int64(10), neutronUserBalNew)
 		})
 
+		t.Run("tick ls to transfer statom to LPer", func(t *testing.T) {
+
+			cmd = []string{"neutrond", "tx", "wasm", "execute", lsContractAddress,
+				`{"tick":{}}`,
+				"--from", neutronUser.KeyName,
+				"--gas-adjustment", `1.3`,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--home", neutron.HomeDir(),
+				"--chain-id", neutron.Config().ChainID,
+				"--gas", "auto",
+				"--fees", "5000untrn",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+		})
+
 		// to keep docker containers alive for debugging
-		// err = testutil.WaitForBlocks(ctx, 200, atom, neutron)
+		err = testutil.WaitForBlocks(ctx, 200, atom, neutron)
+
 		t.Run("subsequent ticks do nothing", func(t *testing.T) {
 			cmd = []string{"neutrond", "tx", "wasm", "execute", depositorContractAddress,
 				`{"tick":{}}`,
@@ -1151,7 +1122,7 @@ func TestICS(t *testing.T) {
 				"--home", neutron.HomeDir(),
 				"--chain-id", neutron.Config().ChainID,
 				"--from", "faucet",
-				"--gas", "50000.0untrn",
+				"--gas", "5000.0untrn",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}

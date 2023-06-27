@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{MessageInfo,  Response,
-     StdResult, Addr, DepsMut, Env, Binary, Deps, to_binary, SubMsg, WasmMsg, CosmosMsg, Coin, Uint128, Reply, 
+     StdResult, Addr, DepsMut, Env, Binary, Deps, to_binary, WasmMsg, CosmosMsg, Coin, Uint128, 
 };
 use cw2::set_contract_version;
 
@@ -47,7 +47,7 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn execute(
-    mut deps: DepsMut,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -79,7 +79,7 @@ fn no_op() -> NeutronResult<Response<NeutronMsg>> {
 fn try_enter_lp_position(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo, 
+    _info: MessageInfo, 
 ) -> NeutronResult<Response<NeutronMsg>> {
     let pool_address = LP_POSITION.load(deps.storage)?;
 
@@ -119,7 +119,7 @@ fn try_enter_lp_position(
 fn try_withdraw(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo, 
+    _info: MessageInfo, 
 ) -> NeutronResult<Response<NeutronMsg>> {
     let pool_address = LP_POSITION.load(deps.storage)?;
     // todo
@@ -148,7 +148,7 @@ fn try_withdraw(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
+pub fn query(deps: Deps<NeutronQuery>, _env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(
             to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?

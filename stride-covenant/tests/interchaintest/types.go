@@ -217,4 +217,5 @@ type LsInstantiateMsg struct {
 	StrideNeutronIBCTransferChannelId string `json:"stride_neutron_ibc_transfer_channel_id"`
 	LpAddress                         string `json:"lp_address"`
 	NeutronStrideIBCConnectionId      string `json:"neutron_stride_ibc_connection_id"`
+	LsDenom                           string `json:"ls_denom"`
 }

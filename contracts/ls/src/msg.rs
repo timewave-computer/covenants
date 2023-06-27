@@ -9,6 +9,7 @@ pub struct InstantiateMsg {
     pub stride_neutron_ibc_transfer_channel_id: String,
     pub neutron_stride_ibc_connection_id: String,
     pub lp_address: String,
+    pub ls_denom: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

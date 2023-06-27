@@ -1,27 +1,39 @@
-use cosmwasm_std::{Addr, Empty, Uint128};
-use cw_multi_test::{App, Contract, ContractWrapper, Executor};
+use cosmwasm_std::{Addr, Uint128, Empty};
+use cw_multi_test::{App, Executor, Contract, ContractWrapper};
+use neutron_sdk::{bindings::query::NeutronQuery, NeutronError, NeutronResult};
 
-use crate::msg::{InstantiateMsg, QueryMsg, WeightedReceiver};
+use crate::{msg::{InstantiateMsg, QueryMsg, WeightedReceiver}, contract::{query, execute, instantiate}};
 
 pub const CREATOR_ADDR: &str = "creator";
 pub const ST_ATOM_DENOM: &str = "stride-atom";
 pub const NATIVE_ATOM_DENOM: &str = "native-atom";
-pub const DEFAULT_RECEIVER_AMOUNT: Uint128 = Uint128::new(10);
-pub const DEFAULT_CLOCK_ADDRESS: &str = "clock-address";
+pub const _DEFAULT_RECEIVER_AMOUNT: Uint128 = Uint128::new(10);
+pub const _DEFAULT_CLOCK_ADDRESS: &str = "clock-address";
 
-// fn depositor_contract() -> Box<dyn Contract<Empty>> {
-//     let contract = ContractWrapper::new(
-//         crate::contract::execute,
-//         crate::contract::instantiate,
-//         crate::contract::query,
-//     );
-//     // todo
-//     Box::new(contract)
+// pub fn mock_dependencies() -> OwnedDeps<MockStorage, MockApi, MockQuerier, NeutronQuery> {
+//     OwnedDeps {
+//         storage: MockStorage::default(),
+//         api: MockApi::default(),
+//         querier: MockQuerier::default(),
+//         custom_query_type: PhantomData,
+//     }
+// }
+
+// fn depositor_contract() -> Box<dyn Contract<NeutronResult<NeutronError>>> {
+//     // let contract = ContractWrapper::new(
+//     //     crate::contract::execute,
+//     //     crate::contract::instantiate,
+//     //     query,
+//     // );
+//     // // todo
+//     // Box::new(contract)
+//     let execute_func =  
+//     Box::new(ContractWrapper::new(execute_fn, instantiate_fn, query_fn))
 // }
 
 pub(crate) struct Suite {
-    app: App,
-    pub _admin: Addr,
+    pub app: App,
+    pub admin: Addr,
     pub depositor_address: Addr,
     pub depositor_code: u64,
 }
@@ -29,8 +41,6 @@ pub(crate) struct Suite {
 pub(crate) struct SuiteBuilder {
     pub instantiate: InstantiateMsg,
 }
-
-
 
 impl Default for SuiteBuilder {
     fn default() -> Self {
@@ -56,7 +66,7 @@ impl Default for SuiteBuilder {
 impl SuiteBuilder {
     pub fn build(self) -> Suite {
         let mut app = App::default();
-
+        // app.store_code()
         // let depositor_code = app.store_code(depositor_contract());
         let depositor_code = 1;
         let depositor_address = app
@@ -72,7 +82,7 @@ impl SuiteBuilder {
 
         Suite {
             app,
-            _admin: Addr::unchecked(CREATOR_ADDR),
+            admin: Addr::unchecked(CREATOR_ADDR),
             depositor_address,
             depositor_code,
         }

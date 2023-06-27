@@ -138,40 +138,25 @@ fn try_liquid_stake(
     
     match interchain_account {
         Some((address, controller_conn_id)) => {
-            let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
-            let amount = String::from(lp_receiver.amount.to_string());
-            // let receiver = String::from(lp_receiver.address.to_string());
+            let stride_receiver = STRIDE_ATOM_RECEIVER.load(deps.storage)?;
+            let gaia_stride_channel: String = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+
+            let amount = String::from(stride_receiver.amount.to_string());
+            let st_ica = String::from(stride_receiver.address.to_string());
 
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
                 amount,
             };
 
-            // stride autopilot msg
-            let stride_receiver = STRIDE_ATOM_RECEIVER.load(deps.storage)?;
-            let st_amount = String::from(stride_receiver.amount.to_string());
-            let st_ica = String::from(stride_receiver.address.to_string());
-            let gaia_stride_channel = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
-            let lper_addr = LP_ADDRESS.load(deps.storage)?;
-            let gaia_stride_channel = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
-
-            let mut autopilot_memo = String::from("\"{\"autopilot\":{\"receiver\":\"");
-            autopilot_memo.push_str(&st_ica);
-            autopilot_memo.push_str("\",\"stakeibc\":{\"stride_address\":\"");
-            autopilot_memo.push_str(&st_ica);
-            autopilot_memo.push_str("\",\"action\":\"LiquidStake\",\"ibc_receiver\":\"");
-            autopilot_memo.push_str(&lper_addr);
-            autopilot_memo.push_str("\",\"transfer_channel\":\"");
-            autopilot_memo.push_str(&gaia_stride_channel);
-            autopilot_memo.push_str("\"}}}\"");
-            let memo = autopilot_memo.to_string();
+            let autopilot_receiver = format!("{{\"autopilot\": {{\"receiver\": {st_ica},\"stakeibc\": {{\"stride_address\": {st_ica},\"action\": \"LiquidStake\"}}}}}}");
 
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: gaia_stride_channel,
                 token: Some(coin),
                 sender: address.clone(),
-                receiver: memo,
+                receiver: autopilot_receiver.to_string(),
                 timeout_height: Some(Height {
                     revision_number: 3, 
                     revision_height: 800,
@@ -190,9 +175,6 @@ fn try_liquid_stake(
                 type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
                 value: Binary::from(buf),
             };
-
-
-
 
             let stride_submit_msg = NeutronMsg::submit_tx(
                 controller_conn_id, 
@@ -293,7 +275,6 @@ fn try_register_gaia_ica(
     env: Env,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
-    // let ibc_connection_id = String::from("connection-0");
     let connection_id = NEUTRON_GAIA_CONNECTION_ID.load(deps.storage)?;
     let register = NeutronMsg::register_interchain_account(
         connection_id, 
@@ -306,140 +287,6 @@ fn try_register_gaia_ica(
     INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
 
     Ok(Response::new().add_message(register))
-}
-
-fn try_execute_transfers(
-    mut deps: DepsMut,
-    env: Env,
-    _info: MessageInfo, 
-    gaia_account_address: String
-) -> NeutronResult<Response<NeutronMsg>> {
-    // validate that tick was triggered by the authorized clock
-    // validate whether ICA has enough atom?
-
-    let stride_atom_receiver = STRIDE_ATOM_RECEIVER.load(deps.branch().storage)?;
-    let native_atom_receiver = NATIVE_ATOM_RECEIVER.load(deps.branch().storage)?;
-    
-    // match bal {
-        // Ok(coin) => {
-    // validate depositor ICA has enough atoms to perform both transfers?
-    
-    // 1. transfer 1/2 of atoms to liquid-staker module
-    // 2. transfer 1/2 of atoms from ICA to liquidity-pooler module
-
-    // let fee = min_ntrn_ibc_fee(query_min_ibc_fee(deps.as_ref())?.min_fee);
-    let _neutron_coin = Coin {
-        denom: NEUTRON_DENOM.to_string(),
-        amount: 1000u128.to_string(),
-    };
-    let fee = IbcFee {
-        recv_fee: vec![], // must be empty
-        ack_fee: vec![cosmwasm_std::Coin { denom: NEUTRON_DENOM.to_string(), amount: Uint128::new(1000u128) }],
-        timeout_fee: vec![cosmwasm_std::Coin { denom: NEUTRON_DENOM.to_string(), amount: Uint128::new(1000u128) }],
-    };
-
-    let ls_coin = Coin {
-        denom: ATOM_DENOM.to_string(),
-        amount: stride_atom_receiver.amount.to_string(),
-    };
-    let lp_coin = Coin {
-        denom: ATOM_DENOM.to_string(),
-        amount: native_atom_receiver.amount.to_string(),
-    };
-
-    let ls_msg = MsgTransfer {
-        source_port: TRANSFER_PORT.to_string(),
-        source_channel: "channel-0".to_string(),
-        token: Some(ls_coin),
-        sender: gaia_account_address.clone(),
-        receiver: stride_atom_receiver.address,
-        timeout_height: None,
-        timeout_timestamp: 0,
-    };
-    
-    let lp_msg = MsgTransfer {
-        source_port: TRANSFER_PORT.to_string(),
-        source_channel: "channel-0".to_string(),
-        token: Some(lp_coin),
-        sender: gaia_account_address.clone(),
-        receiver: native_atom_receiver.address,
-        timeout_height: None,
-        timeout_timestamp: 0,
-    };
-
-    // Serialize the Transfer messages 
-    let mut ls_buf = Vec::new();
-    ls_buf.reserve(ls_msg.encoded_len());
-
-    if let Err(e) = ls_msg.encode(&mut ls_buf) {
-        return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
-    }
-
-    let mut lp_buf = Vec::new();
-    lp_buf.reserve(lp_msg.encoded_len());
-
-    if let Err(e) = lp_msg.encode(&mut lp_buf) {
-        return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
-    }
-
-    let ls_protobuf = ProtobufAny {
-        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-        value: Binary::from(ls_buf),
-    };  
-    let lp_protobuf = ProtobufAny {
-        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-        value: Binary::from(lp_buf),
-    };
-    let connection_id = NEUTRON_GAIA_CONNECTION_ID.load(deps.storage)?;
-
-    let ls_cosmos_msg = NeutronMsg::submit_tx(
-        connection_id.clone(),
-        INTERCHAIN_ACCOUNT_ID.to_string(),
-        vec![ls_protobuf],
-        "".to_string(),
-        DEFAULT_TIMEOUT_SECONDS,
-        fee.clone()
-    );
-    let lp_cosmos_msg = NeutronMsg::submit_tx(
-        connection_id,
-        INTERCHAIN_ACCOUNT_ID.to_string(),
-        vec![lp_protobuf],
-        "".to_string(),
-        DEFAULT_TIMEOUT_SECONDS,
-        fee
-    );
-
-    let ls_submsg = msg_with_sudo_callback(
-        deps.branch(), 
-        ls_cosmos_msg,
-        SudoPayload {
-            port_id: get_port_id(
-                env.contract.address.to_string(), 
-                INTERCHAIN_ACCOUNT_ID.to_string(),
-            ),
-            // Here you can store some information about the transaction to help you parse
-            // the acknowledgement later.
-            message: "ls transfer".to_string(),  
-        },
-    )?;
-
-    let lp_submsg = msg_with_sudo_callback(
-        deps,
-        lp_cosmos_msg,
-        SudoPayload {
-            port_id: get_port_id(
-                env.contract.address.to_string(), 
-                INTERCHAIN_ACCOUNT_ID.to_string()
-            ),
-            // Here you can store some information about the transaction to help you parse
-            // the acknowledgement later.
-            message: "lp transfer".to_string(),  
-        },
-    )?;
-
-    Ok(Response::default()
-        .add_submessages(vec![ls_submsg, lp_submsg])
-    )
 }
 
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
