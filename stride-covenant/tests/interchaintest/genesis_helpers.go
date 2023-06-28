@@ -1,12 +1,15 @@
 package ibc_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/icza/dyno"
+	"github.com/strangelove-ventures/interchaintest/v3/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v3/ibc"
+	"github.com/strangelove-ventures/interchaintest/v3/testreporter"
 )
 
 // Sets custom fields for the Neutron genesis file that interchaintest isn't aware of by default.
@@ -121,4 +124,13 @@ func getCreateValidatorCmd(chain ibc.Chain) []string {
 	}
 
 	return cmd
+}
+
+func getChannelMap(r ibc.Relayer, ctx context.Context, eRep *testreporter.RelayerExecReporter,
+	cosmosStride *cosmos.CosmosChain, cosmosNeutron *cosmos.CosmosChain, cosmosAtom *cosmos.CosmosChain) map[string]string {
+	channelMap := map[string]string{
+		"hi": "Dog",
+	}
+
+	return channelMap
 }

@@ -262,6 +262,8 @@ fn try_receive_atom_from_ica(
                 fee.clone(),
             );
 
+            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+            
             Ok(Response::default()
                 .add_submessage(SubMsg::new(submit_msg))
             )

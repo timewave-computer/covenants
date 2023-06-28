@@ -35,6 +35,8 @@ const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 // const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
+const STATOM_DENOM: &str = "stuatom";
+
 const INTERCHAIN_ACCOUNT_ID: &str = "stride-ica";
 const TRANSFER_PORT: &str = "transfer";
 
@@ -131,39 +133,51 @@ fn try_execute_transfer(
     _info: MessageInfo, 
 ) -> NeutronResult<Response<NeutronMsg>> {
 
+    let fee = IbcFee {
+        recv_fee: vec![], // must be empty
+        ack_fee: vec![cosmwasm_std::Coin { 
+            denom: NEUTRON_DENOM.to_string(),
+            amount: Uint128::new(1000u128)
+        }],
+        timeout_fee: vec![cosmwasm_std::Coin { 
+            denom: NEUTRON_DENOM.to_string(), 
+            amount: Uint128::new(1000u128) 
+        }],
+    };
+
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
-    
+
     match interchain_account {
         Some((address, controller_conn_id)) => {
 
             let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
-            let denom = LS_DENOM.load(deps.storage)?;
+            // let denom = LS_DENOM.load(deps.storage)?;
 
             // validate denom here..
-            let statom_bal = deps.querier.query_balance(
-                env.contract.address,
-                denom,
-            )?;
+            // let statom_bal = deps.querier.query_balance(
+            //     address,
+            //     STATOM_DENOM.to_string(),
+            // )?;
 
-            let amount = String::from(statom_bal.amount);
+            // let amount = String::from(statom_bal.amount);
 
             let coin = Coin {
-                denom: ATOM_DENOM.to_string(),
-                amount,
+                denom: STATOM_DENOM.to_string(),
+                amount: "5".to_string(),
             };
 
             let msg = MsgTransfer {
                 source_port: "transfer".to_string(),
-                source_channel: source_channel,
+                source_channel,
                 token: Some(coin.clone()),
                 sender: address.clone(),
                 receiver: lp_receiver,
                 timeout_height: Some(Height {
                     revision_number: 2, 
-                    revision_height: 500,
+                    revision_height: 800,
                 }),
                 timeout_timestamp: 0,
             };
@@ -181,23 +195,15 @@ fn try_execute_transfer(
             };
 
             let submit_msg = NeutronMsg::submit_tx(
-                controller_conn_id.clone(), 
+                controller_conn_id, 
                 INTERCHAIN_ACCOUNT_ID.to_string(), 
                 vec![protobuf], 
-                address.clone(), 
+                "".to_string(), 
                 100000, 
-                IbcFee {
-                    recv_fee: vec![], // must be empty
-                    ack_fee: vec![cosmwasm_std::Coin { 
-                        denom: NEUTRON_DENOM.to_string(),
-                        amount: Uint128::new(1000u128)
-                    }],
-                    timeout_fee: vec![cosmwasm_std::Coin { 
-                        denom: NEUTRON_DENOM.to_string(), 
-                        amount: Uint128::new(1000u128) 
-                    }],
-                },
+                fee,
             );
+
+            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
 
             Ok(Response::default()
                 .add_submessage(SubMsg::new(submit_msg))
