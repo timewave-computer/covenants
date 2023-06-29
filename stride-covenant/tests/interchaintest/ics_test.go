@@ -231,128 +231,264 @@ func TestICS(t *testing.T) {
 	neutronConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosNeutron.Config().ChainID)
 	gaiaConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosAtom.Config().ChainID)
 
-	var strideNeutronChannelId, strideGaiaChannelId, gaiaStrideChannelId, neutronStrideChannelId string
+	/// Find all the pairwise connections
+	var strideGaiaConnectionId, gaiaStrideConnectionId string
+	var strideNeutronConnectionId, neutronStrideConnectionId string
 
-	for _, s := range strideChannelInfo {
-		found := false
-		sJson, _ := json.Marshal(s)
-		print("\n stride channel: ", string(sJson))
-		if !found {
-			for _, n := range neutronChannelInfo {
-				nJson, _ := json.Marshal(n)
-				print("\n neutron channel: ", string(nJson))
-				if s.ChannelID == n.Counterparty.ChannelID && s.Counterparty.ChannelID == n.ChannelID &&
-					s.PortID == n.Counterparty.PortID && n.Ordering == "ORDER_UNORDERED" {
-					strideNeutronChannelId = s.ChannelID
-					neutronStrideChannelId = n.ChannelID
-					print("\nfound\n")
-					found = true
-					break
-				}
-			}
-		}
-		if found {
-			break
-		}
-	}
+	// There should be two sets of connections for gaia <> neutron. Tranfer and CCV
+	neutronGaiaConnectionIds := make([]string, 2)
+	gaiaNeutronConnectionIds := make([]string, 2)
 
-	for _, s := range strideChannelInfo {
-		found := false
-		sJson, _ := json.Marshal(s)
-		print("\n stride channel: ", string(sJson))
-		if !found {
-			for _, g := range gaiaChannelInfo {
-				gJson, _ := json.Marshal(g)
-				print("\n gaia channel: ", string(gJson))
-				if s.ChannelID == g.Counterparty.ChannelID && g.ChannelID == s.Counterparty.ChannelID &&
-					s.PortID == g.Counterparty.PortID && g.Ordering == "ORDER_UNORDERED" {
-					strideGaiaChannelId = s.ChannelID
-					gaiaStrideChannelId = g.ChannelID
-					found = true
-					print("\nfound\n")
-					break
-				}
-			}
-		}
-		if found {
-			break
-		}
-	}
-	_, _ = strideGaiaChannelId, neutronStrideChannelId
+	var neutronGaiaTransferConnectionId, neutronGaiaICSConnectionId string
+	var gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId string
 
-	var neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
-	var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId string
-	var neutronGaiaICSConnectionHopId string
-
-	for _, n := range neutronChannelInfo {
-		for _, g := range gaiaChannelInfo {
-			if n.PortID == "consumer" && g.PortID == "provider" {
-				neutronGaiaICSChannelId = n.ChannelID
-				gaiaNeutronICSChannelId = g.ChannelID
-				neutronGaiaICSConnectionHopId = n.ConnectionHops[0]
-			} else if n.ChannelID == g.Counterparty.ChannelID && g.ChannelID == n.Counterparty.ChannelID &&
-				n.PortID == g.Counterparty.PortID && n.Counterparty.PortID == g.PortID {
-				neutronGaiaTransferChannelId = n.ChannelID
-				gaiaNeutronTransferChannelId = g.ChannelID
-			}
-		}
-	}
-
-	print("\n gaiaStrideChannelId: ", gaiaStrideChannelId)
-	print("\n strideGaiaChannelId: ", strideGaiaChannelId)
-	print("\n strideNeutronChannelId: ", strideNeutronChannelId)
-	print("\n neutronStrideChannelId: ", neutronStrideChannelId)
-	print("\n neutronGaiaTransferChannelId: ", neutronGaiaTransferChannelId)
-	print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
-	print("\n neutronGaiaICSChannelId: ", neutronGaiaICSChannelId)
-	print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
-
-	var strideGaiaConnectionId, gaiaStrideConnectionId, strideNeutronConnectionId, neutronStrideConnectionId string
-
-	// we iterate over stride connections
+	// We iterate over stride connections
 	for _, strideConn := range strideConnectionInfo {
 		for _, neutronConn := range neutronConnectionInfo {
 			if neutronConn.ClientID == strideConn.Counterparty.ClientId &&
 				strideConn.ClientID == neutronConn.Counterparty.ClientId &&
 				neutronConn.ID == strideConn.Counterparty.ConnectionId &&
 				strideConn.ID == neutronConn.Counterparty.ConnectionId {
-				// strideNeutronTransferChannel.ConnectionHops[0] == strideConn.ID {
 				strideNeutronConnectionId = strideConn.ID
 				neutronStrideConnectionId = neutronConn.ID
 			}
 		}
 		for _, gaiaConn := range gaiaConnectionInfo {
 			if strideConn.ClientID == gaiaConn.Counterparty.ClientId &&
-				strideConn.Counterparty.ClientId == gaiaConn.ClientID &&
+				gaiaConn.ClientID == strideConn.Counterparty.ClientId &&
 				gaiaConn.ID == strideConn.Counterparty.ConnectionId &&
 				strideConn.ID == gaiaConn.Counterparty.ConnectionId {
-				// strideGaiaTransferChannel.ConnectionHops[0] == strideConn.ID {
 				strideGaiaConnectionId = strideConn.ID
 				gaiaStrideConnectionId = gaiaConn.ID
 			}
 		}
 	}
-
-	var neutronGaiaTransferConnectionId, neutronGaiaICSConnectionId string
-	var gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId string
-	_, _ = gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId
-	for _, neutronConn := range neutronConnectionInfo {
-		if neutronGaiaICSConnectionHopId == neutronConn.ID {
-			neutronGaiaICSConnectionId = neutronConn.ID
-			gaiaNeutronICSConnectionId = neutronConn.Counterparty.ConnectionId
-			break
-		}
-	}
 	for _, neutronConn := range neutronConnectionInfo {
 		for _, gaiaConn := range gaiaConnectionInfo {
-			if neutronConn.ID != neutronGaiaICSConnectionId && gaiaConn.ID != gaiaNeutronICSConnectionId &&
-				neutronConn.ClientID == gaiaConn.Counterparty.ClientId && gaiaConn.ClientID == neutronConn.Counterparty.ClientId {
-				neutronGaiaTransferConnectionId = neutronConn.ID
-				gaiaNeutronTransferConnectionId = gaiaConn.ID
+			if neutronConn.ClientID == gaiaConn.Counterparty.ClientId &&
+				gaiaConn.ClientID == neutronConn.Counterparty.ClientId &&
+				neutronConn.ID == gaiaConn.Counterparty.ConnectionId &&
+				gaiaConn.ID == neutronConn.Counterparty.ConnectionId {
+				neutronGaiaConnectionIds = append(neutronGaiaConnectionIds, neutronConn.ID)
+				gaiaNeutronConnectionIds = append(gaiaNeutronConnectionIds, neutronConn.ID)
 				break
 			}
 		}
 	}
+
+	var strideNeutronChannelId, neutronStrideChannelId string
+	var strideGaiaChannelId, gaiaStrideChannelId string
+	var neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
+	var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId string
+
+	for _, s := range strideChannelInfo {
+		found := false
+		if !found {
+			for _, n := range neutronChannelInfo {
+				if s.ChannelID == n.Counterparty.ChannelID &&
+					n.ChannelID == s.Counterparty.ChannelID &&
+					s.PortID == n.Counterparty.PortID &&
+					n.Ordering == "ORDER_UNORDERED" &&
+					s.ConnectionHops[0] == strideNeutronConnectionId &&
+					n.ConnectionHops[0] == neutronStrideConnectionId {
+					strideNeutronChannelId = s.ChannelID
+					neutronStrideChannelId = n.ChannelID
+					found = true
+					break
+				}
+			}
+		}
+		if found {
+			break
+		}
+	}
+
+	for _, s := range strideChannelInfo {
+		found := false
+		if !found {
+			for _, g := range gaiaChannelInfo {
+				if s.ChannelID == g.Counterparty.ChannelID &&
+					s.Counterparty.ChannelID == g.ChannelID &&
+					s.PortID == g.Counterparty.PortID &&
+					g.Ordering == "ORDER_UNORDERED" &&
+					s.ConnectionHops[0] == strideGaiaConnectionId &&
+					g.ConnectionHops[0] == gaiaStrideConnectionId {
+					strideGaiaChannelId = s.ChannelID
+					gaiaStrideChannelId = g.ChannelID
+					found = true
+					break
+				}
+			}
+		}
+		if found {
+			break
+		}
+	}
+
+	for _, n := range neutronChannelInfo {
+		for _, g := range gaiaChannelInfo {
+			if n.PortID == "consumer" &&
+				g.PortID == "provider" &&
+				n.ChannelID == g.Counterparty.ChannelID &&
+				g.ChannelID == n.Counterparty.ChannelID {
+				neutronGaiaICSChannelId = n.ChannelID
+				gaiaNeutronICSChannelId = g.ChannelID
+				neutronGaiaICSConnectionId = n.ConnectionHops[0]
+				gaiaNeutronICSConnectionId = g.ConnectionHops[0]
+
+			}
+		}
+	}
+
+	for _, ngci := range neutronGaiaConnectionIds {
+		if neutronGaiaICSConnectionId != ngci {
+			neutronGaiaTransferConnectionId = ngci
+		}
+	}
+
+	for _, gnci := range gaiaNeutronConnectionIds {
+		if gaiaNeutronICSConnectionId != gnci {
+			gaiaNeutronTransferConnectionId = gnci
+		}
+	}
+
+	for _, n := range neutronChannelInfo {
+		for _, g := range gaiaChannelInfo {
+			if n.PortID == "transfer" &&
+				g.PortID == "transfer" &&
+				n.ChannelID == g.Counterparty.ChannelID &&
+				g.ChannelID == n.Counterparty.ChannelID &&
+				n.ConnectionHops[0] == neutronGaiaTransferConnectionId &&
+				g.ConnectionHops[0] == gaiaNeutronTransferConnectionId {
+				neutronGaiaTransferChannelId = n.ChannelID
+				gaiaNeutronTransferChannelId = g.ChannelID
+			}
+		}
+	}
+
+	/////////////
+	// var strideNeutronChannelId, strideGaiaChannelId, gaiaStrideChannelId, neutronStrideChannelId string
+
+	// for _, s := range strideChannelInfo {
+	// 	found := false
+	// 	sJson, _ := json.Marshal(s)
+	// 	print("\n stride channel: ", string(sJson))
+	// 	if !found {
+	// 		for _, n := range neutronChannelInfo {
+	// 			nJson, _ := json.Marshal(n)
+	// 			print("\n neutron channel: ", string(nJson))
+	// 			if s.ChannelID == n.Counterparty.ChannelID && s.Counterparty.ChannelID == n.ChannelID &&
+	// 				s.PortID == n.Counterparty.PortID && n.Ordering == "ORDER_UNORDERED" {
+	// 				strideNeutronChannelId = s.ChannelID
+	// 				neutronStrideChannelId = n.ChannelID
+	// 				print("\nfound\n")
+	// 				found = true
+	// 				break
+	// 			}
+	// 		}
+	// 	}
+	// 	if found {
+	// 		break
+	// 	}
+	// }
+
+	// for _, s := range strideChannelInfo {
+	// 	found := false
+	// 	sJson, _ := json.Marshal(s)
+	// 	print("\n stride channel: ", string(sJson))
+	// 	if !found {
+	// 		for _, g := range gaiaChannelInfo {
+	// 			gJson, _ := json.Marshal(g)
+	// 			print("\n gaia channel: ", string(gJson))
+	// 			if s.ChannelID == g.Counterparty.ChannelID && g.ChannelID == s.Counterparty.ChannelID &&
+	// 				s.PortID == g.Counterparty.PortID && g.Ordering == "ORDER_UNORDERED" {
+	// 				strideGaiaChannelId = s.ChannelID
+	// 				gaiaStrideChannelId = g.ChannelID
+	// 				found = true
+	// 				print("\nfound\n")
+	// 				break
+	// 			}
+	// 		}
+	// 	}
+	// 	if found {
+	// 		break
+	// 	}
+	// }
+	// _, _ = strideGaiaChannelId, neutronStrideChannelId
+
+	// var neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
+	// var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId string
+	// var neutronGaiaICSConnectionHopId string
+
+	// for _, n := range neutronChannelInfo {
+	// 	for _, g := range gaiaChannelInfo {
+	// 		if n.PortID == "consumer" && g.PortID == "provider" {
+	// 			neutronGaiaICSChannelId = n.ChannelID
+	// 			gaiaNeutronICSChannelId = g.ChannelID
+	// 			neutronGaiaICSConnectionHopId = n.ConnectionHops[0]
+	// 		} else if n.ChannelID == g.Counterparty.ChannelID && g.ChannelID == n.Counterparty.ChannelID &&
+	// 			n.PortID == g.Counterparty.PortID && n.Counterparty.PortID == g.PortID {
+	// 			neutronGaiaTransferChannelId = n.ChannelID
+	// 			gaiaNeutronTransferChannelId = g.ChannelID
+	// 		}
+	// 	}
+	// }
+
+	// print("\n gaiaStrideChannelId: ", gaiaStrideChannelId)
+	// print("\n strideGaiaChannelId: ", strideGaiaChannelId)
+	// print("\n strideNeutronChannelId: ", strideNeutronChannelId)
+	// print("\n neutronStrideChannelId: ", neutronStrideChannelId)
+	// print("\n neutronGaiaTransferChannelId: ", neutronGaiaTransferChannelId)
+	// print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
+	// print("\n neutronGaiaICSChannelId: ", neutronGaiaICSChannelId)
+	// print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
+
+	// var strideGaiaConnectionId, gaiaStrideConnectionId, strideNeutronConnectionId, neutronStrideConnectionId string
+
+	// // we iterate over stride connections
+	// for _, strideConn := range strideConnectionInfo {
+	// 	for _, neutronConn := range neutronConnectionInfo {
+	// 		if neutronConn.ClientID == strideConn.Counterparty.ClientId &&
+	// 			strideConn.ClientID == neutronConn.Counterparty.ClientId &&
+	// 			neutronConn.ID == strideConn.Counterparty.ConnectionId &&
+	// 			strideConn.ID == neutronConn.Counterparty.ConnectionId {
+	// 			// strideNeutronTransferChannel.ConnectionHops[0] == strideConn.ID {
+	// 			strideNeutronConnectionId = strideConn.ID
+	// 			neutronStrideConnectionId = neutronConn.ID
+	// 		}
+	// 	}
+	// 	for _, gaiaConn := range gaiaConnectionInfo {
+	// 		if strideConn.ClientID == gaiaConn.Counterparty.ClientId &&
+	// 			strideConn.Counterparty.ClientId == gaiaConn.ClientID &&
+	// 			gaiaConn.ID == strideConn.Counterparty.ConnectionId &&
+	// 			strideConn.ID == gaiaConn.Counterparty.ConnectionId {
+	// 			// strideGaiaTransferChannel.ConnectionHops[0] == strideConn.ID {
+	// 			strideGaiaConnectionId = strideConn.ID
+	// 			gaiaStrideConnectionId = gaiaConn.ID
+	// 		}
+	// 	}
+	// }
+
+	// var neutronGaiaTransferConnectionId, neutronGaiaICSConnectionId string
+	// var gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId string
+	// _, _ = gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId
+	// for _, neutronConn := range neutronConnectionInfo {
+	// 	if neutronGaiaICSConnectionHopId == neutronConn.ID {
+	// 		neutronGaiaICSConnectionId = neutronConn.ID
+	// 		gaiaNeutronICSConnectionId = neutronConn.Counterparty.ConnectionId
+	// 		break
+	// 	}
+	// }
+	// for _, neutronConn := range neutronConnectionInfo {
+	// 	for _, gaiaConn := range gaiaConnectionInfo {
+	// 		if neutronConn.ID != neutronGaiaICSConnectionId && gaiaConn.ID != gaiaNeutronICSConnectionId &&
+	// 			neutronConn.ClientID == gaiaConn.Counterparty.ClientId && gaiaConn.ClientID == neutronConn.Counterparty.ClientId {
+	// 			neutronGaiaTransferConnectionId = neutronConn.ID
+	// 			gaiaNeutronTransferConnectionId = gaiaConn.ID
+	// 			break
+	// 		}
+	// 	}
+	// }
 
 	print("\n strideGaiaConnectionId: ", strideGaiaConnectionId)
 	print("\n gaiaStrideConnectionId: ", gaiaStrideConnectionId)
@@ -363,7 +499,16 @@ func TestICS(t *testing.T) {
 	print("\n gaiaNeutronTransferConnectionId: ", gaiaNeutronTransferConnectionId)
 	print("\n gaiaNeutronICSConnectionId: ", gaiaNeutronICSConnectionId)
 
-	_, _, _, _ = neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId
+	print("\n gaiaStrideChannelId: ", gaiaStrideChannelId)
+	print("\n strideGaiaChannelId: ", strideGaiaChannelId)
+	print("\n strideNeutronChannelId: ", strideNeutronChannelId)
+	print("\n neutronStrideChannelId: ", neutronStrideChannelId)
+	print("\n neutronGaiaTransferChannelId: ", neutronGaiaTransferChannelId)
+	print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
+	print("\n neutronGaiaICSChannelId: ", neutronGaiaICSChannelId)
+	print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
+
+	_, _, _, _, _ = neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId, neutronStrideChannelId
 	_, _, _ = gaiaStrideConnectionId, strideGaiaConnectionId, strideNeutronConnectionId
 
 	t.Run("stride covenant tests", func(t *testing.T) {
@@ -392,7 +537,7 @@ func TestICS(t *testing.T) {
 
 		neutronStatomDenomTrace := transfertypes.ParseDenomTrace(
 			transfertypes.GetPrefixedDenom("transfer",
-				neutronGaiaTransferChannelId,
+				neutronStrideChannelId,
 				"stuatom"))
 		neutronStatomDenom := neutronStatomDenomTrace.IBCDenom()
 		print("\nneutronDstIbcDenom: ", neutronDstIbcDenom)
@@ -813,7 +958,7 @@ func TestICS(t *testing.T) {
 				StrideNeutronIBCTransferChannelId: strideNeutronChannelId,
 				LpAddress:                         lperContractAddress,
 				NeutronStrideIBCConnectionId:      neutronStrideConnectionId,
-				LsDenom:                           strideAtomIbcDenom,
+				LsDenom:                           "stuatom",
 			}
 
 			str, err := json.Marshal(msg)
