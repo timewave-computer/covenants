@@ -46,7 +46,7 @@ const ICS_CONNECTION_ID: &str = "connection-1";
 const INTERCHAIN_ACCOUNT_ID: &str = "test";
 const TRANSFER_PORT: &str = "transfer";
 
-const CONTRACT_NAME: &str = "crates.io:stride-depositor";
+const CONTRACT_NAME: &str = "crates.io:covenant-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

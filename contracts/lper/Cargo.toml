@@ -1,38 +1,20 @@
 [package]
-name = "covenant-depositor"
-edition = { workspace = true }
+name = "covenant-lper"
 authors = ["benskey bekauz@protonmail.com"]
-description = "Depositor module for stride covenant"
+description = "LP module for stride covenant"
 license = { workspace = true }
 repository = { workspace = true }
 version = { workspace = true }
-
-exclude = [
-  "contract.wasm",
-  "hash.txt",
-]
-
+edition = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
-
 
 [features]
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all instantiate/execute/query exports
 library = []
-
-[profile.release]
-opt-level = 3
-debug = true
-rpath = false
-lto = true
-debug-assertions = false
-codegen-units = 1
-panic = 'abort'
-incremental = false
-overflow-checks = true
 
 [dependencies]
 cosmwasm-schema = { workspace = true }
@@ -42,6 +24,10 @@ cw-utils        = { workspace = true }
 cw2             = { workspace = true }
 serde     = { workspace = true }
 thiserror = { workspace = true }
+# the sha2 version here is the same as the one used by
+# cosmwasm-std. when bumping cosmwasm-std, this should also be
+# updated. to find cosmwasm_std's sha function:
+# ```cargo tree --package cosmwasm-std```
 sha2 = { workspace = true }
 neutron-sdk = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
@@ -52,7 +38,9 @@ base64 = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
 bech32 ={ workspace = true }
+astroport = "2.8.0"
+cw20 = { version = "0.15" }
 
+# dev-dependencies
 [dev-dependencies]
 cw-multi-test   = { workspace = true }
-anyhow          = { workspace = true }

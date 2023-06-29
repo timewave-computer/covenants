@@ -21,6 +21,13 @@ optimize:
     ./optimize.sh
 
 simtest: optimize
+    if [[ $(uname -m) =~ "arm64" ]]; then \
+        mv ./../artifacts/covenant_depositor-aarch64.wasm ./../artifacts/covenant_depositor.wasm && \
+        mv ./../artifacts/covenant_lper-aarch64.wasm ./../artifacts/covenant_lper.wasm \
+    ;fi
+
+    cp ./astroport/*.wasm ./../artifacts
+
     mkdir -p tests/interchaintest/wasms
 
     cp -R ./../artifacts/*.wasm tests/interchaintest/wasms
