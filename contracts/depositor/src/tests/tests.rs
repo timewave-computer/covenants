@@ -1,11 +1,9 @@
-use cosmwasm_std::Addr;
-
-use super::suite::{SuiteBuilder, DEFAULT_CLOCK_ADDRESS, DEFAULT_RECEIVER_AMOUNT, NATIVE_ATOM_DENOM, ST_ATOM_DENOM};
+use super::suite::{SuiteBuilder};
 
 
 #[test]
 fn test_instantiate_happy() {
-    let suite = SuiteBuilder::default()
+    let _suite = SuiteBuilder::default()
         .build();
 
     // suite.assert_clock_address(Addr::unchecked(DEFAULT_CLOCK_ADDRESS));

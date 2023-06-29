@@ -1,27 +1,18 @@
-use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage};
+use cosmwasm_std::{Addr, Storage, StdResult, from_binary, Binary, Order, to_vec};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::msg::WeightedReceiver;
-
-// addr and amount of atom to liquid stake on stride
-pub const STRIDE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("stride_atom_receiver");
-
-// addr and amount of atom
-pub const NATIVE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("native_atom_receiver");
-
 // store the clock address to verify calls
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 
-pub const LP_ADDRESS: Item<String> = Item::new("lp_address");
 // the ibc transfer channel
-pub const GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gn_ibc_chann_id");
-pub const GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gs_ibc_chan_id");
-
-pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
-
+pub const STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("sn_ibc_chann_id");
+pub const NEUTRON_STRIDE_IBC_CONNECTION_ID: Item<String> = Item::new("ns_ibc_conn_id");
+pub const LP_ADDRESS: Item<String> = Item::new("lp_address");
 pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
+pub const LS_DENOM: Item<String> = Item::new("ls_denom");
+
 // ICA
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
@@ -32,14 +23,11 @@ pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 pub enum ContractState {
     Instantiated,
     ICACreated,
-    LiquidStaked,
     Complete,
 }
 
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
-/// SudoPayload is a type that stores information about a transaction that we try to execute
-/// on the host chain. This is a type introduced for our convenience.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct SudoPayload {

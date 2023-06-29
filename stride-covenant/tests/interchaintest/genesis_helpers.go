@@ -1,12 +1,15 @@
 package ibc_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/icza/dyno"
+	"github.com/strangelove-ventures/interchaintest/v3/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v3/ibc"
+	"github.com/strangelove-ventures/interchaintest/v3/testreporter"
 )
 
 // Sets custom fields for the Neutron genesis file that interchaintest isn't aware of by default.
@@ -76,6 +79,30 @@ func setupGaiaGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 	}
 }
 
+func setupStrideGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
+	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
+		g := make(map[string]interface{})
+		if err := json.Unmarshal(genbz, &g); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal genesis file: %w", err)
+		}
+
+		if err := dyno.Set(g, true, "app_state", "autopilot", "params", "stakeibc_active"); err != nil {
+			return nil, fmt.Errorf("failed to set autopilot stakeibc in genesis json: %w", err)
+		}
+
+		if err := dyno.Set(g, allowed_messages, "app_state", "interchainaccounts", "host_genesis_state", "params", "allow_messages"); err != nil {
+			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w", err)
+		}
+
+		out, err := json.Marshal(g)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
+		}
+
+		return out, nil
+	}
+}
+
 func getCreateValidatorCmd(chain ibc.Chain) []string {
 	// Before receiving a validator set change (VSC) packet,
 	// consumer chains disallow bank transfers. To trigger a VSC
@@ -101,4 +128,13 @@ func getCreateValidatorCmd(chain ibc.Chain) []string {
 	}
 
 	return cmd
+}
+
+func getChannelMap(r ibc.Relayer, ctx context.Context, eRep *testreporter.RelayerExecReporter,
+	cosmosStride *cosmos.CosmosChain, cosmosNeutron *cosmos.CosmosChain, cosmosAtom *cosmos.CosmosChain) map[string]string {
+	channelMap := map[string]string{
+		"hi": "Dog",
+	}
+
+	return channelMap
 }

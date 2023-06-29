@@ -31,3 +31,4 @@ ci/configs/cosm-orc/local.yaml
 
 contracts/**/Cargo.lock
 packages/**/Cargo.lock
+*.lock

@@ -5,6 +5,8 @@ type DepositorInstantiateMsg struct {
 	AtomReceiver                    WeightedReceiver `json:"atom_receiver"`
 	ClockAddress                    string           `json:"clock_address,string"`
 	GaiaNeutronIBCTransferChannelId string           `json:"gaia_neutron_ibc_transfer_channel_id"`
+	GaiaStrideIBCTransferChannelId  string           `json:"gaia_stride_ibc_transfer_channel_id"`
+	NeutronGaiaConnectionId         string           `json:"neutron_gaia_connection_id"`
 }
 
 type LPerInstantiateMsg struct {
@@ -206,4 +208,14 @@ type Logo struct {
 type WhitelistInstantiateMsg struct {
 	Admins  []string `json:"admins"`
 	Mutable bool     `json:"mutable"`
+}
+
+// ls
+type LsInstantiateMsg struct {
+	AutopilotPosition                 string `json:"autopilot_position,string"`
+	ClockAddress                      string `json:"clock_address,string"`
+	StrideNeutronIBCTransferChannelId string `json:"stride_neutron_ibc_transfer_channel_id"`
+	LpAddress                         string `json:"lp_address"`
+	NeutronStrideIBCConnectionId      string `json:"neutron_stride_ibc_connection_id"`
+	LsDenom                           string `json:"ls_denom"`
 }

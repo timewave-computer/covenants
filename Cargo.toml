@@ -30,9 +30,8 @@ covenant-clock = { path = "contracts/clock" }
 covenant-clock-tester = { path = "contracts/clock-tester" }
 covenant-lp = { path = "contracts/lper" }
 covenant-clock-derive = { path = "packages/clock-derive" }
+covenant-ls = { path = "contracts/ls" }
 cw-fifo = { path = "packages/cw-fifo" }
-
-
 
 # the sha2 version here is the same as the one used by
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
