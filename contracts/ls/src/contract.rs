@@ -146,7 +146,6 @@ fn try_execute_transfer(
     };
 
     let port_id = IBC_PORT_ID.load(deps.storage)?;
-
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
@@ -154,19 +153,10 @@ fn try_execute_transfer(
 
             let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
-            // let denom = LS_DENOM.load(deps.storage)?;
-
-            // validate denom here..
-            // let statom_bal = deps.querier.query_balance(
-            //     address,
-            //     STATOM_DENOM.to_string(),
-            // )?;
-
-            // let amount = String::from(statom_bal.amount);
 
             let coin = Coin {
                 denom: STATOM_DENOM.to_string(),
-                amount: "5".to_string(),
+                amount: "10".to_string(),
             };
 
             let msg = MsgTransfer {
@@ -174,7 +164,7 @@ fn try_execute_transfer(
                 source_channel,
                 token: Some(coin.clone()),
                 sender: address.clone(),
-                receiver: lp_receiver,
+                receiver: lp_receiver.clone(),
                 timeout_height: Some(Height {
                     revision_number: 2, 
                     revision_height: 800,
@@ -198,7 +188,7 @@ fn try_execute_transfer(
                 controller_conn_id, 
                 INTERCHAIN_ACCOUNT_ID.to_string(), 
                 vec![protobuf], 
-                "".to_string(), 
+                lp_receiver.to_string(), 
                 100000, 
                 fee,
             );
@@ -360,8 +350,8 @@ fn sudo_open_ack(
     deps: DepsMut,
     _env: Env,
     port_id: String,
-    _channel_id: String,
-    _counterparty_channel_id: String,
+    channel_id: String,
+    counterparty_channel_id: String,
     counterparty_version: String,
 ) -> StdResult<Response> {
     // The version variable contains a JSON value with multiple fields,

@@ -31,8 +31,6 @@ func TestICS(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
-	t.Parallel()
-
 	ctx := context.Background()
 
 	// Chain Factory
@@ -96,7 +94,18 @@ func TestICS(t *testing.T) {
 				GasAdjustment:  1.3,
 				TrustingPeriod: "1197504s",
 				NoHostMount:    false,
-				ModifyGenesis:  setupStrideGenesis(),
+				ModifyGenesis: setupStrideGenesis([]string{
+					"/cosmos.bank.v1beta1.MsgSend",
+					"/cosmos.bank.v1beta1.MsgMultiSend",
+					"/cosmos.staking.v1beta1.MsgDelegate",
+					"/cosmos.staking.v1beta1.MsgUndelegate",
+					"/cosmos.staking.v1beta1.MsgBeginRedelegate",
+					"/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
+					"/cosmos.staking.v1beta1.MsgTokenizeShares",
+					"/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+					"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+					"/ibc.applications.transfer.v1.MsgTransfer",
+				}),
 			},
 		},
 	})
@@ -214,7 +223,7 @@ func TestICS(t *testing.T) {
 		Amount:  10000000,
 	})
 
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 	require.NoError(t, err, "failed to wait for blocks")
 
 	neutronUserBal, err := neutron.GetBalance(
@@ -365,130 +374,6 @@ func TestICS(t *testing.T) {
 			}
 		}
 	}
-
-	/////////////
-	// var strideNeutronChannelId, strideGaiaChannelId, gaiaStrideChannelId, neutronStrideChannelId string
-
-	// for _, s := range strideChannelInfo {
-	// 	found := false
-	// 	sJson, _ := json.Marshal(s)
-	// 	print("\n stride channel: ", string(sJson))
-	// 	if !found {
-	// 		for _, n := range neutronChannelInfo {
-	// 			nJson, _ := json.Marshal(n)
-	// 			print("\n neutron channel: ", string(nJson))
-	// 			if s.ChannelID == n.Counterparty.ChannelID && s.Counterparty.ChannelID == n.ChannelID &&
-	// 				s.PortID == n.Counterparty.PortID && n.Ordering == "ORDER_UNORDERED" {
-	// 				strideNeutronChannelId = s.ChannelID
-	// 				neutronStrideChannelId = n.ChannelID
-	// 				print("\nfound\n")
-	// 				found = true
-	// 				break
-	// 			}
-	// 		}
-	// 	}
-	// 	if found {
-	// 		break
-	// 	}
-	// }
-
-	// for _, s := range strideChannelInfo {
-	// 	found := false
-	// 	sJson, _ := json.Marshal(s)
-	// 	print("\n stride channel: ", string(sJson))
-	// 	if !found {
-	// 		for _, g := range gaiaChannelInfo {
-	// 			gJson, _ := json.Marshal(g)
-	// 			print("\n gaia channel: ", string(gJson))
-	// 			if s.ChannelID == g.Counterparty.ChannelID && g.ChannelID == s.Counterparty.ChannelID &&
-	// 				s.PortID == g.Counterparty.PortID && g.Ordering == "ORDER_UNORDERED" {
-	// 				strideGaiaChannelId = s.ChannelID
-	// 				gaiaStrideChannelId = g.ChannelID
-	// 				found = true
-	// 				print("\nfound\n")
-	// 				break
-	// 			}
-	// 		}
-	// 	}
-	// 	if found {
-	// 		break
-	// 	}
-	// }
-	// _, _ = strideGaiaChannelId, neutronStrideChannelId
-
-	// var neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
-	// var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId string
-	// var neutronGaiaICSConnectionHopId string
-
-	// for _, n := range neutronChannelInfo {
-	// 	for _, g := range gaiaChannelInfo {
-	// 		if n.PortID == "consumer" && g.PortID == "provider" {
-	// 			neutronGaiaICSChannelId = n.ChannelID
-	// 			gaiaNeutronICSChannelId = g.ChannelID
-	// 			neutronGaiaICSConnectionHopId = n.ConnectionHops[0]
-	// 		} else if n.ChannelID == g.Counterparty.ChannelID && g.ChannelID == n.Counterparty.ChannelID &&
-	// 			n.PortID == g.Counterparty.PortID && n.Counterparty.PortID == g.PortID {
-	// 			neutronGaiaTransferChannelId = n.ChannelID
-	// 			gaiaNeutronTransferChannelId = g.ChannelID
-	// 		}
-	// 	}
-	// }
-
-	// print("\n gaiaStrideChannelId: ", gaiaStrideChannelId)
-	// print("\n strideGaiaChannelId: ", strideGaiaChannelId)
-	// print("\n strideNeutronChannelId: ", strideNeutronChannelId)
-	// print("\n neutronStrideChannelId: ", neutronStrideChannelId)
-	// print("\n neutronGaiaTransferChannelId: ", neutronGaiaTransferChannelId)
-	// print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
-	// print("\n neutronGaiaICSChannelId: ", neutronGaiaICSChannelId)
-	// print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
-
-	// var strideGaiaConnectionId, gaiaStrideConnectionId, strideNeutronConnectionId, neutronStrideConnectionId string
-
-	// // we iterate over stride connections
-	// for _, strideConn := range strideConnectionInfo {
-	// 	for _, neutronConn := range neutronConnectionInfo {
-	// 		if neutronConn.ClientID == strideConn.Counterparty.ClientId &&
-	// 			strideConn.ClientID == neutronConn.Counterparty.ClientId &&
-	// 			neutronConn.ID == strideConn.Counterparty.ConnectionId &&
-	// 			strideConn.ID == neutronConn.Counterparty.ConnectionId {
-	// 			// strideNeutronTransferChannel.ConnectionHops[0] == strideConn.ID {
-	// 			strideNeutronConnectionId = strideConn.ID
-	// 			neutronStrideConnectionId = neutronConn.ID
-	// 		}
-	// 	}
-	// 	for _, gaiaConn := range gaiaConnectionInfo {
-	// 		if strideConn.ClientID == gaiaConn.Counterparty.ClientId &&
-	// 			strideConn.Counterparty.ClientId == gaiaConn.ClientID &&
-	// 			gaiaConn.ID == strideConn.Counterparty.ConnectionId &&
-	// 			strideConn.ID == gaiaConn.Counterparty.ConnectionId {
-	// 			// strideGaiaTransferChannel.ConnectionHops[0] == strideConn.ID {
-	// 			strideGaiaConnectionId = strideConn.ID
-	// 			gaiaStrideConnectionId = gaiaConn.ID
-	// 		}
-	// 	}
-	// }
-
-	// var neutronGaiaTransferConnectionId, neutronGaiaICSConnectionId string
-	// var gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId string
-	// _, _ = gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId
-	// for _, neutronConn := range neutronConnectionInfo {
-	// 	if neutronGaiaICSConnectionHopId == neutronConn.ID {
-	// 		neutronGaiaICSConnectionId = neutronConn.ID
-	// 		gaiaNeutronICSConnectionId = neutronConn.Counterparty.ConnectionId
-	// 		break
-	// 	}
-	// }
-	// for _, neutronConn := range neutronConnectionInfo {
-	// 	for _, gaiaConn := range gaiaConnectionInfo {
-	// 		if neutronConn.ID != neutronGaiaICSConnectionId && gaiaConn.ID != gaiaNeutronICSConnectionId &&
-	// 			neutronConn.ClientID == gaiaConn.Counterparty.ClientId && gaiaConn.ClientID == neutronConn.Counterparty.ClientId {
-	// 			neutronGaiaTransferConnectionId = neutronConn.ID
-	// 			gaiaNeutronTransferConnectionId = gaiaConn.ID
-	// 			break
-	// 		}
-	// 	}
-	// }
 
 	print("\n strideGaiaConnectionId: ", strideGaiaConnectionId)
 	print("\n gaiaStrideConnectionId: ", gaiaStrideConnectionId)
@@ -646,19 +531,14 @@ func TestICS(t *testing.T) {
 			jsonData, err := json.Marshal(data)
 			require.NoError(t, err, "failed to marshall data")
 
-			// Print the JSON
-			// print("\n", string(jsonData), "\n")
-
 			fullPath := filepath.Join(cosmosStride.HomeDir(), "vals.json")
 			bashCommand := "echo '" + string(jsonData) + "' > " + fullPath
 			fullPathCmd := []string{"/bin/sh", "-c", bashCommand}
-			// print(strings.Join(fullPathCmd, " "))
-			// print("\n")
 
 			_, _, err = cosmosStride.Exec(ctx, fullPathCmd, nil)
 			require.NoError(t, err, "failed to create json with gaia LS validator set on stride")
 
-			err = testutil.WaitForBlocks(ctx, 15, stride)
+			err = testutil.WaitForBlocks(ctx, 5, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			cmd := []string{"strided", "tx", "stakeibc", "add-validators",
@@ -674,8 +554,6 @@ func TestICS(t *testing.T) {
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
-			// print(strings.Join(cmd, " "))
-			// print("\n")
 
 			_, _, err = cosmosStride.Exec(ctx, cmd, nil)
 			require.NoError(t, err, "failed to register host zone on stride")
@@ -693,13 +571,10 @@ func TestICS(t *testing.T) {
 
 			_, _, err = cosmosStride.Exec(ctx, queryCmd, nil)
 			require.NoError(t, err, "failed to query host validators")
-
-			// print(string(resp), "\n")
-			// respJson, _ := json.Marshal(resp)
-			// print(string(respJson))
 		})
 
 		t.Run("deploy astroport contracts", func(t *testing.T) {
+
 			stablePairCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_pair_stable.wasm")
 			require.NoError(t, err, "failed to store astroport stableswap contract")
 			stablePairCodeId, err := strconv.ParseUint(stablePairCodeIdStr, 10, 64)
@@ -707,8 +582,6 @@ func TestICS(t *testing.T) {
 
 			factoryCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_factory.wasm")
 			require.NoError(t, err, "failed to store astroport factory contract")
-			// factoryCodeId, err := strconv.ParseUint(factoryCodeIdStr, 10, 64)
-			// require.NoError(t, err, "failed to parse codeId into uint64")
 
 			whitelistCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_whitelist.wasm")
 			require.NoError(t, err, "failed to store astroport whitelist contract")
@@ -722,7 +595,6 @@ func TestICS(t *testing.T) {
 
 			t.Run("astroport token", func(t *testing.T) {
 
-				// cap := uint64(1)
 				msg := NativeTokenInstantiateMsg{
 					Name:            "nativetoken",
 					Symbol:          "ntk",
@@ -746,7 +618,7 @@ func TestICS(t *testing.T) {
 
 				tokenAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, tokenCodeIdStr, string(str), true)
 				require.NoError(t, err, "Failed to instantiate Native Token")
-				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
 
@@ -765,8 +637,7 @@ func TestICS(t *testing.T) {
 				whitelistAddress, err = cosmosNeutron.InstantiateContract(
 					ctx, neutronUser.KeyName, whitelistCodeIdStr, string(str), true)
 				require.NoError(t, err, "Failed to instantiate Whitelist")
-
-				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
 
@@ -785,7 +656,7 @@ func TestICS(t *testing.T) {
 					ctx, neutronUser.KeyName, coinRegistryCodeId, string(str), true)
 				require.NoError(t, err, "Failed to instantiate NativeCoinRegistry")
 				coinRegistryAddress = nativeCoinRegistryAddress
-				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
 
@@ -811,8 +682,7 @@ func TestICS(t *testing.T) {
 				}
 				_, _, err = cosmosNeutron.Exec(ctx, addCmd, nil)
 				require.NoError(t, err, err)
-
-				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
 
@@ -847,8 +717,7 @@ func TestICS(t *testing.T) {
 					ctx, neutronUser.KeyName, factoryCodeIdStr, string(str), true)
 				require.NoError(t, err, "Failed to instantiate Factory")
 				factoryAddress = factoryAddr
-
-				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
 
@@ -901,8 +770,7 @@ func TestICS(t *testing.T) {
 				)
 				require.NoError(t, err, "Failed to instantiate stableswap")
 				stableswapAddress = stableswapAddr
-
-				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
 
@@ -1124,7 +992,7 @@ func TestICS(t *testing.T) {
 			})
 
 			require.NoError(t, err, "failed to send funds from gaia to neutron ICA")
-			err = testutil.WaitForBlocks(ctx, 5, atom, neutron)
+			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
@@ -1149,7 +1017,7 @@ func TestICS(t *testing.T) {
 
 			require.NoError(t, err, "failed to send funds from neutron user to ls contract")
 
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			depositorNeutronBal, err := neutron.GetBalance(ctx, depositorContractAddress, neutron.Config().Denom)
@@ -1182,11 +1050,10 @@ func TestICS(t *testing.T) {
 				"-y",
 			}
 
-			stdout, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
-			print(string(stdout))
 
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+			err = testutil.WaitForBlocks(ctx, 20, atom, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
@@ -1205,33 +1072,34 @@ func TestICS(t *testing.T) {
 				`{"tick":{}}`,
 				"--from", neutronUser.KeyName,
 				"--gas-adjustment", `1.3`,
-				"--gas-prices", "0.0untrn",
 				"--output", "json",
 				"--node", cosmosNeutron.GetRPCAddress(),
 				"--home", cosmosNeutron.HomeDir(),
 				"--chain-id", cosmosNeutron.Config().ChainID,
 				"--gas", "auto",
-				"--fees", "5000untrn",
+				"--fees", "15000untrn",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
 
-			print("\n", strings.Join(cmd, " "))
-
-			stdout, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+			_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
-			print("\n", string(stdout), "\n")
 
-			err = testutil.WaitForBlocks(ctx, 15, atom, neutron, stride)
+			err = testutil.WaitForBlocks(ctx, 10, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
-			statomICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
+			strideICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
 			require.NoError(t, err, "failed to query ICA balance")
-			require.Equal(t, int64(0), statomICABal, "failed to withdraw stuatom to LPer")
-		})
+			require.Equal(t, int64(0), strideICABal, "failed to withdraw stuatom to LPer")
 
-		// to keep docker containers alive for debugging
-		err = testutil.WaitForBlocks(ctx, 200, atom, neutron)
+			lperStatomBal, err := neutron.GetBalance(
+				ctx,
+				lperContractAddress,
+				neutronStatomDenom,
+			)
+			require.NoError(t, err, "failed to query lper balance")
+			require.Equal(t, int64(10), lperStatomBal, "LPer did not receive stuatoms")
+		})
 
 		t.Run("tick depositor to ibc transfer atom from ICA account to neutron", func(t *testing.T) {
 			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
@@ -1247,7 +1115,7 @@ func TestICS(t *testing.T) {
 				"--home", cosmosNeutron.HomeDir(),
 				"--chain-id", cosmosNeutron.Config().ChainID,
 				"--gas", "auto",
-				"--fees", "5000untrn",
+				"--fees", "15000untrn",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
@@ -1256,6 +1124,8 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err)
 
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+			err = testutil.WaitForBlocks(ctx, 100, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
@@ -1270,30 +1140,7 @@ func TestICS(t *testing.T) {
 			require.Equal(t, int64(10), neutronUserBalNew)
 		})
 
-		t.Run("subsequent ticks do nothing", func(t *testing.T) {
-			cmd = []string{"neutrond", "tx", "wasm", "execute", depositorContractAddress,
-				`{"tick":{}}`,
-				"--from", neutronUser.KeyName,
-				"--gas-prices", "0.0untrn",
-				"--gas-adjustment", `1.5`,
-				"--output", "json",
-				"--home", "/var/cosmos-chain/neutron-2",
-				"--node", neutron.GetRPCAddress(),
-				"--home", neutron.HomeDir(),
-				"--chain-id", neutron.Config().ChainID,
-				"--from", "faucet",
-				"--gas", "5000.0untrn",
-				"--keyring-backend", keyring.BackendTest,
-				"-y",
-			}
-
-			_, _, err = neutron.Exec(ctx, cmd, nil)
-			require.NoError(t, err)
-
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
-			require.NoError(t, err, "failed to wait for blocks")
-		})
-
+		require.NoError(t, err, "failed to wait for blocks")
 	})
 
 }

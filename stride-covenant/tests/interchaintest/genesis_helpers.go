@@ -79,7 +79,7 @@ func setupGaiaGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 	}
 }
 
-func setupStrideGenesis() func(ibc.ChainConfig, []byte) ([]byte, error) {
+func setupStrideGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
 		g := make(map[string]interface{})
 		if err := json.Unmarshal(genbz, &g); err != nil {
@@ -88,6 +88,10 @@ func setupStrideGenesis() func(ibc.ChainConfig, []byte) ([]byte, error) {
 
 		if err := dyno.Set(g, true, "app_state", "autopilot", "params", "stakeibc_active"); err != nil {
 			return nil, fmt.Errorf("failed to set autopilot stakeibc in genesis json: %w", err)
+		}
+
+		if err := dyno.Set(g, allowed_messages, "app_state", "interchainaccounts", "host_genesis_state", "params", "allow_messages"); err != nil {
+			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w", err)
 		}
 
 		out, err := json.Marshal(g)
