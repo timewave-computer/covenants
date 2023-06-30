@@ -1,3 +1,4 @@
+use cosmos_sdk_proto::cosmos::bank::v1beta1::SendAuthorization;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{MessageInfo,  Response,
@@ -41,7 +42,11 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     LP_POSITION.save(deps.storage, &msg.lp_position)?;
     HOLDER_ADDRESS.save(deps.storage, &msg.holder_address)?;
-    ASSETS.save(deps.storage, &msg.assets)?;
+    let assets: Vec<Asset> = msg.assets.into_iter()
+        .map(|asset| asset)
+        .collect();
+        
+    ASSETS.save(deps.storage, &assets)?;
     
     Ok(Response::default())
 }
@@ -83,8 +88,9 @@ fn try_enter_lp_position(
     _info: MessageInfo, 
 ) -> Result<Response, ContractError> {
     let pool_address = LP_POSITION.load(deps.storage)?;
-    let slippage_tolerance = SLIPPAGE_TOLERANCE.load(deps.storage)?;
-    let auto_stake = AUTOSTAKE.load(deps.storage)?;
+    let slippage_tolerance = SLIPPAGE_TOLERANCE
+        .may_load(deps.storage)?;
+    let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
     let assets = ASSETS.load(deps.storage)?;
     
     let balances: Vec<Coin> = deps.querier.query_all_balances(env.contract.address)?
