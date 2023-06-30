@@ -8,14 +8,14 @@ use cw2::set_contract_version;
 use astroport::{pair::{ExecuteMsg::ProvideLiquidity, Cw20HookMsg}, asset::{Asset, AssetInfo}};
 use cw20::Cw20ReceiveMsg;
 
-use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg}, state::{HOLDER_ADDRESS, LP_POSITION}};
+use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg}, state::{HOLDER_ADDRESS, LP_POSITION, SLIPPAGE_TOLERANCE, AUTOSTAKE, ASSETS}};
+use crate::error::ContractError;
 
 use neutron_sdk::{
     bindings::{
         msg::{NeutronMsg},
         query::{NeutronQuery},
     },
-    NeutronResult,
 };
 
 use crate::state::{
@@ -32,7 +32,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> NeutronResult<Response<NeutronMsg>> {
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
@@ -41,7 +41,8 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     LP_POSITION.save(deps.storage, &msg.lp_position)?;
     HOLDER_ADDRESS.save(deps.storage, &msg.holder_address)?;
-
+    ASSETS.save(deps.storage, &msg.assets)?;
+    
     Ok(Response::default())
 }
 
@@ -51,17 +52,17 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> NeutronResult<Response<NeutronMsg>> {
+) -> Result<Response, ContractError> {
     deps.api
         .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::WithdrawRewards {} => try_withdraw(deps, env, info),
+        ExecuteMsg::WithdrawLiquidity {} => try_withdraw(deps, env, info),
     }
 }
 
 
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let current_state = CONTRACT_STATE.load(deps.storage)?;
 
     match current_state {
@@ -72,7 +73,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
     }
 }
 
-fn no_op() -> NeutronResult<Response<NeutronMsg>> {
+fn no_op() -> Result<Response, ContractError> {
     Ok(Response::default())
 }
 
@@ -80,13 +81,32 @@ fn try_enter_lp_position(
     deps: DepsMut,
     env: Env,
     _info: MessageInfo, 
-) -> NeutronResult<Response<NeutronMsg>> {
+) -> Result<Response, ContractError> {
     let pool_address = LP_POSITION.load(deps.storage)?;
-
-    // get balances of uatom and statom
+    let slippage_tolerance = SLIPPAGE_TOLERANCE.load(deps.storage)?;
+    let auto_stake = AUTOSTAKE.load(deps.storage)?;
+    let assets = ASSETS.load(deps.storage)?;
+    
     let balances: Vec<Coin> = deps.querier.query_all_balances(env.contract.address)?
         .into_iter()
-        .filter(|coin| coin.denom == "uatom" || coin.denom == "statom")
+        .filter(|coin| {
+            let mut valid_balance = false;
+            for asset in assets.clone() {
+                match asset.info {
+                    AssetInfo::Token { contract_addr } => {
+                        if coin.denom == contract_addr {
+                            valid_balance = true
+                        }
+                    },
+                    AssetInfo::NativeToken { denom } => {
+                        if coin.denom == denom {
+                            valid_balance = true
+                        }
+                    },
+                }
+            }
+            valid_balance
+        })
         .collect();
     
     // generate astroport Assets from balances
@@ -101,8 +121,8 @@ fn try_enter_lp_position(
 
     let provide_liquidity_msg = ProvideLiquidity { 
         assets,
-        slippage_tolerance: None,
-        auto_stake: Some(true),
+        slippage_tolerance,
+        auto_stake,
         receiver: None,
     };
  
@@ -120,7 +140,7 @@ fn try_withdraw(
     deps: DepsMut,
     env: Env,
     _info: MessageInfo, 
-) -> NeutronResult<Response<NeutronMsg>> {
+) -> Result<Response, ContractError> {
     let pool_address = LP_POSITION.load(deps.storage)?;
     // todo
     let withdraw_liquidity_msg = Cw20HookMsg::WithdrawLiquidity {
@@ -148,19 +168,28 @@ fn try_withdraw(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps<NeutronQuery>, _env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(
             to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?
         ),
         QueryMsg::LpPosition {} => Ok(
             to_binary(&LP_POSITION.may_load(deps.storage)?)?
+        ),
+        QueryMsg::ContractState {} => Ok(
+            to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?
+        ),
+        QueryMsg::HolderAddress {} => Ok(
+            to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?
+        ),
+        QueryMsg::Assets {} => Ok(
+            to_binary(&ASSETS.may_load(deps.storage)?)?
         )
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: migrate");
     Ok(Response::default())
 }

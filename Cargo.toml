@@ -24,13 +24,12 @@ panic            = 'abort'
 rpath            = false
 
 [workspace.dependencies]
-covenant-depositor       = { path = "./packages/depositor", version = "*" }
-covenant-lper = { path = "./packages/lper", version = "*" }
+covenant-depositor       = { path = "contracts/depositor", version = "*" }
+covenant-lper = { path = "contracts/lper", version = "*" }
 covenant-clock = { path = "contracts/clock" }
 covenant-clock-tester = { path = "contracts/clock-tester" }
-covenant-lp = { path = "contracts/lper" }
 covenant-clock-derive = { path = "packages/clock-derive" }
-covenant-ls = { path = "contracts/ls" }
+covenant-ls = { path = "./contracts/ls" }
 cw-fifo = { path = "packages/cw-fifo" }
 
 # the sha2 version here is the same as the one used by
@@ -44,6 +43,7 @@ protobuf = { version = "3.2.0", features = ["with-bytes"] }
 serde-json-wasm = { version = "0.4.1" }
 base64 = "0.13.0"
 prost = "0.11"
+astroport = "2.8.0" 
 prost-types = "0.11"
 bech32 = "0.9.0"
 cosmwasm-schema = "1.2.1"
