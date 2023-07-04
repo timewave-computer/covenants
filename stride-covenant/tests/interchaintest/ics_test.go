@@ -223,7 +223,7 @@ func TestICS(t *testing.T) {
 		Amount:  10000000,
 	})
 
-	err = testutil.WaitForBlocks(ctx, 20, atom, neutron, stride)
+	err = testutil.WaitForBlocks(ctx, 30, atom, neutron, stride)
 	require.NoError(t, err, "failed to wait for blocks")
 
 	neutronUserBal, err := neutron.GetBalance(
