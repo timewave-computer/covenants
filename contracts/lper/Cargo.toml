@@ -1,5 +1,5 @@
 [package]
-name = "covenant-lper"
+name = "covenant-lp"
 authors = ["benskey bekauz@protonmail.com"]
 description = "LP module for stride covenant"
 license = { workspace = true }

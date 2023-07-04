@@ -23,7 +23,7 @@ use crate::state::{
 };
 
 
-const CONTRACT_NAME: &str = "crates.io:covenant-lper";
+const CONTRACT_NAME: &str = "crates.io:covenant-lp";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
