@@ -252,6 +252,7 @@ dependencies = [
  "cosmwasm-std",
  "covenant-clock",
  "covenant-depositor",
+ "covenant-holder",
  "covenant-lp",
  "covenant-ls",
  "cw-multi-test",

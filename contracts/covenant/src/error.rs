@@ -12,6 +12,9 @@ pub enum ContractError {
     #[error("Attempt to deposit zero")]
     ZeroDeposit {},
 
-    // #[error("Depositor and clock should be instantiated by the same address")]
-    // InstantiatorMissmatch {},
+    #[error("Unknown reply id")]
+    UnknownReplyId {},
+
+    #[error("SubMsg reply error")]
+    ReplyError { err: String }
 }

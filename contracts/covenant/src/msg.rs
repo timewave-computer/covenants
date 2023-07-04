@@ -16,6 +16,7 @@ pub struct InstantiateMsg {
     pub depositor_instantiate: DepositorInstantiateMsg,
     pub lp_code: u64,
     pub lp_instantiate: LpInstantiateMsg,
+    pub holder_code: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -24,7 +25,12 @@ pub enum ExecuteMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum QueryMsg {}
+pub enum QueryMsg {
+    DepositorAddress {},
+    ClockAddress {},
+    LpAddress {},
+    LsAddress {},
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct MigrateMsg {}
