@@ -149,7 +149,7 @@ fn try_liquid_stake(
                 amount,
             };
 
-            let autopilot_receiver = format!("{{\"autopilot\": {{\"receiver\": {st_ica},\"stakeibc\": {{\"stride_address\": {st_ica},\"action\": \"LiquidStake\"}}}}}}");
+            let autopilot_receiver = format!("{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}");
 
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
@@ -233,7 +233,8 @@ fn try_receive_atom_from_ica(
                 source_channel: source_channel,
                 token: Some(coin.clone()),
                 sender: address.clone(),
-                receiver: env.contract.address.to_string(),
+                receiver: lp_receiver.address,
+                // receiver: env.contract.address.to_string(),
                 timeout_height: Some(Height {
                     revision_number: 2, 
                     revision_height: 500,
