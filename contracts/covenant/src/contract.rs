@@ -139,8 +139,12 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
     match parsed_data {
         Ok(response) => {
             COVENANT_HOLDER.save(deps.storage, &response.contract_address)?;
-            
-            let lp_data = LP_INSTANTIATION_DATA.load(deps.storage)?;
+            let clock_addr = COVENANT_CLOCK.load(deps.storage)?;
+
+            let mut lp_data = LP_INSTANTIATION_DATA.load(deps.storage)?;
+            lp_data.clock_address = clock_addr;
+            lp_data.holder_address = response.contract_address;
+
             let lp_code = LP_CODE.load(deps.storage)?;
             let lp_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate { 
                 admin: Some(env.contract.address.to_string()),
@@ -213,6 +217,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let mut depositor_data = DEPOSITOR_INSTANTIATION_DATA.load(deps.storage)?;
             depositor_data.clock_address = clock_addr;
             depositor_data.atom_receiver.address = lp_addr;
+            // st_atom receiver gets queried on demand in depositor
 
             let depositor_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate { 
                 admin: Some(env.contract.address.to_string()),
