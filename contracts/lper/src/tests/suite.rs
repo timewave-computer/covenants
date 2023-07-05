@@ -1,9 +1,9 @@
 use std::marker::PhantomData;
 
-use astroport::{asset::{Asset, AssetInfo, PairInfo}, factory::{PairConfig, PairType}, pair::{StablePoolParams, Cw20HookMsg, PoolResponse, ConfigResponse, SimulationResponse}};
+use astroport::{asset::{Asset, AssetInfo, PairInfo}, factory::{PairConfig, PairType}, pair::{StablePoolParams, Cw20HookMsg, PoolResponse, ConfigResponse, SimulationResponse, ReverseSimulationResponse}};
 use astroport_pair_stable::error::ContractError;
 use cosmwasm_std::{Addr, Uint128, testing::{MockStorage, MockApi, MockQuerier}, OwnedDeps, Decimal, Empty, to_binary, Coin, QueryRequest, WasmQuery, Response, StdResult, Binary, CosmosMsg, BankMsg};
-use cw20::Cw20ExecuteMsg;
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_multi_test::{App, Executor, Contract, ContractWrapper, SudoMsg, BankSudo, AppResponse};
 
 use crate::{msg::{InstantiateMsg, QueryMsg, LPInfo}};
@@ -259,8 +259,8 @@ impl SuiteBuilder {
             coin_registry_addr.clone(),
             &astroport::native_coin_registry::ExecuteMsg::Add { 
                 native_coins: vec![
-                    (ST_ATOM_DENOM.to_string(), 10),
-                    (NATIVE_ATOM_DENOM.to_string(), 10),
+                    (ST_ATOM_DENOM.to_string(), 6),
+                    (NATIVE_ATOM_DENOM.to_string(), 6),
                 ]
             },
             &[],
@@ -288,7 +288,7 @@ impl SuiteBuilder {
             ],
             init_params: Some(to_binary(&StablePoolParams { 
                 owner: Some(CREATOR_ADDR.to_string()),
-                amp: 9001,
+                amp: 10,
              }).unwrap()),
         };
         app.update_block(|b| b.height += 5);
@@ -461,16 +461,19 @@ impl Suite {
     }
 
     pub fn query_simulation(&self, addr: String) -> SimulationResponse {
+        let query = astroport::pair::QueryMsg::Simulation { 
+            offer_asset: Asset { 
+                info: AssetInfo::NativeToken { denom: NATIVE_ATOM_DENOM.to_string() },
+                amount: Uint128::one(),
+            },
+            // ask_asset_info: None,
+            ask_asset_info: Some(AssetInfo::NativeToken { denom: ST_ATOM_DENOM.to_string() }),
+        };
+        println!("\nquerying simulation: {:?}\n", query);
+
         self.app.wrap().query_wasm_smart(
             addr,
-            &astroport::pair::QueryMsg::Simulation { 
-                offer_asset: Asset { 
-                    info: AssetInfo::NativeToken { denom: NATIVE_ATOM_DENOM.to_string() },
-                    amount: Uint128::new(100),
-                },
-                ask_asset_info: None,
-                // ask_asset_info: Some(AssetInfo::NativeToken { denom: ST_ATOM_DENOM.to_string() }),
-            }
+            &query
         ).unwrap()
     }
 
@@ -528,19 +531,28 @@ impl Suite {
     }
 
     // withdraw liquidity from pool
-    pub fn withdraw_liquidity(&mut self, sender: &Addr, amount: u128, assets: Vec<Asset>, from_pool: String) -> AppResponse {
-        let msg = Cw20ExecuteMsg::Send {
-            contract: self.stable_pair.1.to_string(),
-            amount: Uint128::from(amount),
+    pub fn withdraw_liquidity(
+        &mut self,
+        sender: &Addr,
+        amount: u128,
+        assets: Vec<Asset>,
+    ) -> AppResponse {
+        let msg = astroport::pair::ExecuteMsg::Receive(Cw20ReceiveMsg {
+            amount: amount.into(),
             msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets }).unwrap(),
-        };
+            sender: sender.to_string(),
+        });
 
-        self.app.execute_contract(
-            sender.clone(),
-            Addr::unchecked(from_pool),
-            &msg,
-            &[],
-        ).unwrap()
+        let resp = self.app
+            .execute_contract(
+                sender.to_owned(),
+                Addr::unchecked(self.stable_pair.1.to_string()),
+                &msg,
+                &[]
+            );
+        println!("withdraw liq response: {:?}", resp);
+
+        resp.unwrap()
     }
 
     pub fn provide_manual_liquidity(&mut self, from: String) -> AppResponse {

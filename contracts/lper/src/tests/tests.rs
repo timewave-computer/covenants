@@ -1,5 +1,5 @@
 use astroport::{pair::{PoolResponse, SimulationResponse, Cw20HookMsg}, asset::{AssetInfo, PairInfo, Asset}};
-use cosmwasm_std::{Uint128, Addr, Coin, to_binary};
+use cosmwasm_std::{Uint128, Addr, Coin, to_binary, CosmosMsg};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, AllowanceResponse, AllAllowancesResponse};
 use cw_multi_test::Executor;
 use neutron_sdk::bindings::msg::MsgExecuteContract;
@@ -27,7 +27,14 @@ fn test_instantiate_happy() {
         NATIVE_ATOM_DENOM.to_string(), 
         Uint128::new(100000)
     );
+    let stable_pair_balances = suite.query_addr_balances(Addr::unchecked(suite.stable_pair.1.to_string()));
+    println!("\n stable_pair_balances: {:?}\n", stable_pair_balances);
 
+    let share_query_resp = suite.query_pool_share();
+    println!("\n1 LP token can withdraw: {:?}\n", share_query_resp);
+
+    let res: PoolResponse = suite.query_pool_info();
+    println!("\nQueryMsg::Pool: {:?}\n", res);
 
     // let liquid_pooler_balances = suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
     // assert_eq!(liquid_pooler_balances.len(), 2);
@@ -63,7 +70,7 @@ fn test_instantiate_happy() {
             ],
             slippage_tolerance: None,
             auto_stake: Some(false),
-            receiver: Some(suite.liquid_pooler.1.to_string()),
+            receiver: None,
         },
         &[
             Coin { 
@@ -77,37 +84,52 @@ fn test_instantiate_happy() {
         ]
     ).unwrap();
     
-    // println!("\nliq response: {:?}\n", liq_msg);
+    suite.pass_blocks(10);
+    let cw20_bal = suite.query_cw20_bal(
+        "contract6".to_string(),
+        suite.liquid_pooler.1.to_string(),
+    );
+    println!("\nliquidpooler cw20 bal {:?}", cw20_bal);
+    let liq_msg: cw_multi_test::AppResponse = suite.app.execute_contract(
+        Addr::unchecked(suite.liquid_pooler.1.to_string()),
+        Addr::unchecked(suite.stable_pair.1.to_string()),
+        &astroport::pair::ExecuteMsg::ProvideLiquidity { 
+            assets: vec![
+                Asset { 
+                    info: AssetInfo::NativeToken { denom: ST_ATOM_DENOM.to_string() }, 
+                    amount: Uint128::new(5000),
+                },
+                Asset { 
+                    info: AssetInfo::NativeToken { denom: NATIVE_ATOM_DENOM.to_string() }, 
+                    amount: Uint128::new(5000),
+                },
+            ],
+            slippage_tolerance: None,
+            auto_stake: Some(false),
+            receiver: None,
+        },
+        &[
+            Coin { 
+                denom: ST_ATOM_DENOM.to_string(), 
+                amount: Uint128::new(5000),
+            },
+            Coin { 
+                denom: NATIVE_ATOM_DENOM.to_string(), 
+                amount: Uint128::new(5000),
+            },
+        ]
+    ).unwrap();
+    
 
-    // suite.app.execute_contract(
-    //     Addr::unchecked(suite.stable_pair.1.to_string()),
-    //     Addr::unchecked("contract6".to_string()),
-    //     &Cw20ExecuteMsg::IncreaseAllowance {
-    //         spender: query_pair_token.contract_addr.to_string(),
-    //         amount: Uint128::new(1000000),
-    //         expires: Some(cw20::Expiration::Never {  }),
-    //     },
-    //     &[],
-    // ).unwrap();
-    // suite.pass_blocks(10);
-
-    // let allowances: AllAllowancesResponse = suite.app.wrap().query_wasm_smart(
-    //     Addr::unchecked("contract6".to_string()),
-    //     &cw20::Cw20QueryMsg::AllAllowances { 
-    //         owner: suite.stable_pair.1.to_string(),
-    //         start_after: None,
-    //         limit: None,
-    //     },
-    // ).unwrap();
-
-    // println!("allowances response: {:?}\n", allowances);
-
-    // suite.pass_blocks(10);
+    // let tick_resp = suite.tick();
+    suite.pass_blocks(10);
     // let tick_resp = suite.tick();
     // suite.pass_blocks(10);
-    // let tick_resp = suite.tick();
-    // suite.pass_blocks(10);
-
+    let cw20_bal = suite.query_cw20_bal(
+        "contract6".to_string(),
+        suite.liquid_pooler.1.to_string(),
+    );
+    println!("\nliquidpooler cw20 bal {:?}", cw20_bal);
     let liquid_pooler_balances = suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
     println!("\n liquid pooler balances: {:?}\n", liquid_pooler_balances);
 
@@ -137,7 +159,7 @@ fn test_instantiate_happy() {
     let simulation: SimulationResponse = suite.query_simulation(suite.stable_pair.1.to_string());
     println!("\n simulation response: {:?}\n", simulation);
 
-    // let msg = astroport::pair::ExecuteMsg:: {
+    // let msg = astroport::pair::ExecuteMsg::(()) {
     //     contract: suite.stable_pair.1.to_string(),
     //     amount: Uint128::new(10),
     //     msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets: vec![
@@ -152,6 +174,50 @@ fn test_instantiate_happy() {
     //     ] }).unwrap(),
     // };
 
+
+
+    // self.app
+    //     .execute_contract(sender.clone(), self.lp_token.clone(), &msg, &[])
+    println!("lp token: {:?}", suite.lp_token.to_string());
+    // let withdraw_resp = suite.app.execute_contract(
+    //     Addr::unchecked(suite.liquid_pooler.1.to_string()), // good
+    //     Addr::unchecked(suite.lp_token.to_string()), // good
+    //     &Cw20ExecuteMsg::Send {
+    //         contract: suite.stable_pair.1.to_string(), // good
+    //         amount: Uint128::from(10000_u128),              // good
+    //         msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets: vec![
+    //             // Asset { 
+    //             //     info: todo!(),
+    //             //     amount: todo!(),
+    //             // },
+    //             // Asset { 
+    //             //     info: AssetInfo::NativeToken { denom: ST_ATOM_DENOM.to_string() }, 
+    //             //     amount: Uint128::new(5000),
+    //             // },
+    //             // Asset { 
+    //             //     info: AssetInfo::NativeToken { denom: NATIVE_ATOM_DENOM.to_string() }, 
+    //             //     amount: Uint128::new(5000),
+    //             // },
+    //         ] }).unwrap(),
+    //     },
+    //     &[],
+    // ).unwrap();
+
+    // let withdraw_liquidity_resp = suite.withdraw_liquidity(
+    //     &Addr::unchecked(suite.liquid_pooler.1.to_string()),
+    //     1000u128,
+    //     vec![],
+    // );
+
+    // ::from(cw20::Cw20ExecuteMsg::Transfer { recipient: suite.admin.to_string(), amount: Uint128::one() });
+    // let withdraw_liquidity_resp = suite.app.execute(
+    //     suite.liquid_pooler.1, 
+    //     cw20::Cw20ExecuteMsg::Transfer { recipient: suite.admin.to_string(), amount: Uint128::one() },
+    // ).unwrap();
+    // println!("withdraw_resp: {:?}", withdraw_liquidity_resp);
+
+    let liquid_pooler_balances = suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
+    println!("\n liquid pooler balances: {:?}\n", liquid_pooler_balances);
     // let liquidity_withdrawal_resp = suite.app.execute_contract(
     //     Addr::unchecked(suite.stable_pair.1.to_string()),
     //     Addr::unchecked(suite.lp_token.to_string()),
