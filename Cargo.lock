@@ -250,6 +250,8 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "covenant-clock",
+ "covenant-clock-derive",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.1",
@@ -266,6 +268,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "covenant-holder"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-multi-test",
+ "cw-storage-plus 1.1.0",
+ "cw2 1.1.0",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "covenant-lper"
 version = "1.0.0"
 dependencies = [
@@ -275,6 +291,8 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "covenant-clock",
+ "covenant-clock-derive",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.1",
@@ -298,6 +316,8 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "covenant-clock",
+ "covenant-clock-derive",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.0",
  "neutron-sdk",

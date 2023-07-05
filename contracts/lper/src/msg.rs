@@ -1,3 +1,4 @@
+use covenant_clock_derive::clocked;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -15,10 +16,10 @@ pub struct LPInfo {
     pub addr: String,
 }
 
+#[clocked]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    Tick {},
     WithdrawRewards {},
 }
 
