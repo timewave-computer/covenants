@@ -280,6 +280,7 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "covenant-ls",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.1",

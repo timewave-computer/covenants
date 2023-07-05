@@ -13,14 +13,13 @@ pub const NATIVE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("native_atom_
 
 // store the clock address to verify calls
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
-
+pub const LS_ADDRESS: Item<String> = Item::new("ls_address");
 pub const LP_ADDRESS: Item<String> = Item::new("lp_address");
 // the ibc transfer channel
 pub const GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gn_ibc_chann_id");
 pub const GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gs_ibc_chan_id");
 
 pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
-
 pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
 // ICA
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =

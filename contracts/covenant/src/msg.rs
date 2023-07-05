@@ -4,6 +4,7 @@ use covenant_ls::msg::InstantiateMsg as LsInstantiateMsg;
 use covenant_depositor::msg::InstantiateMsg as DepositorInstantiateMsg;
 use covenant_lp::msg::InstantiateMsg as LpInstantiateMsg;
 use covenant_clock::msg::InstantiateMsg as ClockInstantiateMsg;
+use covenant_holder::msg::InstantiateMsg as HolderInstantiateMsg;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -17,6 +18,7 @@ pub struct InstantiateMsg {
     pub lp_code: u64,
     pub lp_instantiate: LpInstantiateMsg,
     pub holder_code: u64,
+    pub holder_instantiate: HolderInstantiateMsg,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -30,6 +32,7 @@ pub enum QueryMsg {
     ClockAddress {},
     LpAddress {},
     LsAddress {},
+    HolderAddress {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

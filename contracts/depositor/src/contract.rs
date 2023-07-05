@@ -16,6 +16,7 @@ use prost::Message;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::{
@@ -33,7 +34,7 @@ use neutron_sdk::{
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_sudo_payload, AcknowledgementResult,
-    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, IBC_PORT_ID, ICA_ADDRESS, SudoPayload, save_reply_payload, CONTRACT_STATE, ContractState, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, NEUTRON_GAIA_CONNECTION_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, LP_ADDRESS,
+    ACKNOWLEDGEMENT_RESULTS, INTERCHAIN_ACCOUNTS, SUDO_PAYLOAD_REPLY_ID, CLOCK_ADDRESS, STRIDE_ATOM_RECEIVER, NATIVE_ATOM_RECEIVER, IBC_PORT_ID, ICA_ADDRESS, SudoPayload, save_reply_payload, CONTRACT_STATE, ContractState, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, NEUTRON_GAIA_CONNECTION_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, LP_ADDRESS, LS_ADDRESS,
 };
 
 // Default timeout for SubmitTX is two weeks
@@ -78,7 +79,8 @@ pub fn instantiate(
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &msg.gaia_neutron_ibc_transfer_channel_id)?;
     NEUTRON_GAIA_CONNECTION_ID.save(deps.storage, &msg.neutron_gaia_connection_id)?;
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
-
+    LS_ADDRESS.save(deps.storage, &msg.ls_address)?;
+    
     Ok(Response::default())
 }
 
@@ -121,6 +123,17 @@ fn try_liquid_stake(
     _info: MessageInfo, 
     _gaia_account_address: String
 ) -> NeutronResult<Response<NeutronMsg>> {
+    let ls_address = LS_ADDRESS.load(deps.storage)?;
+
+    let stride_ica_query: Option<String> = deps.querier.query_wasm_smart(
+        ls_address,
+        &covenant_ls::msg::QueryMsg::StrideICA { }
+    )?;
+    let stride_ica_addr = match stride_ica_query {
+        Some(addr) => addr,
+        None => return Err(NeutronError::Std(StdError::not_found("no ica found"))),
+    };
+
     let fee = IbcFee {
         recv_fee: vec![], // must be empty
         ack_fee: vec![cosmwasm_std::Coin { 
@@ -142,7 +155,7 @@ fn try_liquid_stake(
             let gaia_stride_channel: String = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
 
             let amount = String::from(stride_receiver.amount.to_string());
-            let st_ica = String::from(stride_receiver.address.to_string());
+            let st_ica = stride_ica_addr;
 
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),

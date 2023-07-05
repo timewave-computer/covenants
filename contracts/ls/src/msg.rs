@@ -28,6 +28,7 @@ pub enum QueryMsg {
         interchain_account_id: String,
         connection_id: String,
     },
+    StrideICA {},
     LpAddress {},
 }
 

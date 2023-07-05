@@ -1,6 +1,7 @@
 use cosmwasm_std::{Uint64, Empty, Addr};
 use covenant_depositor::msg::WeightedReceiver;
-use cw_multi_test::{App, ContractWrapper, Contract, Executor};
+use cw_multi_test::{App, ContractWrapper, Contract, Executor, BasicApp};
+use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
 use crate::msg::{InstantiateMsg, QueryMsg};
 
@@ -46,7 +47,6 @@ fn covenant_covenant() -> Box<dyn Contract<Empty>> {
     ) 
 }
 
-
 pub(crate) struct Suite {
     pub app: App,
     pub covenant_address: Addr,
@@ -81,6 +81,7 @@ impl Default for SuiteBuilder {
                     gaia_neutron_ibc_transfer_channel_id: TODO.to_string(),
                     neutron_gaia_connection_id: TODO.to_string(),
                     gaia_stride_ibc_transfer_channel_id: TODO.to_string(),
+                    ls_address: TODO.to_string(),
                 },
                 lp_instantiate: covenant_lp::msg::InstantiateMsg {
                     lp_position: covenant_lp::msg::LPInfo { addr: TODO.to_string() },
@@ -95,6 +96,9 @@ impl Default for SuiteBuilder {
                 depositor_code: 1,
                 lp_code: 1,
                 holder_code: 1,
+                holder_instantiate: covenant_holder::msg::InstantiateMsg {
+                    withdrawer: Some(CREATOR_ADDR.to_string()),
+                }
             },
         }
     }
@@ -105,10 +109,27 @@ impl SuiteBuilder {
     pub fn build(mut self) -> Suite {
         let mut app = App::default();
 
-        // let holder_code = app.store_code(covenant_holder());
-        let clock_code = app.store_code(covenant_clock());
+        self.instantiate.holder_code = app.store_code(covenant_holder());
+        self.instantiate.clock_code = app.store_code(covenant_clock());
         let covenant_code = app.store_code(covenant_covenant());
 
+        let ls_contract = Box::new(
+            ContractWrapper::new(
+                covenant_ls::contract::execute,
+                covenant_ls::contract::instantiate,
+                covenant_clock::contract::query,
+            )
+        );
+
+        let depositor_contract = Box::new(
+            ContractWrapper::new(
+                covenant_depositor::contract::execute,
+                covenant_depositor::contract::instantiate,
+                covenant_clock::contract::query,
+            )
+        );
+
+        
         let covenant_address = app
             .instantiate_contract(
                 covenant_code,
@@ -154,6 +175,46 @@ impl Suite {
             .query_wasm_smart(
                 &self.covenant_address,
                 &QueryMsg::ClockAddress {}
+            )    
+            .unwrap()
+    }
+
+    pub fn query_holder_address(&self) -> String {
+        self.app    
+            .wrap()    
+            .query_wasm_smart(
+                &self.covenant_address,
+                &QueryMsg::HolderAddress {}
+            )    
+            .unwrap()
+    }
+
+    pub fn query_lp_address(&self) -> String {
+        self.app    
+            .wrap()    
+            .query_wasm_smart(
+                &self.covenant_address,
+                &QueryMsg::LpAddress {}
+            )    
+            .unwrap()
+    }
+
+    pub fn query_ls_address(&self) -> String {
+        self.app    
+            .wrap()    
+            .query_wasm_smart(
+                &self.covenant_address,
+                &QueryMsg::LsAddress {}
+            )    
+            .unwrap()
+    }
+
+    pub fn query_depositor_address(&self) -> String {
+        self.app    
+            .wrap()    
+            .query_wasm_smart(
+                &self.covenant_address,
+                &QueryMsg::DepositorAddress {}
             )    
             .unwrap()
     }

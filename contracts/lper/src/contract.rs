@@ -33,7 +33,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    deps.api.debug("WASMDEBUG: instantiate");
+    deps.api.debug("WASMDEBUG: lp instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // TODO: validations
