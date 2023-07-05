@@ -776,7 +776,7 @@ func TestICS(t *testing.T) {
 		})
 
 		t.Run("instantiate lper contract", func(t *testing.T) {
-			codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/covenant_lper.wasm")
+			codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/covenant_lp.wasm")
 			require.NoError(t, err, "failed to store neutron ICA contract")
 			lpInfo := LpInfo{
 				Addr: stableswapAddress,

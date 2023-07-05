@@ -25,7 +25,7 @@ rpath            = false
 
 [workspace.dependencies]
 covenant-depositor       = { path = "contracts/depositor", version = "*" }
-covenant-lper = { path = "contracts/lper", version = "*" }
+covenant-lp = { path = "contracts/lp", version = "*" }
 covenant-clock = { path = "contracts/clock" }
 covenant-clock-tester = { path = "contracts/clock-tester" }
 covenant-clock-derive = { path = "packages/clock-derive" }

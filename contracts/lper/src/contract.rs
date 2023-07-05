@@ -24,7 +24,7 @@ use crate::state::{
 };
 
 
-const CONTRACT_NAME: &str = "crates.io:covenant-lper";
+const CONTRACT_NAME: &str = "crates.io:covenant-lp";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -58,8 +58,8 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
+    // deps.api
+    //     .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::WithdrawLiquidity {} => try_withdraw(deps, env, info),
@@ -85,7 +85,7 @@ fn no_op() -> Result<Response, ContractError> {
 fn try_enter_lp_position(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo, 
+    info: MessageInfo, 
 ) -> Result<Response, ContractError> {
     let pool_address = LP_POSITION.load(deps.storage)?;
     let slippage_tolerance = SLIPPAGE_TOLERANCE
@@ -95,32 +95,31 @@ fn try_enter_lp_position(
     let first_asset = &assets[0];
     let second_asset = &assets[1];
     
-    let sim_msg = astroport::pair::QueryMsg::Simulation {
-        offer_asset: Asset {
-            info: first_asset.to_owned().info,
-            amount: Uint128::one(),
-        },
-        ask_asset_info: Some(second_asset.info.to_owned()),
-    };
+    // let sim_msg = astroport::pair::QueryMsg::Simulation {
+    //     offer_asset: Asset {
+    //         info: first_asset.to_owned().info,
+    //         amount: Uint128::new(10),
+    //     },
+    //     ask_asset_info: None,
+    // };
 
-    deps.api.debug(&format!("\nWASMDEBUG simulation msg: {:?}\n", sim_msg));
-    // figure out how much of second asset can we get with one of first asset
-    let simulation: SimulationResponse = deps.querier.query_wasm_smart(
-        &pool_address.addr, 
-        &sim_msg
-    )?;
-    deps.api.debug(&format!("\nWASMDEBUG SIMULATION: {:?}\n", simulation));
-
+    // deps.api.debug(&format!("\nWASMDEBUG simulation msg: {:?}\n", sim_msg));
+    // // figure out how much of second asset can we get with one of first asset
+    // let simulation: SimulationResponse = deps.querier.query_wasm_smart(
+    //     &pool_address.addr, 
+    //     &sim_msg
+    // )?;
+    // deps.api.debug(&format!("\nWASMDEBUG SIMULATION: {:?}\n", simulation));
 
     let balances: Vec<Coin> = deps.querier.query_all_balances(env.contract.clone().address)?
         .into_iter()
-        .filter(|coin| {
+        .filter(|mut coin| {
             let mut valid_balance = false;
             for asset in assets.clone() {
                 match asset.info {
                     AssetInfo::Token { contract_addr } => {
                         if coin.denom == contract_addr {
-                            valid_balance = true
+                            valid_balance = false
                         }
                     },
                     AssetInfo::NativeToken { denom } => {
@@ -132,8 +131,14 @@ fn try_enter_lp_position(
             }
             valid_balance
         })
+        .map(|mut c| {
+            c.amount = Uint128::new(50000);
+            c
+        })
         .collect();
-    
+
+    deps.api.debug(&format!("WASMDEBUG: balances: {:?}", balances));
+
     // generate astroport Assets from balances
     let assets: Vec<Asset> = balances.clone().into_iter()
         .map(|bal| Asset {
@@ -152,12 +157,13 @@ fn try_enter_lp_position(
     };
     deps.api.debug(&format!("WASMDEBUG: sending provide liquidity: {:?}\n\n", provide_liquidity_msg));
 
-    Ok(Response::default().add_submessage(
-        SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute { 
-            contract_addr: pool_address.addr,
+    Ok(Response::default()
+    .add_message(
+        CosmosMsg::Wasm(WasmMsg::Execute { 
+            contract_addr: pool_address.addr.to_string(),
             msg: to_binary(&provide_liquidity_msg)?,
-            funds: balances,
-        }))
+            funds: balances.clone(),
+        })
     ))
 
 }
