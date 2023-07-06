@@ -1,8 +1,6 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::cw_serde;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct InstantiateMsg {
     pub autopilot_position: String,
     pub clock_address: String,
@@ -12,16 +10,13 @@ pub struct InstantiateMsg {
     pub ls_denom: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     Tick {},
     Received {},
 }
 
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum QueryMsg {
     ClockAddress {},
     InterchainAccountAddress {
@@ -31,5 +26,13 @@ pub enum QueryMsg {
     LpAddress {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct MigrateMsg {}
+#[cw_serde]
+pub enum MigrateMsg {
+  UpdateConfig {
+    clock_addr: Option<String>,
+    stride_neutron_ibc_transfer_channel_id: Option<String>,
+    lp_address: Option<String>,
+    neutron_stride_ibc_connection_id: Option<String>,
+    ls_denom: Option<String>,
+  }
+}

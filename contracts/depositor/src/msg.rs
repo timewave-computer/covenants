@@ -1,8 +1,6 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::cw_serde;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct InstantiateMsg {
     pub st_atom_receiver: WeightedReceiver,
     pub atom_receiver: WeightedReceiver,
@@ -12,21 +10,19 @@ pub struct InstantiateMsg {
     pub gaia_stride_ibc_transfer_channel_id: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct WeightedReceiver {
     pub amount: i64,
     pub address: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     Tick {},
     Received {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum QueryMsg {
     StAtomReceiver {},
     AtomReceiver {},
@@ -50,5 +46,14 @@ pub enum QueryMsg {
     ErrorsQueue {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct MigrateMsg {}
+#[cw_serde]
+pub enum MigrateMsg {
+    UpdateConfig {
+        clock_addr: Option<String>,
+        st_atom_receiver: Option<WeightedReceiver>,
+        atom_receiver: Option<WeightedReceiver>,
+        gaia_neutron_ibc_transfer_channel_id: Option<String>,
+        neutron_gaia_connection_id: Option<String>,
+        gaia_stride_ibc_transfer_channel_id: Option<String>,
+    },
+}

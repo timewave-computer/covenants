@@ -1,11 +1,9 @@
 
 use astroport::asset::Asset;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Decimal;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct InstantiateMsg {
     pub lp_position: LPInfo,
     pub clock_address: String,
@@ -15,21 +13,18 @@ pub struct InstantiateMsg {
     pub assets: Vec<Asset>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct LPInfo {
     pub addr: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     Tick {},
     WithdrawLiquidity {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum QueryMsg {
     LpPosition {},
     ClockAddress {},
@@ -38,6 +33,12 @@ pub enum QueryMsg {
     Assets {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct MigrateMsg {
+#[cw_serde]
+pub enum MigrateMsg {
+  UpdateConfig {
+    clock_addr: Option<String>,
+    lp_position: Option<LPInfo>,
+    holder_address: Option<String>,
+    assets: Option<Vec<Asset>>,
+  }
 }
