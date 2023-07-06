@@ -1,7 +1,5 @@
-use astroport::{pair::{PoolResponse, SimulationResponse, Cw20HookMsg, self}, asset::{AssetInfo, PairInfo, Asset}};
-use cosmwasm_std::{Uint128, Addr, Coin, to_binary, CosmosMsg};
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg, AllowanceResponse, AllAllowancesResponse};
-use cw_multi_test::Executor;
+
+use cosmwasm_std::{Uint128, Addr, Decimal, };
 
 
 use super::suite::{SuiteBuilder, ST_ATOM_DENOM, NATIVE_ATOM_DENOM};
@@ -11,6 +9,12 @@ use super::suite::{SuiteBuilder, ST_ATOM_DENOM, NATIVE_ATOM_DENOM};
 fn test_instantiate_happy() {
     let mut suite = SuiteBuilder::default()
         .build();
+
+    let redemption_rate = Decimal::from_ratio(Uint128::new(12), Uint128::new(10));
+    let atom_amt = Uint128::new(400000);
+    let statom_amt = atom_amt * redemption_rate;
+    // fund pool with balanced amounts of underlying tokens
+    suite.provide_manual_liquidity("alice".to_string(), statom_amt, atom_amt);
     
     // fund LP contract with some tokens to provide liquidity with
     suite.mint_coins_to_addr(
@@ -51,14 +55,11 @@ fn test_instantiate_happy() {
     
     suite.withdraw();
     suite.pass_blocks(10);
-    let share = suite.query_pool_info();
-    println!("pool share: {:?}", share);
+
     let liquid_pooler_balances = suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
     println!("\n post withdrawal liquid pooler balances: {:?}\n", liquid_pooler_balances);
-    
 }
 
-#[test]
-fn test_enter_lp() {
-    
-}
+// tests todo:
+// 1. randomly funded contracts/wallets
+// 2. existing pool ratios (imbalanced, equal, extremely imbalanced, providing more liq than exists)

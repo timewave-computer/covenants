@@ -1,11 +1,12 @@
 
 use astroport::asset::Asset;
-use cosmwasm_std::Decimal;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{Decimal, Addr};
+use covenant_clock_derive::clocked;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+use crate::state::ContractState;
+
+#[cw_serde]
 pub struct InstantiateMsg {
     pub lp_position: LPInfo,
     pub clock_address: String,
@@ -15,29 +16,31 @@ pub struct InstantiateMsg {
     pub assets: Vec<Asset>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct LPInfo {
     pub addr: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[clocked]
+#[cw_serde]
 pub enum ExecuteMsg {
-    Tick {},
     WithdrawLiquidity {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(QueryResponses)]
 pub enum QueryMsg {
+    #[returns(LPInfo)]
     LpPosition {},
+    #[returns(Addr)]
     ClockAddress {},
+    #[returns(ContractState)]
     ContractState {},
+    #[returns(Addr)]
     HolderAddress {},
+    #[returns(Vec<Asset>)]
     Assets {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct MigrateMsg {
-}
+#[cw_serde]
+pub struct MigrateMsg {}

@@ -512,33 +512,33 @@ impl Suite {
         ).unwrap()
     }
 
-    pub fn provide_manual_liquidity(&mut self, from: String) -> AppResponse {
+    pub fn provide_manual_liquidity(&mut self, from: String, st_atom_amount: Uint128, native_atom_amount: Uint128) -> AppResponse {
         let stable_pair_addr = self.stable_pair.1.to_string();
 
         let balances = vec![
             Coin { 
                 denom: ST_ATOM_DENOM.to_string(), 
-                amount: Uint128::new(50000),
+                amount: st_atom_amount,
             },
             Coin { 
                 denom: NATIVE_ATOM_DENOM.to_string(), 
-                amount: Uint128::new(50000),
+                amount: native_atom_amount,
             },
         ];
 
         let assets = vec![
             Asset { 
                 info: AssetInfo::NativeToken { denom: ST_ATOM_DENOM.to_string() }, 
-                amount: Uint128::new(5000),
+                amount: st_atom_amount,
             },
             Asset { 
                 info: AssetInfo::NativeToken { denom: NATIVE_ATOM_DENOM.to_string() }, 
-                amount: Uint128::new(5000),
+                amount: native_atom_amount,
             },
         ];
 
-        self.mint_coins_to_addr(from.clone(), NATIVE_ATOM_DENOM.to_string(), Uint128::new(10000));
-        self.mint_coins_to_addr(from.clone(), ST_ATOM_DENOM.to_string(), Uint128::new(10000));
+        self.mint_coins_to_addr(from.clone(), NATIVE_ATOM_DENOM.to_string(), native_atom_amount);
+        self.mint_coins_to_addr(from.clone(), ST_ATOM_DENOM.to_string(), st_atom_amount);
 
 
         let provide_liquidity_msg = astroport::pair::ExecuteMsg::ProvideLiquidity {
@@ -549,7 +549,7 @@ impl Suite {
         };
 
         self.pass_blocks(10);
-        // self.app.execute()
+
         self.app.execute_contract(
             Addr::unchecked(from.clone()), 
             Addr::unchecked(self.stable_pair.1.to_string()),

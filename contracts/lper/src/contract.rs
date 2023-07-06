@@ -1,13 +1,13 @@
-use cosmos_sdk_proto::cosmos::bank::v1beta1::SendAuthorization;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{MessageInfo,  Response,
-     StdResult, Addr, DepsMut, Env, Binary, Deps, to_binary, WasmMsg, CosmosMsg, Coin, Uint128, SubMsg, Reply, 
+     StdResult, Addr, DepsMut, Env, Binary, Deps, to_binary, WasmMsg, CosmosMsg, Coin, Uint128, Reply, 
 };
 use cw2::set_contract_version;
 
 use astroport::{pair::{ExecuteMsg::ProvideLiquidity, Cw20HookMsg, SimulationResponse}, asset::{Asset, AssetInfo}};
-use cw20::{Cw20ReceiveMsg, Cw20ExecuteMsg, BalanceResponse};
+use cw20::{Cw20ExecuteMsg, BalanceResponse};
 
 use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg}, state::{HOLDER_ADDRESS, LP_POSITION, SLIPPAGE_TOLERANCE, AUTOSTAKE, ASSETS}};
 use crate::error::ContractError;
@@ -73,6 +73,18 @@ fn no_op() -> Result<Response, ContractError> {
     Ok(Response::default())
 }
 
+fn native_token_asset_to_coin(asset: Asset) -> Result<Coin, ContractError> {
+    match asset.info {
+        AssetInfo::Token { contract_addr } => return Err(
+            ContractError::Std(cosmwasm_std::StdError::GenericErr { msg: "not native token".to_string() })
+        ),
+        AssetInfo::NativeToken { denom } => Ok(Coin {
+            denom,
+            amount: asset.amount,
+        }),
+    }
+}
+
 fn try_enter_lp_position(
     deps: DepsMut,
     env: Env,
@@ -89,14 +101,48 @@ fn try_enter_lp_position(
     let simulation: SimulationResponse = deps.querier.query_wasm_smart(
         &pool_address.addr, 
         &astroport::pair::QueryMsg::Simulation {
-            offer_asset: Asset {
-                info: first_asset.to_owned().info,
-                amount: Uint128::new(10),
-            },
-            ask_asset_info: None,
+            offer_asset: first_asset.to_owned(),
+            ask_asset_info: Some(assets[1].info.to_owned()),
         }
     )?;
-    deps.api.debug(&format!("\nWASMDEBUG SIMULATION: {:?}\n", simulation));
+
+    let (leftover_asset, leftover_asset_counterpart) = if first_asset.amount > simulation.return_amount {
+        (
+            Asset {
+                info: assets[1].clone().info,
+                amount: first_asset.amount - simulation.return_amount,
+            },
+            Asset {
+                info: assets[0].clone().info,
+                amount: Uint128::zero(),
+            },
+        )
+    } else {
+        (
+            Asset {
+                info: assets[0].clone().info,
+                amount: simulation.return_amount - first_asset.amount,
+            },
+            Asset {
+                info: assets[1].clone().info,
+                amount: Uint128::zero(),
+            }
+        )
+        
+    };
+    let (leftover_bal, leftover_bal_counterpart) = (leftover_asset.as_coin()?, leftover_asset_counterpart.as_coin()?);
+
+
+    deps.api.debug(
+        &format!("\nWASMDEBUG: {:?}{:?} = {:?}{:?}\n",
+        first_asset.amount, first_asset.as_coin()?.denom, simulation.return_amount, assets[1].as_coin()?.denom
+    ));
+    deps.api.debug(
+        &format!("WASMDEBUG: leftover asset: {:?}\n", leftover_bal)
+    );
+
+
+    println!("\n coin balances: {:?}", deps.querier.query_all_balances(env.contract.clone().address)?);
 
     let balances: Vec<Coin> = deps.querier.query_all_balances(env.contract.clone().address)?
         .into_iter()
@@ -117,8 +163,18 @@ fn try_enter_lp_position(
                 }
             }
             valid_balance
+        }).into_iter()
+        .map(|mut c| {
+            // convert balances according to simulation
+            if c.denom == leftover_bal.denom {
+                // if its the coin with leftovers, subtract
+                c.amount -= leftover_bal.amount;
+            }
+            c
         })
         .collect();
+
+    println!("\n after sim coin balances: {:?}", balances);
 
     // generate astroport Assets from balances
     let assets: Vec<Asset> = balances.clone().into_iter()
@@ -137,15 +193,27 @@ fn try_enter_lp_position(
         receiver: None,
     };
 
+    let single_sided_liq_msg = ProvideLiquidity { 
+        assets: vec![leftover_asset.clone(), leftover_asset_counterpart], 
+        slippage_tolerance, 
+        auto_stake, 
+        receiver: None,
+    };
+    
     Ok(Response::default()
-    .add_message(
-        CosmosMsg::Wasm(WasmMsg::Execute { 
-            contract_addr: pool_address.addr.to_string(),
-            msg: to_binary(&provide_liquidity_msg)?,
-            funds: balances.clone(),
-        })
-    ))
-
+        .add_messages(vec![
+            CosmosMsg::Wasm(WasmMsg::Execute { 
+                contract_addr: pool_address.addr.to_string(),
+                msg: to_binary(&provide_liquidity_msg)?,
+                funds: balances.clone(),
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute { 
+                contract_addr: pool_address.addr.to_string(),
+                msg: to_binary(&single_sided_liq_msg)?,
+                funds: vec![leftover_bal],
+            }),
+        ])
+    )
 }
 
 /// should be sent to the LP token contract associated with the pool
