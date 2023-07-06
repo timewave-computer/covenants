@@ -223,7 +223,7 @@ func TestICS(t *testing.T) {
 		Amount:  10000000,
 	})
 
-	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+	err = testutil.WaitForBlocks(ctx, 30, atom, neutron, stride)
 	require.NoError(t, err, "failed to wait for blocks")
 
 	neutronUserBal, err := neutron.GetBalance(
@@ -904,14 +904,15 @@ func TestICS(t *testing.T) {
 			depositorContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
 			require.NoError(t, err, "failed to instantiate depositor contract: ", err)
 
+			print("\ndepositor contract:", depositorContractAddress, "\n")
+
 			t.Run("query instantiated clock", func(t *testing.T) {
 				var response ClockQueryResponse
 				err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, DepositorContractQuery{
 					ClockAddress: ClockAddressQuery{},
 				}, &response)
 				require.NoError(t, err, "failed to query clock address")
-				expectedAddrJson, _ := json.Marshal(clockContractAddress)
-				require.Equal(t, string(expectedAddrJson), response.Data)
+				require.Equal(t, clockContractAddress, response.Data)
 			})
 
 			t.Run("query instantiated weighted receivers", func(t *testing.T) {
@@ -1125,8 +1126,6 @@ func TestICS(t *testing.T) {
 
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
-			err = testutil.WaitForBlocks(ctx, 100, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
 
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to query ICA balance")
@@ -1134,9 +1133,9 @@ func TestICS(t *testing.T) {
 
 			neutronUserBalNew, err := neutron.GetBalance(
 				ctx,
-				depositorContractAddress,
+				lperContractAddress,
 				neutronDstIbcDenom)
-			require.NoError(t, err, "failed to query depositor contract atom balance")
+			require.NoError(t, err, "failed to query lper contract atom balance")
 			require.Equal(t, int64(10), neutronUserBalNew)
 		})
 
