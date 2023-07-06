@@ -533,26 +533,38 @@ impl Suite {
     // withdraw liquidity from pool
     pub fn withdraw_liquidity(
         &mut self,
-        sender: &Addr,
+        sender: Addr,
         amount: u128,
         assets: Vec<Asset>,
     ) -> AppResponse {
-        let msg = astroport::pair::ExecuteMsg::Receive(Cw20ReceiveMsg {
-            amount: amount.into(),
-            msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets }).unwrap(),
-            sender: sender.to_string(),
-        });
+        self.app.execute_contract(
+            sender, // good
+            Addr::unchecked("contract6".to_string()), // good
+            &Cw20ExecuteMsg::Send {
+                contract: self.stable_pair.1.to_string(), // good
+                amount: Uint128::from(amount),              // good
+                msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets }).unwrap(),
+            },
+            &[],
+        ).unwrap()
+    
+    
+        // let msg = astroport::pair::ExecuteMsg::Receive(Cw20ReceiveMsg {
+        //     amount: amount.into(),
+        //     msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets }).unwrap(),
+        //     sender: sender.to_string(),
+        // });
 
-        let resp = self.app
-            .execute_contract(
-                sender.to_owned(),
-                Addr::unchecked(self.stable_pair.1.to_string()),
-                &msg,
-                &[]
-            );
-        println!("withdraw liq response: {:?}", resp);
+        // let resp = self.app
+        //     .execute_contract(
+        //         sender.to_owned(),
+        //         Addr::unchecked(self.stable_pair.1.to_string()),
+        //         &msg,
+        //         &[]
+        //     );
+        // println!("withdraw liq response: {:?}", resp);
 
-        resp.unwrap()
+        // resp.unwrap()
     }
 
     pub fn provide_manual_liquidity(&mut self, from: String) -> AppResponse {
