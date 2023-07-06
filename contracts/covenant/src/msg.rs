@@ -1,15 +1,12 @@
 use cosmwasm_schema::{QueryResponses, cw_serde};
 use cosmwasm_std::Addr;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use covenant_ls::msg::InstantiateMsg as LsInstantiateMsg;
 use covenant_depositor::msg::InstantiateMsg as DepositorInstantiateMsg;
 use covenant_lp::msg::InstantiateMsg as LpInstantiateMsg;
 use covenant_clock::msg::InstantiateMsg as ClockInstantiateMsg;
 use covenant_holder::msg::InstantiateMsg as HolderInstantiateMsg;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct InstantiateMsg {
     pub clock_code: u64,
     pub clock_instantiate: ClockInstantiateMsg,
@@ -23,8 +20,7 @@ pub struct InstantiateMsg {
     pub holder_instantiate: HolderInstantiateMsg,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {}
 
 #[cw_serde]
@@ -42,5 +38,5 @@ pub enum QueryMsg {
     HolderAddress {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct MigrateMsg {}
