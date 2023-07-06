@@ -1,8 +1,8 @@
-use cosmwasm_std::{Addr, Uint128, Empty};
-use cw_multi_test::{App, Executor, Contract, ContractWrapper};
-use neutron_sdk::{bindings::query::NeutronQuery, NeutronError, NeutronResult};
+use cosmwasm_std::{Addr, Uint128, Empty, testing::MockApi, MemoryStorage};
+use cw_multi_test::{App, Executor, Contract, ContractWrapper, AppBuilder, BasicAppBuilder, BankKeeper, WasmKeeper, FailingModule};
+use neutron_sdk::{bindings::{query::NeutronQuery, msg::NeutronMsg}, NeutronError, NeutronResult};
 
-use crate::{msg::{InstantiateMsg, QueryMsg, WeightedReceiver}, contract::{query, execute, instantiate}};
+use crate::{msg::{InstantiateMsg, QueryMsg, WeightedReceiver, ExecuteMsg}, contract::{query, execute, instantiate}};
 
 pub const CREATOR_ADDR: &str = "creator";
 pub const ST_ATOM_DENOM: &str = "stride-atom";
@@ -19,20 +19,26 @@ pub const _DEFAULT_CLOCK_ADDRESS: &str = "clock-address";
 //     }
 // }
 
-// fn depositor_contract() -> Box<dyn Contract<NeutronResult<NeutronError>>> {
-//     // let contract = ContractWrapper::new(
-//     //     crate::contract::execute,
-//     //     crate::contract::instantiate,
-//     //     query,
-//     // );
-//     // // todo
-//     // Box::new(contract)
-//     let execute_func =  
-//     Box::new(ContractWrapper::new(execute_fn, instantiate_fn, query_fn))
-// }
+fn depositor_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
+    let contract  = ContractWrapper::new(
+        crate::contract::execute,
+        crate::contract::instantiate,
+        crate::contract::query,
+    );
+    // todo
+    Box::new(contract)
+}
+
+pub type BaseApp = App<
+    BankKeeper,
+    MockApi,
+    MemoryStorage,
+    FailingModule<NeutronMsg, NeutronQuery, Empty>,
+    WasmKeeper<NeutronMsg, NeutronQuery>,
+>;
 
 pub(crate) struct Suite {
-    pub app: App,
+    pub app: BaseApp,
     pub admin: Addr,
     pub depositor_address: Addr,
     pub depositor_code: u64,
@@ -46,12 +52,12 @@ impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
             instantiate: InstantiateMsg {
-                st_atom_receiver: WeightedReceiver { 
-                    amount: 10, 
+                st_atom_receiver: WeightedReceiver {
+                    amount: 10,
                     address: ST_ATOM_DENOM.to_string(),
                 },
-                atom_receiver: WeightedReceiver { 
-                    amount: 10, 
+                atom_receiver: WeightedReceiver {
+                    amount: 10,
                     address: NATIVE_ATOM_DENOM.to_string(),
                 },
                 clock_address: "default-clock".to_string(),
@@ -65,10 +71,10 @@ impl Default for SuiteBuilder {
 
 impl SuiteBuilder {
     pub fn build(self) -> Suite {
-        let mut app = App::default();
+        let mut app = BasicAppBuilder::<NeutronMsg, NeutronQuery>::new_custom().build(|_,_,_| {});
         // app.store_code()
-        // let depositor_code = app.store_code(depositor_contract());
-        let depositor_code = 1;
+        let depositor_code = app.store_code(depositor_contract());
+        // let depositor_code = 1;
         let depositor_address = app
             .instantiate_contract(
                 depositor_code,

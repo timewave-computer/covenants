@@ -60,7 +60,7 @@ struct  OpenAckVersion {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: DepsMut<NeutronQuery>,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -84,7 +84,7 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn execute(
-    deps: DepsMut,
+    deps: DepsMut<NeutronQuery>,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -98,7 +98,7 @@ pub fn execute(
 }
 
 
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: DepsMut<NeutronQuery>, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
     let gaia_account_address = match ica_address {
@@ -116,26 +116,26 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 }
 
 fn try_liquid_stake(
-    deps: DepsMut,
+    deps: DepsMut<NeutronQuery>,
     env: Env,
-    _info: MessageInfo, 
+    _info: MessageInfo,
     _gaia_account_address: String
 ) -> NeutronResult<Response<NeutronMsg>> {
     let fee = IbcFee {
         recv_fee: vec![], // must be empty
-        ack_fee: vec![cosmwasm_std::Coin { 
+        ack_fee: vec![cosmwasm_std::Coin {
             denom: NEUTRON_DENOM.to_string(),
             amount: Uint128::new(1000u128)
         }],
-        timeout_fee: vec![cosmwasm_std::Coin { 
-            denom: NEUTRON_DENOM.to_string(), 
-            amount: Uint128::new(1000u128) 
+        timeout_fee: vec![cosmwasm_std::Coin {
+            denom: NEUTRON_DENOM.to_string(),
+            amount: Uint128::new(1000u128)
         }],
     };
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
-    
+
     match interchain_account {
         Some((address, controller_conn_id)) => {
             let stride_receiver = STRIDE_ATOM_RECEIVER.load(deps.storage)?;
@@ -158,30 +158,30 @@ fn try_liquid_stake(
                 sender: address.clone(),
                 receiver: autopilot_receiver.to_string(),
                 timeout_height: Some(Height {
-                    revision_number: 3, 
+                    revision_number: 3,
                     revision_height: 800,
                 }),
                 timeout_timestamp: 0,
             };
-        
+
             // Serialize the Transfer message
             let mut buf = Vec::new();
             buf.reserve(stride_msg.encoded_len());
             if let Err(e) = stride_msg.encode(&mut buf) {
                 return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
             }
-        
+
             let protobuf = ProtobufAny {
                 type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
                 value: Binary::from(buf),
             };
 
             let stride_submit_msg = NeutronMsg::submit_tx(
-                controller_conn_id, 
-                INTERCHAIN_ACCOUNT_ID.to_string(), 
-                vec![protobuf], 
-                "".to_string(), 
-                100000, 
+                controller_conn_id,
+                INTERCHAIN_ACCOUNT_ID.to_string(),
+                vec![protobuf],
+                "".to_string(),
+                100000,
                 fee
             );
 
@@ -192,31 +192,31 @@ fn try_liquid_stake(
             )
         },
         None => return Err(NeutronError::Std(StdError::NotFound { kind: "no ica found".to_string() })),
-    }   
+    }
 }
 
 
 fn try_receive_atom_from_ica(
-    deps: DepsMut,
+    deps: DepsMut<NeutronQuery>,
     env: Env,
-    _info: MessageInfo, 
+    _info: MessageInfo,
     _gaia_account_address: String
 ) -> NeutronResult<Response<NeutronMsg>> {
     let fee = IbcFee {
         recv_fee: vec![], // must be empty
-        ack_fee: vec![cosmwasm_std::Coin { 
+        ack_fee: vec![cosmwasm_std::Coin {
             denom: NEUTRON_DENOM.to_string(),
             amount: Uint128::new(1000u128)
         }],
-        timeout_fee: vec![cosmwasm_std::Coin { 
-            denom: NEUTRON_DENOM.to_string(), 
-            amount: Uint128::new(1000u128) 
+        timeout_fee: vec![cosmwasm_std::Coin {
+            denom: NEUTRON_DENOM.to_string(),
+            amount: Uint128::new(1000u128)
         }],
     };
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
-    
+
     match interchain_account {
         Some((address, controller_conn_id)) => {
             let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
@@ -235,56 +235,56 @@ fn try_receive_atom_from_ica(
                 sender: address.clone(),
                 receiver: env.contract.address.to_string(),
                 timeout_height: Some(Height {
-                    revision_number: 2, 
+                    revision_number: 2,
                     revision_height: 500,
                 }),
                 timeout_timestamp: 0,
             };
-        
+
             // Serialize the Transfer message
             let mut buf = Vec::new();
             buf.reserve(msg.encoded_len());
             if let Err(e) = msg.encode(&mut buf) {
                 return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
             }
-        
+
             let protobuf = ProtobufAny {
                 type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
                 value: Binary::from(buf),
             };
 
             let submit_msg = NeutronMsg::submit_tx(
-                controller_conn_id.clone(), 
-                INTERCHAIN_ACCOUNT_ID.to_string(), 
-                vec![protobuf], 
-                address.clone(), 
-                100000, 
+                controller_conn_id.clone(),
+                INTERCHAIN_ACCOUNT_ID.to_string(),
+                vec![protobuf],
+                address.clone(),
+                100000,
                 fee.clone(),
             );
 
             CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-            
+
             Ok(Response::default()
                 .add_submessage(SubMsg::new(submit_msg))
             )
         },
         None => return Err(NeutronError::Std(StdError::NotFound { kind: "no ica found".to_string() })),
-    }   
+    }
 }
 
 fn try_register_gaia_ica(
-    deps: DepsMut, 
+    deps: DepsMut<NeutronQuery>,
     env: Env,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
     let connection_id = NEUTRON_GAIA_CONNECTION_ID.load(deps.storage)?;
     let register = NeutronMsg::register_interchain_account(
-        connection_id, 
+        connection_id,
         gaia_acc_id.clone()
     );
     let key = get_port_id(env.contract.address.as_str(), &gaia_acc_id);
     IBC_PORT_ID.save(deps.storage, &key)?;
-    
+
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
     INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
 
@@ -292,7 +292,7 @@ fn try_register_gaia_ica(
 }
 
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
-    deps: DepsMut,
+    deps: DepsMut<NeutronQuery>,
     msg: C,
     payload: SudoPayload,
 ) -> StdResult<SubMsg<T>> {
@@ -329,7 +329,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
         QueryMsg::ClockAddress {} => Ok(
             to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?
         ),
-        QueryMsg::DepositorInterchainAccountAddress {} => query_depositor_interchain_address(deps, env), 
+        QueryMsg::DepositorInterchainAccountAddress {} => query_depositor_interchain_address(deps, env),
         QueryMsg::InterchainAccountAddress {
             interchain_account_id,
             connection_id,
@@ -360,19 +360,19 @@ pub fn query_depositor_interchain_address(
         },
         Err(_) => Err(NeutronError::Std(StdError::not_found("no ica stored"))),
     }
-    
+
     // let gaia_acc_id = String::from("gaia-acc");
     // let ics_connection_id = String::from("connection-1");
     // let account_key = get_port_id(env.contract.address.as_str(), &gaia_acc_id);
     // let interchain_account_addr = INTERCHAIN_ACCOUNTS.load(deps.storage, account_key)?;
-    
+
     // query_interchain_address(deps, env, gaia_acc_id, ics_connection_id)
     // let query = NeutronQuery::InterchainAccountAddress {
     //     owner_address: env.contract.address.to_string(),
     //     interchain_account_id: gaia_acc_id,
     //     connection_id: ics_connection_id,
     // };
-    
+
     // let res: QueryInterchainAccountAddressResponse = deps.querier.query(&query.into())?;
 }
 
@@ -726,4 +726,3 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
         ))),
     }
 }
-    
