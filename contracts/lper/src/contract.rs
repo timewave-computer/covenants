@@ -23,7 +23,7 @@ use crate::state::{
 };
 
 
-const CONTRACT_NAME: &str = "crates.io:covenant-lper";
+const CONTRACT_NAME: &str = "crates.io:covenant-lp";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -33,7 +33,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    deps.api.debug("WASMDEBUG: instantiate");
+    deps.api.debug("WASMDEBUG: lp instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // TODO: validations

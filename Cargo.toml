@@ -24,13 +24,14 @@ panic            = 'abort'
 rpath            = false
 
 [workspace.dependencies]
-covenant-depositor       = { path = "./packages/depositor", version = "*" }
-covenant-lper = { path = "./packages/lper", version = "*" }
+covenant-depositor       = { path = "contracts/depositor", version = "*" }
 covenant-clock = { path = "contracts/clock" }
 covenant-clock-tester = { path = "contracts/clock-tester" }
 covenant-lp = { path = "contracts/lper" }
 covenant-clock-derive = { path = "packages/clock-derive" }
 covenant-ls = { path = "contracts/ls" }
+covenant-covenant = { path = "contracts/covenant" }
+covenant-holder = { path = "contracts/holder" }
 cw-fifo = { path = "packages/cw-fifo" }
 clock-derive = { path = "packages/clock-derive" }
 

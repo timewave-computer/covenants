@@ -11,6 +11,7 @@ pub struct InstantiateMsg {
     pub gaia_neutron_ibc_transfer_channel_id: String,
     pub neutron_gaia_connection_id: String,
     pub gaia_stride_ibc_transfer_channel_id: String,
+    pub ls_address: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

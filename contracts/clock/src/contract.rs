@@ -20,6 +20,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    deps.api.debug("WASMDEBUG: clock instantiate");
+
     if msg.tick_max_gas.is_zero() {
         return Err(ContractError::ZeroTickMaxGas {});
     }
