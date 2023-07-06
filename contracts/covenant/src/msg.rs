@@ -1,3 +1,5 @@
+use cosmwasm_schema::{QueryResponses, cw_serde};
+use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use covenant_ls::msg::InstantiateMsg as LsInstantiateMsg;
@@ -25,13 +27,18 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(QueryResponses)]
 pub enum QueryMsg {
+    #[returns(Addr)]
     DepositorAddress {},
+    #[returns(Addr)]
     ClockAddress {},
+    #[returns(Addr)]
     LpAddress {},
+    #[returns(Addr)]
     LsAddress {},
+    #[returns(Addr)]
     HolderAddress {},
 }
 

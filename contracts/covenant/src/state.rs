@@ -13,9 +13,9 @@ pub const CLOCK_INSTANTIATION_DATA: Item<covenant_clock::msg::InstantiateMsg> = 
 pub const HOLDER_INSTANTIATION_DATA: Item<covenant_holder::msg::InstantiateMsg> = Item::new("holder_instantiation_data");
 
 // replies
-pub const COVENANT_CLOCK: Item<String> = Item::new("covenant_clock");
-pub const COVENANT_LP: Item<String> = Item::new("covenant_lp");
-pub const COVENANT_LS: Item<String> = Item::new("covenant_ls");
-pub const COVENANT_DEPOSITOR: Item<String> = Item::new("covenant_depositor");
-pub const COVENANT_HOLDER: Item<String> = Item::new("covenant_holder");
-pub const COVENANT_STRIDE_ICA: Item<String> = Item::new("covenant_stride_ica");
+pub const COVENANT_CLOCK_ADDR: Item<String> = Item::new("covenant_clock_addr");
+pub const COVENANT_LP_ADDR: Item<String> = Item::new("covenant_lp_addr");
+pub const COVENANT_LS_ADDR: Item<String> = Item::new("covenant_ls_addr");
+pub const COVENANT_DEPOSITOR_ADDR: Item<String> = Item::new("covenant_depositor_addr");
+pub const COVENANT_HOLDER_ADDR: Item<String> = Item::new("covenant_holder_addr");
+pub const COVENANT_STRIDE_ICA_ADDR: Item<String> = Item::new("covenant_stride_ica_addr");

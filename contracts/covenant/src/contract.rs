@@ -5,7 +5,7 @@ use cosmwasm_std::entry_point;
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 
-use crate::{msg::{QueryMsg, MigrateMsg, ExecuteMsg, InstantiateMsg}, error::ContractError, state::{LS_INSTANTIATION_DATA, CLOCK_INSTANTIATION_DATA, LP_INSTANTIATION_DATA, DEPOSITOR_INSTANTIATION_DATA, COVENANT_CLOCK, COVENANT_DEPOSITOR, COVENANT_LP, COVENANT_LS, LP_CODE, HOLDER_CODE, DEPOSITOR_CODE, LS_CODE, COVENANT_HOLDER, HOLDER_INSTANTIATION_DATA}};
+use crate::{msg::{QueryMsg, MigrateMsg, ExecuteMsg, InstantiateMsg}, error::ContractError, state::{LS_INSTANTIATION_DATA, CLOCK_INSTANTIATION_DATA, LP_INSTANTIATION_DATA, DEPOSITOR_INSTANTIATION_DATA, LP_CODE, HOLDER_CODE, DEPOSITOR_CODE, LS_CODE, HOLDER_INSTANTIATION_DATA, COVENANT_DEPOSITOR_ADDR, COVENANT_CLOCK_ADDR, COVENANT_LP_ADDR, COVENANT_LS_ADDR, COVENANT_HOLDER_ADDR}};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -47,12 +47,7 @@ pub fn instantiate(
 
     // instantiate clock first
     Ok(Response::default().add_submessage(
-        SubMsg { 
-            id: CLOCK_REPLY_ID,
-            msg: clock_instantiate_tx,
-            gas_limit: None,
-            reply_on: cosmwasm_std::ReplyOn::Always,
-        }
+        SubMsg::reply_on_success(clock_instantiate_tx, CLOCK_REPLY_ID)
     ))
 }
 
@@ -72,11 +67,11 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::DepositorAddress {  } => Ok(to_binary(&COVENANT_DEPOSITOR.may_load(deps.storage)?)?),
-        QueryMsg::ClockAddress {  } => Ok(to_binary(&COVENANT_CLOCK.may_load(deps.storage)?)?),
-        QueryMsg::LpAddress {  } => Ok(to_binary(&COVENANT_LP.may_load(deps.storage)?)?),
-        QueryMsg::LsAddress {  } => Ok(to_binary(&COVENANT_LS.may_load(deps.storage)?)?),
-        QueryMsg::HolderAddress {  } => Ok(to_binary(&COVENANT_HOLDER.may_load(deps.storage)?)?),
+        QueryMsg::DepositorAddress {  } => Ok(to_binary(&COVENANT_DEPOSITOR_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {  } => Ok(to_binary(&COVENANT_CLOCK_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::LpAddress {  } => Ok(to_binary(&COVENANT_LP_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::LsAddress {  } => Ok(to_binary(&COVENANT_LS_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::HolderAddress {  } => Ok(to_binary(&COVENANT_HOLDER_ADDR.may_load(deps.storage)?)?),
     }
 }
 
@@ -106,7 +101,7 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
         Ok(response) => {
             // successful clock instantiation means we are ready to proceed with
             // remaining instantiations
-            COVENANT_CLOCK.save(deps.storage, &response.contract_address)?;
+            COVENANT_CLOCK_ADDR.save(deps.storage, &response.contract_address)?;
             
             let holder_code = HOLDER_CODE.load(deps.storage)?;
             let holder_data = HOLDER_INSTANTIATION_DATA.load(deps.storage)?;
@@ -120,12 +115,7 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             });
 
             Ok(Response::default().add_submessage(
-                SubMsg {
-                    id: HOLDER_REPLY_ID,
-                    msg: holder_instantiate_tx,
-                    gas_limit: None,
-                    reply_on: cosmwasm_std::ReplyOn::Always,
-                }
+                SubMsg::reply_on_success(holder_instantiate_tx, HOLDER_REPLY_ID)
             ))
         },
         Err(err) => Err(ContractError::Std(StdError::GenericErr { msg: err.to_string() })),
@@ -138,8 +128,8 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
         Ok(response) => {
-            COVENANT_HOLDER.save(deps.storage, &response.contract_address)?;
-            let clock_addr = COVENANT_CLOCK.load(deps.storage)?;
+            COVENANT_HOLDER_ADDR.save(deps.storage, &response.contract_address)?;
+            let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
 
             let mut lp_data = LP_INSTANTIATION_DATA.load(deps.storage)?;
             lp_data.clock_address = clock_addr;
@@ -155,12 +145,7 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             });
 
             Ok(Response::default().add_submessage(
-                SubMsg {
-                    id: LP_REPLY_ID,
-                    msg: lp_instantiate_tx,
-                    gas_limit: None,
-                    reply_on: cosmwasm_std::ReplyOn::Always,
-                }
+                SubMsg::reply_on_success(lp_instantiate_tx, LP_REPLY_ID)
             ))
         },
         Err(err) => Err(ContractError::Std(StdError::GenericErr { msg: err.to_string() })),
@@ -173,8 +158,8 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
         Ok(response) => {
-            COVENANT_LP.save(deps.storage, &response.contract_address)?;
-            let clock_addr = COVENANT_CLOCK.load(deps.storage)?;
+            COVENANT_LP_ADDR.save(deps.storage, &response.contract_address)?;
+            let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
 
             let ls_code = LS_CODE.load(deps.storage)?;
             let mut ls_data = LS_INSTANTIATION_DATA.load(deps.storage)?;
@@ -191,12 +176,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             });
 
             Ok(Response::default().add_submessage(
-                SubMsg {
-                    id: LS_REPLY_ID,
-                    msg: ls_instantiate_tx,
-                    gas_limit: None,
-                    reply_on: cosmwasm_std::ReplyOn::Always,
-                }
+                SubMsg::reply_on_success(ls_instantiate_tx, LS_REPLY_ID)
             ))
         },
         Err(err) => Err(ContractError::Std(StdError::GenericErr { msg: err.to_string() })),
@@ -210,9 +190,9 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
         Ok(response) => {
-            COVENANT_LS.save(deps.storage, &response.contract_address)?;
-            let clock_addr = COVENANT_CLOCK.load(deps.storage)?;
-            let lp_addr = COVENANT_LP.load(deps.storage)?;
+            COVENANT_LS_ADDR.save(deps.storage, &response.contract_address)?;
+            let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
+            let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
             let depositor_code = DEPOSITOR_CODE.load(deps.storage)?;
             let mut depositor_data = DEPOSITOR_INSTANTIATION_DATA.load(deps.storage)?;
             depositor_data.clock_address = clock_addr;
@@ -228,12 +208,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             });
 
             Ok(Response::default().add_submessage(
-                SubMsg {
-                    id: DEPOSITOR_REPLY_ID,
-                    msg: depositor_instantiate_tx,
-                    gas_limit: None,
-                    reply_on: cosmwasm_std::ReplyOn::Always,
-                }
+                SubMsg::reply_on_success(depositor_instantiate_tx, DEPOSITOR_REPLY_ID)
             ))
         },
         Err(err) => Err(ContractError::Std(StdError::GenericErr { msg: err.to_string() })),
