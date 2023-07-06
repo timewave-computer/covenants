@@ -7,17 +7,10 @@ use cosmwasm_std::{MessageInfo,  Response,
 use cw2::set_contract_version;
 
 use astroport::{pair::{ExecuteMsg::ProvideLiquidity, Cw20HookMsg, SimulationResponse}, asset::{Asset, AssetInfo}};
-use cw20::Cw20ReceiveMsg;
+use cw20::{Cw20ReceiveMsg, Cw20ExecuteMsg, BalanceResponse};
 
 use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg}, state::{HOLDER_ADDRESS, LP_POSITION, SLIPPAGE_TOLERANCE, AUTOSTAKE, ASSETS}};
 use crate::error::ContractError;
-
-use neutron_sdk::{
-    bindings::{
-        msg::{NeutronMsg},
-        query::{NeutronQuery},
-    },
-};
 
 use crate::state::{
    CLOCK_ADDRESS, CONTRACT_STATE, ContractState,
@@ -34,7 +27,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: instantiate");
+    deps.api.debug("WASMDEBUG: instantiate lp");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // TODO: validations
@@ -58,8 +51,6 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    // deps.api
-    //     .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::WithdrawLiquidity {} => try_withdraw(deps, env, info),
@@ -93,23 +84,19 @@ fn try_enter_lp_position(
     let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
     let assets = ASSETS.load(deps.storage)?;
     let first_asset = &assets[0];
-    let second_asset = &assets[1];
     
-    // let sim_msg = astroport::pair::QueryMsg::Simulation {
-    //     offer_asset: Asset {
-    //         info: first_asset.to_owned().info,
-    //         amount: Uint128::new(10),
-    //     },
-    //     ask_asset_info: None,
-    // };
-
-    // deps.api.debug(&format!("\nWASMDEBUG simulation msg: {:?}\n", sim_msg));
-    // // figure out how much of second asset can we get with one of first asset
-    // let simulation: SimulationResponse = deps.querier.query_wasm_smart(
-    //     &pool_address.addr, 
-    //     &sim_msg
-    // )?;
-    // deps.api.debug(&format!("\nWASMDEBUG SIMULATION: {:?}\n", simulation));
+    // figure out how much of second asset can we get with one of first asset
+    let simulation: SimulationResponse = deps.querier.query_wasm_smart(
+        &pool_address.addr, 
+        &astroport::pair::QueryMsg::Simulation {
+            offer_asset: Asset {
+                info: first_asset.to_owned().info,
+                amount: Uint128::new(10),
+            },
+            ask_asset_info: None,
+        }
+    )?;
+    deps.api.debug(&format!("\nWASMDEBUG SIMULATION: {:?}\n", simulation));
 
     let balances: Vec<Coin> = deps.querier.query_all_balances(env.contract.clone().address)?
         .into_iter()
@@ -131,13 +118,7 @@ fn try_enter_lp_position(
             }
             valid_balance
         })
-        .map(|mut c| {
-            c.amount = Uint128::new(50000);
-            c
-        })
         .collect();
-
-    deps.api.debug(&format!("WASMDEBUG: balances: {:?}", balances));
 
     // generate astroport Assets from balances
     let assets: Vec<Asset> = balances.clone().into_iter()
@@ -153,9 +134,8 @@ fn try_enter_lp_position(
         assets,
         slippage_tolerance,
         auto_stake,
-        receiver: Some(env.contract.address.to_string()),
+        receiver: None,
     };
-    deps.api.debug(&format!("WASMDEBUG: sending provide liquidity: {:?}\n\n", provide_liquidity_msg));
 
     Ok(Response::default()
     .add_message(
@@ -172,36 +152,36 @@ fn try_enter_lp_position(
 /// to withdraw liquidity from
 fn try_withdraw(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     _info: MessageInfo, 
 ) -> Result<Response, ContractError> {
     let pool_address = LP_POSITION.load(deps.storage)?;
     let assets = ASSETS.load(deps.storage)?;
     deps.api.debug(&format!("withdraw assets: {:?}", assets));
 
-    let withdraw_liquidity_msg = Cw20HookMsg::WithdrawLiquidity {
-        assets,
+    let pair_info: astroport::asset::PairInfo = deps.querier.query_wasm_smart(
+        pool_address.addr.to_string(),
+        &astroport::pair::QueryMsg::Pair {  },
+    )?;
+
+    let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
+        pair_info.liquidity_token.to_string(),
+        &cw20::Cw20QueryMsg::Balance { address: env.contract.address.to_string() }
+    )?;
+
+    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
+    let withdraw_msg = &Cw20ExecuteMsg::Send {
+        contract: pool_address.addr,
+        amount: liquidity_token_balance.balance,
+        msg: to_binary(withdraw_liquidity_hook).unwrap(),
     };
 
-    let cw20_receive_msg = Cw20ReceiveMsg {
-        sender: Addr::unchecked("contract5").to_string(),
-        // sender: info.sender.to_string(),
-        amount: Uint128::new(1),
-        msg: to_binary(&withdraw_liquidity_msg)?,
-    };
-
-    let msg = WasmMsg::Execute { 
-        contract_addr: pool_address.addr,
-        msg: to_binary(&astroport::pair::ExecuteMsg::Receive(cw20_receive_msg))?,
-        funds: vec![],
-    };
-
-    // Ok(Response::default().add_submessage(
-    //     SubMsg::new(CosmosMsg::Wasm(msg))
-    // ))
-    
     Ok(Response::default().add_message(
-        CosmosMsg::Wasm(msg)
+        CosmosMsg::Wasm(WasmMsg::Execute { 
+            contract_addr: pair_info.liquidity_token.to_string(),
+            msg: to_binary(withdraw_msg)?,
+            funds: vec![],
+        })
     ))
 }
 

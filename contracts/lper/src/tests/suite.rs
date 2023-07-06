@@ -6,7 +6,7 @@ use cosmwasm_std::{Addr, Uint128, testing::{MockStorage, MockApi, MockQuerier}, 
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_multi_test::{App, Executor, Contract, ContractWrapper, SudoMsg, BankSudo, AppResponse};
 
-use crate::{msg::{InstantiateMsg, QueryMsg, LPInfo}};
+use crate::{msg::{InstantiateMsg, QueryMsg, LPInfo, ExecuteMsg}};
 use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
 use cw1_whitelist::msg::InstantiateMsg as WhitelistInstantiateMsg;
@@ -91,7 +91,7 @@ pub(crate) struct Suite {
     pub admin: Addr,
     pub lp_token: Addr,
     // (token_code, contract_address)
-    pub token: (u64, String),
+    pub token: u64,
     pub whitelist: (u64, String),
     pub factory: (u64, String),
     pub stable_pair: (u64, String),
@@ -122,11 +122,11 @@ impl Default for SuiteBuilder {
                 assets: vec![
                     Asset { 
                         info: AssetInfo::NativeToken { denom: "uatom".to_string() },
-                        amount: Uint128::new(1000),
+                        amount: Uint128::new(100000),
                     },
                     Asset { 
                         info: AssetInfo::NativeToken { denom: "stuatom".to_string() },
-                        amount: Uint128::new(1000),
+                        amount: Uint128::new(100000),
                     },                
                 ],
             },
@@ -220,18 +220,6 @@ impl SuiteBuilder {
         self.factory_instantiate.whitelist_code_id = whitelist_code;
         self.factory_instantiate.pair_configs[0].code_id = stablepair_code;
 
-        // println!("token instantiate: {:?}\n\n", self.token_instantiate);
-        // let token_addr = app.instantiate_contract(
-        //     token_code,
-        //     Addr::unchecked(CREATOR_ADDR),
-        //     &self.token_instantiate,
-        //     &[],
-        //     "astro token",
-        //     None,
-        // ).unwrap();
-        let token_addr = "random".to_string();
-
-        // println!("whitelist instantiate: {:?}\n\n", self.whitelist_instantiate);
         let whitelist_addr = app.instantiate_contract(
             whitelist_code,
             Addr::unchecked(CREATOR_ADDR),
@@ -241,8 +229,8 @@ impl SuiteBuilder {
             None,
         ).unwrap();
         
-        app.update_block(|b| b.height += 5);
-        // println!("registry instantiate: {:?}\n\n", self.registry_instantiate);
+        app.update_block(|b: &mut cosmwasm_std::BlockInfo| b.height += 5);
+
         let coin_registry_addr = app.instantiate_contract(
             coin_registry_code,
             Addr::unchecked(CREATOR_ADDR),
@@ -269,7 +257,6 @@ impl SuiteBuilder {
 
         self.factory_instantiate.coin_registry_address = coin_registry_addr.to_string();
 
-        // println!("factory instantiate: {:?}\n\n", self.factory_instantiate);
         let factory_addr = app.instantiate_contract(
             factory_code,
             Addr::unchecked(CREATOR_ADDR),
@@ -309,30 +296,10 @@ impl SuiteBuilder {
                 ] 
             },
         ).unwrap();
-        // println!("\n pair info: {:?}", pair_info);
 
         self.stablepair_instantiate.factory_addr = factory_addr.to_string();
         app.update_block(|b| b.height += 5);
 
-        // app.sudo(SudoMsg::Bank(BankSudo::Mint {
-        //     to_address: CREATOR_ADDR.to_string(),
-        //     amount: vec![Coin {
-        //         amount: Uint128::new(1000),
-        //         denom: ST_ATOM_DENOM.to_string(),
-        //     }],
-        // }))
-        // .unwrap();
-        // app.sudo(SudoMsg::Bank(BankSudo::Mint {
-        //     to_address: CREATOR_ADDR.to_string(),
-        //     amount: vec![Coin {
-        //         amount: Uint128::new(1000),
-        //         denom: NATIVE_ATOM_DENOM.to_string(),
-        //     }],
-        // }))
-        // .unwrap();
-        app.update_block(|b| b.height += 5);
-
-        // println!("stableswap instantiate: {:?}\n\n", self.stablepair_instantiate);
         let stable_pair_addr = app.instantiate_contract(
             stablepair_code,
             Addr::unchecked(CREATOR_ADDR),
@@ -345,17 +312,7 @@ impl SuiteBuilder {
         app.update_block(|b| b.height += 5);
 
         self.lp_instantiate.lp_position.addr = stable_pair_addr.to_string();
-        // let resp = app.wrap().query_wasm_raw(
-        //     stableswap_address.to_string(),
-        //     b"config",
-        // ).transpose().unwrap().unwrap();
-        // let s = match std::str::from_utf8(&resp) {
-        //     Ok(v) => v,
-        //     Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
-        // };
-        // println!("\n raw query {:?}\n", s);
 
-        // println!("lper instantiate: {:?}\n\n", self.lp_instantiate);
         let lper_address = app
             .instantiate_contract(
                 lper_code,
@@ -367,15 +324,12 @@ impl SuiteBuilder {
             )
             .unwrap();
         app.update_block(|b| b.height += 5);
-        println!(
-            "factory addr: {:?}\nstable_pair addr: {:?}\ncoin_registry addr: {:?}\nwhitelist addr: {:?}\nliquid_pooler addr: {:?}\n",
-            factory_addr, stable_pair_addr, coin_registry_addr, whitelist_addr, lper_address);
-            
+
         Suite {
             app,
             admin: Addr::unchecked(CREATOR_ADDR),
             lp_token: pair_info.liquidity_token.clone(),
-            token: (token_code, token_addr.to_string()),
+            token: token_code,
             whitelist: (whitelist_code, whitelist_addr.to_string()),
             factory: (factory_code, factory_addr.to_string()),
             stable_pair: (stablepair_code, stable_pair_addr.to_string()),
@@ -513,6 +467,15 @@ impl Suite {
         .unwrap()
     }
 
+    pub fn withdraw(&mut self) -> AppResponse {
+        self.app.execute_contract(
+            Addr::unchecked(CREATOR_ADDR),
+            Addr::unchecked(self.liquid_pooler.1.to_string()),
+            &ExecuteMsg::WithdrawLiquidity {},
+            &[],
+        ).unwrap()
+    }
+
     // mint coins
     pub fn mint_coins_to_addr(&mut self, address: String, denom: String, amount: Uint128) {
         self.app.sudo(SudoMsg::Bank(BankSudo::Mint {
@@ -538,33 +501,15 @@ impl Suite {
         assets: Vec<Asset>,
     ) -> AppResponse {
         self.app.execute_contract(
-            sender, // good
-            Addr::unchecked("contract6".to_string()), // good
+            sender,
+            Addr::unchecked("contract6".to_string()),
             &Cw20ExecuteMsg::Send {
-                contract: self.stable_pair.1.to_string(), // good
-                amount: Uint128::from(amount),              // good
+                contract: self.stable_pair.1.to_string(),
+                amount: Uint128::from(amount),
                 msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets }).unwrap(),
             },
             &[],
         ).unwrap()
-    
-    
-        // let msg = astroport::pair::ExecuteMsg::Receive(Cw20ReceiveMsg {
-        //     amount: amount.into(),
-        //     msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets }).unwrap(),
-        //     sender: sender.to_string(),
-        // });
-
-        // let resp = self.app
-        //     .execute_contract(
-        //         sender.to_owned(),
-        //         Addr::unchecked(self.stable_pair.1.to_string()),
-        //         &msg,
-        //         &[]
-        //     );
-        // println!("withdraw liq response: {:?}", resp);
-
-        // resp.unwrap()
     }
 
     pub fn provide_manual_liquidity(&mut self, from: String) -> AppResponse {
