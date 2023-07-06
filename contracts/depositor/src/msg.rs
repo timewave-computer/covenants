@@ -1,3 +1,4 @@
+use covenant_clock_derive::clocked;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +11,7 @@ pub struct InstantiateMsg {
     pub gaia_neutron_ibc_transfer_channel_id: String,
     pub neutron_gaia_connection_id: String,
     pub gaia_stride_ibc_transfer_channel_id: String,
+    pub ls_address: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -18,10 +20,10 @@ pub struct WeightedReceiver {
     pub address: String,
 }
 
+#[clocked]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    Tick {},
     Received {},
 }
 

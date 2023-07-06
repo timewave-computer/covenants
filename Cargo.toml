@@ -25,19 +25,22 @@ rpath            = false
 
 [workspace.dependencies]
 covenant-depositor       = { path = "contracts/depositor", version = "*" }
-covenant-lp = { path = "contracts/lp", version = "*" }
+covenant-lp = { path = "contracts/lper", version = "*" }
 covenant-clock = { path = "contracts/clock" }
 covenant-clock-tester = { path = "contracts/clock-tester" }
 covenant-clock-derive = { path = "packages/clock-derive" }
-covenant-ls = { path = "./contracts/ls" }
+covenant-ls = { path = "contracts/ls" }
+covenant-covenant = { path = "contracts/covenant" }
+covenant-holder = { path = "contracts/holder" }
 cw-fifo = { path = "packages/cw-fifo" }
+clock-derive = { path = "packages/clock-derive" }
 
 # the sha2 version here is the same as the one used by
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
 # updated. to find cosmwasm_std's sha function:
 # ```cargo tree --package cosmwasm-std```
 sha2 = "0.10.6"
-neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk", default-features = false, version = "0.5.0" }
+neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk", default-features = false }
 cosmos-sdk-proto = { version = "0.14.0", default-features = false }
 protobuf = { version = "3.2.0", features = ["with-bytes"] }
 serde-json-wasm = { version = "0.4.1" }

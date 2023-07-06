@@ -3,7 +3,7 @@ package ibc_test
 type DepositorInstantiateMsg struct {
 	StAtomReceiver                  WeightedReceiver `json:"st_atom_receiver"`
 	AtomReceiver                    WeightedReceiver `json:"atom_receiver"`
-	ClockAddress                    string           `json:"clock_address,string"`
+	ClockAddress                    string           `json:"clock_address"`
 	GaiaNeutronIBCTransferChannelId string           `json:"gaia_neutron_ibc_transfer_channel_id"`
 	GaiaStrideIBCTransferChannelId  string           `json:"gaia_stride_ibc_transfer_channel_id"`
 	NeutronGaiaConnectionId         string           `json:"neutron_gaia_connection_id"`
@@ -24,7 +24,7 @@ type LpInfo struct {
 
 type WeightedReceiver struct {
 	Amount  int64  `json:"amount"`
-	Address string `json:"address,string"`
+	Address string `json:"address"`
 }
 
 // A query against the Neutron example contract. Note the usage of

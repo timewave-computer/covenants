@@ -2,12 +2,13 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{MessageInfo,  Response,
-     StdResult, Addr, DepsMut, Env, Binary, Deps, to_binary, WasmMsg, CosmosMsg, Coin, Uint128, Reply, 
+     StdResult, Addr, DepsMut, Env, Binary, Deps, to_binary, WasmMsg, CosmosMsg, Coin, Uint128, Reply,
 };
 use cw2::set_contract_version;
 
 use astroport::{pair::{ExecuteMsg::ProvideLiquidity, Cw20HookMsg, SimulationResponse}, asset::{Asset, AssetInfo}};
 use cw20::{Cw20ExecuteMsg, BalanceResponse};
+use neutron_sdk::NeutronResult;
 
 use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg}, state::{HOLDER_ADDRESS, LP_POSITION, SLIPPAGE_TOLERANCE, AUTOSTAKE, ASSETS}};
 use crate::error::ContractError;
@@ -26,12 +27,16 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: instantiate lp");
+) -> Result<Response, ContractError>  {
+    deps.api.debug("WASMDEBUG: lp instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // TODO: validations
-    CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
+
+    //enqueue clock
+    CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.clock_address)?)?;
+    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&msg.clock_address)?;
+
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     LP_POSITION.save(deps.storage, &msg.lp_position)?;
     HOLDER_ADDRESS.save(deps.storage, &msg.holder_address)?;
@@ -40,8 +45,8 @@ pub fn instantiate(
         .collect();
         
     ASSETS.save(deps.storage, &assets)?;
-    
-    Ok(Response::default())
+
+    Ok(Response::default().add_message(clock_enqueue_msg))
 }
 
 #[entry_point]
@@ -130,12 +135,12 @@ fn try_enter_lp_position(
         )
         
     };
-    let (leftover_bal, leftover_bal_counterpart) = (leftover_asset.as_coin()?, leftover_asset_counterpart.as_coin()?);
+    let (leftover_bal, leftover_bal_counterpart) = (leftover_asset.to_coin()?, leftover_asset_counterpart.to_coin()?);
 
 
     deps.api.debug(
         &format!("\nWASMDEBUG: {:?}{:?} = {:?}{:?}\n",
-        first_asset.amount, first_asset.as_coin()?.denom, simulation.return_amount, assets[1].as_coin()?.denom
+        first_asset.amount, first_asset.to_coin()?.denom, simulation.return_amount, assets[1].to_coin()?.denom
     ));
     deps.api.debug(
         &format!("WASMDEBUG: leftover asset: {:?}\n", leftover_bal)
@@ -179,19 +184,24 @@ fn try_enter_lp_position(
     // generate astroport Assets from balances
     let assets: Vec<Asset> = balances.clone().into_iter()
         .map(|bal| Asset {
-            info: AssetInfo::NativeToken { 
+            info: AssetInfo::NativeToken {
                 denom: bal.denom,
             },
             amount: bal.amount,
         })
         .collect();
 
-    let provide_liquidity_msg = ProvideLiquidity { 
+    let provide_liquidity_msg = ProvideLiquidity {
         assets,
         slippage_tolerance,
         auto_stake,
         receiver: None,
     };
+
+    // We can safely dequeue the clock here
+    // if PL fails, dequeue wont happen and we will just try again.
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let dequeue_clock_msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
     let single_sided_liq_msg = ProvideLiquidity { 
         assets: vec![leftover_asset.clone(), leftover_asset_counterpart], 
@@ -212,6 +222,7 @@ fn try_enter_lp_position(
                 msg: to_binary(&single_sided_liq_msg)?,
                 funds: vec![leftover_bal],
             }),
+            CosmosMsg::Wasm(dequeue_clock_msg)
         ])
     )
 }
@@ -221,7 +232,7 @@ fn try_enter_lp_position(
 fn try_withdraw(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo, 
+    _info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let pool_address = LP_POSITION.load(deps.storage)?;
     let assets = ASSETS.load(deps.storage)?;
@@ -252,6 +263,14 @@ fn try_withdraw(
         })
     ))
 }
+
+fn try_completed(deps: DepsMut) -> Result<Response, ContractError>  {
+  let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+  let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
+
+  Ok(Response::default().add_message(msg))
+}
+
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
