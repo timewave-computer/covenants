@@ -33,6 +33,14 @@ func TestICS(t *testing.T) {
 
 	ctx := context.Background()
 
+	configFileOverrides := make(map[string]any)
+	configTomlOverrides := make(testutil.Toml)
+
+	consensus := make(testutil.Toml)
+	consensus["timeout_commit"] = "1s"
+	configTomlOverrides["consensus"] = consensus
+	configFileOverrides["config/config.toml"] = configTomlOverrides
+
 	// Chain Factory
 	cf := ibctest.NewBuiltinChainFactory(zaptest.NewLogger(t, zaptest.Level(zap.WarnLevel)), []*ibctest.ChainSpec{
 		{Name: "gaia", Version: "v9.1.0", ChainConfig: ibc.ChainConfig{
@@ -50,6 +58,7 @@ func TestICS(t *testing.T) {
 				"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
 				"/ibc.applications.transfer.v1.MsgTransfer",
 			}),
+			ConfigFileOverrides: configFileOverrides,
 		}},
 		{
 			ChainConfig: ibc.ChainConfig{
@@ -63,14 +72,15 @@ func TestICS(t *testing.T) {
 						UidGid:     "1025:1025",
 					},
 				},
-				Bin:            "neutrond",
-				Bech32Prefix:   "neutron",
-				Denom:          "untrn",
-				GasPrices:      "0.0untrn,0.0uatom",
-				GasAdjustment:  1.3,
-				TrustingPeriod: "1197504s",
-				NoHostMount:    false,
-				ModifyGenesis:  setupNeutronGenesis("0.05", []string{"untrn"}, []string{"uatom"}),
+				Bin:                 "neutrond",
+				Bech32Prefix:        "neutron",
+				Denom:               "untrn",
+				GasPrices:           "0.0untrn,0.0uatom",
+				GasAdjustment:       1.3,
+				TrustingPeriod:      "1197504s",
+				NoHostMount:         false,
+				ModifyGenesis:       setupNeutronGenesis("0.05", []string{"untrn"}, []string{"uatom"}),
+				ConfigFileOverrides: configFileOverrides,
 			},
 		},
 		{
@@ -106,6 +116,7 @@ func TestICS(t *testing.T) {
 					"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
 					"/ibc.applications.transfer.v1.MsgTransfer",
 				}),
+				ConfigFileOverrides: configFileOverrides,
 			},
 		},
 	})
@@ -879,7 +890,7 @@ func TestICS(t *testing.T) {
 			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
 
-			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			var response QueryResponse
