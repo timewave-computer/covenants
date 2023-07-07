@@ -60,7 +60,7 @@ struct  OpenAckVersion {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut<NeutronQuery>,
+    deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -84,7 +84,7 @@ pub fn instantiate(
 
 #[entry_point]
 pub fn execute(
-    deps: DepsMut<NeutronQuery>,
+    deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -98,7 +98,7 @@ pub fn execute(
 }
 
 
-fn try_tick(deps: DepsMut<NeutronQuery>, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
     let gaia_account_address = match ica_address {
@@ -116,7 +116,7 @@ fn try_tick(deps: DepsMut<NeutronQuery>, env: Env, info: MessageInfo) -> Neutron
 }
 
 fn try_liquid_stake(
-    deps: DepsMut<NeutronQuery>,
+    deps: ExecuteDeps,
     env: Env,
     _info: MessageInfo,
     _gaia_account_address: String
@@ -197,7 +197,7 @@ fn try_liquid_stake(
 
 
 fn try_receive_atom_from_ica(
-    deps: DepsMut<NeutronQuery>,
+    deps: ExecuteDeps,
     env: Env,
     _info: MessageInfo,
     _gaia_account_address: String
@@ -273,7 +273,7 @@ fn try_receive_atom_from_ica(
 }
 
 fn try_register_gaia_ica(
-    deps: DepsMut<NeutronQuery>,
+    deps: ExecuteDeps,
     env: Env,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
@@ -292,7 +292,7 @@ fn try_register_gaia_ica(
 }
 
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
-    deps: DepsMut<NeutronQuery>,
+    deps: ExecuteDeps,
     msg: C,
     payload: SudoPayload,
 ) -> StdResult<SubMsg<T>> {
@@ -317,8 +317,11 @@ fn try_handle_received() -> NeutronResult<Response<NeutronMsg>> {
     Ok(Response::default().add_attribute("try_handle_received", "received msg`"))
 }
 
+type QueryDeps<'a> = Deps<'a, NeutronQuery>;
+type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
+
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
+pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
         QueryMsg::StAtomReceiver {} => Ok(
             to_binary(&STRIDE_ATOM_RECEIVER.may_load(deps.storage)?)?
