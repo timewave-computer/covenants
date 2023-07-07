@@ -95,18 +95,6 @@ fn no_op() -> Result<Response, ContractError> {
     Ok(Response::default())
 }
 
-fn native_token_asset_to_coin(asset: Asset) -> Result<Coin, NeutronError> {
-    match asset.info {
-        AssetInfo::Token { contract_addr } => return Err(
-            NeutronError::Std(cosmwasm_std::StdError::GenericErr { msg: "not native token".to_string() })
-        ),
-        AssetInfo::NativeToken { denom } => Ok(Coin {
-            denom,
-            amount: asset.amount,
-        }),
-    }
-}
-
 fn try_enter_lp_position(
     deps: DepsMut,
     env: Env,
