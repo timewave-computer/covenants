@@ -481,9 +481,53 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
-    Ok(Response::default())
+
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            st_atom_receiver,
+            atom_receiver,
+            gaia_neutron_ibc_transfer_channel_id,
+            neutron_gaia_connection_id,
+            gaia_stride_ibc_transfer_channel_id,
+            ls_address,
+        } => {
+            if let Some(clock_addr) = clock_addr {
+                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
+            }
+
+            if let Some(st_atom_receiver) = st_atom_receiver {
+                STRIDE_ATOM_RECEIVER.save(deps.storage, &st_atom_receiver)?;
+            }
+
+            if let Some(atom_receiver) = atom_receiver {
+                NATIVE_ATOM_RECEIVER.save(deps.storage, &atom_receiver)?;
+            }
+
+            if let Some(gaia_neutron_ibc_transfer_channel_id) = gaia_neutron_ibc_transfer_channel_id
+            {
+                GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID
+                    .save(deps.storage, &gaia_neutron_ibc_transfer_channel_id)?;
+            }
+
+            if let Some(neutron_gaia_connection_id) = neutron_gaia_connection_id {
+                NEUTRON_GAIA_CONNECTION_ID.save(deps.storage, &neutron_gaia_connection_id)?;
+            }
+
+            if let Some(gaia_stride_ibc_transfer_channel_id) = gaia_stride_ibc_transfer_channel_id {
+                GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
+                    .save(deps.storage, &gaia_stride_ibc_transfer_channel_id)?;
+            }
+
+            if let Some(ls_address) = ls_address {
+                LS_ADDRESS.save(deps.storage, &ls_address)?;
+            }
+
+            Ok(Response::default())
+        }
+    }
 }
 
 // handler

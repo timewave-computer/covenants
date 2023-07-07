@@ -31,5 +31,10 @@ pub enum QueryMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct MigrateMsg {
+pub enum MigrateMsg {
+  UpdateConfig {
+    clock_addr: Option<String>,
+    lp_position: Option<LPInfo>,
+    holder_address: Option<String>,
+  }
 }

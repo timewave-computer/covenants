@@ -343,9 +343,44 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
-    Ok(Response::default())
+
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            stride_neutron_ibc_transfer_channel_id,
+            lp_address,
+            neutron_stride_ibc_connection_id,
+            ls_denom,
+        } => {
+            if let Some(clock_addr) = clock_addr {
+                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
+            }
+
+            if let Some(stride_neutron_ibc_transfer_channel_id) =
+                stride_neutron_ibc_transfer_channel_id
+            {
+                STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID
+                    .save(deps.storage, &stride_neutron_ibc_transfer_channel_id)?;
+            }
+
+            if let Some(lp_address) = lp_address {
+                LP_ADDRESS.save(deps.storage, &lp_address)?;
+            }
+
+            if let Some(neutron_stride_ibc_connection_id) = neutron_stride_ibc_connection_id {
+                NEUTRON_STRIDE_IBC_CONNECTION_ID
+                    .save(deps.storage, &neutron_stride_ibc_connection_id)?;
+            }
+
+            if let Some(ls_denom) = ls_denom {
+                LS_DENOM.save(deps.storage, &ls_denom)?;
+            }
+
+            Ok(Response::default())
+        }
+    }
 }
 
 // handler
