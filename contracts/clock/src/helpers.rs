@@ -18,9 +18,9 @@ pub fn dequeue_msg(addr: &str) -> StdResult<WasmMsg> {
     })
 }
 
-pub fn verify_clock(caller: Addr, clock_addr: Addr) -> Result<(), ContractError>{
+pub fn verify_clock(caller: &Addr, clock_addr: &Addr) -> Result<(), NeutronError>{
   if caller != clock_addr {
-    return Err(ContractError::NotClock)
+    return Err(ContractError::NotClock.into())
   }
 
   Ok(())

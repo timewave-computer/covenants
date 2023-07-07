@@ -3,6 +3,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{MessageInfo,  Response,
      StdResult, Addr, DepsMut, Env, Binary, Deps, to_binary, WasmMsg, CosmosMsg, Coin, Uint128,
 };
+use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 
 use astroport::{pair::{ExecuteMsg::ProvideLiquidity, Cw20HookMsg}, asset::{Asset, AssetInfo}};
@@ -66,10 +67,8 @@ pub fn execute(
 
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-  // Verify caller is the clock
-  if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
-    return Err(covenant_clock::error::ContractError::NotClock.into());
-}
+    // Verify caller is the clock
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
 

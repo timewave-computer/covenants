@@ -8,6 +8,7 @@ use cosmwasm_std::{
     to_binary, Addr, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
     Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
+use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
@@ -110,9 +111,7 @@ pub fn execute(
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
-    if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
-        return Err(covenant_clock::error::ContractError::NotClock.into());
-    }
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
