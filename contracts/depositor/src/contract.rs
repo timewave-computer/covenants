@@ -8,6 +8,7 @@ use cosmwasm_std::{
     to_binary, Addr, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
     Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
+use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
@@ -34,7 +35,8 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LP_ADDRESS,
-    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID, LS_ADDRESS,
+    LS_ADDRESS, NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER,
+    SUDO_PAYLOAD_REPLY_ID,
 };
 
 // Default timeout for SubmitTX is two weeks
@@ -82,9 +84,10 @@ pub fn instantiate(
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_neutron_ibc_transfer_channel_id)?;
     NEUTRON_GAIA_CONNECTION_ID.save(deps.storage, &msg.neutron_gaia_connection_id)?;
-    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
+    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
+        .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     LS_ADDRESS.save(deps.storage, &msg.ls_address)?;
-    
+
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
 
@@ -107,13 +110,15 @@ pub fn execute(
 }
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+    // Verify caller is the clock
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
     let gaia_account_address = match ica_address {
         Ok(addr) => addr,
         Err(_) => "todo".to_string(),
     };
-    // TODO: validate caller is clock, do we really care its the clock?
 
     match current_state {
         ContractState::Instantiated => try_register_gaia_ica(deps, env),
@@ -133,10 +138,9 @@ fn try_liquid_stake(
 ) -> NeutronResult<Response<NeutronMsg>> {
     let ls_address = LS_ADDRESS.load(deps.storage)?;
 
-    let stride_ica_query: Option<String> = deps.querier.query_wasm_smart(
-        ls_address,
-        &covenant_ls::msg::QueryMsg::StrideICA { }
-    )?;
+    let stride_ica_query: Option<String> = deps
+        .querier
+        .query_wasm_smart(ls_address, &covenant_ls::msg::QueryMsg::StrideICA {})?;
     let stride_ica_addr = match stride_ica_query {
         Some(addr) => addr,
         None => return Err(NeutronError::Std(StdError::not_found("no ica found"))),

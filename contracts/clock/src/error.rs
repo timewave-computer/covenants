@@ -1,7 +1,8 @@
 use cosmwasm_std::StdError;
+use neutron_sdk::NeutronError;
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error(transparent)]
     Std(#[from] StdError),
@@ -23,4 +24,13 @@ pub enum ContractError {
 
     #[error("only contracts may be enqueued. error reading contract info: ({0})")]
     NotContract(String),
+
+    #[error("Caller is not the clock, only clock can tick contracts")]
+    NotClock,
+}
+
+impl Into<NeutronError> for ContractError {
+    fn into(self) -> NeutronError {
+        NeutronError::Std(StdError::generic_err(self.to_string()))
+    }
 }

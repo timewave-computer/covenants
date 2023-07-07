@@ -26,6 +26,7 @@ cw-storage-plus = { workspace = true }
 cw2 = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
+neutron-sdk      = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
