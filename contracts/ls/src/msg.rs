@@ -34,4 +34,12 @@ pub enum QueryMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct MigrateMsg {}
+pub enum MigrateMsg {
+  UpdateConfig {
+    clock_addr: Option<String>,
+    stride_neutron_ibc_transfer_channel_id: Option<String>,
+    lp_address: Option<String>,
+    neutron_stride_ibc_connection_id: Option<String>,
+    ls_denom: Option<String>,
+  }
+}

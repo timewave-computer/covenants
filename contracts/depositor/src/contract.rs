@@ -34,7 +34,8 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LP_ADDRESS,
-    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID, LS_ADDRESS,
+    LS_ADDRESS, NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER,
+    SUDO_PAYLOAD_REPLY_ID,
 };
 
 // Default timeout for SubmitTX is two weeks
@@ -82,9 +83,10 @@ pub fn instantiate(
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_neutron_ibc_transfer_channel_id)?;
     NEUTRON_GAIA_CONNECTION_ID.save(deps.storage, &msg.neutron_gaia_connection_id)?;
-    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
+    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
+        .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     LS_ADDRESS.save(deps.storage, &msg.ls_address)?;
-    
+
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
 
@@ -133,10 +135,9 @@ fn try_liquid_stake(
 ) -> NeutronResult<Response<NeutronMsg>> {
     let ls_address = LS_ADDRESS.load(deps.storage)?;
 
-    let stride_ica_query: Option<String> = deps.querier.query_wasm_smart(
-        ls_address,
-        &covenant_ls::msg::QueryMsg::StrideICA { }
-    )?;
+    let stride_ica_query: Option<String> = deps
+        .querier
+        .query_wasm_smart(ls_address, &covenant_ls::msg::QueryMsg::StrideICA {})?;
     let stride_ica_addr = match stride_ica_query {
         Some(addr) => addr,
         None => return Err(NeutronError::Std(StdError::not_found("no ica found"))),
@@ -477,9 +478,53 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
-    Ok(Response::default())
+
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            st_atom_receiver,
+            atom_receiver,
+            gaia_neutron_ibc_transfer_channel_id,
+            neutron_gaia_connection_id,
+            gaia_stride_ibc_transfer_channel_id,
+            ls_address,
+        } => {
+            if let Some(clock_addr) = clock_addr {
+                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
+            }
+
+            if let Some(st_atom_receiver) = st_atom_receiver {
+                STRIDE_ATOM_RECEIVER.save(deps.storage, &st_atom_receiver)?;
+            }
+
+            if let Some(atom_receiver) = atom_receiver {
+                NATIVE_ATOM_RECEIVER.save(deps.storage, &atom_receiver)?;
+            }
+
+            if let Some(gaia_neutron_ibc_transfer_channel_id) = gaia_neutron_ibc_transfer_channel_id
+            {
+                GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID
+                    .save(deps.storage, &gaia_neutron_ibc_transfer_channel_id)?;
+            }
+
+            if let Some(neutron_gaia_connection_id) = neutron_gaia_connection_id {
+                NEUTRON_GAIA_CONNECTION_ID.save(deps.storage, &neutron_gaia_connection_id)?;
+            }
+
+            if let Some(gaia_stride_ibc_transfer_channel_id) = gaia_stride_ibc_transfer_channel_id {
+                GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
+                    .save(deps.storage, &gaia_stride_ibc_transfer_channel_id)?;
+            }
+
+            if let Some(ls_address) = ls_address {
+                LS_ADDRESS.save(deps.storage, &ls_address)?;
+            }
+
+            Ok(Response::default())
+        }
+    }
 }
 
 // handler

@@ -1,10 +1,10 @@
-use cosmwasm_schema::{QueryResponses, cw_serde};
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Addr;
-use covenant_ls::msg::InstantiateMsg as LsInstantiateMsg;
-use covenant_depositor::msg::InstantiateMsg as DepositorInstantiateMsg;
-use covenant_lp::msg::InstantiateMsg as LpInstantiateMsg;
 use covenant_clock::msg::InstantiateMsg as ClockInstantiateMsg;
+use covenant_depositor::msg::InstantiateMsg as DepositorInstantiateMsg;
 use covenant_holder::msg::InstantiateMsg as HolderInstantiateMsg;
+use covenant_lp::msg::InstantiateMsg as LpInstantiateMsg;
+use covenant_ls::msg::InstantiateMsg as LsInstantiateMsg;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -39,4 +39,12 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {}
+pub enum MigrateMsg {
+    UpdateConfig {
+        clock: Option<covenant_clock::msg::MigrateMsg>,
+        depositer: Option<covenant_depositor::msg::MigrateMsg>,
+        lp: Option<covenant_lp::msg::MigrateMsg>,
+        ls: Option<covenant_ls::msg::MigrateMsg>,
+        holder: Option<covenant_holder::msg::MigrateMsg>,
+    },
+}

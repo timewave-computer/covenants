@@ -53,4 +53,14 @@ pub enum QueryMsg {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct MigrateMsg {}
+pub enum MigrateMsg {
+    UpdateConfig {
+        clock_addr: Option<String>,
+        st_atom_receiver: Option<WeightedReceiver>,
+        atom_receiver: Option<WeightedReceiver>,
+        gaia_neutron_ibc_transfer_channel_id: Option<String>,
+        neutron_gaia_connection_id: Option<String>,
+        gaia_stride_ibc_transfer_channel_id: Option<String>,
+        ls_address: Option<String>,
+    },
+}

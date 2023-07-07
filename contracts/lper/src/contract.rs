@@ -1,27 +1,28 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{MessageInfo,  Response,
-     StdResult, Addr, DepsMut, Env, Binary, Deps, to_binary, WasmMsg, CosmosMsg, Coin, Uint128,
+use cosmwasm_std::{
+    to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    Uint128, WasmMsg,
 };
 use cw2::set_contract_version;
 
-use astroport::{pair::{ExecuteMsg::ProvideLiquidity, Cw20HookMsg}, asset::{Asset, AssetInfo}};
+use astroport::{
+    asset::{Asset, AssetInfo},
+    pair::{Cw20HookMsg, ExecuteMsg::ProvideLiquidity},
+};
 use cw20::Cw20ReceiveMsg;
 
-use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg}, state::{HOLDER_ADDRESS, LP_POSITION}};
+use crate::{
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
+    state::{HOLDER_ADDRESS, LP_POSITION},
+};
 
 use neutron_sdk::{
-    bindings::{
-        msg::{NeutronMsg},
-        query::{NeutronQuery},
-    },
+    bindings::{msg::NeutronMsg, query::NeutronQuery},
     NeutronResult,
 };
 
-use crate::state::{
-   CLOCK_ADDRESS, CONTRACT_STATE, ContractState,
-};
-
+use crate::state::{ContractState, CLOCK_ADDRESS, CONTRACT_STATE};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-lp";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -64,7 +65,6 @@ pub fn execute(
     }
 }
 
-
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     let current_state = CONTRACT_STATE.load(deps.storage)?;
 
@@ -88,17 +88,19 @@ fn try_enter_lp_position(
     let pool_address = LP_POSITION.load(deps.storage)?;
 
     // get balances of uatom and statom
-    let balances: Vec<Coin> = deps.querier.query_all_balances(env.contract.address)?
+    let balances: Vec<Coin> = deps
+        .querier
+        .query_all_balances(env.contract.address)?
         .into_iter()
         .filter(|coin| coin.denom == "uatom" || coin.denom == "statom")
         .collect();
 
     // generate astroport Assets from balances
-    let assets: Vec<Asset> = balances.clone().into_iter()
+    let assets: Vec<Asset> = balances
+        .clone()
+        .into_iter()
         .map(|bal| Asset {
-            info: AssetInfo::NativeToken {
-                denom: bal.denom,
-            },
+            info: AssetInfo::NativeToken { denom: bal.denom },
             amount: bal.amount,
         })
         .collect();
@@ -115,14 +117,13 @@ fn try_enter_lp_position(
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let dequeue_clock_msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
-    Ok(Response::default().add_message(
-        CosmosMsg::Wasm(WasmMsg::Execute {
+    Ok(Response::default()
+        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pool_address.addr,
             msg: to_binary(&provide_liquidity_msg)?,
             funds: balances,
-        })
-    ).add_message(dequeue_clock_msg))
-
+        }))
+        .add_message(dequeue_clock_msg))
 }
 
 fn try_withdraw(
@@ -132,11 +133,7 @@ fn try_withdraw(
 ) -> NeutronResult<Response<NeutronMsg>> {
     let pool_address = LP_POSITION.load(deps.storage)?;
     // todo
-    let withdraw_liquidity_msg = Cw20HookMsg::WithdrawLiquidity {
-        assets: vec![
-
-        ],
-    };
+    let withdraw_liquidity_msg = Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
 
     let cw20_receive_msg = Cw20ReceiveMsg {
         sender: env.contract.address.to_string(),
@@ -150,34 +147,47 @@ fn try_withdraw(
         funds: vec![],
     };
 
-    Ok(Response::default().add_message(
-        CosmosMsg::Wasm(msg)
-    ))
-
+    Ok(Response::default().add_message(CosmosMsg::Wasm(msg)))
 }
 
 fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
-  let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-  let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
-  Ok(Response::default().add_message(msg))
+    Ok(Response::default().add_message(msg))
 }
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps<NeutronQuery>, _env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(
-            to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?
-        ),
-        QueryMsg::LpPosition {} => Ok(
-            to_binary(&LP_POSITION.may_load(deps.storage)?)?
-        )
+        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::LpPosition {} => Ok(to_binary(&LP_POSITION.may_load(deps.storage)?)?),
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
-    Ok(Response::default())
+
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            lp_position,
+            holder_address,
+        } => {
+            if let Some(clock_addr) = clock_addr {
+                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
+            }
+
+            if let Some(lp_position) = lp_position {
+                LP_POSITION.save(deps.storage, &lp_position)?;
+            }
+
+            if let Some(holder_address) = holder_address {
+                HOLDER_ADDRESS.save(deps.storage, &holder_address)?;
+            }
+
+            Ok(Response::default())
+        }
+    }
 }
