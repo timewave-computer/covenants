@@ -60,6 +60,37 @@ fn test_instantiate_happy() {
     println!("\n post withdrawal liquid pooler balances: {:?}\n", liquid_pooler_balances);
 }
 
-// tests todo:
-// 1. randomly funded contracts/wallets
-// 2. existing pool ratios (imbalanced, equal, extremely imbalanced, providing more liq than exists)
+#[test]
+fn test_malicious_lp_funding() {
+    
+}
+
+#[test]
+fn test_lp_empty() {
+
+}
+
+#[test]
+fn test_lp_perfectly_balanced() {
+
+}
+
+#[test]
+fn test_lp_first_asset_dominant() {
+
+}
+
+#[test]
+fn test_lp_second_asset_dominant() {
+
+}
+
+#[test]
+fn test_lp_extreme_imbalance() {
+
+}
+
+#[test]
+fn test_withdraw_unauthorized() {
+
+}
