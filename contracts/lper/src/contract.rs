@@ -31,8 +31,6 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: lp instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // TODO: validations
-
     //enqueue clock
     CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.clock_address)?)?;
     let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&msg.clock_address)?;
@@ -56,6 +54,7 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
+    // validate clock
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::WithdrawLiquidity {} => try_withdraw(deps, env, info),

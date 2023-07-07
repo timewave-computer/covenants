@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use astroport::{asset::{Asset, AssetInfo, PairInfo}, factory::{PairConfig, PairType}, pair::{StablePoolParams, Cw20HookMsg, PoolResponse, ConfigResponse, SimulationResponse, ReverseSimulationResponse}};
 use astroport_pair_stable::error::ContractError;
-use cosmwasm_std::{Addr, Uint128, testing::{MockStorage, MockApi, MockQuerier}, OwnedDeps, Decimal, Empty, to_binary, Coin, QueryRequest, WasmQuery, Response, StdResult, Binary, CosmosMsg, BankMsg};
+use cosmwasm_std::{Addr, Uint128, testing::{MockStorage, MockApi, MockQuerier}, OwnedDeps, Decimal, Empty, to_binary, Coin, QueryRequest, WasmQuery, Response, StdResult, Binary, CosmosMsg, BankMsg, Uint64};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use cw_multi_test::{App, Executor, Contract, ContractWrapper, SudoMsg, BankSudo, AppResponse};
 
@@ -85,6 +85,17 @@ fn lper_contract() -> Box<dyn Contract<Empty>> {
 
     Box::new(lp_contract)
 }
+
+fn clock_contract() -> Box<dyn Contract<Empty>> {
+    Box::new(
+        ContractWrapper::new(
+            covenant_clock::contract::execute,
+            covenant_clock::contract::instantiate,
+            covenant_clock::contract::query,
+        ).with_reply(covenant_clock::contract::reply)
+        .with_migrate(covenant_clock::contract::migrate)
+    )
+}
 #[allow(unused)]
 pub(crate) struct Suite {
     pub app: App,
@@ -97,6 +108,7 @@ pub(crate) struct Suite {
     pub stable_pair: (u64, String),
     pub coin_registry: (u64, String),
     pub liquid_pooler: (u64, String),
+    pub clock_addr: String,
 }
 
 pub(crate) struct SuiteBuilder {
@@ -106,13 +118,14 @@ pub(crate) struct SuiteBuilder {
     pub factory_instantiate: FactoryInstantiateMsg,
     pub stablepair_instantiate: PairInstantiateMsg,
     pub registry_instantiate: NativeCoinRegistryInstantiateMsg,
+    pub clock_instantiate: covenant_clock::msg::InstantiateMsg,
 }
 
 impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
             lp_instantiate: InstantiateMsg {
-                clock_address: "default-clock".to_string(),
+                clock_address: "clock-addr".to_string(),
                 lp_position: LPInfo {
                     addr: "lp-addr".to_string(),
                 },
@@ -179,6 +192,9 @@ impl Default for SuiteBuilder {
             registry_instantiate: NativeCoinRegistryInstantiateMsg {
                 owner: CREATOR_ADDR.to_string(),
             },
+            clock_instantiate: covenant_clock::msg::InstantiateMsg {
+                tick_max_gas: Uint64::new(50000),
+            }
         }
     }
 }
@@ -214,7 +230,17 @@ impl SuiteBuilder {
         let coin_registry_code = app.store_code(astro_coin_registry());
         let factory_code = app.store_code(astro_factory());
         let lper_code = app.store_code(lper_contract());
+        let clock_code = app.store_code(clock_contract());
 
+        let clock_address = app.instantiate_contract(
+            clock_code,
+            Addr::unchecked(CREATOR_ADDR),
+            &self.clock_instantiate,
+            &[],
+            "clock",
+            None
+        ).unwrap();
+        self.lp_instantiate.clock_address = clock_address.to_string();
         self.factory_instantiate.token_code_id = token_code;
         self.stablepair_instantiate.token_code_id = token_code;
         self.factory_instantiate.whitelist_code_id = whitelist_code;
@@ -335,6 +361,7 @@ impl SuiteBuilder {
             stable_pair: (stablepair_code, stable_pair_addr.to_string()),
             coin_registry: (coin_registry_code, coin_registry_addr.to_string()),
             liquid_pooler: (lper_code, lper_address.to_string()),
+            clock_addr: clock_address.to_string(),
         }
     }
 }
@@ -459,7 +486,7 @@ impl Suite {
     // tick LPer
     pub fn tick(&mut self) -> AppResponse {
         self.app.execute_contract(
-            Addr::unchecked(CREATOR_ADDR), 
+            Addr::unchecked(self.clock_addr.to_string()), 
             Addr::unchecked(self.liquid_pooler.1.to_string()),
             &crate::msg::ExecuteMsg::Tick {},
             &[],
