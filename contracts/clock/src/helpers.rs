@@ -1,5 +1,6 @@
-use crate::msg::ExecuteMsg::{Dequeue, Enqueue};
-use cosmwasm_std::{to_binary, StdResult, WasmMsg};
+use crate::{msg::ExecuteMsg::{Dequeue, Enqueue}, error::ContractError};
+use cosmwasm_std::{to_binary, StdResult, WasmMsg, Addr};
+use neutron_sdk::NeutronError;
 
 pub fn enqueue_msg(addr: &str) -> StdResult<WasmMsg> {
     Ok(WasmMsg::Execute {
@@ -15,4 +16,12 @@ pub fn dequeue_msg(addr: &str) -> StdResult<WasmMsg> {
         msg: to_binary(&Dequeue {})?,
         funds: vec![],
     })
+}
+
+pub fn verify_clock(caller: Addr, clock_addr: Addr) -> Result<(), ContractError>{
+  if caller != clock_addr {
+    return Err(ContractError::NotClock)
+  }
+
+  Ok(())
 }

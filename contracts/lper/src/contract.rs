@@ -66,6 +66,11 @@ pub fn execute(
 
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+  // Verify caller is the clock
+  if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
+    return Err(covenant_clock::error::ContractError::NotClock.into());
+}
+
     let current_state = CONTRACT_STATE.load(deps.storage)?;
 
     match current_state {

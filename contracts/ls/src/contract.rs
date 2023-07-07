@@ -5,8 +5,8 @@ use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128,
+    to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdError, StdResult, SubMsg, Uint128,
 };
 use cw2::set_contract_version;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -100,13 +100,17 @@ pub fn execute(
 }
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+    // Verify caller is the clock
+    if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
+        return Err(covenant_clock::error::ContractError::NotClock.into());
+    }
+
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
     let gaia_account_address = match ica_address {
         Ok(addr) => addr,
         Err(_) => "todo".to_string(),
     };
-    // TODO: validate caller is clock
 
     match current_state {
         ContractState::Instantiated => try_register_stride_ica(deps, env),
@@ -245,9 +249,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             interchain_account_id,
             connection_id,
         } => query_interchain_address(deps, env, interchain_account_id, connection_id),
-        QueryMsg::StrideICA {} => Ok(
-            to_binary(&ICA_ADDRESS.may_load(deps.storage)?)?
-        )
+        QueryMsg::StrideICA {} => Ok(to_binary(&ICA_ADDRESS.may_load(deps.storage)?)?),
     }
 }
 
