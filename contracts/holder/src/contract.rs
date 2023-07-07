@@ -1,13 +1,13 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Coin, BankMsg
+    to_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
 use cw2::set_contract_version;
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{WITHDRAWER};
 use crate::error::ContractError;
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::state::WITHDRAWER;
 
 const CONTRACT_NAME: &str = "crates.io:covenant-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -21,7 +21,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     deps.api.debug("WASMDEBUG: holder instantiate");
-    
+
     // We cannot deserialize the address without first validating it
     let withdrawer = msg
         .withdrawer
@@ -39,11 +39,8 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-
     match msg {
-        QueryMsg::Withdrawer {} => Ok(
-            to_binary(&WITHDRAWER.may_load(deps.storage)?)?
-        )
+        QueryMsg::Withdrawer {} => Ok(to_binary(&WITHDRAWER.may_load(deps.storage)?)?),
     }
 }
 
@@ -54,9 +51,8 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-
     match msg {
-        ExecuteMsg::Withdraw {quantity}=> withdraw(deps, env, info, quantity),
+        ExecuteMsg::Withdraw { quantity } => withdraw(deps, env, info, quantity),
     }
 }
 
@@ -65,7 +61,7 @@ pub fn withdraw(
     env: Env,
     info: MessageInfo,
     quantity: Option<Vec<Coin>>,
-    ) -> Result<Response,ContractError> {
+) -> Result<Response, ContractError> {
     let withdrawer = WITHDRAWER.load(deps.storage)?;
 
     // Check if the sender is the withdrawer
@@ -86,6 +82,19 @@ pub fn withdraw(
             to_address: withdrawer.to_string(),
             amount,
         })
-        .add_attribute("method", "withdraw")
-    )
+        .add_attribute("method", "withdraw"))
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: migrate");
+
+    match msg {
+        MigrateMsg::UpdateWithdrawer { withdrawer } => {
+            let withdrawer_addr = deps.api.addr_validate(&withdrawer)?;
+            WITHDRAWER.save(deps.storage, &withdrawer_addr)?;
+        }
+    }
+
+    Ok(Response::default())
 }

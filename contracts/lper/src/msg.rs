@@ -43,4 +43,10 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {}
+pub enum MigrateMsg {
+  UpdateConfig {
+    clock_addr: Option<String>,
+    lp_position: Option<LPInfo>,
+    holder_address: Option<String>,
+  }
+}

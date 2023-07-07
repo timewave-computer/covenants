@@ -6,4 +6,6 @@ pub enum ContractError {
     #[error(transparent)]
     Std(#[from] StdError),
 
+    #[error("Not clock")]
+    ClockVerificationError {}
 }

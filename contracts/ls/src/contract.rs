@@ -5,9 +5,10 @@ use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128,
+    to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdError, StdResult, SubMsg, Uint128,
 };
+use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::bindings::types::ProtobufAny;
@@ -100,13 +101,15 @@ pub fn execute(
 }
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+    // Verify caller is the clock
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
     let gaia_account_address = match ica_address {
         Ok(addr) => addr,
         Err(_) => "todo".to_string(),
     };
-    // TODO: validate caller is clock
 
     match current_state {
         ContractState::Instantiated => try_register_stride_ica(deps, env),
@@ -245,9 +248,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             interchain_account_id,
             connection_id,
         } => query_interchain_address(deps, env, interchain_account_id, connection_id),
-        QueryMsg::StrideICA {} => Ok(
-            to_binary(&ICA_ADDRESS.may_load(deps.storage)?)?
-        )
+        QueryMsg::StrideICA {} => Ok(to_binary(&ICA_ADDRESS.may_load(deps.storage)?)?),
     }
 }
 
@@ -342,9 +343,44 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
-    Ok(Response::default())
+
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            stride_neutron_ibc_transfer_channel_id,
+            lp_address,
+            neutron_stride_ibc_connection_id,
+            ls_denom,
+        } => {
+            if let Some(clock_addr) = clock_addr {
+                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
+            }
+
+            if let Some(stride_neutron_ibc_transfer_channel_id) =
+                stride_neutron_ibc_transfer_channel_id
+            {
+                STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID
+                    .save(deps.storage, &stride_neutron_ibc_transfer_channel_id)?;
+            }
+
+            if let Some(lp_address) = lp_address {
+                LP_ADDRESS.save(deps.storage, &lp_address)?;
+            }
+
+            if let Some(neutron_stride_ibc_connection_id) = neutron_stride_ibc_connection_id {
+                NEUTRON_STRIDE_IBC_CONNECTION_ID
+                    .save(deps.storage, &neutron_stride_ibc_connection_id)?;
+            }
+
+            if let Some(ls_denom) = ls_denom {
+                LS_DENOM.save(deps.storage, &ls_denom)?;
+            }
+
+            Ok(Response::default())
+        }
+    }
 }
 
 // handler

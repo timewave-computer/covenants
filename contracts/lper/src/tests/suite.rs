@@ -2,9 +2,10 @@ use std::marker::PhantomData;
 
 use astroport::{asset::{Asset, AssetInfo, PairInfo}, factory::{PairConfig, PairType}, pair::{StablePoolParams, Cw20HookMsg, PoolResponse, ConfigResponse, SimulationResponse, ReverseSimulationResponse}};
 use astroport_pair_stable::error::ContractError;
-use cosmwasm_std::{Addr, Uint128, testing::{MockStorage, MockApi, MockQuerier}, OwnedDeps, Decimal, Empty, to_binary, Coin, QueryRequest, WasmQuery, Response, StdResult, Binary, CosmosMsg, BankMsg, Uint64};
+use cosmwasm_std::{Addr, Uint128, testing::{MockStorage, MockApi, MockQuerier}, OwnedDeps, Decimal, Empty, to_binary, Coin, QueryRequest, WasmQuery, Response, StdResult, Binary, CosmosMsg, BankMsg, Uint64, MemoryStorage};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use cw_multi_test::{App, Executor, Contract, ContractWrapper, SudoMsg, BankSudo, AppResponse};
+use cw_multi_test::{App, Executor, Contract, ContractWrapper, SudoMsg, BankSudo, AppResponse, BankKeeper, FailingModule, WasmKeeper, BasicAppBuilder};
+use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
 use crate::{msg::{InstantiateMsg, QueryMsg, LPInfo, ExecuteMsg}};
 use astroport::token::InstantiateMsg as TokenInstantiateMsg;
@@ -80,8 +81,8 @@ fn lper_contract() -> Box<dyn Contract<Empty>> {
         crate::contract::instantiate,
         crate::contract::query,
     )
-    .with_reply(crate::contract::reply)
-    .with_migrate(crate::contract::migrate);
+    .with_reply(crate::contract::reply);
+    // .with_migrate(crate::contract::migrate);
 
     Box::new(lp_contract)
 }
@@ -92,10 +93,19 @@ fn clock_contract() -> Box<dyn Contract<Empty>> {
             covenant_clock::contract::execute,
             covenant_clock::contract::instantiate,
             covenant_clock::contract::query,
-        ).with_reply(covenant_clock::contract::reply)
+        )
+        .with_reply(covenant_clock::contract::reply)
         .with_migrate(covenant_clock::contract::migrate)
     )
 }
+
+pub type BaseApp = App<
+    BankKeeper,
+    MockApi,
+    MemoryStorage,
+    FailingModule<NeutronMsg, NeutronQuery, Empty>,
+    WasmKeeper<NeutronMsg, NeutronQuery>,
+>;
 #[allow(unused)]
 pub(crate) struct Suite {
     pub app: App,
@@ -222,6 +232,8 @@ impl SuiteBuilder {
     }
 
     pub fn build(mut self) -> Suite {
+        // let mut app = BasicAppBuilder::<NeutronMsg, NeutronQuery>::new_custom().build(|_,_,_| {});
+
         let mut app = App::default();
  
         let token_code = app.store_code(astro_token());
