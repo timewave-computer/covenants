@@ -23,17 +23,6 @@ backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all instantiate/execute/query exports
 library = []
 
-[profile.release]
-opt-level = 3
-debug = true
-rpath = false
-lto = true
-debug-assertions = false
-codegen-units = 1
-panic = 'abort'
-incremental = false
-overflow-checks = true
-
 [dependencies]
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
@@ -61,3 +50,4 @@ covenant-holder = { workspace = true }
 [dev-dependencies]
 cw-multi-test   = { workspace = true }
 anyhow          = { workspace = true }
+astroport = { workspace = true }

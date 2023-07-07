@@ -7,6 +7,12 @@ repository  = { workspace = true }
 version     = { workspace = true }
 edition     = { workspace = true }
 
+exclude = [
+  "contract.wasm",
+  "hash.txt",
+]
+
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -47,3 +53,9 @@ cw20             = { version = "0.15" }
 # dev-dependencies
 [dev-dependencies]
 cw-multi-test = { workspace = true }
+astroport-token = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-whitelist = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-factory =  {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-native-coin-registry = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-pair-stable = {git = "https://github.com/astroport-fi/astroport-core.git"}
+cw1-whitelist = "1.1.0"

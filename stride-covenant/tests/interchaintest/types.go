@@ -10,9 +10,12 @@ type DepositorInstantiateMsg struct {
 }
 
 type LPerInstantiateMsg struct {
-	LpPosition    LpInfo `json:"lp_position"`
-	ClockAddress  string `json:"clock_address,string"`
-	HolderAddress string `json:"holder_address,string"`
+	LpPosition        LpInfo           `json:"lp_position"`
+	ClockAddress      string           `json:"clock_address,string"`
+	HolderAddress     string           `json:"holder_address,string"`
+	SlippageTolerance *string          `json:"slippage_tolerance,omitempty"`
+	Autostake         *string          `json:"autostake,omitempty"`
+	Assets            []AstroportAsset `json:"assets"`
 }
 
 type LpInfo struct {
@@ -89,6 +92,11 @@ type ClockQueryResponse struct {
 
 type LpPositionQueryResponse struct {
 	Data LpInfo `json:"data"`
+}
+
+type AstroportAsset struct {
+	Info   AssetInfo `json:"info"`
+	Amount string    `json:"amount"`
 }
 
 // A query response from the Neutron contract. Note that when

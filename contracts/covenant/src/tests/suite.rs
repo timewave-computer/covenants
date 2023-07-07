@@ -1,3 +1,4 @@
+use astroport::asset::Asset;
 use cosmwasm_std::{Uint64, Empty, Addr};
 use covenant_depositor::msg::WeightedReceiver;
 use cw_multi_test::{App, ContractWrapper, Contract, Executor, BasicApp};
@@ -87,6 +88,14 @@ impl Default for SuiteBuilder {
                     lp_position: covenant_lp::msg::LPInfo { addr: TODO.to_string() },
                     clock_address: TODO.to_string(),
                     holder_address: TODO.to_string(),
+                    assets: vec![
+                        // Asset {
+                        //     info: todo!(), amount: todo!()
+                        // },
+                        // Asset { info: todo!(), amount: todo!() }
+                    ],
+                    slippage_tolerance: None,
+                    autostake: Some(false),
                 },
                 clock_code: 1,
                 clock_instantiate: covenant_clock::msg::InstantiateMsg {
