@@ -17,6 +17,9 @@ gen-schema:
 test:
     cargo test
 
+lint:
+	cargo +nightly clippy --all-targets -- -D warnings
+
 optimize:
     ./optimize.sh
 

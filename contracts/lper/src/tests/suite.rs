@@ -1,10 +1,10 @@
-use std::marker::PhantomData;
 
-use astroport::{asset::{Asset, AssetInfo, PairInfo}, factory::{PairConfig, PairType}, pair::{StablePoolParams, Cw20HookMsg, PoolResponse, ConfigResponse, SimulationResponse, ReverseSimulationResponse}};
-use astroport_pair_stable::error::ContractError;
-use cosmwasm_std::{Addr, Uint128, testing::{MockStorage, MockApi, MockQuerier}, OwnedDeps, Decimal, Empty, to_binary, Coin, QueryRequest, WasmQuery, Response, StdResult, Binary, CosmosMsg, BankMsg, Uint64, MemoryStorage};
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use cw_multi_test::{App, Executor, Contract, ContractWrapper, SudoMsg, BankSudo, AppResponse, BankKeeper, FailingModule, WasmKeeper, BasicAppBuilder};
+
+use astroport::{asset::{Asset, AssetInfo, PairInfo}, factory::{PairConfig, PairType}, pair::{StablePoolParams, Cw20HookMsg, PoolResponse, SimulationResponse}};
+
+use cosmwasm_std::{Addr, Uint128, testing::{MockApi}, Decimal, Empty, to_binary, Coin, QueryRequest, WasmQuery, Uint64, MemoryStorage};
+use cw20::{Cw20ExecuteMsg};
+use cw_multi_test::{App, Executor, Contract, ContractWrapper, SudoMsg, BankSudo, AppResponse, BankKeeper, FailingModule, WasmKeeper};
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
 use crate::{msg::{InstantiateMsg, QueryMsg, LPInfo, ExecuteMsg}};
@@ -366,7 +366,7 @@ impl SuiteBuilder {
         Suite {
             app,
             admin: Addr::unchecked(CREATOR_ADDR),
-            lp_token: pair_info.liquidity_token.clone(),
+            lp_token: pair_info.liquidity_token,
             token: token_code,
             whitelist: (whitelist_code, whitelist_addr.to_string()),
             factory: (factory_code, factory_addr.to_string()),
@@ -518,7 +518,7 @@ impl Suite {
     // mint coins
     pub fn mint_coins_to_addr(&mut self, address: String, denom: String, amount: Uint128) {
         self.app.sudo(SudoMsg::Bank(BankSudo::Mint {
-            to_address: address.to_string(),
+            to_address: address,
             amount: vec![Coin {
                 amount,
                 denom,
@@ -552,7 +552,7 @@ impl Suite {
     }
 
     pub fn provide_manual_liquidity(&mut self, from: String, st_atom_amount: Uint128, native_atom_amount: Uint128) -> AppResponse {
-        let stable_pair_addr = self.stable_pair.1.to_string();
+        let _stable_pair_addr = self.stable_pair.1.to_string();
 
         let balances = vec![
             Coin { 
@@ -590,7 +590,7 @@ impl Suite {
         self.pass_blocks(10);
 
         self.app.execute_contract(
-            Addr::unchecked(from.clone()), 
+            Addr::unchecked(from), 
             Addr::unchecked(self.stable_pair.1.to_string()),
             &provide_liquidity_msg,
             &balances,

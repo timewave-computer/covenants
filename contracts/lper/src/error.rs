@@ -3,7 +3,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ContractError {
-    #[error(transparent)]
+    #[error("{0}")]
     Std(#[from] StdError),
 
     #[error("Not clock")]

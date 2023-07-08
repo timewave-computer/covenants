@@ -1,3 +1,5 @@
+use std::fmt::Error;
+
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
@@ -5,8 +7,8 @@ use cosmos_sdk_proto::ibc::core::client::v1::Height;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -17,7 +19,7 @@ use prost::Message;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::error::ContractError;
+
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::{
@@ -34,7 +36,7 @@ use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
-    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LP_ADDRESS,
+    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS,
     LS_ADDRESS, NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER,
     SUDO_PAYLOAD_REPLY_ID,
 };
@@ -94,7 +96,7 @@ pub fn instantiate(
     Ok(Response::default().add_message(clock_enqueue_msg))
 }
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
     env: Env,
@@ -132,7 +134,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 
 fn try_liquid_stake(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -159,7 +161,7 @@ fn try_liquid_stake(
     };
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -167,7 +169,7 @@ fn try_liquid_stake(
             let gaia_stride_channel: String =
                 GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
 
-            let amount = String::from(stride_receiver.amount.to_string());
+            let amount = stride_receiver.amount.to_string();
             let st_ica = stride_ica_addr;
 
             let coin = Coin {
@@ -181,8 +183,8 @@ fn try_liquid_stake(
                 source_port: "transfer".to_string(),
                 source_channel: gaia_stride_channel,
                 token: Some(coin),
-                sender: address.clone(),
-                receiver: autopilot_receiver.to_string(),
+                sender: address,
+                receiver: autopilot_receiver,
                 timeout_height: Some(Height {
                     revision_number: 3,
                     revision_height: 800,
@@ -216,16 +218,14 @@ fn try_liquid_stake(
             Ok(Response::default().add_submessage(SubMsg::new(stride_submit_msg)))
         }
         None => {
-            return Err(NeutronError::Std(StdError::NotFound {
-                kind: "no ica found".to_string(),
-            }))
+            Err(NeutronError::Fmt(Error))
         }
     }
 }
 
 fn try_receive_atom_from_ica(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -242,13 +242,13 @@ fn try_receive_atom_from_ica(
     };
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
             let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
-            let amount = String::from(lp_receiver.amount.to_string());
+            let amount = lp_receiver.amount.to_string();
 
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
@@ -257,8 +257,8 @@ fn try_receive_atom_from_ica(
 
             let msg = MsgTransfer {
                 source_port: "transfer".to_string(),
-                source_channel: source_channel,
-                token: Some(coin.clone()),
+                source_channel,
+                token: Some(coin),
                 sender: address.clone(),
                 receiver: lp_receiver.address,
                 // receiver: env.contract.address.to_string(),
@@ -282,12 +282,12 @@ fn try_receive_atom_from_ica(
             };
 
             let submit_msg = NeutronMsg::submit_tx(
-                controller_conn_id.clone(),
+                controller_conn_id,
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
-                address.clone(),
+                address,
                 100000,
-                fee.clone(),
+                fee,
             );
 
             CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
@@ -295,9 +295,7 @@ fn try_receive_atom_from_ica(
             Ok(Response::default().add_submessage(SubMsg::new(submit_msg)))
         }
         None => {
-            return Err(NeutronError::Std(StdError::NotFound {
-                kind: "no ica found".to_string(),
-            }))
+            Err(NeutronError::Fmt(Error))
         }
     }
 }
@@ -771,7 +769,7 @@ fn get_ica(
         .ok_or_else(|| StdError::generic_err("Interchain account is not created yet"))
 }
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: reply msg: {:?}", msg).as_str());

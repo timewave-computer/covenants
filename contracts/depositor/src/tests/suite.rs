@@ -1,8 +1,8 @@
-use cosmwasm_std::{Addr, Uint128, Empty};
-use cw_multi_test::{App, Executor, Contract, ContractWrapper};
-use neutron_sdk::{bindings::query::NeutronQuery, NeutronError, NeutronResult};
+use cosmwasm_std::{Addr, Uint128};
+use cw_multi_test::{App, Executor, Contract};
 
-use crate::{msg::{InstantiateMsg, QueryMsg, WeightedReceiver}, contract::{query, execute, instantiate}};
+
+use crate::{msg::{InstantiateMsg, QueryMsg, WeightedReceiver}};
 
 pub const CREATOR_ADDR: &str = "creator";
 pub const ST_ATOM_DENOM: &str = "stride-atom";

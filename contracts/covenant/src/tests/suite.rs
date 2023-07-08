@@ -1,8 +1,8 @@
-use astroport::asset::Asset;
+
 use cosmwasm_std::{Uint64, Empty, Addr};
 use covenant_depositor::msg::WeightedReceiver;
-use cw_multi_test::{App, ContractWrapper, Contract, Executor, BasicApp};
-use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
+use cw_multi_test::{App, ContractWrapper, Contract, Executor};
+
 
 use crate::msg::{InstantiateMsg, QueryMsg};
 
@@ -122,7 +122,7 @@ impl SuiteBuilder {
         self.instantiate.clock_code = app.store_code(covenant_clock());
         let covenant_code = app.store_code(covenant_covenant());
 
-        let ls_contract = Box::new(
+        let _ls_contract = Box::new(
             ContractWrapper::new(
                 covenant_ls::contract::execute,
                 covenant_ls::contract::instantiate,
@@ -130,7 +130,7 @@ impl SuiteBuilder {
             )
         );
 
-        let depositor_contract = Box::new(
+        let _depositor_contract = Box::new(
             ContractWrapper::new(
                 covenant_depositor::contract::execute,
                 covenant_depositor::contract::instantiate,

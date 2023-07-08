@@ -4,7 +4,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
-    #[error(transparent)]
+    #[error("{0}")]
     Std(#[from] StdError),
 
     #[error("sender is already in the queue")]
@@ -29,8 +29,8 @@ pub enum ContractError {
     NotClock,
 }
 
-impl Into<NeutronError> for ContractError {
-    fn into(self) -> NeutronError {
-        NeutronError::Std(StdError::generic_err(self.to_string()))
+impl From<ContractError> for NeutronError {
+    fn from(val: ContractError) -> Self {
+        NeutronError::Std(StdError::generic_err(val.to_string()))
     }
 }

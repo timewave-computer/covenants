@@ -16,5 +16,8 @@ pub enum ContractError {
     UnknownReplyId {},
 
     #[error("SubMsg reply error")]
-    ReplyError { err: String }
+    ReplyError { err: String },
+
+    #[error("Failed to instantiate contract")]
+    ContractInstantiationError {},
 }

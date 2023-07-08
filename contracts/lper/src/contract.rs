@@ -2,7 +2,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     Uint128, WasmMsg, Reply,
 };
 use covenant_clock::helpers::verify_clock;
@@ -12,7 +12,7 @@ use astroport::{
     asset::{Asset, AssetInfo},
     pair::{Cw20HookMsg, ExecuteMsg::ProvideLiquidity, SimulationResponse},
 };
-use cw20::{Cw20ReceiveMsg, BalanceResponse, Cw20ExecuteMsg};
+use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
@@ -20,8 +20,8 @@ use crate::{
 };
 
 use neutron_sdk::{
-    bindings::{msg::NeutronMsg, query::NeutronQuery},
-    NeutronResult, NeutronError,
+    bindings::{msg::NeutronMsg},
+    NeutronResult,
 };
 
 use crate::state::{ContractState, CLOCK_ADDRESS, CONTRACT_STATE};
@@ -51,7 +51,6 @@ pub fn instantiate(
     LP_POSITION.save(deps.storage, &msg.lp_position)?;
     HOLDER_ADDRESS.save(deps.storage, &msg.holder_address)?;
     let assets: Vec<Asset> = msg.assets.into_iter()
-        .map(|asset| asset)
         .collect();
         
     ASSETS.save(deps.storage, &assets)?;
@@ -59,7 +58,7 @@ pub fn instantiate(
     Ok(Response::default().add_message(clock_enqueue_msg))
 }
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
     env: Env,
@@ -78,7 +77,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     let is_clock = verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?);
     match is_clock {
         Ok(_) => (),
-        Err(err) => return Err(ContractError::ClockVerificationError {  }),
+        Err(_err) => return Err(ContractError::ClockVerificationError {  }),
     }
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
@@ -98,7 +97,7 @@ fn no_op() -> Result<Response, ContractError> {
 fn try_enter_lp_position(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo, 
+    _info: MessageInfo, 
 ) -> Result<Response, ContractError> {
     let pool_address = LP_POSITION.load(deps.storage)?;
     let slippage_tolerance = SLIPPAGE_TOLERANCE
@@ -140,7 +139,7 @@ fn try_enter_lp_position(
         )
         
     };
-    let (leftover_bal, leftover_bal_counterpart) = (leftover_asset.to_coin()?, leftover_asset_counterpart.to_coin()?);
+    let (leftover_bal, _leftover_bal_counterpart) = (leftover_asset.to_coin()?, leftover_asset_counterpart.to_coin()?);
 
 
     deps.api.debug(
@@ -154,9 +153,9 @@ fn try_enter_lp_position(
 
     println!("\n coin balances: {:?}", deps.querier.query_all_balances(env.contract.clone().address)?);
 
-    let balances: Vec<Coin> = deps.querier.query_all_balances(env.contract.clone().address)?
+    let balances: Vec<Coin> = deps.querier.query_all_balances(env.contract.address)?
         .into_iter()
-        .filter(|mut coin| {
+        .filter(|coin| {
             let mut valid_balance = false;
             for asset in assets.clone() {
                 match asset.info {
@@ -173,7 +172,7 @@ fn try_enter_lp_position(
                 }
             }
             valid_balance
-        }).into_iter()
+        })
         .map(|mut c| {
             // convert balances according to simulation
             if c.denom == leftover_bal.denom {
@@ -209,7 +208,7 @@ fn try_enter_lp_position(
     let dequeue_clock_msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
     let single_sided_liq_msg = ProvideLiquidity { 
-        assets: vec![leftover_asset.clone(), leftover_asset_counterpart], 
+        assets: vec![leftover_asset, leftover_asset_counterpart], 
         slippage_tolerance, 
         auto_stake, 
         receiver: None,
@@ -220,10 +219,10 @@ fn try_enter_lp_position(
             CosmosMsg::Wasm(WasmMsg::Execute { 
                 contract_addr: pool_address.addr.to_string(),
                 msg: to_binary(&provide_liquidity_msg)?,
-                funds: balances.clone(),
+                funds: balances,
             }),
             CosmosMsg::Wasm(WasmMsg::Execute { 
-                contract_addr: pool_address.addr.to_string(),
+                contract_addr: pool_address.addr,
                 msg: to_binary(&single_sided_liq_msg)?,
                 funds: vec![leftover_bal],
             }),
@@ -325,7 +324,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(deps: DepsMut, _env: Env, _msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: reply");
     Ok(Response::new())
 }

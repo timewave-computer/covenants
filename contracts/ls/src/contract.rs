@@ -1,3 +1,5 @@
+use std::fmt::Error;
+
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 use cosmos_sdk_proto::ibc::core::client::v1::Height;
@@ -85,7 +87,7 @@ pub fn instantiate(
     Ok(Response::default().add_message(clock_enqueue_msg))
 }
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
     env: Env,
@@ -106,7 +108,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
-    let gaia_account_address = match ica_address {
+    let _gaia_account_address = match ica_address {
         Ok(addr) => addr,
         Err(_) => "todo".to_string(),
     };
@@ -132,8 +134,8 @@ fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
 }
 
 fn try_execute_transfer(
-    mut deps: DepsMut,
-    env: Env,
+    deps: DepsMut,
+    _env: Env,
     _info: MessageInfo,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let fee = IbcFee {
@@ -149,7 +151,7 @@ fn try_execute_transfer(
     };
 
     let port_id = IBC_PORT_ID.load(deps.storage)?;
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -164,8 +166,8 @@ fn try_execute_transfer(
             let msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel,
-                token: Some(coin.clone()),
-                sender: address.clone(),
+                token: Some(coin),
+                sender: address,
                 receiver: lp_receiver.clone(),
                 timeout_height: Some(Height {
                     revision_number: 2,
@@ -190,7 +192,7 @@ fn try_execute_transfer(
                 controller_conn_id,
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
-                lp_receiver.to_string(),
+                lp_receiver,
                 100000,
                 fee,
             );
@@ -200,9 +202,7 @@ fn try_execute_transfer(
             Ok(Response::default().add_submessage(SubMsg::new(submit_msg)))
         }
         None => {
-            return Err(NeutronError::Std(StdError::NotFound {
-                kind: "no ica found".to_string(),
-            }))
+            Err(NeutronError::Fmt(Error))
         }
     }
 }
@@ -388,8 +388,8 @@ fn sudo_open_ack(
     deps: DepsMut,
     _env: Env,
     port_id: String,
-    channel_id: String,
-    counterparty_channel_id: String,
+    _channel_id: String,
+    _counterparty_channel_id: String,
     counterparty_version: String,
 ) -> StdResult<Response> {
     // The version variable contains a JSON value with multiple fields,
@@ -638,7 +638,7 @@ fn get_ica(
         .ok_or_else(|| StdError::generic_err("Interchain account is not created yet"))
 }
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: reply msg: {:?}", msg).as_str());

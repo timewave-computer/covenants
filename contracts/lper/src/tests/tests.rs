@@ -41,7 +41,7 @@ fn test_instantiate_happy() {
         suite.stable_pair.1.to_string(),
         &astroport::pair::QueryMsg::Pair { }
     ).unwrap();
-    let liquidity_token_addr = pairinfo.liquidity_token;
+    let _liquidity_token_addr = pairinfo.liquidity_token;
 
     suite.tick();
 
