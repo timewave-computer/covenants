@@ -269,7 +269,7 @@ func TestICS(t *testing.T) {
 	connectionChannelsOk := false
 	const maxAttempts = 3
 	attempts := 1
-	for (connectionChannelsOk != true) && (attempts < maxAttempts) {
+	for (connectionChannelsOk != true) && (attempts <= maxAttempts) {
 		print("\n Finding connections and channels, attempt ", attempts, " of ", maxAttempts)
 		neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
 		gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosAtom.Config().ChainID)
@@ -309,15 +309,6 @@ func TestICS(t *testing.T) {
 		if err != nil {
 			connectionChannelsOk = false
 		}
-		if connectionChannelsOk {
-			print("\n Connections and channels found!")
-
-		} else {
-			print("\n Connections and channels not found! Waiting some time...")
-			err = testutil.WaitForBlocks(ctx, 20, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
-			attempts += 1
-		}
 		// Print out connections and channels for debugging
 		print("\n strideGaiaConnectionId: ", strideGaiaConnectionId)
 		print("\n strideNeutronConnectionId: ", strideNeutronConnectionId)
@@ -335,6 +326,16 @@ func TestICS(t *testing.T) {
 		print("\n gaiaStrideChannelId: ", gaiaStrideChannelId)
 		print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
 		print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
+
+		if connectionChannelsOk {
+			print("\n Connections and channels found!")
+
+		} else {
+			print("\n Connections and channels not found! Waiting some time...")
+			err = testutil.WaitForBlocks(ctx, 40, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+			attempts += 1
+		}
 	}
 
 	_, _, _, _, _ = neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId, neutronStrideChannelId
