@@ -746,7 +746,7 @@ func TestICS(t *testing.T) {
 					Amount: "10",
 				},
 			}
-			slippageTolerance := "0.01"
+			slippageTolerance := "900_000_000_000_000_000"
 
 			lpMsg := LPerInstantiateMsg{
 				LpPosition:        lpInfo,
@@ -1074,7 +1074,8 @@ func TestICS(t *testing.T) {
 			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to get ICA balance")
 			require.EqualValues(t, 10, atomBal)
-
+			r.StopRelayer(ctx, eRep)
+			r.StartRelayer(ctx, eRep)
 			cmd = []string{"neutrond", "tx", "wasm", "execute", depositorContractAddress,
 				`{"tick":{}}`,
 				"--from", neutronUser.KeyName,

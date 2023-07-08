@@ -4,6 +4,7 @@ use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
     StdResult, SubMsg, WasmMsg,
 };
+use covenant_depositor::state::IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP;
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 
@@ -20,6 +21,7 @@ use crate::{
 
 const CONTRACT_NAME: &str = "crates.io:covenant-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
 const CLOCK_REPLY_ID: u64 = 1u64;
 const HOLDER_REPLY_ID: u64 = 2u64;
@@ -48,6 +50,12 @@ pub fn instantiate(
     LS_INSTANTIATION_DATA.save(deps.storage, &msg.ls_instantiate)?;
     DEPOSITOR_INSTANTIATION_DATA.save(deps.storage, &msg.depositor_instantiate)?;
     HOLDER_INSTANTIATION_DATA.save(deps.storage, &msg.holder_instantiate)?;
+    let timeout = if let Some(timestamp) = msg.ibc_msg_transfer_timeout_timestamp {
+        timestamp
+    } else {
+        DEFAULT_TIMEOUT_SECONDS
+    };
+    IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.save(deps.storage, &timeout)?;
 
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),

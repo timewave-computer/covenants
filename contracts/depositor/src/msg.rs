@@ -14,6 +14,7 @@ pub struct InstantiateMsg {
     pub neutron_gaia_connection_id: String,
     pub gaia_stride_ibc_transfer_channel_id: String,
     pub ls_address: String,
+    pub ibc_msg_transfer_timeout_timestamp: u64,
 }
 
 #[cw_serde]

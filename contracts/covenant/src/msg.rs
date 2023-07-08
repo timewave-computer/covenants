@@ -18,6 +18,7 @@ pub struct InstantiateMsg {
     pub lp_instantiate: LpInstantiateMsg,
     pub holder_code: u64,
     pub holder_instantiate: HolderInstantiateMsg,
+    pub ibc_msg_transfer_timeout_timestamp: Option<u64>,
 }
 
 #[cw_serde]

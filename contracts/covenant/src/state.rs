@@ -12,6 +12,8 @@ pub const DEPOSITOR_INSTANTIATION_DATA: Item<covenant_depositor::msg::Instantiat
 pub const CLOCK_INSTANTIATION_DATA: Item<covenant_clock::msg::InstantiateMsg> = Item::new("clock_instantiation_data");
 pub const HOLDER_INSTANTIATION_DATA: Item<covenant_holder::msg::InstantiateMsg> = Item::new("holder_instantiation_data");
 
+pub const IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP: Item<u64> = Item::new("timeout");
+
 // replies
 pub const COVENANT_CLOCK_ADDR: Item<String> = Item::new("covenant_clock_addr");
 pub const COVENANT_LP_ADDR: Item<String> = Item::new("covenant_lp_addr");

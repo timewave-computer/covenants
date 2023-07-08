@@ -11,15 +11,15 @@ type DepositorInstantiateMsg struct {
 
 type LPerInstantiateMsg struct {
 	LpPosition        LpInfo           `json:"lp_position"`
-	ClockAddress      string           `json:"clock_address,string"`
-	HolderAddress     string           `json:"holder_address,string"`
+	ClockAddress      string           `json:"clock_address"`
+	HolderAddress     string           `json:"holder_address"`
 	SlippageTolerance *string          `json:"slippage_tolerance,omitempty"`
 	Autostake         *string          `json:"autostake,omitempty"`
 	Assets            []AstroportAsset `json:"assets"`
 }
 
 type LpInfo struct {
-	Addr string `json:"addr,string"`
+	Addr string `json:"addr"`
 }
 
 type WeightedReceiver struct {
@@ -221,7 +221,7 @@ type WhitelistInstantiateMsg struct {
 // ls
 type LsInstantiateMsg struct {
 	AutopilotPosition                 string `json:"autopilot_position,string"`
-	ClockAddress                      string `json:"clock_address,string"`
+	ClockAddress                      string `json:"clock_address"`
 	StrideNeutronIBCTransferChannelId string `json:"stride_neutron_ibc_transfer_channel_id"`
 	LpAddress                         string `json:"lp_address"`
 	NeutronStrideIBCConnectionId      string `json:"neutron_stride_ibc_connection_id"`

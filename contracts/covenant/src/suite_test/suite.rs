@@ -58,6 +58,7 @@ impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
             instantiate: InstantiateMsg {
+                ibc_msg_transfer_timeout_timestamp: Some(5000000),
                 ls_instantiate: covenant_ls::msg::InstantiateMsg {
                     autopilot_position: TODO.to_string(),
                     clock_address: TODO.to_string(),
@@ -65,6 +66,7 @@ impl Default for SuiteBuilder {
                     neutron_stride_ibc_connection_id: TODO.to_string(),
                     lp_address: TODO.to_string(),
                     ls_denom: TODO.to_string(),
+                    ibc_msg_transfer_timeout_timestamp: 5000000,
                 },
                 depositor_instantiate: covenant_depositor::msg::InstantiateMsg {
                     st_atom_receiver: WeightedReceiver {
@@ -80,6 +82,7 @@ impl Default for SuiteBuilder {
                     neutron_gaia_connection_id: TODO.to_string(),
                     gaia_stride_ibc_transfer_channel_id: TODO.to_string(),
                     ls_address: TODO.to_string(),
+                    ibc_msg_transfer_timeout_timestamp: 5000000,
                 },
                 lp_instantiate: covenant_lp::msg::InstantiateMsg {
                     lp_position: covenant_lp::msg::LPInfo { addr: TODO.to_string() },

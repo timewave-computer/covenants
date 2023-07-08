@@ -22,6 +22,9 @@ pub const GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gs_ibc_
 
 pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
 pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
+
+pub const IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP: Item<u64> = Item::new("timeout");
+
 // ICA
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");

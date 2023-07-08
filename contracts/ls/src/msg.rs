@@ -10,6 +10,7 @@ pub struct InstantiateMsg {
     pub neutron_stride_ibc_connection_id: String,
     pub lp_address: String,
     pub ls_denom: String,
+    pub ibc_msg_transfer_timeout_timestamp: u64,
 }
 
 #[clocked]
