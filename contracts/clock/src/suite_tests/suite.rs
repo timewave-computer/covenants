@@ -181,7 +181,7 @@ impl Suite {
     // first).
     pub fn query_queue_in_order_of_output(&self) -> Vec<Addr> {
         let mut queue = self.query_full_queue();
-        queue.sort_by_key(|(_, time)| time.clone());
+        queue.sort_by_key(|(_, time)| *time);
         queue.into_iter().map(|(addr, _)| addr).collect()
     }
 

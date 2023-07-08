@@ -26,7 +26,7 @@ fn test_fund_contract_single_denom() {
     suite.fund_holder(user,amt_to_fund_contract.clone()).unwrap();
     
     // check that the holder contract balance has increased
-    suite.assert_holder_balance(amt_to_fund_contract.clone());
+    suite.assert_holder_balance(amt_to_fund_contract);
 }
 
 #[test]
@@ -41,10 +41,10 @@ fn test_fund_and_withdraw_all_unauthorized() {
     
     // this user funds the holder contract
     let amt_to_fund_contract = coins(100, "coin");
-    suite.fund_holder(user,amt_to_fund_contract.clone()).unwrap();
+    suite.fund_holder(user,amt_to_fund_contract).unwrap();
 
     // attacker attempts to withdraw all
-    let resp = suite.withdraw_all(&unauthorized.to_string());
+    let resp = suite.withdraw_all(unauthorized.as_ref());
     is_error!(resp, "Unauthorized");
 
     // check to see the balance is unchanged
@@ -61,10 +61,10 @@ fn test_fund_and_withdraw_all_single_denom() {
     
     // this user funds the holder contract
     let amt_to_fund_contract = coins(100, "coin");
-    suite.fund_holder(user,amt_to_fund_contract.clone()).unwrap();
+    suite.fund_holder(user,amt_to_fund_contract).unwrap();
 
     // withdraw all
-    suite.withdraw_all(&DEFAULT_WITHDRAWER.to_string()).unwrap();
+    suite.withdraw_all(DEFAULT_WITHDRAWER).unwrap();
 
     // check to see there is no balance
     suite.assert_holder_balance(coins(0, "coin"));
@@ -77,27 +77,29 @@ fn test_fund_and_withdraw_all_single_denom() {
 fn test_fund_and_withdraw_all_two_denoms() {
     // set up an initial user with a balance in the test suite
     let user = Addr::unchecked("anyuser");
-    let mut initial_user_balance: Vec<Coin> = Vec::new();
-    initial_user_balance.push(coin(100, "atom"));
-    initial_user_balance.push(coin(90, "statom"));
+    let initial_user_balance: Vec<Coin> = vec![
+        coin(100, "atom"),
+        coin(90, "statom"),
+    ];
 
     let mut suite = SuiteBuilder::default().with_funded_user(user.clone(), initial_user_balance).build();
     
     // this user funds the holder contract
-    let mut amt_to_fund_contract: Vec<Coin> = Vec::new();
-    amt_to_fund_contract.push(coin(80, "atom"));
-    amt_to_fund_contract.push(coin(70, "statom"));
+    let amt_to_fund_contract: Vec<Coin> = vec![
+        coin(80, "atom"),
+        coin(70, "statom"),
+    ];
 
-    
     suite.fund_holder(user,amt_to_fund_contract.clone()).unwrap();
 
     // withdraw all
-    suite.withdraw_all(&DEFAULT_WITHDRAWER.to_string()).unwrap();
+    suite.withdraw_all(DEFAULT_WITHDRAWER).unwrap();
 
     // check to see there is no balance
-    let mut expected_balance: Vec<Coin> = Vec::new();
-    expected_balance.push(coin(0, "atom"));
-    expected_balance.push(coin(0, "statom"));
+    let expected_balance: Vec<Coin> = vec![
+        coin(0, "atom"),
+        coin(0, "statom"),
+    ];
 
     suite.assert_holder_balance(expected_balance);
 
@@ -114,10 +116,10 @@ fn test_fund_and_withdraw_partial_single_denom() {
     
     // this user funds the holder contract
     let amt_to_fund_contract = coins(100, "coin");
-    suite.fund_holder(user,amt_to_fund_contract.clone()).unwrap();
+    suite.fund_holder(user,amt_to_fund_contract).unwrap();
 
     // withdraw 75 out of a total of 100 tokens
-    suite.withdraw_tokens(&DEFAULT_WITHDRAWER.to_string(), coins(75, "coin")).unwrap();
+    suite.withdraw_tokens(DEFAULT_WITHDRAWER, coins(75, "coin")).unwrap();
 
     // check to see there are 25 tokens left in contract
     suite.assert_holder_balance(coins(25, "coin"));
@@ -129,34 +131,39 @@ fn test_fund_and_withdraw_partial_single_denom() {
 fn test_fund_and_withdraw_partial_two_denom() {
     // set up an initial user with a balance in the test suite
     let user = Addr::unchecked("anyuser");
-    let mut initial_user_balance: Vec<Coin> = Vec::new();
-    initial_user_balance.push(coin(100, "atom"));
-    initial_user_balance.push(coin(90, "statom"));
+    let initial_user_balance: Vec<Coin> = vec![
+        coin(100, "atom"),
+        coin(90, "statom"),
+    ];
 
     let mut suite = SuiteBuilder::default().with_funded_user(user.clone(), initial_user_balance).build();
     
     // this user funds the holder contract
-    let mut amt_to_fund_contract: Vec<Coin> = Vec::new();
-    amt_to_fund_contract.push(coin(80, "atom"));
-    amt_to_fund_contract.push(coin(70, "statom"));
+    let amt_to_fund_contract: Vec<Coin> = vec![
+        coin(80, "atom"),
+        coin(70, "statom"),
+    ];
 
-    suite.fund_holder(user,amt_to_fund_contract.clone()).unwrap();
+    suite.fund_holder(user,amt_to_fund_contract).unwrap();
 
     // withdraw partial
-    let mut amt_to_withdraw: Vec<Coin> = Vec::new();
-    amt_to_withdraw.push(coin(50, "atom"));
-    amt_to_withdraw.push(coin(30, "statom"));
-    suite.withdraw_tokens(&DEFAULT_WITHDRAWER.to_string(), amt_to_withdraw.clone()).unwrap();
+    let amt_to_withdraw: Vec<Coin> = vec![
+        coin(50, "atom"),
+        coin(30, "statom"),
+    ];
+
+    suite.withdraw_tokens(DEFAULT_WITHDRAWER, amt_to_withdraw.clone()).unwrap();
 
     // check to see there is subtracted balance
-    let mut expected_balance: Vec<Coin> = Vec::new();
-    expected_balance.push(coin(30, "atom"));
-    expected_balance.push(coin(40, "statom"));
+    let expected_balance: Vec<Coin> = vec![
+        coin(30, "atom"),
+        coin(40, "statom"),
+    ];
 
     suite.assert_holder_balance(expected_balance);
 
     // and that withdrawer has received withdrawn amount
-    suite.assert_withdrawer_balance(amt_to_withdraw.clone());
+    suite.assert_withdrawer_balance(amt_to_withdraw);
 }
 
 #[test]
@@ -168,10 +175,10 @@ fn test_fund_and_withdraw_exact_single_denom() {
     
     // this user funds the holder contract
     let amt_to_fund_contract = coins(100, "coin");
-    suite.fund_holder(user,amt_to_fund_contract.clone()).unwrap();
+    suite.fund_holder(user,amt_to_fund_contract).unwrap();
 
     // withdraw 100 out of a total of 100 tokens
-    suite.withdraw_tokens(&DEFAULT_WITHDRAWER.to_string(), coins(100, "coin")).unwrap();
+    suite.withdraw_tokens(DEFAULT_WITHDRAWER, coins(100, "coin")).unwrap();
 
     // check to see there are 0 tokens left
     suite.assert_holder_balance(coins(0, "coin"));
@@ -189,10 +196,10 @@ fn test_fund_and_withdraw_too_big_single_denom() {
     
     // this user funds the holder contract
     let amt_to_fund_contract = coins(100, "coin");
-    suite.fund_holder(user,amt_to_fund_contract.clone()).unwrap();
+    suite.fund_holder(user,amt_to_fund_contract).unwrap();
 
     // try to withdraw 200 out of a total of 100 tokens
-    let resp = suite.withdraw_tokens(&DEFAULT_WITHDRAWER.to_string(), coins(200, "coin"));
+    let resp = suite.withdraw_tokens(DEFAULT_WITHDRAWER, coins(200, "coin"));
     // the dispatched bank send message should fail and everything should roll back
     is_error!(resp, "error executing WasmMsg");
 

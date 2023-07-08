@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
-    StdResult, SubMsg, SubMsgResult, WasmMsg,
+    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdResult, SubMsg, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
@@ -43,7 +43,7 @@ pub fn instantiate(
     HOLDER_CODE.save(deps.storage, &msg.holder_code)?;
     CLOCK_CODE.save(deps.storage, &msg.clock_code)?;
 
-    CLOCK_INSTANTIATION_DATA.save(deps.storage, &msg.clock_instantiate.clone())?;
+    CLOCK_INSTANTIATION_DATA.save(deps.storage, &msg.clock_instantiate)?;
     LP_INSTANTIATION_DATA.save(deps.storage, &msg.lp_instantiate)?;
     LS_INSTANTIATION_DATA.save(deps.storage, &msg.ls_instantiate)?;
     DEPOSITOR_INSTANTIATION_DATA.save(deps.storage, &msg.depositor_instantiate)?;
@@ -64,11 +64,11 @@ pub fn instantiate(
     )))
 }
 
-#[entry_point]
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
+    _env: Env,
+    _info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     deps.api
@@ -78,7 +78,7 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::DepositorAddress {} => {
             Ok(to_binary(&COVENANT_DEPOSITOR_ADDR.may_load(deps.storage)?)?)
@@ -97,7 +97,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
     match msg {
         MigrateMsg::UpdateConfig {
             clock,
-            depositer,
+            depositor,
             lp,
             ls,
             holder,
@@ -112,11 +112,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 })
             }
 
-            if let Some(depositer) = depositer {
+            if let Some(depositor) = depositor {
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_DEPOSITOR_ADDR.load(deps.storage)?,
                     new_code_id: DEPOSITOR_CODE.load(deps.storage)?,
-                    msg: to_binary(&depositer)?,
+                    msg: to_binary(&depositor)?,
                 })
             }
 
@@ -186,9 +186,7 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
                 HOLDER_REPLY_ID,
             )))
         }
-        Err(err) => Err(ContractError::Std(StdError::GenericErr {
-            msg: err.to_string(),
-        })),
+        Err(_err) => Err(ContractError::ContractInstantiationError {}),
     }
 }
 
@@ -217,9 +215,7 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             Ok(Response::default()
                 .add_submessage(SubMsg::reply_on_success(lp_instantiate_tx, LP_REPLY_ID)))
         }
-        Err(err) => Err(ContractError::Std(StdError::GenericErr {
-            msg: err.to_string(),
-        })),
+        Err(_err) => Err(ContractError::ContractInstantiationError {}),
     }
 }
 
@@ -249,9 +245,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             Ok(Response::default()
                 .add_submessage(SubMsg::reply_on_success(ls_instantiate_tx, LS_REPLY_ID)))
         }
-        Err(err) => Err(ContractError::Std(StdError::GenericErr {
-            msg: err.to_string(),
-        })),
+        Err(_err) => Err(ContractError::ContractInstantiationError {}),
     }
 }
 
@@ -283,8 +277,6 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 DEPOSITOR_REPLY_ID,
             )))
         }
-        Err(err) => Err(ContractError::Std(StdError::GenericErr {
-            msg: err.to_string(),
-        })),
+        Err(_err) => Err(ContractError::ContractInstantiationError {}),
     }
 }

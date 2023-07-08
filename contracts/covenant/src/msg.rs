@@ -42,7 +42,7 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateConfig {
         clock: Option<covenant_clock::msg::MigrateMsg>,
-        depositer: Option<covenant_depositor::msg::MigrateMsg>,
+        depositor: Option<covenant_depositor::msg::MigrateMsg>,
         lp: Option<covenant_lp::msg::MigrateMsg>,
         ls: Option<covenant_ls::msg::MigrateMsg>,
         holder: Option<covenant_holder::msg::MigrateMsg>,

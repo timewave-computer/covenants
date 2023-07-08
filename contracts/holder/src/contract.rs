@@ -75,7 +75,7 @@ pub fn withdraw(
         // withdraw everything
         // Querier guarantees to return up-to-date data, including funds sent in this handle message
         // https://github.com/CosmWasm/wasmd/blob/master/x/wasm/internal/keeper/keeper.go#L185-L192
-        deps.querier.query_all_balances(&env.contract.address)?
+        deps.querier.query_all_balances(env.contract.address)?
     };
     Ok(Response::new()
         .add_message(BankMsg::Send {

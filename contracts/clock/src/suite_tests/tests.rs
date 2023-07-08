@@ -7,7 +7,7 @@ use super::suite::{SuiteBuilder, DEFAULT_TICK_MAX_GAS};
 fn test_instantiate() {
     let suite = SuiteBuilder::default().build();
     assert_eq!(suite.query_tick_max_gas(), DEFAULT_TICK_MAX_GAS);
-    assert_eq!(suite.query_paused(), false);
+    assert!(!suite.query_paused());
 }
 
 #[test]

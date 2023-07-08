@@ -1,13 +1,10 @@
-use astroport::asset::Asset;
+
 use cosmwasm_std::{Uint64, Empty, Addr};
 use covenant_depositor::msg::WeightedReceiver;
-use cw_multi_test::{App, ContractWrapper, Contract, Executor, BasicApp};
-use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
+use cw_multi_test::{App, ContractWrapper, Contract, Executor};
+
 
 use crate::msg::{InstantiateMsg, QueryMsg};
-
-pub const ST_ATOM_DENOM: &str = "stuatom";
-pub const NATIVE_ATOM_DENOM: &str = "uatom";
 
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";
@@ -122,7 +119,7 @@ impl SuiteBuilder {
         self.instantiate.clock_code = app.store_code(covenant_clock());
         let covenant_code = app.store_code(covenant_covenant());
 
-        let ls_contract = Box::new(
+        let _ls_contract = Box::new(
             ContractWrapper::new(
                 covenant_ls::contract::execute,
                 covenant_ls::contract::instantiate,
@@ -130,7 +127,7 @@ impl SuiteBuilder {
             )
         );
 
-        let depositor_contract = Box::new(
+        let _depositor_contract = Box::new(
             ContractWrapper::new(
                 covenant_depositor::contract::execute,
                 covenant_depositor::contract::instantiate,
@@ -197,7 +194,7 @@ impl Suite {
             )    
             .unwrap()
     }
-
+    #[allow(unused)]
     pub fn query_lp_address(&self) -> String {
         self.app    
             .wrap()    
@@ -207,7 +204,7 @@ impl Suite {
             )    
             .unwrap()
     }
-
+    #[allow(unused)]
     pub fn query_ls_address(&self) -> String {
         self.app    
             .wrap()    
@@ -217,7 +214,7 @@ impl Suite {
             )    
             .unwrap()
     }
-
+    #[allow(unused)]
     pub fn query_depositor_address(&self) -> String {
         self.app    
             .wrap()    
