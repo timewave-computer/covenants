@@ -33,9 +33,11 @@ func TestICS(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Modify the the timeout_commit in the config.toml node files
+	// to reduce the block commit times. This speeds up the tests
+	// by about 35%
 	configFileOverrides := make(map[string]any)
 	configTomlOverrides := make(testutil.Toml)
-
 	consensus := make(testutil.Toml)
 	consensus["timeout_commit"] = "1s"
 	configTomlOverrides["consensus"] = consensus
@@ -124,8 +126,7 @@ func TestICS(t *testing.T) {
 	chains, err := cf.Chains(t.Name())
 	require.NoError(t, err)
 
-	// interchaintest has one interface for a chain with IBC
-	// support, and another for a Cosmos blockchain.
+	// We have three chains
 	atom, neutron, stride := chains[0], chains[1], chains[2]
 	cosmosAtom, cosmosNeutron, cosmosStride := atom.(*cosmos.CosmosChain), neutron.(*cosmos.CosmosChain), stride.(*cosmos.CosmosChain)
 
@@ -244,166 +245,101 @@ func TestICS(t *testing.T) {
 	require.NoError(t, err, "failed to fund neutron user")
 	require.EqualValues(t, int64(100_000_000), neutronUserBal)
 
-	neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
-	gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosAtom.Config().ChainID)
-	strideChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosStride.Config().ChainID)
-	strideConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosStride.Config().ChainID)
-	neutronConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosNeutron.Config().ChainID)
-	gaiaConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosAtom.Config().ChainID)
-
-	/// Find all the pairwise connections
 	var strideGaiaConnectionId, gaiaStrideConnectionId string
 	var strideNeutronConnectionId, neutronStrideConnectionId string
-
-	// There should be two sets of connections for gaia <> neutron. Tranfer and CCV
-	neutronGaiaConnectionIds := make([]string, 2)
-	gaiaNeutronConnectionIds := make([]string, 2)
-
 	var neutronGaiaTransferConnectionId, neutronGaiaICSConnectionId string
 	var gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId string
 
-	// We iterate over stride connections
-	for _, strideConn := range strideConnectionInfo {
-		for _, neutronConn := range neutronConnectionInfo {
-			if neutronConn.ClientID == strideConn.Counterparty.ClientId &&
-				strideConn.ClientID == neutronConn.Counterparty.ClientId &&
-				neutronConn.ID == strideConn.Counterparty.ConnectionId &&
-				strideConn.ID == neutronConn.Counterparty.ConnectionId {
-				strideNeutronConnectionId = strideConn.ID
-				neutronStrideConnectionId = neutronConn.ID
-			}
-		}
-		for _, gaiaConn := range gaiaConnectionInfo {
-			if strideConn.ClientID == gaiaConn.Counterparty.ClientId &&
-				gaiaConn.ClientID == strideConn.Counterparty.ClientId &&
-				gaiaConn.ID == strideConn.Counterparty.ConnectionId &&
-				strideConn.ID == gaiaConn.Counterparty.ConnectionId {
-				strideGaiaConnectionId = strideConn.ID
-				gaiaStrideConnectionId = gaiaConn.ID
-			}
-		}
-	}
-	for _, neutronConn := range neutronConnectionInfo {
-		for _, gaiaConn := range gaiaConnectionInfo {
-			if neutronConn.ClientID == gaiaConn.Counterparty.ClientId &&
-				gaiaConn.ClientID == neutronConn.Counterparty.ClientId &&
-				neutronConn.ID == gaiaConn.Counterparty.ConnectionId &&
-				gaiaConn.ID == neutronConn.Counterparty.ConnectionId {
-				neutronGaiaConnectionIds = append(neutronGaiaConnectionIds, neutronConn.ID)
-				gaiaNeutronConnectionIds = append(gaiaNeutronConnectionIds, neutronConn.ID)
-				break
-			}
-		}
-	}
+	neutronGaiaConnectionIds := make([]string, 0)
+	gaiaNeutronConnectionIds := make([]string, 0)
+	neutronStrideConnectionIds := make([]string, 0)
+	strideNeutronConnectionIds := make([]string, 0)
+	gaiaStrideConnectionIds := make([]string, 0)
+	strideGaiaConnectionIds := make([]string, 0)
 
 	var strideNeutronChannelId, neutronStrideChannelId string
 	var strideGaiaChannelId, gaiaStrideChannelId string
 	var neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
 	var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId string
 
-	for _, s := range strideChannelInfo {
-		found := false
-		if !found {
-			for _, n := range neutronChannelInfo {
-				if s.ChannelID == n.Counterparty.ChannelID &&
-					n.ChannelID == s.Counterparty.ChannelID &&
-					s.PortID == n.Counterparty.PortID &&
-					n.Ordering == "ORDER_UNORDERED" &&
-					s.ConnectionHops[0] == strideNeutronConnectionId &&
-					n.ConnectionHops[0] == neutronStrideConnectionId {
-					strideNeutronChannelId = s.ChannelID
-					neutronStrideChannelId = n.ChannelID
-					found = true
-					break
-				}
+	// We attempt to find all channels and connections.
+	// They take variable time to build. So we attempt finding them
+	// a few times
+
+	connectionChannelsOk := false
+	const maxAttempts = 3
+	attempts := 1
+	for (connectionChannelsOk != true) && (attempts <= maxAttempts) {
+		print("\n Finding connections and channels, attempt ", attempts, " of ", maxAttempts)
+		neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
+		gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosAtom.Config().ChainID)
+		strideChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosStride.Config().ChainID)
+		strideConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosStride.Config().ChainID)
+		neutronConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosNeutron.Config().ChainID)
+		gaiaConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosAtom.Config().ChainID)
+
+		connectionChannelsOk = true
+		/// Find all the pairwise connections
+		strideNeutronConnectionIds, neutronStrideConnectionIds, err = getPairwiseConnectionIds(strideConnectionInfo, neutronConnectionInfo)
+		if err != nil {
+			connectionChannelsOk = false
+		}
+		neutronGaiaConnectionIds, gaiaNeutronConnectionIds, err = getPairwiseConnectionIds(neutronConnectionInfo, gaiaConnectionInfo)
+		if err != nil {
+			connectionChannelsOk = false
+		}
+		strideGaiaConnectionIds, gaiaStrideConnectionIds, err = getPairwiseConnectionIds(strideConnectionInfo, gaiaConnectionInfo)
+		if err != nil {
+			connectionChannelsOk = false
+		}
+		// Find all pairwise channels
+		strideNeutronChannelId, neutronStrideChannelId, strideNeutronConnectionId, neutronStrideConnectionId, err = getPairwiseTransferChannelIds(strideChannelInfo, neutronChannelInfo, strideNeutronConnectionIds, neutronStrideConnectionIds)
+		if err != nil {
+			connectionChannelsOk = false
+		}
+		strideGaiaChannelId, gaiaStrideChannelId, strideGaiaConnectionId, gaiaStrideConnectionId, err = getPairwiseTransferChannelIds(strideChannelInfo, gaiaChannelInfo, strideGaiaConnectionIds, gaiaStrideConnectionIds)
+		if err != nil {
+			connectionChannelsOk = false
+		}
+		gaiaNeutronTransferChannelId, neutronGaiaTransferChannelId, gaiaNeutronTransferConnectionId, neutronGaiaTransferConnectionId, err = getPairwiseTransferChannelIds(gaiaChannelInfo, neutronChannelInfo, gaiaNeutronConnectionIds, neutronGaiaConnectionIds)
+		if err != nil {
+			connectionChannelsOk = false
+		}
+		gaiaNeutronICSChannelId, neutronGaiaICSChannelId, gaiaNeutronICSConnectionId, neutronGaiaICSConnectionId, err = getPairwiseCCVChannelIds(gaiaChannelInfo, neutronChannelInfo, gaiaNeutronConnectionIds, neutronGaiaConnectionIds)
+		if err != nil {
+			connectionChannelsOk = false
+		}
+		// Print out connections and channels for debugging
+		print("\n strideGaiaConnectionId: ", strideGaiaConnectionId)
+		print("\n strideNeutronConnectionId: ", strideNeutronConnectionId)
+		print("\n neutronStrideConnectionId: ", neutronStrideConnectionId)
+		print("\n neutronGaiaTransferConnectionId: ", neutronGaiaTransferConnectionId)
+		print("\n neutronGaiaICSConnectionId: ", neutronGaiaICSConnectionId)
+		print("\n gaiaStrideConnectionId: ", gaiaStrideConnectionId)
+		print("\n gaiaNeutronTransferConnectionId: ", gaiaNeutronTransferConnectionId)
+		print("\n gaiaNeutronICSConnectionId: ", gaiaNeutronICSConnectionId)
+		print("\n strideGaiaChannelId: ", strideGaiaChannelId)
+		print("\n strideNeutronChannelId: ", strideNeutronChannelId)
+		print("\n neutronStrideChannelId: ", neutronStrideChannelId)
+		print("\n neutronGaiaTransferChannelId: ", neutronGaiaTransferChannelId)
+		print("\n neutronGaiaICSChannelId: ", neutronGaiaICSChannelId)
+		print("\n gaiaStrideChannelId: ", gaiaStrideChannelId)
+		print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
+		print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
+
+		if connectionChannelsOk {
+			print("\n Connections and channels found!")
+
+		} else {
+			if attempts == maxAttempts {
+				panic("Initial connections and channels did not build")
 			}
-		}
-		if found {
-			break
-		}
-	}
-
-	for _, s := range strideChannelInfo {
-		found := false
-		if !found {
-			for _, g := range gaiaChannelInfo {
-				if s.ChannelID == g.Counterparty.ChannelID &&
-					s.Counterparty.ChannelID == g.ChannelID &&
-					s.PortID == g.Counterparty.PortID &&
-					g.Ordering == "ORDER_UNORDERED" &&
-					s.ConnectionHops[0] == strideGaiaConnectionId &&
-					g.ConnectionHops[0] == gaiaStrideConnectionId {
-					strideGaiaChannelId = s.ChannelID
-					gaiaStrideChannelId = g.ChannelID
-					found = true
-					break
-				}
-			}
-		}
-		if found {
-			break
+			print("\n Connections and channels not found! Waiting some time...")
+			err = testutil.WaitForBlocks(ctx, 100, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+			attempts += 1
 		}
 	}
-
-	for _, n := range neutronChannelInfo {
-		for _, g := range gaiaChannelInfo {
-			if n.PortID == "consumer" &&
-				g.PortID == "provider" &&
-				n.ChannelID == g.Counterparty.ChannelID &&
-				g.ChannelID == n.Counterparty.ChannelID {
-				neutronGaiaICSChannelId = n.ChannelID
-				gaiaNeutronICSChannelId = g.ChannelID
-				neutronGaiaICSConnectionId = n.ConnectionHops[0]
-				gaiaNeutronICSConnectionId = g.ConnectionHops[0]
-
-			}
-		}
-	}
-
-	for _, ngci := range neutronGaiaConnectionIds {
-		if neutronGaiaICSConnectionId != ngci {
-			neutronGaiaTransferConnectionId = ngci
-		}
-	}
-
-	for _, gnci := range gaiaNeutronConnectionIds {
-		if gaiaNeutronICSConnectionId != gnci {
-			gaiaNeutronTransferConnectionId = gnci
-		}
-	}
-
-	for _, n := range neutronChannelInfo {
-		for _, g := range gaiaChannelInfo {
-			if n.PortID == "transfer" &&
-				g.PortID == "transfer" &&
-				n.ChannelID == g.Counterparty.ChannelID &&
-				g.ChannelID == n.Counterparty.ChannelID &&
-				n.ConnectionHops[0] == neutronGaiaTransferConnectionId &&
-				g.ConnectionHops[0] == gaiaNeutronTransferConnectionId {
-				neutronGaiaTransferChannelId = n.ChannelID
-				gaiaNeutronTransferChannelId = g.ChannelID
-			}
-		}
-	}
-
-	print("\n strideGaiaConnectionId: ", strideGaiaConnectionId)
-	print("\n gaiaStrideConnectionId: ", gaiaStrideConnectionId)
-	print("\n strideNeutronConnectionId: ", strideNeutronConnectionId)
-	print("\n neutronStrideConnectionId: ", neutronStrideConnectionId)
-	print("\n neutronGaiaTransferConnectionId: ", neutronGaiaTransferConnectionId)
-	print("\n neutronGaiaICSConnectionId: ", neutronGaiaICSConnectionId)
-	print("\n gaiaNeutronTransferConnectionId: ", gaiaNeutronTransferConnectionId)
-	print("\n gaiaNeutronICSConnectionId: ", gaiaNeutronICSConnectionId)
-
-	print("\n gaiaStrideChannelId: ", gaiaStrideChannelId)
-	print("\n strideGaiaChannelId: ", strideGaiaChannelId)
-	print("\n strideNeutronChannelId: ", strideNeutronChannelId)
-	print("\n neutronStrideChannelId: ", neutronStrideChannelId)
-	print("\n neutronGaiaTransferChannelId: ", neutronGaiaTransferChannelId)
-	print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
-	print("\n neutronGaiaICSChannelId: ", neutronGaiaICSChannelId)
-	print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
-
 	_, _, _, _, _ = neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId, neutronStrideChannelId
 	_, _, _ = gaiaStrideConnectionId, strideGaiaConnectionId, strideNeutronConnectionId
 
