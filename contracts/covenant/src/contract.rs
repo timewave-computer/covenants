@@ -10,7 +10,7 @@ use cw_utils::parse_reply_instantiate_data;
 
 use crate::{
     error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, Module},
     state::{
         CLOCK_CODE, CLOCK_INSTANTIATION_DATA, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR,
         COVENANT_HOLDER_ADDR, COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE,
@@ -153,6 +153,19 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             Ok(Response::default().add_messages(migrate_msgs))
+        },
+        MigrateMsg::ReregisterICA { addr, module } => {
+            let message = match module {
+                Module::Depositor => to_binary(&covenant_depositor::msg::MigrateMsg::ReregisterICA {  })?,
+                Module::LS => to_binary(&covenant_ls::msg::MigrateMsg::ReregisterICA {  })?,
+            };
+
+            let migrate_msg = WasmMsg::Migrate { 
+                contract_addr: addr,
+                new_code_id: 0, // not taken into account on receiving end
+                msg: to_binary(&message)?,
+            };
+            Ok(Response::default().add_message(migrate_msg))
         }
     }
 }

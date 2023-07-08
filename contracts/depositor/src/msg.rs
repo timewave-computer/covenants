@@ -73,4 +73,5 @@ pub enum MigrateMsg {
         gaia_stride_ibc_transfer_channel_id: Option<String>,
         ls_address: Option<String>,
     },
+    ReregisterICA {},
 }

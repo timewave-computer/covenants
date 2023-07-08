@@ -44,5 +44,6 @@ pub enum MigrateMsg {
     lp_address: Option<String>,
     neutron_stride_ibc_connection_id: Option<String>,
     ls_denom: Option<String>,
-  }
+  },
+  ReregisterICA {},
 }

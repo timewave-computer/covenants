@@ -237,7 +237,7 @@ fn try_receive_atom_from_ica(
     };
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -282,9 +282,16 @@ fn try_receive_atom_from_ica(
                 fee,
             );
 
-            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-
-            Ok(Response::default().add_submessage(SubMsg::new(submit_msg)))
+            let submsg = msg_with_sudo_callback(
+                deps,
+                submit_msg,
+                SudoPayload {
+                    port_id,
+                    message: "ica_transfer".to_string(),  
+                },
+            )?;
+        
+            Ok(Response::default().add_submessages(vec![submsg]))
         }
         None => {
             Err(NeutronError::Fmt(Error))
@@ -458,7 +465,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
@@ -503,7 +510,18 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             Ok(Response::default())
-        }
+        },
+        MigrateMsg::ReregisterICA {  } => {
+            // fire and forget
+            CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+            let resp = try_register_gaia_ica(deps, env);
+            match resp {
+                Ok(resp) => Ok(Response::default()),
+                Err(err) => {
+                    Err(StdError::GenericErr { msg: err.to_string() })
+                },
+            }
+        },
     }
 }
 
@@ -532,8 +550,13 @@ fn sudo_open_ack(
             )),
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
+
+        // advance the state and enqueue module for subsequent ticks
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default());
+        let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+        let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
+    
+        return Ok(Response::default().add_message(clock_enqueue_msg))
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
 }
@@ -623,9 +646,19 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
                 }
             },
         )?;
+        
+        if payload.message == "ica_transfer" {
+            // succesfull sudo response here means transfer was a success.
+            // we advance the state to completed
+            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        }
     }
 
-    Ok(Response::default())
+    // enqueue module for subsequent ticks
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
+    
+    Ok(Response::default().add_message(clock_enqueue_msg))
 }
 
 fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<Response> {

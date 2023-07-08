@@ -138,7 +138,6 @@ impl SuiteBuilder {
             )
         );
 
-        
         let covenant_address = app
             .instantiate_contract(
                 covenant_code,

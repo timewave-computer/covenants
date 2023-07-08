@@ -48,4 +48,14 @@ pub enum MigrateMsg {
         ls: Option<covenant_ls::msg::MigrateMsg>,
         holder: Option<covenant_holder::msg::MigrateMsg>,
     },
+    ReregisterICA {
+        addr: String,
+        module: Module,
+    }
+}
+
+#[cw_serde]
+pub enum Module {
+    Depositor,
+    LS,
 }

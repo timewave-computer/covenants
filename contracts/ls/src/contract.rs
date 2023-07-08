@@ -146,7 +146,7 @@ fn try_execute_transfer(
     };
 
     let port_id = IBC_PORT_ID.load(deps.storage)?;
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -190,10 +190,16 @@ fn try_execute_transfer(
                 fee,
             );
 
-            // this should be set on callback
-            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-
-            Ok(Response::default().add_submessage(SubMsg::new(submit_msg)))
+            let submsg = msg_with_sudo_callback(
+                deps,
+                submit_msg,
+                SudoPayload {
+                    port_id,
+                    message: "ica_transfer".to_string(),  
+                },
+            )?;
+        
+            Ok(Response::default().add_submessages(vec![submsg]))
         }
         None => {
             Err(NeutronError::Fmt(Error))
@@ -208,7 +214,6 @@ fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
     Ok(Response::default().add_message(msg))
 }
 
-#[allow(unused)]
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
     deps: DepsMut,
     msg: C,
@@ -338,7 +343,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
@@ -374,7 +379,18 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             Ok(Response::default())
-        }
+        },
+        MigrateMsg::ReregisterICA {  } => {
+            // fire and forget
+            CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+            let resp = try_register_stride_ica(deps, env);
+            match resp {
+                Ok(resp) => Ok(Response::default()),
+                Err(err) => {
+                    Err(StdError::GenericErr { msg: err.to_string() })
+                },
+            }
+        },
     }
 }
 
@@ -404,7 +420,11 @@ fn sudo_open_ack(
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default());
+
+        let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+        let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
+    
+        return Ok(Response::default().add_message(clock_enqueue_msg));
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
 }
@@ -419,29 +439,16 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
     );
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
     let seq_id = request
         .sequence
         .ok_or_else(|| StdError::generic_err("sequence not found"))?;
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
     let channel_id = request
         .source_channel
         .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
 
     // NOTE: NO ERROR IS RETURNED HERE. THE CHANNEL LIVES ON.
-    // In this particular example, this is a matter of developer's choice. Not being able to read
-    // the payload here means that there was a problem with the contract while submitting an
-    // interchain transaction. You can decide that this is not worth killing the channel,
-    // write an error log and / or save the acknowledgement to an errors queue for later manual
-    // processing. The decision is based purely on your application logic.
     let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
     if payload.is_none() {
         let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
@@ -449,6 +456,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         add_error_to_queue(deps.storage, error_msg.to_string());
         return Ok(Response::default());
     }
+
 
     deps.api
         .debug(format!("WASMDEBUG: sudo_response: sudo payload: {:?}", payload).as_str());
@@ -494,9 +502,18 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
                 }
             },
         )?;
+
+        if payload.message == "ica_transfer" {
+            // succesfull sudo response here means transfer was a success.
+            // we advance the state to completed
+            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        }
     }
 
-    Ok(Response::default())
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
+
+    Ok(Response::default().add_message(clock_enqueue_msg))
 }
 
 fn sudo_timeout(deps: DepsMut, env: Env, request: RequestPacket) -> StdResult<Response> {
@@ -505,8 +522,8 @@ fn sudo_timeout(deps: DepsMut, env: Env, request: RequestPacket) -> StdResult<Re
 
     // timeout indicates that the channel is closed
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
-    try_register_stride_ica(deps, env);
-    Ok(Response::default())
+
+    Err(StdError::generic_err("closed channel"))
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
     // let seq_id = request
     //     .sequence
@@ -547,20 +564,19 @@ fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResu
     deps.api
         .debug(format!("WASMDEBUG: request packet: {:?}", request).as_str());
 
+
+    // 1. differentiate whether its ICA or LS error
+
+    // - ICA:
+        // go back to instantiate state
+        // requeue ourselves
+    // - LS: 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
     let seq_id = request
         .sequence
         .ok_or_else(|| StdError::generic_err("sequence not found"))?;
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
     let channel_id = request
         .source_channel
         .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
