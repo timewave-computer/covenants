@@ -381,15 +381,11 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             Ok(Response::default())
         },
         MigrateMsg::ReregisterICA {  } => {
-            // fire and forget
             CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
-            let resp = try_register_stride_ica(deps, env);
-            match resp {
-                Ok(resp) => Ok(Response::default()),
-                Err(err) => {
-                    Err(StdError::GenericErr { msg: err.to_string() })
-                },
-            }
+
+            let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
+            let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_address.to_string())?;
+            Ok(Response::default().add_message(clock_enqueue_msg))
         },
     }
 }
