@@ -388,20 +388,6 @@ pub fn query_depositor_interchain_address(
         }
         Err(_) => Err(NeutronError::Std(StdError::not_found("no ica stored"))),
     }
-
-    // let gaia_acc_id = String::from("gaia-acc");
-    // let ics_connection_id = String::from("connection-1");
-    // let account_key = get_port_id(env.contract.address.as_str(), &gaia_acc_id);
-    // let interchain_account_addr = INTERCHAIN_ACCOUNTS.load(deps.storage, account_key)?;
-
-    // query_interchain_address(deps, env, gaia_acc_id, ics_connection_id)
-    // let query = NeutronQuery::InterchainAccountAddress {
-    //     owner_address: env.contract.address.to_string(),
-    //     interchain_account_id: gaia_acc_id,
-    //     connection_id: ics_connection_id,
-    // };
-
-    // let res: QueryInterchainAccountAddressResponse = deps.querier.query(&query.into())?;
 }
 
 // returns ICA address from Neutron ICA SDK module

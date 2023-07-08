@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
-    StdResult, SubMsg, SubMsgResult, WasmMsg,
+    StdResult, SubMsg, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
@@ -97,7 +97,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
     match msg {
         MigrateMsg::UpdateConfig {
             clock,
-            depositer,
+            depositor,
             lp,
             ls,
             holder,
@@ -112,11 +112,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 })
             }
 
-            if let Some(depositer) = depositer {
+            if let Some(depositor) = depositor {
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_DEPOSITOR_ADDR.load(deps.storage)?,
                     new_code_id: DEPOSITOR_CODE.load(deps.storage)?,
-                    msg: to_binary(&depositer)?,
+                    msg: to_binary(&depositor)?,
                 })
             }
 

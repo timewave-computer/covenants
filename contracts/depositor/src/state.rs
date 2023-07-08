@@ -1,3 +1,4 @@
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
@@ -26,8 +27,7 @@ pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
 pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ContractState {
     Instantiated,
     ICACreated,
@@ -39,8 +39,7 @@ pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
 /// SudoPayload is a type that stores information about a transaction that we try to execute
 /// on the host chain. This is a type introduced for our convenience.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct SudoPayload {
     pub message: String,
     pub port_id: String,
@@ -58,8 +57,7 @@ pub const ACKNOWLEDGEMENT_RESULTS: Map<(String, u64), AcknowledgementResult> =
 pub const ERRORS_QUEUE: Map<u32, String> = Map::new("errors_queue");
 
 /// Serves for storing acknowledgement calls for interchain transactions
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum AcknowledgementResult {
     /// Success - Got success acknowledgement in sudo with array of message item types in it
     Success(Vec<String>),

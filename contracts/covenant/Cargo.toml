@@ -41,7 +41,7 @@ base64 = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
 bech32 ={ workspace = true }
-covenant-ls = {workspace = true}
+covenant-ls = { workspace = true }
 covenant-depositor = { workspace = true }
 covenant-lp = { workspace = true }
 covenant-clock = { workspace = true }
