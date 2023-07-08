@@ -331,13 +331,15 @@ func TestICS(t *testing.T) {
 			print("\n Connections and channels found!")
 
 		} else {
+			if attempts == maxAttempts {
+				panic("Initial connections and channels did not build")
+			}
 			print("\n Connections and channels not found! Waiting some time...")
-			err = testutil.WaitForBlocks(ctx, 40, atom, neutron, stride)
+			err = testutil.WaitForBlocks(ctx, 100, atom, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 			attempts += 1
 		}
 	}
-
 	_, _, _, _, _ = neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId, neutronStrideChannelId
 	_, _, _ = gaiaStrideConnectionId, strideGaiaConnectionId, strideNeutronConnectionId
 
