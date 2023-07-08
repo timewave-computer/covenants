@@ -24,7 +24,7 @@ library = []
 
 [dependencies]
 covenant-clock-derive = { workspace = true }
-covenant-clock        = { workspace = true }
+covenant-clock        = { workspace = true, features=["library"] }
 
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
