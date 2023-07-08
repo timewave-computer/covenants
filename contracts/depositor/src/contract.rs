@@ -158,7 +158,7 @@ fn try_liquid_stake(
     };
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -208,9 +208,17 @@ fn try_liquid_stake(
                 fee,
             );
 
-            CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
 
-            Ok(Response::default().add_submessage(SubMsg::new(stride_submit_msg)))
+            let submsg = msg_with_sudo_callback(
+                deps,
+                stride_submit_msg,
+                SudoPayload {
+                    port_id,
+                    message: "autopilot".to_string(),  
+                },
+            )?;
+        
+            Ok(Response::default().add_submessages(vec![submsg]))
         }
         None => {
             Err(NeutronError::Fmt(Error))
@@ -647,10 +655,18 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
             },
         )?;
         
-        if payload.message == "ica_transfer" {
-            // succesfull sudo response here means transfer was a success.
-            // we advance the state to completed
-            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        match payload.message.as_str() {
+            "ica_transfer" => {
+                // succesfull sudo response here means transfer was a success.
+                // we advance the state to completed
+                CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+            },
+            "autopilot" => {
+                CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
+            },
+            _ => {
+
+            }
         }
     }
 
@@ -665,45 +681,15 @@ fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<R
     deps.api
         .debug(format!("WASMDEBUG: sudo timeout request: {:?}", request).as_str());
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    let seq_id = request
-        .sequence
-        .ok_or_else(|| StdError::generic_err("sequence not found"))?;
+    // timeout indicates that the channel is closed
+    // we roll back the state machine to Instantiated phase and
+    // queue a tick
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    let channel_id = request
-        .source_channel
-        .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
 
-    // update but also check that we don't update same seq_id twice
-    // NOTE: NO ERROR IS RETURNED HERE. THE CHANNEL LIVES ON.
-    // In this particular example, this is a matter of developer's choice. Not being able to read
-    // the payload here means that there was a problem with the contract while submitting an
-    // interchain transaction. You can decide that this is not worth killing the channel,
-    // write an error log and / or save the acknowledgement to an errors queue for later manual
-    // processing. The decision is based purely on your application logic.
-    // Please be careful because it may lead to an unexpected state changes because state might
-    // has been changed before this call and will not be reverted because of supressed error.
-    let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
-    if let Some(payload) = payload {
-        // update but also check that we don't update same seq_id twice
-        ACKNOWLEDGEMENT_RESULTS.update(
-            deps.storage,
-            (payload.port_id, seq_id),
-            |maybe_ack| -> StdResult<AcknowledgementResult> {
-                match maybe_ack {
-                    Some(_ack) => Err(StdError::generic_err("trying to update same seq_id")),
-                    None => Ok(AcknowledgementResult::Timeout(payload.message)),
-                }
-            },
-        )?;
-    } else {
-        let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
-        deps.api.debug(error_msg);
-        add_error_to_queue(deps.storage, error_msg.to_string());
-    }
-
-    Ok(Response::default())
+    Ok(Response::default().add_message(clock_enqueue_msg))
 }
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {

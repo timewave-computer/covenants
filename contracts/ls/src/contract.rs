@@ -521,41 +521,14 @@ fn sudo_timeout(deps: DepsMut, env: Env, request: RequestPacket) -> StdResult<Re
         .debug(format!("WASMDEBUG: sudo timeout request: {:?}", request).as_str());
 
     // timeout indicates that the channel is closed
+    // we roll back the state machine to Instantiated phase and
+    // queue a tick
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    Err(StdError::generic_err("closed channel"))
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // let seq_id = request
-    //     .sequence
-    //     .ok_or_else(|| StdError::generic_err("sequence not found"))?;
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
 
-    // // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // let channel_id = request
-    //     .source_channel
-    //     .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
-
-    // // update but also check that we don't update same seq_id twice
-    // // NOTE: NO ERROR IS RETURNED HERE. THE CHANNEL LIVES ON.
-    // let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
-    // if let Some(payload) = payload {
-    //     // update but also check that we don't update same seq_id twice
-    //     ACKNOWLEDGEMENT_RESULTS.update(
-    //         deps.storage,
-    //         (payload.port_id, seq_id),
-    //         |maybe_ack| -> StdResult<AcknowledgementResult> {
-    //             match maybe_ack {
-    //                 Some(_ack) => Err(StdError::generic_err("trying to update same seq_id")),
-    //                 None => Ok(AcknowledgementResult::Timeout(payload.message)),
-    //             }
-    //         },
-    //     )?;
-    // } else {
-    //     let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
-    //     deps.api.debug(error_msg);
-    //     add_error_to_queue(deps.storage, error_msg.to_string());
-    // }
-
-    // Ok(Response::default())
+    Ok(Response::default().add_message(clock_enqueue_msg))
 }
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {
