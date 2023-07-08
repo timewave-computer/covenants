@@ -99,6 +99,7 @@ fn clock_contract() -> Box<dyn Contract<Empty>> {
     )
 }
 
+#[allow(unused)]
 pub type BaseApp = App<
     BankKeeper,
     MockApi,
@@ -533,6 +534,7 @@ impl Suite {
     }
 
     // withdraw liquidity from pool
+    #[allow(unused)]
     pub fn withdraw_liquidity(
         &mut self,
         sender: Addr,

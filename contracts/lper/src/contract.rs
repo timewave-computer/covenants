@@ -256,7 +256,7 @@ fn try_withdraw(
     let withdraw_msg = &Cw20ExecuteMsg::Send {
         contract: pool_address.addr,
         amount: liquidity_token_balance.balance,
-        msg: to_binary(withdraw_liquidity_hook).unwrap(),
+        msg: to_binary(withdraw_liquidity_hook)?,
     };
 
     Ok(Response::default().add_message(
@@ -268,6 +268,7 @@ fn try_withdraw(
     ))
 }
 
+#[allow(unused)]
 fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>>  {
   let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
   let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;

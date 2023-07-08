@@ -6,9 +6,6 @@ use cw_multi_test::{App, ContractWrapper, Contract, Executor};
 
 use crate::msg::{InstantiateMsg, QueryMsg};
 
-pub const ST_ATOM_DENOM: &str = "stuatom";
-pub const NATIVE_ATOM_DENOM: &str = "uatom";
-
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";
 
@@ -197,7 +194,7 @@ impl Suite {
             )    
             .unwrap()
     }
-
+    #[allow(unused)]
     pub fn query_lp_address(&self) -> String {
         self.app    
             .wrap()    
@@ -207,7 +204,7 @@ impl Suite {
             )    
             .unwrap()
     }
-
+    #[allow(unused)]
     pub fn query_ls_address(&self) -> String {
         self.app    
             .wrap()    
@@ -217,7 +214,7 @@ impl Suite {
             )    
             .unwrap()
     }
-
+    #[allow(unused)]
     pub fn query_depositor_address(&self) -> String {
         self.app    
             .wrap()    

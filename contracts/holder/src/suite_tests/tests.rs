@@ -77,27 +77,29 @@ fn test_fund_and_withdraw_all_single_denom() {
 fn test_fund_and_withdraw_all_two_denoms() {
     // set up an initial user with a balance in the test suite
     let user = Addr::unchecked("anyuser");
-    let mut initial_user_balance: Vec<Coin> = Vec::new();
-    initial_user_balance.push(coin(100, "atom"));
-    initial_user_balance.push(coin(90, "statom"));
+    let initial_user_balance: Vec<Coin> = vec![
+        coin(100, "atom"),
+        coin(90, "statom"),
+    ];
 
     let mut suite = SuiteBuilder::default().with_funded_user(user.clone(), initial_user_balance).build();
     
     // this user funds the holder contract
-    let mut amt_to_fund_contract: Vec<Coin> = Vec::new();
-    amt_to_fund_contract.push(coin(80, "atom"));
-    amt_to_fund_contract.push(coin(70, "statom"));
+    let amt_to_fund_contract: Vec<Coin> = vec![
+        coin(80, "atom"),
+        coin(70, "statom"),
+    ];
 
-    
     suite.fund_holder(user,amt_to_fund_contract.clone()).unwrap();
 
     // withdraw all
     suite.withdraw_all(DEFAULT_WITHDRAWER).unwrap();
 
     // check to see there is no balance
-    let mut expected_balance: Vec<Coin> = Vec::new();
-    expected_balance.push(coin(0, "atom"));
-    expected_balance.push(coin(0, "statom"));
+    let expected_balance: Vec<Coin> = vec![
+        coin(0, "atom"),
+        coin(0, "statom"),
+    ];
 
     suite.assert_holder_balance(expected_balance);
 
@@ -137,11 +139,12 @@ fn test_fund_and_withdraw_partial_two_denom() {
     let mut suite = SuiteBuilder::default().with_funded_user(user.clone(), initial_user_balance).build();
     
     // this user funds the holder contract
-    let mut amt_to_fund_contract: Vec<Coin> = Vec::new();
-    amt_to_fund_contract.push(coin(80, "atom"));
-    amt_to_fund_contract.push(coin(70, "statom"));
+    let amt_to_fund_contract: Vec<Coin> = vec![
+        coin(80, "atom"),
+        coin(70, "statom"),
+    ];
 
-    suite.fund_holder(user,amt_to_fund_contract.clone()).unwrap();
+    suite.fund_holder(user,amt_to_fund_contract).unwrap();
 
     // withdraw partial
     let amt_to_withdraw: Vec<Coin> = vec![

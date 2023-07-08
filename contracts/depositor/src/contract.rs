@@ -41,13 +41,11 @@ use crate::state::{
     SUDO_PAYLOAD_REPLY_ID,
 };
 
-// Default timeout for SubmitTX is two weeks
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
+
 // const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
 const INTERCHAIN_ACCOUNT_ID: &str = "test";
-const TRANSFER_PORT: &str = "transfer";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -320,6 +318,7 @@ fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
     Ok(Response::default().add_message(msg))
 }
 
+#[allow(unused)]
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
     deps: DepsMut,
     msg: C,

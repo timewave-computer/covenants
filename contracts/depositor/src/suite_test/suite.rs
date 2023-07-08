@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, Uint128};
-use cw_multi_test::{App, Executor, Contract};
+use cw_multi_test::{App, Executor};
 
 
 use crate::{msg::{InstantiateMsg, QueryMsg, WeightedReceiver}};
@@ -31,6 +31,7 @@ pub const _DEFAULT_CLOCK_ADDRESS: &str = "clock-address";
 //     Box::new(ContractWrapper::new(execute_fn, instantiate_fn, query_fn))
 // }
 
+#[allow(unused)]
 pub(crate) struct Suite {
     pub app: App,
     pub admin: Addr,
@@ -116,16 +117,18 @@ impl Suite {
 
 // assertion helpers
 impl Suite {
+    #[allow(unused)]
     pub fn assert_stride_atom_receiver(&self, val: WeightedReceiver) {
         let curr = self.query_stride_atom_receiver();
         assert_eq!(curr, val);
     }
 
+    #[allow(unused)]
     pub fn assert_native_atom_receiver(&self, val: WeightedReceiver) {
         let curr = self.query_native_atom_receiver();
         assert_eq!(curr, val);
     }
-
+    #[allow(unused)]
     pub fn assert_clock_address(&self, val: Addr) {
         let curr = self.query_clock_address();
         assert_eq!(curr, val);
