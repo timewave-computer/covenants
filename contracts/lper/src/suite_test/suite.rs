@@ -162,6 +162,7 @@ impl Default for SuiteBuilder {
                         amount: Uint128::new(100000),
                     },
                 ],
+                single_side_lp_limit: Decimal::from_ratio(Uint128::new(5), Uint128::new(100)),
             },
             token_instantiate: TokenInstantiateMsg {
                 name: "nativetoken".to_string(),

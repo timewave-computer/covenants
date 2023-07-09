@@ -14,6 +14,7 @@ pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 pub const AUTOSTAKE: Item<bool> = Item::new("autostake");
 pub const SLIPPAGE_TOLERANCE: Item<Decimal> = Item::new("slippage_tolerance");
 pub const ASSETS: Item<Vec<Asset>> = Item::new("assets");
+pub const SINGLE_SIDE_LP_LIMIT: Item<Decimal> = Item::new("single_side_lp_limit");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]

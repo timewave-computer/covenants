@@ -1,6 +1,6 @@
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use covenant_clock_derive::clocked;
 
 use crate::state::ContractState;
@@ -13,6 +13,7 @@ pub struct InstantiateMsg {
     pub slippage_tolerance: Option<Decimal>,
     pub autostake: Option<bool>,
     pub assets: Vec<Asset>,
+    pub single_side_lp_limit: Decimal,
 }
 
 #[cw_serde]
@@ -20,6 +21,7 @@ pub struct PresetLpFields {
     pub slippage_tolerance: Option<Decimal>,
     pub autostake: Option<bool>,
     pub assets: Vec<Asset>,
+    pub single_side_lp_limit: Option<Decimal>,
     pub lp_code: u64,
     pub lp_position: String,
     pub label: String,
@@ -40,6 +42,10 @@ impl PresetLpFields {
             slippage_tolerance: self.slippage_tolerance,
             autostake: self.autostake,
             assets: self.assets,
+            single_side_lp_limit: self.single_side_lp_limit.unwrap_or(
+                // 5% default?
+                Decimal::from_ratio(Uint128::new(5), Uint128::new(100))
+            ),
         }
     }
 }

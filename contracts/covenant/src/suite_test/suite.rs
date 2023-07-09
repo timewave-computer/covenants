@@ -84,6 +84,7 @@ impl Default for SuiteBuilder {
                     lp_code: 1,
                     lp_position: TODO.to_string(),
                     label: "covenant_lp_contract".to_string(),
+                    single_side_lp_limit: None,
                 },
                 preset_holder_fields: covenant_holder::msg::PresetHolderFields {
                     withdrawer: Some(CREATOR_ADDR.to_string()),

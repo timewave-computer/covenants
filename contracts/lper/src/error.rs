@@ -8,4 +8,7 @@ pub enum ContractError {
 
     #[error("Not clock")]
     ClockVerificationError {},
+
+    #[error("Single side LP limit exceeded")]
+    SingleSideLpLimitError {},
 }

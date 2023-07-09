@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult, Uint128, WasmMsg,
+    StdResult, Uint128, WasmMsg, Decimal,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -16,7 +16,7 @@ use cw20::{BalanceResponse, Cw20ExecuteMsg};
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::{ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION, SLIPPAGE_TOLERANCE},
+    state::{ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION, SLIPPAGE_TOLERANCE, SINGLE_SIDE_LP_LIMIT},
 };
 
 use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
@@ -49,6 +49,7 @@ pub fn instantiate(
     let assets: Vec<Asset> = msg.assets.into_iter().collect();
 
     ASSETS.save(deps.storage, &assets)?;
+    SINGLE_SIDE_LP_LIMIT.save(deps.storage, &msg.single_side_lp_limit)?;
 
     Ok(Response::default().add_message(clock_enqueue_msg))
 }
@@ -109,8 +110,16 @@ fn try_enter_lp_position(
         },
     )?;
 
+
+    let max_single_side_ratio = SINGLE_SIDE_LP_LIMIT.load(deps.storage)?;
+
     let (leftover_asset, leftover_asset_counterpart) =
         if first_asset.amount > simulation.return_amount {
+            validate_single_sided_liquidity_amount(
+                first_asset.amount - simulation.return_amount,
+                first_asset.amount,
+                max_single_side_ratio,
+            )?;
             (
                 Asset {
                     info: assets[1].clone().info,
@@ -122,6 +131,11 @@ fn try_enter_lp_position(
                 },
             )
         } else {
+            validate_single_sided_liquidity_amount(
+                simulation.return_amount - first_asset.amount,
+                first_asset.amount,
+                max_single_side_ratio,
+            )?;
             (
                 Asset {
                     info: assets[0].clone().info,
@@ -230,6 +244,20 @@ fn try_enter_lp_position(
         }),
         CosmosMsg::Wasm(dequeue_clock_msg),
     ]))
+}
+
+fn validate_single_sided_liquidity_amount(
+    single_side_amount: Uint128,
+    normal_amount: Uint128,
+    max_single_side_ratio: Decimal
+) -> Result<(), ContractError> {
+    let ratio = Decimal::from_ratio(single_side_amount, normal_amount);
+    println!("ratio {:?}", ratio);
+    if ratio > max_single_side_ratio {
+        return Err(ContractError::SingleSideLpLimitError {})
+    } else {
+        return Ok(())
+    }
 }
 
 /// should be sent to the LP token contract associated with the pool

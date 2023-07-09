@@ -1,3 +1,4 @@
+use astroport::DecimalCheckedOps;
 use cosmwasm_std::{Addr, Decimal, Uint128};
 
 use super::suite::{SuiteBuilder, NATIVE_ATOM_DENOM, ST_ATOM_DENOM};
@@ -64,3 +65,61 @@ fn test_instantiate_happy() {
 // tests todo:
 // 1. randomly funded contracts/wallets
 // 2. existing pool ratios (imbalanced, equal, extremely imbalanced, providing more liq than exists)
+
+#[test]
+#[should_panic]
+fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
+    let mut suite = SuiteBuilder::default().build();
+
+    let redemption_rate = Decimal::from_ratio(Uint128::new(10), Uint128::new(40));
+    let atom_amt = Uint128::new(400000);
+    let statom_amt = atom_amt * redemption_rate;
+
+    suite.provide_manual_liquidity("alice".to_string(), statom_amt, atom_amt);
+
+    suite.mint_coins_to_addr(
+        suite.liquid_pooler.1.to_string(),
+        ST_ATOM_DENOM.to_string(),
+        statom_amt,
+    );
+    suite.mint_coins_to_addr(
+        suite.liquid_pooler.1.to_string(),
+        NATIVE_ATOM_DENOM.to_string(),
+        atom_amt,
+    );
+
+    suite.tick();
+
+    suite.pass_blocks(10);
+
+    suite.withdraw();
+}
+
+
+#[test]
+#[should_panic]
+fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
+    let mut suite = SuiteBuilder::default().build();
+
+    let redemption_rate = Decimal::from_ratio(Uint128::new(25), Uint128::new(1));
+    let atom_amt = Uint128::new(400000);
+    let statom_amt = redemption_rate.checked_mul_uint128(atom_amt).unwrap();
+
+    suite.provide_manual_liquidity("alice".to_string(), statom_amt, atom_amt);
+    suite.mint_coins_to_addr(
+        suite.liquid_pooler.1.to_string(),
+        ST_ATOM_DENOM.to_string(),
+        statom_amt,
+    );
+    suite.mint_coins_to_addr(
+        suite.liquid_pooler.1.to_string(),
+        NATIVE_ATOM_DENOM.to_string(),
+        atom_amt,
+    );
+
+    suite.tick();
+
+    suite.pass_blocks(10);
+
+    suite.withdraw();
+}
