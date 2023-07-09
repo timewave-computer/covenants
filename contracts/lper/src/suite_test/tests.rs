@@ -7,7 +7,7 @@ use super::suite::{SuiteBuilder, NATIVE_ATOM_DENOM, ST_ATOM_DENOM};
 fn test_instantiate_happy() {
     let mut suite = SuiteBuilder::default().build();
 
-    let redemption_rate = Decimal::from_ratio(Uint128::new(12), Uint128::new(10));
+    let redemption_rate = Decimal::from_ratio(Uint128::new(22), Uint128::new(10));
     let atom_amt = Uint128::new(400000);
     let statom_amt = atom_amt * redemption_rate;
     // fund pool with balanced amounts of underlying tokens

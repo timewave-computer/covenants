@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult, Uint128, WasmMsg, Decimal,
+    StdResult, Uint128, WasmMsg, Decimal, SubMsg,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -46,9 +46,7 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     LP_POSITION.save(deps.storage, &msg.lp_position)?;
     HOLDER_ADDRESS.save(deps.storage, &msg.holder_address)?;
-    let assets: Vec<Asset> = msg.assets.into_iter().collect();
-
-    ASSETS.save(deps.storage, &assets)?;
+    ASSETS.save(deps.storage, &msg.assets)?;
     SINGLE_SIDE_LP_LIMIT.save(deps.storage, &msg.single_side_lp_limit)?;
 
     Ok(Response::default().add_message(clock_enqueue_msg))
@@ -98,175 +96,192 @@ fn try_enter_lp_position(
     let pool_address = LP_POSITION.load(deps.storage)?;
     let slippage_tolerance = SLIPPAGE_TOLERANCE.may_load(deps.storage)?;
     let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
-    let assets = ASSETS.load(deps.storage)?;
-    let first_asset = &assets[0];
+    let asset_data = ASSETS.load(deps.storage)?;
+    let max_single_side_ratio: Decimal = SINGLE_SIDE_LP_LIMIT.load(deps.storage)?;
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
 
-    // We query balances in this account. During instantiation we know the relevant tokens.
-    // However, we don't know the actual amounts we will receive.
-
-    // We instantiate with asset_one_completion_amount. If our current balance of asset one
-    // >= asset_one_completion_amount, we run the simulation and see how much of asset two we need
-    // to provide. We also need to query balance for asset two, to compare against.
-    // Now, there are two cases:
-    // Case 1: The ask_amount of asset two, returned by simulation is less than the current balance of asset_two
-    //      This means that we will have left over asset two, if we are to provide double sided liquidity
-    //      with the simulation ratio. We can get the left_over_asset_two: balance of asset two - ask amount
-    //          We should provide double sided liquidity regardless of left over. If there is no left over, we can go to completion.
-    //      If the left_over_asset_two / current balance of asset two <= max single sided liquidity ratio
-    //          We should provide single sided liquidity and we can go to completion state. We can go to completion.
-    //      Otherwise:
-    //          We can't got to completion yet because we need more of asset one. We need to requeue ourselves.
-    // Case 2: The ask_amount of asset two, returned by simulation is greater than the current balance of asset_two
-    //      TODO explanation
-
-    // We need to simulate providing liquidity with offer_asset amount to 
-    // learn how much of the ask_asset we allso need to provide. This amount 
-    // is dependent on the current pool ratio. We shouldn't assume that this ratio
-    // is constant with all values of offer_asset because it depends on the pool type.
-    // Notably, stableswap pools do NOT follow the xy = k invariant.
+    // First we filter out non-relevant token balances
+    let mut native_bal = Coin::default();
+    let mut ls_bal = Coin::default();
+    deps.querier
+        .query_all_balances(env.contract.address)?
+        .into_iter()
+        .for_each(|c| {
+            if c.denom == asset_data.ls_asset_denom {
+                // found ls balance
+                ls_bal = c;
+            } else if let Some(native_denom) = asset_data.clone().try_get_native_asset_denom() {
+                if native_denom == c.denom {
+                    // found native token balance
+                    native_bal = c;
+                }
+            }
+        });
     
+    // check if we already received the expected amount of native asset.
+    // if we have not, we requeue ourselves and wait for funds to arrive.
+    if native_bal.amount < asset_data.native_asset_info.amount {
+        let enqueue_clock_msg = covenant_clock::helpers::enqueue_msg(clock_addr.as_str())?;
+        return Ok(Response::default().add_message(
+            CosmosMsg::Wasm(enqueue_clock_msg),
+        ))
+    }
+    
+    // we run the simulation and see how much of asset two we need to provide.
     let simulation: SimulationResponse = deps.querier.query_wasm_smart(
         &pool_address.addr,
         &astroport::pair::QueryMsg::Simulation {
-            offer_asset: first_asset.to_owned(),
-            ask_asset_info: Some(assets[1].info.to_owned()),
+            offer_asset: asset_data.native_asset_info.clone(),
+            ask_asset_info: None,
         },
     )?;
 
+    let mut submessages: Vec<CosmosMsg> = Vec::new();
+    // Given a SimulationResponse, we have two possible cases:
 
-    let max_single_side_ratio = SINGLE_SIDE_LP_LIMIT.load(deps.storage)?;
+    // Case 1: The ask_amount of asset two, returned by simulation is less than the current balance of asset_two
+    if simulation.return_amount < ls_bal.amount {
+        // This means that we will have left over asset two, if we are to provide double sided liquidity
+        // with the simulation ratio. 
 
-    let (leftover_asset, leftover_asset_counterpart) =
-        if first_asset.amount > simulation.return_amount {
-            validate_single_sided_liquidity_amount(
-                first_asset.amount - simulation.return_amount,
-                first_asset.amount,
-                max_single_side_ratio,
-            )?;
-            (
-                Asset {
-                    info: assets[1].clone().info,
-                    amount: first_asset.amount - simulation.return_amount,
-                },
-                Asset {
-                    info: assets[0].clone().info,
-                    amount: Uint128::zero(),
-                },
-            )
-        } else {
-            validate_single_sided_liquidity_amount(
-                simulation.return_amount - first_asset.amount,
-                first_asset.amount,
-                max_single_side_ratio,
-            )?;
-            (
-                Asset {
-                    info: assets[0].clone().info,
-                    amount: simulation.return_amount - first_asset.amount,
-                },
-                Asset {
-                    info: assets[1].clone().info,
-                    amount: Uint128::zero(),
-                },
-            )
+        // We should provide double sided liquidity regardless of left over.
+        let ls_asset_double_sided = Asset { 
+            info: AssetInfo::NativeToken { denom: asset_data.ls_asset_denom.to_string() },
+            // we provide as much as needed to keep in balance with the queried amount
+            amount: simulation.return_amount
         };
-    let (leftover_bal, _leftover_bal_counterpart) = (
-        leftover_asset.to_coin()?,
-        leftover_asset_counterpart.to_coin()?,
-    );
-
-    deps.api.debug(&format!(
-        "\nWASMDEBUG: {:?}{:?} = {:?}{:?}\n",
-        first_asset.amount,
-        first_asset.to_coin()?.denom,
-        simulation.return_amount,
-        assets[1].to_coin()?.denom
-    ));
-    deps.api
-        .debug(&format!("WASMDEBUG: leftover asset: {:?}\n", leftover_bal));
-
-    println!(
-        "\n coin balances: {:?}",
-        deps.querier
-            .query_all_balances(env.contract.clone().address)?
-    );
-
-    let balances: Vec<Coin> = deps
-        .querier
-        .query_all_balances(env.contract.address)?
-        .into_iter()
-        .filter(|coin| {
-            let mut valid_balance = false;
-            for asset in assets.clone() {
-                match asset.info {
-                    AssetInfo::Token { contract_addr } => {
-                        if coin.denom == contract_addr {
-                            valid_balance = false
-                        }
-                    }
-                    AssetInfo::NativeToken { denom } => {
-                        if coin.denom == denom {
-                            valid_balance = true
-                        }
-                    }
-                }
-            }
-            valid_balance
-        })
-        .map(|mut c| {
-            // convert balances according to simulation
-            if c.denom == leftover_bal.denom {
-                // if its the coin with leftovers, subtract
-                c.amount -= leftover_bal.amount;
-            }
-            c
-        })
-        .collect();
-
-    println!("\n after sim coin balances: {:?}", balances);
-
-    // generate astroport Assets from balances
-    let assets: Vec<Asset> = balances
-        .clone()
-        .into_iter()
-        .map(|bal| Asset {
-            info: AssetInfo::NativeToken { denom: bal.denom },
-            amount: bal.amount,
-        })
-        .collect();
-
-    let provide_liquidity_msg = ProvideLiquidity {
-        assets,
-        slippage_tolerance,
-        auto_stake,
-        receiver: None,
-    };
-
-    // We can safely dequeue the clock here
-    // if PL fails, dequeue wont happen and we will just try again.
-    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-    let dequeue_clock_msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
-
-    let single_sided_liq_msg = ProvideLiquidity {
-        assets: vec![leftover_asset, leftover_asset_counterpart],
-        slippage_tolerance,
-        auto_stake,
-        receiver: None,
-    };
-
-    Ok(Response::default().add_messages(vec![
-        CosmosMsg::Wasm(WasmMsg::Execute {
+        let double_sided_liq_msg = ProvideLiquidity {
+            assets: vec![
+                asset_data.native_asset_info.clone(),
+                ls_asset_double_sided.clone(),
+            ],
+            slippage_tolerance,
+            auto_stake,
+            receiver: None,
+        };
+        submessages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pool_address.addr.to_string(),
-            msg: to_binary(&provide_liquidity_msg)?,
-            funds: balances,
-        }),
-        CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pool_address.addr,
-            msg: to_binary(&single_sided_liq_msg)?,
-            funds: vec![leftover_bal],
-        }),
-        CosmosMsg::Wasm(dequeue_clock_msg),
-    ]))
+            msg: to_binary(&double_sided_liq_msg)?,
+            funds: vec![
+                asset_data.native_asset_info.to_coin()?,
+                ls_asset_double_sided.clone().to_coin()?,
+            ],
+        }));
+        
+        // If there is no left over, we can go to completion.
+        // We can get the left_over_asset_two: balance of asset two - ask amount
+        let left_over_ls_amount = ls_bal.amount - simulation.return_amount;
+
+        // If the left_over_asset_two / current balance of asset two <= max single sided liquidity ratio
+        // We should provide single sided liquidity and we can go to completion state.
+        let left_over_to_available_bal_ratio = Decimal::from_ratio(
+            left_over_ls_amount, 
+            ls_bal.amount
+        );       
+        if left_over_to_available_bal_ratio <= max_single_side_ratio {
+            let mut native_asset = asset_data.native_asset_info.clone();
+            native_asset.amount = Uint128::zero();
+            let ls_single_sided_asset = Asset { 
+                info: AssetInfo::NativeToken { denom: asset_data.ls_asset_denom.to_string() },
+                amount: left_over_ls_amount,
+            };
+            let single_sided_liq_msg = ProvideLiquidity { 
+                assets: vec![
+                    ls_single_sided_asset.clone(),
+                    native_asset,
+                ],
+                slippage_tolerance,
+                auto_stake,
+                receiver: None,
+            };
+            submessages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pool_address.addr.to_string(),
+                msg: to_binary(&single_sided_liq_msg)?,
+                funds: vec![
+                    ls_single_sided_asset.to_coin()?,
+                ],
+            }));
+        }
+    } else { 
+        // Case 2: The ask_amount of asset two, returned by simulation is greater than the current balance of asset_two
+
+        // This means that we will have leftover asset one after providing double sided liquidity with 
+        // the total amount of asset two along with the required amount of asset one.
+        
+        // We first figure out the amount of asset one to be used with proportions:
+        // native asset amount / ls asset simulation return = x / available ls amount
+        // x = available ls amount * native asset amount / ls asset simulation return
+        let native_asset_amt = ls_bal.amount * native_bal.amount / simulation.return_amount;
+
+        let mut double_sided_native_asset = asset_data.native_asset_info.clone();        
+        double_sided_native_asset.amount = native_asset_amt;
+        let mut double_sided_ls_asset = Asset {
+            info: AssetInfo::NativeToken { denom: asset_data.ls_asset_denom, },
+            amount: ls_bal.amount,
+        };
+
+        // We should provide double sided liquidity regardless of left over.
+        let double_sided_liq_msg = ProvideLiquidity {
+            assets: vec![
+                double_sided_ls_asset.clone(),
+                double_sided_native_asset.clone(),
+            ],
+            slippage_tolerance,
+            auto_stake,
+            receiver: None,
+        };
+        submessages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: pool_address.addr.to_string(),
+            msg: to_binary(&double_sided_liq_msg)?,
+            funds: vec![
+                double_sided_native_asset.to_coin()?,
+                double_sided_ls_asset.to_coin()?,
+            ],
+        }));
+
+        // If there is no left over, we can go to completion.
+        // We can get the left_over_asset_two: balance of asset two - ask amount
+        let native_coin_leftover = native_bal.amount - double_sided_native_asset.amount;
+
+        // If the left_over_asset_two / current balance of asset two <= max single sided liquidity ratio
+        // We should provide single sided liquidity and we can go to completion state.
+        let left_over_to_available_bal_ratio = Decimal::from_ratio(
+            native_coin_leftover, 
+            native_bal.amount
+        );       
+        if left_over_to_available_bal_ratio <= max_single_side_ratio {
+            let mut ls_asset = double_sided_ls_asset.clone();
+            ls_asset.amount = Uint128::zero();
+
+            let native_single_sided_asset = Asset { 
+                info: asset_data.native_asset_info.clone().info,
+                amount: native_coin_leftover,
+            };
+            let single_sided_liq_msg = ProvideLiquidity { 
+                assets: vec![
+                    ls_asset.clone(),
+                    native_single_sided_asset.clone(),
+                ],
+                slippage_tolerance,
+                auto_stake,
+                receiver: None,
+            };
+            submessages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pool_address.addr.to_string(),
+                msg: to_binary(&single_sided_liq_msg)?,
+                funds: vec![
+                    native_single_sided_asset.to_coin()?,
+                ],
+            }));
+        }
+    }
+
+
+    // TODO: enque/deque
+    // TODO: return message responses?
+
+
+    Ok(Response::default())
 }
 
 fn validate_single_sided_liquidity_amount(

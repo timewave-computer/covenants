@@ -15,7 +15,7 @@ use cw_multi_test::{
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, LPInfo, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, LPInfo, QueryMsg, AssetData};
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
 use astroport::native_coin_registry::InstantiateMsg as NativeCoinRegistryInstantiateMsg;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
@@ -148,20 +148,15 @@ impl Default for SuiteBuilder {
                 holder_address: "hodler".to_string(),
                 slippage_tolerance: Some(Decimal::one()),
                 autostake: Some(false),
-                assets: vec![
-                    Asset {
+                assets: AssetData {
+                    native_asset_info: Asset {
                         info: AssetInfo::NativeToken {
                             denom: "uatom".to_string(),
                         },
                         amount: Uint128::new(100000),
                     },
-                    Asset {
-                        info: AssetInfo::NativeToken {
-                            denom: "stuatom".to_string(),
-                        },
-                        amount: Uint128::new(100000),
-                    },
-                ],
+                    ls_asset_denom: "stuatom".to_string(),
+                },
                 single_side_lp_limit: Decimal::from_ratio(Uint128::new(5), Uint128::new(100)),
             },
             token_instantiate: TokenInstantiateMsg {
@@ -233,7 +228,7 @@ impl SuiteBuilder {
         self
     }
 
-    fn with_assets(mut self, assets: Vec<Asset>) -> Self {
+    fn with_assets(mut self, assets: AssetData) -> Self {
         self.lp_instantiate.assets = assets;
         self
     }

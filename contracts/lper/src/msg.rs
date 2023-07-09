@@ -1,4 +1,4 @@
-use astroport::asset::Asset;
+use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use covenant_clock_derive::clocked;
@@ -12,15 +12,32 @@ pub struct InstantiateMsg {
     pub holder_address: String,
     pub slippage_tolerance: Option<Decimal>,
     pub autostake: Option<bool>,
-    pub assets: Vec<Asset>,
+    pub assets: AssetData,
     pub single_side_lp_limit: Decimal,
+}
+
+#[cw_serde]
+pub struct AssetData {
+    // native asset is known in advance
+    pub native_asset_info: Asset,
+    // we only know the ls asset denom
+    pub ls_asset_denom: String,
+}
+
+impl AssetData {
+    pub fn try_get_native_asset_denom(self) -> Option<String> {
+        match self.native_asset_info.info {
+            AssetInfo::Token { contract_addr } => None,
+            AssetInfo::NativeToken { denom } => Some(denom),
+        }
+    }
 }
 
 #[cw_serde]
 pub struct PresetLpFields {
     pub slippage_tolerance: Option<Decimal>,
     pub autostake: Option<bool>,
-    pub assets: Vec<Asset>,
+    pub assets: AssetData,
     pub single_side_lp_limit: Option<Decimal>,
     pub lp_code: u64,
     pub lp_position: String,
