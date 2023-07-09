@@ -101,7 +101,30 @@ fn try_enter_lp_position(
     let assets = ASSETS.load(deps.storage)?;
     let first_asset = &assets[0];
 
-    // figure out how much of second asset can we get with one of first asset
+    // We query balances in this account. During instantiation we know the relevant tokens.
+    // However, we don't know the actual amounts we will receive.
+
+    // We instantiate with asset_one_completion_amount. If our current balance of asset one
+    // >= asset_one_completion_amount, we run the simulation and see how much of asset two we need
+    // to provide. We also need to query balance for asset two, to compare against.
+    // Now, there are two cases:
+    // Case 1: The ask_amount of asset two, returned by simulation is less than the current balance of asset_two
+    //      This means that we will have left over asset two, if we are to provide double sided liquidity
+    //      with the simulation ratio. We can get the left_over_asset_two: balance of asset two - ask amount
+    //          We should provide double sided liquidity regardless of left over. If there is no left over, we can go to completion.
+    //      If the left_over_asset_two / current balance of asset two <= max single sided liquidity ratio
+    //          We should provide single sided liquidity and we can go to completion state. We can go to completion.
+    //      Otherwise:
+    //          We can't got to completion yet because we need more of asset one. We need to requeue ourselves.
+    // Case 2: The ask_amount of asset two, returned by simulation is greater than the current balance of asset_two
+    //      TODO explanation
+
+    // We need to simulate providing liquidity with offer_asset amount to 
+    // learn how much of the ask_asset we allso need to provide. This amount 
+    // is dependent on the current pool ratio. We shouldn't assume that this ratio
+    // is constant with all values of offer_asset because it depends on the pool type.
+    // Notably, stableswap pools do NOT follow the xy = k invariant.
+    
     let simulation: SimulationResponse = deps.querier.query_wasm_smart(
         &pool_address.addr,
         &astroport::pair::QueryMsg::Simulation {
