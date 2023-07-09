@@ -2,8 +2,6 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 
-
-
 use crate::msg::WeightedReceiver;
 
 // addr and amount of atom to liquid stake on stride

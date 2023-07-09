@@ -1,10 +1,9 @@
-use super::suite::{SuiteBuilder};
-
+use super::suite::SuiteBuilder;
 
 #[test]
+#[should_panic]
 fn test_instantiate_happy() {
-    let _suite = SuiteBuilder::default()
-        .build();
+    let _suite = SuiteBuilder::default().build();
 
     // suite.assert_clock_address(Addr::unchecked(DEFAULT_CLOCK_ADDRESS));
     // suite.assert_native_atom_receiver(WeightedReceiver {

@@ -1,18 +1,26 @@
+use astroport::{
+    asset::{Asset, AssetInfo, PairInfo},
+    factory::{PairConfig, PairType},
+    pair::{Cw20HookMsg, PoolResponse, SimulationResponse, StablePoolParams},
+};
 
-
-use astroport::{asset::{Asset, AssetInfo, PairInfo}, factory::{PairConfig, PairType}, pair::{StablePoolParams, Cw20HookMsg, PoolResponse, SimulationResponse}};
-
-use cosmwasm_std::{Addr, Uint128, testing::{MockApi}, Decimal, Empty, to_binary, Coin, QueryRequest, WasmQuery, Uint64, MemoryStorage};
-use cw20::{Cw20ExecuteMsg};
-use cw_multi_test::{App, Executor, Contract, ContractWrapper, SudoMsg, BankSudo, AppResponse, BankKeeper, FailingModule, WasmKeeper};
+use cosmwasm_std::{
+    testing::MockApi, to_binary, Addr, Coin, Decimal, Empty, MemoryStorage, QueryRequest, Uint128,
+    Uint64, WasmQuery,
+};
+use cw20::Cw20ExecuteMsg;
+use cw_multi_test::{
+    App, AppResponse, BankKeeper, BankSudo, Contract, ContractWrapper, Executor, FailingModule,
+    SudoMsg, WasmKeeper,
+};
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use crate::{msg::{InstantiateMsg, QueryMsg, LPInfo, ExecuteMsg}};
-use astroport::token::InstantiateMsg as TokenInstantiateMsg;
+use crate::msg::{ExecuteMsg, InstantiateMsg, LPInfo, QueryMsg};
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
-use cw1_whitelist::msg::InstantiateMsg as WhitelistInstantiateMsg;
 use astroport::native_coin_registry::InstantiateMsg as NativeCoinRegistryInstantiateMsg;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
+use astroport::token::InstantiateMsg as TokenInstantiateMsg;
+use cw1_whitelist::msg::InstantiateMsg as WhitelistInstantiateMsg;
 
 pub const CREATOR_ADDR: &str = "creator";
 pub const ST_ATOM_DENOM: &str = "stuatom";
@@ -25,53 +33,50 @@ fn astro_token() -> Box<dyn Contract<Empty>> {
             astroport_token::contract::instantiate,
             astroport_token::contract::query,
         )
-        .with_migrate(astroport_token::contract::migrate)
+        .with_migrate(astroport_token::contract::migrate),
     )
 }
 
 fn astro_whitelist() -> Box<dyn Contract<Empty>> {
-    Box::new(
-        ContractWrapper::new(
-            astroport_whitelist::contract::instantiate,
-            astroport_whitelist::contract::instantiate,
-            astroport_whitelist::contract::query,
-        )
-    )
+    Box::new(ContractWrapper::new(
+        astroport_whitelist::contract::instantiate,
+        astroport_whitelist::contract::instantiate,
+        astroport_whitelist::contract::query,
+    ))
 }
 
 fn astro_factory() -> Box<dyn Contract<Empty>> {
     Box::new(
         ContractWrapper::new(
-        astroport_factory::contract::execute,
-        astroport_factory::contract::instantiate,
-        astroport_factory::contract::query
+            astroport_factory::contract::execute,
+            astroport_factory::contract::instantiate,
+            astroport_factory::contract::query,
         )
         .with_migrate(astroport_factory::contract::migrate)
-        .with_reply(astroport_factory::contract::reply)
+        .with_reply(astroport_factory::contract::reply),
     )
 }
 
 fn astro_pair_stable() -> Box<dyn Contract<Empty>> {
     Box::new(
         ContractWrapper::new(
-        astroport_pair_stable::contract::execute,
-        astroport_pair_stable::contract::instantiate,
-        astroport_pair_stable::contract::query
-        ) 
+            astroport_pair_stable::contract::execute,
+            astroport_pair_stable::contract::instantiate,
+            astroport_pair_stable::contract::query,
+        )
         .with_reply(astroport_pair_stable::contract::reply)
-        .with_migrate(astroport_pair_stable::contract::migrate)
-    ) 
+        .with_migrate(astroport_pair_stable::contract::migrate),
+    )
 }
-
 
 fn astro_coin_registry() -> Box<dyn Contract<Empty>> {
     let registry_contract = ContractWrapper::new(
         astroport_native_coin_registry::contract::execute,
         astroport_native_coin_registry::contract::instantiate,
-        astroport_native_coin_registry::contract::query
+        astroport_native_coin_registry::contract::query,
     )
     .with_migrate(astroport_native_coin_registry::contract::migrate);
-    
+
     Box::new(registry_contract)
 }
 
@@ -95,7 +100,7 @@ fn clock_contract() -> Box<dyn Contract<Empty>> {
             covenant_clock::contract::query,
         )
         .with_reply(covenant_clock::contract::reply)
-        .with_migrate(covenant_clock::contract::migrate)
+        .with_migrate(covenant_clock::contract::migrate),
     )
 }
 
@@ -144,14 +149,18 @@ impl Default for SuiteBuilder {
                 slippage_tolerance: Some(Decimal::one()),
                 autostake: Some(false),
                 assets: vec![
-                    Asset { 
-                        info: AssetInfo::NativeToken { denom: "uatom".to_string() },
+                    Asset {
+                        info: AssetInfo::NativeToken {
+                            denom: "uatom".to_string(),
+                        },
                         amount: Uint128::new(100000),
                     },
-                    Asset { 
-                        info: AssetInfo::NativeToken { denom: "stuatom".to_string() },
+                    Asset {
+                        info: AssetInfo::NativeToken {
+                            denom: "stuatom".to_string(),
+                        },
                         amount: Uint128::new(100000),
-                    },                
+                    },
                 ],
             },
             token_instantiate: TokenInstantiateMsg {
@@ -167,16 +176,14 @@ impl Default for SuiteBuilder {
                 mutable: false,
             },
             factory_instantiate: FactoryInstantiateMsg {
-                pair_configs: vec![
-                    PairConfig { 
-                        code_id: u64::MAX, 
-                        pair_type: astroport::factory::PairType::Stable {}, 
-                        total_fee_bps: 0, 
-                        maker_fee_bps: 0, 
-                        is_disabled: false, 
-                        is_generator_disabled: true, 
-                    },
-                ],
+                pair_configs: vec![PairConfig {
+                    code_id: u64::MAX,
+                    pair_type: astroport::factory::PairType::Stable {},
+                    total_fee_bps: 0,
+                    maker_fee_bps: 0,
+                    is_disabled: false,
+                    is_generator_disabled: true,
+                }],
                 token_code_id: u64::MAX,
                 fee_address: None,
                 generator_address: None,
@@ -187,25 +194,28 @@ impl Default for SuiteBuilder {
             stablepair_instantiate: PairInstantiateMsg {
                 asset_infos: vec![
                     astroport::asset::AssetInfo::NativeToken {
-                        denom: ST_ATOM_DENOM.to_string() 
+                        denom: ST_ATOM_DENOM.to_string(),
                     },
-                    astroport::asset::AssetInfo::NativeToken { 
-                        denom: NATIVE_ATOM_DENOM.to_string()
+                    astroport::asset::AssetInfo::NativeToken {
+                        denom: NATIVE_ATOM_DENOM.to_string(),
                     },
                 ],
                 token_code_id: u64::MAX,
                 factory_addr: "TODO".to_string(),
-                init_params: Some(to_binary(&StablePoolParams {
-                    amp: 1000,
-                    owner: Some(CREATOR_ADDR.to_string()),
-                }).unwrap()),
+                init_params: Some(
+                    to_binary(&StablePoolParams {
+                        amp: 1000,
+                        owner: Some(CREATOR_ADDR.to_string()),
+                    })
+                    .unwrap(),
+                ),
             },
             registry_instantiate: NativeCoinRegistryInstantiateMsg {
                 owner: CREATOR_ADDR.to_string(),
             },
             clock_instantiate: covenant_clock::msg::InstantiateMsg {
                 tick_max_gas: Uint64::new(50000),
-            }
+            },
         }
     }
 }
@@ -236,7 +246,7 @@ impl SuiteBuilder {
         // let mut app = BasicAppBuilder::<NeutronMsg, NeutronQuery>::new_custom().build(|_,_,_| {});
 
         let mut app = App::default();
- 
+
         let token_code = app.store_code(astro_token());
         let stablepair_code = app.store_code(astro_pair_stable());
         let whitelist_code = app.store_code(astro_whitelist());
@@ -245,108 +255,136 @@ impl SuiteBuilder {
         let lper_code = app.store_code(lper_contract());
         let clock_code = app.store_code(clock_contract());
 
-        let clock_address = app.instantiate_contract(
-            clock_code,
-            Addr::unchecked(CREATOR_ADDR),
-            &self.clock_instantiate,
-            &[],
-            "clock",
-            None
-        ).unwrap();
+        let clock_address = app
+            .instantiate_contract(
+                clock_code,
+                Addr::unchecked(CREATOR_ADDR),
+                &self.clock_instantiate,
+                &[],
+                "clock",
+                None,
+            )
+            .unwrap();
         self.lp_instantiate.clock_address = clock_address.to_string();
         self.factory_instantiate.token_code_id = token_code;
         self.stablepair_instantiate.token_code_id = token_code;
         self.factory_instantiate.whitelist_code_id = whitelist_code;
         self.factory_instantiate.pair_configs[0].code_id = stablepair_code;
 
-        let whitelist_addr = app.instantiate_contract(
-            whitelist_code,
-            Addr::unchecked(CREATOR_ADDR),
-            &self.whitelist_instantiate,
-            &[],
-            "whitelist",
-            None,
-        ).unwrap();
-        
+        let whitelist_addr = app
+            .instantiate_contract(
+                whitelist_code,
+                Addr::unchecked(CREATOR_ADDR),
+                &self.whitelist_instantiate,
+                &[],
+                "whitelist",
+                None,
+            )
+            .unwrap();
+
         app.update_block(|b: &mut cosmwasm_std::BlockInfo| b.height += 5);
 
-        let coin_registry_addr = app.instantiate_contract(
-            coin_registry_code,
-            Addr::unchecked(CREATOR_ADDR),
-            &self.registry_instantiate,
-            &[],
-            "native coin registry",
-            None
-        ).unwrap();
+        let coin_registry_addr = app
+            .instantiate_contract(
+                coin_registry_code,
+                Addr::unchecked(CREATOR_ADDR),
+                &self.registry_instantiate,
+                &[],
+                "native coin registry",
+                None,
+            )
+            .unwrap();
         app.update_block(|b| b.height += 5);
 
         // add coins to registry
         app.execute_contract(
             Addr::unchecked(CREATOR_ADDR),
             coin_registry_addr.clone(),
-            &astroport::native_coin_registry::ExecuteMsg::Add { 
+            &astroport::native_coin_registry::ExecuteMsg::Add {
                 native_coins: vec![
                     (ST_ATOM_DENOM.to_string(), 6),
                     (NATIVE_ATOM_DENOM.to_string(), 6),
-                ]
+                ],
             },
             &[],
-        ).unwrap();
+        )
+        .unwrap();
         app.update_block(|b| b.height += 5);
 
         self.factory_instantiate.coin_registry_address = coin_registry_addr.to_string();
 
-        let factory_addr = app.instantiate_contract(
-            factory_code,
-            Addr::unchecked(CREATOR_ADDR),
-            &self.factory_instantiate,
-            &[],
-            "factory",
-            None,
-        ).unwrap();
+        let factory_addr = app
+            .instantiate_contract(
+                factory_code,
+                Addr::unchecked(CREATOR_ADDR),
+                &self.factory_instantiate,
+                &[],
+                "factory",
+                None,
+            )
+            .unwrap();
         app.update_block(|b| b.height += 5);
 
         let init_pair_msg = astroport::factory::ExecuteMsg::CreatePair {
             pair_type: PairType::Stable {},
             asset_infos: vec![
-                AssetInfo::NativeToken { denom: ST_ATOM_DENOM.to_string() },
-                AssetInfo::NativeToken { denom: NATIVE_ATOM_DENOM.to_string() },
+                AssetInfo::NativeToken {
+                    denom: ST_ATOM_DENOM.to_string(),
+                },
+                AssetInfo::NativeToken {
+                    denom: NATIVE_ATOM_DENOM.to_string(),
+                },
             ],
-            init_params: Some(to_binary(&StablePoolParams { 
-                owner: Some(CREATOR_ADDR.to_string()),
-                amp: 10,
-             }).unwrap()),
+            init_params: Some(
+                to_binary(&StablePoolParams {
+                    owner: Some(CREATOR_ADDR.to_string()),
+                    amp: 10,
+                })
+                .unwrap(),
+            ),
         };
         app.update_block(|b| b.height += 5);
 
-        let pair_msg = app.execute_contract(
-            Addr::unchecked(CREATOR_ADDR),
-            factory_addr.clone(),
-            &init_pair_msg,
-            &[]
-        ).unwrap();
+        let pair_msg = app
+            .execute_contract(
+                Addr::unchecked(CREATOR_ADDR),
+                factory_addr.clone(),
+                &init_pair_msg,
+                &[],
+            )
+            .unwrap();
         app.update_block(|b| b.height += 5);
 
-        let pair_info: PairInfo = app.wrap().query_wasm_smart(
-            &factory_addr,
-            &astroport::factory::QueryMsg::Pair { asset_infos: vec![
-                    AssetInfo::NativeToken { denom: ST_ATOM_DENOM.to_string() },
-                    AssetInfo::NativeToken { denom: NATIVE_ATOM_DENOM.to_string() },
-                ] 
-            },
-        ).unwrap();
+        let pair_info: PairInfo = app
+            .wrap()
+            .query_wasm_smart(
+                &factory_addr,
+                &astroport::factory::QueryMsg::Pair {
+                    asset_infos: vec![
+                        AssetInfo::NativeToken {
+                            denom: ST_ATOM_DENOM.to_string(),
+                        },
+                        AssetInfo::NativeToken {
+                            denom: NATIVE_ATOM_DENOM.to_string(),
+                        },
+                    ],
+                },
+            )
+            .unwrap();
 
         self.stablepair_instantiate.factory_addr = factory_addr.to_string();
         app.update_block(|b| b.height += 5);
 
-        let stable_pair_addr = app.instantiate_contract(
-            stablepair_code,
-            Addr::unchecked(CREATOR_ADDR),
-            &self.stablepair_instantiate,
-            &[],
-            "stableswap",
-            None,
-        ).unwrap();
+        let stable_pair_addr = app
+            .instantiate_contract(
+                stablepair_code,
+                Addr::unchecked(CREATOR_ADDR),
+                &self.stablepair_instantiate,
+                &[],
+                "stableswap",
+                None,
+            )
+            .unwrap();
 
         app.update_block(|b| b.height += 5);
 
@@ -383,99 +421,92 @@ impl SuiteBuilder {
 #[allow(unused)]
 impl Suite {
     pub fn query_clock_address(&self) -> String {
-        self.app    
-            .wrap()    
-            .query_wasm_smart(
-                &self.liquid_pooler.1,
-                &QueryMsg::ClockAddress {}
-            )    
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::ClockAddress {})
             .unwrap()
     }
 
     pub fn query_lp_position(&self) -> LPInfo {
-        self.app    
-            .wrap()    
-            .query_wasm_smart(
-                &self.liquid_pooler.1,
-                &QueryMsg::LpPosition {}
-            )    
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::LpPosition {})
             .unwrap()
     }
 
     pub fn query_contract_state(&self) -> String {
-        self.app    
-            .wrap()    
-            .query_wasm_smart(
-                &self.liquid_pooler.1,
-                &QueryMsg::ContractState {}
-            )    
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::ContractState {})
             .unwrap()
     }
 
     pub fn query_holder_address(&self) -> String {
-        self.app    
-            .wrap()    
-            .query_wasm_smart(
-                &self.liquid_pooler.1,
-                &QueryMsg::HolderAddress {}
-            )    
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::HolderAddress {})
             .unwrap()
     }
 
     pub fn query_assets(&self) -> Vec<Asset> {
-        self.app    
-            .wrap()    
-            .query_wasm_smart(
-                &self.liquid_pooler.1,
-                &QueryMsg::Assets {}
-            )    
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::Assets {})
             .unwrap()
     }
 
     pub fn query_addr_balances(&self, addr: Addr) -> Vec<Coin> {
-        self.app.wrap()
-            .query_all_balances(addr)
-            .unwrap()
+        self.app.wrap().query_all_balances(addr).unwrap()
     }
 
     pub fn query_pool_info(&self) -> PoolResponse {
-        self.app.wrap().query(
-            &QueryRequest::Wasm(WasmQuery::Smart {
+        self.app
+            .wrap()
+            .query(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: self.stable_pair.clone().1,
                 msg: to_binary(&astroport::pair::QueryMsg::Pool {}).unwrap(),
-            })
-        ).unwrap()
+            }))
+            .unwrap()
     }
 
     pub fn query_pool_share(&self) -> Vec<Asset> {
-        self.app.wrap().query_wasm_smart(
-            Addr::unchecked(self.stable_pair.clone().1),
-            &astroport::pair::QueryMsg::Share { amount: Uint128::one() },
-        ).unwrap()
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                Addr::unchecked(self.stable_pair.clone().1),
+                &astroport::pair::QueryMsg::Share {
+                    amount: Uint128::one(),
+                },
+            )
+            .unwrap()
     }
 
     pub fn query_simulation(&self, addr: String) -> SimulationResponse {
-        let query = astroport::pair::QueryMsg::Simulation { 
-            offer_asset: Asset { 
-                info: AssetInfo::NativeToken { denom: NATIVE_ATOM_DENOM.to_string() },
+        let query = astroport::pair::QueryMsg::Simulation {
+            offer_asset: Asset {
+                info: AssetInfo::NativeToken {
+                    denom: NATIVE_ATOM_DENOM.to_string(),
+                },
                 amount: Uint128::one(),
             },
             // ask_asset_info: None,
-            ask_asset_info: Some(AssetInfo::NativeToken { denom: ST_ATOM_DENOM.to_string() }),
+            ask_asset_info: Some(AssetInfo::NativeToken {
+                denom: ST_ATOM_DENOM.to_string(),
+            }),
         };
         println!("\nquerying simulation: {:?}\n", query);
 
-        self.app.wrap().query_wasm_smart(
-            addr,
-            &query
-        ).unwrap()
+        self.app.wrap().query_wasm_smart(addr, &query).unwrap()
     }
 
     pub fn query_contract_config(&self, addr: String) -> String {
-        let bytes = self.app.wrap().query_wasm_raw(
-            addr, 
-            b"config"
-        ).transpose().unwrap().unwrap();
+        let bytes = self
+            .app
+            .wrap()
+            .query_wasm_raw(addr, b"config")
+            .transpose()
+            .unwrap()
+            .unwrap();
         match std::str::from_utf8(&bytes) {
             Ok(v) => v.to_string(),
             Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
@@ -483,49 +514,48 @@ impl Suite {
     }
 
     pub fn query_cw20_bal(&self, token: String, addr: String) -> cw20::BalanceResponse {
-        self.app.wrap().query_wasm_smart(
-            token,
-            &cw20::Cw20QueryMsg::Balance { address: addr },
-        ).unwrap()
+        self.app
+            .wrap()
+            .query_wasm_smart(token, &cw20::Cw20QueryMsg::Balance { address: addr })
+            .unwrap()
     }
 }
 
 // assertion helpers
-impl Suite {
-
-}
+impl Suite {}
 
 impl Suite {
     // tick LPer
     pub fn tick(&mut self) -> AppResponse {
-        self.app.execute_contract(
-            Addr::unchecked(self.clock_addr.to_string()), 
-            Addr::unchecked(self.liquid_pooler.1.to_string()),
-            &crate::msg::ExecuteMsg::Tick {},
-            &[],
-        )
-        .unwrap()
+        self.app
+            .execute_contract(
+                Addr::unchecked(self.clock_addr.to_string()),
+                Addr::unchecked(self.liquid_pooler.1.to_string()),
+                &crate::msg::ExecuteMsg::Tick {},
+                &[],
+            )
+            .unwrap()
     }
 
     pub fn withdraw(&mut self) -> AppResponse {
-        self.app.execute_contract(
-            Addr::unchecked(CREATOR_ADDR),
-            Addr::unchecked(self.liquid_pooler.1.to_string()),
-            &ExecuteMsg::WithdrawLiquidity {},
-            &[],
-        ).unwrap()
+        self.app
+            .execute_contract(
+                Addr::unchecked(CREATOR_ADDR),
+                Addr::unchecked(self.liquid_pooler.1.to_string()),
+                &ExecuteMsg::WithdrawLiquidity {},
+                &[],
+            )
+            .unwrap()
     }
 
     // mint coins
     pub fn mint_coins_to_addr(&mut self, address: String, denom: String, amount: Uint128) {
-        self.app.sudo(SudoMsg::Bank(BankSudo::Mint {
-            to_address: address,
-            amount: vec![Coin {
-                amount,
-                denom,
-            }],
-        }))
-        .unwrap();
+        self.app
+            .sudo(SudoMsg::Bank(BankSudo::Mint {
+                to_address: address,
+                amount: vec![Coin { amount, denom }],
+            }))
+            .unwrap();
     }
 
     // pass time
@@ -541,46 +571,60 @@ impl Suite {
         amount: u128,
         assets: Vec<Asset>,
     ) -> AppResponse {
-        self.app.execute_contract(
-            sender,
-            Addr::unchecked("contract6".to_string()),
-            &Cw20ExecuteMsg::Send {
-                contract: self.stable_pair.1.to_string(),
-                amount: Uint128::from(amount),
-                msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets }).unwrap(),
-            },
-            &[],
-        ).unwrap()
+        self.app
+            .execute_contract(
+                sender,
+                Addr::unchecked("contract6".to_string()),
+                &Cw20ExecuteMsg::Send {
+                    contract: self.stable_pair.1.to_string(),
+                    amount: Uint128::from(amount),
+                    msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets }).unwrap(),
+                },
+                &[],
+            )
+            .unwrap()
     }
 
-    pub fn provide_manual_liquidity(&mut self, from: String, st_atom_amount: Uint128, native_atom_amount: Uint128) -> AppResponse {
+    pub fn provide_manual_liquidity(
+        &mut self,
+        from: String,
+        st_atom_amount: Uint128,
+        native_atom_amount: Uint128,
+    ) -> AppResponse {
         let _stable_pair_addr = self.stable_pair.1.to_string();
 
         let balances = vec![
-            Coin { 
-                denom: ST_ATOM_DENOM.to_string(), 
+            Coin {
+                denom: ST_ATOM_DENOM.to_string(),
                 amount: st_atom_amount,
             },
-            Coin { 
-                denom: NATIVE_ATOM_DENOM.to_string(), 
+            Coin {
+                denom: NATIVE_ATOM_DENOM.to_string(),
                 amount: native_atom_amount,
             },
         ];
 
         let assets = vec![
-            Asset { 
-                info: AssetInfo::NativeToken { denom: ST_ATOM_DENOM.to_string() }, 
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: ST_ATOM_DENOM.to_string(),
+                },
                 amount: st_atom_amount,
             },
-            Asset { 
-                info: AssetInfo::NativeToken { denom: NATIVE_ATOM_DENOM.to_string() }, 
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: NATIVE_ATOM_DENOM.to_string(),
+                },
                 amount: native_atom_amount,
             },
         ];
 
-        self.mint_coins_to_addr(from.clone(), NATIVE_ATOM_DENOM.to_string(), native_atom_amount);
+        self.mint_coins_to_addr(
+            from.clone(),
+            NATIVE_ATOM_DENOM.to_string(),
+            native_atom_amount,
+        );
         self.mint_coins_to_addr(from.clone(), ST_ATOM_DENOM.to_string(), st_atom_amount);
-
 
         let provide_liquidity_msg = astroport::pair::ExecuteMsg::ProvideLiquidity {
             assets,
@@ -591,11 +635,13 @@ impl Suite {
 
         self.pass_blocks(10);
 
-        self.app.execute_contract(
-            Addr::unchecked(from), 
-            Addr::unchecked(self.stable_pair.1.to_string()),
-            &provide_liquidity_msg,
-            &balances,
-        ).unwrap()
+        self.app
+            .execute_contract(
+                Addr::unchecked(from),
+                Addr::unchecked(self.stable_pair.1.to_string()),
+                &provide_liquidity_msg,
+                &balances,
+            )
+            .unwrap()
     }
 }

@@ -7,8 +7,8 @@ use cosmos_sdk_proto::ibc::core::client::v1::Height;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128,
+    to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -16,11 +16,8 @@ use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg};
 use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::{
     bindings::{
@@ -36,11 +33,12 @@ use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
-    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS,
-    LS_ADDRESS, NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER,
-    SUDO_PAYLOAD_REPLY_ID,
+    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS,
+    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
 };
 
+type QueryDeps<'a> = Deps<'a, NeutronQuery>;
+type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
 // const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const NEUTRON_DENOM: &str = "untrn";
@@ -50,20 +48,9 @@ const INTERCHAIN_ACCOUNT_ID: &str = "test";
 const CONTRACT_NAME: &str = "crates.io:covenant-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-struct OpenAckVersion {
-    version: String,
-    controller_connection_id: String,
-    host_connection_id: String,
-    address: String,
-    encoding: String,
-    tx_type: String,
-}
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -96,7 +83,7 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -109,7 +96,7 @@ pub fn execute(
     }
 }
 
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
@@ -131,7 +118,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 }
 
 fn try_liquid_stake(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
@@ -215,14 +202,12 @@ fn try_liquid_stake(
 
             Ok(Response::default().add_submessage(SubMsg::new(stride_submit_msg)))
         }
-        None => {
-            Err(NeutronError::Fmt(Error))
-        }
+        None => Err(NeutronError::Fmt(Error)),
     }
 }
 
 fn try_receive_atom_from_ica(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
@@ -292,13 +277,11 @@ fn try_receive_atom_from_ica(
 
             Ok(Response::default().add_submessage(SubMsg::new(submit_msg)))
         }
-        None => {
-            Err(NeutronError::Fmt(Error))
-        }
+        None => Err(NeutronError::Fmt(Error)),
     }
 }
 
-fn try_register_gaia_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
     let connection_id = NEUTRON_GAIA_CONNECTION_ID.load(deps.storage)?;
     let register = NeutronMsg::register_interchain_account(connection_id, gaia_acc_id.clone());
@@ -311,7 +294,7 @@ fn try_register_gaia_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<Neut
     Ok(Response::new().add_message(register))
 }
 
-fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
+fn try_completed(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
@@ -345,7 +328,7 @@ fn try_handle_received() -> NeutronResult<Response<NeutronMsg>> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
+pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
         QueryMsg::StAtomReceiver {} => {
             Ok(to_binary(&STRIDE_ATOM_RECEIVER.may_load(deps.storage)?)?)
@@ -370,10 +353,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
     }
 }
 
-pub fn query_depositor_interchain_address(
-    deps: Deps<NeutronQuery>,
-    _env: Env,
-) -> NeutronResult<Binary> {
+pub fn query_depositor_interchain_address(deps: QueryDeps, _env: Env) -> NeutronResult<Binary> {
     let addr = ICA_ADDRESS.load(deps.storage);
 
     match addr {
@@ -389,7 +369,7 @@ pub fn query_depositor_interchain_address(
 
 // returns ICA address from Neutron ICA SDK module
 pub fn query_interchain_address(
-    deps: Deps<NeutronQuery>,
+    deps: QueryDeps,
     env: Env,
     interchain_account_id: String,
     connection_id: String,
@@ -406,7 +386,7 @@ pub fn query_interchain_address(
 
 // returns ICA address from the contract storage. The address was saved in sudo_open_ack method
 pub fn query_interchain_address_contract(
-    deps: Deps<NeutronQuery>,
+    deps: QueryDeps,
     env: Env,
     interchain_account_id: String,
 ) -> NeutronResult<Binary> {
@@ -415,7 +395,7 @@ pub fn query_interchain_address_contract(
 
 // returns the result
 pub fn query_acknowledgement_result(
-    deps: Deps<NeutronQuery>,
+    deps: QueryDeps,
     env: Env,
     interchain_account_id: String,
     sequence_id: u64,
@@ -425,7 +405,7 @@ pub fn query_acknowledgement_result(
     Ok(to_binary(&res)?)
 }
 
-pub fn query_errors_queue(deps: Deps<NeutronQuery>) -> NeutronResult<Binary> {
+pub fn query_errors_queue(deps: QueryDeps) -> NeutronResult<Binary> {
     let res = read_errors_from_queue(deps.storage)?;
     Ok(to_binary(&res)?)
 }

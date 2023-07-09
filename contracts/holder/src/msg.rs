@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Coin, Addr};
+use cosmwasm_std::{Addr, Coin};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -9,13 +9,26 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
+pub struct PresetHolderFields {
+    pub withdrawer: Option<String>,
+    pub holder_code: u64,
+    pub label: String,
+}
+
+impl PresetHolderFields {
+    pub fn to_instantiate_msg(self) -> InstantiateMsg {
+        InstantiateMsg {
+            withdrawer: self.withdrawer,
+        }
+    }
+}
+
+#[cw_serde]
 pub enum ExecuteMsg {
     /// The withdraw message can only be called by the withdrawer
     /// The withdraw can specify a quanity to be withdrawn. If no
     /// quantity is specified, the full balance is withdrawn
-    Withdraw {
-        quantity: Option<Vec<Coin>>,
-    },
+    Withdraw { quantity: Option<Vec<Coin>> },
 }
 
 #[cw_serde]
@@ -28,5 +41,5 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub enum MigrateMsg {
-    UpdateWithdrawer { withdrawer: String},
+    UpdateWithdrawer { withdrawer: String },
 }
