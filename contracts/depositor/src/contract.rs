@@ -16,10 +16,8 @@ use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg};
 use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::{
     bindings::{
@@ -49,17 +47,6 @@ const INTERCHAIN_ACCOUNT_ID: &str = "test";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-struct OpenAckVersion {
-    version: String,
-    controller_connection_id: String,
-    host_connection_id: String,
-    address: String,
-    encoding: String,
-    tx_type: String,
-}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(

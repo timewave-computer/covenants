@@ -118,3 +118,13 @@ pub enum MigrateMsg {
         ls_address: Option<String>,
     },
 }
+
+#[cw_serde]
+pub struct OpenAckVersion {
+    pub version: String,
+    pub controller_connection_id: String,
+    pub host_connection_id: String,
+    pub address: String,
+    pub encoding: String,
+    pub tx_type: String,
+}

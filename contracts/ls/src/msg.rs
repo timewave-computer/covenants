@@ -12,16 +12,6 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
-pub struct OpenAckVersion {
-    pub version: String,
-    pub controller_connection_id: String,
-    pub host_connection_id: String,
-    pub address: String,
-    pub encoding: String,
-    pub tx_type: String,
-}
-
-#[cw_serde]
 pub struct PresetLsFields {
     pub ls_code: u64,
     pub label: String,
@@ -74,4 +64,14 @@ pub enum MigrateMsg {
         neutron_stride_ibc_connection_id: Option<String>,
         ls_denom: Option<String>,
     },
+}
+
+#[cw_serde]
+pub struct OpenAckVersion {
+    pub version: String,
+    pub controller_connection_id: String,
+    pub host_connection_id: String,
+    pub address: String,
+    pub encoding: String,
+    pub tx_type: String,
 }
