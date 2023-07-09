@@ -1,5 +1,6 @@
-use cosmwasm_std::{Addr, Uint128};
-use cw_multi_test::{App, Executor};
+use cosmwasm_std::{Addr, Uint128, testing::MockApi, MemoryStorage, Empty};
+use cw_multi_test::{App, Executor, ContractWrapper, Contract, BankKeeper, FailingModule, WasmKeeper, BasicAppBuilder};
+use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
 
 use crate::{msg::{InstantiateMsg, QueryMsg, WeightedReceiver}};
@@ -33,7 +34,7 @@ pub const _DEFAULT_CLOCK_ADDRESS: &str = "clock-address";
 
 #[allow(unused)]
 pub(crate) struct Suite {
-    pub app: App,
+    pub app: BaseApp,
     pub admin: Addr,
     pub depositor_address: Addr,
     pub depositor_code: u64,
@@ -65,12 +66,30 @@ impl Default for SuiteBuilder {
     }
 }
 
+fn depositor_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
+    let contract  = ContractWrapper::new(
+        crate::contract::execute,
+        crate::contract::instantiate,
+        crate::contract::query,
+    );
+    // todo
+    Box::new(contract)
+}
+
+pub type BaseApp = App<
+    BankKeeper,
+    MockApi,
+    MemoryStorage,
+    FailingModule<NeutronMsg, NeutronQuery, Empty>,
+    WasmKeeper<NeutronMsg, NeutronQuery>,
+>;
+
 impl SuiteBuilder {
     pub fn build(self) -> Suite {
-        let mut app = App::default();
+        let mut app = BasicAppBuilder::<NeutronMsg, NeutronQuery>::new_custom().build(|_,_,_| {});
         // app.store_code()
-        // let depositor_code = app.store_code(depositor_contract());
-        let depositor_code = 1;
+        let depositor_code = app.store_code(depositor_contract());
+
         let depositor_address = app
             .instantiate_contract(
                 depositor_code,

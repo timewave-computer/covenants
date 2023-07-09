@@ -17,6 +17,29 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
+pub struct PresetLpFields {
+  pub slippage_tolerance: Option<Decimal>,
+  pub autostake: Option<bool>,
+  pub assets: Vec<Asset>,
+  pub lp_code: u64,
+  pub lp_position: String,
+  pub label: String,
+}
+
+impl PresetLpFields {
+  pub fn to_instantiate_msg(self, clock_address: String, holder_address: String) -> InstantiateMsg {
+    InstantiateMsg { 
+      lp_position: LPInfo { addr: self.lp_position },
+      clock_address,
+      holder_address, 
+      slippage_tolerance: self.slippage_tolerance, 
+      autostake: self.autostake, 
+      assets: self.assets 
+    }
+  }
+}
+
+#[cw_serde]
 pub struct LPInfo {
     pub addr: String,
 }

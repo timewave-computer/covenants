@@ -1,23 +1,19 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
-use covenant_clock::msg::InstantiateMsg as ClockInstantiateMsg;
-use covenant_depositor::msg::InstantiateMsg as DepositorInstantiateMsg;
-use covenant_holder::msg::InstantiateMsg as HolderInstantiateMsg;
-use covenant_lp::msg::InstantiateMsg as LpInstantiateMsg;
-use covenant_ls::msg::InstantiateMsg as LsInstantiateMsg;
+use cosmwasm_std::{Addr, Uint64};
+use covenant_clock::msg::{InstantiateMsg as ClockInstantiateMsg, PresetClockFields};
+use covenant_depositor::msg::{InstantiateMsg as DepositorInstantiateMsg, PresetDepositorFields};
+use covenant_holder::msg::{InstantiateMsg as HolderInstantiateMsg, PresetHolderFields};
+use covenant_lp::msg::{InstantiateMsg as LpInstantiateMsg, PresetLpFields};
+use covenant_ls::msg::{InstantiateMsg as LsInstantiateMsg, PresetLsFields};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub clock_code: u64,
-    pub clock_instantiate: ClockInstantiateMsg,
-    pub ls_code: u64,
-    pub ls_instantiate: LsInstantiateMsg,
-    pub depositor_code: u64,
-    pub depositor_instantiate: DepositorInstantiateMsg,
-    pub lp_code: u64,
-    pub lp_instantiate: LpInstantiateMsg,
-    pub holder_code: u64,
-    pub holder_instantiate: HolderInstantiateMsg,
+    pub label: String,
+    pub preset_clock_fields: PresetClockFields,
+    pub preset_ls_fields: PresetLsFields,
+    pub preset_depositor_fields: PresetDepositorFields,
+    pub preset_lp_fields: PresetLpFields,
+    pub preset_holder_fields: PresetHolderFields,
 }
 
 #[cw_serde]

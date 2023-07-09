@@ -16,10 +16,7 @@ use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, OpenAckVersion};
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
@@ -40,23 +37,14 @@ use neutron_sdk::{
 // Default timeout for SubmitTX is two weeks
 // const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const NEUTRON_DENOM: &str = "untrn";
-const STATOM_DENOM: &str = "stuatom";
+// const STATOM_DENOM: &str = "stuatom";
 
 const INTERCHAIN_ACCOUNT_ID: &str = "stride-ica";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ls";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-struct OpenAckVersion {
-    version: String,
-    controller_connection_id: String,
-    host_connection_id: String,
-    address: String,
-    encoding: String,
-    tx_type: String,
-}
+
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -154,9 +142,10 @@ fn try_execute_transfer(
         Some((address, controller_conn_id)) => {
             let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
+            let denom = LS_DENOM.load(deps.storage)?;
 
             let coin = Coin {
-                denom: STATOM_DENOM.to_string(),
+                denom,
                 amount: "10".to_string(),
             };
 

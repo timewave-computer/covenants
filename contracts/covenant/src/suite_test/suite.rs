@@ -58,53 +58,42 @@ impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
             instantiate: InstantiateMsg {
-                ls_instantiate: covenant_ls::msg::InstantiateMsg {
-                    autopilot_position: TODO.to_string(),
-                    clock_address: TODO.to_string(),
+                preset_clock_fields: covenant_clock::msg::PresetClockFields {
+                    tick_max_gas: Some(Uint64::new(10000)),
+                    clock_code: 1,
+                    label: "covenant_clock_contract".to_string(),
+                },
+                preset_ls_fields: covenant_ls::msg::PresetLsFields {
+                    ls_code: 1,
+                    label: "covenant_ls_contract".to_string(),
+                    ls_denom: "stuatom".to_string(),
                     stride_neutron_ibc_transfer_channel_id: TODO.to_string(),
                     neutron_stride_ibc_connection_id: TODO.to_string(),
                     lp_address: TODO.to_string(),
-                    ls_denom: TODO.to_string(),
                 },
-                depositor_instantiate: covenant_depositor::msg::InstantiateMsg {
-                    st_atom_receiver: WeightedReceiver {
-                        amount: 1,
-                        address: TODO.to_string(),
-                    },
-                    atom_receiver: WeightedReceiver {
-                        amount: 1,
-                        address: TODO.to_string(),
-                    },
-                    clock_address: TODO.to_string(),
+                preset_depositor_fields: covenant_depositor::msg::PresetDepositorFields {
                     gaia_neutron_ibc_transfer_channel_id: TODO.to_string(),
                     neutron_gaia_connection_id: TODO.to_string(),
                     gaia_stride_ibc_transfer_channel_id: TODO.to_string(),
-                    ls_address: TODO.to_string(),
+                    depositor_code: 1,
+                    label: "covenant_depositor_contract".to_string(),
+                    st_atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount { amount: 1 },
+                    atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount { amount: 1 },
                 },
-                lp_instantiate: covenant_lp::msg::InstantiateMsg {
-                    lp_position: covenant_lp::msg::LPInfo { addr: TODO.to_string() },
-                    clock_address: TODO.to_string(),
-                    holder_address: TODO.to_string(),
-                    assets: vec![
-                        // Asset {
-                        //     info: todo!(), amount: todo!()
-                        // },
-                        // Asset { info: todo!(), amount: todo!() }
-                    ],
+                preset_lp_fields: covenant_lp::msg::PresetLpFields {
                     slippage_tolerance: None,
                     autostake: Some(false),
+                    assets: vec![],
+                    lp_code: 1,
+                    lp_position: TODO.to_string(),
+                    label: "covenant_lp_contract".to_string(),
                 },
-                clock_code: 1,
-                clock_instantiate: covenant_clock::msg::InstantiateMsg {
-                    tick_max_gas: Uint64::new(10000),
-                },
-                ls_code: 1,
-                depositor_code: 1,
-                lp_code: 1,
-                holder_code: 1,
-                holder_instantiate: covenant_holder::msg::InstantiateMsg {
+                preset_holder_fields: covenant_holder::msg::PresetHolderFields {
                     withdrawer: Some(CREATOR_ADDR.to_string()),
-                }
+                    holder_code: 1,
+                    label: "covenant_holder_contract".to_string(),
+                },
+                label: "covenant_contract".to_string(),
             },
         }
     }
@@ -115,8 +104,8 @@ impl SuiteBuilder {
     pub fn build(mut self) -> Suite {
         let mut app = App::default();
 
-        self.instantiate.holder_code = app.store_code(covenant_holder());
-        self.instantiate.clock_code = app.store_code(covenant_clock());
+        self.instantiate.preset_holder_fields.holder_code = app.store_code(covenant_holder());
+        self.instantiate.preset_clock_fields.clock_code = app.store_code(covenant_clock());
         let covenant_code = app.store_code(covenant_covenant());
 
         let _ls_contract = Box::new(
@@ -131,18 +120,17 @@ impl SuiteBuilder {
             ContractWrapper::new(
                 covenant_depositor::contract::execute,
                 covenant_depositor::contract::instantiate,
-                covenant_clock::contract::query,
+                covenant_depositor::contract::query,
             )
         );
-
         
         let covenant_address = app
             .instantiate_contract(
                 covenant_code,
                 Addr::unchecked(CREATOR_ADDR),
-                &self.instantiate,
+                &self.instantiate.clone(),
                 &[],
-                "covenant contract",
+                self.instantiate.label,
                 Some(CREATOR_ADDR.to_string()),
             )
             .unwrap();

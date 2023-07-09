@@ -19,6 +19,27 @@ pub struct InstantiateMsg {
     pub tick_max_gas: Uint64,
 }
 
+#[cw_serde]
+pub struct PresetClockFields {
+    pub tick_max_gas: Option<Uint64>,
+    pub clock_code: u64,
+    pub label: String,
+}
+
+impl PresetClockFields {
+    pub fn to_instantiate_msg(self) -> InstantiateMsg {
+        let tick_max_gas = if let Some(tmg) = self.tick_max_gas {
+            // todo: find some min reasonable value
+            tmg.min(Uint64::new(100000))
+        } else {
+            // todo: find some reasonable default value
+            Uint64::new(2000000)
+        };
+
+        InstantiateMsg { tick_max_gas }
+    }
+}
+
 #[clocked] // Adds a `Tick {}` message which can be called permissionlessly to advance the clock.
 #[cw_serde]
 pub enum ExecuteMsg {

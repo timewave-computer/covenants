@@ -9,6 +9,20 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
+pub struct PresetHolderFields {
+    pub withdrawer: Option<String>,
+    pub holder_code: u64,
+    pub label: String,
+}
+
+impl PresetHolderFields {
+    pub fn to_instantiate_msg(self) -> InstantiateMsg {
+        InstantiateMsg { withdrawer: self.withdrawer }
+    }
+}
+
+
+#[cw_serde]
 pub enum ExecuteMsg {
     /// The withdraw message can only be called by the withdrawer
     /// The withdraw can specify a quanity to be withdrawn. If no

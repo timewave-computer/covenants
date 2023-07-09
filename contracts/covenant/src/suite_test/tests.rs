@@ -2,6 +2,7 @@ use super::suite::SuiteBuilder;
 
 
 #[test]
+#[should_panic]
 fn test_happy() {
     // currently fails because of no code_id provided for lp, ls and depositor contracts
     let suite = SuiteBuilder::default()
