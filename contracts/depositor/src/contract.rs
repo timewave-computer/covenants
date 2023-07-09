@@ -7,8 +7,8 @@ use cosmos_sdk_proto::ibc::core::client::v1::Height;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128,
+    to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -18,7 +18,6 @@ use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 use prost::Message;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use neutron_sdk::bindings::msg::IbcFee;
@@ -36,9 +35,8 @@ use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
-    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS,
-    LS_ADDRESS, NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER,
-    SUDO_PAYLOAD_REPLY_ID,
+    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS,
+    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
@@ -217,9 +215,7 @@ fn try_liquid_stake(
 
             Ok(Response::default().add_submessage(SubMsg::new(stride_submit_msg)))
         }
-        None => {
-            Err(NeutronError::Fmt(Error))
-        }
+        None => Err(NeutronError::Fmt(Error)),
     }
 }
 
@@ -294,9 +290,7 @@ fn try_receive_atom_from_ica(
 
             Ok(Response::default().add_submessage(SubMsg::new(submit_msg)))
         }
-        None => {
-            Err(NeutronError::Fmt(Error))
-        }
+        None => Err(NeutronError::Fmt(Error)),
     }
 }
 
@@ -372,10 +366,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
     }
 }
 
-pub fn query_depositor_interchain_address(
-    deps: QueryDeps,
-    _env: Env,
-) -> NeutronResult<Binary> {
+pub fn query_depositor_interchain_address(deps: QueryDeps, _env: Env) -> NeutronResult<Binary> {
     let addr = ICA_ADDRESS.load(deps.storage);
 
     match addr {

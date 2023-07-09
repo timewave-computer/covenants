@@ -1,10 +1,10 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint64};
-use covenant_clock::msg::{InstantiateMsg as ClockInstantiateMsg, PresetClockFields};
-use covenant_depositor::msg::{InstantiateMsg as DepositorInstantiateMsg, PresetDepositorFields};
-use covenant_holder::msg::{InstantiateMsg as HolderInstantiateMsg, PresetHolderFields};
-use covenant_lp::msg::{InstantiateMsg as LpInstantiateMsg, PresetLpFields};
-use covenant_ls::msg::{InstantiateMsg as LsInstantiateMsg, PresetLsFields};
+use cosmwasm_std::Addr;
+use covenant_clock::msg::PresetClockFields;
+use covenant_depositor::msg::PresetDepositorFields;
+use covenant_holder::msg::PresetHolderFields;
+use covenant_lp::msg::PresetLpFields;
+use covenant_ls::msg::PresetLsFields;
 
 #[cw_serde]
 pub struct InstantiateMsg {

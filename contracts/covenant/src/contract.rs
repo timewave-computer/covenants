@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult, SubMsg, WasmMsg,
+    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+    SubMsg, WasmMsg,
 };
 
 use cw2::set_contract_version;
@@ -12,10 +12,10 @@ use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR,
-        COVENANT_HOLDER_ADDR, COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE,
-        HOLDER_CODE, LP_CODE,
-        LS_CODE, PRESET_LS_FIELDS, PRESET_CLOCK_FIELDS, PRESET_LP_FIELDS, PRESET_DEPOSITOR_FIELDS, PRESET_HOLDER_FIELDS,
+        CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
+        COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, LP_CODE, LS_CODE,
+        PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS, PRESET_HOLDER_FIELDS, PRESET_LP_FIELDS,
+        PRESET_LS_FIELDS,
     },
 };
 
@@ -65,7 +65,6 @@ pub fn instantiate(
     )))
 }
 
-
 pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: clock reply");
 
@@ -107,11 +106,10 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             let code_id = LP_CODE.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let preset_lp_fields = PRESET_LP_FIELDS.load(deps.storage)?;
-            
-            let instantiate_msg = preset_lp_fields.clone().to_instantiate_msg(
-                clock_addr,
-                response.contract_address,
-            );
+
+            let instantiate_msg = preset_lp_fields
+                .clone()
+                .to_instantiate_msg(clock_addr, response.contract_address);
 
             let lp_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -142,9 +140,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let code_id = LS_CODE.load(deps.storage)?;
             let preset_ls_fields = PRESET_LS_FIELDS.load(deps.storage)?;
 
-            let instantiate_msg = preset_ls_fields.clone().to_instantiate_msg(
-                clock_address,
-            );
+            let instantiate_msg = preset_ls_fields.clone().to_instantiate_msg(clock_address);
 
             let ls_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -173,7 +169,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
             let code_id = DEPOSITOR_CODE.load(deps.storage)?;
             let preset_depositor_fields = PRESET_DEPOSITOR_FIELDS.load(deps.storage)?;
-            
+
             let instantiate_msg = preset_depositor_fields.clone().to_instantiate_msg(
                 "to be queried".to_string(),
                 clock_addr,

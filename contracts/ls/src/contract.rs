@@ -16,7 +16,7 @@ use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, OpenAckVersion};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg};
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
@@ -43,8 +43,6 @@ const INTERCHAIN_ACCOUNT_ID: &str = "stride-ica";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ls";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -187,9 +185,7 @@ fn try_execute_transfer(
 
             Ok(Response::default().add_submessage(SubMsg::new(submit_msg)))
         }
-        None => {
-            Err(NeutronError::Fmt(Error))
-        }
+        None => Err(NeutronError::Fmt(Error)),
     }
 }
 

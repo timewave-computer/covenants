@@ -1,5 +1,5 @@
-use cosmwasm_schema::{QueryResponses, cw_serde};
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::Addr;
 use covenant_clock_derive::clocked;
 use neutron_sdk::bindings::query::QueryInterchainAccountAddressResponse;
 
@@ -34,7 +34,7 @@ pub struct WeightedReceiverAmount {
 
 impl WeightedReceiverAmount {
     pub fn to_weighted_receiver(self, addr: String) -> WeightedReceiver {
-        WeightedReceiver { 
+        WeightedReceiver {
             amount: self.amount,
             address: addr,
         }
@@ -49,8 +49,10 @@ impl PresetDepositorFields {
         ls_address: String,
         lp_address: String,
     ) -> InstantiateMsg {
-        InstantiateMsg { 
-            st_atom_receiver: self.st_atom_receiver_amount.to_weighted_receiver(st_atom_receiver_addr),
+        InstantiateMsg {
+            st_atom_receiver: self
+                .st_atom_receiver_amount
+                .to_weighted_receiver(st_atom_receiver_addr),
             atom_receiver: self.atom_receiver_amount.to_weighted_receiver(lp_address),
             clock_address,
             gaia_neutron_ibc_transfer_channel_id: self.gaia_neutron_ibc_transfer_channel_id,
@@ -92,9 +94,7 @@ pub enum QueryMsg {
     },
     // this query returns ICA from contract store, which saved from acknowledgement
     #[returns((String, String))]
-    InterchainAccountAddressFromContract {
-        interchain_account_id: String,
-    },
+    InterchainAccountAddressFromContract { interchain_account_id: String },
     // this query returns acknowledgement result after interchain transaction
     #[returns(Option<AcknowledgementResult>)]
     AcknowledgementResult {

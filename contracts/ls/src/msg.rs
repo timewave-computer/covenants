@@ -32,15 +32,15 @@ pub struct PresetLsFields {
 }
 
 impl PresetLsFields {
-  pub fn to_instantiate_msg(self, clock_address: String) -> InstantiateMsg {
-    InstantiateMsg {
-        clock_address,
-        stride_neutron_ibc_transfer_channel_id: self.stride_neutron_ibc_transfer_channel_id,
-        neutron_stride_ibc_connection_id: self.neutron_stride_ibc_connection_id,
-        lp_address: self.lp_address,
-        ls_denom: self.ls_denom,
+    pub fn to_instantiate_msg(self, clock_address: String) -> InstantiateMsg {
+        InstantiateMsg {
+            clock_address,
+            stride_neutron_ibc_transfer_channel_id: self.stride_neutron_ibc_transfer_channel_id,
+            neutron_stride_ibc_connection_id: self.neutron_stride_ibc_connection_id,
+            lp_address: self.lp_address,
+            ls_denom: self.ls_denom,
+        }
     }
-  }
 }
 
 #[clocked]
@@ -48,7 +48,6 @@ impl PresetLsFields {
 pub enum ExecuteMsg {
     Received {},
 }
-
 
 #[cw_serde]
 #[derive(QueryResponses)]
@@ -68,11 +67,11 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub enum MigrateMsg {
-  UpdateConfig {
-    clock_addr: Option<String>,
-    stride_neutron_ibc_transfer_channel_id: Option<String>,
-    lp_address: Option<String>,
-    neutron_stride_ibc_connection_id: Option<String>,
-    ls_denom: Option<String>,
-  }
+    UpdateConfig {
+        clock_addr: Option<String>,
+        stride_neutron_ibc_transfer_channel_id: Option<String>,
+        lp_address: Option<String>,
+        neutron_stride_ibc_connection_id: Option<String>,
+        ls_denom: Option<String>,
+    },
 }

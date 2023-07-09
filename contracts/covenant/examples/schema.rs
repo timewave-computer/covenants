@@ -1,5 +1,5 @@
-use cosmwasm_schema::{write_api};
-use covenant_covenant::msg::{InstantiateMsg, ExecuteMsg, MigrateMsg, QueryMsg};
+use cosmwasm_schema::write_api;
+use covenant_covenant::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 fn main() {
     write_api! {

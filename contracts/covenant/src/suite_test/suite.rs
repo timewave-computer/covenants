@@ -1,36 +1,29 @@
-
-use cosmwasm_std::{Uint64, Empty, Addr};
-use covenant_depositor::msg::WeightedReceiver;
-use cw_multi_test::{App, ContractWrapper, Contract, Executor};
-
+use cosmwasm_std::{Addr, Empty, Uint64};
+use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
 use crate::msg::{InstantiateMsg, QueryMsg};
 
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";
 
-
-
 fn covenant_clock() -> Box<dyn Contract<Empty>> {
     Box::new(
         ContractWrapper::new(
             covenant_clock::contract::execute,
             covenant_clock::contract::instantiate,
-            covenant_clock::contract::query
-        ) 
+            covenant_clock::contract::query,
+        )
         .with_reply(covenant_clock::contract::reply)
-        .with_migrate(covenant_clock::contract::migrate)
-    ) 
+        .with_migrate(covenant_clock::contract::migrate),
+    )
 }
 
 fn covenant_holder() -> Box<dyn Contract<Empty>> {
-    Box::new(
-        ContractWrapper::new(
-            covenant_holder::contract::execute,
-            covenant_holder::contract::instantiate,
-            covenant_holder::contract::query
-        )
-    ) 
+    Box::new(ContractWrapper::new(
+        covenant_holder::contract::execute,
+        covenant_holder::contract::instantiate,
+        covenant_holder::contract::query,
+    ))
 }
 
 fn covenant_covenant() -> Box<dyn Contract<Empty>> {
@@ -38,11 +31,11 @@ fn covenant_covenant() -> Box<dyn Contract<Empty>> {
         ContractWrapper::new(
             crate::contract::execute,
             crate::contract::instantiate,
-            crate::contract::query
-        ) 
+            crate::contract::query,
+        )
         .with_reply(crate::contract::reply)
-        .with_migrate(crate::contract::migrate)
-    ) 
+        .with_migrate(crate::contract::migrate),
+    )
 }
 
 pub(crate) struct Suite {
@@ -77,8 +70,12 @@ impl Default for SuiteBuilder {
                     gaia_stride_ibc_transfer_channel_id: TODO.to_string(),
                     depositor_code: 1,
                     label: "covenant_depositor_contract".to_string(),
-                    st_atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount { amount: 1 },
-                    atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount { amount: 1 },
+                    st_atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount {
+                        amount: 1,
+                    },
+                    atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount {
+                        amount: 1,
+                    },
                 },
                 preset_lp_fields: covenant_lp::msg::PresetLpFields {
                     slippage_tolerance: None,
@@ -99,7 +96,6 @@ impl Default for SuiteBuilder {
     }
 }
 
-
 impl SuiteBuilder {
     pub fn build(mut self) -> Suite {
         let mut app = App::default();
@@ -108,22 +104,18 @@ impl SuiteBuilder {
         self.instantiate.preset_clock_fields.clock_code = app.store_code(covenant_clock());
         let covenant_code = app.store_code(covenant_covenant());
 
-        let _ls_contract = Box::new(
-            ContractWrapper::new(
-                covenant_ls::contract::execute,
-                covenant_ls::contract::instantiate,
-                covenant_clock::contract::query,
-            )
-        );
+        let _ls_contract = Box::new(ContractWrapper::new(
+            covenant_ls::contract::execute,
+            covenant_ls::contract::instantiate,
+            covenant_clock::contract::query,
+        ));
 
-        let _depositor_contract = Box::new(
-            ContractWrapper::new(
-                covenant_depositor::contract::execute,
-                covenant_depositor::contract::instantiate,
-                covenant_depositor::contract::query,
-            )
-        );
-        
+        let _depositor_contract = Box::new(ContractWrapper::new(
+            covenant_depositor::contract::execute,
+            covenant_depositor::contract::instantiate,
+            covenant_depositor::contract::query,
+        ));
+
         let covenant_address = app
             .instantiate_contract(
                 covenant_code,
@@ -135,7 +127,6 @@ impl SuiteBuilder {
             )
             .unwrap();
 
-        
         Suite {
             app,
             covenant_address,
@@ -164,52 +155,37 @@ impl Suite {}
 // queries
 impl Suite {
     pub fn query_clock_address(&self) -> String {
-        self.app    
-            .wrap()    
-            .query_wasm_smart(
-                &self.covenant_address,
-                &QueryMsg::ClockAddress {}
-            )    
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.covenant_address, &QueryMsg::ClockAddress {})
             .unwrap()
     }
 
     pub fn query_holder_address(&self) -> String {
-        self.app    
-            .wrap()    
-            .query_wasm_smart(
-                &self.covenant_address,
-                &QueryMsg::HolderAddress {}
-            )    
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.covenant_address, &QueryMsg::HolderAddress {})
             .unwrap()
     }
     #[allow(unused)]
     pub fn query_lp_address(&self) -> String {
-        self.app    
-            .wrap()    
-            .query_wasm_smart(
-                &self.covenant_address,
-                &QueryMsg::LpAddress {}
-            )    
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.covenant_address, &QueryMsg::LpAddress {})
             .unwrap()
     }
     #[allow(unused)]
     pub fn query_ls_address(&self) -> String {
-        self.app    
-            .wrap()    
-            .query_wasm_smart(
-                &self.covenant_address,
-                &QueryMsg::LsAddress {}
-            )    
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.covenant_address, &QueryMsg::LsAddress {})
             .unwrap()
     }
     #[allow(unused)]
     pub fn query_depositor_address(&self) -> String {
-        self.app    
-            .wrap()    
-            .query_wasm_smart(
-                &self.covenant_address,
-                &QueryMsg::DepositorAddress {}
-            )    
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.covenant_address, &QueryMsg::DepositorAddress {})
             .unwrap()
     }
 }

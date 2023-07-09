@@ -1,6 +1,6 @@
 use astroport::asset::Asset;
 use cosmwasm_std::{Addr, Decimal};
-use cw_storage_plus::{Item};
+use cw_storage_plus::Item;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -23,4 +23,3 @@ pub enum ContractState {
     LpPositionExited,
     WithdrawComplete,
 }
-
