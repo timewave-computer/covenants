@@ -7,19 +7,20 @@ type DepositorInstantiateMsg struct {
 	GaiaNeutronIBCTransferChannelId string           `json:"gaia_neutron_ibc_transfer_channel_id"`
 	GaiaStrideIBCTransferChannelId  string           `json:"gaia_stride_ibc_transfer_channel_id"`
 	NeutronGaiaConnectionId         string           `json:"neutron_gaia_connection_id"`
+	LsAddress                       string           `json:"ls_address"`
 }
 
 type LPerInstantiateMsg struct {
 	LpPosition        LpInfo           `json:"lp_position"`
-	ClockAddress      string           `json:"clock_address,string"`
-	HolderAddress     string           `json:"holder_address,string"`
-	SlippageTolerance *string          `json:"slippage_tolerance,omitempty"`
-	Autostake         *string          `json:"autostake,omitempty"`
+	ClockAddress      string           `json:"clock_address"`
+	HolderAddress     string           `json:"holder_address"`
+	SlippageTolerance string           `json:"slippage_tolerance,omitempty"`
+	Autostake         bool             `json:"autostake,omitempty"`
 	Assets            []AstroportAsset `json:"assets"`
 }
 
 type LpInfo struct {
-	Addr string `json:"addr,string"`
+	Addr string `json:"addr"`
 }
 
 type WeightedReceiver struct {
@@ -220,10 +221,31 @@ type WhitelistInstantiateMsg struct {
 
 // ls
 type LsInstantiateMsg struct {
-	AutopilotPosition                 string `json:"autopilot_position,string"`
-	ClockAddress                      string `json:"clock_address,string"`
+	AutopilotPosition                 string `json:"autopilot_position"`
+	ClockAddress                      string `json:"clock_address"`
 	StrideNeutronIBCTransferChannelId string `json:"stride_neutron_ibc_transfer_channel_id"`
 	LpAddress                         string `json:"lp_address"`
 	NeutronStrideIBCConnectionId      string `json:"neutron_stride_ibc_connection_id"`
 	LsDenom                           string `json:"ls_denom"`
+}
+
+type CovenantInstantiateMsg struct {
+	ClockCode            uint64                  `json:"clock_code"`
+	ClockInstantiate     ClockInstantiateMsg     `json:"clock_instantiate"`
+	LsCode               uint64                  `json:"ls_code"`
+	LsInstantiate        LsInstantiateMsg        `json:"ls_instantiate"`
+	DepositorCode        uint64                  `json:"depositor_code"`
+	DepositorInstantiate DepositorInstantiateMsg `json:"depositor_instantiate"`
+	LpCode               uint64                  `json:"lp_code"`
+	LpInstantiate        LPerInstantiateMsg      `json:"lp_instantiate"`
+	HolderCode           uint64                  `json:"holder_code"`
+	HolderInstantiate    HolderInstantiateMsg    `json:"holder_instantiate"`
+}
+
+type ClockInstantiateMsg struct {
+	TickMaxGas string `json:"tick_max_gas"`
+}
+
+type HolderInstantiateMsg struct {
+	Withdrawer string `json:"withdrawer,omitempty"`
 }

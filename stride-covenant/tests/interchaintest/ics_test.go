@@ -344,12 +344,28 @@ func TestICS(t *testing.T) {
 	_, _, _ = gaiaStrideConnectionId, strideGaiaConnectionId, strideNeutronConnectionId
 
 	t.Run("stride covenant tests", func(t *testing.T) {
-		const clockContractAddress = "clock_contract_address"
-		const holderContractAddress = "holder_contract_address"
+		const covenantContractPath = "wasms/covenant_covenant.wasm"
+		const clockContractPath = "wasms/covenant_clock.wasm"
+		const holderContractPath = "wasms/covenant_holder.wasm"
+		const depositorContractPath = "wasms/covenant_depositor.wasm"
+		const lsContractPath = "wasms/covenant_ls.wasm"
+		const lperContractPath = "wasms/covenant_lp.wasm"
 
+		var clockCodeId uint64
+		var depositorCodeId uint64
+		var lsCodeId uint64
+		var lperCodeId uint64
+		var holderCodeId uint64
+
+		var covenantCodeIdStr string
+
+		var covenantContractAddress string
+		var clockContractAddress string
+		// var holderContractAddress string
 		var lperContractAddress string
 		var depositorContractAddress string
 		var lsContractAddress string
+
 		var stAtomWeightedReceiver WeightedReceiver
 		var atomWeightedReceiver WeightedReceiver
 		var strideICAAddress string
@@ -358,7 +374,7 @@ func TestICS(t *testing.T) {
 			transfertypes.GetPrefixedDenom("transfer",
 				neutronGaiaTransferChannelId,
 				atom.Config().Denom))
-		neutronDstIbcDenom := neutronSrcDenomTrace.IBCDenom()
+		neutronAtomIbcDenom := neutronSrcDenomTrace.IBCDenom()
 
 		atomSrcDenomTrace := transfertypes.ParseDenomTrace(
 			transfertypes.GetPrefixedDenom("transfer",
@@ -371,7 +387,7 @@ func TestICS(t *testing.T) {
 				neutronStrideChannelId,
 				"stuatom"))
 		neutronStatomDenom := neutronStatomDenomTrace.IBCDenom()
-		print("\nneutronDstIbcDenom: ", neutronDstIbcDenom)
+		print("\nneutronAtomIbcDenom: ", neutronAtomIbcDenom)
 		print("\nstrideAtomIbcDenom: ", strideAtomIbcDenom)
 		print("\nneutronStatomDenom: ", neutronStatomDenom)
 
@@ -385,6 +401,45 @@ func TestICS(t *testing.T) {
 		var whitelistAddress string
 		_, _ = tokenAddress, whitelistAddress
 
+		t.Run("deploy covenant contracts", func(t *testing.T) {
+			// store covenant and get code id
+			covenantCodeIdStr, err = cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, covenantContractPath)
+			require.NoError(t, err, "failed to store stride covenant contract")
+
+			// store clock and get code id
+			clockCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, clockContractPath)
+			require.NoError(t, err, "failed to store clock contract")
+			clockCodeId, err = strconv.ParseUint(clockCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			// store holder and get code id
+			holderCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, holderContractPath)
+			require.NoError(t, err, "failed to store holder contract")
+			holderCodeId, err = strconv.ParseUint(holderCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			// store depositor and get code id
+			depositorCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, depositorContractPath)
+			require.NoError(t, err, "failed to store depositor contract")
+			depositorCodeId, err = strconv.ParseUint(depositorCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			// store ls and get code id
+			lsCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, lsContractPath)
+			require.NoError(t, err, "failed to store ls contract")
+			lsCodeId, err = strconv.ParseUint(lsCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			// store lper and get code id
+			lperCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, lperContractPath)
+			require.NoError(t, err, "failed to store lper contract")
+			lperCodeId, err = strconv.ParseUint(lperCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+		})
+
+		// Stride is a liquid staking platform. We need to register Gaia (ATOM)
+		// as a host zone in order to redeem stATOM in exchange for ATOM
+		// stATOM is stride's liquid staked ATOM vouchers.
 		t.Run("register stride host zone", func(t *testing.T) {
 
 			cmd := []string{"strided", "tx", "stakeibc", "register-host-zone",
@@ -411,7 +466,7 @@ func TestICS(t *testing.T) {
 			err = testutil.WaitForBlocks(ctx, 5, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 		})
-
+		// Stride needs validators that it can stake ATOM with to issue us stATOM
 		t.Run("register gaia validators on stride", func(t *testing.T) {
 
 			type Validator struct {
@@ -722,9 +777,44 @@ func TestICS(t *testing.T) {
 
 		})
 
-		t.Run("instantiate lper contract", func(t *testing.T) {
-			codeId, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/covenant_lp.wasm")
-			require.NoError(t, err, "failed to store neutron ICA contract")
+		t.Run("instantiate covenant", func(t *testing.T) {
+			// Clock instantiation message
+			clockMsg := ClockInstantiateMsg{
+				TickMaxGas: "500000",
+			}
+			// Depositor instantiation message
+			// note that clock address needs to be filled
+
+			stAtomWeightedReceiver = WeightedReceiver{
+				Amount:  int64(10),
+				Address: "todo",
+			}
+
+			atomWeightedReceiver = WeightedReceiver{
+				Amount:  int64(10),
+				Address: "todo",
+			}
+
+			depositorMsg := DepositorInstantiateMsg{
+				StAtomReceiver:                  stAtomWeightedReceiver,
+				AtomReceiver:                    atomWeightedReceiver,
+				ClockAddress:                    "todo",
+				GaiaNeutronIBCTransferChannelId: gaiaNeutronTransferChannelId,
+				GaiaStrideIBCTransferChannelId:  gaiaStrideChannelId,
+				NeutronGaiaConnectionId:         neutronGaiaTransferConnectionId,
+			}
+			// LSer instantiation message
+			// node that some fields will be filled later
+			lsMsg := LsInstantiateMsg{
+				AutopilotPosition:                 "todo",
+				ClockAddress:                      "todo",
+				StrideNeutronIBCTransferChannelId: strideNeutronChannelId,
+				LpAddress:                         "todo",
+				NeutronStrideIBCConnectionId:      neutronStrideConnectionId,
+				LsDenom:                           "stuatom",
+			}
+
+			// For LPer, we need to first gather astroport information
 			lpInfo := LpInfo{
 				Addr: stableswapAddress,
 			}
@@ -732,7 +822,7 @@ func TestICS(t *testing.T) {
 				AstroportAsset{
 					Info: AssetInfo{
 						NativeToken: &NativeToken{
-							Denom: neutronDstIbcDenom,
+							Denom: neutronAtomIbcDenom,
 						},
 					},
 					Amount: "10",
@@ -746,33 +836,94 @@ func TestICS(t *testing.T) {
 					Amount: "10",
 				},
 			}
+
 			slippageTolerance := "0.01"
 
 			lpMsg := LPerInstantiateMsg{
 				LpPosition:        lpInfo,
-				ClockAddress:      clockContractAddress,
-				HolderAddress:     holderContractAddress,
-				SlippageTolerance: &slippageTolerance,
-				Autostake:         nil,
+				ClockAddress:      "todo",
+				HolderAddress:     "todo",
+				SlippageTolerance: slippageTolerance,
+				Autostake:         false,
 				Assets:            assets,
 			}
 
-			str, err := json.Marshal(lpMsg)
-			require.NoError(t, err, "Failed to marshall LPerInstantiateMsg")
-			print("\n lp instantiate msg: \n", string(str))
-			lperContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
-			require.NoError(t, err, "failed to instantiate lper contract: ", err)
-			print("\n lper: ", lperContractAddress)
+			holderMsg := HolderInstantiateMsg{
+				Withdrawer: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+			}
 
-			t.Run("query instantiated clock", func(t *testing.T) {
-				var response ClockQueryResponse
-				err = cosmosNeutron.QueryContract(ctx, lperContractAddress, LPContractQuery{
-					ClockAddress: ClockAddressQuery{},
-				}, &response)
-				require.NoError(t, err, "failed to query clock address")
-				expectedAddrJson, _ := json.Marshal(clockContractAddress)
-				require.Equal(t, string(expectedAddrJson), response.Data)
-			})
+			covenantMsg := CovenantInstantiateMsg{
+				ClockCode:            clockCodeId,
+				ClockInstantiate:     clockMsg,
+				LsCode:               lsCodeId,
+				LsInstantiate:        lsMsg,
+				DepositorCode:        depositorCodeId,
+				DepositorInstantiate: depositorMsg,
+				LpCode:               lperCodeId,
+				LpInstantiate:        lpMsg,
+				HolderCode:           holderCodeId,
+				HolderInstantiate:    holderMsg,
+			}
+
+			str, err := json.Marshal(covenantMsg)
+			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
+
+			covenantContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, covenantCodeIdStr, string(str), true, "--gas-adjustment", `1.6`, "--gas", "500000")
+			require.NoError(t, err, "failed to instantiate contract: ", err)
+			print("\n covenant address: ", covenantContractAddress)
+		})
+
+		t.Run("instantiate lper contract", func(t *testing.T) {
+			_, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/covenant_lp.wasm")
+			require.NoError(t, err, "failed to store neutron ICA contract")
+			// lpInfo := LpInfo{
+			// 	Addr: stableswapAddress,
+			// }
+			// assets := []AstroportAsset{
+			// 	AstroportAsset{
+			// 		Info: AssetInfo{
+			// 			NativeToken: &NativeToken{
+			// 				Denom: neutronAtomIbcDenom,
+			// 			},
+			// 		},
+			// 		Amount: 10,
+			// 	},
+			// 	AstroportAsset{
+			// 		Info: AssetInfo{
+			// 			NativeToken: &NativeToken{
+			// 				Denom: neutronStatomDenom,
+			// 			},
+			// 		},
+			// 		Amount: 10,
+			// 	},
+			// }
+			// slippageTolerance := 0.01
+
+			// lpMsg := LPerInstantiateMsg{
+			// 	LpPosition:        lpInfo,
+			// 	ClockAddress:      neutronUser.Bech32Address(neutron.Config().Bech32Prefix), // we need this to be able to tick the LPer manually
+			// 	HolderAddress:     holderContractAddress,
+			// 	SlippageTolerance: slippageTolerance,
+			// 	Autostake:         nil,
+			// 	Assets:            assets,
+			// }
+
+			// str, err := json.Marshal(lpMsg)
+			// require.NoError(t, err, "Failed to marshall LPerInstantiateMsg")
+			// print("\n lp instantiate msg: \n", string(str))
+			// lperContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
+			// require.NoError(t, err, "failed to instantiate lper contract: ", err)
+			// print("\n lper: ", lperContractAddress)
+
+			// t.Run("query instantiated clock", func(t *testing.T) {
+			// 	var response ClockQueryResponse
+			// 	err = cosmosNeutron.QueryContract(ctx, lperContractAddress, LPContractQuery{
+			// 		ClockAddress: ClockAddressQuery{},
+			// 	}, &response)
+			// 	require.NoError(t, err, "failed to query clock address")
+			// 	expectedAddrJson, _ := json.Marshal(clockContractAddress)
+			// 	require.Equal(t, string(expectedAddrJson), response.Data)
+			//})
 
 			t.Run("query lp position", func(t *testing.T) {
 				var response LpPositionQueryResponse
@@ -790,7 +941,7 @@ func TestICS(t *testing.T) {
 
 			msg := LsInstantiateMsg{
 				AutopilotPosition:                 "todo",
-				ClockAddress:                      clockContractAddress,
+				ClockAddress:                      neutronUser.Bech32Address(neutron.Config().Bech32Prefix), // we need this to be able to tick the LPer manually
 				StrideNeutronIBCTransferChannelId: strideNeutronChannelId,
 				LpAddress:                         lperContractAddress,
 				NeutronStrideIBCConnectionId:      neutronStrideConnectionId,
@@ -860,10 +1011,11 @@ func TestICS(t *testing.T) {
 			msg := DepositorInstantiateMsg{
 				StAtomReceiver:                  stAtomWeightedReceiver,
 				AtomReceiver:                    atomWeightedReceiver,
-				ClockAddress:                    clockContractAddress,
+				ClockAddress:                    neutronUser.Bech32Address(neutron.Config().Bech32Prefix), // we need this to be able to tick the LPer manually
 				GaiaNeutronIBCTransferChannelId: gaiaNeutronTransferChannelId,
 				GaiaStrideIBCTransferChannelId:  gaiaStrideChannelId,
 				NeutronGaiaConnectionId:         neutronGaiaTransferConnectionId,
+				LsAddress:                       "todo",
 			}
 
 			str, err := json.Marshal(msg)
@@ -1102,7 +1254,7 @@ func TestICS(t *testing.T) {
 			neutronUserBalNew, err := neutron.GetBalance(
 				ctx,
 				lperContractAddress,
-				neutronDstIbcDenom)
+				neutronAtomIbcDenom)
 			require.NoError(t, err, "failed to query lper contract atom balance")
 			require.Equal(t, int64(10), neutronUserBalNew)
 		})
@@ -1123,7 +1275,7 @@ func TestICS(t *testing.T) {
 			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
-			lpBal, err := neutron.GetBalance(ctx, lperContractAddress, neutronDstIbcDenom)
+			lpBal, err := neutron.GetBalance(ctx, lperContractAddress, neutronAtomIbcDenom)
 			require.NoError(t, err, "failed to get ICA balance")
 			require.EqualValues(t, 10, lpBal)
 		})

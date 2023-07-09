@@ -27,7 +27,10 @@ simtest: optimize
     if [[ $(uname -m) =~ "arm64" ]]; then \
         mv ./../artifacts/covenant_depositor-aarch64.wasm ./../artifacts/covenant_depositor.wasm && \
         mv ./../artifacts/covenant_lp-aarch64.wasm ./../artifacts/covenant_lp.wasm && \
-        mv ./../artifacts/covenant_ls-aarch64.wasm ./../artifacts/covenant_ls.wasm \
+        mv ./../artifacts/covenant_ls-aarch64.wasm ./../artifacts/covenant_ls.wasm && \
+        mv ./../artifacts/covenant_clock-aarch64.wasm ./../artifacts/covenant_clock.wasm && \
+        mv ./../artifacts/covenant_holder-aarch64.wasm ./../artifacts/covenant_holder.wasm && \
+        mv ./../artifacts/covenant_covenant-aarch64.wasm ./../artifacts/covenant_covenant.wasm \
     ;fi
 
     cp ./astroport/*.wasm ./../artifacts
