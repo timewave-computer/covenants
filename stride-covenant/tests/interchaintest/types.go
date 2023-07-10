@@ -1,22 +1,22 @@
 package ibc_test
 
-type DepositorInstantiateMsg struct {
-	StAtomReceiver                  WeightedReceiver `json:"st_atom_receiver"`
-	AtomReceiver                    WeightedReceiver `json:"atom_receiver"`
-	ClockAddress                    string           `json:"clock_address"`
-	GaiaNeutronIBCTransferChannelId string           `json:"gaia_neutron_ibc_transfer_channel_id"`
-	GaiaStrideIBCTransferChannelId  string           `json:"gaia_stride_ibc_transfer_channel_id"`
-	NeutronGaiaConnectionId         string           `json:"neutron_gaia_connection_id"`
-	LsAddress                       string           `json:"ls_address"`
+type PresetDepositorFields struct {
+	GaiaNeutronIBCTransferChannelId string                 `json:"gaia_neutron_ibc_transfer_channel_id"`
+	NeutronGaiaConnectionId         string                 `json:"neutron_gaia_connection_id"`
+	GaiaStrideIBCTransferChannelId  string                 `json:"gaia_stride_ibc_transfer_channel_id"`
+	DepositorCode                   uint64                 `json:"depositor_code"`
+	Label                           string                 `json:"label"`
+	StAtomReceiverAmount            WeightedReceiverAmount `json:"st_atom_receiver_amount"`
+	AtomReceiverAmount              WeightedReceiverAmount `json:"atom_receiver_amount"`
 }
 
-type LPerInstantiateMsg struct {
-	LpPosition        LpInfo           `json:"lp_position"`
-	ClockAddress      string           `json:"clock_address"`
-	HolderAddress     string           `json:"holder_address"`
+type PresetLpFields struct {
 	SlippageTolerance string           `json:"slippage_tolerance,omitempty"`
 	Autostake         bool             `json:"autostake,omitempty"`
 	Assets            []AstroportAsset `json:"assets"`
+	LpPosition        string           `json:"lp_position"`
+	LpCode            uint64           `json:"lp_code"`
+	Label             string           `json:"label"`
 }
 
 type LpInfo struct {
@@ -26,6 +26,10 @@ type LpInfo struct {
 type WeightedReceiver struct {
 	Amount  int64  `json:"amount"`
 	Address string `json:"address"`
+}
+
+type WeightedReceiverAmount struct {
+	Amount int64 `json:"amount"`
 }
 
 // A query against the Neutron example contract. Note the usage of
@@ -220,32 +224,32 @@ type WhitelistInstantiateMsg struct {
 }
 
 // ls
-type LsInstantiateMsg struct {
-	AutopilotPosition                 string `json:"autopilot_position"`
-	ClockAddress                      string `json:"clock_address"`
-	StrideNeutronIBCTransferChannelId string `json:"stride_neutron_ibc_transfer_channel_id"`
-	LpAddress                         string `json:"lp_address"`
-	NeutronStrideIBCConnectionId      string `json:"neutron_stride_ibc_connection_id"`
+type PresetLsFields struct {
+	LsCode                            uint64 `json:"ls_code"`
+	Label                             string `json:"label"`
 	LsDenom                           string `json:"ls_denom"`
+	StrideNeutronIBCTransferChannelId string `json:"stride_neutron_ibc_transfer_channel_id"`
+	NeutronStrideIBCConnectionId      string `json:"neutron_stride_ibc_connection_id"`
+	LpAddress                         string `json:"lp_address"`
 }
 
 type CovenantInstantiateMsg struct {
-	ClockCode            uint64                  `json:"clock_code"`
-	ClockInstantiate     ClockInstantiateMsg     `json:"clock_instantiate"`
-	LsCode               uint64                  `json:"ls_code"`
-	LsInstantiate        LsInstantiateMsg        `json:"ls_instantiate"`
-	DepositorCode        uint64                  `json:"depositor_code"`
-	DepositorInstantiate DepositorInstantiateMsg `json:"depositor_instantiate"`
-	LpCode               uint64                  `json:"lp_code"`
-	LpInstantiate        LPerInstantiateMsg      `json:"lp_instantiate"`
-	HolderCode           uint64                  `json:"holder_code"`
-	HolderInstantiate    HolderInstantiateMsg    `json:"holder_instantiate"`
+	Label           string                `json:"label"`
+	PresetClock     PresetClockFields     `json:"preset_clock_fields"`
+	PresetLs        PresetLsFields        `json:"preset_ls_fields"`
+	PresetDepositor PresetDepositorFields `json:"preset_depositor_fields"`
+	PresetLp        PresetLpFields        `json:"preset_lp_fields"`
+	PresetHolder    PresetHolderFields    `json:"preset_holder_fields"`
 }
 
-type ClockInstantiateMsg struct {
-	TickMaxGas string `json:"tick_max_gas"`
+type PresetClockFields struct {
+	TickMaxGas string `json:"tick_max_gas,omitempty"`
+	ClockCode  uint64 `json:"clock_code"`
+	Label      string `json:"label"`
 }
 
-type HolderInstantiateMsg struct {
+type PresetHolderFields struct {
 	Withdrawer string `json:"withdrawer,omitempty"`
+	HolderCode uint64 `json:"holder_code"`
+	Label      string `json:"label"`
 }
