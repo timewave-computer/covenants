@@ -360,6 +360,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
             sequence_id,
         } => query_acknowledgement_result(deps, env, interchain_account_id, sequence_id),
         QueryMsg::ErrorsQueue {} => query_errors_queue(deps),
+        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
     }
 }
 

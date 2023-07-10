@@ -2,6 +2,8 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Addr;
 use covenant_clock_derive::clocked;
 
+use crate::state::ContractState;
+
 #[cw_serde]
 pub struct InstantiateMsg {
     pub clock_address: String,
@@ -52,6 +54,8 @@ pub enum QueryMsg {
     StrideICA {},
     #[returns(Addr)]
     LpAddress {},
+    #[returns(ContractState)]
+    ContractState {},
 }
 
 #[cw_serde]
