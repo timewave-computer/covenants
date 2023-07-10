@@ -65,6 +65,18 @@ pub fn instantiate(
     )))
 }
 
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg.id {
+        CLOCK_REPLY_ID => handle_clock_reply(deps, env, msg),
+        HOLDER_REPLY_ID => handle_holder_reply(deps, env, msg),
+        LP_REPLY_ID => handle_lp_reply(deps, env, msg),
+        LS_REPLY_ID => handle_ls_reply(deps, env, msg),
+        DEPOSITOR_REPLY_ID => Ok(Response::default().add_attribute("instantiation", "success")),
+        _ => Err(ContractError::UnknownReplyId {}),
+    }
+}
+
 pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: clock reply");
 
@@ -276,16 +288,5 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
 
             Ok(Response::default().add_messages(migrate_msgs))
         }
-    }
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
-    match msg.id {
-        CLOCK_REPLY_ID => handle_clock_reply(deps, env, msg),
-        HOLDER_REPLY_ID => handle_holder_reply(deps, env, msg),
-        LP_REPLY_ID => handle_lp_reply(deps, env, msg),
-        LS_REPLY_ID => handle_ls_reply(deps, env, msg),
-        _ => Err(ContractError::UnknownReplyId {}),
     }
 }
