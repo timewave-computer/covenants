@@ -28,6 +28,9 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 // type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
+const DOUBLE_SIDED_REPLY_ID: u64 = 1u64;
+const SINGLE_SIDED_REPLY_ID: u64 = 2u64;
+
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -88,6 +91,26 @@ fn no_op() -> Result<Response, ContractError> {
     Ok(Response::default())
 }
 
+fn get_relevant_balances(coins: Vec<Coin>, ls_denom: String, native_denom: String) -> (Coin, Coin) {
+    let mut native_bal = Coin::default();
+    let mut ls_bal = Coin::default();
+
+    coins.into_iter()
+        .for_each(|c| {
+            if c.denom == ls_denom {
+                // found ls balance
+                ls_bal = c;
+            } else if c.denom == native_denom {
+                if native_denom == c.denom {
+                    // found native token balance
+                    native_bal = c;
+                }
+            }
+        });
+
+    (native_bal, ls_bal)
+}
+
 fn try_enter_lp_position(
     deps: DepsMut,
     env: Env,
@@ -100,24 +123,15 @@ fn try_enter_lp_position(
     let max_single_side_ratio: Decimal = SINGLE_SIDE_LP_LIMIT.load(deps.storage)?;
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
 
+    let bal_coins = deps.querier.query_all_balances(env.contract.address)?;
+
     // First we filter out non-relevant token balances
-    let mut native_bal = Coin::default();
-    let mut ls_bal = Coin::default();
-    deps.querier
-        .query_all_balances(env.contract.address)?
-        .into_iter()
-        .for_each(|c| {
-            if c.denom == asset_data.ls_asset_denom {
-                // found ls balance
-                ls_bal = c;
-            } else if let Some(native_denom) = asset_data.clone().try_get_native_asset_denom() {
-                if native_denom == c.denom {
-                    // found native token balance
-                    native_bal = c;
-                }
-            }
-        });
-    
+    let (mut native_bal, mut ls_bal) = get_relevant_balances(
+        bal_coins, 
+        asset_data.clone().ls_asset_denom, 
+        asset_data.clone().try_get_native_asset_denom().unwrap_or_default()
+    );
+
     // check if we already received the expected amount of native asset.
     // if we have not, we requeue ourselves and wait for funds to arrive.
     if native_bal.amount < asset_data.native_asset_info.amount {
@@ -136,7 +150,7 @@ fn try_enter_lp_position(
         },
     )?;
 
-    let mut submessages: Vec<CosmosMsg> = Vec::new();
+    let mut provide_liquidity_messages: Vec<CosmosMsg> = Vec::new();
     // Given a SimulationResponse, we have two possible cases:
 
     // Case 1: The ask_amount of asset two, returned by simulation is less than the current balance of asset_two
@@ -159,7 +173,7 @@ fn try_enter_lp_position(
             auto_stake,
             receiver: None,
         };
-        submessages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        provide_liquidity_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pool_address.addr.to_string(),
             msg: to_binary(&double_sided_liq_msg)?,
             funds: vec![
@@ -177,7 +191,9 @@ fn try_enter_lp_position(
         let left_over_to_available_bal_ratio = Decimal::from_ratio(
             left_over_ls_amount, 
             ls_bal.amount
-        );       
+        );
+
+        // otherwise we generate the single sided liquidity message
         if left_over_to_available_bal_ratio <= max_single_side_ratio {
             let mut native_asset = asset_data.native_asset_info.clone();
             native_asset.amount = Uint128::zero();
@@ -194,7 +210,8 @@ fn try_enter_lp_position(
                 auto_stake,
                 receiver: None,
             };
-            submessages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+
+            provide_liquidity_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: pool_address.addr.to_string(),
                 msg: to_binary(&single_sided_liq_msg)?,
                 funds: vec![
@@ -230,7 +247,7 @@ fn try_enter_lp_position(
             auto_stake,
             receiver: None,
         };
-        submessages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        provide_liquidity_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pool_address.addr.to_string(),
             msg: to_binary(&double_sided_liq_msg)?,
             funds: vec![
@@ -266,7 +283,7 @@ fn try_enter_lp_position(
                 auto_stake,
                 receiver: None,
             };
-            submessages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            provide_liquidity_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: pool_address.addr.to_string(),
                 msg: to_binary(&single_sided_liq_msg)?,
                 funds: vec![
@@ -276,26 +293,15 @@ fn try_enter_lp_position(
         }
     }
 
-
     // TODO: enque/deque
-    // TODO: return message responses?
+    // TODO: return message responses
 
+    println!("\n messages enqueued: {:?}\n", provide_liquidity_messages);
+    // regardless we requeue ourselves
+    let enqueue_clock_msg = covenant_clock::helpers::enqueue_msg(clock_addr.as_str())?;
+    // submessages.push(CosmosMsg::Wasm(enqueue_clock_msg));
 
-    Ok(Response::default())
-}
-
-fn validate_single_sided_liquidity_amount(
-    single_side_amount: Uint128,
-    normal_amount: Uint128,
-    max_single_side_ratio: Decimal
-) -> Result<(), ContractError> {
-    let ratio = Decimal::from_ratio(single_side_amount, normal_amount);
-    println!("ratio {:?}", ratio);
-    if ratio > max_single_side_ratio {
-        return Err(ContractError::SingleSideLpLimitError {})
-    } else {
-        return Ok(())
-    }
+    Ok(Response::default().add_messages(provide_liquidity_messages))
 }
 
 /// should be sent to the LP token contract associated with the pool
