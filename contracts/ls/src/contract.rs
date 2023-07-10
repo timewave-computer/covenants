@@ -67,7 +67,9 @@ pub fn instantiate(
     NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &msg.neutron_stride_ibc_connection_id)?;
     LS_DENOM.save(deps.storage, &msg.ls_denom)?;
 
-    Ok(Response::default().add_message(clock_enqueue_msg))
+    Ok(Response::default()
+        .add_attribute("method", "instantiate")
+        .add_message(clock_enqueue_msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -113,7 +115,9 @@ fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
     INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
 
-    Ok(Response::new().add_message(register))
+    Ok(Response::new()
+        .add_attribute("method", "try_register_stride_ica")
+        .add_message(register))
 }
 
 fn try_execute_transfer(
@@ -183,7 +187,9 @@ fn try_execute_transfer(
 
             CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
 
-            Ok(Response::default().add_submessage(SubMsg::new(submit_msg)))
+            Ok(Response::default()
+                .add_attribute("method", "try_execute_transfer")
+                .add_submessage(SubMsg::new(submit_msg)))
         }
         None => Err(NeutronError::Fmt(Error)),
     }
@@ -193,7 +199,9 @@ fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
-    Ok(Response::default().add_message(msg))
+    Ok(Response::default()
+        .add_attribute("method", "try_completed")
+        .add_message(msg))
 }
 
 #[allow(unused)]
@@ -361,7 +369,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 LS_DENOM.save(deps.storage, &ls_denom)?;
             }
 
-            Ok(Response::default())
+            Ok(Response::default()
+                .add_attribute("method", "update_config")
+            )
         }
     }
 }
@@ -392,7 +402,9 @@ fn sudo_open_ack(
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default());
+        return Ok(Response::default()
+            .add_attribute("method", "sudo_open_ack")
+        );
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
 }
@@ -435,7 +447,10 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
         deps.api.debug(error_msg);
         add_error_to_queue(deps.storage, error_msg.to_string());
-        return Ok(Response::default());
+        return Ok(Response::default()
+            .add_attribute("method", "sudo_open_ack")
+            .add_attribute("error", "no_payload")
+        );
     }
 
     deps.api
@@ -484,7 +499,9 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         )?;
     }
 
-    Ok(Response::default())
+    Ok(Response::default()
+        .add_attribute("method", "sudo_response")
+    )
 }
 
 fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<Response> {
@@ -537,7 +554,9 @@ fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<R
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
 
-    Ok(Response::default())
+    Ok(Response::default()
+        .add_attribute("method", "sudo_timeout")
+    )
 }
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {
@@ -583,7 +602,9 @@ fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResu
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
 
-    Ok(Response::default())
+    Ok(Response::default()
+        .add_attribute("method", "sudo_error")
+    )
 }
 
 // prepare_sudo_payload is called from reply handler
