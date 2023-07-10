@@ -865,6 +865,19 @@ func TestICS(t *testing.T) {
 			print("\n covenant address: ", covenantContractAddress)
 		})
 
+		// var liquidPoolerAddress, lsAddress, depositorAddress, clockAddress, holderAddress string
+
+		t.Run("query covenant instantiated contracts", func(t *testing.T) {
+			// height, _ := cosmosNeutron.Height(ctx)
+			// contractState, _ := cosmosNeutron.DumpContractState(ctx, covenantContractAddress, int64(height))
+			// jsonState, err := json.Marshal(contractState)
+			// print("contract state dump: ", string(jsonState))
+			var response string
+			err = cosmosNeutron.QueryContract(ctx, covenantContractAddress, DepositorAddress{}, &response)
+			require.NoError(t, err, "failed to query instantiated depositor address")
+			print("depositor addr: ", response)
+		})
+
 		t.Run("instantiate lper contract", func(t *testing.T) {
 			_, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/covenant_lp.wasm")
 			require.NoError(t, err, "failed to store neutron ICA contract")

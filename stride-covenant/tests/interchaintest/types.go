@@ -32,6 +32,22 @@ type WeightedReceiverAmount struct {
 	Amount int64 `json:"amount"`
 }
 
+type CovenantAddress struct{}
+
+type CovenantAddressQueryResponse struct {
+	Addr string `json:"address"`
+}
+
+type CovenantHolderAddressQuery struct {
+	Addr string `json:"address"`
+}
+
+type DepositorAddress struct{}
+
+type CovenantClockAddressQuery struct {
+	Addr string `json:"address"`
+}
+
 // A query against the Neutron example contract. Note the usage of
 // `omitempty` on fields. This means that if that field has no value,
 // it will not have a key in the serialized representaiton of the
