@@ -18,16 +18,15 @@ pub struct PresetLsFields {
     pub ls_denom: String,
     pub stride_neutron_ibc_transfer_channel_id: String,
     pub neutron_stride_ibc_connection_id: String,
-    pub lp_address: String,
 }
 
 impl PresetLsFields {
-    pub fn to_instantiate_msg(self, clock_address: String) -> InstantiateMsg {
+    pub fn to_instantiate_msg(self, clock_address: String, lp_address: String) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
             stride_neutron_ibc_transfer_channel_id: self.stride_neutron_ibc_transfer_channel_id,
             neutron_stride_ibc_connection_id: self.neutron_stride_ibc_connection_id,
-            lp_address: self.lp_address,
+            lp_address,
             ls_denom: self.ls_denom,
         }
     }

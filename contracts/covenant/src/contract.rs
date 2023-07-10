@@ -152,7 +152,10 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let code_id = LS_CODE.load(deps.storage)?;
             let preset_ls_fields = PRESET_LS_FIELDS.load(deps.storage)?;
 
-            let instantiate_msg = preset_ls_fields.clone().to_instantiate_msg(clock_address);
+            let instantiate_msg = preset_ls_fields.clone().to_instantiate_msg(
+                clock_address,
+                response.contract_address
+            );
 
             let ls_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
