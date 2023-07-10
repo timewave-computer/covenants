@@ -72,7 +72,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
         HOLDER_REPLY_ID => handle_holder_reply(deps, env, msg),
         LP_REPLY_ID => handle_lp_reply(deps, env, msg),
         LS_REPLY_ID => handle_ls_reply(deps, env, msg),
-        DEPOSITOR_REPLY_ID => Ok(Response::default().add_attribute("instantiation", "success")),
+        DEPOSITOR_REPLY_ID => handle_depositor_reply(deps, env, msg),
         _ => Err(ContractError::UnknownReplyId {}),
     }
 }
@@ -203,6 +203,21 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             )))
         }
         Err(_err) => Err(ContractError::ContractInstantiationError { contract: "ls".to_string() }),
+    }
+}
+
+
+pub fn handle_depositor_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    deps.api.debug("WASMDEBUG: depositor reply");
+
+    let parsed_data = parse_reply_instantiate_data(msg);
+    match parsed_data {
+        Ok(response) => {
+            COVENANT_DEPOSITOR_ADDR.save(deps.storage, &response.contract_address)?;
+
+            Ok(Response::default().add_attribute("instantiation", "success"))
+        }
+        Err(_err) => Err(ContractError::ContractInstantiationError { contract: "depositor".to_string() }),
     }
 }
 
