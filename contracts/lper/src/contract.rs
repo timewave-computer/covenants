@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult, Uint128, WasmMsg, Decimal, SubMsg,
+    StdResult, Uint128, WasmMsg, Decimal, SubMsg, StdError, 
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -16,10 +16,10 @@ use cw20::{BalanceResponse, Cw20ExecuteMsg};
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::{ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION, SLIPPAGE_TOLERANCE, SINGLE_SIDE_LP_LIMIT},
+    state::{ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION, SLIPPAGE_TOLERANCE, SINGLE_SIDE_LP_LIMIT, PROVIDED_LIQUIDITY_INFO, ProvidedLiquidityInfo},
 };
 
-use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
+use neutron_sdk::{NeutronResult};
 
 use crate::state::{ContractState, CLOCK_ADDRESS, CONTRACT_STATE};
 
@@ -28,8 +28,8 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 // type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
-const DOUBLE_SIDED_REPLY_ID: u64 = 1u64;
-const SINGLE_SIDED_REPLY_ID: u64 = 2u64;
+const DOUBLE_SIDED_REPLY_ID: u64 = 321u64;
+const SINGLE_SIDED_REPLY_ID: u64 = 322u64;
 
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -51,6 +51,12 @@ pub fn instantiate(
     HOLDER_ADDRESS.save(deps.storage, &msg.holder_address)?;
     ASSETS.save(deps.storage, &msg.assets)?;
     SINGLE_SIDE_LP_LIMIT.save(deps.storage, &msg.single_side_lp_limit)?;
+    PROVIDED_LIQUIDITY_INFO.save(deps.storage, &ProvidedLiquidityInfo {
+        provided_amount_ls: Uint128::zero(),
+        provided_amount_native: Uint128::zero(),
+        leftover_asset: None,
+        leftover_asset_counterpart_info: None,
+    })?;
 
     Ok(Response::default().add_message(clock_enqueue_msg))
 }
@@ -78,12 +84,13 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     }
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
-
+    println!("\n tick state: {:?}", current_state);
     match current_state {
-        ContractState::Instantiated => try_enter_lp_position(deps, env, info),
-        ContractState::LpPositionEntered => no_op(),
-        ContractState::LpPositionExited => no_op(),
+        ContractState::Instantiated => try_enter_double_side_lp_position(deps, env, info),
+        ContractState::DoubleSideLPed => try_enter_single_side_lp_position(deps, env, info),
+        ContractState::SingleSideLPed => try_completed(deps),
         ContractState::WithdrawComplete => no_op(),
+        _ => no_op(),
     }
 }
 
@@ -111,7 +118,8 @@ fn get_relevant_balances(coins: Vec<Coin>, ls_denom: String, native_denom: Strin
     (native_bal, ls_bal)
 }
 
-fn try_enter_lp_position(
+// here we try to provide double sided liquidity.
+fn try_enter_double_side_lp_position(
     deps: DepsMut,
     env: Env,
     _info: MessageInfo,
@@ -120,7 +128,6 @@ fn try_enter_lp_position(
     let slippage_tolerance = SLIPPAGE_TOLERANCE.may_load(deps.storage)?;
     let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
     let asset_data = ASSETS.load(deps.storage)?;
-    let max_single_side_ratio: Decimal = SINGLE_SIDE_LP_LIMIT.load(deps.storage)?;
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
 
     let bal_coins = deps.querier.query_all_balances(env.contract.address)?;
@@ -150,15 +157,12 @@ fn try_enter_lp_position(
         },
     )?;
 
-    let mut provide_liquidity_messages: Vec<CosmosMsg> = Vec::new();
     // Given a SimulationResponse, we have two possible cases:
-
     // Case 1: The ask_amount of asset two, returned by simulation is less than the current balance of asset_two
-    if simulation.return_amount < ls_bal.amount {
+    let mut submsg: SubMsg = if simulation.return_amount < ls_bal.amount {
         // This means that we will have left over asset two, if we are to provide double sided liquidity
         // with the simulation ratio. 
 
-        // We should provide double sided liquidity regardless of left over.
         let ls_asset_double_sided = Asset { 
             info: AssetInfo::NativeToken { denom: asset_data.ls_asset_denom.to_string() },
             // we provide as much as needed to keep in balance with the queried amount
@@ -173,52 +177,33 @@ fn try_enter_lp_position(
             auto_stake,
             receiver: None,
         };
-        provide_liquidity_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pool_address.addr.to_string(),
-            msg: to_binary(&double_sided_liq_msg)?,
-            funds: vec![
-                asset_data.native_asset_info.to_coin()?,
-                ls_asset_double_sided.clone().to_coin()?,
-            ],
-        }));
-        
-        // If there is no left over, we can go to completion.
-        // We can get the left_over_asset_two: balance of asset two - ask amount
-        let left_over_ls_amount = ls_bal.amount - simulation.return_amount;
 
-        // If the left_over_asset_two / current balance of asset two <= max single sided liquidity ratio
-        // We should provide single sided liquidity and we can go to completion state.
-        let left_over_to_available_bal_ratio = Decimal::from_ratio(
-            left_over_ls_amount, 
-            ls_bal.amount
-        );
+        // convert Asset to Coin types
+        let (native_coin, ls_coin) = (asset_data.native_asset_info.to_coin()?, ls_asset_double_sided.clone().to_coin()?);
 
-        // otherwise we generate the single sided liquidity message
-        if left_over_to_available_bal_ratio <= max_single_side_ratio {
-            let mut native_asset = asset_data.native_asset_info.clone();
-            native_asset.amount = Uint128::zero();
-            let ls_single_sided_asset = Asset { 
-                info: AssetInfo::NativeToken { denom: asset_data.ls_asset_denom.to_string() },
-                amount: left_over_ls_amount,
-            };
-            let single_sided_liq_msg = ProvideLiquidity { 
-                assets: vec![
-                    ls_single_sided_asset.clone(),
-                    native_asset,
-                ],
-                slippage_tolerance,
-                auto_stake,
-                receiver: None,
-            };
+        // update the provided amounts and leftover assets
+        PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+            info.provided_amount_ls = info.provided_amount_ls.checked_add(ls_coin.clone().amount)?;
+            info.provided_amount_native = info.provided_amount_native.checked_add(native_coin.clone().amount)?;
+            info.leftover_asset = Some(Asset {
+                info: ls_asset_double_sided.info,
+                amount: ls_bal.amount.checked_sub(ls_coin.amount)?,
+            });
+            info.leftover_asset_counterpart_info = Some(asset_data.clone().native_asset_info.info);
+            Ok(info)
+        })?;
 
-            provide_liquidity_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        SubMsg::reply_on_success(
+            CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: pool_address.addr.to_string(),
-                msg: to_binary(&single_sided_liq_msg)?,
+                msg: to_binary(&double_sided_liq_msg)?,
                 funds: vec![
-                    ls_single_sided_asset.to_coin()?,
+                    native_coin,
+                    ls_coin,
                 ],
-            }));
-        }
+            }),
+            DOUBLE_SIDED_REPLY_ID,
+        )
     } else { 
         // Case 2: The ask_amount of asset two, returned by simulation is greater than the current balance of asset_two
 
@@ -247,62 +232,136 @@ fn try_enter_lp_position(
             auto_stake,
             receiver: None,
         };
-        provide_liquidity_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pool_address.addr.to_string(),
-            msg: to_binary(&double_sided_liq_msg)?,
-            funds: vec![
-                double_sided_native_asset.to_coin()?,
-                double_sided_ls_asset.to_coin()?,
-            ],
-        }));
 
-        // If there is no left over, we can go to completion.
-        // We can get the left_over_asset_two: balance of asset two - ask amount
-        let native_coin_leftover = native_bal.amount - double_sided_native_asset.amount;
+        // convert Asset to Coin types
+        let (native_coin, ls_coin) = (double_sided_native_asset.to_coin()?, double_sided_ls_asset.to_coin()?);
 
-        // If the left_over_asset_two / current balance of asset two <= max single sided liquidity ratio
-        // We should provide single sided liquidity and we can go to completion state.
-        let left_over_to_available_bal_ratio = Decimal::from_ratio(
-            native_coin_leftover, 
-            native_bal.amount
-        );       
-        if left_over_to_available_bal_ratio <= max_single_side_ratio {
-            let mut ls_asset = double_sided_ls_asset.clone();
-            ls_asset.amount = Uint128::zero();
+        // update the provided amounts and leftover assets
+        PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+            info.provided_amount_ls = info.provided_amount_ls.checked_add(ls_coin.clone().amount)?;
+            info.provided_amount_native = info.provided_amount_native.checked_add(native_coin.clone().amount)?;
+            info.leftover_asset = Some(Asset {
+                info: double_sided_native_asset.info,
+                amount: native_bal.amount.checked_sub(native_coin.amount)?,
+            });
+            info.leftover_asset_counterpart_info = Some(double_sided_ls_asset.info);
+            Ok(info)
+        })?;
 
-            let native_single_sided_asset = Asset { 
-                info: asset_data.native_asset_info.clone().info,
-                amount: native_coin_leftover,
-            };
+        SubMsg::reply_on_success(
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pool_address.addr.to_string(),
+                msg: to_binary(&double_sided_liq_msg)?,
+                funds: vec![
+                    native_coin,
+                    ls_coin,
+                ],
+            }),
+            DOUBLE_SIDED_REPLY_ID,
+        )
+    };
+
+    Ok(Response::default().add_submessage(submsg))
+}
+
+fn try_enter_single_side_lp_position(
+    deps: DepsMut,
+    env: Env,
+    _info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let pool_address = LP_POSITION.load(deps.storage)?;
+    let slippage_tolerance = SLIPPAGE_TOLERANCE.may_load(deps.storage)?;
+    let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
+    let asset_data = ASSETS.load(deps.storage)?;
+    let max_single_side_ratio: Decimal = SINGLE_SIDE_LP_LIMIT.load(deps.storage)?;
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let provided_liquidity_info = PROVIDED_LIQUIDITY_INFO.load(deps.storage)?;
+
+    let bal_coins = deps.querier.query_all_balances(env.contract.address)?;
+
+    // First we filter out non-relevant token balances
+    let (mut native_bal, mut ls_bal) = get_relevant_balances(
+        bal_coins, 
+        asset_data.clone().ls_asset_denom, 
+        asset_data.clone().try_get_native_asset_denom().unwrap_or_default()
+    );
+
+    // assume leftover is native asset
+    let mut leftover_asset = asset_data.clone().native_asset_info;
+
+    // if there is some leftover asset stored..
+    let leftover_ratio = if let Some(asset) = provided_liquidity_info.leftover_asset {
+        leftover_asset = asset.clone();
+        // if there is leftover native tokens...
+        if asset.info == asset_data.native_asset_info.info {
+            Decimal::from_ratio(
+                asset.amount,
+                provided_liquidity_info.provided_amount_native,
+            )
+        } else {
+            // otherwise there is leftover ls tokens
+            Decimal::from_ratio(
+                asset.amount,
+                provided_liquidity_info.provided_amount_ls,
+            )
+        }
+    } else {
+        Decimal::one()
+    };
+
+    println!("asset asset: {:?}", leftover_asset);
+
+    // if ratio is within limits, we are ready to provide single-sided liquidity
+    if leftover_ratio <= max_single_side_ratio {
+        // we see if some counterpart info is stored
+        if let Some(counterparty_info) = provided_liquidity_info.leftover_asset_counterpart_info {
             let single_sided_liq_msg = ProvideLiquidity { 
                 assets: vec![
-                    ls_asset.clone(),
-                    native_single_sided_asset.clone(),
+                    leftover_asset.clone(),
+                    Asset {
+                        info: counterparty_info,
+                        amount: Uint128::zero(),
+                    },
                 ],
                 slippage_tolerance,
                 auto_stake,
                 receiver: None,
             };
-            provide_liquidity_messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: pool_address.addr.to_string(),
-                msg: to_binary(&single_sided_liq_msg)?,
-                funds: vec![
-                    native_single_sided_asset.to_coin()?,
-                ],
-            }));
-        }
+            let coin = leftover_asset.to_coin()?;
+            // update provided amount
+            PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+                if coin.denom == asset_data.ls_asset_denom {
+                    info.provided_amount_ls = info.provided_amount_ls.checked_add(coin.clone().amount)?;
+                } else {
+                    info.provided_amount_native = info.provided_amount_native.checked_add(coin.clone().amount)?;
+                }
+            
+                info.leftover_asset = None;
+                info.leftover_asset_counterpart_info = None;
+                Ok(info)
+            })?;
+        
+            return Ok(Response::default().add_submessage(
+                SubMsg::reply_on_success(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: pool_address.addr.to_string(),
+                    msg: to_binary(&single_sided_liq_msg)?,
+                    funds: vec![
+                        coin,
+                    ],
+                }), SINGLE_SIDED_REPLY_ID)
+            ))
+        }        
+    } else {
+        // if ratio is exceeded, something went wrong:
+        // - we go back to instantiated state and expect to be funded with 
+        //   some of the counterparty asset in order to provide all liquidity
+        CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+
     }
 
-    // TODO: enque/deque
-    // TODO: return message responses
-
-    println!("\n messages enqueued: {:?}\n", provide_liquidity_messages);
-    // regardless we requeue ourselves
-    let enqueue_clock_msg = covenant_clock::helpers::enqueue_msg(clock_addr.as_str())?;
-    // submessages.push(CosmosMsg::Wasm(enqueue_clock_msg));
-
-    Ok(Response::default().add_messages(provide_liquidity_messages))
+    Ok(Response::default())
 }
+
 
 /// should be sent to the LP token contract associated with the pool
 /// to withdraw liquidity from
@@ -340,7 +399,7 @@ fn try_withdraw(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response,
 }
 
 #[allow(unused)]
-fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
+fn try_completed(deps: DepsMut) -> Result<Response, ContractError> {
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
@@ -386,7 +445,29 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, _msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: reply");
-    Ok(Response::new())
+    println!("{:?}", msg.clone().result.unwrap());
+    match msg.id {
+        DOUBLE_SIDED_REPLY_ID => handle_double_sided_reply_id(deps, _env, msg),
+        SINGLE_SIDED_REPLY_ID => handle_single_sided_reply_id(deps, _env, msg),
+        _ => Err(ContractError::from(StdError::GenericErr { msg: "err".to_string() }))
+    }
 }
+
+fn handle_double_sided_reply_id(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    CONTRACT_STATE.save(deps.storage, &ContractState::DoubleSideLPed)?;
+
+    Ok(Response::default()
+        .add_attribute("method", "handle_double_sided_reply_id")
+        .add_attribute("reply_id", msg.id.to_string())   
+    )
+}
+
+fn handle_single_sided_reply_id(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    CONTRACT_STATE.save(deps.storage, &ContractState::SingleSideLPed)?;
+
+    Ok(Response::default()
+        .add_attribute("method", "handle_single_sided_reply_id")
+        .add_attribute("reply_id", msg.id.to_string())   
+    )}

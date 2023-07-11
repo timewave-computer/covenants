@@ -1,8 +1,7 @@
-use astroport::asset::Asset;
-use cosmwasm_std::{Addr, Decimal};
+use astroport::asset::{Asset, AssetInfo};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_storage_plus::Item;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
 use crate::msg::{LPInfo, AssetData};
 
@@ -16,11 +15,23 @@ pub const SLIPPAGE_TOLERANCE: Item<Decimal> = Item::new("slippage_tolerance");
 pub const ASSETS: Item<AssetData> = Item::new("assets");
 pub const SINGLE_SIDE_LP_LIMIT: Item<Decimal> = Item::new("single_side_lp_limit");
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+
+
+pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> = Item::new("provided_liquidity_info");
+
+#[cw_serde]
+pub struct ProvidedLiquidityInfo {
+    pub provided_amount_ls: Uint128,
+    pub provided_amount_native: Uint128,
+    pub leftover_asset: Option<Asset>,
+    pub leftover_asset_counterpart_info: Option<AssetInfo>,
+}
+
+
+#[cw_serde]
 pub enum ContractState {
     Instantiated,
-    LpPositionEntered,
-    LpPositionExited,
+    DoubleSideLPed,
+    SingleSideLPed,
     WithdrawComplete,
 }

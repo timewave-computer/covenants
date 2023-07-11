@@ -42,17 +42,15 @@ fn test_instantiate_happy() {
         .unwrap();
     let _liquidity_token_addr = pairinfo.liquidity_token;
 
+
+
+    suite.pass_blocks(10);
+    suite.tick();
+    
+    suite.pass_blocks(10);
     suite.tick();
 
-    suite.pass_blocks(10);
-    let share = suite.query_pool_info();
-    println!("pool share: {:?}", share);
-    let liquid_pooler_balances =
-        suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
-    assert!(liquid_pooler_balances.is_empty());
-
     suite.withdraw();
-    suite.pass_blocks(10);
 
     let liquid_pooler_balances =
         suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
