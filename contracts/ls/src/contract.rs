@@ -44,6 +44,8 @@ const INTERCHAIN_ACCOUNT_ID: &str = "stride-ica";
 const CONTRACT_NAME: &str = "crates.io:covenant-ls";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+const TRANSFER_REPLY_ID: u64 = 3u64;
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -185,11 +187,10 @@ fn try_execute_transfer(
                 fee,
             );
 
-            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-
             Ok(Response::default()
                 .add_attribute("method", "try_execute_transfer")
-                .add_submessage(SubMsg::new(submit_msg)))
+                .add_submessage(SubMsg::reply_on_success(submit_msg, TRANSFER_REPLY_ID))
+            )
         }
         None => Err(NeutronError::Fmt(Error)),
     }
@@ -649,9 +650,18 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
         .debug(format!("WASMDEBUG: reply msg: {:?}", msg).as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
+        TRANSFER_REPLY_ID => handle_transfer_reply(deps, env, msg),
         _ => Err(StdError::generic_err(format!(
             "unsupported reply message id {}",
             msg.id
         ))),
     }
+}
+
+pub fn handle_transfer_reply(deps: DepsMut, _env: Env, _msg: Reply) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: transfer reply");
+
+    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+
+    Ok(Response::default().add_attribute("method", "handle_transfer_reply"))
 }
