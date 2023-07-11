@@ -1,48 +1,14 @@
 package ibc_test
 
-type PresetDepositorFields struct {
-	GaiaNeutronIBCTransferChannelId string                 `json:"gaia_neutron_ibc_transfer_channel_id"`
-	NeutronGaiaConnectionId         string                 `json:"neutron_gaia_connection_id"`
-	GaiaStrideIBCTransferChannelId  string                 `json:"gaia_stride_ibc_transfer_channel_id"`
-	DepositorCode                   uint64                 `json:"depositor_code"`
-	Label                           string                 `json:"label"`
-	StAtomReceiverAmount            WeightedReceiverAmount `json:"st_atom_receiver_amount"`
-	AtomReceiverAmount              WeightedReceiverAmount `json:"atom_receiver_amount"`
-}
-
-type PresetLpFields struct {
-	SlippageTolerance string           `json:"slippage_tolerance,omitempty"`
-	Autostake         bool             `json:"autostake,omitempty"`
-	Assets            []AstroportAsset `json:"assets"`
-	LpPosition        string           `json:"lp_position"`
-	LpCode            uint64           `json:"lp_code"`
-	Label             string           `json:"label"`
-}
-
 type LpInfo struct {
 	Addr string `json:"addr"`
 }
 
-type WeightedReceiver struct {
-	Amount  int64  `json:"amount"`
-	Address string `json:"address"`
-}
-
-type WeightedReceiverAmount struct {
-	Amount int64 `json:"amount"`
-}
-
 type CovenantAddress struct{}
-
-type CovenantAddressQueryResponse struct {
-	Addr string `json:"address"`
-}
 
 type CovenantHolderAddressQuery struct {
 	Addr string `json:"address"`
 }
-
-type DepositorAddress struct{}
 
 type CovenantClockAddressQuery struct {
 	Addr string `json:"address"`
@@ -52,6 +18,10 @@ type CovenantClockAddressQuery struct {
 // `omitempty` on fields. This means that if that field has no value,
 // it will not have a key in the serialized representaiton of the
 // struct, thus mimicing the serialization of Rust enums.
+type QueryResponse struct {
+	Data InterchainAccountAddressQueryResponse `json:"data"`
+}
+
 type IcaExampleContractQuery struct {
 	InterchainAccountAddress InterchainAccountAddressQuery `json:"interchain_account_address,omitempty"`
 }
@@ -59,10 +29,6 @@ type IcaExampleContractQuery struct {
 type InterchainAccountAddressQuery struct {
 	InterchainAccountId string `json:"interchain_account_id"`
 	ConnectionId        string `json:"connection_id"`
-}
-
-type QueryResponse struct {
-	Data InterchainAccountAddressQueryResponse `json:"data"`
 }
 
 type ICAQueryResponse struct {
@@ -89,23 +55,8 @@ type LPPositionQuery struct {
 	LpPosition LpPositionQuery `json:"lp_position"`
 }
 
-type StAtomWeightedReceiverQuery struct {
-	StAtomReceiver StAtomReceiverQuery `json:"st_atom_receiver"`
-}
-
-type AtomWeightedReceiverQuery struct {
-	AtomReceiver AtomReceiverQuery `json:"atom_receiver"`
-}
-
-type ClockAddressQuery struct{}
-type StAtomReceiverQuery struct{}
-type AtomReceiverQuery struct{}
 type DepositorInterchainAccountAddressQuery struct{}
 type LpPositionQuery struct{}
-
-type WeightedReceiverResponse struct {
-	Data WeightedReceiver `json:"data"`
-}
 
 type ClockQueryResponse struct {
 	Data string `json:"data"`
@@ -120,14 +71,139 @@ type AstroportAsset struct {
 	Amount string    `json:"amount"`
 }
 
-// A query response from the Neutron contract. Note that when
-// interchaintest returns query responses, it does so in the form
-// `{"data": <RESPONSE>}`, so we need this outer data key, which is
-// not present in the neutron contract, to properly deserialze.
-
 type DepositorInterchainAccountAddressQueryResponse struct {
 	DepositorInterchainAccountAddress string `json:"depositor_interchain_account_address"`
 }
+
+//////////////////////////////////////////////
+///// Covenant contracts
+//////////////////////////////////////////////
+
+// ----- Covenant Instantiation ------
+
+type PresetLsFields struct {
+	LsCode                            uint64 `json:"ls_code"`
+	Label                             string `json:"label"`
+	LsDenom                           string `json:"ls_denom"`
+	StrideNeutronIBCTransferChannelId string `json:"stride_neutron_ibc_transfer_channel_id"`
+	NeutronStrideIBCConnectionId      string `json:"neutron_stride_ibc_connection_id"`
+}
+
+type CovenantInstantiateMsg struct {
+	Label           string                `json:"label"`
+	PresetClock     PresetClockFields     `json:"preset_clock_fields"`
+	PresetLs        PresetLsFields        `json:"preset_ls_fields"`
+	PresetDepositor PresetDepositorFields `json:"preset_depositor_fields"`
+	PresetLp        PresetLpFields        `json:"preset_lp_fields"`
+	PresetHolder    PresetHolderFields    `json:"preset_holder_fields"`
+}
+
+type PresetClockFields struct {
+	TickMaxGas string `json:"tick_max_gas,omitempty"`
+	ClockCode  uint64 `json:"clock_code"`
+	Label      string `json:"label"`
+}
+
+type PresetHolderFields struct {
+	Withdrawer string `json:"withdrawer,omitempty"`
+	HolderCode uint64 `json:"holder_code"`
+	Label      string `json:"label"`
+}
+
+type PresetDepositorFields struct {
+	GaiaNeutronIBCTransferChannelId string                 `json:"gaia_neutron_ibc_transfer_channel_id"`
+	NeutronGaiaConnectionId         string                 `json:"neutron_gaia_connection_id"`
+	GaiaStrideIBCTransferChannelId  string                 `json:"gaia_stride_ibc_transfer_channel_id"`
+	DepositorCode                   uint64                 `json:"depositor_code"`
+	Label                           string                 `json:"label"`
+	StAtomReceiverAmount            WeightedReceiverAmount `json:"st_atom_receiver_amount"`
+	AtomReceiverAmount              WeightedReceiverAmount `json:"atom_receiver_amount"`
+}
+
+type PresetLpFields struct {
+	SlippageTolerance string           `json:"slippage_tolerance,omitempty"`
+	Autostake         bool             `json:"autostake,omitempty"`
+	Assets            []AstroportAsset `json:"assets"`
+	LpPosition        string           `json:"lp_position"`
+	LpCode            uint64           `json:"lp_code"`
+	Label             string           `json:"label"`
+}
+
+// ----- Covenant Queries ------
+
+type DepositorAddress struct{}
+type DepositorAddressQuery struct {
+	DepositorAddress DepositorAddress `json:"depositor_address"`
+}
+
+type ClockAddress struct{}
+type ClockAddressQuery struct {
+	ClockAddress ClockAddress `json:"clock_address"`
+}
+
+type HolderAddress struct{}
+type HolderAddressQuery struct {
+	HolderAddress HolderAddress `json:"holder_address"`
+}
+
+type LsAddress struct{}
+type LsAddressQuery struct {
+	LsAddress LsAddress `json:"ls_address"`
+}
+
+type LpAddress struct{}
+type LpAddressQuery struct {
+	LpAddress LpAddress `json:"lp_address"`
+}
+
+type CovenantAddressQueryResponse struct {
+	Data string `json:"data"`
+}
+
+type ContractState struct{}
+type ContractStateQuery struct {
+	ContractState ContractState `json:"contract_state"`
+}
+
+type ContractStateQueryResponse struct {
+	Data string `json:"data"`
+}
+
+//////////////////////////////////////////////
+///// Depositor contract
+//////////////////////////////////////////////
+
+type WeightedReceiver struct {
+	Amount  int64  `json:"amount"`
+	Address string `json:"address"`
+}
+
+type WeightedReceiverAmount struct {
+	Amount int64 `json:"amount"`
+}
+
+type StAtomWeightedReceiverQuery struct {
+	StAtomReceiver StAtomReceiverQuery `json:"st_atom_receiver"`
+}
+
+type AtomWeightedReceiverQuery struct {
+	AtomReceiver AtomReceiverQuery `json:"atom_receiver"`
+}
+
+type StAtomReceiverQuery struct{}
+type AtomReceiverQuery struct{}
+
+type WeightedReceiverResponse struct {
+	Data WeightedReceiver `json:"data"`
+}
+
+//////////////////////////////////////////////
+///// Ls contract
+//////////////////////////////////////////////
+
+//////////////////////////////////////////////
+///// Astroport contracts
+//////////////////////////////////////////////
 
 // astroport stableswap
 type StableswapInstantiateMsg struct {
@@ -237,35 +313,4 @@ type Logo struct {
 type WhitelistInstantiateMsg struct {
 	Admins  []string `json:"admins"`
 	Mutable bool     `json:"mutable"`
-}
-
-// ls
-type PresetLsFields struct {
-	LsCode                            uint64 `json:"ls_code"`
-	Label                             string `json:"label"`
-	LsDenom                           string `json:"ls_denom"`
-	StrideNeutronIBCTransferChannelId string `json:"stride_neutron_ibc_transfer_channel_id"`
-	NeutronStrideIBCConnectionId      string `json:"neutron_stride_ibc_connection_id"`
-	LpAddress                         string `json:"lp_address"`
-}
-
-type CovenantInstantiateMsg struct {
-	Label           string                `json:"label"`
-	PresetClock     PresetClockFields     `json:"preset_clock_fields"`
-	PresetLs        PresetLsFields        `json:"preset_ls_fields"`
-	PresetDepositor PresetDepositorFields `json:"preset_depositor_fields"`
-	PresetLp        PresetLpFields        `json:"preset_lp_fields"`
-	PresetHolder    PresetHolderFields    `json:"preset_holder_fields"`
-}
-
-type PresetClockFields struct {
-	TickMaxGas string `json:"tick_max_gas,omitempty"`
-	ClockCode  uint64 `json:"clock_code"`
-	Label      string `json:"label"`
-}
-
-type PresetHolderFields struct {
-	Withdrawer string `json:"withdrawer,omitempty"`
-	HolderCode uint64 `json:"holder_code"`
-	Label      string `json:"label"`
 }

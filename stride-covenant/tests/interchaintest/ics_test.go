@@ -360,8 +360,8 @@ func TestICS(t *testing.T) {
 		var covenantCodeIdStr string
 
 		var covenantContractAddress string
-		// var clockContractAddress string
-		// var holderContractAddress string
+		var clockContractAddress string
+		var holderContractAddress string
 		var lperContractAddress string
 		var depositorContractAddress string
 		var lsContractAddress string
@@ -808,7 +808,6 @@ func TestICS(t *testing.T) {
 				LsDenom:                           "stuatom",
 				StrideNeutronIBCTransferChannelId: strideNeutronChannelId,
 				NeutronStrideIBCConnectionId:      neutronStrideConnectionId,
-				LpAddress:                         "todo",
 			}
 
 			// For LPer, we need to first gather astroport information
@@ -865,17 +864,127 @@ func TestICS(t *testing.T) {
 			print("\n covenant address: ", covenantContractAddress)
 		})
 
-		// var liquidPoolerAddress, lsAddress, depositorAddress, clockAddress, holderAddress string
-
 		t.Run("query covenant instantiated contracts", func(t *testing.T) {
-			// height, _ := cosmosNeutron.Height(ctx)
-			// contractState, _ := cosmosNeutron.DumpContractState(ctx, covenantContractAddress, int64(height))
-			// jsonState, err := json.Marshal(contractState)
-			// print("contract state dump: ", string(jsonState))
-			var response string
-			err = cosmosNeutron.QueryContract(ctx, covenantContractAddress, DepositorAddress{}, &response)
+			var response CovenantAddressQueryResponse
+			// Query clock
+			err = cosmosNeutron.QueryContract(ctx, covenantContractAddress, ClockAddressQuery{}, &response)
+			require.NoError(t, err, "failed to query instantiated clock address")
+			clockContractAddress = response.Data
+			print("clock addr: ", clockContractAddress)
+
+			// Query depositor
+			err = cosmosNeutron.QueryContract(ctx, covenantContractAddress, DepositorAddressQuery{}, &response)
 			require.NoError(t, err, "failed to query instantiated depositor address")
-			print("depositor addr: ", response)
+			depositorContractAddress = response.Data
+			print("depositor addr: ", depositorContractAddress)
+
+			// Query Lser
+			err = cosmosNeutron.QueryContract(ctx, covenantContractAddress, LsAddressQuery{}, &response)
+			require.NoError(t, err, "failed to query instantiated ls address")
+			lsContractAddress = response.Data
+			print("ls addr: ", lsContractAddress)
+
+			// Query Lper
+			err = cosmosNeutron.QueryContract(ctx, covenantContractAddress, LpAddressQuery{}, &response)
+			require.NoError(t, err, "failed to query instantiated lp address")
+			lperContractAddress = response.Data
+			print("lp addr: ", lperContractAddress)
+
+			// Query Holder
+			err = cosmosNeutron.QueryContract(ctx, covenantContractAddress, HolderAddressQuery{}, &response)
+			require.NoError(t, err, "failed to query instantiated holder address")
+			holderContractAddress = response.Data
+			print("holder addr: ", holderContractAddress)
+		})
+
+		t.Run("multisig transfers atom to ICA account", func(t *testing.T) {
+			// transfer funds from gaiaUser to the newly generated ICA account
+			err := cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
+				Address: icaAccountAddress,
+				Amount:  20,
+				Denom:   atom.Config().Denom,
+			})
+
+			require.NoError(t, err, "failed to send funds from gaia to neutron ICA")
+			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
+			require.NoError(t, err, "failed to get ICA balance")
+			require.EqualValues(t, 20, atomBal)
+		})
+
+		t.Run("fund contracts with neutron", func(t *testing.T) {
+			err := neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: depositorContractAddress,
+				Amount:  500001,
+				Denom:   neutron.Config().Denom,
+			})
+
+			require.NoError(t, err, "failed to send funds from neutron user to depositor contract")
+
+			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: lsContractAddress,
+				Amount:  500001,
+				Denom:   neutron.Config().Denom,
+			})
+
+			require.NoError(t, err, "failed to send funds from neutron user to ls contract")
+
+			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			depositorNeutronBal, err := neutron.GetBalance(ctx, depositorContractAddress, neutron.Config().Denom)
+			require.NoError(t, err, "failed to get depositor neutron balance")
+			require.EqualValues(t, 500001, depositorNeutronBal)
+
+			lsNeutronBal, err := neutron.GetBalance(ctx, lsContractAddress, neutron.Config().Denom)
+			require.NoError(t, err, "failed to get depositor neutron balance")
+			require.EqualValues(t, 500001, lsNeutronBal)
+		})
+
+		t.Run("tick clock and print states and balances", func(t *testing.T) {
+			const maxTicks = 20
+			tick := 1
+			for tick <= maxTicks {
+				print("\n Ticking clock ", tick, " of ", maxTicks)
+				cmd = []string{"neutrond", "tx", "wasm", "execute", clockContractAddress,
+					`{"tick":{}}`,
+					"--from", neutronUser.KeyName,
+					"--gas-prices", "0.0untrn",
+					"--gas-adjustment", `1.8`,
+					"--output", "json",
+					"--home", "/var/cosmos-chain/neutron-2",
+					"--node", neutron.GetRPCAddress(),
+					"--home", neutron.HomeDir(),
+					"--chain-id", neutron.Config().ChainID,
+					"--from", neutronUser.KeyName,
+					"--gas", "auto",
+					"--keyring-backend", keyring.BackendTest,
+					"-y",
+				}
+
+				_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
+				require.NoError(t, err)
+
+				var response ContractStateQueryResponse
+				// Query depositor
+				err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, ContractStateQuery{}, &response)
+				require.NoError(t, err, "failed to query depositor state")
+				print("\n depositor state: ", response.Data)
+
+				// Query Lser
+				err = cosmosNeutron.QueryContract(ctx, lsContractAddress, ContractStateQuery{}, &response)
+				require.NoError(t, err, "failed to query ls state")
+				print("\n ls state: ", response.Data)
+
+				// Query Lper
+				err = cosmosNeutron.QueryContract(ctx, lperContractAddress, ContractStateQuery{}, &response)
+				require.NoError(t, err, "failed to query lp state")
+				print("\n lp state: ", response.Data)
+
+				tick += 1
+			}
 		})
 
 		t.Run("instantiate lper contract", func(t *testing.T) {
@@ -1107,52 +1216,6 @@ func TestICS(t *testing.T) {
 			// 	)
 
 			//		print("\ndepositor ICA instantiated with address ", icaAccountAddress, "\n")
-		})
-
-		t.Run("multisig transfers atom to ICA account", func(t *testing.T) {
-			// transfer funds from gaiaUser to the newly generated ICA account
-			err := cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
-				Address: icaAccountAddress,
-				Amount:  20,
-				Denom:   atom.Config().Denom,
-			})
-
-			require.NoError(t, err, "failed to send funds from gaia to neutron ICA")
-			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-			require.NoError(t, err, "failed to wait for blocks")
-
-			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
-			require.NoError(t, err, "failed to get ICA balance")
-			require.EqualValues(t, 20, atomBal)
-		})
-
-		t.Run("fund contracts with neutron", func(t *testing.T) {
-			err := neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
-				Address: depositorContractAddress,
-				Amount:  500001,
-				Denom:   neutron.Config().Denom,
-			})
-
-			require.NoError(t, err, "failed to send funds from neutron user to depositor contract")
-
-			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
-				Address: lsContractAddress,
-				Amount:  500001,
-				Denom:   neutron.Config().Denom,
-			})
-
-			require.NoError(t, err, "failed to send funds from neutron user to ls contract")
-
-			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-			require.NoError(t, err, "failed to wait for blocks")
-
-			depositorNeutronBal, err := neutron.GetBalance(ctx, depositorContractAddress, neutron.Config().Denom)
-			require.NoError(t, err, "failed to get depositor neutron balance")
-			require.EqualValues(t, 500001, depositorNeutronBal)
-
-			lsNeutronBal, err := neutron.GetBalance(ctx, lsContractAddress, neutron.Config().Denom)
-			require.NoError(t, err, "failed to get depositor neutron balance")
-			require.EqualValues(t, 500001, lsNeutronBal)
 		})
 
 		t.Run("tick depositor to liquid stake on stride", func(t *testing.T) {
