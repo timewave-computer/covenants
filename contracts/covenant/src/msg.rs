@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary};
+use cosmwasm_std::Addr;
 use covenant_clock::msg::PresetClockFields;
 use covenant_depositor::msg::PresetDepositorFields;
 use covenant_holder::msg::PresetHolderFields;
