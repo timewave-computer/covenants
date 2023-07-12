@@ -59,10 +59,25 @@ pub fn instantiate(
     });
 
     // instantiate clock first
-    Ok(Response::default().add_submessage(SubMsg::reply_always(
-        clock_instantiate_tx,
-        CLOCK_REPLY_ID,
-    )))
+    Ok(Response::default()
+        .add_attribute("method", "instantiate")
+        .add_submessage(SubMsg::reply_always(
+            clock_instantiate_tx,
+            CLOCK_REPLY_ID,
+        ))
+    )
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg.id {
+        CLOCK_REPLY_ID => handle_clock_reply(deps, env, msg),
+        HOLDER_REPLY_ID => handle_holder_reply(deps, env, msg),
+        LP_REPLY_ID => handle_lp_reply(deps, env, msg),
+        LS_REPLY_ID => handle_ls_reply(deps, env, msg),
+        DEPOSITOR_REPLY_ID => handle_depositor_reply(deps, env, msg),
+        _ => Err(ContractError::UnknownReplyId {}),
+    }
 }
 
 pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
@@ -86,10 +101,13 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
                 label: preset_holder_fields.label,
             });
 
-            Ok(Response::default().add_submessage(SubMsg::reply_always(
-                holder_instantiate_tx,
-                HOLDER_REPLY_ID,
-            )))
+            Ok(Response::default()
+                .add_attribute("method", "handle_clock_reply")
+                .add_submessage(SubMsg::reply_always(
+                    holder_instantiate_tx,
+                    HOLDER_REPLY_ID,
+                ))
+            )
         }
         Err(_err) => Err(ContractError::ContractInstantiationError { contract: "clock".to_string() }),
     }
@@ -120,6 +138,7 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             });
 
             Ok(Response::default()
+                .add_attribute("method", "handle_holder_reply")
                 .add_submessage(SubMsg::reply_always(lp_instantiate_tx, LP_REPLY_ID)))
         }
         Err(_err) => Err(ContractError::ContractInstantiationError { contract: "holder".to_string() }),
@@ -140,7 +159,10 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let code_id = LS_CODE.load(deps.storage)?;
             let preset_ls_fields = PRESET_LS_FIELDS.load(deps.storage)?;
 
-            let instantiate_msg = preset_ls_fields.clone().to_instantiate_msg(clock_address);
+            let instantiate_msg = preset_ls_fields.clone().to_instantiate_msg(
+                clock_address,
+                response.contract_address,
+            );
 
             let ls_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -151,7 +173,9 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             });
 
             Ok(Response::default()
-                .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID)))
+                .add_attribute("method", "handle_lp_reply")
+                .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID)
+            ))
         }
         Err(_err) => Err(ContractError::ContractInstantiationError { contract: "lp".to_string() }),
     }
@@ -185,12 +209,30 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 label: preset_depositor_fields.label,
             });
 
-            Ok(Response::default().add_submessage(SubMsg::reply_always(
-                depositor_instantiate_tx,
-                DEPOSITOR_REPLY_ID,
-            )))
+            Ok(Response::default()
+                .add_attribute("method", "handle_holder_reply")
+                .add_submessage(SubMsg::reply_always(
+                    depositor_instantiate_tx,
+                    DEPOSITOR_REPLY_ID,
+                ))
+            )
         }
         Err(_err) => Err(ContractError::ContractInstantiationError { contract: "ls".to_string() }),
+    }
+}
+
+
+pub fn handle_depositor_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    deps.api.debug("WASMDEBUG: depositor reply");
+
+    let parsed_data = parse_reply_instantiate_data(msg);
+    match parsed_data {
+        Ok(response) => {
+            COVENANT_DEPOSITOR_ADDR.save(deps.storage, &response.contract_address)?;
+
+            Ok(Response::default().add_attribute("method", "handle_depositor_reply"))
+        }
+        Err(_err) => Err(ContractError::ContractInstantiationError { contract: "depositor".to_string() }),
     }
 }
 
@@ -274,18 +316,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 })
             }
 
-            Ok(Response::default().add_messages(migrate_msgs))
+            Ok(Response::default()
+                .add_attribute("method", "update_config")
+                .add_messages(migrate_msgs))
         }
-    }
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
-    match msg.id {
-        CLOCK_REPLY_ID => handle_clock_reply(deps, env, msg),
-        HOLDER_REPLY_ID => handle_holder_reply(deps, env, msg),
-        LP_REPLY_ID => handle_lp_reply(deps, env, msg),
-        LS_REPLY_ID => handle_ls_reply(deps, env, msg),
-        _ => Err(ContractError::UnknownReplyId {}),
     }
 }

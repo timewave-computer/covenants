@@ -78,7 +78,9 @@ pub fn instantiate(
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
 
-    Ok(Response::default().add_message(clock_enqueue_msg))
+    Ok(Response::default()
+        .add_attribute("method", "depositor_instantiate")
+        .add_message(clock_enqueue_msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -101,17 +103,13 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
-    let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
-    let gaia_account_address = match ica_address {
-        Ok(addr) => addr,
-        Err(_) => "todo".to_string(),
-    };
+    let ica_address = ICA_ADDRESS.load(deps.storage)?;
 
     match current_state {
         ContractState::Instantiated => try_register_gaia_ica(deps, env),
-        ContractState::ICACreated => try_liquid_stake(deps, env, info, gaia_account_address),
+        ContractState::ICACreated => try_liquid_stake(deps, env, info, ica_address),
         ContractState::LiquidStaked => {
-            try_receive_atom_from_ica(deps, env, info, gaia_account_address)
+            try_receive_atom_from_ica(deps, env, info, ica_address)
         }
         ContractState::Complete => try_completed(deps),
     }
@@ -132,6 +130,10 @@ fn try_liquid_stake(
         Some(addr) => addr,
         None => return Err(NeutronError::Std(StdError::not_found("no ica found"))),
     };
+    STRIDE_ATOM_RECEIVER.update(deps.storage, |mut val| -> StdResult<_> {
+        val.address = stride_ica_addr.clone();
+        Ok(val)  
+    })?;
 
     let fee = IbcFee {
         recv_fee: vec![], // must be empty
@@ -200,7 +202,9 @@ fn try_liquid_stake(
 
             CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
 
-            Ok(Response::default().add_submessage(SubMsg::new(stride_submit_msg)))
+            Ok(Response::default()
+                .add_attribute("method", "try_liquid_stake")
+                .add_submessage(SubMsg::new(stride_submit_msg)))
         }
         None => Err(NeutronError::Fmt(Error)),
     }
@@ -275,7 +279,9 @@ fn try_receive_atom_from_ica(
 
             CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
 
-            Ok(Response::default().add_submessage(SubMsg::new(submit_msg)))
+            Ok(Response::default()
+                .add_attribute("method", "try_forward_atom_from_ica")
+                .add_submessage(SubMsg::new(submit_msg)))
         }
         None => Err(NeutronError::Fmt(Error)),
     }
@@ -291,14 +297,18 @@ fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
     INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
 
-    Ok(Response::new().add_message(register))
+    Ok(Response::new()
+        .add_attribute("method", "try_register_gaia_ica")
+        .add_message(register))
 }
 
 fn try_completed(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
-    Ok(Response::default().add_message(msg))
+    Ok(Response::default()
+        .add_attribute("method", "try_completed")
+        .add_message(msg))
 }
 
 #[allow(unused)]
@@ -350,6 +360,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
             sequence_id,
         } => query_acknowledgement_result(deps, env, interchain_account_id, sequence_id),
         QueryMsg::ErrorsQueue {} => query_errors_queue(deps),
+        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
     }
 }
 
@@ -488,7 +499,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 LS_ADDRESS.save(deps.storage, &ls_address)?;
             }
 
-            Ok(Response::default())
+            Ok(Response::default()        
+                .add_attribute("method", "update_config"))
         }
     }
 }
@@ -519,7 +531,9 @@ fn sudo_open_ack(
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default());
+        return Ok(Response::default()
+            .add_attribute("method", "sudo_open_ack")
+        );
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
 }
@@ -611,7 +625,9 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         )?;
     }
 
-    Ok(Response::default())
+    Ok(Response::default()
+        .add_attribute("method", "sudo_response")
+    )
 }
 
 fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<Response> {
@@ -664,7 +680,8 @@ fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<R
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
 
-    Ok(Response::default())
+    Ok(Response::default()
+        .add_attribute("method", "sudo_timeout"))
 }
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {
@@ -710,7 +727,7 @@ fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResu
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
 
-    Ok(Response::default())
+    Ok(Response::default().add_attribute("method", "sudo_error"))
 }
 
 // prepare_sudo_payload is called from reply handler
