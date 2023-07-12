@@ -168,7 +168,7 @@ fn try_get_double_side_lp_submsg(
     let (native_bal, ls_bal) = get_relevant_balances(
         bal_coins, 
         asset_data.clone().ls_asset_denom, 
-        asset_data.clone().try_get_native_asset_denom().unwrap_or_default()
+        asset_data.clone().native_asset_denom,
     );
 
     // if either of the balances are zero we should provide single sided liquidity; exit
@@ -305,18 +305,18 @@ fn try_get_single_side_lp_submsg(
     let (native_bal, ls_bal) = get_relevant_balances(
         bal_coins, 
         asset_data.clone().ls_asset_denom, 
-        asset_data.clone().try_get_native_asset_denom().unwrap_or_default()
+        asset_data.clone().native_asset_denom,
     );
 
     println!("native bal\t: {:?}", native_bal);
     println!("ls bal\t\t: {:?}", ls_bal);
 
     let native_asset = Asset {
-        info: asset_data.native_asset_info.clone().info,
+        info: asset_data.get_native_asset_info(),
         amount: native_bal.clone().amount,
     };
     let ls_asset = Asset {
-        info: AssetInfo::NativeToken { denom: asset_data.ls_asset_denom },
+        info: asset_data.get_ls_asset_info(),
         amount: ls_bal.clone().amount,
     };
 

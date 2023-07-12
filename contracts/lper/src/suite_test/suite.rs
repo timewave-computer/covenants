@@ -149,12 +149,7 @@ impl Default for SuiteBuilder {
                 slippage_tolerance: Some(Decimal::one()),
                 autostake: Some(false),
                 assets: AssetData {
-                    native_asset_info: Asset {
-                        info: AssetInfo::NativeToken {
-                            denom: "uatom".to_string(),
-                        },
-                        amount: Uint128::new(100000),
-                    },
+                    native_asset_denom: "uatom".to_string(),
                     ls_asset_denom: "stuatom".to_string(),
                 },
                 single_side_lp_limits: SingleSideLpLimits {

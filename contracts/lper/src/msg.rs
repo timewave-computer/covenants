@@ -18,18 +18,17 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub struct AssetData {
-    // native asset is known in advance
-    pub native_asset_info: Asset,
-    // we only know the ls asset denom
+    pub native_asset_denom: String,
     pub ls_asset_denom: String,
 }
 
 impl AssetData {
-    pub fn try_get_native_asset_denom(self) -> Option<String> {
-        match self.native_asset_info.info {
-            AssetInfo::Token { contract_addr } => None,
-            AssetInfo::NativeToken { denom } => Some(denom),
-        }
+    pub fn get_native_asset_info(&self) -> AssetInfo {
+        AssetInfo::NativeToken { denom: self.native_asset_denom.to_string() }
+    }
+
+    pub fn get_ls_asset_info(&self) -> AssetInfo {
+        AssetInfo::NativeToken { denom: self.ls_asset_denom.to_string() }
     }
 }
 
