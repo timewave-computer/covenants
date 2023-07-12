@@ -48,10 +48,10 @@ fn test_instantiate_happy() {
     suite.tick();
     let liquid_pooler_balances =
     suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
-println!(
-    "\n first tick liquid pooler balances: {:?}\n",
-    liquid_pooler_balances
-);
+    println!(
+        "\n first tick liquid pooler balances: {:?}\n",
+        liquid_pooler_balances
+    );
     suite.pass_blocks(10);
     suite.tick();
 
@@ -68,12 +68,17 @@ println!(
 // 2. existing pool ratios (imbalanced, equal, extremely imbalanced, providing more liq than exists)
 
 #[test]
-#[should_panic]
 fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
+    // here we try to provide liquidity but end up with some leftover assets
+    // at that point ticking should effectively achieve nothing
+    // once multiple ticks happen and we are sure nothign happens,
+    // we fund the contract with some counterpart asset.
+    // this should enable double side liquidity to be provided,
+    // and any leftovers to be LP'd via single sided liquidity
     let mut suite = SuiteBuilder::default().build();
 
-    let redemption_rate = Decimal::from_ratio(Uint128::new(10), Uint128::new(40));
-    let atom_amt = Uint128::new(400000);
+    let redemption_rate = Decimal::from_ratio(Uint128::new(10), Uint128::new(13));
+    let atom_amt = Uint128::new(100000);
     let statom_amt = atom_amt * redemption_rate;
 
     suite.provide_manual_liquidity("alice".to_string(), statom_amt, atom_amt);
@@ -90,20 +95,53 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
     );
 
     suite.tick();
-
     suite.pass_blocks(10);
 
-    suite.withdraw();
+    let liquid_pooler_balances =
+        suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
+    
+    println!("lp balances: {:?}", liquid_pooler_balances);
+    suite.tick();
+    suite.pass_blocks(10);
+
+    let liquid_pooler_balances =
+        suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
+    
+    println!("lp balances: {:?}", liquid_pooler_balances);
+
+    suite.tick();
+    suite.tick();
+    suite.tick();
+    suite.pass_blocks(10);
+
+    assert_eq!(liquid_pooler_balances, suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string())));
+
+    // given our single-side lp limit is 100 tokens and there are 148stuatom remaining,
+    // we fund the contract with 100 uatom. this should enable double sided liquidity to be
+    // provided, and result in a leftoveramount <= 100 to single-side lp
+    suite.mint_coins_to_addr(
+        suite.liquid_pooler.1.to_string(),
+        NATIVE_ATOM_DENOM.to_string(),
+        Uint128::new(100),
+    );
+    suite.tick();
+    suite.tick();
+    suite.pass_blocks(10);
+
+    suite.tick();
+    suite.tick();
+    suite.pass_blocks(10);
+
+    assert_eq!(0, suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string())).len());
 }
 
 
 #[test]
-#[should_panic]
 fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
     let mut suite = SuiteBuilder::default().build();
 
-    let redemption_rate = Decimal::from_ratio(Uint128::new(25), Uint128::new(1));
-    let atom_amt = Uint128::new(400000);
+    let redemption_rate = Decimal::from_ratio(Uint128::new(103), Uint128::new(100));
+    let atom_amt = Uint128::new(100000);
     let statom_amt = redemption_rate.checked_mul_uint128(atom_amt).unwrap();
 
     suite.provide_manual_liquidity("alice".to_string(), statom_amt, atom_amt);
@@ -119,8 +157,36 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
     );
 
     suite.tick();
-
+    suite.tick();
+    suite.tick();
     suite.pass_blocks(10);
 
-    suite.withdraw();
+    let liquid_pooler_balances =
+        suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
+    
+    println!("lp balances: {:?}", liquid_pooler_balances);
+    
+    suite.mint_coins_to_addr(
+        suite.liquid_pooler.1.to_string(),
+        NATIVE_ATOM_DENOM.to_string(),
+        Uint128::new(4100),
+    );
+    suite.tick();
+    let liquid_pooler_balances =
+    suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
+
+    println!("lp balances: {:?}", liquid_pooler_balances);
+
+    suite.tick();
+    suite.tick();
+
+    suite.tick();
+
+    suite.pass_blocks(10);
+    let liquid_pooler_balances =
+        suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
+    
+    println!("lp balances: {:?}", liquid_pooler_balances);
+    
+
 }

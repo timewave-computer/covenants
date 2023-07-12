@@ -97,17 +97,16 @@ fn try_lp(
     let contract_addr = env.contract.address;
     // we try to submit a double-sided liquidity message first
     let double_sided_submsg = try_get_double_side_lp_submsg(deps.branch(), contract_addr.to_string())?;
+    deps.api.debug("Trying to double-side lp...");
     if let Some(msg) = double_sided_submsg {
-        deps.api.debug(&format!("Submitting double side lp message: {:?}", msg));
         return Ok(Response::default()
             .add_submessage(msg)
             .add_attribute("method", "double_side_lp")
         )
     }
-    println!("\nno double side lp message available. trying to single side");
-    deps.api.debug("Submitting single side lp message");
+    deps.api.debug("Trying to single-side lp...");
     // if ds msg fails, try to submit a single-sided liquidity message
-    let single_sided_submsg = try_get_single_side_lp_submsg(deps, contract_addr.to_string())?;
+    let single_sided_submsg = try_get_single_side_lp_submsg(deps.branch(), contract_addr.to_string())?;
     if let Some(msg) = single_sided_submsg {
         return Ok(Response::default()
             .add_submessage(msg)
@@ -115,6 +114,7 @@ fn try_lp(
         )
     }
     
+    deps.api.debug("Neither single nor double-sided liquidity can be provided");
     // if neither worked, we do not advance the state machine and
     // keep waiting for more funds to arrive
     Ok(Response::default()
@@ -177,30 +177,29 @@ fn try_get_double_side_lp_submsg(
         return Ok(None)
     }
 
-    // check if we already received the expected amount of native asset.
-    // if we have not, we requeue ourselves and wait for funds to arrive.
-    // if native_bal.amount < asset_data.native_asset_info.amount {
-    //     let enqueue_clock_msg = covenant_clock::helpers::enqueue_msg(clock_addr.as_str())?;
-    //     return Ok(Response::default().add_message(
-    //         CosmosMsg::Wasm(enqueue_clock_msg),
-    //     ))
-    // }
+    // TODO: check if we already received the expected amount of native asset?
 
     // we run the simulation and see how much of asset two we need to provide.
+    let mut native_asset = Asset {
+        info: AssetInfo::NativeToken { denom: native_bal.denom },
+        amount: native_bal.amount,
+    };
+
     let simulation: SimulationResponse = deps.querier.query_wasm_smart(
         &pool_address.addr,
         &astroport::pair::QueryMsg::Simulation {
-            offer_asset: asset_data.native_asset_info.clone(),
+            offer_asset: native_asset.clone(),
+            // asset_data.native_asset_info.clone(),
             ask_asset_info: None,
         },
     )?;
 
+    println!("double side lp sim resp: {:?}", simulation);
     // Given a SimulationResponse, we have two possible cases:
     // Case 1: The ask_amount of asset two, returned by simulation is less than the current balance of asset_two
-    if simulation.return_amount < ls_bal.amount {
-        // This means that we will have left over asset two, if we are to provide double sided liquidity
+    if simulation.return_amount <= ls_bal.amount {
+        // This means that we will have left over LS tokens, if we are to provide double sided liquidity
         // with the simulation ratio. 
-
         let ls_asset_double_sided = Asset { 
             info: AssetInfo::NativeToken { denom: asset_data.ls_asset_denom.to_string() },
             // we provide as much as needed to keep in balance with the queried amount
@@ -208,16 +207,17 @@ fn try_get_double_side_lp_submsg(
         };
         let double_sided_liq_msg = ProvideLiquidity {
             assets: vec![
-                asset_data.native_asset_info.clone(),
+                native_asset.clone(),
                 ls_asset_double_sided.clone(),
             ],
             slippage_tolerance,
             auto_stake,
             receiver: None,
         };
+        println!("double sided liq msg: {:?}", double_sided_liq_msg);
 
         // convert Asset to Coin types
-        let (native_coin, ls_coin) = (asset_data.native_asset_info.to_coin()?, ls_asset_double_sided.clone().to_coin()?);
+        let (native_coin, ls_coin) = (native_asset.to_coin()?, ls_asset_double_sided.clone().to_coin()?);
 
         // update the provided amounts and leftover assets
         PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info: ProvidedLiquidityInfo| -> StdResult<_> {
@@ -247,9 +247,8 @@ fn try_get_double_side_lp_submsg(
         // native asset amount / ls asset simulation return = x / available ls amount
         // x = available ls amount * native asset amount / ls asset simulation return
         let native_asset_amt = ls_bal.amount * native_bal.amount / simulation.return_amount;
+        native_asset.amount = native_asset_amt;
 
-        let mut double_sided_native_asset = asset_data.native_asset_info.clone();        
-        double_sided_native_asset.amount = native_asset_amt;
         let mut double_sided_ls_asset = Asset {
             info: AssetInfo::NativeToken { denom: asset_data.ls_asset_denom, },
             amount: ls_bal.amount,
@@ -259,15 +258,15 @@ fn try_get_double_side_lp_submsg(
         let double_sided_liq_msg = ProvideLiquidity {
             assets: vec![
                 double_sided_ls_asset.clone(),
-                double_sided_native_asset.clone(),
+                native_asset.clone(),
             ],
             slippage_tolerance,
             auto_stake,
             receiver: None,
         };
-
+        println!("double sided liq msg: {:?}", double_sided_liq_msg);
         // convert Asset to Coin types
-        let (native_coin, ls_coin) = (double_sided_native_asset.to_coin()?, double_sided_ls_asset.to_coin()?);
+        let (native_coin, ls_coin) = (native_asset.to_coin()?, double_sided_ls_asset.to_coin()?);
 
         // update the provided amounts and leftover assets
         PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
@@ -309,20 +308,22 @@ fn try_get_single_side_lp_submsg(
         asset_data.clone().try_get_native_asset_denom().unwrap_or_default()
     );
 
-    println!("native bal: {:?}", native_bal);
-    println!("ls bal: {:?}", ls_bal);
+    println!("native bal\t: {:?}", native_bal);
+    println!("ls bal\t\t: {:?}", ls_bal);
 
     let native_asset = Asset {
-        info: AssetInfo::NativeToken { denom: native_bal.clone().denom },
+        info: asset_data.native_asset_info.clone().info,
         amount: native_bal.clone().amount,
     };
     let ls_asset = Asset {
-        info: AssetInfo::NativeToken { denom: ls_bal.clone().denom },
+        info: AssetInfo::NativeToken { denom: asset_data.ls_asset_denom },
         amount: ls_bal.clone().amount,
     };
-    
-    // if both balances are non-zero we should provide double sided liquidity; exit
-    if !native_bal.amount.is_zero() || !ls_bal.amount.is_zero() {
+
+    // if both balances are non-zero we should provide double sided liquidity
+    // if both balances are zero, we can't provide anything
+    // in both cases we exit
+    if (!native_bal.amount.is_zero() && !ls_bal.amount.is_zero()) || (native_bal.amount.is_zero() && ls_bal.amount.is_zero()) {
         return Ok(None)
     }
 
@@ -336,6 +337,8 @@ fn try_get_single_side_lp_submsg(
         auto_stake,
         receiver: None,
     };
+
+    println!("single side liquidity msg: {:?}", single_sided_liq_msg);
 
     // now we try to submit the message for either LS or native single side liquidity
     if native_bal.amount.is_zero() && ls_bal.amount <= single_side_lp_limits.ls_asset_limit {
@@ -459,6 +462,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 
 fn handle_double_sided_reply_id(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     // TODO: query balances here and if both are 0, exit?
+
     Ok(Response::default()
         .add_attribute("method", "handle_double_sided_reply_id")
         .add_attribute("reply_id", msg.id.to_string())   
