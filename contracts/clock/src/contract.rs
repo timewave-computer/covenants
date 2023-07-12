@@ -157,5 +157,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
                 .add_attribute("method", "migrate_update_tick_max_gas")
                 .add_attribute("tick_max_gas", new_value))
         }
+        MigrateMsg::UpdateCodeId { data } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
+        }
     }
 }

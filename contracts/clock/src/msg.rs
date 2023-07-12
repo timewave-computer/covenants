@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Addr;
 
+use cosmwasm_std::Binary;
 use cosmwasm_std::Uint64;
 use covenant_clock_derive::clocked;
 
@@ -91,5 +92,10 @@ pub enum MigrateMsg {
     /// Updates the max gas allowed to be consumed by a tick. This
     /// should be no larger than 100_000 less the block max gas so as
     /// to save enough gas to process the tick's error.
-    UpdateTickMaxGas { new_value: Uint64 },
+    UpdateTickMaxGas {
+        new_value: Uint64,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
+    },
 }
