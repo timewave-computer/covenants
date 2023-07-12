@@ -15,7 +15,7 @@ use cw_multi_test::{
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, LPInfo, QueryMsg, AssetData};
+use crate::msg::{ExecuteMsg, InstantiateMsg, LPInfo, QueryMsg, AssetData, SingleSideLpLimits};
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
 use astroport::native_coin_registry::InstantiateMsg as NativeCoinRegistryInstantiateMsg;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
@@ -157,7 +157,10 @@ impl Default for SuiteBuilder {
                     },
                     ls_asset_denom: "stuatom".to_string(),
                 },
-                single_side_lp_limit: Decimal::from_ratio(Uint128::new(5), Uint128::new(100)),
+                single_side_lp_limits: SingleSideLpLimits {
+                    native_asset_limit: Uint128::new(100),
+                    ls_asset_limit: Uint128::new(100),
+                },
             },
             token_instantiate: TokenInstantiateMsg {
                 name: "nativetoken".to_string(),

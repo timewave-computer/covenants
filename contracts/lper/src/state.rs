@@ -3,7 +3,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_storage_plus::Item;
 
-use crate::msg::{LPInfo, AssetData};
+use crate::msg::{LPInfo, AssetData, SingleSideLpLimits};
 
 // store the clock address to verify calls
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
@@ -13,25 +13,19 @@ pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 pub const AUTOSTAKE: Item<bool> = Item::new("autostake");
 pub const SLIPPAGE_TOLERANCE: Item<Decimal> = Item::new("slippage_tolerance");
 pub const ASSETS: Item<AssetData> = Item::new("assets");
-pub const SINGLE_SIDE_LP_LIMIT: Item<Decimal> = Item::new("single_side_lp_limit");
 
-
-
+pub const SINGLE_SIDED_LP_LIMITS: Item<SingleSideLpLimits> = Item::new("single_side_lp_limit");
 pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> = Item::new("provided_liquidity_info");
 
 #[cw_serde]
 pub struct ProvidedLiquidityInfo {
     pub provided_amount_ls: Uint128,
     pub provided_amount_native: Uint128,
-    pub leftover_asset: Option<Asset>,
-    pub leftover_asset_counterpart_info: Option<AssetInfo>,
 }
 
 
 #[cw_serde]
 pub enum ContractState {
     Instantiated,
-    DoubleSideLPed,
-    SingleSideLPed,
     WithdrawComplete,
 }

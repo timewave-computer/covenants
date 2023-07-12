@@ -46,16 +46,19 @@ fn test_instantiate_happy() {
 
     suite.pass_blocks(10);
     suite.tick();
-    
+    let liquid_pooler_balances =
+    suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
+println!(
+    "\n first tick liquid pooler balances: {:?}\n",
+    liquid_pooler_balances
+);
     suite.pass_blocks(10);
     suite.tick();
-
-    suite.withdraw();
 
     let liquid_pooler_balances =
         suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
     println!(
-        "\n post withdrawal liquid pooler balances: {:?}\n",
+        "\n second tick liquid pooler balances: {:?}\n",
         liquid_pooler_balances
     );
 }

@@ -13,7 +13,7 @@ pub struct InstantiateMsg {
     pub slippage_tolerance: Option<Decimal>,
     pub autostake: Option<bool>,
     pub assets: AssetData,
-    pub single_side_lp_limit: Decimal,
+    pub single_side_lp_limits: SingleSideLpLimits,
 }
 
 #[cw_serde]
@@ -34,11 +34,17 @@ impl AssetData {
 }
 
 #[cw_serde]
+pub struct SingleSideLpLimits {
+    pub native_asset_limit: Uint128,
+    pub ls_asset_limit: Uint128,
+}
+
+#[cw_serde]
 pub struct PresetLpFields {
     pub slippage_tolerance: Option<Decimal>,
     pub autostake: Option<bool>,
     pub assets: AssetData,
-    pub single_side_lp_limit: Option<Decimal>,
+    pub single_side_lp_limits: Option<SingleSideLpLimits>,
     pub lp_code: u64,
     pub lp_position: String,
     pub label: String,
@@ -59,9 +65,11 @@ impl PresetLpFields {
             slippage_tolerance: self.slippage_tolerance,
             autostake: self.autostake,
             assets: self.assets,
-            single_side_lp_limit: self.single_side_lp_limit.unwrap_or(
-                // 5% default?
-                Decimal::from_ratio(Uint128::new(5), Uint128::new(100))
+            single_side_lp_limits: self.single_side_lp_limits.unwrap_or(
+                SingleSideLpLimits {
+                    native_asset_limit: Uint128::new(100),
+                    ls_asset_limit: Uint128::new(100),
+                },
             ),
         }
     }
