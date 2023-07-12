@@ -161,32 +161,21 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
     suite.tick();
     suite.pass_blocks(10);
 
-    let liquid_pooler_balances =
-        suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
-    
-    println!("lp balances: {:?}", liquid_pooler_balances);
-    
+    let balances = suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
+    assert_eq!(1, balances.len());
+    let intervention_amount = balances[0].amount + Uint128::new(40);
+
     suite.mint_coins_to_addr(
         suite.liquid_pooler.1.to_string(),
         NATIVE_ATOM_DENOM.to_string(),
-        Uint128::new(4100),
+        intervention_amount,
     );
     suite.tick();
-    let liquid_pooler_balances =
-    suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
-
-    println!("lp balances: {:?}", liquid_pooler_balances);
-
     suite.tick();
     suite.tick();
-
     suite.tick();
-
     suite.pass_blocks(10);
-    let liquid_pooler_balances =
-        suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
-    
-    println!("lp balances: {:?}", liquid_pooler_balances);
-    
 
+    // if there are no more balances, everything is LP
+    assert_eq!(0, suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string())).len());
 }
