@@ -1,6 +1,6 @@
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Uint128};
+use cosmwasm_std::{Addr, Decimal, Uint128, Binary};
 use covenant_clock_derive::clocked;
 
 use crate::state::ContractState;
@@ -108,5 +108,8 @@ pub enum MigrateMsg {
         clock_addr: Option<String>,
         lp_position: Option<LPInfo>,
         holder_address: Option<String>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
     },
 }

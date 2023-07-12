@@ -61,7 +61,9 @@ pub fn instantiate(
         },
     )?;
 
-    Ok(Response::default().add_message(clock_enqueue_msg))
+    Ok(Response::default()
+        .add_attribute("method", "instantiate")
+        .add_message(clock_enqueue_msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -406,11 +408,13 @@ fn try_withdraw(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response,
     };
 
     Ok(
-        Response::default().add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pair_info.liquidity_token.to_string(),
-            msg: to_binary(withdraw_msg)?,
-            funds: vec![],
-        })),
+        Response::default()
+            .add_attribute("method", "try_withdraw")
+            .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pair_info.liquidity_token.to_string(),
+                msg: to_binary(withdraw_msg)?,
+                funds: vec![],
+            })),
     )
 }
 
@@ -447,6 +451,14 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 HOLDER_ADDRESS.save(deps.storage, &holder_address)?;
             }
 
+            Ok(Response::default()
+                .add_attribute("method", "update_config")
+            )
+        }
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
             Ok(Response::default())
         }
     }

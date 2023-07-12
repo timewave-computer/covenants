@@ -36,7 +36,7 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub enum MigrateMsg {
-    UpdateConfig {
+    MigrateContracts {
         clock: Option<covenant_clock::msg::MigrateMsg>,
         depositor: Option<covenant_depositor::msg::MigrateMsg>,
         lp: Option<covenant_lp::msg::MigrateMsg>,
