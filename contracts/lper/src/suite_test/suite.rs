@@ -15,7 +15,7 @@ use cw_multi_test::{
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, LPInfo, QueryMsg, AssetData, SingleSideLpLimits};
+use crate::msg::{AssetData, ExecuteMsg, InstantiateMsg, LPInfo, QueryMsg, SingleSideLpLimits};
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
 use astroport::native_coin_registry::InstantiateMsg as NativeCoinRegistryInstantiateMsg;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
@@ -531,6 +531,7 @@ impl Suite {
             .unwrap()
     }
 
+    #[allow(unused)]
     pub fn withdraw(&mut self) -> AppResponse {
         self.app
             .execute_contract(

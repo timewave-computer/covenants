@@ -42,12 +42,10 @@ fn test_instantiate_happy() {
         .unwrap();
     let _liquidity_token_addr = pairinfo.liquidity_token;
 
-
-
     suite.pass_blocks(10);
     suite.tick();
     let liquid_pooler_balances =
-    suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
+        suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
     println!(
         "\n first tick liquid pooler balances: {:?}\n",
         liquid_pooler_balances
@@ -99,14 +97,14 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
 
     let liquid_pooler_balances =
         suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
-    
+
     println!("lp balances: {:?}", liquid_pooler_balances);
     suite.tick();
     suite.pass_blocks(10);
 
     let liquid_pooler_balances =
         suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
-    
+
     println!("lp balances: {:?}", liquid_pooler_balances);
 
     suite.tick();
@@ -114,7 +112,10 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
     suite.tick();
     suite.pass_blocks(10);
 
-    assert_eq!(liquid_pooler_balances, suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string())));
+    assert_eq!(
+        liquid_pooler_balances,
+        suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()))
+    );
 
     // given our single-side lp limit is 100 tokens and there are 148stuatom remaining,
     // we fund the contract with 100 uatom. this should enable double sided liquidity to be
@@ -132,9 +133,13 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
     suite.tick();
     suite.pass_blocks(10);
 
-    assert_eq!(0, suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string())).len());
+    assert_eq!(
+        0,
+        suite
+            .query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()))
+            .len()
+    );
 }
-
 
 #[test]
 fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
@@ -177,5 +182,10 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
     suite.pass_blocks(10);
 
     // if there are no more balances, everything is LP
-    assert_eq!(0, suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string())).len());
+    assert_eq!(
+        0,
+        suite
+            .query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()))
+            .len()
+    );
 }

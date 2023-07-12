@@ -1,9 +1,8 @@
-use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw_storage_plus::Item;
 
-use crate::msg::{LPInfo, AssetData, SingleSideLpLimits};
+use crate::msg::{AssetData, LPInfo, SingleSideLpLimits};
 
 // store the clock address to verify calls
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
@@ -15,14 +14,14 @@ pub const SLIPPAGE_TOLERANCE: Item<Decimal> = Item::new("slippage_tolerance");
 pub const ASSETS: Item<AssetData> = Item::new("assets");
 
 pub const SINGLE_SIDED_LP_LIMITS: Item<SingleSideLpLimits> = Item::new("single_side_lp_limit");
-pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> = Item::new("provided_liquidity_info");
+pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> =
+    Item::new("provided_liquidity_info");
 
 #[cw_serde]
 pub struct ProvidedLiquidityInfo {
     pub provided_amount_ls: Uint128,
     pub provided_amount_native: Uint128,
 }
-
 
 #[cw_serde]
 pub enum ContractState {

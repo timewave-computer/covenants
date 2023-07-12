@@ -24,11 +24,15 @@ pub struct AssetData {
 
 impl AssetData {
     pub fn get_native_asset_info(&self) -> AssetInfo {
-        AssetInfo::NativeToken { denom: self.native_asset_denom.to_string() }
+        AssetInfo::NativeToken {
+            denom: self.native_asset_denom.to_string(),
+        }
     }
 
     pub fn get_ls_asset_info(&self) -> AssetInfo {
-        AssetInfo::NativeToken { denom: self.ls_asset_denom.to_string() }
+        AssetInfo::NativeToken {
+            denom: self.ls_asset_denom.to_string(),
+        }
     }
 }
 
@@ -64,12 +68,10 @@ impl PresetLpFields {
             slippage_tolerance: self.slippage_tolerance,
             autostake: self.autostake,
             assets: self.assets,
-            single_side_lp_limits: self.single_side_lp_limits.unwrap_or(
-                SingleSideLpLimits {
-                    native_asset_limit: Uint128::new(100),
-                    ls_asset_limit: Uint128::new(100),
-                },
-            ),
+            single_side_lp_limits: self.single_side_lp_limits.unwrap_or(SingleSideLpLimits {
+                native_asset_limit: Uint128::new(100),
+                ls_asset_limit: Uint128::new(100),
+            }),
         }
     }
 }

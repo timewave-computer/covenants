@@ -1,4 +1,5 @@
 use cosmwasm_std::{Addr, Empty, Uint64};
+use covenant_lp::msg::AssetData;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
 use crate::msg::{InstantiateMsg, QueryMsg};
@@ -80,11 +81,14 @@ impl Default for SuiteBuilder {
                 preset_lp_fields: covenant_lp::msg::PresetLpFields {
                     slippage_tolerance: None,
                     autostake: Some(false),
-                    assets: vec![],
                     lp_code: 1,
                     lp_position: TODO.to_string(),
                     label: "covenant_lp_contract".to_string(),
-                    single_side_lp_limit: None,
+                    single_side_lp_limits: None,
+                    assets: AssetData {
+                        native_asset_denom: "uatom".to_string(),
+                        ls_asset_denom: "stuatom".to_string(),
+                    },
                 },
                 preset_holder_fields: covenant_holder::msg::PresetHolderFields {
                     withdrawer: Some(CREATOR_ADDR.to_string()),
