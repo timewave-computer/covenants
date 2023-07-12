@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::{Addr, Binary, Coin};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -42,4 +42,5 @@ pub enum QueryMsg {
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateWithdrawer { withdrawer: String },
+    UpdateCodeId { data: Option<Binary> },
 }
