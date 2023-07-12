@@ -1,6 +1,6 @@
-use astroport::asset::Asset;
+use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Decimal};
+use cosmwasm_std::{Addr, Decimal, Uint128, Binary};
 use covenant_clock_derive::clocked;
 
 use crate::state::ContractState;
@@ -12,14 +12,42 @@ pub struct InstantiateMsg {
     pub holder_address: String,
     pub slippage_tolerance: Option<Decimal>,
     pub autostake: Option<bool>,
-    pub assets: Vec<Asset>,
+    pub assets: AssetData,
+    pub single_side_lp_limits: SingleSideLpLimits,
+}
+
+#[cw_serde]
+pub struct AssetData {
+    pub native_asset_denom: String,
+    pub ls_asset_denom: String,
+}
+
+impl AssetData {
+    pub fn get_native_asset_info(&self) -> AssetInfo {
+        AssetInfo::NativeToken {
+            denom: self.native_asset_denom.to_string(),
+        }
+    }
+
+    pub fn get_ls_asset_info(&self) -> AssetInfo {
+        AssetInfo::NativeToken {
+            denom: self.ls_asset_denom.to_string(),
+        }
+    }
+}
+
+#[cw_serde]
+pub struct SingleSideLpLimits {
+    pub native_asset_limit: Uint128,
+    pub ls_asset_limit: Uint128,
 }
 
 #[cw_serde]
 pub struct PresetLpFields {
     pub slippage_tolerance: Option<Decimal>,
     pub autostake: Option<bool>,
-    pub assets: Vec<Asset>,
+    pub assets: AssetData,
+    pub single_side_lp_limits: Option<SingleSideLpLimits>,
     pub lp_code: u64,
     pub lp_position: String,
     pub label: String,
@@ -40,6 +68,10 @@ impl PresetLpFields {
             slippage_tolerance: self.slippage_tolerance,
             autostake: self.autostake,
             assets: self.assets,
+            single_side_lp_limits: self.single_side_lp_limits.unwrap_or(SingleSideLpLimits {
+                native_asset_limit: Uint128::new(100),
+                ls_asset_limit: Uint128::new(100),
+            }),
         }
     }
 }
