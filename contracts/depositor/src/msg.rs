@@ -3,7 +3,7 @@ use cosmwasm_std::{Addr, Binary};
 use covenant_clock_derive::clocked;
 use neutron_sdk::bindings::query::QueryInterchainAccountAddressResponse;
 
-use crate::state::AcknowledgementResult;
+use crate::state::{AcknowledgementResult, ContractState};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -84,6 +84,8 @@ pub enum QueryMsg {
     AtomReceiver {},
     #[returns(Addr)]
     ClockAddress {},
+    #[returns(ContractState)]
+    ContractState {},
     #[returns(QueryInterchainAccountAddressResponse)]
     DepositorInterchainAccountAddress {},
     /// this query goes to neutron and get stored ICA with a specific query

@@ -50,7 +50,9 @@ pub fn instantiate(
 
     ASSETS.save(deps.storage, &assets)?;
 
-    Ok(Response::default().add_message(clock_enqueue_msg))
+    Ok(Response::default()
+        .add_attribute("method", "instantiate")
+        .add_message(clock_enqueue_msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -217,19 +219,21 @@ fn try_enter_lp_position(
         receiver: None,
     };
 
-    Ok(Response::default().add_messages(vec![
-        CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pool_address.addr.to_string(),
-            msg: to_binary(&provide_liquidity_msg)?,
-            funds: balances,
-        }),
-        CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pool_address.addr,
-            msg: to_binary(&single_sided_liq_msg)?,
-            funds: vec![leftover_bal],
-        }),
-        CosmosMsg::Wasm(dequeue_clock_msg),
-    ]))
+    Ok(Response::default()
+        .add_attribute("method", "try_enter_lp_position")
+        .add_messages(vec![
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pool_address.addr.to_string(),
+                msg: to_binary(&provide_liquidity_msg)?,
+                funds: balances,
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pool_address.addr,
+                msg: to_binary(&single_sided_liq_msg)?,
+                funds: vec![leftover_bal],
+            }),
+            CosmosMsg::Wasm(dequeue_clock_msg),
+        ]))
 }
 
 /// should be sent to the LP token contract associated with the pool
@@ -259,11 +263,13 @@ fn try_withdraw(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response,
     };
 
     Ok(
-        Response::default().add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pair_info.liquidity_token.to_string(),
-            msg: to_binary(withdraw_msg)?,
-            funds: vec![],
-        })),
+        Response::default()
+            .add_attribute("method", "try_withdraw")
+            .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pair_info.liquidity_token.to_string(),
+                msg: to_binary(withdraw_msg)?,
+                funds: vec![],
+            })),
     )
 }
 
@@ -272,7 +278,9 @@ fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
-    Ok(Response::default().add_message(msg))
+    Ok(Response::default()
+        .add_attribute("method", "try_completed")
+        .add_message(msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -308,7 +316,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 HOLDER_ADDRESS.save(deps.storage, &holder_address)?;
             }
 
-            Ok(Response::default())
+            Ok(Response::default()
+                .add_attribute("method", "update_config")
+            )
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
             // This is a migrate message to update code id,
