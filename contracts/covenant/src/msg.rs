@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Binary};
 use covenant_clock::msg::PresetClockFields;
 use covenant_depositor::msg::PresetDepositorFields;
 use covenant_holder::msg::PresetHolderFields;
@@ -36,7 +36,7 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub enum MigrateMsg {
-    UpdateConfig {
+    MigrateContracts {
         clock: Option<covenant_clock::msg::MigrateMsg>,
         depositor: Option<covenant_depositor::msg::MigrateMsg>,
         lp: Option<covenant_lp::msg::MigrateMsg>,

@@ -59,10 +59,8 @@ pub fn instantiate(
     });
 
     // instantiate clock first
-    Ok(Response::default().add_submessage(SubMsg::reply_always(
-        clock_instantiate_tx,
-        CLOCK_REPLY_ID,
-    )))
+    Ok(Response::default()
+        .add_submessage(SubMsg::reply_always(clock_instantiate_tx, CLOCK_REPLY_ID)))
 }
 
 pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
@@ -86,12 +84,12 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
                 label: preset_holder_fields.label,
             });
 
-            Ok(Response::default().add_submessage(SubMsg::reply_always(
-                holder_instantiate_tx,
-                HOLDER_REPLY_ID,
-            )))
+            Ok(Response::default()
+                .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError { contract: "clock".to_string() }),
+        Err(_err) => Err(ContractError::ContractInstantiationError {
+            contract: "clock".to_string(),
+        }),
     }
 }
 
@@ -122,7 +120,9 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             Ok(Response::default()
                 .add_submessage(SubMsg::reply_always(lp_instantiate_tx, LP_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError { contract: "holder".to_string() }),
+        Err(_err) => Err(ContractError::ContractInstantiationError {
+            contract: "holder".to_string(),
+        }),
     }
 }
 
@@ -153,7 +153,9 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             Ok(Response::default()
                 .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError { contract: "lp".to_string() }),
+        Err(_err) => Err(ContractError::ContractInstantiationError {
+            contract: "lp".to_string(),
+        }),
     }
 }
 
@@ -190,7 +192,9 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 DEPOSITOR_REPLY_ID,
             )))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError { contract: "ls".to_string() }),
+        Err(_err) => Err(ContractError::ContractInstantiationError {
+            contract: "ls".to_string(),
+        }),
     }
 }
 
@@ -225,7 +229,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
-        MigrateMsg::UpdateConfig {
+        MigrateMsg::MigrateContracts {
             clock,
             depositor,
             lp,

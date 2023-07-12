@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Binary};
 use covenant_clock_derive::clocked;
 use neutron_sdk::bindings::query::QueryInterchainAccountAddressResponse;
 
@@ -116,6 +116,9 @@ pub enum MigrateMsg {
         neutron_gaia_connection_id: Option<String>,
         gaia_stride_ibc_transfer_channel_id: Option<String>,
         ls_address: Option<String>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
     },
 }
 

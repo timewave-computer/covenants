@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Binary};
 use covenant_clock_derive::clocked;
 
 #[cw_serde]
@@ -63,6 +63,9 @@ pub enum MigrateMsg {
         lp_address: Option<String>,
         neutron_stride_ibc_connection_id: Option<String>,
         ls_denom: Option<String>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
     },
 }
 
