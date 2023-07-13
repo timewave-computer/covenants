@@ -63,10 +63,8 @@ pub fn execute(
 // /// to withdraw liquidity from
 fn try_withdraw_liquidity(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: withdrawing liquidity");
-    // TODO: validate admin    
+
     let lp_address = LP_ADDRESS.load(deps.storage)?;
-    let resp =     deps.querier.query_wasm_raw(lp_address.to_string(), b"pair: {}");
-    println!("resp {:?}", resp);
 
     let pair_info: astroport::asset::PairInfo = deps.querier.query_wasm_smart(
         lp_address.to_string(),

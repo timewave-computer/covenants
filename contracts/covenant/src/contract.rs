@@ -271,6 +271,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LpAddress {} => Ok(to_binary(&COVENANT_LP_ADDR.may_load(deps.storage)?)?),
         QueryMsg::LsAddress {} => Ok(to_binary(&COVENANT_LS_ADDR.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_binary(&COVENANT_HOLDER_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::PoolAddress {} => Ok(to_binary(&POOL_ADDRESS.may_load(deps.storage)?)?),
     }
 }
 

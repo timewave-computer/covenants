@@ -846,9 +846,8 @@ func TestICS(t *testing.T) {
 			// slippageTolerance := "0.01"
 
 			lpMsg := PresetLpFields{
-				LpCode:     lperCodeId,
-				Label:      "covenant-lp",
-				LpPosition: stableswapAddress,
+				LpCode: lperCodeId,
+				Label:  "covenant-lp",
 				// SlippageTolerance: slippageTolerance,
 				Autostake: false,
 				Assets:    assets,
@@ -867,6 +866,7 @@ func TestICS(t *testing.T) {
 				PresetDepositor: depositorMsg,
 				PresetLp:        lpMsg,
 				PresetHolder:    holderMsg,
+				PoolAddress:     stableswapAddress,
 			}
 
 			str, err := json.Marshal(covenantMsg)
