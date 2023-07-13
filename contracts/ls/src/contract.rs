@@ -191,7 +191,7 @@ fn try_execute_transfer(
     }
 }
 
-fn atry_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
+fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 

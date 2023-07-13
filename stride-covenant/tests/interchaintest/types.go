@@ -121,12 +121,17 @@ type PresetDepositorFields struct {
 }
 
 type PresetLpFields struct {
-	SlippageTolerance string           `json:"slippage_tolerance,omitempty"`
-	Autostake         bool             `json:"autostake,omitempty"`
-	Assets            []AstroportAsset `json:"assets"`
-	LpPosition        string           `json:"lp_position"`
-	LpCode            uint64           `json:"lp_code"`
-	Label             string           `json:"label"`
+	SlippageTolerance string    `json:"slippage_tolerance,omitempty"`
+	Autostake         bool      `json:"autostake,omitempty"`
+	Assets            AssetData `json:"assets"`
+	LpPosition        string    `json:"lp_position"`
+	LpCode            uint64    `json:"lp_code"`
+	Label             string    `json:"label"`
+}
+
+type AssetData struct {
+	NativeAssetDenom string `json:"native_asset_denom"`
+	LsAssetDenom     string `json:"ls_asset_denom"`
 }
 
 // ----- Covenant Queries ------
