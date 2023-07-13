@@ -76,7 +76,6 @@ pub fn execute(
     // validate clock
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::WithdrawLiquidity {} => try_withdraw(deps, env, info),
     }
 }
 
@@ -195,6 +194,8 @@ fn try_get_double_side_lp_submsg(
         },
     )?;
 
+    let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
+
     println!("double side lp sim resp: {:?}", simulation);
     // Given a SimulationResponse, we have two possible cases:
     // Case 1: The ask_amount of asset two, returned by simulation is less than the current balance of asset_two
@@ -210,7 +211,7 @@ fn try_get_double_side_lp_submsg(
             assets: vec![native_asset.clone(), ls_asset_double_sided.clone()],
             slippage_tolerance,
             auto_stake,
-            receiver: None,
+            receiver: Some(holder_address),
         };
         println!("double sided liq msg: {:?}", double_sided_liq_msg);
 
@@ -263,7 +264,7 @@ fn try_get_double_side_lp_submsg(
             assets: vec![double_sided_ls_asset.clone(), native_asset.clone()],
             slippage_tolerance,
             auto_stake,
-            receiver: None,
+            receiver: Some(holder_address),
         };
         println!("double sided liq msg: {:?}", double_sided_liq_msg);
         // convert Asset to Coin types
@@ -331,12 +332,14 @@ fn try_get_single_side_lp_submsg(
         return Ok(None);
     }
 
+    let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
+
     // given one non-zero asset, we build the ProvideLiquidity message
     let single_sided_liq_msg = ProvideLiquidity {
         assets: vec![ls_asset, native_asset],
         slippage_tolerance,
         auto_stake,
-        receiver: None,
+        receiver: Some(holder_address),
     };
 
     println!("single side liquidity msg: {:?}", single_sided_liq_msg);
@@ -381,42 +384,6 @@ fn try_get_single_side_lp_submsg(
     Ok(None)
 }
 
-/// should be sent to the LP token contract associated with the pool
-/// to withdraw liquidity from
-fn try_withdraw(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
-    let pool_address = LP_POSITION.load(deps.storage)?;
-    let assets = ASSETS.load(deps.storage)?;
-    deps.api.debug(&format!("withdraw assets: {:?}", assets));
-
-    let pair_info: astroport::asset::PairInfo = deps.querier.query_wasm_smart(
-        pool_address.addr.to_string(),
-        &astroport::pair::QueryMsg::Pair {},
-    )?;
-
-    let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
-        pair_info.liquidity_token.to_string(),
-        &cw20::Cw20QueryMsg::Balance {
-            address: env.contract.address.to_string(),
-        },
-    )?;
-
-    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
-    let withdraw_msg = &Cw20ExecuteMsg::Send {
-        contract: pool_address.addr,
-        amount: liquidity_token_balance.balance,
-        msg: to_binary(withdraw_liquidity_hook)?,
-    };
-
-    Ok(
-        Response::default()
-            .add_attribute("method", "try_withdraw")
-            .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: pair_info.liquidity_token.to_string(),
-                msg: to_binary(withdraw_msg)?,
-                funds: vec![],
-            })),
-    )
-}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {

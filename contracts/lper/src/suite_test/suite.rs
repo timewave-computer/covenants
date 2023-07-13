@@ -531,18 +531,6 @@ impl Suite {
             .unwrap()
     }
 
-    #[allow(unused)]
-    pub fn withdraw(&mut self) -> AppResponse {
-        self.app
-            .execute_contract(
-                Addr::unchecked(CREATOR_ADDR),
-                Addr::unchecked(self.liquid_pooler.1.to_string()),
-                &ExecuteMsg::WithdrawLiquidity {},
-                &[],
-            )
-            .unwrap()
-    }
-
     // mint coins
     pub fn mint_coins_to_addr(&mut self, address: String, denom: String, amount: Uint128) {
         self.app

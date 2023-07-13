@@ -83,9 +83,7 @@ pub struct LPInfo {
 
 #[clocked]
 #[cw_serde]
-pub enum ExecuteMsg {
-    WithdrawLiquidity {},
-}
+pub enum ExecuteMsg {}
 
 #[cw_serde]
 #[derive(QueryResponses)]
