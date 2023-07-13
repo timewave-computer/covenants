@@ -2,7 +2,6 @@ use std::fmt::Error;
 
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
-use cosmos_sdk_proto::ibc::core::client::v1::Height;
 use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -22,7 +21,7 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_PORT_ID, ICA_ADDRESS,
     INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
-    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID,
+    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID, IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP,
 };
 use neutron_sdk::{
     bindings::{
@@ -34,8 +33,6 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 
-// Default timeout for SubmitTX is two weeks
-// const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const NEUTRON_DENOM: &str = "untrn";
 // const STATOM_DENOM: &str = "stuatom";
 
@@ -68,6 +65,7 @@ pub fn instantiate(
     LP_ADDRESS.save(deps.storage, &msg.lp_address)?;
     NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &msg.neutron_stride_ibc_connection_id)?;
     LS_DENOM.save(deps.storage, &msg.ls_denom)?;
+    IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.save(deps.storage, &msg.ibc_msg_transfer_timeout_timestamp)?;
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
@@ -138,13 +136,14 @@ fn try_execute_transfer(
     };
 
     let port_id = IBC_PORT_ID.load(deps.storage)?;
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
             let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
             let denom = LS_DENOM.load(deps.storage)?;
+            let timeout_timestamp = IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.load(deps.storage)?;
 
             let coin = Coin {
                 denom,
@@ -158,7 +157,7 @@ fn try_execute_transfer(
                 sender: address,
                 receiver: lp_receiver.clone(),
                 timeout_height: None,
-                timeout_timestamp: 10000,
+                timeout_timestamp,
             };
 
             // Serialize the Transfer message
@@ -178,16 +177,26 @@ fn try_execute_transfer(
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
                 lp_receiver,
-                100000,
+                timeout_timestamp,
                 fee,
             );
 
+            let submsg = msg_with_sudo_callback(
+                deps,
+                submit_msg,
+                SudoPayload {
+                    port_id,
+                    message: "ica_transfer".to_string(),  
+                },
+            )?;
+        
             Ok(Response::default()
                 .add_attribute("method", "try_execute_transfer")
-                .add_submessage(SubMsg::reply_on_success(submit_msg, TRANSFER_REPLY_ID))
-            )
+                .add_submessages(vec![submsg]))
         }
-        None => Err(NeutronError::Fmt(Error)),
+        None => {
+            Err(NeutronError::Fmt(Error))
+        },
     }
 }
 
@@ -200,7 +209,6 @@ fn atry_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
         .add_message(msg))
 }
 
-#[allow(unused)]
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
     deps: DepsMut,
     msg: C,
@@ -331,7 +339,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
@@ -375,7 +383,14 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             // Data is optional base64 that we can parse to any data we would like in the future
             // let data: SomeStruct = from_binary(&data)?;
             Ok(Response::default())
-        }
+        },
+        MigrateMsg::ReregisterICA {  } => {
+            CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+
+            let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
+            let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_address.to_string())?;
+            Ok(Response::default().add_message(clock_enqueue_msg))
+        },
     }
 }
 
@@ -405,8 +420,13 @@ fn sudo_open_ack(
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+
+        let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+        let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
+    
         return Ok(Response::default()
             .add_attribute("method", "sudo_open_ack")
+            .add_message(clock_enqueue_msg)
         );
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
@@ -422,29 +442,16 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
     );
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
     let seq_id = request
         .sequence
         .ok_or_else(|| StdError::generic_err("sequence not found"))?;
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
     let channel_id = request
         .source_channel
         .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
 
     // NOTE: NO ERROR IS RETURNED HERE. THE CHANNEL LIVES ON.
-    // In this particular example, this is a matter of developer's choice. Not being able to read
-    // the payload here means that there was a problem with the contract while submitting an
-    // interchain transaction. You can decide that this is not worth killing the channel,
-    // write an error log and / or save the acknowledgement to an errors queue for later manual
-    // processing. The decision is based purely on your application logic.
     let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
     if payload.is_none() {
         let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
@@ -455,6 +462,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
             .add_attribute("error", "no_payload")
         );
     }
+
 
     deps.api
         .debug(format!("WASMDEBUG: sudo_response: sudo payload: {:?}", payload).as_str());
@@ -489,7 +497,6 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
     }
 
     if let Some(payload) = payload {
-        // update but also check that we don't update same seq_id twice
         ACKNOWLEDGEMENT_RESULTS.update(
             deps.storage,
             (payload.port_id, seq_id),
@@ -502,64 +509,28 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         )?;
     }
 
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
+
     Ok(Response::default()
         .add_attribute("method", "sudo_response")
+        .add_message(clock_enqueue_msg)
     )
 }
 
-fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<Response> {
+fn sudo_timeout(deps: DepsMut, env: Env, request: RequestPacket) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: sudo timeout request: {:?}", request).as_str());
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
-    let seq_id = request
-        .sequence
-        .ok_or_else(|| StdError::generic_err("sequence not found"))?;
+    // timeout indicates that the channel is closed
+    // we roll back the state machine to Instantiated phase and
+    // queue a tick
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
-    let channel_id = request
-        .source_channel
-        .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
 
-    // update but also check that we don't update same seq_id twice
-    // NOTE: NO ERROR IS RETURNED HERE. THE CHANNEL LIVES ON.
-    // In this particular example, this is a matter of developer's choice. Not being able to read
-    // the payload here means that there was a problem with the contract while submitting an
-    // interchain transaction. You can decide that this is not worth killing the channel,
-    // write an error log and / or save the acknowledgement to an errors queue for later manual
-    // processing. The decision is based purely on your application logic.
-    // Please be careful because it may lead to an unexpected state changes because state might
-    // has been changed before this call and will not be reverted because of supressed error.
-    let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
-    if let Some(payload) = payload {
-        // update but also check that we don't update same seq_id twice
-        ACKNOWLEDGEMENT_RESULTS.update(
-            deps.storage,
-            (payload.port_id, seq_id),
-            |maybe_ack| -> StdResult<AcknowledgementResult> {
-                match maybe_ack {
-                    Some(_ack) => Err(StdError::generic_err("trying to update same seq_id")),
-                    None => Ok(AcknowledgementResult::Timeout(payload.message)),
-                }
-            },
-        )?;
-    } else {
-        let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
-        deps.api.debug(error_msg);
-        add_error_to_queue(deps.storage, error_msg.to_string());
-    }
-
-    Ok(Response::default()
-        .add_attribute("method", "sudo_timeout")
-    )
+    Ok(Response::default().add_message(clock_enqueue_msg))
 }
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {
@@ -568,20 +539,19 @@ fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResu
     deps.api
         .debug(format!("WASMDEBUG: request packet: {:?}", request).as_str());
 
+
+    // 1. differentiate whether its ICA or LS error
+
+    // - ICA:
+        // go back to instantiate state
+        // requeue ourselves
+    // - LS: 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
     let seq_id = request
         .sequence
         .ok_or_else(|| StdError::generic_err("sequence not found"))?;
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
     let channel_id = request
         .source_channel
         .ok_or_else(|| StdError::generic_err("channel_id not found"))?;

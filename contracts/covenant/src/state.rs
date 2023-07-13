@@ -15,6 +15,8 @@ pub const PRESET_CLOCK_FIELDS: Item<covenant_clock::msg::PresetClockFields> =
 pub const PRESET_HOLDER_FIELDS: Item<covenant_holder::msg::PresetHolderFields> =
     Item::new("preset_holder_fields");
 
+pub const IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP: Item<u64> = Item::new("timeout");
+
 // replies
 pub const COVENANT_CLOCK_ADDR: Item<String> = Item::new("covenant_clock_addr");
 pub const COVENANT_LP_ADDR: Item<String> = Item::new("covenant_lp_addr");

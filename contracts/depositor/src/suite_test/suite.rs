@@ -63,6 +63,7 @@ impl Default for SuiteBuilder {
                 neutron_gaia_connection_id: "connection-0".to_string(),
                 gaia_stride_ibc_transfer_channel_id: "channel-3".to_string(),
                 ls_address: "TODO".to_string(),
+                ibc_msg_transfer_timeout_timestamp: 500000,
             },
         }
     }

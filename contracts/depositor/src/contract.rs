@@ -3,7 +3,6 @@ use std::fmt::Error;
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
-use cosmos_sdk_proto::ibc::core::client::v1::Height;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -35,12 +34,12 @@ use crate::state::{
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS,
     NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
+    IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
-// const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
 const INTERCHAIN_ACCOUNT_ID: &str = "test";
@@ -77,6 +76,7 @@ pub fn instantiate(
 
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
+    IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.save(deps.storage, &msg.ibc_msg_transfer_timeout_timestamp)?;
 
     Ok(Response::default()
         .add_attribute("method", "depositor_instantiate")
@@ -148,13 +148,14 @@ fn try_liquid_stake(
     };
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
             let stride_receiver = STRIDE_ATOM_RECEIVER.load(deps.storage)?;
             let gaia_stride_channel: String =
                 GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+            let timeout_timestamp = IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.load(deps.storage)?;
 
             let amount = stride_receiver.amount.to_string();
             let st_ica = stride_ica_addr;
@@ -172,11 +173,8 @@ fn try_liquid_stake(
                 token: Some(coin),
                 sender: address,
                 receiver: autopilot_receiver,
-                timeout_height: Some(Height {
-                    revision_number: 3,
-                    revision_height: 800,
-                }),
-                timeout_timestamp: 0,
+                timeout_height: None,
+                timeout_timestamp,
             };
 
             // Serialize the Transfer message
@@ -196,15 +194,27 @@ fn try_liquid_stake(
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
                 "".to_string(),
-                100000,
+                timeout_timestamp,
                 fee,
             );
 
-            CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
 
+            let submsg = msg_with_sudo_callback(
+                deps,
+                stride_submit_msg,
+                SudoPayload {
+                    port_id,
+                    message: "autopilot".to_string(),  
+                },
+            )?;
+        
             Ok(Response::default()
                 .add_attribute("method", "try_liquid_stake")
-                .add_submessage(SubMsg::new(stride_submit_msg)))
+                .add_submessages(vec![submsg])
+            )
+        }
+        None => {
+            Err(NeutronError::Fmt(Error))
         }
         None => Err(NeutronError::Fmt(Error)),
     }
@@ -229,13 +239,14 @@ fn try_receive_atom_from_ica(
     };
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
             let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
             let amount = lp_receiver.amount.to_string();
+            let timeout_timestamp = IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.load(deps.storage)?;
 
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
@@ -248,12 +259,8 @@ fn try_receive_atom_from_ica(
                 token: Some(coin),
                 sender: address.clone(),
                 receiver: lp_receiver.address,
-                // receiver: env.contract.address.to_string(),
-                timeout_height: Some(Height {
-                    revision_number: 2,
-                    revision_height: 500,
-                }),
-                timeout_timestamp: 0,
+                timeout_height: None,
+                timeout_timestamp,
             };
 
             // Serialize the Transfer message
@@ -273,15 +280,26 @@ fn try_receive_atom_from_ica(
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
                 address,
-                100000,
+                timeout_timestamp,
                 fee,
             );
 
-            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-
+            let submsg = msg_with_sudo_callback(
+                deps,
+                submit_msg,
+                SudoPayload {
+                    port_id,
+                    message: "ica_transfer".to_string(),  
+                },
+            )?;
+        
             Ok(Response::default()
                 .add_attribute("method", "try_forward_atom_from_ica")
-                .add_submessage(SubMsg::new(submit_msg)))
+                .add_submessages(vec![submsg])
+            )
+        }
+        None => {
+            Err(NeutronError::Fmt(Error))
         }
         None => Err(NeutronError::Fmt(Error)),
     }
@@ -313,7 +331,7 @@ fn try_completed(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
 
 #[allow(unused)]
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     msg: C,
     payload: SudoPayload,
 ) -> StdResult<SubMsg<T>> {
@@ -455,7 +473,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
@@ -507,7 +525,13 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             // Data is optional base64 that we can parse to any data we would like in the future
             // let data: SomeStruct = from_binary(&data)?;
             Ok(Response::default())
-        }
+        },
+        MigrateMsg::ReregisterICA {  } => {
+            CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+            let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
+            let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_address.to_string())?;
+            Ok(Response::default().add_message(clock_enqueue_msg))
+        },
     }
 }
 
@@ -536,10 +560,16 @@ fn sudo_open_ack(
             )),
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
+
+        // advance the state and enqueue module for subsequent ticks
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+        let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+        let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
+    
         return Ok(Response::default()
             .add_attribute("method", "sudo_open_ack")
-        );
+            .add_message(clock_enqueue_msg)
+        )
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
 }
@@ -629,10 +659,29 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
                 }
             },
         )?;
+        
+        match payload.message.as_str() {
+            "ica_transfer" => {
+                // succesfull sudo response here means transfer was a success.
+                // we advance the state to completed
+                CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+            },
+            "autopilot" => {
+                CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
+            },
+            _ => {
+
+            }
+        }
     }
 
+    // enqueue module for subsequent ticks
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
+    
     Ok(Response::default()
         .add_attribute("method", "sudo_response")
+        .add_message(clock_enqueue_msg)
     )
 }
 
@@ -640,54 +689,18 @@ fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<R
     deps.api
         .debug(format!("WASMDEBUG: sudo timeout request: {:?}", request).as_str());
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
-    let seq_id = request
-        .sequence
-        .ok_or_else(|| StdError::generic_err("sequence not found"))?;
+    // timeout indicates that the channel is closed
+    // we roll back the state machine to Instantiated phase and
+    // queue a tick
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
-    let channel_id = request
-        .source_channel
-        .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
-
-    // update but also check that we don't update same seq_id twice
-    // NOTE: NO ERROR IS RETURNED HERE. THE CHANNEL LIVES ON.
-    // In this particular example, this is a matter of developer's choice. Not being able to read
-    // the payload here means that there was a problem with the contract while submitting an
-    // interchain transaction. You can decide that this is not worth killing the channel,
-    // write an error log and / or save the acknowledgement to an errors queue for later manual
-    // processing. The decision is based purely on your application logic.
-    // Please be careful because it may lead to an unexpected state changes because state might
-    // has been changed before this call and will not be reverted because of supressed error.
-    let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
-    if let Some(payload) = payload {
-        // update but also check that we don't update same seq_id twice
-        ACKNOWLEDGEMENT_RESULTS.update(
-            deps.storage,
-            (payload.port_id, seq_id),
-            |maybe_ack| -> StdResult<AcknowledgementResult> {
-                match maybe_ack {
-                    Some(_ack) => Err(StdError::generic_err("trying to update same seq_id")),
-                    None => Ok(AcknowledgementResult::Timeout(payload.message)),
-                }
-            },
-        )?;
-    } else {
-        let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
-        deps.api.debug(error_msg);
-        add_error_to_queue(deps.storage, error_msg.to_string());
-    }
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
 
     Ok(Response::default()
-        .add_attribute("method", "sudo_timeout"))
+        .add_attribute("method", "sudo_timeout")
+        .add_message(clock_enqueue_msg)
+    )
 }
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {

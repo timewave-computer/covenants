@@ -11,6 +11,7 @@ pub struct InstantiateMsg {
     pub neutron_stride_ibc_connection_id: String,
     pub lp_address: String,
     pub ls_denom: String,
+    pub ibc_msg_transfer_timeout_timestamp: u64,
 }
 
 #[cw_serde]
@@ -23,13 +24,14 @@ pub struct PresetLsFields {
 }
 
 impl PresetLsFields {
-    pub fn to_instantiate_msg(self, clock_address: String, lp_address: String) -> InstantiateMsg {
+    pub fn to_instantiate_msg(self, clock_address: String, lp_address: String, ibc_msg_transfer_timeout_timestamp: u64) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
             stride_neutron_ibc_transfer_channel_id: self.stride_neutron_ibc_transfer_channel_id,
             neutron_stride_ibc_connection_id: self.neutron_stride_ibc_connection_id,
             lp_address,
             ls_denom: self.ls_denom,
+            ibc_msg_transfer_timeout_timestamp,
         }
     }
 }
@@ -71,6 +73,7 @@ pub enum MigrateMsg {
     UpdateCodeId {
         data: Option<Binary>,
     },
+    ReregisterICA {}
 }
 
 #[cw_serde]

@@ -14,6 +14,7 @@ pub struct InstantiateMsg {
     pub preset_depositor_fields: PresetDepositorFields,
     pub preset_lp_fields: PresetLpFields,
     pub preset_holder_fields: PresetHolderFields,
+    pub ibc_msg_transfer_timeout_timestamp: Option<u64>,
 }
 
 #[cw_serde]
@@ -43,4 +44,14 @@ pub enum MigrateMsg {
         ls: Option<covenant_ls::msg::MigrateMsg>,
         holder: Option<covenant_holder::msg::MigrateMsg>,
     },
+    ReregisterICA {
+        addr: String,
+        module: Module,
+    }
+}
+
+#[cw_serde]
+pub enum Module {
+    Depositor,
+    LS,
 }

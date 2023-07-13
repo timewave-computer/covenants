@@ -5,12 +5,13 @@ use cosmwasm_std::{
     SubMsg, WasmMsg,
 };
 
+use covenant_depositor::state::IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP;
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 
 use crate::{
     error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, Module},
     state::{
         CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
         COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, LP_CODE, LS_CODE,
@@ -21,6 +22,7 @@ use crate::{
 
 const CONTRACT_NAME: &str = "crates.io:covenant-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
 const CLOCK_REPLY_ID: u64 = 1u64;
 const HOLDER_REPLY_ID: u64 = 2u64;
@@ -49,6 +51,12 @@ pub fn instantiate(
     PRESET_LS_FIELDS.save(deps.storage, &msg.preset_ls_fields)?;
     PRESET_DEPOSITOR_FIELDS.save(deps.storage, &msg.preset_depositor_fields)?;
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
+    let timeout = if let Some(timestamp) = msg.ibc_msg_transfer_timeout_timestamp {
+        timestamp
+    } else {
+        DEFAULT_TIMEOUT_SECONDS
+    };
+    IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.save(deps.storage, &timeout)?;
 
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
@@ -157,7 +165,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
         Ok(response) => {
             // store the lp address to fill other InstantiateMsg
             COVENANT_LP_ADDR.save(deps.storage, &response.contract_address)?;
-
+            let ibc_msg_transfer_timeout_timestamp = IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.load(deps.storage)?;
             // load missing params
             let clock_address = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let code_id = LS_CODE.load(deps.storage)?;
@@ -166,6 +174,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let instantiate_msg = preset_ls_fields.clone().to_instantiate_msg(
                 clock_address,
                 response.contract_address,
+                ibc_msg_transfer_timeout_timestamp
             );
 
             let ls_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -199,12 +208,13 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
             let code_id = DEPOSITOR_CODE.load(deps.storage)?;
             let preset_depositor_fields = PRESET_DEPOSITOR_FIELDS.load(deps.storage)?;
-
+            let ibc_msg_transfer_timeout_timestamp = IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.load(deps.storage)?;
             let instantiate_msg = preset_depositor_fields.clone().to_instantiate_msg(
                 "to be queried".to_string(),
                 clock_addr,
                 response.contract_address,
                 lp_addr,
+                ibc_msg_transfer_timeout_timestamp,
             );
 
             let depositor_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -324,9 +334,20 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 })
             }
 
-            Ok(Response::default()
-                .add_attribute("method", "update_config")
-                .add_messages(migrate_msgs))
+            Ok(Response::default().add_messages(migrate_msgs))
+        },
+        MigrateMsg::ReregisterICA { addr, module } => {
+            let message = match module {
+                Module::Depositor => to_binary(&covenant_depositor::msg::MigrateMsg::ReregisterICA {  })?,
+                Module::LS => to_binary(&covenant_ls::msg::MigrateMsg::ReregisterICA {  })?,
+            };
+
+            let migrate_msg = WasmMsg::Migrate { 
+                contract_addr: addr,
+                new_code_id: 0, // not taken into account on receiving end
+                msg: to_binary(&message)?,
+            };
+            Ok(Response::default().add_message(migrate_msg))
         }
     }
 }

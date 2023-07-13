@@ -95,6 +95,7 @@ impl Default for SuiteBuilder {
                     label: "covenant_holder_contract".to_string(),
                 },
                 label: "covenant_contract".to_string(),
+                ibc_msg_transfer_timeout_timestamp: None,
             },
         }
     }

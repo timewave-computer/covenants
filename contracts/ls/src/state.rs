@@ -13,6 +13,8 @@ pub const LP_ADDRESS: Item<String> = Item::new("lp_address");
 pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
 pub const LS_DENOM: Item<String> = Item::new("ls_denom");
 
+pub const IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP: Item<u64> = Item::new("timeout");
+
 // ICA
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
