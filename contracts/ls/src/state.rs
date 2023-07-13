@@ -23,7 +23,6 @@ pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 pub enum ContractState {
     Instantiated,
     ICACreated,
-    Complete,
 }
 
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");

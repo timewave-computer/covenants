@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary};
+use cosmwasm_std::{Addr, Binary, Uint128};
 use covenant_clock_derive::clocked;
 
 use crate::state::ContractState;
@@ -38,6 +38,7 @@ impl PresetLsFields {
 #[cw_serde]
 pub enum ExecuteMsg {
     Received {},
+    Transfer { amount: Uint128 },
 }
 
 #[cw_serde]
