@@ -838,23 +838,9 @@ func TestICS(t *testing.T) {
 			}
 
 			// For LPer, we need to first gather astroport information
-			assets := []AstroportAsset{
-				AstroportAsset{
-					Info: AssetInfo{
-						NativeToken: &NativeToken{
-							Denom: neutronAtomIbcDenom,
-						},
-					},
-					Amount: "10",
-				},
-				AstroportAsset{
-					Info: AssetInfo{
-						NativeToken: &NativeToken{
-							Denom: neutronStatomDenom,
-						},
-					},
-					Amount: "10",
-				},
+			assets := AssetData{
+				NativeAssetDenom: "uatom",
+				LsAssetDenom:     "stuatom",
 			}
 
 			// slippageTolerance := "0.01"

@@ -43,7 +43,7 @@ type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 // const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
-const INTERCHAIN_ACCOUNT_ID: &str = "test";
+const INTERCHAIN_ACCOUNT_ID: &str = "gaia-ica";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");

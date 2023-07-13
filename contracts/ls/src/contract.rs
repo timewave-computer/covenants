@@ -85,6 +85,7 @@ pub fn execute(
         .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
+        ExecuteMsg::Transfer { amount } => try_execute_transfer(deps, env, info, amount),
         ExecuteMsg::Received {} => try_handle_received(),
     }
 }
@@ -94,16 +95,11 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
-    let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
-    let _gaia_account_address = match ica_address {
-        Ok(addr) => addr,
-        Err(_) => "todo".to_string(),
-    };
-
+    
+    // here we want to make sure that ica is created
     match current_state {
         ContractState::Instantiated => try_register_stride_ica(deps, env),
-        ContractState::ICACreated => try_execute_transfer(deps, env, info),
-        ContractState::Complete => try_completed(deps),
+        ContractState::ICACreated => Ok(Response::default()),
     }
 }
 
@@ -122,10 +118,12 @@ fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
         .add_message(register))
 }
 
+// permisionless transfer
 fn try_execute_transfer(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
+    amount: Uint128,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let fee = IbcFee {
         recv_fee: vec![], // must be empty
@@ -150,7 +148,7 @@ fn try_execute_transfer(
 
             let coin = Coin {
                 denom,
-                amount: "10".to_string(),
+                amount: amount.to_string(),
             };
 
             let msg = MsgTransfer {
@@ -159,11 +157,8 @@ fn try_execute_transfer(
                 token: Some(coin),
                 sender: address,
                 receiver: lp_receiver.clone(),
-                timeout_height: Some(Height {
-                    revision_number: 2,
-                    revision_height: 800,
-                }),
-                timeout_timestamp: 0,
+                timeout_height: None,
+                timeout_timestamp: 10000,
             };
 
             // Serialize the Transfer message
@@ -664,10 +659,13 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     }
 }
 
-pub fn handle_transfer_reply(deps: DepsMut, _env: Env, _msg: Reply) -> StdResult<Response> {
+pub fn handle_transfer_reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: transfer reply");
-
-    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+    // if transfer errors, we roll back to instantiated state
+    // this will force an attempt to re-register the ICA
+    if msg.result.is_err() {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+    }
 
     Ok(Response::default().add_attribute("method", "handle_transfer_reply"))
 }
