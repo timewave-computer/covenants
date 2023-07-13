@@ -59,3 +59,4 @@ astroport-factory =  {git = "https://github.com/astroport-fi/astroport-core.git"
 astroport-native-coin-registry = {git = "https://github.com/astroport-fi/astroport-core.git"}
 astroport-pair-stable = {git = "https://github.com/astroport-fi/astroport-core.git"}
 cw1-whitelist = "1.1.0"
+covenant-holder = { workspace = true }

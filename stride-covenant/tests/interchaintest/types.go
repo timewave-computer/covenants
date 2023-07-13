@@ -96,6 +96,7 @@ type CovenantInstantiateMsg struct {
 	PresetDepositor PresetDepositorFields `json:"preset_depositor_fields"`
 	PresetLp        PresetLpFields        `json:"preset_lp_fields"`
 	PresetHolder    PresetHolderFields    `json:"preset_holder_fields"`
+	PoolAddress     string                `json:"pool_address"`
 }
 
 type PresetClockFields struct {
@@ -124,7 +125,6 @@ type PresetLpFields struct {
 	SlippageTolerance string    `json:"slippage_tolerance,omitempty"`
 	Autostake         bool      `json:"autostake,omitempty"`
 	Assets            AssetData `json:"assets"`
-	LpPosition        string    `json:"lp_position"`
 	LpCode            uint64    `json:"lp_code"`
 	Label             string    `json:"label"`
 }

@@ -15,7 +15,7 @@ use cw_multi_test::{
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use crate::msg::{AssetData, ExecuteMsg, InstantiateMsg, LPInfo, QueryMsg, SingleSideLpLimits};
+use crate::msg::{AssetData, InstantiateMsg, LPInfo, QueryMsg, SingleSideLpLimits};
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
 use astroport::native_coin_registry::InstantiateMsg as NativeCoinRegistryInstantiateMsg;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
@@ -92,6 +92,17 @@ fn lper_contract() -> Box<dyn Contract<Empty>> {
     Box::new(lp_contract)
 }
 
+fn holder_contract() -> Box<dyn Contract<Empty>> {
+    Box::new(
+        ContractWrapper::new(
+            covenant_holder::contract::execute,
+            covenant_holder::contract::instantiate,
+            covenant_holder::contract::query,
+        )
+        .with_migrate(covenant_holder::contract::migrate)
+    )
+}
+
 fn clock_contract() -> Box<dyn Contract<Empty>> {
     Box::new(
         ContractWrapper::new(
@@ -125,6 +136,7 @@ pub(crate) struct Suite {
     pub coin_registry: (u64, String),
     pub liquid_pooler: (u64, String),
     pub clock_addr: String,
+    pub holder_addr: String,
 }
 
 pub(crate) struct SuiteBuilder {
@@ -135,6 +147,7 @@ pub(crate) struct SuiteBuilder {
     pub stablepair_instantiate: PairInstantiateMsg,
     pub registry_instantiate: NativeCoinRegistryInstantiateMsg,
     pub clock_instantiate: covenant_clock::msg::InstantiateMsg,
+    pub holder_instantiate: covenant_holder::msg::InstantiateMsg,
 }
 
 impl Default for SuiteBuilder {
@@ -145,7 +158,8 @@ impl Default for SuiteBuilder {
                 lp_position: LPInfo {
                     addr: "lp-addr".to_string(),
                 },
-                holder_address: "hodler".to_string(),
+                // deterministic based on instantiate sequence
+                holder_address: "contract1".to_string(),
                 slippage_tolerance: Some(Decimal::one()),
                 autostake: Some(false),
                 assets: AssetData {
@@ -210,6 +224,11 @@ impl Default for SuiteBuilder {
             clock_instantiate: covenant_clock::msg::InstantiateMsg {
                 tick_max_gas: Uint64::new(50000),
             },
+            holder_instantiate: covenant_holder::msg::InstantiateMsg {
+                withdrawer: Some(CREATOR_ADDR.to_string()),
+                // deterministic based on instantiate flow
+                lp_address: "contract7".to_string(),
+            },
         }
     }
 }
@@ -248,6 +267,7 @@ impl SuiteBuilder {
         let factory_code = app.store_code(astro_factory());
         let lper_code = app.store_code(lper_contract());
         let clock_code = app.store_code(clock_contract());
+        let holder_code = app.store_code(holder_contract());
 
         let clock_address = app
             .instantiate_contract(
@@ -259,11 +279,25 @@ impl SuiteBuilder {
                 None,
             )
             .unwrap();
+
+        let holder_address = app
+            .instantiate_contract(
+                holder_code,
+                Addr::unchecked(CREATOR_ADDR),
+                &self.holder_instantiate,
+                &[],
+                "holder",
+                Some(CREATOR_ADDR.to_string()),
+            )
+            .unwrap();
+        println!("holder addr: {:?}", holder_address);
         self.lp_instantiate.clock_address = clock_address.to_string();
+        self.lp_instantiate.holder_address = holder_address.to_string();
         self.factory_instantiate.token_code_id = token_code;
         self.stablepair_instantiate.token_code_id = token_code;
         self.factory_instantiate.whitelist_code_id = whitelist_code;
         self.factory_instantiate.pair_configs[0].code_id = stablepair_code;
+        
 
         let whitelist_addr = app
             .instantiate_contract(
@@ -380,6 +414,7 @@ impl SuiteBuilder {
             )
             .unwrap();
 
+        println!("stablepair : {:?}", stable_pair_addr);
         app.update_block(|b| b.height += 5);
 
         self.lp_instantiate.lp_position.addr = stable_pair_addr.to_string();
@@ -407,6 +442,7 @@ impl SuiteBuilder {
             coin_registry: (coin_registry_code, coin_registry_addr.to_string()),
             liquid_pooler: (lper_code, lper_address.to_string()),
             clock_addr: clock_address.to_string(),
+            holder_addr: holder_address.to_string(),
         }
     }
 }
@@ -513,6 +549,17 @@ impl Suite {
             .query_wasm_smart(token, &cw20::Cw20QueryMsg::Balance { address: addr })
             .unwrap()
     }
+
+    pub fn query_liquidity_token_addr(&self) -> astroport::asset::PairInfo {
+        self
+        .app
+        .wrap()
+        .query_wasm_smart(
+            self.stable_pair.1.to_string(),
+            &astroport::pair::QueryMsg::Pair {},
+        )
+        .unwrap()
+    }
 }
 
 // assertion helpers
@@ -526,18 +573,6 @@ impl Suite {
                 Addr::unchecked(self.clock_addr.to_string()),
                 Addr::unchecked(self.liquid_pooler.1.to_string()),
                 &crate::msg::ExecuteMsg::Tick {},
-                &[],
-            )
-            .unwrap()
-    }
-
-    #[allow(unused)]
-    pub fn withdraw(&mut self) -> AppResponse {
-        self.app
-            .execute_contract(
-                Addr::unchecked(CREATOR_ADDR),
-                Addr::unchecked(self.liquid_pooler.1.to_string()),
-                &ExecuteMsg::WithdrawLiquidity {},
                 &[],
             )
             .unwrap()
@@ -638,5 +673,15 @@ impl Suite {
                 &balances,
             )
             .unwrap()
+    }
+
+    pub fn holder_withdraw(&mut self) {
+        self.app.migrate_contract(
+            Addr::unchecked(CREATOR_ADDR),
+            Addr::unchecked(self.holder_addr.to_string()),
+            &covenant_holder::msg::MigrateMsg::WithdrawLiquidity {  },
+            8,
+        )
+        .unwrap();
     }
 }

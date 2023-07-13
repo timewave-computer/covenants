@@ -32,15 +32,12 @@ fn test_instantiate_happy() {
     let share = suite.query_pool_info();
     println!("pool share: {:?}", share);
 
-    let pairinfo: astroport::asset::PairInfo = suite
-        .app
-        .wrap()
-        .query_wasm_smart(
-            suite.stable_pair.1.to_string(),
-            &astroport::pair::QueryMsg::Pair {},
-        )
-        .unwrap();
-    let _liquidity_token_addr = pairinfo.liquidity_token;
+    let pairinfo = suite.query_liquidity_token_addr();
+
+    let liquidity_token_addr = pairinfo.liquidity_token.to_string();
+
+    let holder_balances = suite.query_cw20_bal(liquidity_token_addr.to_string(), suite.holder_addr.to_string());
+    assert_eq!(Uint128::zero(), holder_balances.balance);
 
     suite.pass_blocks(10);
     suite.tick();
@@ -59,6 +56,18 @@ fn test_instantiate_happy() {
         "\n second tick liquid pooler balances: {:?}\n",
         liquid_pooler_balances
     );
+
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
+    assert_ne!(Uint128::zero(), holder_balances.balance);
+
+    suite.holder_withdraw();
+
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
+    assert_eq!(Uint128::zero(), holder_balances.balance);
+    let holder_native_balances = suite.query_addr_balances(Addr::unchecked(suite.holder_addr.to_string()));
+    assert_eq!(2, holder_native_balances.len());
+    assert_ne!(Uint128::zero(), holder_native_balances[0].amount);
+    assert_ne!(Uint128::zero(), holder_native_balances[1].amount);
 }
 
 // tests todo:
@@ -91,6 +100,10 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
         NATIVE_ATOM_DENOM.to_string(),
         atom_amt,
     );
+
+    let pairinfo = suite.query_liquidity_token_addr();
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
+    assert_eq!(Uint128::zero(), holder_balances.balance);
 
     suite.tick();
     suite.pass_blocks(10);
@@ -139,6 +152,17 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
             .query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()))
             .len()
     );
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
+    assert_ne!(Uint128::zero(), holder_balances.balance);
+
+    suite.holder_withdraw();
+
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
+    assert_eq!(Uint128::zero(), holder_balances.balance);
+    let holder_native_balances = suite.query_addr_balances(Addr::unchecked(suite.holder_addr.to_string()));
+    assert_eq!(2, holder_native_balances.len());
+    assert_ne!(Uint128::zero(), holder_native_balances[0].amount);
+    assert_ne!(Uint128::zero(), holder_native_balances[1].amount);
 }
 
 #[test]
@@ -160,6 +184,10 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
         NATIVE_ATOM_DENOM.to_string(),
         atom_amt,
     );
+
+    let pairinfo = suite.query_liquidity_token_addr();
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
+    assert_eq!(Uint128::zero(), holder_balances.balance);
 
     suite.tick();
     suite.tick();
@@ -188,4 +216,15 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
             .query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()))
             .len()
     );
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
+    assert_ne!(Uint128::zero(), holder_balances.balance);
+
+    suite.holder_withdraw();
+
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
+    assert_eq!(Uint128::zero(), holder_balances.balance);
+    let holder_native_balances = suite.query_addr_balances(Addr::unchecked(suite.holder_addr.to_string()));
+    assert_eq!(2, holder_native_balances.len());
+    assert_ne!(Uint128::zero(), holder_native_balances[0].amount);
+    assert_ne!(Uint128::zero(), holder_native_balances[1].amount);
 }

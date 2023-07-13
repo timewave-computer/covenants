@@ -6,6 +6,7 @@ pub struct InstantiateMsg {
     /// A withdrawer is the only authorized address that can withdraw
     /// from the contract. Anyone can instantiate the contract.
     pub withdrawer: Option<String>,
+    pub lp_address: String,
 }
 
 #[cw_serde]
@@ -16,9 +17,10 @@ pub struct PresetHolderFields {
 }
 
 impl PresetHolderFields {
-    pub fn to_instantiate_msg(self) -> InstantiateMsg {
+    pub fn to_instantiate_msg(self, lp_address: String) -> InstantiateMsg {
         InstantiateMsg {
             withdrawer: self.withdrawer,
+            lp_address,
         }
     }
 }
@@ -43,4 +45,5 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateWithdrawer { withdrawer: String },
     UpdateCodeId { data: Option<Binary> },
+    WithdrawLiquidity {},
 }

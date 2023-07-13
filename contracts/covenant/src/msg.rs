@@ -14,6 +14,7 @@ pub struct InstantiateMsg {
     pub preset_depositor_fields: PresetDepositorFields,
     pub preset_lp_fields: PresetLpFields,
     pub preset_holder_fields: PresetHolderFields,
+    pub pool_address: String,
 }
 
 #[cw_serde]
@@ -32,6 +33,8 @@ pub enum QueryMsg {
     LsAddress {},
     #[returns(Addr)]
     HolderAddress {},
+    #[returns(Addr)]
+    PoolAddress {},
 }
 
 #[cw_serde]

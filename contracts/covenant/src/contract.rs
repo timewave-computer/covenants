@@ -15,7 +15,7 @@ use crate::{
         CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
         COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, LP_CODE, LS_CODE,
         PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS, PRESET_HOLDER_FIELDS, PRESET_LP_FIELDS,
-        PRESET_LS_FIELDS,
+        PRESET_LS_FIELDS, POOL_ADDRESS,
     },
 };
 
@@ -50,6 +50,8 @@ pub fn instantiate(
     PRESET_DEPOSITOR_FIELDS.save(deps.storage, &msg.preset_depositor_fields)?;
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
 
+    POOL_ADDRESS.save(deps.storage, &msg.pool_address)?;
+    
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
         code_id: msg.preset_clock_fields.clock_code,
@@ -89,6 +91,7 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             // successful clock instantiation means we are ready to proceed with
             // remaining instantiations
             COVENANT_CLOCK_ADDR.save(deps.storage, &response.contract_address)?;
+            let pool_address = POOL_ADDRESS.load(deps.storage)?;
 
             let code_id = HOLDER_CODE.load(deps.storage)?;
             let preset_holder_fields = PRESET_HOLDER_FIELDS.load(deps.storage)?;
@@ -96,7 +99,7 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             let holder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id,
-                msg: to_binary(&preset_holder_fields.clone().to_instantiate_msg())?,
+                msg: to_binary(&preset_holder_fields.clone().to_instantiate_msg(pool_address))?,
                 funds: vec![],
                 label: preset_holder_fields.label,
             });
@@ -122,14 +125,15 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
     match parsed_data {
         Ok(response) => {
             COVENANT_HOLDER_ADDR.save(deps.storage, &response.contract_address)?;
-
+            
+            let pool_address = POOL_ADDRESS.load(deps.storage)?;
             let code_id = LP_CODE.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let preset_lp_fields = PRESET_LP_FIELDS.load(deps.storage)?;
 
             let instantiate_msg = preset_lp_fields
                 .clone()
-                .to_instantiate_msg(clock_addr, response.contract_address);
+                .to_instantiate_msg(clock_addr, response.contract_address, pool_address);
 
             let lp_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -267,6 +271,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LpAddress {} => Ok(to_binary(&COVENANT_LP_ADDR.may_load(deps.storage)?)?),
         QueryMsg::LsAddress {} => Ok(to_binary(&COVENANT_LS_ADDR.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_binary(&COVENANT_HOLDER_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::PoolAddress {} => Ok(to_binary(&POOL_ADDRESS.may_load(deps.storage)?)?),
     }
 }
 

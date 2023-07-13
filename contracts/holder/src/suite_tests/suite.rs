@@ -12,6 +12,7 @@ pub struct Suite {
     pub holder: Addr,
     pub admin: Addr,
     pub holder_code_id: u64,
+    pub pool_address: String,
 }
 
 pub struct SuiteBuilder {
@@ -24,6 +25,7 @@ impl Default for SuiteBuilder {
         Self {
             instantiate: InstantiateMsg {
                 withdrawer: Some(DEFAULT_WITHDRAWER.to_string()),
+                lp_address: "stablepairpool".to_string(),
             },
             app: App::default(),
         }
@@ -61,6 +63,7 @@ impl SuiteBuilder {
             holder,
             admin: Addr::unchecked(ADMIN),
             holder_code_id: holder_code,
+            pool_address: self.instantiate.lp_address,
         }
     }
 }
