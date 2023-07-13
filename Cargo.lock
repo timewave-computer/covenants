@@ -416,11 +416,18 @@ name = "covenant-holder"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "astroport 2.8.0",
+ "astroport-factory",
+ "astroport-native-coin-registry",
+ "astroport-pair-stable",
+ "astroport-token",
+ "astroport-whitelist",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.0",
+ "cw20 0.15.1",
  "serde",
  "thiserror",
 ]
@@ -442,6 +449,7 @@ dependencies = [
  "cosmwasm-std",
  "covenant-clock",
  "covenant-clock-derive",
+ "covenant-holder",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.1",

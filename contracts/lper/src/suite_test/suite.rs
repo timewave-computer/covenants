@@ -15,7 +15,7 @@ use cw_multi_test::{
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use crate::msg::{AssetData, ExecuteMsg, InstantiateMsg, LPInfo, QueryMsg, SingleSideLpLimits};
+use crate::msg::{AssetData, InstantiateMsg, LPInfo, QueryMsg, SingleSideLpLimits};
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
 use astroport::native_coin_registry::InstantiateMsg as NativeCoinRegistryInstantiateMsg;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
@@ -99,6 +99,7 @@ fn holder_contract() -> Box<dyn Contract<Empty>> {
             covenant_holder::contract::instantiate,
             covenant_holder::contract::query,
         )
+        .with_migrate(covenant_holder::contract::migrate)
     )
 }
 
@@ -157,7 +158,8 @@ impl Default for SuiteBuilder {
                 lp_position: LPInfo {
                     addr: "lp-addr".to_string(),
                 },
-                holder_address: "holder".to_string(),
+                // deterministic based on instantiate sequence
+                holder_address: "contract1".to_string(),
                 slippage_tolerance: Some(Decimal::one()),
                 autostake: Some(false),
                 assets: AssetData {
@@ -224,6 +226,8 @@ impl Default for SuiteBuilder {
             },
             holder_instantiate: covenant_holder::msg::InstantiateMsg {
                 withdrawer: Some(CREATOR_ADDR.to_string()),
+                // deterministic based on instantiate flow
+                lp_address: "contract7".to_string(),
             },
         }
     }
@@ -283,10 +287,10 @@ impl SuiteBuilder {
                 &self.holder_instantiate,
                 &[],
                 "holder",
-                None,
+                Some(CREATOR_ADDR.to_string()),
             )
             .unwrap();
-
+        println!("holder addr: {:?}", holder_address);
         self.lp_instantiate.clock_address = clock_address.to_string();
         self.lp_instantiate.holder_address = holder_address.to_string();
         self.factory_instantiate.token_code_id = token_code;
@@ -410,6 +414,7 @@ impl SuiteBuilder {
             )
             .unwrap();
 
+        println!("stablepair : {:?}", stable_pair_addr);
         app.update_block(|b| b.height += 5);
 
         self.lp_instantiate.lp_position.addr = stable_pair_addr.to_string();
@@ -668,5 +673,15 @@ impl Suite {
                 &balances,
             )
             .unwrap()
+    }
+
+    pub fn holder_withdraw(&mut self) {
+        self.app.migrate_contract(
+            Addr::unchecked(CREATOR_ADDR),
+            Addr::unchecked(self.holder_addr.to_string()),
+            &covenant_holder::msg::MigrateMsg::WithdrawLiquidity {  },
+            8,
+        )
+        .unwrap();
     }
 }

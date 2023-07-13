@@ -81,7 +81,6 @@ impl Default for SuiteBuilder {
                     slippage_tolerance: None,
                     autostake: Some(false),
                     lp_code: 1,
-                    lp_position: TODO.to_string(),
                     label: "covenant_lp_contract".to_string(),
                     single_side_lp_limits: None,
                     assets: AssetData {
@@ -95,6 +94,7 @@ impl Default for SuiteBuilder {
                     label: "covenant_holder_contract".to_string(),
                 },
                 label: "covenant_contract".to_string(),
+                pool_address: TODO.to_string(),
             },
         }
     }

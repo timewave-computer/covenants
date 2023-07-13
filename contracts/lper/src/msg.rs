@@ -49,7 +49,6 @@ pub struct PresetLpFields {
     pub assets: AssetData,
     pub single_side_lp_limits: Option<SingleSideLpLimits>,
     pub lp_code: u64,
-    pub lp_position: String,
     pub label: String,
 }
 
@@ -58,10 +57,11 @@ impl PresetLpFields {
         self,
         clock_address: String,
         holder_address: String,
+        pool_address: String,
     ) -> InstantiateMsg {
         InstantiateMsg {
             lp_position: LPInfo {
-                addr: self.lp_position,
+                addr: pool_address,
             },
             clock_address,
             holder_address,
