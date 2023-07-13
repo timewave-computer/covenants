@@ -9,9 +9,8 @@ use cw2::set_contract_version;
 
 use astroport::{
     asset::{Asset, AssetInfo},
-    pair::{Cw20HookMsg, ExecuteMsg::ProvideLiquidity, SimulationResponse},
+    pair::{ExecuteMsg::ProvideLiquidity, SimulationResponse},
 };
-use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
 use crate::{
     error::ContractError,
