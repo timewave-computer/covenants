@@ -9,7 +9,7 @@ mod tests;
 // function where the assertion would otherwise happen.
 macro_rules! is_error {
     ($x:expr, $e:expr) => {
-        assert!(format!("{:#}", $x.unwrap_err()).contains($e))
+        assert!(format!("{:#}", $x).contains($e))
     };
 }
 pub(crate) use is_error;

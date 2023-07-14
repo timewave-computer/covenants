@@ -58,6 +58,7 @@ pub fn execute(
     }
 }
 
+// this is tested in the LP module
 /// should be sent to the LP token contract associated with the pool
 /// to withdraw liquidity from
 fn try_withdraw_liquidity(
