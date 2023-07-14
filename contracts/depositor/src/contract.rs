@@ -103,12 +103,24 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
-    let ica_address = ICA_ADDRESS.load(deps.storage)?;
+    let ica_address = ICA_ADDRESS.may_load(deps.storage)?;
 
     match current_state {
         ContractState::Instantiated => try_register_gaia_ica(deps, env),
-        ContractState::ICACreated => try_liquid_stake(deps, env, info, ica_address),
-        ContractState::LiquidStaked => try_receive_atom_from_ica(deps, env, info, ica_address),
+        ContractState::ICACreated => {
+            if let Some(addr) = ica_address {
+                try_liquid_stake(deps, env, info, addr)
+            } else {
+                Ok(Response::default())
+            }
+        },
+        ContractState::LiquidStaked => {
+            if let Some(addr) = ica_address {
+                try_receive_atom_from_ica(deps, env, info, addr)
+            } else {
+                Ok(Response::default())
+            }
+        },
         ContractState::Complete => try_completed(deps),
     }
 }
