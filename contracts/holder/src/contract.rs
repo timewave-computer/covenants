@@ -2,14 +2,15 @@ use astroport::pair::Cw20HookMsg;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg, CosmosMsg,
+    to_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult, WasmMsg,
 };
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{WITHDRAWER, LP_ADDRESS};
+use crate::state::{LP_ADDRESS, WITHDRAWER};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -24,26 +25,23 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     deps.api.debug("WASMDEBUG: holder instantiate");
 
-    // We cannot deserialize the address without first validating it
-    let withdrawer = msg
-        .withdrawer
-        .map(|addr| deps.api.addr_validate(&addr))
-        .transpose()?;
-    match withdrawer {
-        // If there is a withdrawer, save it to state
-        Some(addr) => WITHDRAWER.save(deps.storage, &addr)?,
-        // Error if no withdrawer
-        None => return Err(ContractError::NoInitialWithdrawer {}),
-    }
-    LP_ADDRESS.save(deps.storage, &msg.lp_address)?;
+    let withdrawer = deps.api.addr_validate(&msg.withdrawer)?;
+    let lp_addr = deps.api.addr_validate(&msg.lp_address)?;
 
-    Ok(Response::default().add_attribute("method", "instantiate"))
+    WITHDRAWER.save(deps.storage, &withdrawer)?;
+    LP_ADDRESS.save(deps.storage, &lp_addr)?;
+
+    Ok(Response::default()
+        .add_attribute("method", "instantiate")
+        .add_attribute("withdrawer", withdrawer)
+        .add_attribute("lp_address", lp_addr))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Withdrawer {} => Ok(to_binary(&WITHDRAWER.may_load(deps.storage)?)?),
+        QueryMsg::LpAddress {} => Ok(to_binary(&LP_ADDRESS.may_load(deps.storage)?)?),
     }
 }
 
@@ -55,24 +53,34 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::Withdraw { quantity } => withdraw(deps, env, info, quantity),
+        ExecuteMsg::WithdrawLiquidity {} => try_withdraw_liquidity(deps, env, info),
+        ExecuteMsg::Withdraw { quantity } => try_withdraw_balances(deps, env, info, quantity),
     }
 }
 
-// /// should be sent to the LP token contract associated with the pool
-// /// to withdraw liquidity from
-fn try_withdraw_liquidity(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+/// should be sent to the LP token contract associated with the pool
+/// to withdraw liquidity from
+fn try_withdraw_liquidity(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: withdrawing liquidity");
+
+    // we validate who is initiating the liquidity removal
+    let withdrawer = WITHDRAWER.load(deps.storage)?;
+    if withdrawer != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
 
     let lp_address = LP_ADDRESS.load(deps.storage)?;
 
-    let pair_info: astroport::asset::PairInfo = deps.querier.query_wasm_smart(
-        lp_address.to_string(),
-        &astroport::pair::QueryMsg::Pair {},
-    )?;
+    let pair_info: astroport::asset::PairInfo = deps
+        .querier
+        .query_wasm_smart(lp_address.to_string(), &astroport::pair::QueryMsg::Pair {})?;
 
     let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
-        pair_info.liquidity_token.to_string(),
+        pair_info.clone().liquidity_token,
         &cw20::Cw20QueryMsg::Balance {
             address: env.contract.address.to_string(),
         },
@@ -80,34 +88,32 @@ fn try_withdraw_liquidity(deps: DepsMut, env: Env) -> Result<Response, ContractE
 
     let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
     let withdraw_msg = &Cw20ExecuteMsg::Send {
-        contract: lp_address,
+        contract: lp_address.to_string(),
         amount: liquidity_token_balance.balance,
         msg: to_binary(withdraw_liquidity_hook)?,
     };
 
-    Ok(
-        Response::default()
-            .add_attribute("method", "try_withdraw")
-            .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: pair_info.liquidity_token.to_string(),
-                msg: to_binary(withdraw_msg)?,
-                funds: vec![],
-            })),
-    )
+    Ok(Response::default()
+        .add_attribute("method", "try_withdraw")
+        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: pair_info.liquidity_token.to_string(),
+            msg: to_binary(withdraw_msg)?,
+            funds: vec![],
+        })))
 }
 
-pub fn withdraw(
+pub fn try_withdraw_balances(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     quantity: Option<Vec<Coin>>,
 ) -> Result<Response, ContractError> {
-    let withdrawer = WITHDRAWER.load(deps.storage)?;
-
     // Check if the sender is the withdrawer
+    let withdrawer = WITHDRAWER.load(deps.storage)?;
     if info.sender != withdrawer {
         return Err(ContractError::Unauthorized {});
     }
+
     // if quantity is specified
     let amount = if let Some(quantity) = quantity {
         quantity
@@ -117,31 +123,43 @@ pub fn withdraw(
         // https://github.com/CosmWasm/wasmd/blob/master/x/wasm/internal/keeper/keeper.go#L185-L192
         deps.querier.query_all_balances(env.contract.address)?
     };
+
     Ok(Response::new()
+        .add_attribute("method", "try_withdraw")
         .add_message(BankMsg::Send {
             to_address: withdrawer.to_string(),
             amount,
-        })
-        .add_attribute("method", "withdraw"))
+        }))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
-        MigrateMsg::UpdateWithdrawer { withdrawer } => {
-            let withdrawer_addr = deps.api.addr_validate(&withdrawer)?;
-            WITHDRAWER.save(deps.storage, &withdrawer_addr)?;
+        MigrateMsg::UpdateConfig {
+            withdrawer,
+            lp_address,
+        } => {
+            let mut response = Response::default().add_attribute("method", "update_withdrawer");
 
-            Ok(Response::default())
+            if let Some(addr) = withdrawer {
+                WITHDRAWER.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
+                response = response.add_attribute("withdrawer", addr);
+            }
+
+            if let Some(addr) = lp_address {
+                LP_ADDRESS.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
+                response = response.add_attribute("lp_address", addr);
+            }
+
+            Ok(response)
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
             // This is a migrate message to update code id,
             // Data is optional base64 that we can parse to any data we would like in the future
             // let data: SomeStruct = from_binary(&data)?;
-            Ok(Response::default())
+            Ok(Response::default().add_attribute("method", "update_withdrawer"))
         }
-        MigrateMsg::WithdrawLiquidity {  } => try_withdraw_liquidity(deps, env),
     }
 }

@@ -383,7 +383,6 @@ fn try_get_single_side_lp_submsg(
     Ok(None)
 }
 
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
@@ -417,9 +416,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 HOLDER_ADDRESS.save(deps.storage, &holder_address)?;
             }
 
-            Ok(Response::default()
-                .add_attribute("method", "update_config")
-            )
+            Ok(Response::default().add_attribute("method", "update_config"))
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
             // This is a migrate message to update code id,

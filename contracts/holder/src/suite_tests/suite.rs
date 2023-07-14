@@ -24,7 +24,7 @@ impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
             instantiate: InstantiateMsg {
-                withdrawer: Some(DEFAULT_WITHDRAWER.to_string()),
+                withdrawer: DEFAULT_WITHDRAWER.to_string(),
                 lp_address: "stablepairpool".to_string(),
             },
             app: App::default(),
@@ -33,8 +33,13 @@ impl Default for SuiteBuilder {
 }
 
 impl SuiteBuilder {
-    pub fn with_withdrawer(mut self, w: Option<String>) -> Self {
-        self.instantiate.withdrawer = w;
+    pub fn with_withdrawer(mut self, addr: String) -> Self {
+        self.instantiate.withdrawer = addr;
+        self
+    }
+
+    pub fn with_lp(mut self, addr: String) -> Self {
+        self.instantiate.lp_address = addr;
         self
     }
 

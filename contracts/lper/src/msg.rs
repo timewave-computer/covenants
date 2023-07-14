@@ -1,6 +1,6 @@
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Uint128, Binary};
+use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
 use covenant_clock_derive::clocked;
 
 use crate::state::ContractState;
@@ -60,9 +60,7 @@ impl PresetLpFields {
         pool_address: String,
     ) -> InstantiateMsg {
         InstantiateMsg {
-            lp_position: LPInfo {
-                addr: pool_address,
-            },
+            lp_position: LPInfo { addr: pool_address },
             clock_address,
             holder_address,
             slippage_tolerance: self.slippage_tolerance,

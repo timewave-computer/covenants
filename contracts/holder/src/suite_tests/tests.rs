@@ -12,9 +12,19 @@ fn test_instantiate_and_query_withdrawer() {
 }
 
 #[test]
-#[should_panic(expected = "Initial withdrawer is required")]
-fn test_instantiate_with_no_withdrawer() {
-    SuiteBuilder::default().with_withdrawer(None).build();
+#[should_panic(expected = "Invalid input: address not normalized")]
+fn test_instantiate_invalid_withdrawer() {
+    SuiteBuilder::default()
+        .with_withdrawer("0Oo0Oo".to_string())
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "Invalid input: address not normalized")]
+fn test_instantiate_invalid_lp_addr() {
+    SuiteBuilder::default()
+        .with_lp("0Oo0Oo".to_string())
+        .build();
 }
 
 #[test]
