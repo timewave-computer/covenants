@@ -2,7 +2,6 @@ use std::fmt::Error;
 
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
-use cosmos_sdk_proto::ibc::core::client::v1::Height;
 use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -95,7 +94,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
-    
+
     // here we want to make sure that ica is created
     match current_state {
         ContractState::Instantiated => try_register_stride_ica(deps, env),
@@ -184,20 +183,10 @@ fn try_execute_transfer(
 
             Ok(Response::default()
                 .add_attribute("method", "try_execute_transfer")
-                .add_submessage(SubMsg::reply_on_success(submit_msg, TRANSFER_REPLY_ID))
-            )
+                .add_submessage(SubMsg::reply_on_success(submit_msg, TRANSFER_REPLY_ID)))
         }
         None => Err(NeutronError::Fmt(Error)),
     }
-}
-
-fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
-    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-    let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
-
-    Ok(Response::default()
-        .add_attribute("method", "try_completed")
-        .add_message(msg))
 }
 
 #[allow(unused)]
@@ -366,9 +355,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 LS_DENOM.save(deps.storage, &ls_denom)?;
             }
 
-            Ok(Response::default()
-                .add_attribute("method", "update_config")
-            )
+            Ok(Response::default().add_attribute("method", "update_config"))
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
             // This is a migrate message to update code id,
@@ -405,9 +392,7 @@ fn sudo_open_ack(
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default()
-            .add_attribute("method", "sudo_open_ack")
-        );
+        return Ok(Response::default().add_attribute("method", "sudo_open_ack"));
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
 }
@@ -452,8 +437,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         add_error_to_queue(deps.storage, error_msg.to_string());
         return Ok(Response::default()
             .add_attribute("method", "sudo_open_ack")
-            .add_attribute("error", "no_payload")
-        );
+            .add_attribute("error", "no_payload"));
     }
 
     deps.api
@@ -502,9 +486,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         )?;
     }
 
-    Ok(Response::default()
-        .add_attribute("method", "sudo_response")
-    )
+    Ok(Response::default().add_attribute("method", "sudo_response"))
 }
 
 fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<Response> {
@@ -557,9 +539,7 @@ fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<R
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
 
-    Ok(Response::default()
-        .add_attribute("method", "sudo_timeout")
-    )
+    Ok(Response::default().add_attribute("method", "sudo_timeout"))
 }
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {
@@ -605,9 +585,7 @@ fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResu
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
 
-    Ok(Response::default()
-        .add_attribute("method", "sudo_error")
-    )
+    Ok(Response::default().add_attribute("method", "sudo_error"))
 }
 
 // prepare_sudo_payload is called from reply handler
