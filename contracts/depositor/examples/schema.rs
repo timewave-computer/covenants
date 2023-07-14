@@ -1,5 +1,5 @@
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
-use covenant_depositor::msg::{InstantiateMsg, ExecuteMsg, QueryMsg};
+use covenant_depositor::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use neutron_sdk::bindings::query::QueryInterchainAccountAddressResponse;
 use neutron_sdk::sudo::msg::SudoMsg;
 use std::env::current_dir;

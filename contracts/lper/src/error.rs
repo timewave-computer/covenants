@@ -7,5 +7,17 @@ pub enum ContractError {
     Std(#[from] StdError),
 
     #[error("Not clock")]
-    ClockVerificationError {}
+    ClockVerificationError {},
+
+    #[error("Single side LP limit exceeded")]
+    SingleSideLpLimitError {},
+
+    #[error("Non zero balances for single side liquidity")]
+    SingleSideLpNonZeroBalanceError {},
+
+    #[error("Zero balance for double side liquidity")]
+    DoubleSideLpZeroBalanceError {},
+
+    #[error("Insufficient funds for double sided LP")]
+    DoubleSideLpLimitError {},
 }

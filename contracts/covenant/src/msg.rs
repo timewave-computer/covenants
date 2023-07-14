@@ -1,23 +1,20 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Addr;
-use covenant_clock::msg::InstantiateMsg as ClockInstantiateMsg;
-use covenant_depositor::msg::InstantiateMsg as DepositorInstantiateMsg;
-use covenant_holder::msg::InstantiateMsg as HolderInstantiateMsg;
-use covenant_lp::msg::InstantiateMsg as LpInstantiateMsg;
-use covenant_ls::msg::InstantiateMsg as LsInstantiateMsg;
+use covenant_clock::msg::PresetClockFields;
+use covenant_depositor::msg::PresetDepositorFields;
+use covenant_holder::msg::PresetHolderFields;
+use covenant_lp::msg::PresetLpFields;
+use covenant_ls::msg::PresetLsFields;
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub clock_code: u64,
-    pub clock_instantiate: ClockInstantiateMsg,
-    pub ls_code: u64,
-    pub ls_instantiate: LsInstantiateMsg,
-    pub depositor_code: u64,
-    pub depositor_instantiate: DepositorInstantiateMsg,
-    pub lp_code: u64,
-    pub lp_instantiate: LpInstantiateMsg,
-    pub holder_code: u64,
-    pub holder_instantiate: HolderInstantiateMsg,
+    pub label: String,
+    pub preset_clock_fields: PresetClockFields,
+    pub preset_ls_fields: PresetLsFields,
+    pub preset_depositor_fields: PresetDepositorFields,
+    pub preset_lp_fields: PresetLpFields,
+    pub preset_holder_fields: PresetHolderFields,
+    pub pool_address: String,
     pub ibc_msg_transfer_timeout_timestamp: Option<u64>,
 }
 
@@ -37,11 +34,13 @@ pub enum QueryMsg {
     LsAddress {},
     #[returns(Addr)]
     HolderAddress {},
+    #[returns(Addr)]
+    PoolAddress {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
-    UpdateConfig {
+    MigrateContracts {
         clock: Option<covenant_clock::msg::MigrateMsg>,
         depositor: Option<covenant_depositor::msg::MigrateMsg>,
         lp: Option<covenant_lp::msg::MigrateMsg>,

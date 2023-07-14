@@ -18,6 +18,6 @@ pub enum ContractError {
     #[error("SubMsg reply error")]
     ReplyError { err: String },
 
-    #[error("Failed to instantiate contract")]
-    ContractInstantiationError {},
+    #[error("Failed to instantiate {contract:?} contract")]
+    ContractInstantiationError { contract: String },
 }

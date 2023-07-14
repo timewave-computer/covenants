@@ -11,7 +11,6 @@ pub enum ContractError {
 
     #[error("Attempt to deposit zero")]
     ZeroDeposit {},
-
     // #[error("Depositor and clock should be instantiated by the same address")]
     // InstantiatorMissmatch {},
 }

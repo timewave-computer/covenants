@@ -15,10 +15,7 @@ use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg};
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
@@ -37,23 +34,14 @@ use neutron_sdk::{
 };
 
 const NEUTRON_DENOM: &str = "untrn";
-const STATOM_DENOM: &str = "stuatom";
+// const STATOM_DENOM: &str = "stuatom";
 
 const INTERCHAIN_ACCOUNT_ID: &str = "stride-ica";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ls";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-struct OpenAckVersion {
-    version: String,
-    controller_connection_id: String,
-    host_connection_id: String,
-    address: String,
-    encoding: String,
-    tx_type: String,
-}
+const TRANSFER_REPLY_ID: u64 = 3u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -79,7 +67,9 @@ pub fn instantiate(
     LS_DENOM.save(deps.storage, &msg.ls_denom)?;
     IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.save(deps.storage, &msg.ibc_msg_transfer_timeout_timestamp)?;
 
-    Ok(Response::default().add_message(clock_enqueue_msg))
+    Ok(Response::default()
+        .add_attribute("method", "instantiate")
+        .add_message(clock_enqueue_msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -93,6 +83,7 @@ pub fn execute(
         .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
+        ExecuteMsg::Transfer { amount } => try_execute_transfer(deps, env, info, amount),
         ExecuteMsg::Received {} => try_handle_received(),
     }
 }
@@ -102,16 +93,11 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
-    let ica_address: Result<String, StdError> = ICA_ADDRESS.load(deps.storage);
-    let _gaia_account_address = match ica_address {
-        Ok(addr) => addr,
-        Err(_) => "todo".to_string(),
-    };
-
+    
+    // here we want to make sure that ica is created
     match current_state {
         ContractState::Instantiated => try_register_stride_ica(deps, env),
-        ContractState::ICACreated => try_execute_transfer(deps, env, info),
-        ContractState::Complete => try_completed(deps),
+        ContractState::ICACreated => Ok(Response::default()),
     }
 }
 
@@ -125,13 +111,17 @@ fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
     INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
 
-    Ok(Response::new().add_message(register))
+    Ok(Response::new()
+        .add_attribute("method", "try_register_stride_ica")
+        .add_message(register))
 }
 
+// permisionless transfer
 fn try_execute_transfer(
     deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
+    amount: Uint128,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let fee = IbcFee {
         recv_fee: vec![], // must be empty
@@ -153,10 +143,11 @@ fn try_execute_transfer(
             let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
             let timeout_timestamp = IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP.load(deps.storage)?;
+            let denom = LS_DENOM.load(deps.storage)?;
 
             let coin = Coin {
-                denom: STATOM_DENOM.to_string(),
-                amount: "10".to_string(),
+                denom,
+                amount: amount.to_string(),
             };
 
             let msg = MsgTransfer {
@@ -199,11 +190,11 @@ fn try_execute_transfer(
                 },
             )?;
         
-            Ok(Response::default().add_submessages(vec![submsg]))
-        }
-        None => {
-            Err(NeutronError::Fmt(Error))
-        }
+            Ok(Response::default()
+                .add_attribute("method", "try_execute_transfer")
+                .add_submessages(vec![submsg]))
+        },
+        None => Err(NeutronError::Fmt(Error)),
     }
 }
 
@@ -211,7 +202,9 @@ fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>> {
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
-    Ok(Response::default().add_message(msg))
+    Ok(Response::default()
+        .add_attribute("method", "try_completed")
+        .add_message(msg))
 }
 
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
@@ -249,6 +242,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             connection_id,
         } => query_interchain_address(deps, env, interchain_account_id, connection_id),
         QueryMsg::StrideICA {} => Ok(to_binary(&ICA_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
     }
 }
 
@@ -378,6 +372,14 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
                 LS_DENOM.save(deps.storage, &ls_denom)?;
             }
 
+            Ok(Response::default()
+                .add_attribute("method", "update_config")
+            )
+        }
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
             Ok(Response::default())
         },
         MigrateMsg::ReregisterICA {  } => {
@@ -420,7 +422,10 @@ fn sudo_open_ack(
         let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
         let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
     
-        return Ok(Response::default().add_message(clock_enqueue_msg));
+        return Ok(Response::default()
+            .add_attribute("method", "sudo_open_ack")
+            .add_message(clock_enqueue_msg)
+        );
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
 }
@@ -450,7 +455,10 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
         deps.api.debug(error_msg);
         add_error_to_queue(deps.storage, error_msg.to_string());
-        return Ok(Response::default());
+        return Ok(Response::default()
+            .add_attribute("method", "sudo_open_ack")
+            .add_attribute("error", "no_payload")
+        );
     }
 
 
@@ -502,14 +510,17 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         if payload.message == "ica_transfer" {
             // succesfull sudo response here means transfer was a success.
             // we advance the state to completed
-            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+            // CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
         }
     }
 
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
 
-    Ok(Response::default().add_message(clock_enqueue_msg))
+    Ok(Response::default()
+        .add_message(clock_enqueue_msg)
+        .add_attribute("method", "sudo_response")
+    )
 }
 
 fn sudo_timeout(deps: DepsMut, env: Env, request: RequestPacket) -> StdResult<Response> {
@@ -524,7 +535,10 @@ fn sudo_timeout(deps: DepsMut, env: Env, request: RequestPacket) -> StdResult<Re
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&clock_addr.to_string())?;
 
-    Ok(Response::default().add_message(clock_enqueue_msg))
+    Ok(Response::default()
+        .add_attribute("method", "sudo_timeout")
+        .add_message(clock_enqueue_msg)
+    )
 }
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {
@@ -569,7 +583,9 @@ fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResu
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
 
-    Ok(Response::default())
+    Ok(Response::default()
+        .add_attribute("method", "sudo_error")
+    )
 }
 
 // prepare_sudo_payload is called from reply handler
@@ -613,9 +629,21 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
         .debug(format!("WASMDEBUG: reply msg: {:?}", msg).as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
+        TRANSFER_REPLY_ID => handle_transfer_reply(deps, env, msg),
         _ => Err(StdError::generic_err(format!(
             "unsupported reply message id {}",
             msg.id
         ))),
     }
+}
+
+pub fn handle_transfer_reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: transfer reply");
+    // if transfer errors, we roll back to instantiated state
+    // this will force an attempt to re-register the ICA
+    if msg.result.is_err() {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+    }
+
+    Ok(Response::default().add_attribute("method", "handle_transfer_reply"))
 }

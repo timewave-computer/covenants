@@ -1,11 +1,28 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Coin, Addr};
+use cosmwasm_std::{Addr, Binary, Coin};
 
 #[cw_serde]
 pub struct InstantiateMsg {
     /// A withdrawer is the only authorized address that can withdraw
     /// from the contract. Anyone can instantiate the contract.
-    pub withdrawer: Option<String>,
+    pub withdrawer: String,
+    pub lp_address: String,
+}
+
+#[cw_serde]
+pub struct PresetHolderFields {
+    pub withdrawer: String,
+    pub holder_code: u64,
+    pub label: String,
+}
+
+impl PresetHolderFields {
+    pub fn to_instantiate_msg(self, lp_address: String) -> InstantiateMsg {
+        InstantiateMsg {
+            withdrawer: self.withdrawer,
+            lp_address,
+        }
+    }
 }
 
 #[cw_serde]
@@ -13,9 +30,7 @@ pub enum ExecuteMsg {
     /// The withdraw message can only be called by the withdrawer
     /// The withdraw can specify a quanity to be withdrawn. If no
     /// quantity is specified, the full balance is withdrawn
-    Withdraw {
-        quantity: Option<Vec<Coin>>,
-    },
+    Withdraw { quantity: Option<Vec<Coin>> },
 }
 
 #[cw_serde]
@@ -28,5 +43,7 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub enum MigrateMsg {
-    UpdateWithdrawer { withdrawer: String},
+    UpdateWithdrawer { withdrawer: String },
+    UpdateCodeId { data: Option<Binary> },
+    WithdrawLiquidity {},
 }

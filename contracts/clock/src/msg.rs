@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Addr;
 
+use cosmwasm_std::Binary;
 use cosmwasm_std::Uint64;
 use covenant_clock_derive::clocked;
 
@@ -17,6 +18,27 @@ pub struct InstantiateMsg {
     ///
     /// This value may be updated later by the contract admin.
     pub tick_max_gas: Uint64,
+}
+
+#[cw_serde]
+pub struct PresetClockFields {
+    pub tick_max_gas: Option<Uint64>,
+    pub clock_code: u64,
+    pub label: String,
+}
+
+impl PresetClockFields {
+    pub fn to_instantiate_msg(self) -> InstantiateMsg {
+        let tick_max_gas = if let Some(tmg) = self.tick_max_gas {
+            // todo: find some min reasonable value
+            tmg.min(Uint64::new(100000))
+        } else {
+            // todo: find some reasonable default value
+            Uint64::new(2000000)
+        };
+
+        InstantiateMsg { tick_max_gas }
+    }
 }
 
 #[clocked] // Adds a `Tick {}` message which can be called permissionlessly to advance the clock.
@@ -70,5 +92,10 @@ pub enum MigrateMsg {
     /// Updates the max gas allowed to be consumed by a tick. This
     /// should be no larger than 100_000 less the block max gas so as
     /// to save enough gas to process the tick's error.
-    UpdateTickMaxGas { new_value: Uint64 },
+    UpdateTickMaxGas {
+        new_value: Uint64,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
+    },
 }

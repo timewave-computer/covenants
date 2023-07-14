@@ -6,11 +6,16 @@ pub const DEPOSITOR_CODE: Item<u64> = Item::new("depositor_code");
 pub const CLOCK_CODE: Item<u64> = Item::new("clock_code");
 pub const HOLDER_CODE: Item<u64> = Item::new("holder_code");
 
-pub const LS_INSTANTIATION_DATA: Item<covenant_ls::msg::InstantiateMsg> = Item::new("ls_instantiation_data");
-pub const LP_INSTANTIATION_DATA: Item<covenant_lp::msg::InstantiateMsg> = Item::new("lp_instantiation_data");
-pub const DEPOSITOR_INSTANTIATION_DATA: Item<covenant_depositor::msg::InstantiateMsg> = Item::new("depositor_instantiation_data");
-pub const CLOCK_INSTANTIATION_DATA: Item<covenant_clock::msg::InstantiateMsg> = Item::new("clock_instantiation_data");
-pub const HOLDER_INSTANTIATION_DATA: Item<covenant_holder::msg::InstantiateMsg> = Item::new("holder_instantiation_data");
+pub const PRESET_LS_FIELDS: Item<covenant_ls::msg::PresetLsFields> = Item::new("preset_ls_fields");
+pub const PRESET_LP_FIELDS: Item<covenant_lp::msg::PresetLpFields> = Item::new("preset_lp_fields");
+pub const PRESET_DEPOSITOR_FIELDS: Item<covenant_depositor::msg::PresetDepositorFields> =
+    Item::new("preset_depositor_fields");
+pub const PRESET_CLOCK_FIELDS: Item<covenant_clock::msg::PresetClockFields> =
+    Item::new("preset_clock_fields");
+pub const PRESET_HOLDER_FIELDS: Item<covenant_holder::msg::PresetHolderFields> =
+    Item::new("preset_holder_fields");
+
+pub const POOL_ADDRESS: Item<String> = Item::new("pool_address");
 
 pub const IBC_MSG_TRANSFER_TIMEOUT_TIMESTAMP: Item<u64> = Item::new("timeout");
 

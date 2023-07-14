@@ -1,6 +1,6 @@
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_std::{Addr, Coin};
 use cw_multi_test::{App, AppBuilder, AppResponse, Executor};
-use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg};
 
 use super::holder_contract;
 
@@ -12,6 +12,7 @@ pub struct Suite {
     pub holder: Addr,
     pub admin: Addr,
     pub holder_code_id: u64,
+    pub pool_address: String,
 }
 
 pub struct SuiteBuilder {
@@ -22,29 +23,25 @@ pub struct SuiteBuilder {
 impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
-            instantiate: InstantiateMsg {withdrawer: Some(DEFAULT_WITHDRAWER.to_string())},
+            instantiate: InstantiateMsg {
+                withdrawer: DEFAULT_WITHDRAWER.to_string(),
+                lp_address: "stablepairpool".to_string(),
+            },
             app: App::default(),
         }
     }
 }
 
 impl SuiteBuilder {
-    pub fn with_withdrawer(mut self, w: Option<String>) -> Self {
+    pub fn with_withdrawer(mut self, w: String) -> Self {
         self.instantiate.withdrawer = w;
         self
     }
 
     pub fn with_funded_user(mut self, user: Addr, amount: Vec<Coin>) -> Self {
         self.app = AppBuilder::new().build(|router, _, storage| {
-            router
-                .bank
-                .init_balance(
-                    storage,
-                    &user,
-                    amount,
-                )
-                .unwrap();
-            });
+            router.bank.init_balance(storage, &user, amount).unwrap();
+        });
         self
     }
 
@@ -66,6 +63,7 @@ impl SuiteBuilder {
             holder,
             admin: Addr::unchecked(ADMIN),
             holder_code_id: holder_code,
+            pool_address: self.instantiate.lp_address,
         }
     }
 }
@@ -73,11 +71,17 @@ impl SuiteBuilder {
 // actions
 impl Suite {
     /// sends a message on caller's behalf to withdraw a specified amount of tokens
-    pub fn withdraw_tokens(&mut self, caller: &str, quantity: Vec<Coin>) -> anyhow::Result<AppResponse> {
+    pub fn withdraw_tokens(
+        &mut self,
+        caller: &str,
+        quantity: Vec<Coin>,
+    ) -> anyhow::Result<AppResponse> {
         self.app.execute_contract(
             Addr::unchecked(caller),
             self.holder.clone(),
-            &ExecuteMsg::Withdraw { quantity: Some(quantity) },
+            &ExecuteMsg::Withdraw {
+                quantity: Some(quantity),
+            },
             &[],
         )
     }
@@ -97,22 +101,22 @@ impl Suite {
 impl Suite {
     pub fn query_withdrawer(&self) -> Addr {
         self.app
-        .wrap()
-        .query_wasm_smart(&self.holder, &QueryMsg::Withdrawer {})
-        .unwrap()
+            .wrap()
+            .query_wasm_smart(&self.holder, &QueryMsg::Withdrawer {})
+            .unwrap()
     }
 }
 
 // helper
 impl Suite {
-    pub fn fund_holder(&mut self, funder:Addr, tokens: Vec<Coin>) -> anyhow::Result<AppResponse> {
-        self.app
-        .send_tokens(funder, self.holder.clone(), &tokens)
+    pub fn fund_holder(&mut self, funder: Addr, tokens: Vec<Coin>) -> anyhow::Result<AppResponse> {
+        self.app.send_tokens(funder, self.holder.clone(), &tokens)
     }
 
     pub fn assert_holder_balance(&mut self, tokens: Vec<Coin>) {
         for c in &tokens {
-            let queried_amount = self.app
+            let queried_amount = self
+                .app
                 .wrap()
                 .query_balance(self.holder.to_string(), c.denom.clone())
                 .unwrap();
@@ -122,12 +126,12 @@ impl Suite {
 
     pub fn assert_withdrawer_balance(&mut self, tokens: Vec<Coin>) {
         for c in &tokens {
-            let queried_amount = self.app
+            let queried_amount = self
+                .app
                 .wrap()
                 .query_balance(DEFAULT_WITHDRAWER.to_string(), c.denom.clone())
                 .unwrap();
             assert_eq!(&queried_amount, c);
         }
     }
-
 }

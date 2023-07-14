@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Storage, StdResult, from_binary, Binary, Order, to_vec};
+use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -25,7 +25,6 @@ pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 pub enum ContractState {
     Instantiated,
     ICACreated,
-    Complete,
 }
 
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");

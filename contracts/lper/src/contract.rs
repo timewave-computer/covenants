@@ -1,28 +1,27 @@
-
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    Uint128, WasmMsg, Reply,
+    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
+    StdResult, SubMsg, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 
 use astroport::{
     asset::{Asset, AssetInfo},
-    pair::{Cw20HookMsg, ExecuteMsg::ProvideLiquidity, SimulationResponse},
+    pair::{ExecuteMsg::ProvideLiquidity, SimulationResponse},
 };
-use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
 use crate::{
+    error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::{HOLDER_ADDRESS, LP_POSITION, ASSETS, SLIPPAGE_TOLERANCE, AUTOSTAKE}, error::ContractError,
+    state::{
+        ProvidedLiquidityInfo, ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION,
+        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE,
+    },
 };
 
-use neutron_sdk::{
-    bindings::{msg::NeutronMsg},
-    NeutronResult,
-};
+use neutron_sdk::NeutronResult;
 
 use crate::state::{ContractState, CLOCK_ADDRESS, CONTRACT_STATE};
 
@@ -31,7 +30,8 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 // type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
-
+const DOUBLE_SIDED_REPLY_ID: u64 = 321u64;
+const SINGLE_SIDED_REPLY_ID: u64 = 322u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -39,7 +39,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError>  {
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: lp instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
@@ -50,12 +50,19 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     LP_POSITION.save(deps.storage, &msg.lp_position)?;
     HOLDER_ADDRESS.save(deps.storage, &msg.holder_address)?;
-    let assets: Vec<Asset> = msg.assets.into_iter()
-        .collect();
-        
-    ASSETS.save(deps.storage, &assets)?;
+    ASSETS.save(deps.storage, &msg.assets)?;
+    SINGLE_SIDED_LP_LIMITS.save(deps.storage, &msg.single_side_lp_limits)?;
+    PROVIDED_LIQUIDITY_INFO.save(
+        deps.storage,
+        &ProvidedLiquidityInfo {
+            provided_amount_ls: Uint128::zero(),
+            provided_amount_native: Uint128::zero(),
+        },
+    )?;
 
-    Ok(Response::default().add_message(clock_enqueue_msg))
+    Ok(Response::default()
+        .add_attribute("method", "instantiate")
+        .add_message(clock_enqueue_msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -68,7 +75,6 @@ pub fn execute(
     // validate clock
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::WithdrawLiquidity {} => try_withdraw(deps, env, info),
     }
 }
 
@@ -77,223 +83,315 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     let is_clock = verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?);
     match is_clock {
         Ok(_) => (),
-        Err(_err) => return Err(ContractError::ClockVerificationError {  }),
+        Err(_err) => return Err(ContractError::ClockVerificationError {}),
     }
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
-
+    println!("\n tick state: {:?}", current_state);
     match current_state {
-        ContractState::Instantiated => try_enter_lp_position(deps, env, info),
-        ContractState::LpPositionEntered => no_op(),
-        ContractState::LpPositionExited => no_op(),
-        ContractState::WithdrawComplete => no_op(),
+        ContractState::Instantiated => try_lp(deps, env, info),
+        ContractState::WithdrawComplete => try_completed(deps),
     }
 }
 
-fn no_op() -> Result<Response, ContractError> {
-    Ok(Response::default())
-}
+fn try_lp(mut deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
+    let contract_addr = env.contract.address;
+    // we try to submit a double-sided liquidity message first
+    let double_sided_submsg =
+        try_get_double_side_lp_submsg(deps.branch(), contract_addr.to_string())?;
+    deps.api.debug("Trying to double-side lp...");
+    if let Some(msg) = double_sided_submsg {
+        return Ok(Response::default()
+            .add_submessage(msg)
+            .add_attribute("method", "double_side_lp"));
+    }
+    deps.api.debug("Trying to single-side lp...");
+    // if ds msg fails, try to submit a single-sided liquidity message
+    let single_sided_submsg =
+        try_get_single_side_lp_submsg(deps.branch(), contract_addr.to_string())?;
+    if let Some(msg) = single_sided_submsg {
+        return Ok(Response::default()
+            .add_submessage(msg)
+            .add_attribute("method", "single_side_lp"));
+    }
 
-fn try_enter_lp_position(
-    deps: DepsMut,
-    env: Env,
-    _info: MessageInfo, 
-) -> Result<Response, ContractError> {
-    let pool_address = LP_POSITION.load(deps.storage)?;
-    let slippage_tolerance = SLIPPAGE_TOLERANCE
-        .may_load(deps.storage)?;
-    let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
-    let assets = ASSETS.load(deps.storage)?;
-    let first_asset = &assets[0];
-    
-    // figure out how much of second asset can we get with one of first asset
-    let simulation: SimulationResponse = deps.querier.query_wasm_smart(
-        &pool_address.addr, 
-        &astroport::pair::QueryMsg::Simulation {
-            offer_asset: first_asset.to_owned(),
-            ask_asset_info: Some(assets[1].info.to_owned()),
-        }
-    )?;
-
-    let (leftover_asset, leftover_asset_counterpart) = if first_asset.amount > simulation.return_amount {
-        (
-            Asset {
-                info: assets[1].clone().info,
-                amount: first_asset.amount - simulation.return_amount,
-            },
-            Asset {
-                info: assets[0].clone().info,
-                amount: Uint128::zero(),
-            },
-        )
-    } else {
-        (
-            Asset {
-                info: assets[0].clone().info,
-                amount: simulation.return_amount - first_asset.amount,
-            },
-            Asset {
-                info: assets[1].clone().info,
-                amount: Uint128::zero(),
-            }
-        )
-        
-    };
-    let (leftover_bal, _leftover_bal_counterpart) = (leftover_asset.to_coin()?, leftover_asset_counterpart.to_coin()?);
-
-
-    deps.api.debug(
-        &format!("\nWASMDEBUG: {:?}{:?} = {:?}{:?}\n",
-        first_asset.amount, first_asset.to_coin()?.denom, simulation.return_amount, assets[1].to_coin()?.denom
-    ));
-    deps.api.debug(
-        &format!("WASMDEBUG: leftover asset: {:?}\n", leftover_bal)
-    );
-
-
-    println!("\n coin balances: {:?}", deps.querier.query_all_balances(env.contract.clone().address)?);
-
-    let balances: Vec<Coin> = deps.querier.query_all_balances(env.contract.address)?
-        .into_iter()
-        .filter(|coin| {
-            let mut valid_balance = false;
-            for asset in assets.clone() {
-                match asset.info {
-                    AssetInfo::Token { contract_addr } => {
-                        if coin.denom == contract_addr {
-                            valid_balance = false
-                        }
-                    },
-                    AssetInfo::NativeToken { denom } => {
-                        if coin.denom == denom {
-                            valid_balance = true
-                        }
-                    },
-                }
-            }
-            valid_balance
-        })
-        .map(|mut c| {
-            // convert balances according to simulation
-            if c.denom == leftover_bal.denom {
-                // if its the coin with leftovers, subtract
-                c.amount -= leftover_bal.amount;
-            }
-            c
-        })
-        .collect();
-
-    println!("\n after sim coin balances: {:?}", balances);
-
-    // generate astroport Assets from balances
-    let assets: Vec<Asset> = balances
-        .clone()
-        .into_iter()
-        .map(|bal| Asset {
-            info: AssetInfo::NativeToken { denom: bal.denom },
-            amount: bal.amount,
-        })
-        .collect();
-
-    let provide_liquidity_msg = ProvideLiquidity {
-        assets,
-        slippage_tolerance,
-        auto_stake,
-        receiver: None,
-    };
-
-    // We can safely dequeue the clock here
-    // if PL fails, dequeue wont happen and we will just try again.
-    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-    let dequeue_clock_msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
-
-    let single_sided_liq_msg = ProvideLiquidity { 
-        assets: vec![leftover_asset, leftover_asset_counterpart], 
-        slippage_tolerance, 
-        auto_stake, 
-        receiver: None,
-    };
-    
+    deps.api
+        .debug("Neither single nor double-sided liquidity can be provided");
+    // if neither worked, we do not advance the state machine and
+    // keep waiting for more funds to arrive
     Ok(Response::default()
-        .add_messages(vec![
-            CosmosMsg::Wasm(WasmMsg::Execute { 
-                contract_addr: pool_address.addr.to_string(),
-                msg: to_binary(&provide_liquidity_msg)?,
-                funds: balances,
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute { 
-                contract_addr: pool_address.addr,
-                msg: to_binary(&single_sided_liq_msg)?,
-                funds: vec![leftover_bal],
-            }),
-            CosmosMsg::Wasm(dequeue_clock_msg)
-        ])
-    )
+        .add_attribute("method", "try_lp")
+        .add_attribute("status", "not enough funds"))
 }
 
-/// should be sent to the LP token contract associated with the pool
-/// to withdraw liquidity from
-fn try_withdraw(
-    deps: DepsMut,
-    env: Env,
-    _info: MessageInfo,
-) -> Result<Response, ContractError> {
-    let pool_address = LP_POSITION.load(deps.storage)?;
-    let assets = ASSETS.load(deps.storage)?;
-    deps.api.debug(&format!("withdraw assets: {:?}", assets));
-
-    let pair_info: astroport::asset::PairInfo = deps.querier.query_wasm_smart(
-        pool_address.addr.to_string(),
-        &astroport::pair::QueryMsg::Pair {  },
-    )?;
-
-    let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
-        pair_info.liquidity_token.to_string(),
-        &cw20::Cw20QueryMsg::Balance { address: env.contract.address.to_string() }
-    )?;
-
-    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
-    let withdraw_msg = &Cw20ExecuteMsg::Send {
-        contract: pool_address.addr,
-        amount: liquidity_token_balance.balance,
-        msg: to_binary(withdraw_liquidity_hook)?,
-    };
-
-    Ok(Response::default().add_message(
-        CosmosMsg::Wasm(WasmMsg::Execute { 
-            contract_addr: pair_info.liquidity_token.to_string(),
-            msg: to_binary(withdraw_msg)?,
-            funds: vec![],
-        })
-    ))
-}
-
-#[allow(unused)]
-fn try_completed(deps: DepsMut) -> NeutronResult<Response<NeutronMsg>>  {
-  let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-  let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
+fn try_completed(deps: DepsMut) -> Result<Response, ContractError> {
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
 
     Ok(Response::default().add_message(msg))
 }
 
+fn get_relevant_balances(coins: Vec<Coin>, ls_denom: String, native_denom: String) -> (Coin, Coin) {
+    let mut native_bal = Coin::default();
+    let mut ls_bal = Coin::default();
+
+    for c in coins {
+        if c.denom == ls_denom {
+            // found ls balance
+            ls_bal = c;
+        } else if c.denom == native_denom {
+            // found native token balance
+            native_bal = c;
+        }
+    }
+
+    (native_bal, ls_bal)
+}
+
+// here we try to provide double sided liquidity.
+// we don't care about the amounts; just try to provide as much as possible
+fn try_get_double_side_lp_submsg(
+    deps: DepsMut,
+    lp_contract: String,
+) -> Result<Option<SubMsg>, ContractError> {
+    let pool_address = LP_POSITION.load(deps.storage)?;
+    let slippage_tolerance = SLIPPAGE_TOLERANCE.may_load(deps.storage)?;
+    let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
+    let asset_data = ASSETS.load(deps.storage)?;
+
+    let bal_coins = deps.querier.query_all_balances(lp_contract)?;
+
+    // First we filter out non-relevant token balances
+    let (native_bal, ls_bal) = get_relevant_balances(
+        bal_coins,
+        asset_data.clone().ls_asset_denom,
+        asset_data.clone().native_asset_denom,
+    );
+
+    // if either of the balances are zero we should provide single sided liquidity; exit
+    if native_bal.amount.is_zero() || ls_bal.amount.is_zero() {
+        deps.api.debug("Either native or ls balance is zero");
+        return Ok(None);
+    }
+
+    // TODO: check if we already received the expected amount of native asset?
+
+    // we run the simulation and see how much of asset two we need to provide.
+    let mut native_asset = Asset {
+        info: AssetInfo::NativeToken {
+            denom: native_bal.denom,
+        },
+        amount: native_bal.amount,
+    };
+
+    let simulation: SimulationResponse = deps.querier.query_wasm_smart(
+        &pool_address.addr,
+        &astroport::pair::QueryMsg::Simulation {
+            offer_asset: native_asset.clone(),
+            // asset_data.native_asset_info.clone(),
+            ask_asset_info: None,
+        },
+    )?;
+
+    let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
+
+    println!("double side lp sim resp: {:?}", simulation);
+    // Given a SimulationResponse, we have two possible cases:
+    // Case 1: The ask_amount of asset two, returned by simulation is less than the current balance of asset_two
+    if simulation.return_amount <= ls_bal.amount {
+        // This means that we will have left over LS tokens, if we are to provide double sided liquidity
+        // with the simulation ratio.
+        let ls_asset_double_sided = Asset {
+            info: asset_data.get_ls_asset_info(),
+            // we provide as much as needed to keep in balance with the queried amount
+            amount: simulation.return_amount,
+        };
+        let double_sided_liq_msg = ProvideLiquidity {
+            assets: vec![native_asset.clone(), ls_asset_double_sided.clone()],
+            slippage_tolerance,
+            auto_stake,
+            receiver: Some(holder_address),
+        };
+        println!("double sided liq msg: {:?}", double_sided_liq_msg);
+
+        // convert Asset to Coin types
+        let (native_coin, ls_coin) = (native_asset.to_coin()?, ls_asset_double_sided.to_coin()?);
+
+        // update the provided amounts and leftover assets
+        PROVIDED_LIQUIDITY_INFO.update(
+            deps.storage,
+            |mut info: ProvidedLiquidityInfo| -> StdResult<_> {
+                info.provided_amount_ls = info
+                    .provided_amount_ls
+                    .checked_add(ls_coin.clone().amount)?;
+                info.provided_amount_native = info
+                    .provided_amount_native
+                    .checked_add(native_coin.clone().amount)?;
+                Ok(info)
+            },
+        )?;
+
+        Ok(Some(SubMsg::reply_on_success(
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pool_address.addr,
+                msg: to_binary(&double_sided_liq_msg)?,
+                funds: vec![native_coin, ls_coin],
+            }),
+            DOUBLE_SIDED_REPLY_ID,
+        )))
+    } else {
+        // Case 2: The ask_amount of asset two, returned by simulation is greater than the current balance of asset_two
+
+        // This means that we will have leftover asset one after providing double sided liquidity with
+        // the total amount of asset two along with the required amount of asset one.
+
+        // We first figure out the amount of asset one to be used with proportions:
+        // native asset amount / ls asset simulation return = x / available ls amount
+        // x = available ls amount * native asset amount / ls asset simulation return
+        let native_asset_amt = ls_bal.amount * native_bal.amount / simulation.return_amount;
+        native_asset.amount = native_asset_amt;
+
+        let double_sided_ls_asset = Asset {
+            info: AssetInfo::NativeToken {
+                denom: asset_data.ls_asset_denom,
+            },
+            amount: ls_bal.amount,
+        };
+
+        // We should provide double sided liquidity regardless of left over.
+        let double_sided_liq_msg = ProvideLiquidity {
+            assets: vec![double_sided_ls_asset.clone(), native_asset.clone()],
+            slippage_tolerance,
+            auto_stake,
+            receiver: Some(holder_address),
+        };
+        println!("double sided liq msg: {:?}", double_sided_liq_msg);
+        // convert Asset to Coin types
+        let (native_coin, ls_coin) = (native_asset.to_coin()?, double_sided_ls_asset.to_coin()?);
+
+        // update the provided amounts and leftover assets
+        PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+            info.provided_amount_ls = info
+                .provided_amount_ls
+                .checked_add(ls_coin.clone().amount)?;
+            info.provided_amount_native = info
+                .provided_amount_native
+                .checked_add(native_coin.clone().amount)?;
+            Ok(info)
+        })?;
+
+        Ok(Some(SubMsg::reply_on_success(
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pool_address.addr,
+                msg: to_binary(&double_sided_liq_msg)?,
+                funds: vec![native_coin, ls_coin],
+            }),
+            DOUBLE_SIDED_REPLY_ID,
+        )))
+    }
+}
+
+fn try_get_single_side_lp_submsg(
+    deps: DepsMut,
+    lp_contract: String,
+) -> Result<Option<SubMsg>, ContractError> {
+    let pool_address = LP_POSITION.load(deps.storage)?;
+    let slippage_tolerance = SLIPPAGE_TOLERANCE.may_load(deps.storage)?;
+    let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
+    let asset_data = ASSETS.load(deps.storage)?;
+    let single_side_lp_limits = SINGLE_SIDED_LP_LIMITS.load(deps.storage)?;
+
+    let bal_coins = deps.querier.query_all_balances(lp_contract)?;
+
+    // First we filter out non-relevant token balances
+    let (native_bal, ls_bal) = get_relevant_balances(
+        bal_coins,
+        asset_data.clone().ls_asset_denom,
+        asset_data.clone().native_asset_denom,
+    );
+
+    println!("native bal\t: {:?}", native_bal);
+    println!("ls bal\t\t: {:?}", ls_bal);
+
+    let native_asset = Asset {
+        info: asset_data.get_native_asset_info(),
+        amount: native_bal.amount,
+    };
+    let ls_asset = Asset {
+        info: asset_data.get_ls_asset_info(),
+        amount: ls_bal.amount,
+    };
+
+    // if both balances are non-zero we should provide double sided liquidity
+    // if both balances are zero, we can't provide anything
+    // in both cases we exit
+    if (!native_bal.amount.is_zero() && !ls_bal.amount.is_zero())
+        || (native_bal.amount.is_zero() && ls_bal.amount.is_zero())
+    {
+        return Ok(None);
+    }
+
+    let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
+
+    // given one non-zero asset, we build the ProvideLiquidity message
+    let single_sided_liq_msg = ProvideLiquidity {
+        assets: vec![ls_asset, native_asset],
+        slippage_tolerance,
+        auto_stake,
+        receiver: Some(holder_address),
+    };
+
+    println!("single side liquidity msg: {:?}", single_sided_liq_msg);
+
+    // now we try to submit the message for either LS or native single side liquidity
+    if native_bal.amount.is_zero() && ls_bal.amount <= single_side_lp_limits.ls_asset_limit {
+        // if available ls token amount is within single side limits we build a single side msg
+        let submsg = SubMsg::reply_on_success(
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pool_address.addr,
+                msg: to_binary(&single_sided_liq_msg)?,
+                funds: vec![ls_bal.clone()],
+            }),
+            SINGLE_SIDED_REPLY_ID,
+        );
+        PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+            info.provided_amount_ls = info.provided_amount_ls.checked_add(ls_bal.amount)?;
+            Ok(info)
+        })?;
+        return Ok(Some(submsg));
+    } else if ls_bal.amount.is_zero()
+        && native_bal.amount <= single_side_lp_limits.native_asset_limit
+    {
+        // if available native token amount is within single side limits we build a single side msg
+        let submsg = SubMsg::reply_on_success(
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pool_address.addr,
+                msg: to_binary(&single_sided_liq_msg)?,
+                funds: vec![native_bal.clone()],
+            }),
+            SINGLE_SIDED_REPLY_ID,
+        );
+        PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+            info.provided_amount_native =
+                info.provided_amount_native.checked_add(native_bal.amount)?;
+            Ok(info)
+        })?;
+        return Ok(Some(submsg));
+    }
+
+    // if neither ls or native token single side lp message was built, we just go back and wait
+    Ok(None)
+}
+
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(
-            to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?
-        ),
-        QueryMsg::LpPosition {} => Ok(
-            to_binary(&LP_POSITION.may_load(deps.storage)?)?
-        ),
-        QueryMsg::ContractState {} => Ok(
-            to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?
-        ),
-        QueryMsg::HolderAddress {} => Ok(
-            to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?
-        ),
-        QueryMsg::Assets {} => Ok(
-            to_binary(&ASSETS.may_load(deps.storage)?)?
-        ),
+        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::LpPosition {} => Ok(to_binary(&LP_POSITION.may_load(deps.storage)?)?),
+        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
+        QueryMsg::HolderAddress {} => Ok(to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::Assets {} => Ok(to_binary(&ASSETS.may_load(deps.storage)?)?),
     }
 }
 
@@ -319,13 +417,51 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 HOLDER_ADDRESS.save(deps.storage, &holder_address)?;
             }
 
+            Ok(Response::default()
+                .add_attribute("method", "update_config")
+            )
+        }
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
             Ok(Response::default())
         }
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, _msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: reply");
-    Ok(Response::new())
+    println!("{:?}", msg.clone().result.unwrap());
+    match msg.id {
+        DOUBLE_SIDED_REPLY_ID => handle_double_sided_reply_id(deps, _env, msg),
+        SINGLE_SIDED_REPLY_ID => handle_single_sided_reply_id(deps, _env, msg),
+        _ => Err(ContractError::from(StdError::GenericErr {
+            msg: "err".to_string(),
+        })),
+    }
+}
+
+fn handle_double_sided_reply_id(
+    _deps: DepsMut,
+    _env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
+    // TODO: query balances here and if both are 0, exit?
+
+    Ok(Response::default()
+        .add_attribute("method", "handle_double_sided_reply_id")
+        .add_attribute("reply_id", msg.id.to_string()))
+}
+
+fn handle_single_sided_reply_id(
+    _deps: DepsMut,
+    _env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
+    // TODO: query balances here and if both are 0, exit?
+    Ok(Response::default()
+        .add_attribute("method", "handle_single_sided_reply_id")
+        .add_attribute("reply_id", msg.id.to_string()))
 }
