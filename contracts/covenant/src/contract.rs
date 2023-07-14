@@ -51,7 +51,7 @@ pub fn instantiate(
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
 
     POOL_ADDRESS.save(deps.storage, &msg.pool_address)?;
-    
+
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
         code_id: msg.preset_clock_fields.clock_code,
@@ -63,11 +63,7 @@ pub fn instantiate(
     // instantiate clock first
     Ok(Response::default()
         .add_attribute("method", "instantiate")
-        .add_submessage(SubMsg::reply_always(
-            clock_instantiate_tx,
-            CLOCK_REPLY_ID,
-        ))
-    )
+        .add_submessage(SubMsg::reply_always(clock_instantiate_tx, CLOCK_REPLY_ID)))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -99,18 +95,18 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             let holder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id,
-                msg: to_binary(&preset_holder_fields.clone().to_instantiate_msg(pool_address))?,
+                msg: to_binary(
+                    &preset_holder_fields
+                        .clone()
+                        .to_instantiate_msg(pool_address),
+                )?,
                 funds: vec![],
                 label: preset_holder_fields.label,
             });
 
             Ok(Response::default()
                 .add_attribute("method", "handle_clock_reply")
-                .add_submessage(SubMsg::reply_always(
-                    holder_instantiate_tx,
-                    HOLDER_REPLY_ID,
-                ))
-            )
+                .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
         }
         Err(_err) => Err(ContractError::ContractInstantiationError {
             contract: "clock".to_string(),
@@ -125,15 +121,17 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
     match parsed_data {
         Ok(response) => {
             COVENANT_HOLDER_ADDR.save(deps.storage, &response.contract_address)?;
-            
+
             let pool_address = POOL_ADDRESS.load(deps.storage)?;
             let code_id = LP_CODE.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let preset_lp_fields = PRESET_LP_FIELDS.load(deps.storage)?;
 
-            let instantiate_msg = preset_lp_fields
-                .clone()
-                .to_instantiate_msg(clock_addr, response.contract_address, pool_address);
+            let instantiate_msg = preset_lp_fields.clone().to_instantiate_msg(
+                clock_addr,
+                response.contract_address,
+                pool_address,
+            );
 
             let lp_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -184,8 +182,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
 
             Ok(Response::default()
                 .add_attribute("method", "handle_lp_reply")
-                .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID)
-            ))
+                .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID)))
         }
         Err(_err) => Err(ContractError::ContractInstantiationError {
             contract: "lp".to_string(),
@@ -227,8 +224,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 .add_submessage(SubMsg::reply_always(
                     depositor_instantiate_tx,
                     DEPOSITOR_REPLY_ID,
-                ))
-            )
+                )))
         }
         Err(_err) => Err(ContractError::ContractInstantiationError {
             contract: "ls".to_string(),
@@ -236,8 +232,11 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
     }
 }
 
-
-pub fn handle_depositor_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn handle_depositor_reply(
+    deps: DepsMut,
+    _env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: depositor reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
@@ -247,7 +246,9 @@ pub fn handle_depositor_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Res
 
             Ok(Response::default().add_attribute("method", "handle_depositor_reply"))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError { contract: "depositor".to_string() }),
+        Err(_err) => Err(ContractError::ContractInstantiationError {
+            contract: "depositor".to_string(),
+        }),
     }
 }
 

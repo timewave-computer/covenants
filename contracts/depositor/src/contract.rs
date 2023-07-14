@@ -107,9 +107,7 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
     match current_state {
         ContractState::Instantiated => try_register_gaia_ica(deps, env),
         ContractState::ICACreated => try_liquid_stake(deps, env, info, ica_address),
-        ContractState::LiquidStaked => {
-            try_receive_atom_from_ica(deps, env, info, ica_address)
-        }
+        ContractState::LiquidStaked => try_receive_atom_from_ica(deps, env, info, ica_address),
         ContractState::Complete => try_completed(deps),
     }
 }
@@ -131,7 +129,7 @@ fn try_liquid_stake(
     };
     STRIDE_ATOM_RECEIVER.update(deps.storage, |mut val| -> StdResult<_> {
         val.address = stride_ica_addr.clone();
-        Ok(val)  
+        Ok(val)
     })?;
 
     let fee = IbcFee {
@@ -491,8 +489,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
                 LS_ADDRESS.save(deps.storage, &ls_address)?;
             }
 
-            Ok(Response::default()        
-                .add_attribute("method", "update_config"))
+            Ok(Response::default().add_attribute("method", "update_config"))
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
             // This is a migrate message to update code id,

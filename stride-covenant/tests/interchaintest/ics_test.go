@@ -816,20 +816,8 @@ func TestICS(t *testing.T) {
 			stAtomWeightedReceiverAmount = WeightedReceiverAmount{
 				Amount: int64(10),
 			}
-<<<<<<< HEAD
-			slippageTolerance := "900_000_000_000_000_000"
-
-			lpMsg := LPerInstantiateMsg{
-				LpPosition:        lpInfo,
-				ClockAddress:      clockContractAddress,
-				HolderAddress:     holderContractAddress,
-				SlippageTolerance: &slippageTolerance,
-				Autostake:         nil,
-				Assets:            assets,
-=======
 			atomWeightedReceiverAmount = WeightedReceiverAmount{
 				Amount: int64(10),
->>>>>>> main
 			}
 			depositorMsg := PresetDepositorFields{
 				GaiaNeutronIBCTransferChannelId: gaiaNeutronTransferChannelId,
@@ -1010,61 +998,12 @@ func TestICS(t *testing.T) {
 			require.LessOrEqual(t, tick, maxTicks)
 		})
 
-<<<<<<< HEAD
-		t.Run("tick depositor to ibc transfer atom from ICA account to neutron", func(t *testing.T) {
-			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
-			require.NoError(t, err, "failed to get ICA balance")
-			require.EqualValues(t, 10, atomBal)
-			r.StopRelayer(ctx, eRep)
-			r.StartRelayer(ctx, eRep)
-			cmd = []string{"neutrond", "tx", "wasm", "execute", depositorContractAddress,
-				`{"tick":{}}`,
-				"--from", neutronUser.KeyName,
-				"--gas-adjustment", `1.3`,
-				"--output", "json",
-				"--node", cosmosNeutron.GetRPCAddress(),
-				"--home", cosmosNeutron.HomeDir(),
-				"--chain-id", cosmosNeutron.Config().ChainID,
-				"--gas", "auto",
-				"--fees", "15000untrn",
-				"--keyring-backend", keyring.BackendTest,
-				"-y",
-			}
-
-			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
-			require.NoError(t, err)
-
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
-			require.NoError(t, err, "failed to wait for blocks")
-
-			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
-			require.NoError(t, err, "failed to query ICA balance")
-			require.Equal(t, int64(0), atomICABal)
-
-			neutronUserBalNew, err := neutron.GetBalance(
-				ctx,
-				lperContractAddress,
-				neutronDstIbcDenom)
-			require.NoError(t, err, "failed to query lper contract atom balance")
-			require.Equal(t, int64(10), neutronUserBalNew)
-		})
-
-		t.Run("[temp] ibc transfer atoms to LP", func(t *testing.T) {
-			// TODO: introduce a tick on depositor to forward funds, or withdraw directly to LP address
-			_, err := cosmosAtom.SendIBCTransfer(ctx,
-				gaiaNeutronTransferChannelId,
-				gaiaUser.KeyName, ibc.WalletAmount{
-					Address: lperContractAddress,
-					Amount:  10,
-					Denom:   atom.Config().Denom,
-=======
 		t.Run("Query depositor ICA", func(t *testing.T) {
 			var response QueryResponse
 			err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, IcaExampleContractQuery{
 				InterchainAccountAddress: InterchainAccountAddressQuery{
 					InterchainAccountId: icaAccountId,
 					ConnectionId:        neutronGaiaTransferConnectionId,
->>>>>>> main
 				},
 			}, &response)
 			require.NoError(t, err, "failed to query ICA account address")

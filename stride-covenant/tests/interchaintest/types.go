@@ -1,26 +1,5 @@
 package ibc_test
 
-<<<<<<< HEAD
-type DepositorInstantiateMsg struct {
-	StAtomReceiver                  WeightedReceiver `json:"st_atom_receiver"`
-	AtomReceiver                    WeightedReceiver `json:"atom_receiver"`
-	ClockAddress                    string           `json:"clock_address"`
-	GaiaNeutronIBCTransferChannelId string           `json:"gaia_neutron_ibc_transfer_channel_id"`
-	GaiaStrideIBCTransferChannelId  string           `json:"gaia_stride_ibc_transfer_channel_id"`
-	NeutronGaiaConnectionId         string           `json:"neutron_gaia_connection_id"`
-}
-
-type LPerInstantiateMsg struct {
-	LpPosition        LpInfo           `json:"lp_position"`
-	ClockAddress      string           `json:"clock_address"`
-	HolderAddress     string           `json:"holder_address"`
-	SlippageTolerance *string          `json:"slippage_tolerance,omitempty"`
-	Autostake         *string          `json:"autostake,omitempty"`
-	Assets            []AstroportAsset `json:"assets"`
-}
-
-=======
->>>>>>> main
 type LpInfo struct {
 	Addr string `json:"addr"`
 }
@@ -340,16 +319,3 @@ type WhitelistInstantiateMsg struct {
 	Admins  []string `json:"admins"`
 	Mutable bool     `json:"mutable"`
 }
-<<<<<<< HEAD
-
-// ls
-type LsInstantiateMsg struct {
-	AutopilotPosition                 string `json:"autopilot_position,string"`
-	ClockAddress                      string `json:"clock_address"`
-	StrideNeutronIBCTransferChannelId string `json:"stride_neutron_ibc_transfer_channel_id"`
-	LpAddress                         string `json:"lp_address"`
-	NeutronStrideIBCConnectionId      string `json:"neutron_stride_ibc_connection_id"`
-	LsDenom                           string `json:"ls_denom"`
-}
-=======
->>>>>>> main
