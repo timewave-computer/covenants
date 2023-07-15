@@ -2,13 +2,11 @@ use cosmwasm_std::{Addr, Uint64};
 use covenant_clock_tester::msg::Mode;
 use cw_multi_test::{App, AppResponse, Executor};
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg}, contract::DEFAULT_TICK_MAX_GAS};
 
 use super::{clock_contract, clock_tester_contract};
 
 const ADMIN: &str = "admin";
-
-pub const DEFAULT_TICK_MAX_GAS: u64 = 100_000;
 
 pub struct Suite {
     pub app: App,
@@ -29,7 +27,7 @@ impl Default for SuiteBuilder {
         Self {
             app: App::default(),
             instantiate: InstantiateMsg {
-                tick_max_gas: Uint64::new(DEFAULT_TICK_MAX_GAS),
+                tick_max_gas: Some(DEFAULT_TICK_MAX_GAS),
                 whitelist: vec![],
             },
         }
@@ -38,7 +36,7 @@ impl Default for SuiteBuilder {
 
 impl SuiteBuilder {
     pub fn with_tick_max_gas(mut self, tmg: u64) -> Self {
-        self.instantiate.tick_max_gas = Uint64::new(tmg);
+        self.instantiate.tick_max_gas = Some(Uint64::new(tmg));
         self
     }
 
@@ -145,12 +143,12 @@ impl Suite {
     }
 
     // updates tick_max_gas.
-    pub fn update_tick_max_gas(&mut self, new_value: u64) -> anyhow::Result<AppResponse> {
+    pub fn update_tick_max_gas(&mut self, new_value: Uint64) -> anyhow::Result<AppResponse> {
         self.app.migrate_contract(
             self.admin.clone(),
             self.clock.clone(),
             &MigrateMsg::UpdateTickMaxGas {
-                new_value: Uint64::new(new_value),
+                new_value: new_value,
             },
             self.clock_code_id,
         )
@@ -172,13 +170,12 @@ impl Suite {
 
 // queries
 impl Suite {
-    pub fn query_tick_max_gas(&self) -> u64 {
-        let res: Uint64 = self
+    pub fn query_tick_max_gas(&self) -> Uint64 {
+        self
             .app
             .wrap()
             .query_wasm_smart(&self.clock, &QueryMsg::TickMaxGas {})
-            .unwrap();
-        res.u64()
+            .unwrap()
     }
 
     pub fn query_paused(&self) -> bool {

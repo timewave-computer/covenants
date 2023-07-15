@@ -1,8 +1,10 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Uint64};
 use covenant_clock_tester::msg::Mode;
 
+use crate::contract::DEFAULT_TICK_MAX_GAS;
+
 use super::is_error;
-use super::suite::{SuiteBuilder, DEFAULT_TICK_MAX_GAS};
+use super::suite::SuiteBuilder;
 
 #[test]
 fn test_instantiate() {
@@ -123,10 +125,15 @@ fn test_update_tick_max_gas() {
     let mut suite = SuiteBuilder::default().build();
 
     let tmg = suite.query_tick_max_gas();
-    suite.update_tick_max_gas(tmg + 1).unwrap();
-    assert_eq!(suite.query_tick_max_gas(), tmg + 1);
+    suite
+        .update_tick_max_gas(tmg.checked_add(Uint64::one()).unwrap())
+        .unwrap();
+    assert_eq!(
+        suite.query_tick_max_gas(),
+        tmg.checked_add(Uint64::one()).unwrap()
+    );
 
-    let res = suite.update_tick_max_gas(0);
+    let res = suite.update_tick_max_gas(Uint64::zero());
     is_error!(res, "tick max gas must be non-zero")
 }
 
@@ -164,7 +171,7 @@ fn test_enqueue_non_contract() {
 
 #[test]
 fn test_whitelist() {
-  let mut suite_builder = SuiteBuilder::default();
+    let mut suite_builder = SuiteBuilder::default();
     let receiver = suite_builder.generate_tester(Mode::Accept);
 
     let suite = suite_builder.with_whitelist(vec![receiver.clone()]).build();
@@ -203,7 +210,9 @@ fn test_manage_whitelisted() {
     assert_eq!(queue.len(), 1);
 
     // Add new contract to clock whitelist
-    suite.manage_whitelisted(Some(vec![receiver_two.to_string()]), None).unwrap();
+    suite
+        .manage_whitelisted(Some(vec![receiver_two.to_string()]), None)
+        .unwrap();
 
     let res = suite.enqueue(receiver_two.as_str());
     is_error!(res, "sender is already in the queue");
@@ -212,7 +221,9 @@ fn test_manage_whitelisted() {
     let queue = suite.query_full_queue();
     assert_eq!(queue.len(), 2);
 
-    suite.manage_whitelisted(None, Some(vec![receiver.to_string()])).unwrap();
+    suite
+        .manage_whitelisted(None, Some(vec![receiver.to_string()]))
+        .unwrap();
     let queue = suite.query_full_queue();
     assert_eq!(queue.len(), 1);
     assert_eq!(queue[0].0, receiver_two);

@@ -17,7 +17,7 @@ pub struct InstantiateMsg {
     /// its failure.
     ///
     /// This value may be updated later by the contract admin.
-    pub tick_max_gas: Uint64,
+    pub tick_max_gas: Option<Uint64>,
     /// Whitelist of contracts that are allowed to be queued and ticked
     pub whitelist: Vec<String>,
 }
@@ -33,14 +33,14 @@ pub struct PresetClockFields {
 impl PresetClockFields {
     pub fn to_instantiate_msg(self) -> InstantiateMsg {
         let tick_max_gas = if let Some(tmg) = self.tick_max_gas {
-            // todo: find some min reasonable value
-            tmg.min(Uint64::new(100000))
+            // double the 100k minimum seems fair
+            tmg.min(Uint64::new(200000))
         } else {
             // todo: find some reasonable default value
-            Uint64::new(2000000)
+            Uint64::new(2900000)
         };
 
-        InstantiateMsg { tick_max_gas, whitelist: self.whitelist }
+        InstantiateMsg { tick_max_gas: Some(tick_max_gas), whitelist: self.whitelist }
     }
 }
 

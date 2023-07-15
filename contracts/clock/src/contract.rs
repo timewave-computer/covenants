@@ -13,6 +13,9 @@ use crate::state::{PAUSED, QUEUE, TICK_MAX_GAS, WHITELIST};
 const CONTRACT_NAME: &str = "crates.io:covenant-clock";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+pub const MIN_TICK_MAX_GAS: Uint64 = Uint64::new(200_000);
+pub const DEFAULT_TICK_MAX_GAS: Uint64 = Uint64::new(2_900_000);
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -22,12 +25,15 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: clock instantiate");
 
-    if msg.tick_max_gas.is_zero() {
-        return Err(ContractError::ZeroTickMaxGas {});
-    }
+    let tick_max_gas = if let Some(tick_max_gas) = msg.tick_max_gas {
+        tick_max_gas.min(MIN_TICK_MAX_GAS)
+    } else {
+        // todo: find some reasonable default value
+        DEFAULT_TICK_MAX_GAS
+    };
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    TICK_MAX_GAS.save(deps.storage, &msg.tick_max_gas.u64())?;
+    TICK_MAX_GAS.save(deps.storage, &tick_max_gas)?;
     PAUSED.save(deps.storage, &false)?;
 
     // Verify vector are addresses
@@ -41,7 +47,7 @@ pub fn instantiate(
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
-        .add_attribute("tick_max_gas", msg.tick_max_gas))
+        .add_attribute("tick_max_gas", tick_max_gas))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -72,7 +78,7 @@ pub fn execute(
                             },
                             0,
                         )
-                        .with_gas_limit(TICK_MAX_GAS.load(deps.storage)?),
+                        .with_gas_limit(TICK_MAX_GAS.load(deps.storage)?.u64()),
                     ))
             } else {
                 Ok(Response::default()
@@ -127,7 +133,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 limit,
             )?,
         ),
-        QueryMsg::TickMaxGas {} => to_binary(&Uint64::new(TICK_MAX_GAS.load(deps.storage)?)),
+        QueryMsg::TickMaxGas {} => to_binary(&TICK_MAX_GAS.load(deps.storage)?),
         QueryMsg::Paused {} => to_binary(&PAUSED.load(deps.storage)?),
         QueryMsg::Whitelist {} => to_binary(&WHITELIST.load(deps.storage)?),
     }
@@ -172,7 +178,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
             if new_value.is_zero() {
                 return Err(ContractError::ZeroTickMaxGas {});
             }
-            TICK_MAX_GAS.save(deps.storage, &new_value.u64())?;
+            TICK_MAX_GAS.save(deps.storage, &new_value.min(MIN_TICK_MAX_GAS))?;
             Ok(Response::default()
                 .add_attribute("method", "migrate_update_tick_max_gas")
                 .add_attribute("tick_max_gas", new_value))
