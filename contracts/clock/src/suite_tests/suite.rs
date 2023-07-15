@@ -156,14 +156,15 @@ impl Suite {
         )
     }
 
-    pub fn manage_whitelisted(&mut self, add: Option<Vec<String>>, remove: Option<Vec<String>>) -> anyhow::Result<AppResponse> {
+    pub fn manage_whitelisted(
+        &mut self,
+        add: Option<Vec<String>>,
+        remove: Option<Vec<String>>,
+    ) -> anyhow::Result<AppResponse> {
         self.app.migrate_contract(
             self.admin.clone(),
             self.clock.clone(),
-            &MigrateMsg::ManageWhitelist {
-                add,
-                remove,
-            },
+            &MigrateMsg::ManageWhitelist { add, remove },
             self.clock_code_id,
         )
     }
@@ -219,5 +220,12 @@ impl Suite {
             )
             .unwrap();
         res.u64()
+    }
+
+    pub fn query_whitelist(&self) -> Vec<Addr> {
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.clock, &QueryMsg::Whitelist {})
+            .unwrap()
     }
 }

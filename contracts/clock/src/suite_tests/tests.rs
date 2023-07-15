@@ -162,6 +162,18 @@ fn test_enqueue_non_contract() {
     suite.enqueue("nobody").unwrap();
 }
 
+#[test]
+fn test_whitelist() {
+  let mut suite_builder = SuiteBuilder::default();
+    let receiver = suite_builder.generate_tester(Mode::Accept);
+
+    let suite = suite_builder.with_whitelist(vec![receiver.clone()]).build();
+
+    let whitelist = suite.query_whitelist();
+
+    assert_eq!(whitelist, vec![receiver.clone()]);
+}
+
 // only contract addresses can be enqueued.
 #[test]
 fn test_enqueue_non_whitelisted() {
