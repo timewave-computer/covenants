@@ -451,6 +451,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             neutron_gaia_connection_id,
             gaia_stride_ibc_transfer_channel_id,
             ls_address,
+            ibc_timeout,
+            ibc_fee,
         } => {
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
@@ -481,6 +483,14 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
 
             if let Some(ls_address) = ls_address {
                 LS_ADDRESS.save(deps.storage, &ls_address)?;
+            }
+
+            if let Some(timeout) = ibc_timeout {
+                IBC_TIMEOUT.save(deps.storage, &timeout)?;
+            }
+
+            if let Some(fee) = ibc_fee {
+                IBC_FEE.save(deps.storage, &fee)?;
             }
 
             Ok(Response::default().add_attribute("method", "update_config"))

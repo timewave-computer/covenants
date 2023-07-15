@@ -322,6 +322,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             lp_address,
             neutron_stride_ibc_connection_id,
             ls_denom,
+            ibc_timeout,
+            ibc_fee,
         } => {
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
@@ -345,6 +347,14 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
 
             if let Some(ls_denom) = ls_denom {
                 LS_DENOM.save(deps.storage, &ls_denom)?;
+            }
+
+            if let Some(timeout) = ibc_timeout {
+                IBC_TIMEOUT.save(deps.storage, &timeout)?;
+            }
+
+            if let Some(fee) = ibc_fee {
+                IBC_FEE.save(deps.storage, &fee)?;
             }
 
             Ok(Response::default().add_attribute("method", "update_config"))

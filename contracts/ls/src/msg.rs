@@ -72,6 +72,8 @@ pub enum MigrateMsg {
         lp_address: Option<String>,
         neutron_stride_ibc_connection_id: Option<String>,
         ls_denom: Option<String>,
+        ibc_timeout: Option<u64>,
+        ibc_fee: Option<IbcFee>,
     },
     UpdateCodeId {
         data: Option<Binary>,

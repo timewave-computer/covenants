@@ -124,6 +124,8 @@ pub enum MigrateMsg {
         neutron_gaia_connection_id: Option<String>,
         gaia_stride_ibc_transfer_channel_id: Option<String>,
         ls_address: Option<String>,
+        ibc_timeout: Option<u64>,
+        ibc_fee: Option<IbcFee>,
     },
     UpdateCodeId {
         data: Option<Binary>,
