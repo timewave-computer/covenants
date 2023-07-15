@@ -103,14 +103,24 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
-    let ica_address = ICA_ADDRESS.load(deps.storage)?;
+    let ica_address = ICA_ADDRESS.may_load(deps.storage)?;
 
     match current_state {
         ContractState::Instantiated => try_register_gaia_ica(deps, env),
-        ContractState::ICACreated => try_liquid_stake(deps, env, info, ica_address),
+        ContractState::ICACreated => {
+            if let Some(addr) = ica_address {
+                try_liquid_stake(deps, env, info, addr)
+            } else {
+                Ok(Response::default())
+            }
+        },
         ContractState::LiquidStaked => {
-            try_receive_atom_from_ica(deps, env, info, ica_address)
-        }
+            if let Some(addr) = ica_address {
+                try_receive_atom_from_ica(deps, env, info, addr)
+            } else {
+                Ok(Response::default())
+            }
+        },
         ContractState::Complete => try_completed(deps),
     }
 }
@@ -132,7 +142,7 @@ fn try_liquid_stake(
     };
     STRIDE_ATOM_RECEIVER.update(deps.storage, |mut val| -> StdResult<_> {
         val.address = stride_ica_addr.clone();
-        Ok(val)  
+        Ok(val)
     })?;
 
     let fee = IbcFee {
@@ -499,8 +509,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 LS_ADDRESS.save(deps.storage, &ls_address)?;
             }
 
-            Ok(Response::default()        
-                .add_attribute("method", "update_config"))
+            Ok(Response::default().add_attribute("method", "update_config"))
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
             // This is a migrate message to update code id,
@@ -537,9 +546,7 @@ fn sudo_open_ack(
         )?;
         ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default()
-            .add_attribute("method", "sudo_open_ack")
-        );
+        return Ok(Response::default().add_attribute("method", "sudo_open_ack"));
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
 }
@@ -631,9 +638,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         )?;
     }
 
-    Ok(Response::default()
-        .add_attribute("method", "sudo_response")
-    )
+    Ok(Response::default().add_attribute("method", "sudo_response"))
 }
 
 fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<Response> {
@@ -686,8 +691,7 @@ fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<R
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
 
-    Ok(Response::default()
-        .add_attribute("method", "sudo_timeout"))
+    Ok(Response::default().add_attribute("method", "sudo_timeout"))
 }
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {

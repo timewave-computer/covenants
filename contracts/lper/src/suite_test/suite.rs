@@ -99,7 +99,7 @@ fn holder_contract() -> Box<dyn Contract<Empty>> {
             covenant_holder::contract::instantiate,
             covenant_holder::contract::query,
         )
-        .with_migrate(covenant_holder::contract::migrate)
+        .with_migrate(covenant_holder::contract::migrate),
     )
 }
 
@@ -227,7 +227,7 @@ impl Default for SuiteBuilder {
                 whitelist: vec!["contract9".to_string()]
             },
             holder_instantiate: covenant_holder::msg::InstantiateMsg {
-                withdrawer: Some(CREATOR_ADDR.to_string()),
+                withdrawer: CREATOR_ADDR.to_string(),
                 // deterministic based on instantiate flow
                 lp_address: "contract7".to_string(),
             },
@@ -299,7 +299,6 @@ impl SuiteBuilder {
         self.stablepair_instantiate.token_code_id = token_code;
         self.factory_instantiate.whitelist_code_id = whitelist_code;
         self.factory_instantiate.pair_configs[0].code_id = stablepair_code;
-
 
         let whitelist_addr = app
             .instantiate_contract(
@@ -553,14 +552,13 @@ impl Suite {
     }
 
     pub fn query_liquidity_token_addr(&self) -> astroport::asset::PairInfo {
-        self
-        .app
-        .wrap()
-        .query_wasm_smart(
-            self.stable_pair.1.to_string(),
-            &astroport::pair::QueryMsg::Pair {},
-        )
-        .unwrap()
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.stable_pair.1.to_string(),
+                &astroport::pair::QueryMsg::Pair {},
+            )
+            .unwrap()
     }
 }
 
@@ -678,12 +676,13 @@ impl Suite {
     }
 
     pub fn holder_withdraw(&mut self) {
-        self.app.migrate_contract(
-            Addr::unchecked(CREATOR_ADDR),
-            Addr::unchecked(self.holder_addr.to_string()),
-            &covenant_holder::msg::MigrateMsg::WithdrawLiquidity {  },
-            8,
-        )
-        .unwrap();
+        self.app
+            .execute_contract(
+                Addr::unchecked(CREATOR_ADDR),
+                Addr::unchecked(self.holder_addr.to_string()),
+                &covenant_holder::msg::ExecuteMsg::WithdrawLiquidity {},
+                &[],
+            )
+            .unwrap();
     }
 }

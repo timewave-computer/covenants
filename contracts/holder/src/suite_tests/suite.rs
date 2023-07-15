@@ -24,7 +24,7 @@ impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
             instantiate: InstantiateMsg {
-                withdrawer: Some(DEFAULT_WITHDRAWER.to_string()),
+                withdrawer: DEFAULT_WITHDRAWER.to_string(),
                 lp_address: "stablepairpool".to_string(),
             },
             app: App::default(),
@@ -33,15 +33,13 @@ impl Default for SuiteBuilder {
 }
 
 impl SuiteBuilder {
-    pub fn with_withdrawer(mut self, w: Option<String>) -> Self {
-        self.instantiate.withdrawer = w;
+    pub fn with_withdrawer(mut self, addr: String) -> Self {
+        self.instantiate.withdrawer = addr;
         self
     }
 
-    pub fn with_funded_user(mut self, user: Addr, amount: Vec<Coin>) -> Self {
-        self.app = AppBuilder::new().build(|router, _, storage| {
-            router.bank.init_balance(storage, &user, amount).unwrap();
-        });
+    pub fn with_lp(mut self, addr: String) -> Self {
+        self.instantiate.lp_address = addr;
         self
     }
 
@@ -75,7 +73,7 @@ impl Suite {
         &mut self,
         caller: &str,
         quantity: Vec<Coin>,
-    ) -> anyhow::Result<AppResponse> {
+    ) -> AppResponse {
         self.app.execute_contract(
             Addr::unchecked(caller),
             self.holder.clone(),
@@ -84,6 +82,7 @@ impl Suite {
             },
             &[],
         )
+        . unwrap()
     }
 
     /// sends a message on caller's behalf to withdraw remaining balance
@@ -105,13 +104,26 @@ impl Suite {
             .query_wasm_smart(&self.holder, &QueryMsg::Withdrawer {})
             .unwrap()
     }
+
+    pub fn query_lp_address(&self) -> Addr {
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.holder, &QueryMsg::LpAddress {})
+            .unwrap()
+    }
 }
 
 // helper
 impl Suite {
-    pub fn fund_holder(&mut self, funder: Addr, tokens: Vec<Coin>) -> anyhow::Result<AppResponse> {
-        self.app.send_tokens(funder, self.holder.clone(), &tokens)
-    }
+    pub fn fund_holder(&mut self, tokens: Vec<Coin>) -> AppResponse {
+        self.app.sudo(cw_multi_test::SudoMsg::Bank(
+            cw_multi_test::BankSudo::Mint {
+                to_address: self.holder.to_string(),
+                amount: tokens,
+            },
+        ))
+        .unwrap()
+    }   
 
     pub fn assert_holder_balance(&mut self, tokens: Vec<Coin>) {
         for c in &tokens {
