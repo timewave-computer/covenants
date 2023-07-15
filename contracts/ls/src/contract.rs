@@ -21,7 +21,7 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_PORT_ID, ICA_ADDRESS,
     INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
-    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID,
+    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID, IBC_TIMEOUT,
 };
 use neutron_sdk::{
     bindings::{
@@ -67,6 +67,7 @@ pub fn instantiate(
     LP_ADDRESS.save(deps.storage, &msg.lp_address)?;
     NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &msg.neutron_stride_ibc_connection_id)?;
     LS_DENOM.save(deps.storage, &msg.ls_denom)?;
+    IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
@@ -144,6 +145,7 @@ fn try_execute_transfer(
             let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
             let denom = LS_DENOM.load(deps.storage)?;
+            let timeout = IBC_TIMEOUT.load(deps.storage)?;
 
             let coin = Coin {
                 denom,
@@ -157,7 +159,7 @@ fn try_execute_transfer(
                 sender: address,
                 receiver: lp_receiver.clone(),
                 timeout_height: None,
-                timeout_timestamp: 10000,
+                timeout_timestamp: timeout,
             };
 
             // Serialize the Transfer message
@@ -177,7 +179,7 @@ fn try_execute_transfer(
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
                 lp_receiver,
-                100000,
+                timeout,
                 fee,
             );
 

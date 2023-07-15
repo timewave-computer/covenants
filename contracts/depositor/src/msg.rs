@@ -14,6 +14,7 @@ pub struct InstantiateMsg {
     pub neutron_gaia_connection_id: String,
     pub gaia_stride_ibc_transfer_channel_id: String,
     pub ls_address: String,
+    pub ibc_timeout: u64,
 }
 
 #[cw_serde]
@@ -48,6 +49,7 @@ impl PresetDepositorFields {
         clock_address: String,
         ls_address: String,
         lp_address: String,
+        ibc_timeout: u64,
     ) -> InstantiateMsg {
         InstantiateMsg {
             st_atom_receiver: self
@@ -59,6 +61,7 @@ impl PresetDepositorFields {
             neutron_gaia_connection_id: self.neutron_gaia_connection_id,
             gaia_stride_ibc_transfer_channel_id: self.gaia_stride_ibc_transfer_channel_id,
             ls_address,
+            ibc_timeout,
         }
     }
 }

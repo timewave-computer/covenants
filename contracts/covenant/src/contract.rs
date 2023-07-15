@@ -15,12 +15,13 @@ use crate::{
         CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
         COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, LP_CODE, LS_CODE,
         POOL_ADDRESS, PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS, PRESET_HOLDER_FIELDS,
-        PRESET_LP_FIELDS, PRESET_LS_FIELDS,
+        PRESET_LP_FIELDS, PRESET_LS_FIELDS, IBC_TIMEOUT,
     },
 };
 
 const CONTRACT_NAME: &str = "crates.io:covenant-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
 const CLOCK_REPLY_ID: u64 = 1u64;
 const HOLDER_REPLY_ID: u64 = 2u64;
@@ -51,6 +52,12 @@ pub fn instantiate(
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
 
     POOL_ADDRESS.save(deps.storage, &msg.pool_address)?;
+    let ibc_timeout = if let Some(timeout) = msg.ibc_msg_transfer_timeout_timestamp {
+        timeout
+    } else {
+        DEFAULT_TIMEOUT_SECONDS
+    };
+    IBC_TIMEOUT.save(deps.storage, &ibc_timeout)?;
 
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
@@ -159,6 +166,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
         Ok(response) => {
             // store the lp address to fill other InstantiateMsg
             COVENANT_LP_ADDR.save(deps.storage, &response.contract_address)?;
+            let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
 
             // load missing params
             let clock_address = COVENANT_CLOCK_ADDR.load(deps.storage)?;
@@ -167,7 +175,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
 
             let instantiate_msg = preset_ls_fields
                 .clone()
-                .to_instantiate_msg(clock_address, response.contract_address);
+                .to_instantiate_msg(clock_address, response.contract_address, ibc_timeout);
 
             let ls_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -199,12 +207,14 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
             let code_id = DEPOSITOR_CODE.load(deps.storage)?;
             let preset_depositor_fields = PRESET_DEPOSITOR_FIELDS.load(deps.storage)?;
+            let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
 
             let instantiate_msg = preset_depositor_fields.clone().to_instantiate_msg(
                 "to be queried".to_string(),
                 clock_addr,
                 response.contract_address,
                 lp_addr,
+                ibc_timeout,
             );
 
             let depositor_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {

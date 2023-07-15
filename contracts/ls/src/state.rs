@@ -17,6 +17,7 @@ pub const LS_DENOM: Item<String> = Item::new("ls_denom");
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
 pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
+pub const IBC_TIMEOUT: Item<u64> = Item::new("ibc_timeout");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]

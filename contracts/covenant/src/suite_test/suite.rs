@@ -95,6 +95,7 @@ impl Default for SuiteBuilder {
                 },
                 label: "covenant_contract".to_string(),
                 pool_address: TODO.to_string(),
+                ibc_msg_transfer_timeout_timestamp: None,
             },
         }
     }

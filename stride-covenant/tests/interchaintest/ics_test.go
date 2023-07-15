@@ -986,11 +986,12 @@ func TestICS(t *testing.T) {
 				currentLpState = response.Data
 				print("\n lp state: ", currentLpState)
 
+				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+
 				if currentDepositorState == depositorStateIcaCreated &&
 					currentLsState == lsStateIcaCreated {
 					break
 				}
-				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
 				require.NoError(t, err, "failed to wait for blocks")
 				tick += 1
 			}
