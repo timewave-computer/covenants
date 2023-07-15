@@ -827,6 +827,7 @@ func TestICS(t *testing.T) {
 				Label:                           "covenant-depositor",
 				StAtomReceiverAmount:            stAtomWeightedReceiverAmount,
 				AtomReceiverAmount:              atomWeightedReceiverAmount,
+				AutopilotFormat:                 "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}",
 			}
 			// LS instantiation message
 			lsMsg := PresetLsFields{

@@ -14,6 +14,8 @@ pub const NATIVE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("native_atom_
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 pub const LS_ADDRESS: Item<String> = Item::new("ls_address");
 pub const LP_ADDRESS: Item<String> = Item::new("lp_address");
+pub const AUTOPILOT_FORMAT: Item<String> = Item::new("autopilot_format");
+
 // the ibc transfer channel
 pub const GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gn_ibc_chann_id");
 pub const GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gs_ibc_chan_id");

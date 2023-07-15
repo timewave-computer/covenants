@@ -34,7 +34,7 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS,
-    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
+    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID, AUTOPILOT_FORMAT,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
@@ -74,7 +74,7 @@ pub fn instantiate(
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     LS_ADDRESS.save(deps.storage, &msg.ls_address)?;
-
+    AUTOPILOT_FORMAT.save(deps.storage, &msg.autopilot_format)?;
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
 
@@ -174,7 +174,10 @@ fn try_liquid_stake(
                 amount,
             };
 
-            let autopilot_receiver = format!("{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}");
+
+            let autopilot_receiver = AUTOPILOT_FORMAT
+                .load(deps.storage)?
+                .replace("{st_ica}", &st_ica);
 
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
@@ -476,7 +479,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             gaia_neutron_ibc_transfer_channel_id,
             neutron_gaia_connection_id,
             gaia_stride_ibc_transfer_channel_id,
-            ls_address,
+            ls_address, 
+            autopilot_format,
         } => {
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
@@ -507,6 +511,10 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
 
             if let Some(ls_address) = ls_address {
                 LS_ADDRESS.save(deps.storage, &ls_address)?;
+            }
+
+            if let Some(autopilot_f) = autopilot_format {
+                AUTOPILOT_FORMAT.save(deps.storage, &autopilot_f)?;
             }
 
             Ok(Response::default().add_attribute("method", "update_config"))
