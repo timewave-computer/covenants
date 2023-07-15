@@ -15,7 +15,7 @@ use crate::{
         CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
         COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, LP_CODE, LS_CODE,
         POOL_ADDRESS, PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS, PRESET_HOLDER_FIELDS,
-        PRESET_LP_FIELDS, PRESET_LS_FIELDS, IBC_TIMEOUT,
+        PRESET_LP_FIELDS, PRESET_LS_FIELDS, IBC_TIMEOUT, IBC_FEE,
     },
 };
 
@@ -50,8 +50,9 @@ pub fn instantiate(
     PRESET_LS_FIELDS.save(deps.storage, &msg.preset_ls_fields)?;
     PRESET_DEPOSITOR_FIELDS.save(deps.storage, &msg.preset_depositor_fields)?;
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
-
+    IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
     POOL_ADDRESS.save(deps.storage, &msg.pool_address)?;
+    
     let ibc_timeout = if let Some(timeout) = msg.ibc_msg_transfer_timeout_timestamp {
         timeout
     } else {
@@ -167,6 +168,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             // store the lp address to fill other InstantiateMsg
             COVENANT_LP_ADDR.save(deps.storage, &response.contract_address)?;
             let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+            let ibc_fee = IBC_FEE.load(deps.storage)?;
 
             // load missing params
             let clock_address = COVENANT_CLOCK_ADDR.load(deps.storage)?;
@@ -175,7 +177,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
 
             let instantiate_msg = preset_ls_fields
                 .clone()
-                .to_instantiate_msg(clock_address, response.contract_address, ibc_timeout);
+                .to_instantiate_msg(clock_address, response.contract_address, ibc_timeout, ibc_fee);
 
             let ls_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -208,6 +210,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let code_id = DEPOSITOR_CODE.load(deps.storage)?;
             let preset_depositor_fields = PRESET_DEPOSITOR_FIELDS.load(deps.storage)?;
             let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+            let ibc_fee = IBC_FEE.load(deps.storage)?;
 
             let instantiate_msg = preset_depositor_fields.clone().to_instantiate_msg(
                 "to be queried".to_string(),
@@ -215,6 +218,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 response.contract_address,
                 lp_addr,
                 ibc_timeout,
+                ibc_fee,
             );
 
             let depositor_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {

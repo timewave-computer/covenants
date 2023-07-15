@@ -34,7 +34,7 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS,
-    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID, IBC_TIMEOUT,
+    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID, IBC_TIMEOUT, IBC_FEE,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
@@ -144,17 +144,7 @@ fn try_liquid_stake(
         Ok(val)
     })?;
 
-    let fee = IbcFee {
-        recv_fee: vec![], // must be empty
-        ack_fee: vec![cosmwasm_std::Coin {
-            denom: NEUTRON_DENOM.to_string(),
-            amount: Uint128::new(1000u128),
-        }],
-        timeout_fee: vec![cosmwasm_std::Coin {
-            denom: NEUTRON_DENOM.to_string(),
-            amount: Uint128::new(1000u128),
-        }],
-    };
+    let fee = IBC_FEE.load(deps.storage)?;
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
@@ -223,17 +213,7 @@ fn try_receive_atom_from_ica(
     _info: MessageInfo,
     _gaia_account_address: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let fee = IbcFee {
-        recv_fee: vec![], // must be empty
-        ack_fee: vec![cosmwasm_std::Coin {
-            denom: NEUTRON_DENOM.to_string(),
-            amount: Uint128::new(1000u128),
-        }],
-        timeout_fee: vec![cosmwasm_std::Coin {
-            denom: NEUTRON_DENOM.to_string(),
-            amount: Uint128::new(1000u128),
-        }],
-    };
+    let fee = IBC_FEE.load(deps.storage)?;
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;

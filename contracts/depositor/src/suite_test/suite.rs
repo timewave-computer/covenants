@@ -3,11 +3,12 @@ use cw_multi_test::{
     App, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, Executor, FailingModule,
     WasmKeeper,
 };
-use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
+use neutron_sdk::bindings::{msg::{NeutronMsg, IbcFee}, query::NeutronQuery};
 
 use crate::msg::{InstantiateMsg, QueryMsg, WeightedReceiver};
 
 pub const CREATOR_ADDR: &str = "creator";
+pub const NEUTRON_DENOM: &str = "untrn";
 pub const ST_ATOM_DENOM: &str = "stride-atom";
 pub const NATIVE_ATOM_DENOM: &str = "native-atom";
 pub const _DEFAULT_RECEIVER_AMOUNT: Uint128 = Uint128::new(10);
@@ -64,6 +65,17 @@ impl Default for SuiteBuilder {
                 gaia_stride_ibc_transfer_channel_id: "channel-3".to_string(),
                 ls_address: "TODO".to_string(),
                 ibc_timeout: 100000,
+                ibc_fee: IbcFee {
+                    recv_fee: vec![], // must be empty
+                    ack_fee: vec![cosmwasm_std::Coin {
+                        denom: NEUTRON_DENOM.to_string(),
+                        amount: Uint128::new(1000u128),
+                    }],
+                    timeout_fee: vec![cosmwasm_std::Coin {
+                        denom: NEUTRON_DENOM.to_string(),
+                        amount: Uint128::new(1000u128),
+                    }],
+                },
             },
         }
     }

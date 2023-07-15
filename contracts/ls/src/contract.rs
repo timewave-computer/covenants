@@ -21,7 +21,7 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_PORT_ID, ICA_ADDRESS,
     INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
-    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID, IBC_TIMEOUT,
+    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID, IBC_TIMEOUT, IBC_FEE,
 };
 use neutron_sdk::{
     bindings::{
@@ -125,17 +125,7 @@ fn try_execute_transfer(
     _info: MessageInfo,
     amount: Uint128,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let fee = IbcFee {
-        recv_fee: vec![], // must be empty
-        ack_fee: vec![cosmwasm_std::Coin {
-            denom: NEUTRON_DENOM.to_string(),
-            amount: Uint128::new(1000u128),
-        }],
-        timeout_fee: vec![cosmwasm_std::Coin {
-            denom: NEUTRON_DENOM.to_string(),
-            amount: Uint128::new(1000u128),
-        }],
-    };
+    let fee = IBC_FEE.load(deps.storage)?;
 
     let port_id = IBC_PORT_ID.load(deps.storage)?;
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;

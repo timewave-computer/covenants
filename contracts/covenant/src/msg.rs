@@ -5,6 +5,7 @@ use covenant_depositor::msg::PresetDepositorFields;
 use covenant_holder::msg::PresetHolderFields;
 use covenant_lp::msg::PresetLpFields;
 use covenant_ls::msg::PresetLsFields;
+use neutron_sdk::bindings::msg::IbcFee;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -16,6 +17,7 @@ pub struct InstantiateMsg {
     pub preset_holder_fields: PresetHolderFields,
     pub pool_address: String,
     pub ibc_msg_transfer_timeout_timestamp: Option<u64>,
+    pub ibc_fee: IbcFee,
 }
 
 #[cw_serde]

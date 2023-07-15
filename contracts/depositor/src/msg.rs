@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary};
 use covenant_clock_derive::clocked;
-use neutron_sdk::bindings::query::QueryInterchainAccountAddressResponse;
+use neutron_sdk::bindings::{query::QueryInterchainAccountAddressResponse, msg::IbcFee};
 
 use crate::state::{AcknowledgementResult, ContractState};
 
@@ -15,6 +15,7 @@ pub struct InstantiateMsg {
     pub gaia_stride_ibc_transfer_channel_id: String,
     pub ls_address: String,
     pub ibc_timeout: u64,
+    pub ibc_fee: IbcFee,
 }
 
 #[cw_serde]
@@ -50,6 +51,7 @@ impl PresetDepositorFields {
         ls_address: String,
         lp_address: String,
         ibc_timeout: u64,
+        ibc_fee: IbcFee,
     ) -> InstantiateMsg {
         InstantiateMsg {
             st_atom_receiver: self
@@ -62,6 +64,7 @@ impl PresetDepositorFields {
             gaia_stride_ibc_transfer_channel_id: self.gaia_stride_ibc_transfer_channel_id,
             ls_address,
             ibc_timeout,
+            ibc_fee,
         }
     }
 }
