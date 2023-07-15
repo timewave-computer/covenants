@@ -223,6 +223,8 @@ impl Default for SuiteBuilder {
             },
             clock_instantiate: covenant_clock::msg::InstantiateMsg {
                 tick_max_gas: Uint64::new(50000),
+                // this is the lper, if any instantiate flow changes, this needs to be updated
+                whitelist: vec!["contract9".to_string()]
             },
             holder_instantiate: covenant_holder::msg::InstantiateMsg {
                 withdrawer: Some(CREATOR_ADDR.to_string()),
@@ -297,7 +299,7 @@ impl SuiteBuilder {
         self.stablepair_instantiate.token_code_id = token_code;
         self.factory_instantiate.whitelist_code_id = whitelist_code;
         self.factory_instantiate.pair_configs[0].code_id = stablepair_code;
-        
+
 
         let whitelist_addr = app
             .instantiate_contract(

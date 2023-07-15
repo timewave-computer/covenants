@@ -20,14 +20,17 @@ pub struct Suite {
 }
 
 pub struct SuiteBuilder {
+    pub app: App,
     pub instantiate: InstantiateMsg,
 }
 
 impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
+            app: App::default(),
             instantiate: InstantiateMsg {
                 tick_max_gas: Uint64::new(DEFAULT_TICK_MAX_GAS),
+                whitelist: vec![],
             },
         }
     }
@@ -39,10 +42,15 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn build(self) -> Suite {
-        let mut app = App::default();
-        let clock_code = app.store_code(clock_contract());
-        let clock = app
+    pub fn with_whitelist(mut self, whitelist: Vec<Addr>) -> Self {
+        self.instantiate.whitelist = whitelist.iter().map(|a| a.to_string()).collect();
+        self
+    }
+
+    pub fn build(mut self) -> Suite {
+        let clock_code = self.app.store_code(clock_contract());
+        let clock = self
+            .app
             .instantiate_contract(
                 clock_code,
                 Addr::unchecked(ADMIN),
@@ -53,7 +61,7 @@ impl SuiteBuilder {
             )
             .unwrap();
         Suite {
-            app,
+            app: self.app,
             clock,
             admin: Addr::unchecked(ADMIN),
             clock_code_id: clock_code,
@@ -61,8 +69,9 @@ impl SuiteBuilder {
     }
 }
 
-// actions
-impl Suite {
+//actions
+impl SuiteBuilder {
+    // Generate test contracts
     pub fn generate_tester(&mut self, mode: Mode) -> Addr {
         let code_id = self.app.store_code(clock_tester_contract());
         self.app
@@ -76,7 +85,10 @@ impl Suite {
             )
             .unwrap()
     }
+}
 
+// actions
+impl Suite {
     // enqueue's `who` and returns the queried queue after enqueueing
     // if no error occurs.
     pub fn enqueue(&mut self, who: &str) -> anyhow::Result<Vec<Addr>> {
@@ -139,6 +151,18 @@ impl Suite {
             self.clock.clone(),
             &MigrateMsg::UpdateTickMaxGas {
                 new_value: Uint64::new(new_value),
+            },
+            self.clock_code_id,
+        )
+    }
+
+    pub fn manage_whitelisted(&mut self, add: Option<Vec<String>>, remove: Option<Vec<String>>) -> anyhow::Result<AppResponse> {
+        self.app.migrate_contract(
+            self.admin.clone(),
+            self.clock.clone(),
+            &MigrateMsg::ManageWhitelist {
+                add,
+                remove,
             },
             self.clock_code_id,
         )
