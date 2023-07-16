@@ -59,7 +59,7 @@ pub fn instantiate(
         DEFAULT_TIMEOUT_SECONDS
     };
     IBC_TIMEOUT.save(deps.storage, &ibc_timeout)?;
-    IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
+    IBC_FEE.save(deps.storage, &msg.preset_ibc_fee.to_ibc_fee())?;
 
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),

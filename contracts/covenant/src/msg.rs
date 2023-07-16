@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Coin};
 use covenant_clock::msg::PresetClockFields;
 use covenant_depositor::msg::PresetDepositorFields;
 use covenant_holder::msg::PresetHolderFields;
@@ -17,7 +17,24 @@ pub struct InstantiateMsg {
     pub preset_holder_fields: PresetHolderFields,
     pub pool_address: String,
     pub ibc_msg_transfer_timeout_timestamp: Option<u64>,
-    pub ibc_fee: IbcFee,
+    pub preset_ibc_fee: PresetIbcFee,
+}
+
+#[cw_serde]
+pub struct PresetIbcFee {
+    pub ack_fee: Coin,
+    pub timeout_fee: Coin,
+}
+
+impl PresetIbcFee {
+    pub fn to_ibc_fee(self) -> IbcFee {
+        IbcFee {
+            // must be empty
+            recv_fee: vec![],
+            ack_fee: vec![self.ack_fee],
+            timeout_fee: vec![self.timeout_fee],
+        }
+    }
 }
 
 #[cw_serde]

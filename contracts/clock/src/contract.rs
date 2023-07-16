@@ -178,7 +178,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
             if new_value.is_zero() {
                 return Err(ContractError::ZeroTickMaxGas {});
             }
-            TICK_MAX_GAS.save(deps.storage, &new_value.min(MIN_TICK_MAX_GAS))?;
+
+            TICK_MAX_GAS.save(deps.storage, &new_value.max(MIN_TICK_MAX_GAS))?;
             Ok(Response::default()
                 .add_attribute("method", "migrate_update_tick_max_gas")
                 .add_attribute("tick_max_gas", new_value))
