@@ -21,7 +21,7 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_PORT_ID, ICA_ADDRESS,
     INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
-    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID,
+    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID, IBC_TIMEOUT, IBC_FEE,
 };
 use neutron_sdk::{
     bindings::{
@@ -63,6 +63,7 @@ pub fn instantiate(
     LP_ADDRESS.save(deps.storage, &msg.lp_address)?;
     NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &msg.neutron_stride_ibc_connection_id)?;
     LS_DENOM.save(deps.storage, &msg.ls_denom)?;
+    IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
@@ -120,17 +121,7 @@ fn try_execute_transfer(
     _info: MessageInfo,
     amount: Uint128,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let fee = IbcFee {
-        recv_fee: vec![], // must be empty
-        ack_fee: vec![cosmwasm_std::Coin {
-            denom: NEUTRON_DENOM.to_string(),
-            amount: Uint128::new(1000u128),
-        }],
-        timeout_fee: vec![cosmwasm_std::Coin {
-            denom: NEUTRON_DENOM.to_string(),
-            amount: Uint128::new(1000u128),
-        }],
-    };
+    let fee = IBC_FEE.load(deps.storage)?;
 
     let port_id = IBC_PORT_ID.load(deps.storage)?;
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
@@ -140,6 +131,7 @@ fn try_execute_transfer(
             let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
             let denom = LS_DENOM.load(deps.storage)?;
+            let timeout = IBC_TIMEOUT.load(deps.storage)?;
 
             let coin = Coin {
                 denom,
@@ -153,7 +145,7 @@ fn try_execute_transfer(
                 sender: address,
                 receiver: lp_receiver.clone(),
                 timeout_height: None,
-                timeout_timestamp: 10000,
+                timeout_timestamp: timeout,
             };
 
             // Serialize the Transfer message
@@ -173,7 +165,7 @@ fn try_execute_transfer(
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
                 lp_receiver,
-                100000,
+                timeout,
                 fee,
             );
 
@@ -326,6 +318,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             lp_address,
             neutron_stride_ibc_connection_id,
             ls_denom,
+            ibc_timeout,
+            ibc_fee,
         } => {
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
@@ -349,6 +343,14 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
 
             if let Some(ls_denom) = ls_denom {
                 LS_DENOM.save(deps.storage, &ls_denom)?;
+            }
+
+            if let Some(timeout) = ibc_timeout {
+                IBC_TIMEOUT.save(deps.storage, &timeout)?;
+            }
+
+            if let Some(fee) = ibc_fee {
+                IBC_FEE.save(deps.storage, &fee)?;
             }
 
             Ok(Response::default().add_attribute("method", "update_config"))

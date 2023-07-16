@@ -15,13 +15,21 @@ type PresetLsFields struct {
 }
 
 type CovenantInstantiateMsg struct {
-	Label           string                `json:"label"`
-	PresetClock     PresetClockFields     `json:"preset_clock_fields"`
-	PresetLs        PresetLsFields        `json:"preset_ls_fields"`
-	PresetDepositor PresetDepositorFields `json:"preset_depositor_fields"`
-	PresetLp        PresetLpFields        `json:"preset_lp_fields"`
-	PresetHolder    PresetHolderFields    `json:"preset_holder_fields"`
-	PoolAddress     string                `json:"pool_address"`
+	Label                          string                `json:"label"`
+	PresetClock                    PresetClockFields     `json:"preset_clock_fields"`
+	PresetLs                       PresetLsFields        `json:"preset_ls_fields"`
+	PresetDepositor                PresetDepositorFields `json:"preset_depositor_fields"`
+	PresetLp                       PresetLpFields        `json:"preset_lp_fields"`
+	PresetHolder                   PresetHolderFields    `json:"preset_holder_fields"`
+	PoolAddress                    string                `json:"pool_address"`
+	IbcMsgTransferTimeoutTimestamp uint64                `json:"ibc_msg_transfer_timeout_timestamp"`
+	IbcFee                         IbcFee                `json:"ibc_fee"`
+}
+
+type IbcFee struct {
+	RecvFee    []CwCoin `json:"recv_fee"`
+	AckFee     []CwCoin `json:"ack_fee"`
+	TimeoutFee []CwCoin `json:"timeout_fee"`
 }
 
 type PresetClockFields struct {
@@ -217,6 +225,11 @@ type Token struct {
 
 type NativeToken struct {
 	Denom string `json:"denom"`
+}
+
+type CwCoin struct {
+	Denom  string `json:"denom"`
+	Amount uint64 `json:"amount"`
 }
 
 // astroport factory

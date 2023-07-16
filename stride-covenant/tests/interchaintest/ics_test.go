@@ -859,15 +859,22 @@ func TestICS(t *testing.T) {
 				Label:      "covenant-holder",
 				Withdrawer: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
 			}
+			ibcFee := IbcFee{
+				RecvFee:    []CwCoin{{Amount: 1000, Denom: "untrn"}},
+				AckFee:     []CwCoin{{Amount: 1000, Denom: "untrn"}},
+				TimeoutFee: []CwCoin{{Amount: 1000, Denom: "untrn"}},
+			}
 
 			covenantMsg := CovenantInstantiateMsg{
-				Label:           "stride-covenant",
-				PresetClock:     clockMsg,
-				PresetLs:        lsMsg,
-				PresetDepositor: depositorMsg,
-				PresetLp:        lpMsg,
-				PresetHolder:    holderMsg,
-				PoolAddress:     stableswapAddress,
+				Label:                          "stride-covenant",
+				PresetClock:                    clockMsg,
+				PresetLs:                       lsMsg,
+				PresetDepositor:                depositorMsg,
+				PresetLp:                       lpMsg,
+				PresetHolder:                   holderMsg,
+				PoolAddress:                    stableswapAddress,
+				IbcMsgTransferTimeoutTimestamp: 60 * 60 * 24 * 7 * 2,
+				IbcFee:                         ibcFee,
 			}
 
 			str, err := json.Marshal(covenantMsg)
@@ -987,11 +994,12 @@ func TestICS(t *testing.T) {
 				currentLpState = response.Data
 				print("\n lp state: ", currentLpState)
 
+				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+
 				if currentDepositorState == depositorStateIcaCreated &&
 					currentLsState == lsStateIcaCreated {
 					break
 				}
-				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
 				require.NoError(t, err, "failed to wait for blocks")
 				tick += 1
 			}
