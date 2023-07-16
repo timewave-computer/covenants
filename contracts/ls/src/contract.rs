@@ -125,8 +125,6 @@ fn try_execute_transfer(
     _info: MessageInfo,
     amount: Uint128,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let fee = IBC_FEE.load(deps.storage)?;
-
     let port_id = IBC_PORT_ID.load(deps.storage)?;
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
 
@@ -136,6 +134,7 @@ fn try_execute_transfer(
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
             let denom = LS_DENOM.load(deps.storage)?;
             let timeout = IBC_TIMEOUT.load(deps.storage)?;
+            let fee = IBC_FEE.load(deps.storage)?;
 
             let coin = Coin {
                 denom,
@@ -168,14 +167,14 @@ fn try_execute_transfer(
                 controller_conn_id,
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
-                lp_receiver,
+                "".to_string(),
                 timeout,
                 fee,
             );
 
             Ok(Response::default()
                 .add_attribute("method", "try_execute_transfer")
-                .add_submessage(SubMsg::reply_on_success(submit_msg, TRANSFER_REPLY_ID)))
+                .add_submessage(SubMsg::reply_always(submit_msg, TRANSFER_REPLY_ID)))
         }
         None => Err(NeutronError::Fmt(Error)),
     }
@@ -204,7 +203,7 @@ pub fn register_transfers_query(
 }
 
 fn try_handle_received() -> NeutronResult<Response<NeutronMsg>> {
-    Ok(Response::default().add_attribute("try_handle_received", "received msg`"))
+    Ok(Response::default().add_attribute("try_handle_received", "received msg"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -641,11 +640,23 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
 
 pub fn handle_transfer_reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: transfer reply");
+    let transfer_reply = msg.clone().result;
+
+    let mut resp = Response::default().add_attribute("method", "handle_transfer_reply");
     // if transfer errors, we roll back to instantiated state
     // this will force an attempt to re-register the ICA
-    if msg.result.is_err() {
-        CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+    match transfer_reply {
+        cosmwasm_std::SubMsgResult::Ok(val) => {
+            if let Some(data) = val.data {
+                resp = resp.add_attribute("submsg_result", data.to_string());
+            };
+            Ok(resp)
+        },
+        cosmwasm_std::SubMsgResult::Err(err) => {
+            CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+            resp = resp.add_attribute("submsg_error", err);
+            Ok(resp)
+        },
     }
-
-    Ok(Response::default().add_attribute("method", "handle_transfer_reply"))
+    
 }
