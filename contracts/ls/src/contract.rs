@@ -33,12 +33,8 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 
-// Default timeout for SubmitTX is two weeks
-// const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const NEUTRON_DENOM: &str = "untrn";
-// const STATOM_DENOM: &str = "stuatom";
-
-const INTERCHAIN_ACCOUNT_ID: &str = "stride-ica";
+const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ls";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");

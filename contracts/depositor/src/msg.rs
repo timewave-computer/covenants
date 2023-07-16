@@ -109,6 +109,8 @@ pub enum QueryMsg {
     // this query returns non-critical errors list
     #[returns(Vec<(Vec<u8>, String)>)]
     ErrorsQueue {},
+    #[returns(String)]
+    AutopilotFormat {},
 }
 
 #[cw_serde]

@@ -43,7 +43,7 @@ type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 // const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
 const NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
-const INTERCHAIN_ACCOUNT_ID: &str = "gaia-ica";
+const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -174,10 +174,10 @@ fn try_liquid_stake(
                 amount,
             };
 
-
             let autopilot_receiver = AUTOPILOT_FORMAT
                 .load(deps.storage)?
                 .replace("{st_ica}", &st_ica);
+            AUTOPILOT_FORMAT.save(deps.storage, &autopilot_receiver)?;
 
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
@@ -374,6 +374,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
         } => query_acknowledgement_result(deps, env, interchain_account_id, sequence_id),
         QueryMsg::ErrorsQueue {} => query_errors_queue(deps),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
+        QueryMsg::AutopilotFormat {} => Ok(to_binary(&AUTOPILOT_FORMAT.may_load(deps.storage)?)?),
     }
 }
 
