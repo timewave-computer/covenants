@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Uint128};
 use covenant_clock_derive::clocked;
+use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::state::ContractState;
 
@@ -11,6 +12,8 @@ pub struct InstantiateMsg {
     pub neutron_stride_ibc_connection_id: String,
     pub lp_address: String,
     pub ls_denom: String,
+    pub ibc_timeout: u64,
+    pub ibc_fee: IbcFee,
 }
 
 #[cw_serde]
@@ -23,13 +26,15 @@ pub struct PresetLsFields {
 }
 
 impl PresetLsFields {
-    pub fn to_instantiate_msg(self, clock_address: String, lp_address: String) -> InstantiateMsg {
+    pub fn to_instantiate_msg(self, clock_address: String, lp_address: String, ibc_timeout: u64, ibc_fee: IbcFee) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
             stride_neutron_ibc_transfer_channel_id: self.stride_neutron_ibc_transfer_channel_id,
             neutron_stride_ibc_connection_id: self.neutron_stride_ibc_connection_id,
             lp_address,
             ls_denom: self.ls_denom,
+            ibc_timeout,
+            ibc_fee,
         }
     }
 }
@@ -67,6 +72,8 @@ pub enum MigrateMsg {
         lp_address: Option<String>,
         neutron_stride_ibc_connection_id: Option<String>,
         ls_denom: Option<String>,
+        ibc_timeout: Option<u64>,
+        ibc_fee: Option<IbcFee>,
     },
     UpdateCodeId {
         data: Option<Binary>,

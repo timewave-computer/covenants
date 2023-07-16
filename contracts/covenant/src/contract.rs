@@ -13,12 +13,13 @@ use crate::{
     state::{
         CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
         COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, LP_CODE, LS_CODE,
-        POOL_ADDRESS,
+        POOL_ADDRESS, IBC_TIMEOUT,
     },
 };
 
 const CONTRACT_NAME: &str = "crates.io:covenant-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -37,6 +38,13 @@ pub fn instantiate(
     CLOCK_CODE.save(deps.storage, &msg.preset_clock_fields.clock_code)?;
 
     POOL_ADDRESS.save(deps.storage, &msg.pool_address)?;
+    
+    let ibc_timeout = if let Some(timeout) = msg.ibc_msg_transfer_timeout_timestamp {
+        timeout
+    } else {
+        DEFAULT_TIMEOUT_SECONDS
+    };
+    IBC_TIMEOUT.save(deps.storage, &ibc_timeout)?;
 
     let instantiate2_msgs = get_instantiate_messages(deps, env, msg)?;
 

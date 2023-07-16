@@ -8,7 +8,7 @@ use crate::{
     msg::InstantiateMsg,
     state::{
         COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR, COVENANT_LP_ADDR,
-        COVENANT_LS_ADDR,
+        COVENANT_LS_ADDR, IBC_FEE, IBC_TIMEOUT,
     },
 };
 
@@ -99,6 +99,9 @@ pub fn get_instantiate_messages(
     env: Env,
     msg: InstantiateMsg,
 ) -> Result<Vec<CosmosMsg>, ContractError> {
+    let ibc_fee = IBC_FEE.load(deps.storage)?;
+    let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+
     let addresses = get_contract_addresses(deps, &env, &msg)?;
     let admin = Some(env.contract.address.to_string());
 
@@ -146,6 +149,8 @@ pub fn get_instantiate_messages(
         msg: to_binary(&msg.preset_ls_fields.to_instantiate_msg(
             addresses.clock_addr.to_string(),
             addresses.lp_addr.to_string(),
+            ibc_timeout,
+            ibc_fee.clone(),
         ))?,
         funds: vec![],
         salt: to_binary(&LS_SALT)?,
@@ -161,6 +166,8 @@ pub fn get_instantiate_messages(
             addresses.clock_addr.to_string(),
             addresses.ls_addr.to_string(),
             addresses.lp_addr.to_string(),
+            ibc_timeout,
+            ibc_fee,
         ))?,
         funds: vec![],
         salt: to_binary(&LS_SALT)?,
