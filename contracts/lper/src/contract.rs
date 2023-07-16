@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
-    StdResult, SubMsg, Uint128, WasmMsg,
+    StdResult, SubMsg, Uint128, WasmMsg, Decimal,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -17,7 +17,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         ProvidedLiquidityInfo, ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION,
-        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE,
+        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, PRICE_DELTA,
     },
 };
 
@@ -59,6 +59,7 @@ pub fn instantiate(
             provided_amount_native: Uint128::zero(),
         },
     )?;
+    PRICE_DELTA.save(deps.storage, &msg.expected_price_delta)?;
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
@@ -92,6 +93,8 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 
 fn try_lp(mut deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
     let contract_addr = env.contract.address;
+    let pool_address = LP_POSITION.load(deps.storage)?;
+
     // we try to submit a double-sided liquidity message first
     let double_sided_submsg =
         try_get_double_side_lp_submsg(deps.branch(), contract_addr.to_string())?;
@@ -144,6 +147,21 @@ fn get_relevant_balances(coins: Vec<Coin>, ls_denom: String, native_denom: Strin
     (native_bal, ls_bal)
 }
 
+fn validate_price_range(offer_asset_amount: Uint128, return_asset_amount: Uint128, delta: Decimal) -> Result<(), ContractError> {
+    let abs_diff = offer_asset_amount.abs_diff(return_asset_amount);
+    let avg = match (offer_asset_amount + return_asset_amount).checked_div(Uint128::new(2)) {
+        Ok(val) => val,
+        Err(e) => return Err(ContractError::Std(e.into())),
+    };
+
+    let ratio = Decimal::from_ratio(abs_diff, avg);
+    if ratio.gt(&delta) {
+        return Err(ContractError::PoolValidationError {  })
+    }
+
+    Ok(())
+}
+
 // here we try to provide double sided liquidity.
 // we don't care about the amounts; just try to provide as much as possible
 fn try_get_double_side_lp_submsg(
@@ -169,9 +187,6 @@ fn try_get_double_side_lp_submsg(
         deps.api.debug("Either native or ls balance is zero");
         return Ok(None);
     }
-
-    // TODO: check if we already received the expected amount of native asset?
-
     // we run the simulation and see how much of asset two we need to provide.
     let mut native_asset = Asset {
         info: AssetInfo::NativeToken {
@@ -184,9 +199,14 @@ fn try_get_double_side_lp_submsg(
         &pool_address.addr,
         &astroport::pair::QueryMsg::Simulation {
             offer_asset: native_asset.clone(),
-            // asset_data.native_asset_info.clone(),
             ask_asset_info: None,
         },
+    )?;
+    let delta = PRICE_DELTA.load(deps.storage)?;
+    validate_price_range(
+        native_asset.clone().amount, 
+        simulation.return_amount,
+        delta
     )?;
 
     let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
@@ -387,6 +407,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::Assets {} => Ok(to_binary(&ASSETS.may_load(deps.storage)?)?),
+        QueryMsg::PriceDelta {} => Ok(to_binary(&PRICE_DELTA.may_load(deps.storage)?)?),
     }
 }
 

@@ -170,6 +170,7 @@ impl Default for SuiteBuilder {
                     native_asset_limit: Uint128::new(100),
                     ls_asset_limit: Uint128::new(100),
                 },
+                expected_price_delta: Decimal::from_ratio(Uint128::new(1), Uint128::new(10)),
             },
             token_instantiate: TokenInstantiateMsg {
                 name: "nativetoken".to_string(),

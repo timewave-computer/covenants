@@ -135,6 +135,7 @@ type PresetLpFields struct {
 	Assets            AssetData `json:"assets"`
 	LpCode            uint64    `json:"lp_code"`
 	Label             string    `json:"label"`
+	PriceDelta        string    `json:"price_delta"`
 }
 
 type AssetData struct {

@@ -14,6 +14,7 @@ pub struct InstantiateMsg {
     pub autostake: Option<bool>,
     pub assets: AssetData,
     pub single_side_lp_limits: SingleSideLpLimits,
+    pub expected_price_delta: Decimal,
 }
 
 #[cw_serde]
@@ -50,6 +51,7 @@ pub struct PresetLpFields {
     pub single_side_lp_limits: Option<SingleSideLpLimits>,
     pub lp_code: u64,
     pub label: String,
+    pub expected_price_delta: Decimal,
 }
 
 impl PresetLpFields {
@@ -70,6 +72,7 @@ impl PresetLpFields {
                 native_asset_limit: Uint128::new(100),
                 ls_asset_limit: Uint128::new(100),
             }),
+            expected_price_delta: self.expected_price_delta,
         }
     }
 }
@@ -96,6 +99,8 @@ pub enum QueryMsg {
     HolderAddress {},
     #[returns(Vec<Asset>)]
     Assets {},
+    #[returns(Decimal)]
+    PriceDelta {},
 }
 
 #[cw_serde]

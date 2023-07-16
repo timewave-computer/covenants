@@ -846,11 +846,12 @@ func TestICS(t *testing.T) {
 			// slippageTolerance := "0.01"
 
 			lpMsg := PresetLpFields{
-				LpCode: lperCodeId,
-				Label:  "covenant-lp",
-				// SlippageTolerance: slippageTolerance,
-				Autostake: false,
-				Assets:    assets,
+				// SlippageTolerance: "",
+				Autostake:  false,
+				Assets:     assets,
+				LpCode:     lperCodeId,
+				Label:      "covenant-lp",
+				PriceDelta: "0.1",
 			}
 
 			holderMsg := PresetHolderFields{

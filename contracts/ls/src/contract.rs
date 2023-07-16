@@ -125,13 +125,12 @@ fn try_execute_transfer(
     _info: MessageInfo,
     amount: Uint128,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let fee = IBC_FEE.load(deps.storage)?;
-
     let port_id = IBC_PORT_ID.load(deps.storage)?;
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
+            let fee = IBC_FEE.load(deps.storage)?;
             let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
             let denom = LS_DENOM.load(deps.storage)?;

@@ -24,4 +24,10 @@ pub enum ContractError {
 
     #[error("Insufficient funds for double sided LP")]
     DoubleSideLpLimitError {},
+
+    #[error("Incomplete pool assets")]
+    IncompletePoolAssets {},
+
+    #[error("Pool validation error")]
+    PoolValidationError {},
 }
