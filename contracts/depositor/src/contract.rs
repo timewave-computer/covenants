@@ -3,7 +3,6 @@ use std::fmt::Error;
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
-use cosmos_sdk_proto::ibc::core::client::v1::Height;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -34,7 +33,8 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS,
-    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID, IBC_TIMEOUT, IBC_FEE,
+    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID, AUTOPILOT_FORMAT,
+    IBC_TIMEOUT, IBC_FEE,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
@@ -42,7 +42,7 @@ type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
 const NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
-const INTERCHAIN_ACCOUNT_ID: &str = "gaia-ica";
+const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -71,6 +71,7 @@ pub fn instantiate(
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     LS_ADDRESS.save(deps.storage, &msg.ls_address)?;
+    AUTOPILOT_FORMAT.save(deps.storage, &msg.autopilot_format)?;
     IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
@@ -161,7 +162,10 @@ fn try_liquid_stake(
                 amount,
             };
 
-            let autopilot_receiver = format!("{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}");
+            let autopilot_receiver = AUTOPILOT_FORMAT
+                .load(deps.storage)?
+                .replace("{st_ica}", &st_ica);
+            AUTOPILOT_FORMAT.save(deps.storage, &autopilot_receiver)?;
 
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
@@ -342,6 +346,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
         } => query_acknowledgement_result(deps, env, interchain_account_id, sequence_id),
         QueryMsg::ErrorsQueue {} => query_errors_queue(deps),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
+        QueryMsg::AutopilotFormat {} => Ok(to_binary(&AUTOPILOT_FORMAT.may_load(deps.storage)?)?),
     }
 }
 
@@ -447,7 +452,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             gaia_neutron_ibc_transfer_channel_id,
             neutron_gaia_connection_id,
             gaia_stride_ibc_transfer_channel_id,
-            ls_address,
+            ls_address, 
+            autopilot_format,
             ibc_timeout,
             ibc_fee,
         } => {
@@ -480,6 +486,10 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
 
             if let Some(ls_address) = ls_address {
                 LS_ADDRESS.save(deps.storage, &ls_address)?;
+            }
+
+            if let Some(autopilot_f) = autopilot_format {
+                AUTOPILOT_FORMAT.save(deps.storage, &autopilot_f)?;
             }
 
             if let Some(timeout) = ibc_timeout {

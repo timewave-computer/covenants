@@ -58,7 +58,7 @@ impl Default for SuiteBuilder {
                     tick_max_gas: Some(Uint64::new(10000)),
                     clock_code: 1,
                     label: "covenant_clock_contract".to_string(),
-
+                    whitelist: vec![],
                 },
                 preset_ls_fields: covenant_ls::msg::PresetLsFields {
                     ls_code: 1,
@@ -79,6 +79,7 @@ impl Default for SuiteBuilder {
                     atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount {
                         amount: 1,
                     },
+                    autopilot_format: "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}".to_string(),
                 },
                 preset_lp_fields: covenant_lp::msg::PresetLpFields {
                     slippage_tolerance: None,

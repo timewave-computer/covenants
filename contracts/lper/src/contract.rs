@@ -78,11 +78,7 @@ pub fn execute(
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
-    let is_clock = verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?);
-    match is_clock {
-        Ok(_) => (),
-        Err(_err) => return Err(ContractError::ClockVerificationError {}),
-    }
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     println!("\n tick state: {:?}", current_state);

@@ -285,12 +285,19 @@ pub fn handle_depositor_reply(
             let migrate_msg = WasmMsg::Migrate {
                 contract_addr: clock_addr.to_string(),
                 new_code_id: clock_code_id,
-                msg: to_binary(&covenant_clock::msg::MigrateMsg:: {
-                    contracts: vec![lp_addr.to_string(), ls_addr.to_string()],
+                msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
+                    add: Some(vec![
+                        lp_addr.to_string(),
+                        ls_addr.to_string(),
+                        response.contract_address, //depositor
+                    ]),
+                    remove: None,
                 })?,
             };
 
-            Ok(Response::default().add_attribute("method", "handle_depositor_reply"))
+            Ok(Response::default()
+                .add_message(migrate_msg)
+                .add_attribute("method", "handle_depositor_reply"))
         }
         Err(_err) => Err(ContractError::ContractInstantiationError {
             contract: "depositor".to_string(),

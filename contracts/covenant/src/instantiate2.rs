@@ -23,6 +23,7 @@ struct CovenantAddresses {
     holder_addr: Addr,
     lp_addr: Addr,
     ls_addr: Addr,
+    depositor_addr: Addr,
 }
 
 fn get_contract_addresses(
@@ -75,6 +76,7 @@ fn get_contract_addresses(
         holder_addr,
         lp_addr,
         ls_addr,
+        depositor_addr,
     })
 }
 
@@ -105,11 +107,20 @@ pub fn get_instantiate_messages(
     let addresses = get_contract_addresses(deps, &env, &msg)?;
     let admin = Some(env.contract.address.to_string());
 
+    // add our contracts to the passed whitelist
+    let mut clock_init_msg = msg.preset_clock_fields.clone().to_instantiate_msg();
+    clock_init_msg.whitelist.extend(vec![
+        addresses.holder_addr.to_string(),
+        addresses.lp_addr.to_string(),
+        addresses.ls_addr.to_string(),
+        addresses.depositor_addr.to_string(),
+    ]);
+
     let clock_msg = WasmMsg::Instantiate2 {
         admin: admin.clone(),
         code_id: msg.preset_clock_fields.clock_code,
         label: msg.preset_clock_fields.label.clone(),
-        msg: to_binary(&msg.preset_clock_fields.to_instantiate_msg())?,
+        msg: to_binary(&clock_init_msg)?,
         funds: vec![],
         salt: to_binary(&CLOCK_SALT)?,
     }
