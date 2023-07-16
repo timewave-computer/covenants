@@ -38,7 +38,7 @@ pub fn instantiate(
     CLOCK_CODE.save(deps.storage, &msg.preset_clock_fields.clock_code)?;
 
     POOL_ADDRESS.save(deps.storage, &msg.pool_address)?;
-    
+
     let ibc_timeout = if let Some(timeout) = msg.ibc_msg_transfer_timeout_timestamp {
         timeout
     } else {

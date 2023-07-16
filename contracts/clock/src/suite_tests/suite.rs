@@ -2,13 +2,11 @@ use cosmwasm_std::{Addr, Uint64};
 use covenant_clock_tester::msg::Mode;
 use cw_multi_test::{App, AppResponse, Executor};
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg}, contract::DEFAULT_TICK_MAX_GAS};
 
 use super::{clock_contract, clock_tester_contract};
 
 const ADMIN: &str = "admin";
-
-pub const DEFAULT_TICK_MAX_GAS: u64 = 100_000;
 
 pub struct Suite {
     pub app: App,
@@ -20,14 +18,17 @@ pub struct Suite {
 }
 
 pub struct SuiteBuilder {
+    pub app: App,
     pub instantiate: InstantiateMsg,
 }
 
 impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
+            app: App::default(),
             instantiate: InstantiateMsg {
-                tick_max_gas: Uint64::new(DEFAULT_TICK_MAX_GAS),
+                tick_max_gas: Some(DEFAULT_TICK_MAX_GAS),
+                whitelist: vec![],
             },
         }
     }
@@ -35,14 +36,19 @@ impl Default for SuiteBuilder {
 
 impl SuiteBuilder {
     pub fn with_tick_max_gas(mut self, tmg: u64) -> Self {
-        self.instantiate.tick_max_gas = Uint64::new(tmg);
+        self.instantiate.tick_max_gas = Some(Uint64::new(tmg));
         self
     }
 
-    pub fn build(self) -> Suite {
-        let mut app = App::default();
-        let clock_code = app.store_code(clock_contract());
-        let clock = app
+    pub fn with_whitelist(mut self, whitelist: Vec<Addr>) -> Self {
+        self.instantiate.whitelist = whitelist.iter().map(|a| a.to_string()).collect();
+        self
+    }
+
+    pub fn build(mut self) -> Suite {
+        let clock_code = self.app.store_code(clock_contract());
+        let clock = self
+            .app
             .instantiate_contract(
                 clock_code,
                 Addr::unchecked(ADMIN),
@@ -53,7 +59,7 @@ impl SuiteBuilder {
             )
             .unwrap();
         Suite {
-            app,
+            app: self.app,
             clock,
             admin: Addr::unchecked(ADMIN),
             clock_code_id: clock_code,
@@ -61,8 +67,9 @@ impl SuiteBuilder {
     }
 }
 
-// actions
-impl Suite {
+//actions
+impl SuiteBuilder {
+    // Generate test contracts
     pub fn generate_tester(&mut self, mode: Mode) -> Addr {
         let code_id = self.app.store_code(clock_tester_contract());
         self.app
@@ -76,7 +83,10 @@ impl Suite {
             )
             .unwrap()
     }
+}
 
+// actions
+impl Suite {
     // enqueue's `who` and returns the queried queue after enqueueing
     // if no error occurs.
     pub fn enqueue(&mut self, who: &str) -> anyhow::Result<Vec<Addr>> {
@@ -133,13 +143,26 @@ impl Suite {
     }
 
     // updates tick_max_gas.
-    pub fn update_tick_max_gas(&mut self, new_value: u64) -> anyhow::Result<AppResponse> {
+    pub fn update_tick_max_gas(&mut self, new_value: Uint64) -> anyhow::Result<AppResponse> {
         self.app.migrate_contract(
             self.admin.clone(),
             self.clock.clone(),
             &MigrateMsg::UpdateTickMaxGas {
-                new_value: Uint64::new(new_value),
+                new_value: new_value,
             },
+            self.clock_code_id,
+        )
+    }
+
+    pub fn manage_whitelisted(
+        &mut self,
+        add: Option<Vec<String>>,
+        remove: Option<Vec<String>>,
+    ) -> anyhow::Result<AppResponse> {
+        self.app.migrate_contract(
+            self.admin.clone(),
+            self.clock.clone(),
+            &MigrateMsg::ManageWhitelist { add, remove },
             self.clock_code_id,
         )
     }
@@ -147,13 +170,12 @@ impl Suite {
 
 // queries
 impl Suite {
-    pub fn query_tick_max_gas(&self) -> u64 {
-        let res: Uint64 = self
+    pub fn query_tick_max_gas(&self) -> Uint64 {
+        self
             .app
             .wrap()
             .query_wasm_smart(&self.clock, &QueryMsg::TickMaxGas {})
-            .unwrap();
-        res.u64()
+            .unwrap()
     }
 
     pub fn query_paused(&self) -> bool {
@@ -195,5 +217,12 @@ impl Suite {
             )
             .unwrap();
         res.u64()
+    }
+
+    pub fn query_whitelist(&self) -> Vec<Addr> {
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.clock, &QueryMsg::Whitelist {})
+            .unwrap()
     }
 }

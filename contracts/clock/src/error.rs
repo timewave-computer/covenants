@@ -27,6 +27,12 @@ pub enum ContractError {
 
     #[error("Caller is not the clock, only clock can tick contracts")]
     NotClock,
+
+    #[error("Caller is not whitelisted, can't enqueue")]
+    NotWhitelisted,
+
+    #[error("Must provide add or remove list")]
+    MustProvideAddOrRemove,
 }
 
 impl From<ContractError> for NeutronError {
