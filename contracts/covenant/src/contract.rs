@@ -2,11 +2,12 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
-    SubMsg, WasmMsg,
+    SubMsg, WasmMsg, Uint128,
 };
 
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
+use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::{
     error::ContractError,

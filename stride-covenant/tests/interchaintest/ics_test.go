@@ -866,15 +866,14 @@ func TestICS(t *testing.T) {
 			}
 
 			covenantMsg := CovenantInstantiateMsg{
-				Label:                          "stride-covenant",
-				PresetClock:                    clockMsg,
-				PresetLs:                       lsMsg,
-				PresetDepositor:                depositorMsg,
-				PresetLp:                       lpMsg,
-				PresetHolder:                   holderMsg,
-				PoolAddress:                    stableswapAddress,
-				IbcMsgTransferTimeoutTimestamp: 60 * 60 * 24 * 7 * 2,
-				PresetIbcFee:                   presetIbcFee,
+				Label:           "stride-covenant",
+				PresetClock:     clockMsg,
+				PresetLs:        lsMsg,
+				PresetDepositor: depositorMsg,
+				PresetLp:        lpMsg,
+				PresetHolder:    holderMsg,
+				PoolAddress:     stableswapAddress,
+				PresetIbcFee:    presetIbcFee,
 			}
 
 			str, err := json.Marshal(covenantMsg)
