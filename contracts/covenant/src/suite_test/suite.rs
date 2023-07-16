@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Empty, Uint64, Uint128};
+use cosmwasm_std::{Addr, Empty, Uint64, Uint128, Decimal};
 use covenant_lp::msg::AssetData;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 use neutron_sdk::bindings::msg::IbcFee;
@@ -90,6 +90,7 @@ impl Default for SuiteBuilder {
                         native_asset_denom: "uatom".to_string(),
                         ls_asset_denom: "stuatom".to_string(),
                     },
+                    expected_price_delta: Decimal::from_ratio(Uint128::new(10), Uint128::new(11)),
                 },
                 preset_holder_fields: covenant_holder::msg::PresetHolderFields {
                     withdrawer: CREATOR_ADDR.to_string(),

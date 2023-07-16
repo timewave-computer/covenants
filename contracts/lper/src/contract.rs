@@ -420,6 +420,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             clock_addr,
             lp_position,
             holder_address,
+            price_delta,
         } => {
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
@@ -431,6 +432,10 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
 
             if let Some(holder_address) = holder_address {
                 HOLDER_ADDRESS.save(deps.storage, &holder_address)?;
+            }
+
+            if let Some(decimal) = price_delta {
+                PRICE_DELTA.save(deps.storage, &decimal)?;
             }
 
             Ok(Response::default().add_attribute("method", "update_config"))
