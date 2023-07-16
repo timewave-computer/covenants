@@ -79,6 +79,7 @@ impl Default for SuiteBuilder {
                     atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount {
                         amount: 1,
                     },
+                    autopilot_format: "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}".to_string(),
                 },
                 preset_lp_fields: covenant_lp::msg::PresetLpFields {
                     slippage_tolerance: None,
