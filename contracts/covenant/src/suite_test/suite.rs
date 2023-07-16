@@ -58,6 +58,7 @@ impl Default for SuiteBuilder {
                     tick_max_gas: Some(Uint64::new(10000)),
                     clock_code: 1,
                     label: "covenant_clock_contract".to_string(),
+
                 },
                 preset_ls_fields: covenant_ls::msg::PresetLsFields {
                     ls_code: 1,
