@@ -1120,7 +1120,31 @@ func TestICS(t *testing.T) {
 		// Check if LP tokens arrive in the Holder
 
 		t.Run("LPer provides liqudity when ticked", func(t *testing.T) {
-			print("TODO")
+			const maxTicks = 20
+			tick := 1
+			for tick <= maxTicks {
+				print("\n Ticking clock ", tick, " of ", maxTicks)
+				tickClock()
+
+				lpAtomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query ICA balance")
+				print("\n lp atom bal: ", lpAtomBalance, "\n")
+
+				lpStatomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronStatomDenom)
+				require.NoError(t, err, "failed to query ICA balance")
+				print("\n lp statom bal: ", lpStatomBalance, "\n")
+
+				if lpAtomBalance == int64(0) &&
+					lpStatomBalance == int64(0) {
+					break
+				}
+				err = testutil.WaitForBlocks(ctx, 5, neutron)
+				require.NoError(t, err, "failed to wait for blocks")
+				tick += 1
+			}
+			// fail if we haven't transferred funds in under maxTicks
+			require.LessOrEqual(t, tick, maxTicks)
+			// TODO check if they are in holder
 		})
 
 		// TEST: Withdraw liquidity
