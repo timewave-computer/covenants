@@ -17,7 +17,7 @@ pub struct InstantiateMsg {
     pub preset_holder_fields: PresetHolderFields,
     pub pool_address: String,
     pub ibc_msg_transfer_timeout_timestamp: Option<u64>,
-    pub preset_ibc_fee: PresetIbcFee,
+    // pub preset_ibc_fee: Option<PresetIbcFee>,
 }
 
 #[cw_serde]

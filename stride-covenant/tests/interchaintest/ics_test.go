@@ -860,10 +860,10 @@ func TestICS(t *testing.T) {
 				Label:      "covenant-holder",
 				Withdrawer: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
 			}
-			presetIbcFee := PresetIbcFee{
-				AckFee:     CwCoin{Amount: 1000, Denom: "untrn"},
-				TimeoutFee: CwCoin{Amount: 1000, Denom: "untrn"},
-			}
+			// presetIbcFee := PresetIbcFee{
+			// AckFee:     CwCoin{Amount: 1000, Denom: "untrn"},
+			// TimeoutFee: CwCoin{Amount: 1000, Denom: "untrn"},
+			// }
 
 			covenantMsg := CovenantInstantiateMsg{
 				Label:           "stride-covenant",
@@ -873,7 +873,7 @@ func TestICS(t *testing.T) {
 				PresetLp:        lpMsg,
 				PresetHolder:    holderMsg,
 				PoolAddress:     stableswapAddress,
-				PresetIbcFee:    presetIbcFee,
+				// PresetIbcFee:    presetIbcFee,
 			}
 
 			str, err := json.Marshal(covenantMsg)
