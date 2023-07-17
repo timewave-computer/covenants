@@ -45,7 +45,6 @@ pub fn instantiate(
 
     //enqueue clock
     CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.clock_address)?)?;
-    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&msg.clock_address)?;
 
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     LP_POSITION.save(deps.storage, &msg.lp_position)?;
@@ -61,8 +60,7 @@ pub fn instantiate(
     )?;
 
     Ok(Response::default()
-        .add_attribute("method", "instantiate")
-        .add_message(clock_enqueue_msg))
+        .add_attribute("method", "instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

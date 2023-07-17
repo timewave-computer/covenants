@@ -810,6 +810,7 @@ func TestICS(t *testing.T) {
 				// TickMaxGas: "500000",
 				ClockCode: clockCodeId,
 				Label:     "covenant-clock",
+				Whitelist: []string{},
 			}
 			// Depositor instantiation message
 			// note that clock address needs to be filled
@@ -859,28 +860,32 @@ func TestICS(t *testing.T) {
 				Label:      "covenant-holder",
 				Withdrawer: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
 			}
-			ibcFee := IbcFee{
-				RecvFee:    []CwCoin{{Amount: 1000, Denom: "untrn"}},
-				AckFee:     []CwCoin{{Amount: 1000, Denom: "untrn"}},
-				TimeoutFee: []CwCoin{{Amount: 1000, Denom: "untrn"}},
-			}
+			// presetIbcFee := PresetIbcFee{
+			// AckFee:     CwCoin{Amount: 1000, Denom: "untrn"},
+			// TimeoutFee: CwCoin{Amount: 1000, Denom: "untrn"},
+			// }
 
 			covenantMsg := CovenantInstantiateMsg{
-				Label:                          "stride-covenant",
-				PresetClock:                    clockMsg,
-				PresetLs:                       lsMsg,
-				PresetDepositor:                depositorMsg,
-				PresetLp:                       lpMsg,
-				PresetHolder:                   holderMsg,
-				PoolAddress:                    stableswapAddress,
-				IbcMsgTransferTimeoutTimestamp: 60 * 60 * 24 * 7 * 2,
-				IbcFee:                         ibcFee,
+				Label:           "stride-covenant",
+				PresetClock:     clockMsg,
+				PresetLs:        lsMsg,
+				PresetDepositor: depositorMsg,
+				PresetLp:        lpMsg,
+				PresetHolder:    holderMsg,
+				PoolAddress:     stableswapAddress,
+				// PresetIbcFee:    presetIbcFee,
 			}
 
 			str, err := json.Marshal(covenantMsg)
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
 
-			covenantContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, covenantCodeIdStr, string(str), true, "--gas", "1500000")
+			covenantContractAddress, err = cosmosNeutron.InstantiateContract(
+				ctx,
+				neutronUser.KeyName,
+				covenantCodeIdStr,
+				string(str),
+				true, "--gas", "1500000",
+			)
 			require.NoError(t, err, "failed to instantiate contract: ", err)
 			print("\n covenant address: ", covenantContractAddress)
 		})

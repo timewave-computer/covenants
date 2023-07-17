@@ -148,7 +148,7 @@ impl Suite {
             self.admin.clone(),
             self.clock.clone(),
             &MigrateMsg::UpdateTickMaxGas {
-                new_value: new_value,
+                new_value,
             },
             self.clock_code_id,
         )

@@ -1,7 +1,6 @@
 use super::suite::SuiteBuilder;
 
 #[test]
-#[should_panic]
 fn test_instantiate_happy() {
     let _suite = SuiteBuilder::default().build();
 

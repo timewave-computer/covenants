@@ -19,9 +19,9 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMs
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_PORT_ID, ICA_ADDRESS,
-    INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
-    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID, IBC_TIMEOUT, IBC_FEE,
+    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_FEE, IBC_PORT_ID, IBC_TIMEOUT,
+    ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
+    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID,
 };
 use neutron_sdk::{
     bindings::{
@@ -55,7 +55,6 @@ pub fn instantiate(
 
     //enqueue clock
     CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.clock_address)?)?;
-    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&msg.clock_address)?;
 
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID
@@ -65,9 +64,7 @@ pub fn instantiate(
     LS_DENOM.save(deps.storage, &msg.ls_denom)?;
     IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
 
-    Ok(Response::default()
-        .add_attribute("method", "instantiate")
-        .add_message(clock_enqueue_msg))
+    Ok(Response::default().add_attribute("method", "instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

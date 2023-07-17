@@ -59,9 +59,7 @@ pub fn instantiate(
 
     // TODO: validations
 
-    //enqueue clock
     CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.clock_address)?)?;
-    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&msg.clock_address)?;
 
     // minations and amounts
     STRIDE_ATOM_RECEIVER.save(deps.storage, &msg.st_atom_receiver)?;
@@ -79,8 +77,7 @@ pub fn instantiate(
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
 
     Ok(Response::default()
-        .add_attribute("method", "depositor_instantiate")
-        .add_message(clock_enqueue_msg))
+        .add_attribute("method", "depositor_instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
