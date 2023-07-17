@@ -9,9 +9,9 @@ use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply, Response,
     StdError, StdResult, SubMsg, Uint128,
 };
-use covenant_clock::helpers::verify_clock;
+use covenant_clock::helpers::{verify_clock, self};
 use cw2::set_contract_version;
-use neutron_sdk::bindings::types::ProtobufAny;
+use neutron_sdk::bindings::types::{ProtobufAny, encode_hex};
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
@@ -118,7 +118,7 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
                 Ok(Response::default())
             }
         },
-        ContractState::Complete => try_completed(deps),
+        ContractState::Complete => Ok(Response::default()),
     }
 }
 
@@ -162,15 +162,16 @@ fn try_liquid_stake(
                 amount,
             };
 
-            let autopilot_receiver = AUTOPILOT_FORMAT
-                .load(deps.storage)?
-                .replace("{st_ica}", &st_ica);
-            AUTOPILOT_FORMAT.save(deps.storage, &autopilot_receiver)?;
+            // let autopilot_receiver = AUTOPILOT_FORMAT
+            //     .load(deps.storage)?
+            //     .replace("{st_ica}", &st_ica);
+            // AUTOPILOT_FORMAT.save(deps.storage, &autopilot_receiver)?;
+            let autopilot_receiver = format!("{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}");
 
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: gaia_stride_channel,
-                token: Some(coin),
+                token: Some(coin), 
                 sender: address,
                 receiver: autopilot_receiver,
                 timeout_height: None,
@@ -188,11 +189,13 @@ fn try_liquid_stake(
                 type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
                 value: Binary::from(buf),
             };
+            
+            
 
             let stride_submit_msg = NeutronMsg::submit_tx(
                 controller_conn_id,
                 INTERCHAIN_ACCOUNT_ID.to_string(),
-                vec![protobuf],
+                vec![protobuf.clone()],
                 "".to_string(),
                 timeout,
                 fee,
@@ -202,9 +205,13 @@ fn try_liquid_stake(
 
             Ok(Response::default()
                 .add_attribute("method", "try_liquid_stake")
-                .add_submessage(SubMsg::new(stride_submit_msg)))
+                .add_attribute("stride_submit_msg_hex", encode_hex(protobuf.value.as_slice()))
+                .add_submessage(SubMsg::reply_always(stride_submit_msg, 10)))
         }
-        None => Err(NeutronError::Fmt(Error)),
+        None => Ok(Response::default()
+            .add_attribute("method", "try_liquid_stake")
+            .add_attribute("error", "no_ica_found")
+        ),
     }
 }
 
@@ -772,6 +779,16 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
         .debug(format!("WASMDEBUG: reply msg: {:?}", msg).as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
+        10 => {
+            let payload = format!("{:?}", msg);
+            let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+            let enqueue_msg = helpers::enqueue_msg(clock_addr.as_str())?;
+            Ok(Response::default()
+                .add_attribute("method", "try_ls_reply")
+                .add_attribute("msgpayload", payload)
+                .add_message(CosmosMsg::Wasm(enqueue_msg))
+            )
+        }
         _ => Err(StdError::generic_err(format!(
             "unsupported reply message id {}",
             msg.id

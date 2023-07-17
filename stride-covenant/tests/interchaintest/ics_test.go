@@ -968,8 +968,10 @@ func TestICS(t *testing.T) {
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
-			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
+			resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
+			jsonResp, _ := json.Marshal(resp)
+			print("\ntick response: ", string(jsonResp), "\n")
 		}
 
 		// Tick the clock until the depositor has created i_c_a
@@ -1067,14 +1069,28 @@ func TestICS(t *testing.T) {
 				require.NoError(t, err, "failed to query ICA balance")
 				print("\n lp atom bal: ", lpAtomBalance, "\n")
 
+				gaiaIcaBalance, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
+				require.NoError(t, err, "failed to query ICA balance")
+				print("\n gaia ica atom bal: ", gaiaIcaBalance, "\n")
+
+				queryCmd := []string{"neutrond", "query", "wasm", "contract-state", "smart",
+					clockContractAddress, "'{\"queue\":{}}'",
+				}
+
+				clockQueueBytes, _, _ := cosmosNeutron.Exec(ctx, queryCmd, nil)
+				clockQueue, _ := json.Marshal(clockQueueBytes)
+				print("\n clock queue: ", clockQueue, "\n")
+
 				if strideICABal == int64(10) &&
 					lpAtomBalance == int64(10) {
 					break
 				}
-				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+				err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 				require.NoError(t, err, "failed to wait for blocks")
 				tick += 1
 			}
+			err = testutil.WaitForBlocks(ctx, 200, atom, neutron, stride)
+
 			// fail if we haven't transferred funds in under maxTicks
 			require.LessOrEqual(t, tick, maxTicks)
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
