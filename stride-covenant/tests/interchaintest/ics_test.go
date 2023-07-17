@@ -933,12 +933,25 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err, "failed to send funds from neutron user to depositor contract")
 
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: clockContractAddress,
+				Amount:  500001,
+				Denom:   neutron.Config().Denom,
+			})
+			require.NoError(t, err, "failed to send funds from neutron user to clock contract")
+
+			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: lsContractAddress,
 				Amount:  500001,
 				Denom:   neutron.Config().Denom,
 			})
-
 			require.NoError(t, err, "failed to send funds from neutron user to ls contract")
+
+			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: lperContractAddress,
+				Amount:  500001,
+				Denom:   neutron.Config().Denom,
+			})
+			require.NoError(t, err, "failed to send funds from neutron user to lp contract")
 
 			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
@@ -1055,11 +1068,42 @@ func TestICS(t *testing.T) {
 		// Tick the clock until the LSer has received stATOM
 		// and Lper has received ATOM
 		t.Run("tick clock until LSer receives funds", func(t *testing.T) {
+			depositorNeutronBal, err := neutron.GetBalance(ctx, depositorContractAddress, neutron.Config().Denom)
+			require.NoError(t, err, "failed to get depositor neutron balance")
+			print("\ndepositor neutron balance: ", depositorNeutronBal, "\n")
+
+			lsNeutronBal, err := neutron.GetBalance(ctx, lsContractAddress, neutron.Config().Denom)
+			require.NoError(t, err, "failed to get ls neutron balance")
+			print("\nls neutron balance: ", lsNeutronBal, "\n")
+
 			const maxTicks = 20
 			tick := 1
 			for tick <= maxTicks {
+
 				print("\n Ticking clock ", tick, " of ", maxTicks)
 				tickClock()
+
+				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
+
+				print("ticking depositor")
+				cmd = []string{"neutrond", "tx", "wasm", "execute", depositorContractAddress,
+					`{"tick":{}}`,
+					"--from", neutronUser.KeyName,
+					"--gas-prices", "0.0untrn",
+					"--gas-adjustment", `1.8`,
+					"--output", "json",
+					"--home", "/var/cosmos-chain/neutron-2",
+					"--node", neutron.GetRPCAddress(),
+					"--chain-id", neutron.Config().ChainID,
+					"--gas", "auto",
+					"--keyring-backend", keyring.BackendTest,
+					"-y",
+				}
+				resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+				require.NoError(t, err)
+				jsonTickResp, _ := json.Marshal(resp)
+				print("\n json tick response: ", string(jsonTickResp), "\n")
 
 				strideICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
 				require.NoError(t, err, "failed to query ICA balance")
@@ -1079,7 +1123,7 @@ func TestICS(t *testing.T) {
 
 				clockQueueBytes, _, _ := cosmosNeutron.Exec(ctx, queryCmd, nil)
 				clockQueue, _ := json.Marshal(clockQueueBytes)
-				print("\n clock queue: ", clockQueue, "\n")
+				print("\n clock queue: ", string(clockQueue), "\n")
 
 				if strideICABal == int64(10) &&
 					lpAtomBalance == int64(10) {

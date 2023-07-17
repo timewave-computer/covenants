@@ -75,6 +75,7 @@ pub fn instantiate(
     IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
+    IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
 
     Ok(Response::default()
         .add_attribute("method", "depositor_instantiate"))
@@ -97,7 +98,7 @@ pub fn execute(
 
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let ica_address = ICA_ADDRESS.may_load(deps.storage)?;
@@ -189,8 +190,6 @@ fn try_liquid_stake(
                 type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
                 value: Binary::from(buf),
             };
-            
-            
 
             let stride_submit_msg = NeutronMsg::submit_tx(
                 controller_conn_id,
@@ -221,7 +220,6 @@ fn try_receive_atom_from_ica(
     _info: MessageInfo,
     _gaia_account_address: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let fee = IBC_FEE.load(deps.storage)?;
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
@@ -232,6 +230,7 @@ fn try_receive_atom_from_ica(
             let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
             let amount = lp_receiver.amount.to_string();
             let timeout = IBC_TIMEOUT.load(deps.storage)?;
+            let fee = IBC_FEE.load(deps.storage)?;
 
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
@@ -780,13 +779,10 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
         10 => {
-            let payload = format!("{:?}", msg);
-            let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-            let enqueue_msg = helpers::enqueue_msg(clock_addr.as_str())?;
+            let payload = format!("{:?}", msg);            
             Ok(Response::default()
                 .add_attribute("method", "try_ls_reply")
                 .add_attribute("msgpayload", payload)
-                .add_message(CosmosMsg::Wasm(enqueue_msg))
             )
         }
         _ => Err(StdError::generic_err(format!(

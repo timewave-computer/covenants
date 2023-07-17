@@ -63,6 +63,7 @@ pub fn instantiate(
     NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &msg.neutron_stride_ibc_connection_id)?;
     LS_DENOM.save(deps.storage, &msg.ls_denom)?;
     IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
+    IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
 
     Ok(Response::default().add_attribute("method", "instantiate"))
 }
