@@ -22,14 +22,12 @@ pub const GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gn_ibc
 pub const GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gs_ibc_chan_id");
 
 pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
-pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
 pub const IBC_TIMEOUT: Item<u64> = Item::new("ibc_timeout");
 pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 
 // ICA
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
-pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 
 #[cw_serde]
 pub enum ContractState {
