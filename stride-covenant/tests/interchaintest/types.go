@@ -163,7 +163,7 @@ type TransferExecutionMsg struct {
 // Rust type here is Uint128 which can't safely be serialized
 // to json int. It needs to go as a string over the wire.
 type TransferAmount struct {
-	Amount uint `json:"amount,string"`
+	Amount string `json:"amount"`
 }
 
 // Queries

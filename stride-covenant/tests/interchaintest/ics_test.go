@@ -1154,10 +1154,12 @@ func TestICS(t *testing.T) {
 			// Construct a transfer message
 			msg := TransferExecutionMsg{
 				Transfer: TransferAmount{
-					Amount: 10,
+					Amount: "10",
 				},
 			}
 			str, err := json.Marshal(msg)
+			require.NoError(t, err)
+
 			// Anyone can call the tranfer function
 			print("\n attempting to move funds by executing message: ", string(str))
 			cmd = []string{"neutrond", "tx", "wasm", "execute", lsContractAddress,
@@ -1177,6 +1179,7 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err)
 
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+			require.NoError(t, err)
 
 			strideICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
 			require.NoError(t, err, "failed to query ICA balance")
