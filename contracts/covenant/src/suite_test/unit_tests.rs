@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     from_binary,
-    testing::{mock_dependencies, mock_env, mock_info},
+    testing::{mock_dependencies, mock_env, mock_info, MOCK_CONTRACT_ADDR},
     to_binary, Addr, Binary, Reply, ReplyOn, SubMsg, SubMsgResponse, SubMsgResult, Uint128, Uint64,
     WasmMsg,
 };
@@ -80,8 +80,22 @@ fn get_init_msg() -> InstantiateMsg {
   }
 }
 
+fn get_default_ibc_fee() -> IbcFee {
+    IbcFee {
+        recv_fee: vec![],
+        ack_fee: vec![cosmwasm_std::Coin {
+            denom: "untrn".to_string(),
+            amount: Uint128::new(1000u128),
+        }],
+        timeout_fee: vec![cosmwasm_std::Coin {
+            denom: "untrn".to_string(),
+            amount: Uint128::new(1000u128),
+        }],
+    }
+}
+
 /// Turn struct to protobuf
-fn to_proto(item: impl Message) -> Vec<u8> {
+fn to_proto(item: &impl Message) -> Vec<u8> {
     let mut buf = Vec::new();
     item.encode(&mut buf).unwrap();
     buf
@@ -101,10 +115,21 @@ fn test_init() {
     let info = mock_info(CREATOR_ADDR, &[]);
 
     let init_msg = get_init_msg();
-    let res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+    let res = instantiate(deps.as_mut(), mock_env(), info, init_msg.clone()).unwrap();
 
     assert_eq!(res.messages.len(), 1);
     assert_eq!(res.messages[0].id, CLOCK_REPLY_ID);
+    assert_eq!(
+        res.messages[0].msg,
+        WasmMsg::Instantiate {
+            admin: Some(MOCK_CONTRACT_ADDR.to_string()),
+            code_id: 1,
+            msg: to_binary(&init_msg.clone().preset_clock_fields.to_instantiate_msg()).unwrap(),
+            funds: vec![],
+            label: init_msg.clone().preset_clock_fields.label
+        }
+        .into()
+    );
 
     // Verify ibc timeout and fee are saved correctly
     // TODO: change code to actually get it from user
@@ -112,20 +137,7 @@ fn test_init() {
     assert_eq!(ibc_timeout, DEFAULT_TIMEOUT_SECONDS);
 
     let ibc_fee = IBC_FEE.load(&deps.storage).unwrap();
-    assert_eq!(
-        ibc_fee,
-        IbcFee {
-            recv_fee: vec![],
-            ack_fee: vec![cosmwasm_std::Coin {
-                denom: "untrn".to_string(),
-                amount: Uint128::new(1000u128),
-            }],
-            timeout_fee: vec![cosmwasm_std::Coin {
-                denom: "untrn".to_string(),
-                amount: Uint128::new(1000u128),
-            }],
-        }
-    );
+    assert_eq!(ibc_fee, get_default_ibc_fee(),);
 
     // Test clock reply
     let clock_reply_res = MsgInstantiateContractResponse {
@@ -137,7 +149,7 @@ fn test_init() {
         id: CLOCK_REPLY_ID,
         result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
-            data: Some(Binary(to_proto(clock_reply_res))),
+            data: Some(Binary(to_proto(&clock_reply_res))),
         }),
     };
 
@@ -145,6 +157,23 @@ fn test_init() {
 
     assert_eq!(reply_res.messages.len(), 1);
     assert_eq!(reply_res.messages[0].id, HOLDER_REPLY_ID);
+    assert_eq!(
+        reply_res.messages[0].msg,
+        WasmMsg::Instantiate {
+            admin: Some(MOCK_CONTRACT_ADDR.to_string()),
+            code_id: 1,
+            msg: to_binary(
+                &init_msg
+                    .clone()
+                    .preset_holder_fields
+                    .to_instantiate_msg(init_msg.clone().pool_address)
+            )
+            .unwrap(),
+            funds: vec![],
+            label: init_msg.clone().preset_holder_fields.label
+        }
+        .into()
+    );
 
     // Test holder reply
     let holder_reply_res = MsgInstantiateContractResponse {
@@ -156,7 +185,7 @@ fn test_init() {
         id: HOLDER_REPLY_ID,
         result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
-            data: Some(Binary(to_proto(holder_reply_res))),
+            data: Some(Binary(to_proto(&holder_reply_res))),
         }),
     };
 
@@ -164,6 +193,22 @@ fn test_init() {
 
     assert_eq!(reply_res.messages.len(), 1);
     assert_eq!(reply_res.messages[0].id, LP_REPLY_ID);
+    assert_eq!(
+        reply_res.messages[0].msg,
+        WasmMsg::Instantiate {
+            admin: Some(MOCK_CONTRACT_ADDR.to_string()),
+            code_id: 1,
+            msg: to_binary(&init_msg.clone().preset_lp_fields.to_instantiate_msg(
+                clock_reply_res.contract_address.clone(),
+                holder_reply_res.contract_address.clone(),
+                init_msg.clone().pool_address
+            ))
+            .unwrap(),
+            funds: vec![],
+            label: init_msg.clone().preset_lp_fields.label
+        }
+        .into()
+    );
 
     // Test LP reply
     let lp_reply_res = MsgInstantiateContractResponse {
@@ -175,7 +220,7 @@ fn test_init() {
         id: LP_REPLY_ID,
         result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
-            data: Some(Binary(to_proto(lp_reply_res))),
+            data: Some(Binary(to_proto(&lp_reply_res))),
         }),
     };
 
@@ -183,6 +228,23 @@ fn test_init() {
 
     assert_eq!(reply_res.messages.len(), 1);
     assert_eq!(reply_res.messages[0].id, LS_REPLY_ID);
+    assert_eq!(
+        reply_res.messages[0].msg,
+        WasmMsg::Instantiate {
+            admin: Some(MOCK_CONTRACT_ADDR.to_string()),
+            code_id: 1,
+            msg: to_binary(&init_msg.clone().preset_ls_fields.to_instantiate_msg(
+                clock_reply_res.contract_address.clone(),
+                lp_reply_res.contract_address.clone(),
+                DEFAULT_TIMEOUT_SECONDS,
+                get_default_ibc_fee(),
+            ))
+            .unwrap(),
+            funds: vec![],
+            label: init_msg.clone().preset_ls_fields.label
+        }
+        .into()
+    );
 
     // Test LS reply
     let ls_reply_res = MsgInstantiateContractResponse {
@@ -194,7 +256,7 @@ fn test_init() {
         id: LS_REPLY_ID,
         result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
-            data: Some(Binary(to_proto(ls_reply_res))),
+            data: Some(Binary(to_proto(&ls_reply_res))),
         }),
     };
 
@@ -202,6 +264,27 @@ fn test_init() {
 
     assert_eq!(reply_res.messages.len(), 1);
     assert_eq!(reply_res.messages[0].id, DEPOSITOR_REPLY_ID);
+    assert_eq!(
+        reply_res.messages[0].msg,
+        WasmMsg::Instantiate {
+            admin: Some(MOCK_CONTRACT_ADDR.to_string()),
+            code_id: 1,
+            msg: to_binary(
+                &init_msg.clone().preset_depositor_fields.to_instantiate_msg(
+                    "to be queried".to_string(),
+                    clock_reply_res.contract_address,
+                    ls_reply_res.contract_address,
+                    lp_reply_res.contract_address,
+                    DEFAULT_TIMEOUT_SECONDS,
+                    get_default_ibc_fee(),
+                )
+            )
+            .unwrap(),
+            funds: vec![],
+            label: init_msg.clone().preset_depositor_fields.label
+        }
+        .into()
+    );
 
     // Test depositor reply
     let depositor_reply_res = MsgInstantiateContractResponse {
@@ -213,7 +296,7 @@ fn test_init() {
         id: DEPOSITOR_REPLY_ID,
         result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
-            data: Some(Binary(to_proto(depositor_reply_res))),
+            data: Some(Binary(to_proto(&depositor_reply_res))),
         }),
     };
 
