@@ -22,7 +22,7 @@ use crate::{
 
 const CONTRACT_NAME: &str = "crates.io:covenant-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
+pub(crate) const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
 pub(crate) const CLOCK_REPLY_ID: u64 = 1u64;
 pub(crate) const HOLDER_REPLY_ID: u64 = 2u64;

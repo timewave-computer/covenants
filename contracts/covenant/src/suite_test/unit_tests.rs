@@ -1,16 +1,20 @@
 use cosmwasm_std::{
+    from_binary,
     testing::{mock_dependencies, mock_env, mock_info},
-    to_binary, Binary, Reply, ReplyOn, SubMsg, SubMsgResponse, SubMsgResult, Uint64, WasmMsg, from_binary, Addr,
+    to_binary, Addr, Binary, Reply, ReplyOn, SubMsg, SubMsgResponse, SubMsgResult, Uint128, Uint64,
+    WasmMsg,
 };
 use covenant_lp::msg::AssetData;
+use neutron_sdk::bindings::msg::IbcFee;
 use prost::Message;
 
 use crate::{
     contract::{
-        instantiate, reply, CLOCK_REPLY_ID, DEPOSITOR_REPLY_ID, HOLDER_REPLY_ID, LP_REPLY_ID,
-        LS_REPLY_ID, query,
+        instantiate, query, reply, CLOCK_REPLY_ID, DEFAULT_TIMEOUT_SECONDS, DEPOSITOR_REPLY_ID,
+        HOLDER_REPLY_ID, LP_REPLY_ID, LS_REPLY_ID,
     },
-    msg::InstantiateMsg, state::{CLOCK_CODE, HOLDER_CODE, DEPOSITOR_CODE, LP_CODE, LS_CODE},
+    msg::InstantiateMsg,
+    state::{CLOCK_CODE, DEPOSITOR_CODE, HOLDER_CODE, IBC_FEE, IBC_TIMEOUT, LP_CODE, LS_CODE},
 };
 
 use super::suite::{CREATOR_ADDR, TODO};
@@ -101,6 +105,27 @@ fn test_init() {
 
     assert_eq!(res.messages.len(), 1);
     assert_eq!(res.messages[0].id, CLOCK_REPLY_ID);
+
+    // Verify ibc timeout and fee are saved correctly
+    // TODO: change code to actually get it from user
+    let ibc_timeout = IBC_TIMEOUT.load(&deps.storage).unwrap();
+    assert_eq!(ibc_timeout, DEFAULT_TIMEOUT_SECONDS);
+
+    let ibc_fee = IBC_FEE.load(&deps.storage).unwrap();
+    assert_eq!(
+        ibc_fee,
+        IbcFee {
+            recv_fee: vec![],
+            ack_fee: vec![cosmwasm_std::Coin {
+                denom: "untrn".to_string(),
+                amount: Uint128::new(1000u128),
+            }],
+            timeout_fee: vec![cosmwasm_std::Coin {
+                denom: "untrn".to_string(),
+                amount: Uint128::new(1000u128),
+            }],
+        }
+    );
 
     // Test clock reply
     let clock_reply_res = MsgInstantiateContractResponse {
@@ -203,10 +228,16 @@ fn test_init() {
                 contract_addr: "contract_clock".to_string(),
                 new_code_id: 1,
                 msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
-                    add: Some(vec!["contract_lp".to_string(), "contract_ls".to_string(), "contract_depositor".to_string()]),
+                    add: Some(vec![
+                        "contract_lp".to_string(),
+                        "contract_ls".to_string(),
+                        "contract_depositor".to_string()
+                    ]),
                     remove: None
-                }).unwrap()
-            }.into(),
+                })
+                .unwrap()
+            }
+            .into(),
             gas_limit: None,
             reply_on: ReplyOn::Never
         }
@@ -214,22 +245,67 @@ fn test_init() {
 
     // After we init everything, lets verify our storage holds correct data
     // Basically test queries and direct storage
-    let clock_addr = query(deps.as_ref(), mock_env(), crate::msg::QueryMsg::ClockAddress {}).unwrap();
-    assert_eq!(from_binary::<Addr>(&clock_addr).unwrap().as_ref(), "contract_clock");
+    let clock_addr = query(
+        deps.as_ref(),
+        mock_env(),
+        crate::msg::QueryMsg::ClockAddress {},
+    )
+    .unwrap();
+    assert_eq!(
+        from_binary::<Addr>(&clock_addr).unwrap().as_ref(),
+        "contract_clock"
+    );
 
-    let depositor_addr = query(deps.as_ref(), mock_env(), crate::msg::QueryMsg::DepositorAddress {}).unwrap();
-    assert_eq!(from_binary::<Addr>(&depositor_addr).unwrap().as_ref(), "contract_depositor");
+    let depositor_addr = query(
+        deps.as_ref(),
+        mock_env(),
+        crate::msg::QueryMsg::DepositorAddress {},
+    )
+    .unwrap();
+    assert_eq!(
+        from_binary::<Addr>(&depositor_addr).unwrap().as_ref(),
+        "contract_depositor"
+    );
 
-    let lp_addr = query(deps.as_ref(), mock_env(), crate::msg::QueryMsg::LpAddress {}).unwrap();
-    assert_eq!(from_binary::<Addr>(&lp_addr).unwrap().as_ref(), "contract_lp");
+    let lp_addr = query(
+        deps.as_ref(),
+        mock_env(),
+        crate::msg::QueryMsg::LpAddress {},
+    )
+    .unwrap();
+    assert_eq!(
+        from_binary::<Addr>(&lp_addr).unwrap().as_ref(),
+        "contract_lp"
+    );
 
-    let ls_addr = query(deps.as_ref(), mock_env(), crate::msg::QueryMsg::LsAddress {}).unwrap();
-    assert_eq!(from_binary::<Addr>(&ls_addr).unwrap().as_ref(), "contract_ls");
+    let ls_addr = query(
+        deps.as_ref(),
+        mock_env(),
+        crate::msg::QueryMsg::LsAddress {},
+    )
+    .unwrap();
+    assert_eq!(
+        from_binary::<Addr>(&ls_addr).unwrap().as_ref(),
+        "contract_ls"
+    );
 
-    let holder_addr = query(deps.as_ref(), mock_env(), crate::msg::QueryMsg::HolderAddress {}).unwrap();
-    assert_eq!(from_binary::<Addr>(&holder_addr).unwrap().as_ref(), "contract_holder");
+    let holder_addr = query(
+        deps.as_ref(),
+        mock_env(),
+        crate::msg::QueryMsg::HolderAddress {},
+    )
+    .unwrap();
+    assert_eq!(
+        from_binary::<Addr>(&holder_addr).unwrap().as_ref(),
+        "contract_holder"
+    );
 
-    let pool_addr = query(deps.as_ref(), mock_env(), crate::msg::QueryMsg::PoolAddress {}).unwrap();
+    let pool_addr = query(
+        deps.as_ref(),
+        mock_env(),
+        crate::msg::QueryMsg::PoolAddress {},
+    )
+    .unwrap();
     assert_eq!(from_binary::<Addr>(&pool_addr).unwrap().as_ref(), TODO);
 
     // Verify code ids are saved, in our case the id are the same and is 1 for all of them
