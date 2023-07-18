@@ -54,15 +54,13 @@ pub fn instantiate(
     PRESET_DEPOSITOR_FIELDS.save(deps.storage, &msg.preset_depositor_fields)?;
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
 
-    // let ibc_timeout = if let Some(timeout) = msg.ibc_msg_transfer_timeout_timestamp {
-    //     timeout
-    // } else {
-    //     DEFAULT_TIMEOUT_SECONDS
-    // };
-    // IBC_TIMEOUT.save(deps.storage, &DEFAULT_TIMEOUT_SECONDS)?;
-    
+    let ibc_timeout = if let Some(timeout) = msg.ibc_msg_transfer_timeout_timestamp {
+        timeout
+    } else {
+        DEFAULT_TIMEOUT_SECONDS
+    };
     // 10 seconds
-    IBC_TIMEOUT.save(deps.storage, &10_000_000_000)?;
+    IBC_TIMEOUT.save(deps.storage, &ibc_timeout)?;
     IBC_FEE.save(deps.storage, &IbcFee {
         recv_fee: vec![],
         ack_fee: vec![cosmwasm_std::Coin {

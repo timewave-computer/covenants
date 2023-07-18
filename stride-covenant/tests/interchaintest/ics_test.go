@@ -866,13 +866,14 @@ func TestICS(t *testing.T) {
 			// }
 
 			covenantMsg := CovenantInstantiateMsg{
-				Label:           "stride-covenant",
-				PresetClock:     clockMsg,
-				PresetLs:        lsMsg,
-				PresetDepositor: depositorMsg,
-				PresetLp:        lpMsg,
-				PresetHolder:    holderMsg,
-				PoolAddress:     stableswapAddress,
+				Label:                          "stride-covenant",
+				PresetClock:                    clockMsg,
+				PresetLs:                       lsMsg,
+				PresetDepositor:                depositorMsg,
+				PresetLp:                       lpMsg,
+				PresetHolder:                   holderMsg,
+				PoolAddress:                    stableswapAddress,
+				IbcMsgTransferTimeoutTimestamp: 10000000000,
 				// PresetIbcFee:    presetIbcFee,
 			}
 
@@ -1121,9 +1122,10 @@ func TestICS(t *testing.T) {
 					clockContractAddress, "'{\"queue\":{}}'",
 				}
 
-				clockQueueBytes, _, _ := cosmosNeutron.Exec(ctx, queryCmd, nil)
+				clockQueueBytes, _, _ := neutron.Exec(ctx, queryCmd, nil)
+
 				clockQueue, _ := json.Marshal(clockQueueBytes)
-				print("\n clock queue: ", string(clockQueue), "\n")
+				print("\n clock queue bytes: ", string(clockQueueBytes), ", queue itself: ", (clockQueue), "\n")
 
 				if strideICABal == int64(10) &&
 					lpAtomBalance == int64(10) {
@@ -1133,7 +1135,6 @@ func TestICS(t *testing.T) {
 				require.NoError(t, err, "failed to wait for blocks")
 				tick += 1
 			}
-			err = testutil.WaitForBlocks(ctx, 200, atom, neutron, stride)
 
 			// fail if we haven't transferred funds in under maxTicks
 			require.LessOrEqual(t, tick, maxTicks)

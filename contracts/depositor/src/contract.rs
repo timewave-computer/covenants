@@ -3,6 +3,8 @@ use std::fmt::Error;
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
+use cosmos_sdk_proto::ibc::core::client::v1::Height;
+use cosmos_sdk_proto::tendermint::consensus::TimeoutInfo;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -83,7 +85,7 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: ExecuteDeps,
+    deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -96,7 +98,7 @@ pub fn execute(
     }
 }
 
-fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
     // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
@@ -109,14 +111,14 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
             if let Some(addr) = ica_address {
                 try_liquid_stake(deps, env, info, addr)
             } else {
-                Ok(Response::default())
+                Ok(Response::default().add_attribute("method", "try_tick").add_attribute("ica_status", "not_created"))
             }
         },
         ContractState::LiquidStaked => {
             if let Some(addr) = ica_address {
                 try_receive_atom_from_ica(deps, env, info, addr)
             } else {
-                Ok(Response::default())
+                Ok(Response::default().add_attribute("method", "try_tick").add_attribute("ica_status", "not_created"))
             }
         },
         ContractState::Complete => Ok(Response::default()),
@@ -124,8 +126,8 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 }
 
 fn try_liquid_stake(
-    deps: ExecuteDeps,
-    _env: Env,
+    mut deps: DepsMut,
+    env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -146,7 +148,7 @@ fn try_liquid_stake(
     let fee = IBC_FEE.load(deps.storage)?;
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -175,8 +177,11 @@ fn try_liquid_stake(
                 token: Some(coin), 
                 sender: address,
                 receiver: autopilot_receiver,
-                timeout_height: None,
-                timeout_timestamp: timeout,
+                timeout_height: Some(Height {
+                    revision_number: 3,
+                    revision_height: 1000,
+                }),
+                timeout_timestamp: 0,
             };
 
             // Serialize the Transfer message
@@ -200,12 +205,24 @@ fn try_liquid_stake(
                 fee,
             );
 
-            CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
+            let submsg = msg_with_sudo_callback(
+                deps.branch(),
+                stride_submit_msg,
+                SudoPayload {
+                    port_id,
+                    // Here you can store some information about the transaction to help you parse
+                    // the acknowledgement later.
+                    message: "try_liquid_stake".to_string(),  
+                },
+            )?;
+
+            // CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
 
             Ok(Response::default()
                 .add_attribute("method", "try_liquid_stake")
-                .add_attribute("stride_submit_msg_hex", encode_hex(protobuf.value.as_slice()))
-                .add_submessage(SubMsg::reply_always(stride_submit_msg, 10)))
+                // .add_attribute("stride_submit_msg_hex", encode_hex(protobuf.value.as_slice()))
+                .add_submessage(submsg)
+            )
         }
         None => Ok(Response::default()
             .add_attribute("method", "try_liquid_stake")
@@ -215,14 +232,14 @@ fn try_liquid_stake(
 }
 
 fn try_receive_atom_from_ica(
-    deps: ExecuteDeps,
+    mut deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -243,8 +260,8 @@ fn try_receive_atom_from_ica(
                 token: Some(coin),
                 sender: address.clone(),
                 receiver: lp_receiver.address,
-                timeout_height: None,
-                timeout_timestamp: timeout,
+                timeout_height: Some(Height { revision_number: 2, revision_height: 1300 }),
+                timeout_timestamp: 0,
             };
 
             // Serialize the Transfer message
@@ -268,17 +285,24 @@ fn try_receive_atom_from_ica(
                 fee,
             );
 
-            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+            let submsg = msg_with_sudo_callback(
+                deps.branch(),
+                submit_msg,
+                SudoPayload {
+                    port_id,
+                    message: "try_receive_atom_from_ica".to_string(),  
+                },
+            )?;
 
             Ok(Response::default()
                 .add_attribute("method", "try_forward_atom_from_ica")
-                .add_submessage(SubMsg::new(submit_msg)))
+                .add_submessage(submsg))
         }
         None => Err(NeutronError::Fmt(Error)),
     }
 }
 
-fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_register_gaia_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
     let connection_id = NEUTRON_GAIA_CONNECTION_ID.load(deps.storage)?;
     let register = NeutronMsg::register_interchain_account(connection_id, gaia_acc_id.clone());
@@ -622,6 +646,12 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
     }
 
     if let Some(payload) = payload {
+        if payload.message == "try_liquid_stake" {
+            CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
+        } else if payload.message == "try_receive_atom_from_ica" {
+            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        }
+
         // update but also check that we don't update same seq_id twice
         ACKNOWLEDGEMENT_RESULTS.update(
             deps.storage,
