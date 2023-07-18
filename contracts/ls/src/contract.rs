@@ -11,7 +11,6 @@ use cosmwasm_std::{
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
-use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
@@ -19,8 +18,8 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMs
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_FEE, IBC_PORT_ID, IBC_TIMEOUT,
-    ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
+    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_FEE, IBC_TIMEOUT,
+    INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
     STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID,
 };
 use neutron_sdk::{
@@ -97,11 +96,9 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 }
 
 fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-    let stride_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
     let connection_id = NEUTRON_STRIDE_IBC_CONNECTION_ID.load(deps.storage)?;
-    let register = NeutronMsg::register_interchain_account(connection_id, stride_acc_id.clone());
-    let key = get_port_id(env.contract.address.as_str(), &stride_acc_id);
-    IBC_PORT_ID.save(deps.storage, &key)?;
+    let register = NeutronMsg::register_interchain_account(connection_id, INTERCHAIN_ACCOUNT_ID.to_string());
+    let key = get_port_id(env.contract.address.as_str(), &INTERCHAIN_ACCOUNT_ID.to_string());
 
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
     INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
@@ -114,13 +111,11 @@ fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
 // permisionless transfer
 fn try_execute_transfer(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     amount: Uint128,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let fee = IBC_FEE.load(deps.storage)?;
-
-    let port_id = IBC_PORT_ID.load(deps.storage)?;
+    let port_id = get_port_id(env.contract.address.as_str(), &INTERCHAIN_ACCOUNT_ID.to_string());
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
 
     match interchain_account {
@@ -129,16 +124,15 @@ fn try_execute_transfer(
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
             let denom = LS_DENOM.load(deps.storage)?;
             let timeout = IBC_TIMEOUT.load(deps.storage)?;
-
-            let coin = Coin {
-                denom,
-                amount: amount.to_string(),
-            };
+            let fee = IBC_FEE.load(deps.storage)?;
 
             let msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel,
-                token: Some(coin),
+                token: Some(Coin {
+                    denom,
+                    amount: amount.to_string(),
+                }),
                 sender: address,
                 receiver: lp_receiver.clone(),
                 timeout_height: None,
@@ -209,7 +203,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             interchain_account_id,
             connection_id,
         } => query_interchain_address(deps, env, interchain_account_id, connection_id),
-        QueryMsg::StrideICA {} => Ok(to_binary(&ICA_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::StrideICA {} => Ok(query_ls_interchain_address(deps, env)?),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
     }
 }
@@ -231,18 +225,8 @@ pub fn query_interchain_address(
     Ok(to_binary(&res)?)
 }
 
-pub fn query_ls_interchain_address(deps: Deps<NeutronQuery>, _env: Env) -> NeutronResult<Binary> {
-    let addr = ICA_ADDRESS.load(deps.storage);
-
-    match addr {
-        Ok(val) => {
-            let address_response = QueryInterchainAccountAddressResponse {
-                interchain_account_address: val,
-            };
-            Ok(to_binary(&address_response)?)
-        }
-        Err(_) => Err(NeutronError::Std(StdError::not_found("no ica stored"))),
-    }
+pub fn query_ls_interchain_address(deps: Deps<NeutronQuery>, env: Env) -> NeutronResult<Binary> {
+    Ok(query_interchain_address_contract(deps, env, INTERCHAIN_ACCOUNT_ID.to_string())?)
 }
 
 // returns ICA address from the contract storage. The address was saved in sudo_open_ack method
@@ -385,7 +369,6 @@ fn sudo_open_ack(
                 parsed_version.clone().controller_connection_id,
             )),
         )?;
-        ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
         return Ok(Response::default().add_attribute("method", "sudo_open_ack"));
     }

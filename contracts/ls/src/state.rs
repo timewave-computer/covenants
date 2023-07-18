@@ -11,13 +11,11 @@ pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 pub const STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("sn_ibc_chann_id");
 pub const NEUTRON_STRIDE_IBC_CONNECTION_ID: Item<String> = Item::new("ns_ibc_conn_id");
 pub const LP_ADDRESS: Item<String> = Item::new("lp_address");
-pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
 pub const LS_DENOM: Item<String> = Item::new("ls_denom");
 
 // ICA
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
-pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 pub const IBC_TIMEOUT: Item<u64> = Item::new("ibc_timeout");
 pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 
