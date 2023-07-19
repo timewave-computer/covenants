@@ -202,7 +202,10 @@ type PairInfo struct {
 	AssetInfos     []AssetInfo `json:"asset_infos"`
 }
 
-type Pair struct{}
+type Pair struct {
+	AssetInfos []AssetInfo `json:"asset_infos"`
+}
+
 type PairQuery struct {
 	Pair Pair `json:"pair"`
 }
@@ -223,6 +226,20 @@ type CreatePairMsg struct {
 
 type CovenantHolderAddressQuery struct {
 	Addr string `json:"address"`
+}
+
+type WithdrawLiquidityMessage struct {
+	WithdrawLiquidity WithdrawLiquidity `json:"withdraw_liquidity"`
+}
+
+type WithdrawLiquidity struct{}
+
+type WithdrawMessage struct {
+	Withdraw Withdraw `json:"withdraw"`
+}
+
+type Withdraw struct {
+	Quantity *[]CwCoin `json:"quantity"`
 }
 
 //////////////////////////////////////////////
@@ -355,6 +372,12 @@ type ProvideLiquidityStruct struct {
 	Receiver          string           `json:"receiver"`
 }
 
+// factory
+
+type FactoryPairResponse struct {
+	Data PairInfo `json:"data"`
+}
+
 /////////////////////////////////////////////////////////////////////
 //--- These are here for debugging but should be likely removed ---//
 
@@ -405,3 +428,27 @@ type DepositorInterchainAccountAddressQueryResponse struct {
 }
 
 //------------------//
+
+type BalanceResponse struct {
+	Balance string `json:"balance"`
+}
+
+type Cw20BalanceResponse struct {
+	Data BalanceResponse `json:"data"`
+}
+
+type AllAccountsResponse struct {
+	Data []string `json:"all_accounts_response"`
+}
+
+type Cw20QueryMsg struct {
+	Balance Balance `json:"balance"`
+	// AllAccounts *AllAccounts `json:"all_accounts"`
+}
+
+type AllAccounts struct {
+}
+
+type Balance struct {
+	Address string `json:"address"`
+}
