@@ -1,30 +1,38 @@
 use std::marker::PhantomData;
 
+use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, ibc::applications::transfer::v1::MsgTransfer};
 use cosmwasm_std::{
     from_binary,
-    testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
-    to_binary, Addr, ContractResult, Deps, DepsMut, MemoryStorage, MessageInfo, OwnedDeps,
-    Response, SystemResult, Uint128, WasmQuery, Empty,
+    testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
+    to_binary, Addr, ContractResult, Deps, DepsMut, Empty, MemoryStorage, MessageInfo, OwnedDeps,
+    Response, SystemResult, Uint128, WasmQuery,
 };
 use neutron_sdk::{
     bindings::{
         msg::{IbcFee, NeutronMsg},
         query::NeutronQuery,
     },
+    interchain_txs::helpers::get_port_id,
+    sudo::msg::SudoMsg,
     NeutronError,
 };
+use prost::Message;
 
 use crate::{
-    contract::{execute, instantiate, DEFAULT_TIMEOUT_SECONDS},
-    msg::{ExecuteMsg, InstantiateMsg, PresetDepositorFields, WeightedReceiverAmount},
+    contract::{execute, instantiate, DEFAULT_TIMEOUT_SECONDS, INTERCHAIN_ACCOUNT_ID},
+    msg::{
+        ExecuteMsg, InstantiateMsg, OpenAckVersion, PresetDepositorFields, WeightedReceiverAmount,
+    },
     state::{ContractState, CONTRACT_STATE},
 };
+
+use super::suite::NATIVE_ATOM_DENOM;
 
 pub type Owned = OwnedDeps<MemoryStorage, MockApi, MockQuerier, NeutronQuery>;
 
 const CREATOR_ADDR: &str = "creator";
-const CLOCK_ADDR: &str = "contract_clock";
-const LP_ADDR: &str = "contract_lp";
+pub const CLOCK_ADDR: &str = "contract_clock";
+pub const LP_ADDR: &str = "contract_lp";
 const LS_ADDR: &str = "contract_ls";
 
 pub(crate) fn get_default_ibc_fee() -> IbcFee {
@@ -77,8 +85,56 @@ pub(crate) fn get_default_init_msg() -> InstantiateMsg {
       label: "depositor".to_string(),
       st_atom_receiver_amount: WeightedReceiverAmount { amount: 1 },
       atom_receiver_amount: WeightedReceiverAmount { amount: 1 },
-      autopilot_format: "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}".to_string(),
+      autopilot_format: "{\"autopilot\": {\"receiver\": \"{st_ica}\",\"stakeibc\": {\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}".to_string(),
     }.to_instantiate_msg("reciever".to_string(), CLOCK_ADDR.to_string(), LS_ADDR.to_string(), LP_ADDR.to_string(), DEFAULT_TIMEOUT_SECONDS, get_default_ibc_fee())
+}
+
+pub fn get_default_sudo_open_ack() -> (SudoMsg, OpenAckVersion) {
+    let counterparty_version = OpenAckVersion {
+        version: "ica".to_string(),
+        controller_connection_id: "connection-0".to_string(),
+        host_connection_id: "connection-1".to_string(),
+        address: "ica_addr".to_string(),
+        encoding: "json".to_string(),
+        tx_type: "register".to_string(),
+    };
+    let json_counterparty_version = serde_json_wasm::to_string(&counterparty_version).unwrap();
+    let sudo_msg = SudoMsg::OpenAck {
+        port_id: get_port_id(MOCK_CONTRACT_ADDR, INTERCHAIN_ACCOUNT_ID),
+        channel_id: "channel-0".to_string(),
+        counterparty_channel_id: "channel-1".to_string(),
+        counterparty_version: json_counterparty_version,
+    };
+
+    (sudo_msg, counterparty_version)
+}
+
+pub fn get_default_msg_transfer() -> MsgTransfer {
+    let default_init_msg = get_default_init_msg();
+    let (_, default_sudo_open_ack) = get_default_sudo_open_ack();
+
+    MsgTransfer {
+        source_port: "transfer".to_string(),
+        source_channel: default_init_msg.gaia_stride_ibc_transfer_channel_id,
+        token: Some(Coin {
+            denom: NATIVE_ATOM_DENOM.to_string(),
+            amount: default_init_msg.atom_receiver.amount.to_string(),
+        }),
+        sender: default_sudo_open_ack.address,
+        receiver: default_init_msg
+            .autopilot_format
+            .replace("{st_ica}", "some_ica_addr"),
+        timeout_height: None,
+        timeout_timestamp: DEFAULT_TIMEOUT_SECONDS,
+    }
+}
+
+pub fn to_proto(to_proto: impl Message) -> Vec<u8> {
+    // Serialize the Transfer message
+    let mut buf = Vec::new();
+    buf.reserve(to_proto.encoded_len());
+    to_proto.encode(&mut buf).unwrap();
+    buf
 }
 
 pub fn do_instantiate() -> (Owned, MessageInfo) {

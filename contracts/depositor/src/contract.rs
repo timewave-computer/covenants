@@ -31,10 +31,10 @@ use neutron_sdk::{
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
-    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS,
-    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID, AUTOPILOT_FORMAT,
-    IBC_TIMEOUT, IBC_FEE,
+    ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
+    GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
+    IBC_PORT_ID, IBC_TIMEOUT, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
+    NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
@@ -42,7 +42,7 @@ type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
 const NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
-pub(crate)const INTERCHAIN_ACCOUNT_ID: &str = "ica";
+pub(crate) const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 
 pub(crate) const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
@@ -77,9 +77,9 @@ pub fn instantiate(
     IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
+    IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
 
-    Ok(Response::default()
-        .add_attribute("method", "depositor_instantiate"))
+    Ok(Response::default().add_attribute("method", "depositor_instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -112,14 +112,14 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
             } else {
                 Ok(Response::default())
             }
-        },
+        }
         ContractState::LiquidStaked => {
             if let Some(addr) = ica_address {
                 try_receive_atom_from_ica(deps, env, info, addr)
             } else {
                 Ok(Response::default())
             }
-        },
+        }
         ContractState::Complete => try_completed(deps),
     }
 }
@@ -622,7 +622,6 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
     }
 
     if let Some(payload) = payload {
-
         if payload.message == "try_liquid_stake" {
             CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
             response = response.add_attribute("payload_message", "try_liquid_stake")
