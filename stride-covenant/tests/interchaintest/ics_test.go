@@ -762,7 +762,7 @@ func TestICS(t *testing.T) {
 			t.Run("create pair on factory", func(t *testing.T) {
 
 				initParams := StablePoolParams{
-					Amp: 300,
+					Amp: 3,
 				}
 				binaryData, err := json.Marshal(initParams)
 				require.NoError(t, err, "error encoding stable pool params to binary")
@@ -822,64 +822,108 @@ func TestICS(t *testing.T) {
 				require.NoError(t, err, "failed to wait for blocks")
 			})
 
-			t.Run("stableswap", func(t *testing.T) {
-				// We can see the actual stuatom and uatom stable swap pool
-				// https://www.mintscan.io/neutron/wasm/contract/neutron1gexnrw67sqje6y8taeehlmrl5nyw0tn9vtpq6tgxs62upsjhql5q2glanc
-				// int amp is set to 300
-				initParams := StablePoolParams{
-					Amp:   300,
-					Owner: nil,
-				}
-				binaryData, err := json.Marshal(initParams)
-				require.NoError(t, err, "error encoding stable pool params to binary")
+			// 	t.Run("stableswap", func(t *testing.T) {
+			// 		// We can see the actual stuatom and uatom stable swap pool
+			// 		// https://www.mintscan.io/neutron/wasm/contract/neutron1gexnrw67sqje6y8taeehlmrl5nyw0tn9vtpq6tgxs62upsjhql5q2glanc
+			// 		// int amp is set to 3, with precision 100.
+			// 		initParams := StablePoolParams{
+			// 			Amp:   3,
+			// 			Owner: nil,
+			// 		}
+			// 		binaryData, err := json.Marshal(initParams)
+			// 		require.NoError(t, err, "error encoding stable pool params to binary")
 
-				stAtom := NativeToken{
-					Denom: neutronStatomDenom,
-				}
-				nativeAtom := NativeToken{
-					Denom: neutronAtomIbcDenom,
-				}
-				assetInfos := []AssetInfo{
-					{
-						NativeToken: &stAtom,
-					},
-					{
-						NativeToken: &nativeAtom,
-					},
-				}
+			// 		stAtom := NativeToken{
+			// 			Denom: neutronStatomDenom,
+			// 		}
+			// 		nativeAtom := NativeToken{
+			// 			Denom: neutronAtomIbcDenom,
+			// 		}
+			// 		assetInfos := []AssetInfo{
+			// 			{
+			// 				NativeToken: &stAtom,
+			// 			},
+			// 			{
+			// 				NativeToken: &nativeAtom,
+			// 			},
+			// 		}
 
-				msg := StableswapInstantiateMsg{
-					TokenCodeId: tokenCodeId,
-					FactoryAddr: factoryAddress,
-					AssetInfos:  assetInfos,
-					InitParams:  binaryData,
-				}
+			// 		msg := StableswapInstantiateMsg{
+			// 			TokenCodeId: tokenCodeId,
+			// 			FactoryAddr: factoryAddress,
+			// 			AssetInfos:  assetInfos,
+			// 			InitParams:  binaryData,
+			// 		}
 
-				str, err := json.Marshal(msg)
-				require.NoError(t, err, "Failed to marshall DepositorInstantiateMsg")
+			// 		str, err := json.Marshal(msg)
+			// 		require.NoError(t, err, "Failed to marshall DepositorInstantiateMsg")
 
-				stableswapAddr, err := cosmosNeutron.InstantiateContract(
-					ctx, neutronUser.KeyName, stablePairCodeIdStr, string(str), true,
-					"--label", "stableswap",
-					"--gas-prices", "0.0untrn",
-					"--gas-adjustment", `1.5`,
-					"--output", "json",
-					"--node", neutron.GetRPCAddress(),
-					"--home", neutron.HomeDir(),
-					"--chain-id", neutron.Config().ChainID,
-					"--gas", "auto",
-					"--keyring-backend", keyring.BackendTest,
-					"-y",
-				)
-				require.NoError(t, err, "Failed to instantiate stableswap")
-				stableswapAddress = stableswapAddr
-				err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-				require.NoError(t, err, "failed to wait for blocks")
-			})
+			// 		stableswapAddr, err := cosmosNeutron.InstantiateContract(
+			// 			ctx, neutronUser.KeyName, stablePairCodeIdStr, string(str), true,
+			// 			"--label", "stableswap",
+			// 			"--gas-prices", "0.0untrn",
+			// 			"--gas-adjustment", `1.5`,
+			// 			"--output", "json",
+			// 			"--node", neutron.GetRPCAddress(),
+			// 			"--home", neutron.HomeDir(),
+			// 			"--chain-id", neutron.Config().ChainID,
+			// 			"--gas", "auto",
+			// 			"--keyring-backend", keyring.BackendTest,
+			// 			"-y",
+			// 		)
+			// 		require.NoError(t, err, "Failed to instantiate stableswap")
+			// 		stableswapAddress = stableswapAddr
+			// 		err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+			// 		require.NoError(t, err, "failed to wait for blocks")
+			// 	})
 
 		})
 
 		t.Run("add liquidity to the atom-statom stableswap pool", func(t *testing.T) {
+			// query neutronUser balance of lp tokens
+
+			stAtom := NativeToken{
+				Denom: neutronStatomDenom,
+			}
+			nativeAtom := NativeToken{
+				Denom: neutronAtomIbcDenom,
+			}
+			assetInfos := []AssetInfo{
+				{
+					NativeToken: &stAtom,
+				},
+				{
+					NativeToken: &nativeAtom,
+				},
+			}
+			pair := Pair{
+				AssetInfos: assetInfos,
+			}
+			pairQueryMsg := PairQuery{
+				Pair: pair,
+			}
+			queryJson, _ := json.Marshal(pairQueryMsg)
+
+			queryCmd := []string{"neutrond", "query", "wasm", "contract-state", "smart",
+				factoryAddress, string(queryJson),
+			}
+
+			print("\n factory query cmd: ", string(strings.Join(queryCmd, " ")), "\n")
+
+			factoryQueryRespBytes, _, _ := neutron.Exec(ctx, queryCmd, nil)
+			print(string(factoryQueryRespBytes))
+
+			var response FactoryPairResponse
+			err = cosmosNeutron.QueryContract(ctx, factoryAddress, pairQueryMsg, &response)
+			stableswapAddress = response.Data.ContractAddr
+			print("\n stableswap address: ", stableswapAddress, "\n")
+			liquidityTokenAddress = response.Data.LiquidityToken
+			print("\n liquidity token: ", liquidityTokenAddress, "\n")
+
+			require.NoError(t, err, "failed to query pair info")
+			jsonResp, _ := json.Marshal(response)
+			print("\npair info: ", string(jsonResp), "\n")
+
 			// lets set up the pool with 100K each of atom/statom
 			// ibc transfer 100K atom to neutron user
 			transferNeutron := ibc.WalletAmount{
@@ -967,52 +1011,11 @@ func TestICS(t *testing.T) {
 			}
 			resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
-			jsonResp, _ := json.Marshal(resp)
+			jsonResp, _ = json.Marshal(resp)
 			print("\nprovide liquidity response: ", string(jsonResp), "\n")
 
 			testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 
-			// query neutronUser balance of lp tokens
-
-			stAtom := NativeToken{
-				Denom: neutronStatomDenom,
-			}
-			nativeAtom := NativeToken{
-				Denom: neutronAtomIbcDenom,
-			}
-			assetInfos := []AssetInfo{
-				{
-					NativeToken: &stAtom,
-				},
-				{
-					NativeToken: &nativeAtom,
-				},
-			}
-			pair := Pair{
-				AssetInfos: assetInfos,
-			}
-			pairQueryMsg := PairQuery{
-				Pair: pair,
-			}
-			queryJson, _ := json.Marshal(pairQueryMsg)
-
-			queryCmd := []string{"neutrond", "query", "wasm", "contract-state", "smart",
-				factoryAddress, string(queryJson),
-			}
-
-			print("\n factory query cmd: ", string(strings.Join(queryCmd, " ")), "\n")
-
-			factoryQueryRespBytes, _, _ := neutron.Exec(ctx, queryCmd, nil)
-			print(string(factoryQueryRespBytes))
-
-			var response FactoryPairResponse
-			err = cosmosNeutron.QueryContract(ctx, factoryAddress, pairQueryMsg, &response)
-			liquidityTokenAddress = response.Data.LiquidityToken
-			print("\n liquidity token: ", liquidityTokenAddress, "\n")
-
-			require.NoError(t, err, "failed to query pair info")
-			jsonResp, _ = json.Marshal(response)
-			print("\npair info: ", string(jsonResp), "\n")
 		})
 
 		t.Run("instantiate covenant", func(t *testing.T) {
@@ -1058,8 +1061,8 @@ func TestICS(t *testing.T) {
 
 			// slippageTolerance := "0.01"
 			singleSideLpLimits := SingleSideLpLimits{
-				NativeAssetLimit: "130134291",
-				LsAssetLimit:     "130134291",
+				NativeAssetLimit: "7204688721",
+				LsAssetLimit:     "7204688721",
 			}
 			lpMsg := PresetLpFields{
 				LpCode:             lperCodeId,
