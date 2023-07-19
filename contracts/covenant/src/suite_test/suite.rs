@@ -1,12 +1,12 @@
-use cosmwasm_std::{Addr, Empty, Uint64, Uint128};
+use cosmwasm_std::{Addr, Empty, Uint64};
 use covenant_lp::msg::AssetData;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use crate::msg::{InstantiateMsg, QueryMsg, PresetIbcFee};
+use crate::msg::{InstantiateMsg, QueryMsg};
 
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";
-pub const NEUTRON_DENOM: &str = "untrn";
+pub const _NEUTRON_DENOM: &str = "untrn";
 
 fn covenant_clock() -> Box<dyn Contract<Empty>> {
     Box::new(

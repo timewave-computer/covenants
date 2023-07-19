@@ -59,8 +59,7 @@ pub fn instantiate(
         },
     )?;
 
-    Ok(Response::default()
-        .add_attribute("method", "instantiate"))
+    Ok(Response::default().add_attribute("method", "instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

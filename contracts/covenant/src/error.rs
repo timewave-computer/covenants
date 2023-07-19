@@ -20,5 +20,8 @@ pub enum ContractError {
     ReplyError { err: String },
 
     #[error("Failed to instantiate {contract:?} contract")]
-    ContractInstantiationError { contract: String, err: ParseReplyError },
+    ContractInstantiationError {
+        contract: String,
+        err: ParseReplyError,
+    },
 }

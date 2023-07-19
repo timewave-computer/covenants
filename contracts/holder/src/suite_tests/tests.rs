@@ -29,8 +29,7 @@ fn test_instantiate_invalid_lp_addr() {
 #[test]
 #[should_panic(expected = "Unauthorized")]
 fn test_withdraw_all_unauthorized() {
-    let mut suite = SuiteBuilder::default()
-        .build();
+    let mut suite = SuiteBuilder::default().build();
 
     suite.fund_holder(coins(100, "coin"));
 
@@ -40,8 +39,7 @@ fn test_withdraw_all_unauthorized() {
 
 #[test]
 fn test_withdraw_all_single_denom() {
-    let mut suite = SuiteBuilder::default()
-        .build();
+    let mut suite = SuiteBuilder::default().build();
 
     suite.fund_holder(coins(100, "coin"));
 
@@ -57,8 +55,7 @@ fn test_withdraw_all_single_denom() {
 
 #[test]
 fn test_withdraw_all_two_denoms() {
-    let mut suite = SuiteBuilder::default()
-        .build();
+    let mut suite = SuiteBuilder::default().build();
 
     let balances = vec![coin(80, "atom"), coin(70, "statom")];
     suite.fund_holder(balances.clone());
@@ -73,14 +70,12 @@ fn test_withdraw_all_two_denoms() {
 
 #[test]
 fn test_fund_single_withdraw_partial_single_denom() {
-    let mut suite = SuiteBuilder::default()
-        .build();
+    let mut suite = SuiteBuilder::default().build();
 
     suite.fund_holder(vec![coin(80, "atom")]);
 
     // withdraw 75 out of a total of 100 tokens
-    suite
-        .withdraw_tokens(DEFAULT_WITHDRAWER, coins(75, "atom"));
+    suite.withdraw_tokens(DEFAULT_WITHDRAWER, coins(75, "atom"));
 
     // check to see there are 25 tokens left in contract
     suite.assert_holder_balance(coins(5, "atom"));
@@ -90,8 +85,7 @@ fn test_fund_single_withdraw_partial_single_denom() {
 }
 #[test]
 fn test_fund_multi_denom_withdraw_partial_two_denom() {
-    let mut suite = SuiteBuilder::default()
-        .build();
+    let mut suite = SuiteBuilder::default().build();
 
     let balances = vec![coin(80, "atom"), coin(70, "statom")];
     suite.fund_holder(balances);
@@ -107,8 +101,7 @@ fn test_fund_multi_denom_withdraw_partial_two_denom() {
 
 #[test]
 fn test_fund_multi_denom_withdraw_exact_single_denom() {
-    let mut suite = SuiteBuilder::default()
-        .build();
+    let mut suite = SuiteBuilder::default().build();
 
     let balances = vec![coin(80, "atom"), coin(70, "stuatom")];
     suite.fund_holder(balances);
@@ -124,8 +117,7 @@ fn test_fund_multi_denom_withdraw_exact_single_denom() {
 #[test]
 #[should_panic(expected = "Cannot Sub with 70 and 100")]
 fn test_fund_single_and_withdraw_too_big_single_denom() {
-    let mut suite = SuiteBuilder::default()
-        .build();
+    let mut suite = SuiteBuilder::default().build();
     let holder_balances = vec![coin(80, "atom"), coin(70, "statom")];
     suite.fund_holder(holder_balances.clone());
 

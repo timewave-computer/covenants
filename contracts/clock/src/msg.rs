@@ -40,7 +40,10 @@ impl PresetClockFields {
             Uint64::new(2900000)
         };
 
-        InstantiateMsg { tick_max_gas: Some(tick_max_gas), whitelist: self.whitelist }
+        InstantiateMsg {
+            tick_max_gas: Some(tick_max_gas),
+            whitelist: self.whitelist,
+        }
     }
 }
 

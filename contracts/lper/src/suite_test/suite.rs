@@ -224,7 +224,7 @@ impl Default for SuiteBuilder {
             clock_instantiate: covenant_clock::msg::InstantiateMsg {
                 tick_max_gas: Some(Uint64::new(50000)),
                 // this is the lper, if any instantiate flow changes, this needs to be updated
-                whitelist: vec!["contract9".to_string()]
+                whitelist: vec!["contract9".to_string()],
             },
             holder_instantiate: covenant_holder::msg::InstantiateMsg {
                 withdrawer: CREATOR_ADDR.to_string(),
