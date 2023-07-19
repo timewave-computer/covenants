@@ -904,6 +904,8 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err)
 			jsonResp, _ := json.Marshal(resp)
 			print("\nprovide liquidity response: ", string(jsonResp), "\n")
+
+			testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 		})
 
 		t.Run("instantiate covenant", func(t *testing.T) {
