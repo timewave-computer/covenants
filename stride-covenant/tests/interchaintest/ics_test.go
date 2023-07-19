@@ -221,7 +221,7 @@ func TestICS(t *testing.T) {
 	// enabled on Neutron and we can fund its account.
 	// The funds for this are sent from a "faucet" account created
 	// by interchaintest in the genesis file.
-	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(100_000_000), atom, neutron, stride)
+	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), atom, neutron, stride)
 	gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
 
 	strideAdminMnemonic := "tone cause tribe this switch near host damage idle fragile antique tail soda alien depth write wool they rapid unfold body scan pledge soft"
@@ -241,7 +241,7 @@ func TestICS(t *testing.T) {
 		neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
 		neutron.Config().Denom)
 	require.NoError(t, err, "failed to fund neutron user")
-	require.EqualValues(t, int64(100_000_000), neutronUserBal)
+	require.EqualValues(t, int64(500_000_000_000), neutronUserBal)
 
 	var strideGaiaConnectionId, gaiaStrideConnectionId string
 	var strideNeutronConnectionId, neutronStrideConnectionId string
@@ -368,6 +368,16 @@ func TestICS(t *testing.T) {
 	_ = strideAtomIbcDenom
 
 	t.Run("stride covenant tests", func(t *testing.T) {
+		//----------------------------------------------//
+		// Testing parameters
+		//----------------------------------------------//
+		const atomFundsToDepositor uint64 = 100_000_000_000   // in uatom
+		const atomToLiquidStake uint64 = 50_000_000_000       // in stuatom
+		atomFunds := atomFundsToDepositor - atomToLiquidStake // in uatom
+
+		const strideRedemptionRate uint64 = 1
+		//----------------------------------------------//
+
 		// Wasm code that we need to store on Neutron
 		const covenantContractPath = "wasms/covenant_covenant.wasm"
 		const clockContractPath = "wasms/covenant_clock.wasm"
@@ -422,7 +432,6 @@ func TestICS(t *testing.T) {
 		const lsStateIcaCreated = "i_c_a_created"
 		// LP states
 		const lpStateInstantiated = "instantiated"
-		const lpStateIcaCreated = "lp"
 
 		var currentDepositorState string
 		var currentLsState string
@@ -689,9 +698,9 @@ func TestICS(t *testing.T) {
 			})
 
 			t.Run("add coins to registry", func(t *testing.T) {
-				// no clue how to marshall go struct fields into rust Vec<(String, u8)>
-				// so passing as a string for now
-				addMessage := `{"add":{"native_coins":[["statom",10],["uatom",10]]}}`
+				// Add ibc native tokens for stuatom and uatom to the native coin registry
+				// each of these tokens has a precision of 6
+				addMessage := `{"add":{"native_coins":[["` + neutronStatomDenom + `",6],["` + neutronAtomIbcDenom + `",6]]}}`
 				addCmd := []string{"neutrond", "tx", "wasm", "execute",
 					coinRegistryAddress,
 					addMessage,
@@ -750,19 +759,21 @@ func TestICS(t *testing.T) {
 			})
 
 			t.Run("stableswap", func(t *testing.T) {
-
+				// We can see the actual stuatom and uatom stable swap pool
+				// https://www.mintscan.io/neutron/wasm/contract/neutron1gexnrw67sqje6y8taeehlmrl5nyw0tn9vtpq6tgxs62upsjhql5q2glanc
+				// int amp is set to 300
 				initParams := StablePoolParams{
-					Amp:   9001,
+					Amp:   300,
 					Owner: nil,
 				}
 				binaryData, err := json.Marshal(initParams)
 				require.NoError(t, err, "error encoding stable pool params to binary")
 
 				stAtom := NativeToken{
-					Denom: "statom",
+					Denom: neutronStatomDenom,
 				}
 				nativeAtom := NativeToken{
-					Denom: atom.Config().Denom,
+					Denom: neutronAtomIbcDenom,
 				}
 				assetInfos := []AssetInfo{
 					{
@@ -804,6 +815,94 @@ func TestICS(t *testing.T) {
 
 		})
 
+		t.Run("add liquidity to the atom-statom stableswap pool", func(t *testing.T) {
+			// lets set up the pool with 100K each of atom/statom
+			// ibc transfer 100K atom to neutron user
+			transferNeutron := ibc.WalletAmount{
+				Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				Denom:   atom.Config().Denom,
+				Amount:  int64(100_000_000_000),
+			}
+			_, err := atom.SendIBCTransfer(ctx, gaiaNeutronTransferChannelId, gaiaUser.KeyName, transferNeutron, ibc.TransferOptions{})
+			require.NoError(t, err)
+
+			testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+
+			// send 100K atom to stride which we can liquid stake
+			autopilotString := `{"autopilot":{"receiver":"` + strideUser.Bech32Address(stride.Config().Bech32Prefix) + `","stakeibc":{"stride_address":"` + strideUser.Bech32Address(stride.Config().Bech32Prefix) + `","action":"LiquidStake"}}}`
+			cmd := []string{atom.Config().Bin, "tx", "ibc-transfer", "transfer", "transfer", gaiaStrideChannelId, autopilotString,
+				"100000000000uatom",
+				"--keyring-backend", keyring.BackendTest,
+				"--node", atom.GetRPCAddress(),
+				"--from", gaiaUser.KeyName,
+				"--gas-prices", atom.Config().GasPrices,
+				"--home", atom.HomeDir(),
+				"--chain-id", atom.Config().ChainID,
+			}
+			_, _, err = atom.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+
+			// ibc transfer statom on stride to neutron user
+			transferStAtomNeutron := ibc.WalletAmount{
+				Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				Denom:   "stuatom",
+				Amount:  int64(100_000_000_000),
+			}
+			_, err = stride.SendIBCTransfer(ctx, strideNeutronChannelId, strideUser.KeyName, transferStAtomNeutron, ibc.TransferOptions{})
+			require.NoError(t, err)
+
+			testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+
+			// join pool
+			assets := []AstroportAsset{
+				AstroportAsset{
+					Info: AssetInfo{
+						NativeToken: &NativeToken{
+							Denom: neutronAtomIbcDenom,
+						},
+					},
+					Amount: "100000000000",
+				},
+				AstroportAsset{
+					Info: AssetInfo{
+						NativeToken: &NativeToken{
+							Denom: neutronStatomDenom,
+						},
+					},
+					Amount: "100000000000",
+				},
+			}
+
+			msg := ProvideLiqudityMsg{
+				ProvideLiquidity: ProvideLiquidityStruct{
+					Assets:            assets,
+					SlippageTolerance: "0.01",
+					AutoStake:         false,
+				},
+			}
+
+			str, err := json.Marshal(msg)
+			require.NoError(t, err, "Failed to marshall provide liquidity msg")
+
+			cmd = []string{"neutrond", "tx", "wasm", "execute", stableswapAddress,
+				string(str),
+				"--from", neutronUser.KeyName,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--chain-id", neutron.Config().ChainID,
+				"--gas", "400000",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+			resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+			jsonResp, _ := json.Marshal(resp)
+			print("\nprovide liquidity response: ", string(jsonResp), "\n")
+		})
+
 		t.Run("instantiate covenant", func(t *testing.T) {
 			// Clock instantiation message
 			clockMsg := PresetClockFields{
@@ -815,10 +914,10 @@ func TestICS(t *testing.T) {
 			// Depositor instantiation message
 			// note that clock address needs to be filled
 			stAtomWeightedReceiverAmount = WeightedReceiverAmount{
-				Amount: int64(10),
+				Amount: atomToLiquidStake,
 			}
 			atomWeightedReceiverAmount = WeightedReceiverAmount{
-				Amount: int64(10),
+				Amount: atomFunds,
 			}
 			depositorMsg := PresetDepositorFields{
 				GaiaNeutronIBCTransferChannelId: gaiaNeutronTransferChannelId,
@@ -841,8 +940,8 @@ func TestICS(t *testing.T) {
 
 			// For LPer, we need to first gather astroport information
 			assets := AssetData{
-				NativeAssetDenom: "uatom",
-				LsAssetDenom:     "stuatom",
+				NativeAssetDenom: neutronAtomIbcDenom,
+				LsAssetDenom:     neutronStatomDenom,
 			}
 
 			// slippageTolerance := "0.01"
@@ -1053,7 +1152,7 @@ func TestICS(t *testing.T) {
 			// transfer funds from gaiaUser to the newly generated ICA account
 			err := cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
 				Address: icaAccountAddress,
-				Amount:  20,
+				Amount:  int64(atomFundsToDepositor),
 				Denom:   atom.Config().Denom,
 			})
 
@@ -1063,7 +1162,7 @@ func TestICS(t *testing.T) {
 
 			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to get ICA balance")
-			require.EqualValues(t, 20, atomBal)
+			require.EqualValues(t, int64(atomFundsToDepositor), atomBal)
 		})
 
 		// Tick the clock until the LSer has received stATOM
@@ -1127,8 +1226,8 @@ func TestICS(t *testing.T) {
 				clockQueue, _ := json.Marshal(clockQueueBytes)
 				print("\n clock queue bytes: ", string(clockQueueBytes), ", queue itself: ", (clockQueue), "\n")
 
-				if strideICABal == int64(10) &&
-					lpAtomBalance == int64(10) {
+				if strideICABal == int64(strideRedemptionRate*atomToLiquidStake) &&
+					lpAtomBalance == int64(atomFunds) {
 					break
 				}
 				err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
@@ -1154,7 +1253,7 @@ func TestICS(t *testing.T) {
 			// Construct a transfer message
 			msg := TransferExecutionMsg{
 				Transfer: TransferAmount{
-					Amount: "10",
+					Amount: strideRedemptionRate * atomToLiquidStake,
 				},
 			}
 			str, err := json.Marshal(msg)
@@ -1190,7 +1289,7 @@ func TestICS(t *testing.T) {
 			print("\n lp statom bal: ", lpStatomBalance, "\n")
 
 			require.Equal(t, int64(0), strideICABal)
-			require.Equal(t, int64(10), lpStatomBalance)
+			require.Equal(t, int64(strideRedemptionRate*atomToLiquidStake), lpStatomBalance)
 
 		})
 
@@ -1198,7 +1297,31 @@ func TestICS(t *testing.T) {
 		// Check if LP tokens arrive in the Holder
 
 		t.Run("LPer provides liqudity when ticked", func(t *testing.T) {
-			print("TODO")
+			const maxTicks = 20
+			tick := 1
+			for tick <= maxTicks {
+				print("\n Ticking clock ", tick, " of ", maxTicks)
+				tickClock()
+
+				lpAtomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query ICA balance")
+				print("\n lp atom bal: ", lpAtomBalance, "\n")
+
+				lpStatomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronStatomDenom)
+				require.NoError(t, err, "failed to query ICA balance")
+				print("\n lp statom bal: ", lpStatomBalance, "\n")
+
+				if lpAtomBalance == int64(0) &&
+					lpStatomBalance == int64(0) {
+					break
+				}
+				err = testutil.WaitForBlocks(ctx, 5, neutron)
+				require.NoError(t, err, "failed to wait for blocks")
+				tick += 1
+			}
+			// fail if we haven't transferred funds in under maxTicks
+			require.LessOrEqual(t, tick, maxTicks)
+			// TODO check if they are in holder
 		})
 
 		// TEST: Withdraw liquidity
