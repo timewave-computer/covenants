@@ -1482,7 +1482,7 @@ func TestICS(t *testing.T) {
 		// Check if LP tokens are burned
 		// Check if stATOM and ATOMs are returned
 
-		t.Run("withdraw can withdraw liquidity", func(t *testing.T) {
+		t.Run("holder can withdraw liquidity", func(t *testing.T) {
 			lpTokenBal := queryLpTokenBalance(liquidityTokenAddress, holderContractAddress)
 			print("\n holder lp token bal: ", lpTokenBal, "\n")
 
@@ -1493,7 +1493,7 @@ func TestICS(t *testing.T) {
 				WithdrawLiquidity: WithdrawLiquidity{},
 			}
 			str, _ := json.Marshal(withdrawLiquidityMsg)
-
+			print("\n withdrawing liquidity from LP position...\n")
 			cmd = []string{"neutrond", "tx", "wasm", "execute", holderContractAddress,
 				string(str),
 				"--from", neutronUser.KeyName,
@@ -1532,6 +1532,11 @@ func TestICS(t *testing.T) {
 			holderLpTokenBal := queryLpTokenBalance(liquidityTokenAddress, holderContractAddress)
 			print("\n holder lp token bal: ", holderLpTokenBal, "\n")
 
+			withdrawerStAtomBal, _ := neutron.GetBalance(ctx, neutronUser.Bech32Address(neutron.Config().Bech32Prefix), neutronStatomDenom)
+			withdrawerNativeAtomBal, _ := neutron.GetBalance(ctx, neutronUser.Bech32Address(neutron.Config().Bech32Prefix), neutronAtomIbcDenom)
+			print("\nwithdrawer statom bal: ", withdrawerStAtomBal, "\n")
+			print("withdrawer atom bal: ", withdrawerNativeAtomBal, "\n")
+
 			withdrawMsg := WithdrawMessage{
 				Withdraw: Withdraw{},
 			}
@@ -1551,6 +1556,7 @@ func TestICS(t *testing.T) {
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
+			print("\n withdrawing funds...\n")
 			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
 			// queryAllLpHolders(liquidityTokenAddress)
@@ -1560,21 +1566,10 @@ func TestICS(t *testing.T) {
 			holderLpTokenBal = queryLpTokenBalance(liquidityTokenAddress, holderContractAddress)
 			print("\n holder lp token bal: ", holderLpTokenBal, "\n")
 
-			lpAtomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronAtomIbcDenom)
-			require.NoError(t, err, "failed to query ICA balance")
-			print("\n lp atom bal: ", lpAtomBalance, "\n")
-
-			lpStatomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronStatomDenom)
-			require.NoError(t, err, "failed to query ICA balance")
-			print("\n lp statom bal: ", lpStatomBalance, "\n")
-
-			holderAtomBalance, err := neutron.GetBalance(ctx, holderContractAddress, neutronAtomIbcDenom)
-			require.NoError(t, err, "failed to query holder balance")
-			print("\n holder atom bal: ", holderAtomBalance, "\n")
-
-			holderStatomBalance, err := neutron.GetBalance(ctx, holderContractAddress, neutronStatomDenom)
-			require.NoError(t, err, "failed to query holder balance")
-			print("\n holder statom bal: ", holderStatomBalance, "\n")
+			withdrawerStAtomBal, _ = neutron.GetBalance(ctx, neutronUser.Bech32Address(neutron.Config().Bech32Prefix), neutronStatomDenom)
+			withdrawerNativeAtomBal, _ = neutron.GetBalance(ctx, neutronUser.Bech32Address(neutron.Config().Bech32Prefix), neutronAtomIbcDenom)
+			print("\nwithdrawer statom bal: ", withdrawerStAtomBal, "\n")
+			print("withdrawer atom bal: ", withdrawerNativeAtomBal, "\n")
 		})
 
 		/////////////////////////////////////////////////////////////////////////////////////
