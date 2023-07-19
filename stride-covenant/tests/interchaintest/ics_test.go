@@ -835,9 +835,10 @@ func TestICS(t *testing.T) {
 				"--keyring-backend", keyring.BackendTest,
 				"--node", atom.GetRPCAddress(),
 				"--from", gaiaUser.KeyName,
-				"--gas-prices", atom.Config().GasPrices,
+				"--gas", "auto",
 				"--home", atom.HomeDir(),
 				"--chain-id", atom.Config().ChainID,
+				"-y",
 			}
 			_, _, err = atom.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
@@ -848,7 +849,7 @@ func TestICS(t *testing.T) {
 			transferStAtomNeutron := ibc.WalletAmount{
 				Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
 				Denom:   "stuatom",
-				Amount:  int64(100_000_000_000),
+				Amount:  int64(100000000000),
 			}
 			_, err = stride.SendIBCTransfer(ctx, strideNeutronChannelId, strideUser.KeyName, transferStAtomNeutron, ibc.TransferOptions{})
 			require.NoError(t, err)
@@ -885,10 +886,12 @@ func TestICS(t *testing.T) {
 
 			str, err := json.Marshal(msg)
 			require.NoError(t, err, "Failed to marshall provide liquidity msg")
+			amountStr := "100000000000" + neutronAtomIbcDenom + "," + "100000000000" + neutronStatomDenom
 
 			cmd = []string{"neutrond", "tx", "wasm", "execute", stableswapAddress,
 				string(str),
 				"--from", neutronUser.KeyName,
+				"--amount", amountStr,
 				"--output", "json",
 				"--home", "/var/cosmos-chain/neutron-2",
 				"--node", neutron.GetRPCAddress(),
