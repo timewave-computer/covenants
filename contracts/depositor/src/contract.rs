@@ -140,6 +140,9 @@ fn try_liquid_stake(
         Some(addr) => addr,
         None => return Err(NeutronError::Std(StdError::not_found("no ica found"))),
     };
+    // TODO: validate balances of stride ica / liquid pooler here.
+    // if either has the expected amount of statom, advance the state
+    
     STRIDE_ATOM_RECEIVER.update(deps.storage, |mut val| -> StdResult<_> {
         val.address = stride_ica_addr.clone();
         Ok(val)
@@ -573,6 +576,7 @@ fn sudo_open_ack(
 }
 
 fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResult<Response> {
+    let mut response = Response::default().add_attribute("method", "sudo_response");
     deps.api.debug(
         format!(
             "WASMDEBUG: sudo_response: sudo received: {:?} {:?}",
@@ -646,10 +650,13 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
     }
 
     if let Some(payload) = payload {
+        
         if payload.message == "try_liquid_stake" {
             CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
+            response = response.add_attribute("payload_message", "try_liquid_stake")
         } else if payload.message == "try_receive_atom_from_ica" {
             CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+            response = response.add_attribute("payload_message", "try_receive_atom_from_ica")
         }
 
         // update but also check that we don't update same seq_id twice
@@ -665,7 +672,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         )?;
     }
 
-    Ok(Response::default().add_attribute("method", "sudo_response"))
+    Ok(response)
 }
 
 fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<Response> {

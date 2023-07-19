@@ -373,7 +373,7 @@ impl SuiteBuilder {
             ),
         };
         app.update_block(|b| b.height += 5);
-
+        println!("init pair msg: {:?}", init_pair_msg);
         let pair_msg = app
             .execute_contract(
                 Addr::unchecked(CREATOR_ADDR),

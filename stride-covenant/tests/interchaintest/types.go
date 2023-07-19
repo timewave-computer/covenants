@@ -56,11 +56,17 @@ type PresetDepositorFields struct {
 }
 
 type PresetLpFields struct {
-	SlippageTolerance string    `json:"slippage_tolerance,omitempty"`
-	Autostake         bool      `json:"autostake,omitempty"`
-	Assets            AssetData `json:"assets"`
-	LpCode            uint64    `json:"lp_code"`
-	Label             string    `json:"label"`
+	SlippageTolerance  string             `json:"slippage_tolerance,omitempty"`
+	Autostake          bool               `json:"autostake,omitempty"`
+	Assets             AssetData          `json:"assets"`
+	LpCode             uint64             `json:"lp_code"`
+	Label              string             `json:"label"`
+	SingleSideLpLimits SingleSideLpLimits `json:"single_side_lp_limits"`
+}
+
+type SingleSideLpLimits struct {
+	NativeAssetLimit string `json:"native_asset_limit"`
+	LsAssetLimit     string `json:"ls_asset_limit"`
 }
 
 type AssetData struct {
@@ -187,6 +193,28 @@ type LpPositionQuery struct{}
 
 type LpInfo struct {
 	Addr string `json:"addr"`
+}
+
+type PairInfo struct {
+	LiquidityToken string      `json:"liquidity_token"`
+	ContractAddr   string      `json:"contract_addr"`
+	PairType       PairType    `json:"pair_type"`
+	AssetInfos     []AssetInfo `json:"asset_infos"`
+}
+
+type Pair struct{}
+type PairQuery struct {
+	Pair Pair `json:"pair"`
+}
+
+type CreatePair struct {
+	PairType   PairType    `json:"pair_type"`
+	AssetInfos []AssetInfo `json:"asset_infos"`
+	InitParams []byte      `json:"init_params"`
+}
+
+type CreatePairMsg struct {
+	CreatePair CreatePair `json:"create_pair"`
 }
 
 //////////////////////////////////////////////
