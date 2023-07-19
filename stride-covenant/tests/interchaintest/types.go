@@ -114,12 +114,12 @@ type ContractStateQueryResponse struct {
 
 // Instantiation
 type WeightedReceiver struct {
-	Amount  int64  `json:"amount"`
+	Amount  uint64 `json:"amount"`
 	Address string `json:"address"`
 }
 
 type WeightedReceiverAmount struct {
-	Amount int64 `json:"amount"`
+	Amount uint64 `json:"amount"`
 }
 
 type StAtomWeightedReceiverQuery struct {
@@ -163,7 +163,7 @@ type TransferExecutionMsg struct {
 // Rust type here is Uint128 which can't safely be serialized
 // to json int. It needs to go as a string over the wire.
 type TransferAmount struct {
-	Amount uint `json:"amount,string"`
+	Amount uint64 `json:"amount,string"`
 }
 
 // Queries
@@ -314,6 +314,17 @@ type Logo struct {
 type WhitelistInstantiateMsg struct {
 	Admins  []string `json:"admins"`
 	Mutable bool     `json:"mutable"`
+}
+
+type ProvideLiqudityMsg struct {
+	ProvideLiquidity ProvideLiquidityStruct `json:"provide_liquidity"`
+}
+
+type ProvideLiquidityStruct struct {
+	Assets            []AstroportAsset `json:"assets"`
+	SlippageTolerance string           `json:"slippage_tolerance"`
+	AutoStake         bool             `json:"auto_stake"`
+	Receiver          string           `json:"receiver"`
 }
 
 /////////////////////////////////////////////////////////////////////

@@ -2,6 +2,7 @@ use std::fmt::Error;
 
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
+use cosmos_sdk_proto::ibc::core::client::v1::Height;
 use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -63,6 +64,7 @@ pub fn instantiate(
     NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &msg.neutron_stride_ibc_connection_id)?;
     LS_DENOM.save(deps.storage, &msg.ls_denom)?;
     IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
+    IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
 
     Ok(Response::default().add_attribute("method", "instantiate"))
 }
@@ -141,8 +143,11 @@ fn try_execute_transfer(
                 token: Some(coin),
                 sender: address,
                 receiver: lp_receiver.clone(),
-                timeout_height: None,
-                timeout_timestamp: timeout,
+                timeout_height: Some(Height {
+                    revision_number: 3,
+                    revision_height: 1500,
+                }),
+                timeout_timestamp: 0,
             };
 
             // Serialize the Transfer message

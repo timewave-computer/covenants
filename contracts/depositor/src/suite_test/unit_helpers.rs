@@ -4,7 +4,7 @@ use cosmwasm_std::{
     from_binary,
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
     to_binary, Addr, ContractResult, Deps, DepsMut, MemoryStorage, MessageInfo, OwnedDeps,
-    Response, SystemResult, Uint128, WasmQuery,
+    Response, SystemResult, Uint128, WasmQuery, Empty,
 };
 use neutron_sdk::{
     bindings::{

@@ -42,7 +42,7 @@ type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
 const NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
-pub(crate) const INTERCHAIN_ACCOUNT_ID: &str = "ica";
+pub(crate)const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 
 pub(crate) const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
