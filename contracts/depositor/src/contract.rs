@@ -9,7 +9,9 @@ use cosmwasm_std::{
     StdResult, SubMsg,
 };
 use covenant_clock::helpers::verify_clock;
+use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
+use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
@@ -33,6 +35,10 @@ use crate::state::{
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
     IBC_PORT_ID, IBC_TIMEOUT, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
     NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
+    ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
+    GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
+    IBC_PORT_ID, IBC_TIMEOUT, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
+    NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
@@ -40,7 +46,9 @@ type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
 const _NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
-const INTERCHAIN_ACCOUNT_ID: &str = "ica";
+pub(crate) const INTERCHAIN_ACCOUNT_ID: &str = "ica";
+
+pub(crate) const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
 const CONTRACT_NAME: &str = "crates.io:covenant-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -76,10 +84,12 @@ pub fn instantiate(
     IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
 
     Ok(Response::default().add_attribute("method", "depositor_instantiate"))
+    Ok(Response::default().add_attribute("method", "depositor_instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
+    deps: ExecuteDeps,
     deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
@@ -94,7 +104,9 @@ pub fn execute(
 }
 
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
@@ -186,11 +198,8 @@ fn try_send_funds(
                 token: Some(stride_coin),
                 sender: address.clone(),
                 receiver: autopilot_receiver,
-                timeout_height: Some(Height {
-                    revision_number: 3,
-                    revision_height: 1000,
-                }),
-                timeout_timestamp: 0,
+                timeout_height: None,
+                timeout_timestamp: timeout,
             };
 
             let stride_protobuf = to_proto_msg_transfer(stride_msg)?;
@@ -250,6 +259,7 @@ fn try_send_funds(
     }
 }
 
+fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
 fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
     let connection_id = NEUTRON_GAIA_CONNECTION_ID.load(deps.storage)?;

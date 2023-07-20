@@ -22,13 +22,13 @@ use crate::{
 
 const CONTRACT_NAME: &str = "crates.io:covenant-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
+pub(crate) const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
-const CLOCK_REPLY_ID: u64 = 1u64;
-const HOLDER_REPLY_ID: u64 = 2u64;
-const LP_REPLY_ID: u64 = 3u64;
-const LS_REPLY_ID: u64 = 4u64;
-const DEPOSITOR_REPLY_ID: u64 = 5u64;
+pub(crate) const CLOCK_REPLY_ID: u64 = 1u64;
+pub(crate) const HOLDER_REPLY_ID: u64 = 2u64;
+pub(crate) const LP_REPLY_ID: u64 = 3u64;
+pub(crate) const LS_REPLY_ID: u64 = 4u64;
+pub(crate) const DEPOSITOR_REPLY_ID: u64 = 5u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -137,8 +137,9 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
                 .add_attribute("method", "handle_clock_reply")
                 .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "clock".to_string(),
+            err,
         }),
     }
 }
@@ -177,8 +178,9 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
                 .add_attribute("method", "handle_holder_reply")
                 .add_submessage(SubMsg::reply_always(lp_instantiate_tx, LP_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "holder".to_string(),
+            err,
         }),
     }
 }
@@ -221,8 +223,9 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 .add_attribute("method", "handle_lp_reply")
                 .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "lp".to_string(),
+            err,
         }),
     }
 }
@@ -269,8 +272,9 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                     DEPOSITOR_REPLY_ID,
                 )))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "ls".to_string(),
+            err,
         }),
     }
 }
@@ -314,8 +318,9 @@ pub fn handle_depositor_reply(
                 .add_message(migrate_msg)
                 .add_attribute("method", "handle_depositor_reply"))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "depositor".to_string(),
+            err,
         }),
     }
 }

@@ -12,8 +12,8 @@ use crate::msg::{InstantiateMsg, QueryMsg, WeightedReceiver};
 
 pub const CREATOR_ADDR: &str = "creator";
 pub const NEUTRON_DENOM: &str = "untrn";
-pub const ST_ATOM_DENOM: &str = "stride-atom";
-pub const NATIVE_ATOM_DENOM: &str = "native-atom";
+pub const ST_ATOM_DENOM: &str = "statom";
+pub const NATIVE_ATOM_DENOM: &str = "uatom";
 pub const _DEFAULT_RECEIVER_AMOUNT: Uint128 = Uint128::new(10);
 pub const _DEFAULT_CLOCK_ADDRESS: &str = "clock-address";
 

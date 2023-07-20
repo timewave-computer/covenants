@@ -6,7 +6,7 @@ use crate::msg::{InstantiateMsg, QueryMsg};
 
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";
-pub const NEUTRON_DENOM: &str = "untrn";
+pub const _NEUTRON_DENOM: &str = "untrn";
 
 fn covenant_clock() -> Box<dyn Contract<Empty>> {
     Box::new(
