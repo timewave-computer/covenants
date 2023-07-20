@@ -1,7 +1,6 @@
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
-use cosmos_sdk_proto::ibc::core::client::v1::Height;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -9,9 +8,7 @@ use cosmwasm_std::{
     StdResult, SubMsg,
 };
 use covenant_clock::helpers::verify_clock;
-use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
-use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
@@ -31,10 +28,6 @@ use neutron_sdk::{
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
-    GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
-    IBC_PORT_ID, IBC_TIMEOUT, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
-    NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
     ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
     IBC_PORT_ID, IBC_TIMEOUT, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
@@ -84,12 +77,10 @@ pub fn instantiate(
     IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
 
     Ok(Response::default().add_attribute("method", "depositor_instantiate"))
-    Ok(Response::default().add_attribute("method", "depositor_instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: ExecuteDeps,
     deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
@@ -103,7 +94,6 @@ pub fn execute(
     }
 }
 
-fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
@@ -219,11 +209,8 @@ fn try_send_funds(
                 token: Some(lper_coin),
                 sender: address.clone(),
                 receiver: lp_receiver.address,
-                timeout_height: Some(Height {
-                    revision_number: 2,
-                    revision_height: 1300,
-                }),
-                timeout_timestamp: 0,
+                timeout_height: None,
+                timeout_timestamp: timeout,
             };
 
             let lp_protobuf = to_proto_msg_transfer(lper_msg)?;
@@ -248,6 +235,8 @@ fn try_send_funds(
                 },
             )?;
 
+            CONTRACT_STATE.save(deps.storage, &ContractState::FundsSent)?;
+
             Ok(Response::default()
                 .add_attribute("method", "try_send_funds")
                 // .add_attribute("stride_submit_msg_hex", encode_hex(protobuf.value.as_slice()))
@@ -259,7 +248,6 @@ fn try_send_funds(
     }
 }
 
-fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
 fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
     let connection_id = NEUTRON_GAIA_CONNECTION_ID.load(deps.storage)?;
