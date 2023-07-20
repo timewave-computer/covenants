@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
-    SubMsg, WasmMsg, Uint128,
+    SubMsg, Uint128, WasmMsg,
 };
 
 use cw2::set_contract_version;
@@ -61,17 +61,20 @@ pub fn instantiate(
     };
     // 10 seconds
     IBC_TIMEOUT.save(deps.storage, &ibc_timeout)?;
-    IBC_FEE.save(deps.storage, &IbcFee {
-        recv_fee: vec![],
-        ack_fee: vec![cosmwasm_std::Coin {
-            denom: "untrn".to_string(),
-            amount: Uint128::new(1000u128),
-        }],
-        timeout_fee: vec![cosmwasm_std::Coin {
-            denom: "untrn".to_string(),
-            amount: Uint128::new(1000u128),
-        }],
-    })?;
+    IBC_FEE.save(
+        deps.storage,
+        &IbcFee {
+            recv_fee: vec![],
+            ack_fee: vec![cosmwasm_std::Coin {
+                denom: "untrn".to_string(),
+                amount: Uint128::new(1000u128),
+            }],
+            timeout_fee: vec![cosmwasm_std::Coin {
+                denom: "untrn".to_string(),
+                amount: Uint128::new(1000u128),
+            }],
+        },
+    )?;
 
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),

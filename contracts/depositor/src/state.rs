@@ -13,8 +13,8 @@ pub const NATIVE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("native_atom_
 
 // store the clock address to verify calls
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
-pub const LS_ADDRESS: Item<String> = Item::new("ls_address");
-pub const LP_ADDRESS: Item<String> = Item::new("lp_address");
+pub const LS_ADDRESS: Item<Addr> = Item::new("ls_address");
+pub const LP_ADDRESS: Item<Addr> = Item::new("lp_address");
 pub const AUTOPILOT_FORMAT: Item<String> = Item::new("autopilot_format");
 
 // the ibc transfer channel
@@ -27,7 +27,7 @@ pub const IBC_TIMEOUT: Item<u64> = Item::new("ibc_timeout");
 pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 
 // ICA
-pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
+pub const INTERCHAIN_ACCOUNTS: Map<String, (String, String)> =
     Map::new("interchain_accounts");
 pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 
@@ -35,7 +35,7 @@ pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 pub enum ContractState {
     Instantiated,
     ICACreated,
-    LiquidStaked,
+    FundsSent,
     Complete,
 }
 

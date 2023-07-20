@@ -3,7 +3,10 @@ use cw_multi_test::{
     App, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, Executor, FailingModule,
     WasmKeeper,
 };
-use neutron_sdk::bindings::{msg::{NeutronMsg, IbcFee}, query::NeutronQuery};
+use neutron_sdk::bindings::{
+    msg::{IbcFee, NeutronMsg},
+    query::NeutronQuery,
+};
 
 use crate::msg::{InstantiateMsg, QueryMsg, WeightedReceiver};
 
