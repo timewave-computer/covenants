@@ -1,6 +1,6 @@
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_std::{Addr, Coin};
-use cw_multi_test::{App, AppBuilder, AppResponse, Executor};
+use cw_multi_test::{App, AppResponse, Executor};
 
 use super::holder_contract;
 
@@ -69,20 +69,17 @@ impl SuiteBuilder {
 // actions
 impl Suite {
     /// sends a message on caller's behalf to withdraw a specified amount of tokens
-    pub fn withdraw_tokens(
-        &mut self,
-        caller: &str,
-        quantity: Vec<Coin>,
-    ) -> AppResponse {
-        self.app.execute_contract(
-            Addr::unchecked(caller),
-            self.holder.clone(),
-            &ExecuteMsg::Withdraw {
-                quantity: Some(quantity),
-            },
-            &[],
-        )
-        . unwrap()
+    pub fn withdraw_tokens(&mut self, caller: &str, quantity: Vec<Coin>) -> AppResponse {
+        self.app
+            .execute_contract(
+                Addr::unchecked(caller),
+                self.holder.clone(),
+                &ExecuteMsg::Withdraw {
+                    quantity: Some(quantity),
+                },
+                &[],
+            )
+            .unwrap()
     }
 
     /// sends a message on caller's behalf to withdraw remaining balance
@@ -104,26 +101,20 @@ impl Suite {
             .query_wasm_smart(&self.holder, &QueryMsg::Withdrawer {})
             .unwrap()
     }
-
-    pub fn query_lp_address(&self) -> Addr {
-        self.app
-            .wrap()
-            .query_wasm_smart(&self.holder, &QueryMsg::LpAddress {})
-            .unwrap()
-    }
 }
 
 // helper
 impl Suite {
     pub fn fund_holder(&mut self, tokens: Vec<Coin>) -> AppResponse {
-        self.app.sudo(cw_multi_test::SudoMsg::Bank(
-            cw_multi_test::BankSudo::Mint {
-                to_address: self.holder.to_string(),
-                amount: tokens,
-            },
-        ))
-        .unwrap()
-    }   
+        self.app
+            .sudo(cw_multi_test::SudoMsg::Bank(
+                cw_multi_test::BankSudo::Mint {
+                    to_address: self.holder.to_string(),
+                    amount: tokens,
+                },
+            ))
+            .unwrap()
+    }
 
     pub fn assert_holder_balance(&mut self, tokens: Vec<Coin>) {
         for c in &tokens {

@@ -92,8 +92,6 @@ func TestICS(t *testing.T) {
 				ChainID: "stride-3",
 				Images: []ibc.DockerImage{
 					{
-						// Repository: "ghcr.io/strangelove-ventures/heighliner/stride",
-						// Version:    "v9.2.1",
 						Repository: "stride",
 						Version:    "local",
 						UidGid:     "1025:1025",
@@ -221,7 +219,7 @@ func TestICS(t *testing.T) {
 	// enabled on Neutron and we can fund its account.
 	// The funds for this are sent from a "faucet" account created
 	// by interchaintest in the genesis file.
-	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(100_000_000), atom, neutron, stride)
+	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), atom, neutron, stride)
 	gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
 
 	strideAdminMnemonic := "tone cause tribe this switch near host damage idle fragile antique tail soda alien depth write wool they rapid unfold body scan pledge soft"
@@ -241,12 +239,13 @@ func TestICS(t *testing.T) {
 		neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
 		neutron.Config().Denom)
 	require.NoError(t, err, "failed to fund neutron user")
-	require.EqualValues(t, int64(100_000_000), neutronUserBal)
+	require.EqualValues(t, int64(500_000_000_000), neutronUserBal)
 
 	var strideGaiaConnectionId, gaiaStrideConnectionId string
 	var strideNeutronConnectionId, neutronStrideConnectionId string
 	var neutronGaiaTransferConnectionId, neutronGaiaICSConnectionId string
 	var gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId string
+	var liquidityTokenAddress string
 
 	neutronGaiaConnectionIds := make([]string, 0)
 	gaiaNeutronConnectionIds := make([]string, 0)
@@ -368,6 +367,16 @@ func TestICS(t *testing.T) {
 	_ = strideAtomIbcDenom
 
 	t.Run("stride covenant tests", func(t *testing.T) {
+		//----------------------------------------------//
+		// Testing parameters
+		//----------------------------------------------//
+		const atomFundsToDepositor uint64 = 100_000_000_000   // in uatom
+		const atomToLiquidStake uint64 = 50_000_000_000       // in stuatom
+		atomFunds := atomFundsToDepositor - atomToLiquidStake // in uatom
+
+		const strideRedemptionRate uint64 = 1
+		//----------------------------------------------//
+
 		// Wasm code that we need to store on Neutron
 		const covenantContractPath = "wasms/covenant_covenant.wasm"
 		const clockContractPath = "wasms/covenant_clock.wasm"
@@ -422,7 +431,6 @@ func TestICS(t *testing.T) {
 		const lsStateIcaCreated = "i_c_a_created"
 		// LP states
 		const lpStateInstantiated = "instantiated"
-		const lpStateIcaCreated = "lp"
 
 		var currentDepositorState string
 		var currentLsState string
@@ -689,9 +697,9 @@ func TestICS(t *testing.T) {
 			})
 
 			t.Run("add coins to registry", func(t *testing.T) {
-				// no clue how to marshall go struct fields into rust Vec<(String, u8)>
-				// so passing as a string for now
-				addMessage := `{"add":{"native_coins":[["statom",10],["uatom",10]]}}`
+				// Add ibc native tokens for stuatom and uatom to the native coin registry
+				// each of these tokens has a precision of 6
+				addMessage := `{"add":{"native_coins":[["` + neutronStatomDenom + `",6],["` + neutronAtomIbcDenom + `",6]]}}`
 				addCmd := []string{"neutrond", "tx", "wasm", "execute",
 					coinRegistryAddress,
 					addMessage,
@@ -749,20 +757,19 @@ func TestICS(t *testing.T) {
 				require.NoError(t, err, "failed to wait for blocks")
 			})
 
-			t.Run("stableswap", func(t *testing.T) {
+			t.Run("create pair on factory", func(t *testing.T) {
 
 				initParams := StablePoolParams{
-					Amp:   9001,
-					Owner: nil,
+					Amp: 3,
 				}
 				binaryData, err := json.Marshal(initParams)
 				require.NoError(t, err, "error encoding stable pool params to binary")
 
 				stAtom := NativeToken{
-					Denom: "statom",
+					Denom: neutronStatomDenom,
 				}
 				nativeAtom := NativeToken{
-					Denom: atom.Config().Denom,
+					Denom: neutronAtomIbcDenom,
 				}
 				assetInfos := []AssetInfo{
 					{
@@ -773,34 +780,183 @@ func TestICS(t *testing.T) {
 					},
 				}
 
-				msg := StableswapInstantiateMsg{
-					TokenCodeId: tokenCodeId,
-					FactoryAddr: factoryAddress,
-					AssetInfos:  assetInfos,
-					InitParams:  binaryData,
+				initPairMsg := CreatePair{
+					PairType: PairType{
+						Stable: struct{}{},
+					},
+					AssetInfos: assetInfos,
+					InitParams: binaryData,
 				}
 
-				str, err := json.Marshal(msg)
-				require.NoError(t, err, "Failed to marshall DepositorInstantiateMsg")
+				createPairMsg := CreatePairMsg{
+					CreatePair: initPairMsg,
+				}
 
-				stableswapAddr, err := cosmosNeutron.InstantiateContract(
-					ctx, neutronUser.KeyName, stablePairCodeIdStr, string(str), true,
-					"--label", "stableswap",
+				str, err := json.Marshal(createPairMsg)
+				require.NoError(t, err, "Failed to marshall CreatePair message")
+				print("\ncreate pair msg: ", string(str))
+
+				createCmd := []string{"neutrond", "tx", "wasm", "execute",
+					factoryAddress,
+					string(str),
+					"--from", neutronUser.KeyName,
 					"--gas-prices", "0.0untrn",
 					"--gas-adjustment", `1.5`,
 					"--output", "json",
+					"--home", "/var/cosmos-chain/neutron-2",
 					"--node", neutron.GetRPCAddress(),
 					"--home", neutron.HomeDir(),
 					"--chain-id", neutron.Config().ChainID,
+					"--from", neutronUser.KeyName,
 					"--gas", "auto",
 					"--keyring-backend", keyring.BackendTest,
 					"-y",
-				)
-				require.NoError(t, err, "Failed to instantiate stableswap")
-				stableswapAddress = stableswapAddr
-				err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+				}
+
+				print("\ncreate pair cmd: ", string(strings.Join(createCmd, " ")))
+				_, _, err = cosmosNeutron.Exec(ctx, createCmd, nil)
+				require.NoError(t, err, err)
+				err = testutil.WaitForBlocks(ctx, 30, atom, neutron)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
+		})
+
+		t.Run("add liquidity to the atom-statom stableswap pool", func(t *testing.T) {
+			// query neutronUser balance of lp tokens
+
+			stAtom := NativeToken{
+				Denom: neutronStatomDenom,
+			}
+			nativeAtom := NativeToken{
+				Denom: neutronAtomIbcDenom,
+			}
+			assetInfos := []AssetInfo{
+				{
+					NativeToken: &stAtom,
+				},
+				{
+					NativeToken: &nativeAtom,
+				},
+			}
+			pair := Pair{
+				AssetInfos: assetInfos,
+			}
+			pairQueryMsg := PairQuery{
+				Pair: pair,
+			}
+			queryJson, _ := json.Marshal(pairQueryMsg)
+
+			queryCmd := []string{"neutrond", "query", "wasm", "contract-state", "smart",
+				factoryAddress, string(queryJson),
+			}
+
+			print("\n factory query cmd: ", string(strings.Join(queryCmd, " ")), "\n")
+
+			factoryQueryRespBytes, _, _ := neutron.Exec(ctx, queryCmd, nil)
+			print(string(factoryQueryRespBytes))
+
+			var response FactoryPairResponse
+			err = cosmosNeutron.QueryContract(ctx, factoryAddress, pairQueryMsg, &response)
+			stableswapAddress = response.Data.ContractAddr
+			print("\n stableswap address: ", stableswapAddress, "\n")
+			liquidityTokenAddress = response.Data.LiquidityToken
+			print("\n liquidity token: ", liquidityTokenAddress, "\n")
+
+			require.NoError(t, err, "failed to query pair info")
+			jsonResp, _ := json.Marshal(response)
+			print("\npair info: ", string(jsonResp), "\n")
+
+			// lets set up the pool with 100K each of atom/statom
+			// ibc transfer 100K atom to neutron user
+			transferNeutron := ibc.WalletAmount{
+				Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				Denom:   atom.Config().Denom,
+				Amount:  int64(100_000_000_000),
+			}
+			_, err := atom.SendIBCTransfer(ctx, gaiaNeutronTransferChannelId, gaiaUser.KeyName, transferNeutron, ibc.TransferOptions{})
+			require.NoError(t, err)
+
+			testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+
+			// send 100K atom to stride which we can liquid stake
+			autopilotString := `{"autopilot":{"receiver":"` + strideUser.Bech32Address(stride.Config().Bech32Prefix) + `","stakeibc":{"stride_address":"` + strideUser.Bech32Address(stride.Config().Bech32Prefix) + `","action":"LiquidStake"}}}`
+			cmd := []string{atom.Config().Bin, "tx", "ibc-transfer", "transfer", "transfer", gaiaStrideChannelId, autopilotString,
+				"100000000000uatom",
+				"--keyring-backend", keyring.BackendTest,
+				"--node", atom.GetRPCAddress(),
+				"--from", gaiaUser.KeyName,
+				"--gas", "auto",
+				"--home", atom.HomeDir(),
+				"--chain-id", atom.Config().ChainID,
+				"-y",
+			}
+			_, _, err = atom.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+
+			// ibc transfer statom on stride to neutron user
+			transferStAtomNeutron := ibc.WalletAmount{
+				Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				Denom:   "stuatom",
+				Amount:  int64(100000000000),
+			}
+			_, err = stride.SendIBCTransfer(ctx, strideNeutronChannelId, strideUser.KeyName, transferStAtomNeutron, ibc.TransferOptions{})
+			require.NoError(t, err)
+
+			testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+
+			// join pool
+			assets := []AstroportAsset{
+				AstroportAsset{
+					Info: AssetInfo{
+						NativeToken: &NativeToken{
+							Denom: neutronAtomIbcDenom,
+						},
+					},
+					Amount: "100000000000",
+				},
+				AstroportAsset{
+					Info: AssetInfo{
+						NativeToken: &NativeToken{
+							Denom: neutronStatomDenom,
+						},
+					},
+					Amount: "100000000000",
+				},
+			}
+
+			msg := ProvideLiqudityMsg{
+				ProvideLiquidity: ProvideLiquidityStruct{
+					Assets:            assets,
+					SlippageTolerance: "0.01",
+					AutoStake:         false,
+					Receiver:          neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				},
+			}
+
+			str, err := json.Marshal(msg)
+			require.NoError(t, err, "Failed to marshall provide liquidity msg")
+			amountStr := "100000000000" + neutronAtomIbcDenom + "," + "100000000000" + neutronStatomDenom
+
+			cmd = []string{"neutrond", "tx", "wasm", "execute", stableswapAddress,
+				string(str),
+				"--from", neutronUser.KeyName,
+				"--amount", amountStr,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--chain-id", neutron.Config().ChainID,
+				"--gas", "900000",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+			resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+			jsonResp, _ = json.Marshal(resp)
+			print("\nprovide liquidity response: ", string(jsonResp), "\n")
+
+			testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 
 		})
 
@@ -815,10 +971,10 @@ func TestICS(t *testing.T) {
 			// Depositor instantiation message
 			// note that clock address needs to be filled
 			stAtomWeightedReceiverAmount = WeightedReceiverAmount{
-				Amount: int64(10),
+				Amount: atomToLiquidStake,
 			}
 			atomWeightedReceiverAmount = WeightedReceiverAmount{
-				Amount: int64(10),
+				Amount: atomFunds,
 			}
 			depositorMsg := PresetDepositorFields{
 				GaiaNeutronIBCTransferChannelId: gaiaNeutronTransferChannelId,
@@ -828,7 +984,7 @@ func TestICS(t *testing.T) {
 				Label:                           "covenant-depositor",
 				StAtomReceiverAmount:            stAtomWeightedReceiverAmount,
 				AtomReceiverAmount:              atomWeightedReceiverAmount,
-				AutopilotFormat:                 "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}",
+				AutopilotFormat:                 "{\"autopilot\": {\"receiver\": \"{st_ica}\",\"stakeibc\": {\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}",
 			}
 			// LS instantiation message
 			lsMsg := PresetLsFields{
@@ -841,18 +997,21 @@ func TestICS(t *testing.T) {
 
 			// For LPer, we need to first gather astroport information
 			assets := AssetData{
-				NativeAssetDenom: "uatom",
-				LsAssetDenom:     "stuatom",
+				NativeAssetDenom: neutronAtomIbcDenom,
+				LsAssetDenom:     neutronStatomDenom,
 			}
 
 			// slippageTolerance := "0.01"
-
+			singleSideLpLimits := SingleSideLpLimits{
+				NativeAssetLimit: "7204688721",
+				LsAssetLimit:     "7204688721",
+			}
 			lpMsg := PresetLpFields{
-				LpCode: lperCodeId,
-				Label:  "covenant-lp",
-				// SlippageTolerance: slippageTolerance,
-				Autostake: false,
-				Assets:    assets,
+				LpCode:             lperCodeId,
+				Label:              "covenant-lp",
+				Autostake:          false,
+				Assets:             assets,
+				SingleSideLpLimits: singleSideLpLimits,
 			}
 
 			holderMsg := PresetHolderFields{
@@ -866,13 +1025,14 @@ func TestICS(t *testing.T) {
 			// }
 
 			covenantMsg := CovenantInstantiateMsg{
-				Label:           "stride-covenant",
-				PresetClock:     clockMsg,
-				PresetLs:        lsMsg,
-				PresetDepositor: depositorMsg,
-				PresetLp:        lpMsg,
-				PresetHolder:    holderMsg,
-				PoolAddress:     stableswapAddress,
+				Label:                          "stride-covenant",
+				PresetClock:                    clockMsg,
+				PresetLs:                       lsMsg,
+				PresetDepositor:                depositorMsg,
+				PresetLp:                       lpMsg,
+				PresetHolder:                   holderMsg,
+				PoolAddress:                    stableswapAddress,
+				IbcMsgTransferTimeoutTimestamp: 10000000000,
 				// PresetIbcFee:    presetIbcFee,
 			}
 
@@ -933,12 +1093,25 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err, "failed to send funds from neutron user to depositor contract")
 
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: clockContractAddress,
+				Amount:  500001,
+				Denom:   neutron.Config().Denom,
+			})
+			require.NoError(t, err, "failed to send funds from neutron user to clock contract")
+
+			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: lsContractAddress,
 				Amount:  500001,
 				Denom:   neutron.Config().Denom,
 			})
-
 			require.NoError(t, err, "failed to send funds from neutron user to ls contract")
+
+			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: lperContractAddress,
+				Amount:  500001,
+				Denom:   neutron.Config().Denom,
+			})
+			require.NoError(t, err, "failed to send funds from neutron user to lp contract")
 
 			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
@@ -968,8 +1141,10 @@ func TestICS(t *testing.T) {
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
-			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
+			resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
+			jsonResp, _ := json.Marshal(resp)
+			print("\ntick response: ", string(jsonResp), "\n")
 		}
 
 		// Tick the clock until the depositor has created i_c_a
@@ -1037,7 +1212,7 @@ func TestICS(t *testing.T) {
 			// transfer funds from gaiaUser to the newly generated ICA account
 			err := cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
 				Address: icaAccountAddress,
-				Amount:  20,
+				Amount:  int64(atomFundsToDepositor),
 				Denom:   atom.Config().Denom,
 			})
 
@@ -1047,17 +1222,40 @@ func TestICS(t *testing.T) {
 
 			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to get ICA balance")
-			require.EqualValues(t, 20, atomBal)
+			require.EqualValues(t, int64(atomFundsToDepositor), atomBal)
 		})
 
 		// Tick the clock until the LSer has received stATOM
 		// and Lper has received ATOM
 		t.Run("tick clock until LSer receives funds", func(t *testing.T) {
+			depositorNeutronBal, err := neutron.GetBalance(ctx, depositorContractAddress, neutron.Config().Denom)
+			require.NoError(t, err, "failed to get depositor neutron balance")
+			print("\ndepositor neutron balance: ", depositorNeutronBal, "\n")
+
+			lsNeutronBal, err := neutron.GetBalance(ctx, lsContractAddress, neutron.Config().Denom)
+			require.NoError(t, err, "failed to get ls neutron balance")
+			print("\nls neutron balance: ", lsNeutronBal, "\n")
+
+			strideICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
+			require.NoError(t, err, "failed to query ICA balance")
+			print("\n stride ica bal: ", strideICABal, "\n")
+
+			lpAtomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronAtomIbcDenom)
+			require.NoError(t, err, "failed to query ICA balance")
+			print("\n lp atom bal: ", lpAtomBalance, "\n")
+
+			gaiaIcaBalance, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
+			require.NoError(t, err, "failed to query ICA balance")
+			print("\n gaia ica atom bal: ", gaiaIcaBalance, "\n")
+
 			const maxTicks = 20
 			tick := 1
 			for tick <= maxTicks {
+
 				print("\n Ticking clock ", tick, " of ", maxTicks)
 				tickClock()
+				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
 
 				strideICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
 				require.NoError(t, err, "failed to query ICA balance")
@@ -1067,24 +1265,34 @@ func TestICS(t *testing.T) {
 				require.NoError(t, err, "failed to query ICA balance")
 				print("\n lp atom bal: ", lpAtomBalance, "\n")
 
-				if strideICABal == int64(10) &&
-					lpAtomBalance == int64(10) {
+				gaiaIcaBalance, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
+				require.NoError(t, err, "failed to query ICA balance")
+				print("\n gaia ica atom bal: ", gaiaIcaBalance, "\n")
+
+				queryCmd := []string{"neutrond", "query", "wasm", "contract-state", "smart",
+					clockContractAddress, "'{\"queue\":{}}'",
+				}
+
+				clockQueueBytes, _, _ := neutron.Exec(ctx, queryCmd, nil)
+
+				clockQueue, _ := json.Marshal(clockQueueBytes)
+				print("\n clock queue bytes: ", string(clockQueueBytes), ", queue itself: ", (clockQueue), "\n")
+
+				if strideICABal == int64(strideRedemptionRate*atomToLiquidStake) &&
+					lpAtomBalance == int64(atomFunds) {
 					break
 				}
-				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+				err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 				require.NoError(t, err, "failed to wait for blocks")
 				tick += 1
 			}
+
 			// fail if we haven't transferred funds in under maxTicks
 			require.LessOrEqual(t, tick, maxTicks)
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to query ICA balance")
 			require.Equal(t, int64(0), atomICABal)
 		})
-
-		// TEST: Permissionless forward funds in Stride's ICA
-		// Check if stride balance is empty
-		// Check if stATOM balance on Lper has increased
 
 		t.Run("permissionlessly forward funds from Stride to LPer", func(t *testing.T) {
 			// Wait for a few blocks
@@ -1093,10 +1301,12 @@ func TestICS(t *testing.T) {
 			// Construct a transfer message
 			msg := TransferExecutionMsg{
 				Transfer: TransferAmount{
-					Amount: 10,
+					Amount: strideRedemptionRate * atomToLiquidStake,
 				},
 			}
 			str, err := json.Marshal(msg)
+			require.NoError(t, err)
+
 			// Anyone can call the tranfer function
 			print("\n attempting to move funds by executing message: ", string(str))
 			cmd = []string{"neutrond", "tx", "wasm", "execute", lsContractAddress,
@@ -1116,6 +1326,7 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err)
 
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+			require.NoError(t, err)
 
 			strideICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
 			require.NoError(t, err, "failed to query ICA balance")
@@ -1126,312 +1337,182 @@ func TestICS(t *testing.T) {
 			print("\n lp statom bal: ", lpStatomBalance, "\n")
 
 			require.Equal(t, int64(0), strideICABal)
-			require.Equal(t, int64(10), lpStatomBalance)
+			require.Equal(t, int64(strideRedemptionRate*atomToLiquidStake), lpStatomBalance)
 
 		})
+
+		queryLpTokenBalance := func(token string, addr string) string {
+			bal := Balance{
+				Address: addr,
+			}
+
+			balanceQueryMsg := Cw20QueryMsg{
+				Balance: bal,
+			}
+			var response Cw20BalanceResponse
+			err = cosmosNeutron.QueryContract(ctx, token, balanceQueryMsg, &response)
+			require.NoError(t, err, "failed to query lp token balance")
+			jsonResp, _ := json.Marshal(response)
+			print("\n balance response: ", string(jsonResp), "\n")
+			return response.Data.Balance
+		}
+
+		// queryAllLpHolders := func(token string) {
+		// 	allAccounts := AllAccounts{}
+
+		// 	accountsQueryMsg := Cw20QueryMsg{
+		// 		AllAccounts: &allAccounts,
+		// 	}
+		// 	var response AllAccountsResponse
+		// 	err = cosmosNeutron.QueryContract(ctx, token, accountsQueryMsg, &response)
+		// 	require.NoError(t, err, "failed to query all accounts")
+		// 	jsonResp, _ := json.Marshal(response)
+		// 	print("\n all accounts: ", string(jsonResp), "\n")
+		// }
 
 		// TEST: LPer provides liquidity, tick the LPer
 		// Check if LP tokens arrive in the Holder
 
 		t.Run("LPer provides liqudity when ticked", func(t *testing.T) {
-			print("TODO")
+			const maxTicks = 20
+			tick := 1
+			for tick <= maxTicks {
+				print("\n Ticking clock ", tick, " of ", maxTicks)
+				tickClock()
+				lpTokenBal := queryLpTokenBalance(liquidityTokenAddress, neutronUser.Bech32Address(neutron.Config().Bech32Prefix))
+				print("\n lp token balance: ", lpTokenBal, "\n")
+				lpAtomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query ICA balance")
+				print("\n lp atom bal: ", lpAtomBalance, "\n")
+
+				lpStatomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronStatomDenom)
+				require.NoError(t, err, "failed to query ICA balance")
+				print("\n lp statom bal: ", lpStatomBalance, "\n")
+
+				// holderbalance, err := cosmosNeutron.GetBalance()
+
+				/*
+						let holder_balances = suite.query_cw20_bal(
+							pairinfo.liquidity_token.to_string(),
+							suite.holder_addr.to_string(),
+						);
+
+					    pub fn query_cw20_bal(&self, token: String, addr: String) -> cw20::BalanceResponse {
+							self.app
+								.wrap()
+								.query_wasm_smart(token, &cw20::Cw20QueryMsg::Balance { address: addr })
+								.unwrap()
+						}
+				*/
+				// cosmosNeutron.QueryContract(ctx, liquiditytokenaddr, Cw20QueryMsg)
+				if lpAtomBalance == int64(0) &&
+					lpStatomBalance == int64(0) {
+					break
+				}
+				err = testutil.WaitForBlocks(ctx, 5, neutron)
+				require.NoError(t, err, "failed to wait for blocks")
+				tick += 1
+				// queryAllLpHolders(liquidityTokenAddress)
+			}
+			// fail if we haven't transferred funds in under maxTicks
+			require.LessOrEqual(t, tick, maxTicks)
+			// TODO check if they are in holder
+
 		})
 
 		// TEST: Withdraw liquidity
 		// Check if LP tokens are burned
 		// Check if stATOM and ATOMs are returned
 
-		t.Run("withdraw can withdraw liquidity", func(t *testing.T) {
-			print("TODO")
+		t.Run("holder can withdraw liquidity", func(t *testing.T) {
+			lpTokenBal := queryLpTokenBalance(liquidityTokenAddress, holderContractAddress)
+			print("\n holder lp token bal: ", lpTokenBal, "\n")
+
+			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+			require.NoError(t, err)
+
+			withdrawLiquidityMsg := WithdrawLiquidityMessage{
+				WithdrawLiquidity: WithdrawLiquidity{},
+			}
+			str, _ := json.Marshal(withdrawLiquidityMsg)
+			print("\n withdrawing liquidity from LP position...\n")
+			cmd = []string{"neutrond", "tx", "wasm", "execute", holderContractAddress,
+				string(str),
+				"--from", neutronUser.KeyName,
+				"--gas-prices", "0.0untrn",
+				"--gas-adjustment", `1.8`,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--chain-id", neutron.Config().ChainID,
+				"--gas", "auto",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+			require.NoError(t, err)
+
+			holderLpTokenBal := queryLpTokenBalance(liquidityTokenAddress, holderContractAddress)
+			print("\n holder lp token bal: ", holderLpTokenBal, "\n")
+
+			lpAtomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronAtomIbcDenom)
+			require.NoError(t, err, "failed to query ICA balance")
+			print("\n lp atom bal: ", lpAtomBalance, "\n")
+
+			lpStatomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronStatomDenom)
+			require.NoError(t, err, "failed to query ICA balance")
+			print("\n lp statom bal: ", lpStatomBalance, "\n")
 		})
 
 		// TEST: Withdraw funds
 		// Check if withdrawer balance increases
 
 		t.Run("withdrawer can withdraw funds", func(t *testing.T) {
-			print("TODO")
+			holderLpTokenBal := queryLpTokenBalance(liquidityTokenAddress, holderContractAddress)
+			print("\n holder lp token bal: ", holderLpTokenBal, "\n")
+
+			withdrawerStAtomBal, _ := neutron.GetBalance(ctx, neutronUser.Bech32Address(neutron.Config().Bech32Prefix), neutronStatomDenom)
+			withdrawerNativeAtomBal, _ := neutron.GetBalance(ctx, neutronUser.Bech32Address(neutron.Config().Bech32Prefix), neutronAtomIbcDenom)
+			print("\nwithdrawer statom bal: ", withdrawerStAtomBal, "\n")
+			print("withdrawer atom bal: ", withdrawerNativeAtomBal, "\n")
+
+			withdrawMsg := WithdrawMessage{
+				Withdraw: Withdraw{},
+			}
+			str, _ := json.Marshal(withdrawMsg)
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+			require.NoError(t, err)
+			cmd = []string{"neutrond", "tx", "wasm", "execute", holderContractAddress,
+				string(str),
+				"--from", neutronUser.KeyName,
+				"--gas-prices", "0.0untrn",
+				"--gas-adjustment", `1.8`,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--chain-id", neutron.Config().ChainID,
+				"--gas", "auto",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+			print("\n withdrawing funds...\n")
+			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+			// queryAllLpHolders(liquidityTokenAddress)
+
+			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+			require.NoError(t, err)
+			holderLpTokenBal = queryLpTokenBalance(liquidityTokenAddress, holderContractAddress)
+			print("\n holder lp token bal: ", holderLpTokenBal, "\n")
+
+			withdrawerStAtomBal, _ = neutron.GetBalance(ctx, neutronUser.Bech32Address(neutron.Config().Bech32Prefix), neutronStatomDenom)
+			withdrawerNativeAtomBal, _ = neutron.GetBalance(ctx, neutronUser.Bech32Address(neutron.Config().Bech32Prefix), neutronAtomIbcDenom)
+			print("\nwithdrawer statom bal: ", withdrawerStAtomBal, "\n")
+			print("withdrawer atom bal: ", withdrawerNativeAtomBal, "\n")
 		})
-
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		// t.Run("instantiate lper contract", func(t *testing.T) {
-		// 	_, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/covenant_lp.wasm")
-		// 	require.NoError(t, err, "failed to store neutron ICA contract")
-		// 	// lpInfo := LpInfo{
-		// 	// 	Addr: stableswapAddress,
-		// 	// }
-		// 	// assets := []AstroportAsset{
-		// 	// 	AstroportAsset{
-		// 	// 		Info: AssetInfo{
-		// 	// 			NativeToken: &NativeToken{
-		// 	// 				Denom: neutronAtomIbcDenom,
-		// 	// 			},
-		// 	// 		},
-		// 	// 		Amount: 10,
-		// 	// 	},
-		// 	// 	AstroportAsset{
-		// 	// 		Info: AssetInfo{
-		// 	// 			NativeToken: &NativeToken{
-		// 	// 				Denom: neutronStatomDenom,
-		// 	// 			},
-		// 	// 		},
-		// 	// 		Amount: 10,
-		// 	// 	},
-		// 	// }
-		// 	// slippageTolerance := 0.01
-
-		// 	// lpMsg := LPerInstantiateMsg{
-		// 	// 	LpPosition:        lpInfo,
-		// 	// 	ClockAddress:      neutronUser.Bech32Address(neutron.Config().Bech32Prefix), // we need this to be able to tick the LPer manually
-		// 	// 	HolderAddress:     holderContractAddress,
-		// 	// 	SlippageTolerance: slippageTolerance,
-		// 	// 	Autostake:         nil,
-		// 	// 	Assets:            assets,
-		// 	// }
-
-		// 	// str, err := json.Marshal(lpMsg)
-		// 	// require.NoError(t, err, "Failed to marshall LPerInstantiateMsg")
-		// 	// print("\n lp instantiate msg: \n", string(str))
-		// 	// lperContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
-		// 	// require.NoError(t, err, "failed to instantiate lper contract: ", err)
-		// 	// print("\n lper: ", lperContractAddress)
-
-		// 	// t.Run("query instantiated clock", func(t *testing.T) {
-		// 	// 	var response ClockQueryResponse
-		// 	// 	err = cosmosNeutron.QueryContract(ctx, lperContractAddress, LPContractQuery{
-		// 	// 		ClockAddress: ClockAddressQuery{},
-		// 	// 	}, &response)
-		// 	// 	require.NoError(t, err, "failed to query clock address")
-		// 	// 	expectedAddrJson, _ := json.Marshal(clockContractAddress)
-		// 	// 	require.Equal(t, string(expectedAddrJson), response.Data)
-		// 	//})
-
-		// 	t.Run("query lp position", func(t *testing.T) {
-		// 		var response LpPositionQueryResponse
-		// 		err := cosmosNeutron.QueryContract(ctx, lperContractAddress, LPPositionQuery{
-		// 			LpPosition: LpPositionQuery{},
-		// 		}, &response)
-		// 		require.NoError(t, err, "failed to query lp position address")
-		// 		require.Equal(t, stableswapAddress, response.Data.Addr)
-		// 	})
-		// })
-
-		// t.Run("instantiate LS contract", func(t *testing.T) {
-		// 	_, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/covenant_ls.wasm")
-		// 	require.NoError(t, err, "failed to store neutron ICA contract")
-
-		// 	// msg := LsInstantiateMsg{
-		// 	// 	AutopilotPosition:                 "todo",
-		// 	// 	ClockAddress:                      neutronUser.Bech32Address(neutron.Config().Bech32Prefix), // we need this to be able to tick the LPer manually
-		// 	// 	StrideNeutronIBCTransferChannelId: strideNeutronChannelId,
-		// 	// 	LpAddress:                         lperContractAddress,
-		// 	// 	NeutronStrideIBCConnectionId:      neutronStrideConnectionId,
-		// 	// 	LsDenom:                           "stuatom",
-		// 	// }
-
-		// 	// str, err := json.Marshal(msg)
-		// 	// require.NoError(t, err, "Failed to marshall LsInstantiateMsg")
-
-		// 	// lsContractAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, codeId, string(str), true)
-		// 	// require.NoError(t, err, "failed to instantiate ls contract: ", err)
-		// 	// print("\nls contract:", lsContractAddress, "\n")
-		// })
-
-		// t.Run("create stride ICA", func(t *testing.T) {
-		// 	// should remain constant
-		// 	cmd = []string{"neutrond", "tx", "wasm", "execute", lsContractAddress,
-		// 		`{"tick":{}}`,
-		// 		"--from", neutronUser.KeyName,
-		// 		"--gas-prices", "0.0untrn",
-		// 		"--gas-adjustment", `1.5`,
-		// 		"--output", "json",
-		// 		"--home", "/var/cosmos-chain/neutron-2",
-		// 		"--node", neutron.GetRPCAddress(),
-		// 		"--home", neutron.HomeDir(),
-		// 		"--chain-id", neutron.Config().ChainID,
-		// 		"--from", neutronUser.KeyName,
-		// 		"--gas", "auto",
-		// 		"--keyring-backend", keyring.BackendTest,
-		// 		"-y",
-		// 	}
-
-		// 	_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
-		// 	require.NoError(t, err)
-
-		// 	// err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
-		// 	// require.NoError(t, err, "failed to wait for blocks")
-
-		// 	// var response QueryResponse
-		// 	// err = cosmosNeutron.QueryContract(ctx, lsContractAddress, IcaExampleContractQuery{
-		// 	// 	InterchainAccountAddress: InterchainAccountAddressQuery{
-		// 	// 		InterchainAccountId: "stride-ica",
-		// 	// 		ConnectionId:        neutronStrideConnectionId,
-		// 	// 	},
-		// 	// }, &response)
-		// 	// require.NoError(t, err, "failed to query ICA account address")
-		// 	// require.NotEmpty(t, response.Data.InterchainAccountAddress)
-		// 	// strideICAAddress = response.Data.InterchainAccountAddress
-
-		// 	// print("\nstride ICA instantiated with address ", strideICAAddress, "\n")
-		// })
-
-		// t.Run("tick depositor to liquid stake on stride", func(t *testing.T) {
-		// 	atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
-		// 	require.NoError(t, err, "failed to get ICA balance")
-		// 	require.EqualValues(t, 20, atomBal)
-
-		// 	require.NoError(t, err, "failed to wait for blocks")
-		// 	cmd = []string{"neutrond", "tx", "wasm", "execute", depositorContractAddress,
-		// 		`{"tick":{}}`,
-		// 		"--from", neutronUser.KeyName,
-		// 		"--gas-adjustment", `1.3`,
-		// 		"--gas-prices", "0.0untrn",
-		// 		"--output", "json",
-		// 		"--node", cosmosNeutron.GetRPCAddress(),
-		// 		"--home", cosmosNeutron.HomeDir(),
-		// 		"--chain-id", cosmosNeutron.Config().ChainID,
-		// 		"--gas", "auto",
-		// 		"--fees", "5000untrn",
-		// 		"--keyring-backend", keyring.BackendTest,
-		// 		"-y",
-		// 	}
-
-		// 	_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
-		// 	require.NoError(t, err)
-
-		// 	err = testutil.WaitForBlocks(ctx, 20, atom, neutron, stride)
-		// 	require.NoError(t, err, "failed to wait for blocks")
-
-		// 	atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
-		// 	require.NoError(t, err, "failed to query ICA balance")
-		// 	require.Equal(t, int64(10), atomICABal)
-
-		// 	strideICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
-		// 	require.NoError(t, err, "failed to query ICA balance")
-		// 	require.Equal(t, int64(10), strideICABal)
-		// 	print("\n stride ica bal: ", strideICABal, "\n")
-		// })
-
-		// t.Run("tick ls to transfer stuatom to LPer", func(t *testing.T) {
-
-		// 	cmd = []string{"neutrond", "tx", "wasm", "execute", lsContractAddress,
-		// 		`{"tick":{}}`,
-		// 		"--from", neutronUser.KeyName,
-		// 		"--gas-adjustment", `1.3`,
-		// 		"--output", "json",
-		// 		"--node", cosmosNeutron.GetRPCAddress(),
-		// 		"--home", cosmosNeutron.HomeDir(),
-		// 		"--chain-id", cosmosNeutron.Config().ChainID,
-		// 		"--gas", "auto",
-		// 		"--fees", "15000untrn",
-		// 		"--keyring-backend", keyring.BackendTest,
-		// 		"-y",
-		// 	}
-
-		// 	_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
-		// 	require.NoError(t, err)
-
-		// 	err = testutil.WaitForBlocks(ctx, 10, neutron, stride)
-		// 	require.NoError(t, err, "failed to wait for blocks")
-
-		// 	strideICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
-		// 	require.NoError(t, err, "failed to query ICA balance")
-		// 	require.Equal(t, int64(0), strideICABal, "failed to withdraw stuatom to LPer")
-
-		// 	lperStatomBal, err := neutron.GetBalance(
-		// 		ctx,
-		// 		lperContractAddress,
-		// 		neutronStatomDenom,
-		// 	)
-		// 	require.NoError(t, err, "failed to query lper balance")
-		// 	require.Equal(t, int64(10), lperStatomBal, "LPer did not receive stuatoms")
-		// })
-
-		// t.Run("tick depositor to ibc transfer atom from ICA account to neutron", func(t *testing.T) {
-		// 	atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
-		// 	require.NoError(t, err, "failed to get ICA balance")
-		// 	require.EqualValues(t, 10, atomBal)
-
-		// 	cmd = []string{"neutrond", "tx", "wasm", "execute", depositorContractAddress,
-		// 		`{"tick":{}}`,
-		// 		"--from", neutronUser.KeyName,
-		// 		"--gas-adjustment", `1.3`,
-		// 		"--output", "json",
-		// 		"--node", cosmosNeutron.GetRPCAddress(),
-		// 		"--home", cosmosNeutron.HomeDir(),
-		// 		"--chain-id", cosmosNeutron.Config().ChainID,
-		// 		"--gas", "auto",
-		// 		"--fees", "15000untrn",
-		// 		"--keyring-backend", keyring.BackendTest,
-		// 		"-y",
-		// 	}
-
-		// 	_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
-		// 	require.NoError(t, err)
-
-		// 	err = testutil.WaitForBlocks(ctx, 10, atom, neutron)
-		// 	require.NoError(t, err, "failed to wait for blocks")
-
-		// 	atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
-		// 	require.NoError(t, err, "failed to query ICA balance")
-		// 	require.Equal(t, int64(0), atomICABal)
-
-		// 	neutronUserBalNew, err := neutron.GetBalance(
-		// 		ctx,
-		// 		lperContractAddress,
-		// 		neutronAtomIbcDenom)
-		// 	require.NoError(t, err, "failed to query lper contract atom balance")
-		// 	require.Equal(t, int64(10), neutronUserBalNew)
-		// })
-
-		// t.Run("[temp] ibc transfer atoms to LP", func(t *testing.T) {
-		// 	// TODO: introduce a tick on depositor to forward funds, or withdraw directly to LP address
-		// 	_, err := cosmosAtom.SendIBCTransfer(ctx,
-		// 		gaiaNeutronTransferChannelId,
-		// 		gaiaUser.KeyName, ibc.WalletAmount{
-		// 			Address: lperContractAddress,
-		// 			Amount:  10,
-		// 			Denom:   atom.Config().Denom,
-		// 		},
-		// 		ibc.TransferOptions{},
-		// 	)
-
-		// 	require.NoError(t, err, "failed to send funds from gaia to LP")
-		// 	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-		// 	require.NoError(t, err, "failed to wait for blocks")
-
-		// 	lpBal, err := neutron.GetBalance(ctx, lperContractAddress, neutronAtomIbcDenom)
-		// 	require.NoError(t, err, "failed to get ICA balance")
-		// 	require.EqualValues(t, 10, lpBal)
-		// })
-
-		// t.Run("tick LP to enter pool", func(t *testing.T) {
-
-		// 	cmd = []string{"neutrond", "tx", "wasm", "execute", lperContractAddress,
-		// 		`{"tick":{}}`,
-		// 		"--from", neutronUser.KeyName,
-		// 		"--gas-adjustment", `1.3`,
-		// 		"--gas-prices", "0.0untrn",
-		// 		"--output", "json",
-		// 		"--node", cosmosNeutron.GetRPCAddress(),
-		// 		"--home", cosmosNeutron.HomeDir(),
-		// 		"--chain-id", cosmosNeutron.Config().ChainID,
-		// 		"--gas", "auto",
-		// 		"--fees", "15000untrn",
-		// 		"--keyring-backend", keyring.BackendTest,
-		// 		"-y",
-		// 	}
-
-		// 	print(strings.Join(cmd, " "))
-		// 	err = testutil.WaitForBlocks(ctx, 100, atom, neutron)
-
-		// 	_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
-		// 	require.NoError(t, err, "failed to tick LP")
-
-		// 	require.NoError(t, err, "failed to wait for blocks")
-		// })
-		// err = testutil.WaitForBlocks(ctx, 100, atom, neutron)
-
 	})
 
 }

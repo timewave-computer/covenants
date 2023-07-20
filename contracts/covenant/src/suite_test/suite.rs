@@ -1,8 +1,8 @@
-use cosmwasm_std::{Addr, Empty, Uint64, Uint128};
+use cosmwasm_std::{Addr, Empty, Uint64};
 use covenant_lp::msg::AssetData;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use crate::msg::{InstantiateMsg, QueryMsg, PresetIbcFee};
+use crate::msg::{InstantiateMsg, QueryMsg};
 
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";
@@ -99,16 +99,16 @@ impl Default for SuiteBuilder {
                 label: "covenant_contract".to_string(),
                 pool_address: TODO.to_string(),
                 ibc_msg_transfer_timeout_timestamp: None,
-                preset_ibc_fee: PresetIbcFee {
-                    ack_fee: cosmwasm_std::Coin {
-                        denom: NEUTRON_DENOM.to_string(),
-                        amount: Uint128::new(1000u128),
-                    },
-                    timeout_fee: cosmwasm_std::Coin {
-                        denom: NEUTRON_DENOM.to_string(),
-                        amount: Uint128::new(1000u128),
-                    },
-                },
+                // preset_ibc_fee: PresetIbcFee {
+                //     ack_fee: cosmwasm_std::Coin {
+                //         denom: NEUTRON_DENOM.to_string(),
+                //         amount: Uint128::new(1000u128),
+                //     },
+                //     timeout_fee: cosmwasm_std::Coin {
+                //         denom: NEUTRON_DENOM.to_string(),
+                //         amount: Uint128::new(1000u128),
+                //     },
+                // },
             },
         }
     }

@@ -56,11 +56,17 @@ type PresetDepositorFields struct {
 }
 
 type PresetLpFields struct {
-	SlippageTolerance string    `json:"slippage_tolerance,omitempty"`
-	Autostake         bool      `json:"autostake,omitempty"`
-	Assets            AssetData `json:"assets"`
-	LpCode            uint64    `json:"lp_code"`
-	Label             string    `json:"label"`
+	SlippageTolerance  string             `json:"slippage_tolerance,omitempty"`
+	Autostake          bool               `json:"autostake,omitempty"`
+	Assets             AssetData          `json:"assets"`
+	LpCode             uint64             `json:"lp_code"`
+	Label              string             `json:"label"`
+	SingleSideLpLimits SingleSideLpLimits `json:"single_side_lp_limits"`
+}
+
+type SingleSideLpLimits struct {
+	NativeAssetLimit string `json:"native_asset_limit"`
+	LsAssetLimit     string `json:"ls_asset_limit"`
 }
 
 type AssetData struct {
@@ -114,12 +120,12 @@ type ContractStateQueryResponse struct {
 
 // Instantiation
 type WeightedReceiver struct {
-	Amount  int64  `json:"amount"`
+	Amount  uint64 `json:"amount"`
 	Address string `json:"address"`
 }
 
 type WeightedReceiverAmount struct {
-	Amount int64 `json:"amount"`
+	Amount uint64 `json:"amount"`
 }
 
 type StAtomWeightedReceiverQuery struct {
@@ -163,7 +169,7 @@ type TransferExecutionMsg struct {
 // Rust type here is Uint128 which can't safely be serialized
 // to json int. It needs to go as a string over the wire.
 type TransferAmount struct {
-	Amount uint `json:"amount,string"`
+	Amount uint64 `json:"amount,string"`
 }
 
 // Queries
@@ -189,12 +195,51 @@ type LpInfo struct {
 	Addr string `json:"addr"`
 }
 
+type PairInfo struct {
+	LiquidityToken string      `json:"liquidity_token"`
+	ContractAddr   string      `json:"contract_addr"`
+	PairType       PairType    `json:"pair_type"`
+	AssetInfos     []AssetInfo `json:"asset_infos"`
+}
+
+type Pair struct {
+	AssetInfos []AssetInfo `json:"asset_infos"`
+}
+
+type PairQuery struct {
+	Pair Pair `json:"pair"`
+}
+
+type CreatePair struct {
+	PairType   PairType    `json:"pair_type"`
+	AssetInfos []AssetInfo `json:"asset_infos"`
+	InitParams []byte      `json:"init_params"`
+}
+
+type CreatePairMsg struct {
+	CreatePair CreatePair `json:"create_pair"`
+}
+
 //////////////////////////////////////////////
 ///// Holder contract
 //////////////////////////////////////////////
 
 type CovenantHolderAddressQuery struct {
 	Addr string `json:"address"`
+}
+
+type WithdrawLiquidityMessage struct {
+	WithdrawLiquidity WithdrawLiquidity `json:"withdraw_liquidity"`
+}
+
+type WithdrawLiquidity struct{}
+
+type WithdrawMessage struct {
+	Withdraw Withdraw `json:"withdraw"`
+}
+
+type Withdraw struct {
+	Quantity *[]CwCoin `json:"quantity"`
 }
 
 //////////////////////////////////////////////
@@ -316,6 +361,23 @@ type WhitelistInstantiateMsg struct {
 	Mutable bool     `json:"mutable"`
 }
 
+type ProvideLiqudityMsg struct {
+	ProvideLiquidity ProvideLiquidityStruct `json:"provide_liquidity"`
+}
+
+type ProvideLiquidityStruct struct {
+	Assets            []AstroportAsset `json:"assets"`
+	SlippageTolerance string           `json:"slippage_tolerance"`
+	AutoStake         bool             `json:"auto_stake"`
+	Receiver          string           `json:"receiver"`
+}
+
+// factory
+
+type FactoryPairResponse struct {
+	Data PairInfo `json:"data"`
+}
+
 /////////////////////////////////////////////////////////////////////
 //--- These are here for debugging but should be likely removed ---//
 
@@ -366,3 +428,27 @@ type DepositorInterchainAccountAddressQueryResponse struct {
 }
 
 //------------------//
+
+type BalanceResponse struct {
+	Balance string `json:"balance"`
+}
+
+type Cw20BalanceResponse struct {
+	Data BalanceResponse `json:"data"`
+}
+
+type AllAccountsResponse struct {
+	Data []string `json:"all_accounts_response"`
+}
+
+type Cw20QueryMsg struct {
+	Balance Balance `json:"balance"`
+	// AllAccounts *AllAccounts `json:"all_accounts"`
+}
+
+type AllAccounts struct {
+}
+
+type Balance struct {
+	Address string `json:"address"`
+}

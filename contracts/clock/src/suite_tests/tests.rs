@@ -185,7 +185,7 @@ fn test_whitelist() {
 
     let whitelist = suite.query_whitelist();
 
-    assert_eq!(whitelist, vec![receiver.clone()]);
+    assert_eq!(whitelist, vec![receiver]);
 }
 
 // only contract addresses can be enqueued.

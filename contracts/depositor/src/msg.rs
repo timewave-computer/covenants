@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary};
 use covenant_clock_derive::clocked;
-use neutron_sdk::bindings::{query::QueryInterchainAccountAddressResponse, msg::IbcFee};
+use neutron_sdk::bindings::{msg::IbcFee, query::QueryInterchainAccountAddressResponse};
 
 use crate::state::{AcknowledgementResult, ContractState};
 
@@ -33,7 +33,7 @@ pub struct PresetDepositorFields {
 
 #[cw_serde]
 pub struct WeightedReceiverAmount {
-    pub amount: i64,
+    pub amount: u64,
 }
 
 impl WeightedReceiverAmount {
@@ -74,7 +74,7 @@ impl PresetDepositorFields {
 
 #[cw_serde]
 pub struct WeightedReceiver {
-    pub amount: i64,
+    pub amount: u64,
     pub address: String,
 }
 
