@@ -302,7 +302,7 @@ fn test_init() {
 
     let reply_res = reply(deps.as_mut(), mock_env(), reply_depositor).unwrap();
 
-    assert_eq!(reply_res.messages.len(), 1);
+    assert_eq!(reply_res.messages.len(), 2);
     assert_eq!(
         reply_res.messages[0],
         SubMsg {
@@ -317,6 +317,26 @@ fn test_init() {
                         "contract_depositor".to_string()
                     ]),
                     remove: None
+                })
+                .unwrap()
+            }
+            .into(),
+            gas_limit: None,
+            reply_on: ReplyOn::Never
+        }
+    );
+    assert_eq!(
+        reply_res.messages[1],
+        SubMsg {
+            id: 0,
+            msg: WasmMsg::Migrate {
+                contract_addr: "contract_lp".to_string(),
+                new_code_id: 1,
+                msg: to_binary(&covenant_lp::msg::MigrateMsg::UpdateConfig {
+                    clock_addr: None,
+                    lp_position: None,
+                    holder_address: None,
+                    depositor_address: Some("contract_depositor".to_string())
                 })
                 .unwrap()
             }

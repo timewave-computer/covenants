@@ -299,23 +299,36 @@ pub fn handle_depositor_reply(
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let clock_code_id = CLOCK_CODE.load(deps.storage)?;
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
+            let lp_code_id = LP_CODE.load(deps.storage)?;
             let ls_addr = COVENANT_LS_ADDR.load(deps.storage)?;
 
-            let migrate_msg = WasmMsg::Migrate {
+            let update_clock_whitelist_msg = WasmMsg::Migrate {
                 contract_addr: clock_addr.to_string(),
                 new_code_id: clock_code_id,
                 msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
                     add: Some(vec![
                         lp_addr.to_string(),
                         ls_addr.to_string(),
-                        response.contract_address, //depositor
+                        response.contract_address.clone(), //depositor
                     ]),
                     remove: None,
                 })?,
             };
 
+            let update_depositor_addr_msg = WasmMsg::Migrate {
+                contract_addr: lp_addr.to_string(),
+                new_code_id: lp_code_id,
+                msg: to_binary(&covenant_lp::msg::MigrateMsg::UpdateConfig {
+                    clock_addr: None,
+                    lp_position: None,
+                    holder_address: None,
+                    depositor_address: Some(response.contract_address),
+                })?,
+            };
+
             Ok(Response::default()
-                .add_message(migrate_msg)
+                .add_message(update_clock_whitelist_msg)
+                .add_message(update_depositor_addr_msg)
                 .add_attribute("method", "handle_depositor_reply"))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {

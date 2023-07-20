@@ -217,7 +217,7 @@ fn try_send_funds(
             let submit_msg = NeutronMsg::submit_tx(
                 controller_conn_id,
                 INTERCHAIN_ACCOUNT_ID.to_string(),
-                vec![stride_protobuf, lp_protobuf],
+                vec![lp_protobuf, stride_protobuf],
                 "".to_string(),
                 timeout,
                 fee,
@@ -233,8 +233,6 @@ fn try_send_funds(
                     message: "try_send_funds".to_string(),
                 },
             )?;
-
-            CONTRACT_STATE.save(deps.storage, &ContractState::FundsSent)?;
 
             Ok(Response::default()
                 .add_attribute("method", "try_send_funds")

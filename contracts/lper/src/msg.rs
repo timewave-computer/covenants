@@ -104,6 +104,7 @@ pub enum MigrateMsg {
         clock_addr: Option<String>,
         lp_position: Option<LPInfo>,
         holder_address: Option<String>,
+        depositor_address: Option<String>,
     },
     UpdateCodeId {
         data: Option<Binary>,

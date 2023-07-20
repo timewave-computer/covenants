@@ -17,7 +17,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         ProvidedLiquidityInfo, ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION,
-        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE,
+        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, DEPOSITOR_ADDR,
     },
 };
 
@@ -48,7 +48,7 @@ pub fn instantiate(
 
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     LP_POSITION.save(deps.storage, &msg.lp_position)?;
-    HOLDER_ADDRESS.save(deps.storage, &msg.holder_address)?;
+    HOLDER_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.holder_address)?)?;
     ASSETS.save(deps.storage, &msg.assets)?;
     SINGLE_SIDED_LP_LIMITS.save(deps.storage, &msg.single_side_lp_limits)?;
     PROVIDED_LIQUIDITY_INFO.save(
@@ -82,13 +82,20 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     println!("\n tick state: {:?}", current_state);
     match current_state {
-        ContractState::Instantiated => try_lp(deps, env, info),
+        ContractState::Instantiated => verify_native_token(deps, env, info), // native received
+        ContractState::NativeTokenVerified => verify_st_token(deps, env, info), // st recieved
+        ContractState::StTokenVerified => try_lp(deps, env, info),
         ContractState::WithdrawComplete => try_completed(deps),
     }
 }
 
+// 1. Check native balance == expected balance (250K)
+// 2. simluation and check st token amount == expected amount
+// 3. received to depositor
+
 fn try_lp(mut deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
     let contract_addr = env.contract.address;
+
     // we try to submit a double-sided liquidity message first
     let double_sided_submsg =
         try_get_double_side_lp_submsg(deps.branch(), contract_addr.to_string())?;
@@ -98,6 +105,7 @@ fn try_lp(mut deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, C
             .add_submessage(msg)
             .add_attribute("method", "double_side_lp"));
     }
+
     deps.api.debug("Trying to single-side lp...");
     // if ds msg fails, try to submit a single-sided liquidity message
     let single_sided_submsg =
@@ -203,7 +211,7 @@ fn try_get_double_side_lp_submsg(
             assets: vec![native_asset.clone(), ls_asset_double_sided.clone()],
             slippage_tolerance,
             auto_stake,
-            receiver: Some(holder_address),
+            receiver: Some(holder_address.to_string()),
         };
         println!("double sided liq msg: {:?}", double_sided_liq_msg);
 
@@ -256,7 +264,7 @@ fn try_get_double_side_lp_submsg(
             assets: vec![double_sided_ls_asset.clone(), native_asset.clone()],
             slippage_tolerance,
             auto_stake,
-            receiver: Some(holder_address),
+            receiver: Some(holder_address.to_string()),
         };
         println!("double sided liq msg: {:?}", double_sided_liq_msg);
         // convert Asset to Coin types
@@ -331,7 +339,7 @@ fn try_get_single_side_lp_submsg(
         assets: vec![ls_asset, native_asset],
         slippage_tolerance,
         auto_stake,
-        receiver: Some(holder_address),
+        receiver: Some(holder_address.to_string()),
     };
 
     println!("single side liquidity msg: {:?}", single_sided_liq_msg);
@@ -396,6 +404,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             clock_addr,
             lp_position,
             holder_address,
+            depositor_address,
         } => {
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
@@ -406,7 +415,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             }
 
             if let Some(holder_address) = holder_address {
-                HOLDER_ADDRESS.save(deps.storage, &holder_address)?;
+                HOLDER_ADDRESS.save(deps.storage, &deps.api.addr_validate(&holder_address)?)?;
+            }
+
+            if let Some(depositor_address) = depositor_address {
+                DEPOSITOR_ADDR.save(deps.storage, &deps.api.addr_validate(&depositor_address)?)?;
             }
 
             Ok(Response::default().add_attribute("method", "update_config"))
