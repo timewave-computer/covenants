@@ -58,9 +58,9 @@ pub fn execute(
     }
 }
 
-// this is tested in the LP module
+/// this is tested in the LP module
 /// should be sent to the LP token contract associated with the pool
-/// to withdraw liquidity from
+/// to withdraw liquidity from t
 fn try_withdraw_liquidity(
     deps: DepsMut,
     env: Env,
@@ -68,7 +68,7 @@ fn try_withdraw_liquidity(
 ) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: withdrawing liquidity");
 
-    // we validate who is initiating the liquidity removal
+    // we validate that that the withdrawer is withdrawing liquidity
     let withdrawer = WITHDRAWER.load(deps.storage)?;
     if withdrawer != info.sender {
         return Err(ContractError::Unauthorized {});
@@ -76,10 +76,14 @@ fn try_withdraw_liquidity(
 
     let lp_address = LP_ADDRESS.load(deps.storage)?;
 
+    // We query the pool to get the contract for the pool info
+    // The pool info is required to fetch the address of the
+    // liquidity token contract. The liquidity tokens are CW20 tokens
     let pair_info: astroport::asset::PairInfo = deps
         .querier
         .query_wasm_smart(lp_address.to_string(), &astroport::pair::QueryMsg::Pair {})?;
 
+    // We query our own liquidity token balance
     let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
         pair_info.clone().liquidity_token,
         &cw20::Cw20QueryMsg::Balance {
@@ -87,13 +91,17 @@ fn try_withdraw_liquidity(
         },
     )?;
 
+    // We withdraw our liquidity constructing a CW20 send message
+    // The message contains our liquidity token balance
+    // THe pool address and a message to call the withdraw liquidity hook of the pool contract
     let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
     let withdraw_msg = &Cw20ExecuteMsg::Send {
         contract: lp_address.to_string(),
         amount: liquidity_token_balance.balance,
         msg: to_binary(withdraw_liquidity_hook)?,
     };
-
+    // We execute the message on the liquidity token contract
+    // This will burn the LP tokens and withdraw liquidity into the holder
     Ok(Response::default()
         .add_attribute("method", "try_withdraw")
         .add_message(CosmosMsg::Wasm(WasmMsg::Execute {

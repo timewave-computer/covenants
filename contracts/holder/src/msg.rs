@@ -6,9 +6,12 @@ pub struct InstantiateMsg {
     /// A withdrawer is the only authorized address that can withdraw
     /// from the contract. Anyone can instantiate the contract.
     pub withdrawer: String,
+    /// lp address is the address of the pool where liquidity has been provided
+    /// The holder holds LP tokens associated with this pool
     pub lp_address: String,
 }
 
+// Preset fields are set by the user when instantiating the covenant
 #[cw_serde]
 pub struct PresetHolderFields {
     pub withdrawer: String,
@@ -30,9 +33,13 @@ pub enum ExecuteMsg {
     /// The withdraw message can only be called by the withdrawer
     /// The withdraw can specify a quanity to be withdrawn. If no
     /// quantity is specified, the full balance is withdrawn
+    /// into withdrawer account
     Withdraw {
         quantity: Option<Vec<Coin>>,
     },
+    /// The WithdrawLiqudity message can only be called by the withdrawer
+    /// When it is called, the LP tokens are burned and the liquity is withdrawn
+    /// from the pool and lands in the holder
     WithdrawLiquidity {},
 }
 
@@ -42,6 +49,7 @@ pub enum QueryMsg {
     // Queries the withdrawer address
     #[returns(Addr)]
     Withdrawer {},
+    // Queries the pool address
     #[returns(Addr)]
     LpAddress {},
 }
