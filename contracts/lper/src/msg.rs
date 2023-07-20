@@ -14,6 +14,7 @@ pub struct InstantiateMsg {
     pub autostake: Option<bool>,
     pub assets: AssetData,
     pub single_side_lp_limits: SingleSideLpLimits,
+    pub expected_native_token_amount: Uint128,
 }
 
 #[cw_serde]
@@ -58,6 +59,7 @@ impl PresetLpFields {
         clock_address: String,
         holder_address: String,
         pool_address: String,
+        expected_native_token_amount: Uint128,
     ) -> InstantiateMsg {
         InstantiateMsg {
             lp_position: LPInfo { addr: pool_address },
@@ -70,6 +72,7 @@ impl PresetLpFields {
                 native_asset_limit: Uint128::new(100),
                 ls_asset_limit: Uint128::new(100),
             }),
+            expected_native_token_amount,
         }
     }
 }

@@ -24,4 +24,7 @@ pub enum ContractError {
 
     #[error("Insufficient funds for double sided LP")]
     DoubleSideLpLimitError {},
+
+    #[error("Depositor address not found")]
+    MissingDepositorError {},
 }

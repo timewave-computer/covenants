@@ -17,6 +17,7 @@ pub const DEPOSITOR_ADDR: Item<Addr> = Item::new("depositor_addr");
 pub const SINGLE_SIDED_LP_LIMITS: Item<SingleSideLpLimits> = Item::new("single_side_lp_limit");
 pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> =
     Item::new("provided_liquidity_info");
+pub const EXPECTED_NATIVE_TOKEN_AMOUNT: Item<Uint128> = Item::new("expected_native_token_amount");
 
 #[cw_serde]
 pub struct ProvidedLiquidityInfo {
@@ -27,5 +28,6 @@ pub struct ProvidedLiquidityInfo {
 #[cw_serde]
 pub enum ContractState {
     Instantiated,
+    NativeTokenReceived,
     WithdrawComplete,
 }

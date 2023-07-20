@@ -17,7 +17,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         ProvidedLiquidityInfo, ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION,
-        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, DEPOSITOR_ADDR,
+        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, DEPOSITOR_ADDR, EXPECTED_NATIVE_TOKEN_AMOUNT,
     },
 };
 
@@ -32,6 +32,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 // type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 const DOUBLE_SIDED_REPLY_ID: u64 = 321u64;
 const SINGLE_SIDED_REPLY_ID: u64 = 322u64;
+const DEPOSITOR_NATIVE_RECEIVED_REPLY_ID: u64 = 333u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -58,6 +59,7 @@ pub fn instantiate(
             provided_amount_native: Uint128::zero(),
         },
     )?;
+    EXPECTED_NATIVE_TOKEN_AMOUNT.save(deps.storage, &msg.expected_native_token_amount)?;
 
     Ok(Response::default().add_attribute("method", "instantiate"))
 }
@@ -82,11 +84,50 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     println!("\n tick state: {:?}", current_state);
     match current_state {
-        ContractState::Instantiated => verify_native_token(deps, env, info), // native received
-        ContractState::NativeTokenVerified => verify_st_token(deps, env, info), // st recieved
-        ContractState::StTokenVerified => try_lp(deps, env, info),
+        ContractState::Instantiated => verify_native_token_amount(deps, env),
+        ContractState::NativeTokenReceived => try_lp(deps, env, info),
         ContractState::WithdrawComplete => try_completed(deps),
     }
+}
+
+fn verify_native_token_amount(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+    let assets = ASSETS.load(deps.storage)?;
+    let native_bal = deps.querier.query_balance(env.contract.address, assets.native_asset_denom)?;
+    let expected_native_amount = EXPECTED_NATIVE_TOKEN_AMOUNT.load(deps.storage)?;
+
+    // first we try to get the depositor and error if its unknown
+    let depositor_addr = if let Some(addr) = DEPOSITOR_ADDR.may_load(deps.storage)? {
+        addr
+    } else {
+        return Err(ContractError::MissingDepositorError {})
+    };
+
+    // if we do not have the expected native token amount yet we return
+    if native_bal.amount < expected_native_amount {
+        return Ok(Response::default()
+            .add_attribute("method", "verify_native_token_amount")
+            .add_attribute("current_uatom_bal", native_bal.amount.to_string())
+            .add_attribute("expected_uatom_bal", expected_native_amount.to_string())
+        )
+    }
+
+    // on successful reply we will advance the state
+    let depositor_received_submsg = SubMsg::reply_on_success(
+        CosmosMsg::Wasm(
+            WasmMsg::Execute { 
+                contract_addr: depositor_addr.to_string(),
+                msg: b"{\"received\": {}}".into(),
+                funds: vec![],
+            }
+        ),
+        DEPOSITOR_NATIVE_RECEIVED_REPLY_ID
+    );
+
+    Ok(Response::default()
+        .add_attribute("method", "verify_native_token_amount")
+        .add_attribute("state", "native_token_received")
+        .add_submessage(depositor_received_submsg)
+    )
 }
 
 // 1. Check native balance == expected balance (250K)
@@ -440,10 +481,25 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
     match msg.id {
         DOUBLE_SIDED_REPLY_ID => handle_double_sided_reply_id(deps, _env, msg),
         SINGLE_SIDED_REPLY_ID => handle_single_sided_reply_id(deps, _env, msg),
+        DEPOSITOR_NATIVE_RECEIVED_REPLY_ID => handle_depositor_native_received_reply_id(deps, _env, msg),
         _ => Err(ContractError::from(StdError::GenericErr {
             msg: "err".to_string(),
         })),
     }
+}
+
+fn handle_depositor_native_received_reply_id(
+    deps: DepsMut,
+    _env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
+    // now that depositor received the Received message, we advance the state
+    CONTRACT_STATE.save(deps.storage, &ContractState::NativeTokenReceived)?;
+
+    Ok(Response::default()
+        .add_attribute("method", "handle_depositor_native_received_reply_id")
+        .add_attribute("reply_id", msg.id.to_string())
+    )
 }
 
 fn handle_double_sided_reply_id(
