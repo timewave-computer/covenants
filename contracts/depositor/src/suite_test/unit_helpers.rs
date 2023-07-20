@@ -4,8 +4,8 @@ use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, ibc::applications::transfer:
 use cosmwasm_std::{
     from_binary,
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
-    to_binary, Addr, ContractResult, Deps, DepsMut, Empty, MemoryStorage, MessageInfo, OwnedDeps,
-    Response, SystemResult, Uint128, WasmQuery,
+    to_binary, Addr, ContractResult, DepsMut, MemoryStorage, MessageInfo, OwnedDeps, Response,
+    SystemResult, Uint128, WasmQuery,
 };
 use neutron_sdk::{
     bindings::{
@@ -149,6 +149,14 @@ pub fn do_instantiate() -> (Owned, MessageInfo) {
 pub fn do_tick(deps: DepsMut<NeutronQuery>) -> Result<Response<NeutronMsg>, NeutronError> {
     let info = mock_info(CLOCK_ADDR, &[]);
     execute(deps, mock_env(), info, ExecuteMsg::Tick {})
+}
+
+pub fn execute_received(
+    deps: DepsMut<NeutronQuery>,
+    lper: &str,
+) -> Result<Response<NeutronMsg>, NeutronError> {
+    let info = mock_info(lper, &[]);
+    execute(deps, mock_env(), info, ExecuteMsg::Received {})
 }
 
 pub fn verify_state(deps: &Owned, contract_state: ContractState) {

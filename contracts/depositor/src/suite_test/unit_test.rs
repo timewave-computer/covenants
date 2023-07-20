@@ -6,7 +6,7 @@ use crate::{
     state::ContractState,
     suite_test::unit_helpers::{
         get_default_ibc_fee, get_default_init_msg, get_default_msg_transfer,
-        get_default_sudo_open_ack, to_proto, CLOCK_ADDR, LP_ADDR,
+        get_default_sudo_open_ack, to_proto, CLOCK_ADDR, LP_ADDR, execute_received,
     },
 };
 
@@ -105,19 +105,23 @@ fn test_tick_3() {
 #[test]
 fn test_received() {
     let (mut deps, _) = do_instantiate();
+    let default_init_msg = get_default_init_msg();
 
     // tick 1
     deps = do_tick_1(deps);
     //tick 2
     do_tick(deps.as_mut()).unwrap();
-    //tick 3
-    do_tick(deps.as_mut()).unwrap();
-    //tick 4
-    let tick_res = do_tick(deps.as_mut()).unwrap();
 
-    assert_eq!(tick_res.messages.len(), 1);
+    // MUST error, because sent not by the lper
+    execute_received(deps.as_mut(), "random_addr").unwrap_err();
+
+    //Do recieved from the lper
+    let res = execute_received(deps.as_mut(), default_init_msg.atom_receiver.address.as_str()).unwrap();
+
+    verify_state(&deps, ContractState::Complete);
+    assert_eq!(res.messages.len(), 1);
     assert_eq!(
-        tick_res.messages[0].msg,
+      res.messages[0].msg,
         WasmMsg::Execute {
             contract_addr: CLOCK_ADDR.to_string(),
             msg: to_binary(&covenant_clock::msg::ExecuteMsg::Dequeue {}).unwrap(),
@@ -125,4 +129,5 @@ fn test_received() {
         }
         .into()
     );
+    println!("{:?}", res);
 }

@@ -90,13 +90,12 @@ pub fn execute(
         .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Received {} => try_handle_received(),
+        ExecuteMsg::Received {} => try_handle_received(deps, info),
     }
 }
 
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
@@ -282,8 +281,26 @@ pub fn register_transfers_query(
     Ok(Response::new().add_message(msg))
 }
 
-fn try_handle_received() -> NeutronResult<Response<NeutronMsg>> {
-    Ok(Response::default().add_attribute("try_handle_received", "received msg`"))
+fn try_handle_received(
+    deps: ExecuteDeps,
+    info: MessageInfo,
+) -> NeutronResult<Response<NeutronMsg>> {
+    let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?.address;
+
+    if receiver != info.sender {
+        return Err(NeutronError::Std(StdError::generic_err(
+            "sender is not the receiver",
+        )));
+    }
+
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    let clock_msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
+
+    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+
+    Ok(Response::default()
+        .add_message(clock_msg)
+        .add_attribute("try_handle_received", "received msg`"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
