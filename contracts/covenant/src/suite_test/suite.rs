@@ -1,7 +1,6 @@
 use cosmwasm_std::{Addr, Empty, Uint64, Uint128, Decimal};
 use covenant_lp::msg::AssetData;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
-use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::msg::{InstantiateMsg, QueryMsg};
 
@@ -79,6 +78,7 @@ impl Default for SuiteBuilder {
                     atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount {
                         amount: 1,
                     },
+                    autopilot_format: "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}".to_string(),
                 },
                 preset_lp_fields: covenant_lp::msg::PresetLpFields {
                     slippage_tolerance: None,
@@ -100,17 +100,16 @@ impl Default for SuiteBuilder {
                 label: "covenant_contract".to_string(),
                 pool_address: TODO.to_string(),
                 ibc_msg_transfer_timeout_timestamp: None,
-                ibc_fee: IbcFee {
-                    recv_fee: vec![], // must be empty
-                    ack_fee: vec![cosmwasm_std::Coin {
-                        denom: NEUTRON_DENOM.to_string(),
-                        amount: Uint128::new(1000u128),
-                    }],
-                    timeout_fee: vec![cosmwasm_std::Coin {
-                        denom: NEUTRON_DENOM.to_string(),
-                        amount: Uint128::new(1000u128),
-                    }],
-                },
+                // preset_ibc_fee: PresetIbcFee {
+                //     ack_fee: cosmwasm_std::Coin {
+                //         denom: NEUTRON_DENOM.to_string(),
+                //         amount: Uint128::new(1000u128),
+                //     },
+                //     timeout_fee: cosmwasm_std::Coin {
+                //         denom: NEUTRON_DENOM.to_string(),
+                //         amount: Uint128::new(1000u128),
+                //     },
+                // },
             },
         }
     }

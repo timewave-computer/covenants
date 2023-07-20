@@ -2,7 +2,10 @@ use cosmwasm_std::{Addr, Uint64};
 use covenant_clock_tester::msg::Mode;
 use cw_multi_test::{App, AppResponse, Executor};
 
-use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg}, contract::DEFAULT_TICK_MAX_GAS};
+use crate::{
+    contract::DEFAULT_TICK_MAX_GAS,
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
+};
 
 use super::{clock_contract, clock_tester_contract};
 
@@ -147,9 +150,7 @@ impl Suite {
         self.app.migrate_contract(
             self.admin.clone(),
             self.clock.clone(),
-            &MigrateMsg::UpdateTickMaxGas {
-                new_value: new_value,
-            },
+            &MigrateMsg::UpdateTickMaxGas { new_value },
             self.clock_code_id,
         )
     }
@@ -171,8 +172,7 @@ impl Suite {
 // queries
 impl Suite {
     pub fn query_tick_max_gas(&self) -> Uint64 {
-        self
-            .app
+        self.app
             .wrap()
             .query_wasm_smart(&self.clock, &QueryMsg::TickMaxGas {})
             .unwrap()

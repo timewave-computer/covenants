@@ -15,6 +15,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const MIN_TICK_MAX_GAS: Uint64 = Uint64::new(200_000);
 pub const DEFAULT_TICK_MAX_GAS: Uint64 = Uint64::new(2_900_000);
+pub const MAX_TICK_MAX_GAS: Uint64 = Uint64::new(3_000_000);
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -26,7 +27,8 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: clock instantiate");
 
     let tick_max_gas = if let Some(tick_max_gas) = msg.tick_max_gas {
-        tick_max_gas.min(MIN_TICK_MAX_GAS)
+        // at least MIN_MAX_GAS, at most the relayer limit
+        tick_max_gas.max(MIN_TICK_MAX_GAS).min(MAX_TICK_MAX_GAS)
     } else {
         // todo: find some reasonable default value
         DEFAULT_TICK_MAX_GAS
@@ -91,11 +93,10 @@ pub fn execute(
                 return Err(ContractError::AlreadyEnqueued);
             }
             // Make sure the caller is whitelisted
-            if WHITELIST
+            if !WHITELIST
                 .load(deps.storage)?
                 .iter()
-                .find(|&a| a == &info.sender)
-                .is_none()
+                .any(|a| a == info.sender)
             {
                 return Err(ContractError::NotWhitelisted);
             }
@@ -178,7 +179,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
             if new_value.is_zero() {
                 return Err(ContractError::ZeroTickMaxGas {});
             }
-            TICK_MAX_GAS.save(deps.storage, &new_value.min(MIN_TICK_MAX_GAS))?;
+
+            TICK_MAX_GAS.save(
+                deps.storage,
+                &new_value.max(MIN_TICK_MAX_GAS).min(MAX_TICK_MAX_GAS),
+            )?;
             Ok(Response::default()
                 .add_attribute("method", "migrate_update_tick_max_gas")
                 .add_attribute("tick_max_gas", new_value))

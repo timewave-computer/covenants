@@ -14,9 +14,16 @@ fn test_instantiate() {
 }
 
 #[test]
-#[should_panic(expected = "tick max gas must be non-zero")]
-fn test_instanitate_with_zero_tick_max_gas() {
-    SuiteBuilder::default().with_tick_max_gas(0).build();
+fn test_instanitate_with_zero_tick_max_gas_should_default_to_min() {
+    let suite = SuiteBuilder::default().with_tick_max_gas(0).build();
+
+    assert_eq!(suite.query_tick_max_gas(), Uint64::new(200_000));
+}
+
+#[test]
+fn test_instantiate_with_max_gas_exceeding_limit_defaults_to_limit() {
+    let suite = SuiteBuilder::default().with_tick_max_gas(4_000_000).build();
+    assert_eq!(suite.query_tick_max_gas(), Uint64::new(3_000_000));
 }
 
 // adds an erroring and non-erroring tick receiver to the
@@ -178,7 +185,7 @@ fn test_whitelist() {
 
     let whitelist = suite.query_whitelist();
 
-    assert_eq!(whitelist, vec![receiver.clone()]);
+    assert_eq!(whitelist, vec![receiver]);
 }
 
 // only contract addresses can be enqueued.

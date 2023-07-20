@@ -2,6 +2,7 @@ use std::fmt::Error;
 
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
+use cosmos_sdk_proto::ibc::core::client::v1::Height;
 use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -11,7 +12,6 @@ use cosmwasm_std::{
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
-use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
@@ -19,9 +19,9 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMs
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_PORT_ID, ICA_ADDRESS,
-    INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
-    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID, IBC_TIMEOUT, IBC_FEE,
+    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_FEE, IBC_PORT_ID, IBC_TIMEOUT,
+    ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
+    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID,
 };
 use neutron_sdk::{
     bindings::{
@@ -33,12 +33,7 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 
-// Default timeout for SubmitTX is two weeks
-// const DEFAULT_TIMEOUT_HEIGHT: u64 = 10000000;
-const NEUTRON_DENOM: &str = "untrn";
-// const STATOM_DENOM: &str = "stuatom";
-
-const INTERCHAIN_ACCOUNT_ID: &str = "stride-ica";
+const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ls";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -59,7 +54,6 @@ pub fn instantiate(
 
     //enqueue clock
     CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.clock_address)?)?;
-    let clock_enqueue_msg = covenant_clock::helpers::enqueue_msg(&msg.clock_address)?;
 
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID
@@ -68,10 +62,9 @@ pub fn instantiate(
     NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &msg.neutron_stride_ibc_connection_id)?;
     LS_DENOM.save(deps.storage, &msg.ls_denom)?;
     IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
+    IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
 
-    Ok(Response::default()
-        .add_attribute("method", "instantiate")
-        .add_message(clock_enqueue_msg))
+    Ok(Response::default().add_attribute("method", "instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -147,8 +140,11 @@ fn try_execute_transfer(
                 token: Some(coin),
                 sender: address,
                 receiver: lp_receiver.clone(),
-                timeout_height: None,
-                timeout_timestamp: timeout,
+                timeout_height: Some(Height {
+                    revision_number: 3,
+                    revision_height: 1500,
+                }),
+                timeout_timestamp: 0,
             };
 
             // Serialize the Transfer message

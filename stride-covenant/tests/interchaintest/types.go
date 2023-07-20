@@ -1,80 +1,5 @@
 package ibc_test
 
-type LpInfo struct {
-	Addr string `json:"addr"`
-}
-
-type CovenantAddress struct{}
-
-type CovenantHolderAddressQuery struct {
-	Addr string `json:"address"`
-}
-
-type CovenantClockAddressQuery struct {
-	Addr string `json:"address"`
-}
-
-// A query against the Neutron example contract. Note the usage of
-// `omitempty` on fields. This means that if that field has no value,
-// it will not have a key in the serialized representaiton of the
-// struct, thus mimicing the serialization of Rust enums.
-type QueryResponse struct {
-	Data InterchainAccountAddressQueryResponse `json:"data"`
-}
-
-type IcaExampleContractQuery struct {
-	InterchainAccountAddress InterchainAccountAddressQuery `json:"interchain_account_address,omitempty"`
-}
-
-type InterchainAccountAddressQuery struct {
-	InterchainAccountId string `json:"interchain_account_id"`
-	ConnectionId        string `json:"connection_id"`
-}
-
-type ICAQueryResponse struct {
-	Data DepositorInterchainAccountAddressQueryResponse `json:"data"`
-}
-
-type InterchainAccountAddressQueryResponse struct {
-	InterchainAccountAddress string `json:"interchain_account_address"`
-}
-
-type DepositorICAAddressQuery struct {
-	DepositorInterchainAccountAddress DepositorInterchainAccountAddressQuery `json:"depositor_interchain_account_address"`
-}
-
-type DepositorContractQuery struct {
-	ClockAddress ClockAddressQuery `json:"clock_address"`
-}
-
-type LPContractQuery struct {
-	ClockAddress ClockAddressQuery `json:"clock_address"`
-}
-
-type LPPositionQuery struct {
-	LpPosition LpPositionQuery `json:"lp_position"`
-}
-
-type DepositorInterchainAccountAddressQuery struct{}
-type LpPositionQuery struct{}
-
-type ClockQueryResponse struct {
-	Data string `json:"data"`
-}
-
-type LpPositionQueryResponse struct {
-	Data LpInfo `json:"data"`
-}
-
-type AstroportAsset struct {
-	Info   AssetInfo `json:"info"`
-	Amount string    `json:"amount"`
-}
-
-type DepositorInterchainAccountAddressQueryResponse struct {
-	DepositorInterchainAccountAddress string `json:"depositor_interchain_account_address"`
-}
-
 //////////////////////////////////////////////
 ///// Covenant contracts
 //////////////////////////////////////////////
@@ -98,19 +23,19 @@ type CovenantInstantiateMsg struct {
 	PresetHolder                   PresetHolderFields    `json:"preset_holder_fields"`
 	PoolAddress                    string                `json:"pool_address"`
 	IbcMsgTransferTimeoutTimestamp uint64                `json:"ibc_msg_transfer_timeout_timestamp"`
-	IbcFee                         IbcFee                `json:"ibc_fee"`
+	// PresetIbcFee                   PresetIbcFee          `json:"preset_ibc_fee"`
 }
 
-type IbcFee struct {
-	RecvFee    []CwCoin `json:"recv_fee"`
-	AckFee     []CwCoin `json:"ack_fee"`
-	TimeoutFee []CwCoin `json:"timeout_fee"`
+type PresetIbcFee struct {
+	AckFee     CwCoin `json:"ack_fee"`
+	TimeoutFee CwCoin `json:"timeout_fee"`
 }
 
 type PresetClockFields struct {
-	TickMaxGas string `json:"tick_max_gas,omitempty"`
-	ClockCode  uint64 `json:"clock_code"`
-	Label      string `json:"label"`
+	TickMaxGas string   `json:"tick_max_gas,omitempty"`
+	ClockCode  uint64   `json:"clock_code"`
+	Label      string   `json:"label"`
+	Whitelist  []string `json:"whitelist"`
 }
 
 type PresetHolderFields struct {
@@ -127,15 +52,22 @@ type PresetDepositorFields struct {
 	Label                           string                 `json:"label"`
 	StAtomReceiverAmount            WeightedReceiverAmount `json:"st_atom_receiver_amount"`
 	AtomReceiverAmount              WeightedReceiverAmount `json:"atom_receiver_amount"`
+	AutopilotFormat                 string                 `json:"autopilot_format"`
 }
 
 type PresetLpFields struct {
-	SlippageTolerance string    `json:"slippage_tolerance,omitempty"`
-	Autostake         bool      `json:"autostake,omitempty"`
-	Assets            AssetData `json:"assets"`
-	LpCode            uint64    `json:"lp_code"`
-	Label             string    `json:"label"`
-	PriceDelta        string    `json:"price_delta"`
+	SlippageTolerance  string             `json:"slippage_tolerance,omitempty"`
+	Autostake          bool               `json:"autostake,omitempty"`
+	Assets             AssetData          `json:"assets"`
+	LpCode             uint64             `json:"lp_code"`
+	Label              string             `json:"label"`
+	ExpectedPriceDelta string             `json:"expected_price_delta"`
+	SingleSideLpLimits SingleSideLpLimits `json:"single_side_lp_limits"`
+}
+
+type SingleSideLpLimits struct {
+	NativeAssetLimit string `json:"native_asset_limit"`
+	LsAssetLimit     string `json:"ls_asset_limit"`
 }
 
 type AssetData struct {
@@ -187,13 +119,14 @@ type ContractStateQueryResponse struct {
 ///// Depositor contract
 //////////////////////////////////////////////
 
+// Instantiation
 type WeightedReceiver struct {
-	Amount  int64  `json:"amount"`
+	Amount  uint64 `json:"amount"`
 	Address string `json:"address"`
 }
 
 type WeightedReceiverAmount struct {
-	Amount int64 `json:"amount"`
+	Amount uint64 `json:"amount"`
 }
 
 type StAtomWeightedReceiverQuery struct {
@@ -211,9 +144,104 @@ type WeightedReceiverResponse struct {
 	Data WeightedReceiver `json:"data"`
 }
 
+// Queries
+type DepositorICAAddressQuery struct {
+	DepositorInterchainAccountAddress DepositorInterchainAccountAddress `json:"depositor_interchain_account_address"`
+}
+type DepositorInterchainAccountAddress struct{}
+
+type QueryResponse struct {
+	Data InterchainAccountAddressQueryResponse `json:"data"`
+}
+
+type InterchainAccountAddressQueryResponse struct {
+	InterchainAccountAddress string `json:"interchain_account_address"`
+}
+
 //////////////////////////////////////////////
 ///// Ls contract
 //////////////////////////////////////////////
+
+// Execute
+type TransferExecutionMsg struct {
+	Transfer TransferAmount `json:"transfer"`
+}
+
+// Rust type here is Uint128 which can't safely be serialized
+// to json int. It needs to go as a string over the wire.
+type TransferAmount struct {
+	Amount uint64 `json:"amount,string"`
+}
+
+// Queries
+type LsIcaQuery struct {
+	StrideIca StrideIcaQuery `json:"stride_i_c_a"`
+}
+type StrideIcaQuery struct{}
+
+type StrideIcaQueryResponse struct {
+	Addr string `json:"data"`
+}
+
+//////////////////////////////////////////////
+///// Lp contract
+//////////////////////////////////////////////
+
+type LPPositionQuery struct {
+	LpPosition LpPositionQuery `json:"lp_position"`
+}
+type LpPositionQuery struct{}
+
+type LpInfo struct {
+	Addr string `json:"addr"`
+}
+
+type PairInfo struct {
+	LiquidityToken string      `json:"liquidity_token"`
+	ContractAddr   string      `json:"contract_addr"`
+	PairType       PairType    `json:"pair_type"`
+	AssetInfos     []AssetInfo `json:"asset_infos"`
+}
+
+type Pair struct {
+	AssetInfos []AssetInfo `json:"asset_infos"`
+}
+
+type PairQuery struct {
+	Pair Pair `json:"pair"`
+}
+
+type CreatePair struct {
+	PairType   PairType    `json:"pair_type"`
+	AssetInfos []AssetInfo `json:"asset_infos"`
+	InitParams []byte      `json:"init_params"`
+}
+
+type CreatePairMsg struct {
+	CreatePair CreatePair `json:"create_pair"`
+}
+
+//////////////////////////////////////////////
+///// Holder contract
+//////////////////////////////////////////////
+
+type CovenantHolderAddressQuery struct {
+	Addr string `json:"address"`
+}
+
+type WithdrawLiquidityMessage struct {
+	WithdrawLiquidity WithdrawLiquidity `json:"withdraw_liquidity"`
+}
+
+type WithdrawLiquidity struct{}
+
+type WithdrawMessage struct {
+	Withdraw Withdraw `json:"withdraw"`
+}
+
+type Withdraw struct {
+	Quantity *[]CwCoin `json:"quantity"`
+}
 
 //////////////////////////////////////////////
 ///// Astroport contracts
@@ -332,4 +360,96 @@ type Logo struct {
 type WhitelistInstantiateMsg struct {
 	Admins  []string `json:"admins"`
 	Mutable bool     `json:"mutable"`
+}
+
+type ProvideLiqudityMsg struct {
+	ProvideLiquidity ProvideLiquidityStruct `json:"provide_liquidity"`
+}
+
+type ProvideLiquidityStruct struct {
+	Assets            []AstroportAsset `json:"assets"`
+	SlippageTolerance string           `json:"slippage_tolerance"`
+	AutoStake         bool             `json:"auto_stake"`
+	Receiver          string           `json:"receiver"`
+}
+
+// factory
+
+type FactoryPairResponse struct {
+	Data PairInfo `json:"data"`
+}
+
+/////////////////////////////////////////////////////////////////////
+//--- These are here for debugging but should be likely removed ---//
+
+type CovenantClockAddressQuery struct {
+	Addr string `json:"address"`
+}
+
+type DepositorContractQuery struct {
+	ClockAddress ClockAddressQuery `json:"clock_address"`
+}
+
+type LPContractQuery struct {
+	ClockAddress ClockAddressQuery `json:"clock_address"`
+}
+
+type ClockQueryResponse struct {
+	Data string `json:"data"`
+}
+
+type LpPositionQueryResponse struct {
+	Data LpInfo `json:"data"`
+}
+
+type AstroportAsset struct {
+	Info   AssetInfo `json:"info"`
+	Amount string    `json:"amount"`
+}
+
+// A query against the Neutron example contract. Note the usage of
+// `omitempty` on fields. This means that if that field has no value,
+// it will not have a key in the serialized representaiton of the
+// struct, thus mimicing the serialization of Rust enums.
+type IcaExampleContractQuery struct {
+	InterchainAccountAddress InterchainAccountAddressQuery `json:"interchain_account_address,omitempty"`
+}
+
+type InterchainAccountAddressQuery struct {
+	InterchainAccountId string `json:"interchain_account_id"`
+	ConnectionId        string `json:"connection_id"`
+}
+
+type ICAQueryResponse struct {
+	Data DepositorInterchainAccountAddressQueryResponse `json:"data"`
+}
+
+type DepositorInterchainAccountAddressQueryResponse struct {
+	DepositorInterchainAccountAddress string `json:"depositor_interchain_account_address"`
+}
+
+//------------------//
+
+type BalanceResponse struct {
+	Balance string `json:"balance"`
+}
+
+type Cw20BalanceResponse struct {
+	Data BalanceResponse `json:"data"`
+}
+
+type AllAccountsResponse struct {
+	Data []string `json:"all_accounts_response"`
+}
+
+type Cw20QueryMsg struct {
+	Balance Balance `json:"balance"`
+	// AllAccounts *AllAccounts `json:"all_accounts"`
+}
+
+type AllAccounts struct {
+}
+
+type Balance struct {
+	Address string `json:"address"`
 }
