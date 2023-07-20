@@ -85,7 +85,7 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -98,9 +98,9 @@ pub fn execute(
     }
 }
 
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
-    // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let ica_address = ICA_ADDRESS.may_load(deps.storage)?;
@@ -126,7 +126,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 }
 
 fn try_liquid_stake(
-    mut deps: DepsMut,
+    mut deps: ExecuteDeps,
     env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
@@ -235,7 +235,7 @@ fn try_liquid_stake(
 }
 
 fn try_receive_atom_from_ica(
-    mut deps: DepsMut,
+    mut deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
@@ -289,7 +289,7 @@ fn try_receive_atom_from_ica(
             );
 
             let submsg = msg_with_sudo_callback(
-                deps.branch(),
+                deps,
                 submit_msg,
                 SudoPayload {
                     port_id,
@@ -305,7 +305,7 @@ fn try_receive_atom_from_ica(
     }
 }
 
-fn try_register_gaia_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
     let connection_id = NEUTRON_GAIA_CONNECTION_ID.load(deps.storage)?;
     let register = NeutronMsg::register_interchain_account(connection_id, gaia_acc_id.clone());
@@ -331,7 +331,7 @@ fn try_completed(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
 
 #[allow(unused)]
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     msg: C,
     payload: SudoPayload,
 ) -> StdResult<SubMsg<T>> {
@@ -815,13 +815,6 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
         .debug(format!("WASMDEBUG: reply msg: {:?}", msg).as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
-        10 => {
-            let payload = format!("{:?}", msg);            
-            Ok(Response::default()
-                .add_attribute("method", "try_ls_reply")
-                .add_attribute("msgpayload", payload)
-            )
-        }
         _ => Err(StdError::generic_err(format!(
             "unsupported reply message id {}",
             msg.id
