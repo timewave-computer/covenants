@@ -4,22 +4,20 @@ use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
 use cosmos_sdk_proto::ibc::core::client::v1::Height;
-use cosmos_sdk_proto::tendermint::consensus::TimeoutInfo;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdError, StdResult, SubMsg, Uint128,
+    StdError, StdResult, SubMsg,
 };
-use covenant_clock::helpers::{verify_clock, self};
+use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
-use neutron_sdk::bindings::types::{ProtobufAny, encode_hex};
+use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg};
-use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
@@ -33,16 +31,15 @@ use neutron_sdk::{
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
-    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS,
-    NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID, AUTOPILOT_FORMAT,
-    IBC_TIMEOUT, IBC_FEE,
+    ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
+    GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
+    IBC_PORT_ID, IBC_TIMEOUT, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
+    NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
-const NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
 const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 
@@ -79,8 +76,7 @@ pub fn instantiate(
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
 
-    Ok(Response::default()
-        .add_attribute("method", "depositor_instantiate"))
+    Ok(Response::default().add_attribute("method", "depositor_instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -111,23 +107,27 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
             if let Some(addr) = ica_address {
                 try_liquid_stake(deps, env, info, addr)
             } else {
-                Ok(Response::default().add_attribute("method", "try_tick").add_attribute("ica_status", "not_created"))
+                Ok(Response::default()
+                    .add_attribute("method", "try_tick")
+                    .add_attribute("ica_status", "not_created"))
             }
-        },
+        }
         ContractState::LiquidStaked => {
             if let Some(addr) = ica_address {
                 try_receive_atom_from_ica(deps, env, info, addr)
             } else {
-                Ok(Response::default().add_attribute("method", "try_tick").add_attribute("ica_status", "not_created"))
+                Ok(Response::default()
+                    .add_attribute("method", "try_tick")
+                    .add_attribute("ica_status", "not_created"))
             }
-        },
+        }
         ContractState::Complete => Ok(Response::default()),
     }
 }
 
 fn try_liquid_stake(
     mut deps: ExecuteDeps,
-    env: Env,
+    _env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -142,7 +142,7 @@ fn try_liquid_stake(
     };
     // TODO: validate balances of stride ica / liquid pooler here.
     // if either has the expected amount of statom, advance the state
-    
+
     STRIDE_ATOM_RECEIVER.update(deps.storage, |mut val| -> StdResult<_> {
         val.address = stride_ica_addr.clone();
         Ok(val)
@@ -177,7 +177,7 @@ fn try_liquid_stake(
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: gaia_stride_channel,
-                token: Some(coin), 
+                token: Some(coin),
                 sender: address,
                 receiver: autopilot_receiver,
                 timeout_height: Some(Height {
@@ -202,7 +202,7 @@ fn try_liquid_stake(
             let stride_submit_msg = NeutronMsg::submit_tx(
                 controller_conn_id,
                 INTERCHAIN_ACCOUNT_ID.to_string(),
-                vec![protobuf.clone()],
+                vec![protobuf],
                 "".to_string(),
                 timeout,
                 fee,
@@ -215,7 +215,7 @@ fn try_liquid_stake(
                     port_id,
                     // Here you can store some information about the transaction to help you parse
                     // the acknowledgement later.
-                    message: "try_liquid_stake".to_string(),  
+                    message: "try_liquid_stake".to_string(),
                 },
             )?;
 
@@ -224,18 +224,16 @@ fn try_liquid_stake(
             Ok(Response::default()
                 .add_attribute("method", "try_liquid_stake")
                 // .add_attribute("stride_submit_msg_hex", encode_hex(protobuf.value.as_slice()))
-                .add_submessage(submsg)
-            )
+                .add_submessage(submsg))
         }
         None => Ok(Response::default()
             .add_attribute("method", "try_liquid_stake")
-            .add_attribute("error", "no_ica_found")
-        ),
+            .add_attribute("error", "no_ica_found")),
     }
 }
 
 fn try_receive_atom_from_ica(
-    mut deps: ExecuteDeps,
+    deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
@@ -263,7 +261,10 @@ fn try_receive_atom_from_ica(
                 token: Some(coin),
                 sender: address.clone(),
                 receiver: lp_receiver.address,
-                timeout_height: Some(Height { revision_number: 2, revision_height: 1300 }),
+                timeout_height: Some(Height {
+                    revision_number: 2,
+                    revision_height: 1300,
+                }),
                 timeout_timestamp: 0,
             };
 
@@ -293,7 +294,7 @@ fn try_receive_atom_from_ica(
                 submit_msg,
                 SudoPayload {
                     port_id,
-                    message: "try_receive_atom_from_ica".to_string(),  
+                    message: "try_receive_atom_from_ica".to_string(),
                 },
             )?;
 
@@ -320,6 +321,7 @@ fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<
         .add_message(register))
 }
 
+#[allow(unused)]
 fn try_completed(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
@@ -485,7 +487,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             gaia_neutron_ibc_transfer_channel_id,
             neutron_gaia_connection_id,
             gaia_stride_ibc_transfer_channel_id,
-            ls_address, 
+            ls_address,
             autopilot_format,
             ibc_timeout,
             ibc_fee,
@@ -650,7 +652,6 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
     }
 
     if let Some(payload) = payload {
-        
         if payload.message == "try_liquid_stake" {
             CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
             response = response.add_attribute("payload_message", "try_liquid_stake")

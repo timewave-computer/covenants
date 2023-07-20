@@ -26,7 +26,13 @@ pub struct PresetLsFields {
 }
 
 impl PresetLsFields {
-    pub fn to_instantiate_msg(self, clock_address: String, lp_address: String, ibc_timeout: u64, ibc_fee: IbcFee) -> InstantiateMsg {
+    pub fn to_instantiate_msg(
+        self,
+        clock_address: String,
+        lp_address: String,
+        ibc_timeout: u64,
+        ibc_fee: IbcFee,
+    ) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
             stride_neutron_ibc_transfer_channel_id: self.stride_neutron_ibc_transfer_channel_id,
