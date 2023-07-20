@@ -33,6 +33,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const DOUBLE_SIDED_REPLY_ID: u64 = 321u64;
 const SINGLE_SIDED_REPLY_ID: u64 = 322u64;
 const DEPOSITOR_NATIVE_RECEIVED_REPLY_ID: u64 = 333u64;
+const DEPOSITOR_LS_RECEIVED_REPLY_ID: u64 = 334u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -134,6 +135,32 @@ fn verify_native_token_amount(deps: DepsMut, env: Env) -> Result<Response, Contr
 // 2. simluation and check st token amount == expected amount
 // 3. received to depositor
 
+fn try_get_depositor_ls_received_submsg(deps: DepsMut) -> Result<Option<SubMsg>, ContractError> {
+    let depositor_addr = if let Some(addr) = DEPOSITOR_ADDR.may_load(deps.storage)? {
+        addr
+    } else {
+        return Err(ContractError::MissingDepositorError {})
+    };
+    // we first validate the amount of native tokens already provided into the pool
+    let provided_liquidity = PROVIDED_LIQUIDITY_INFO.load(deps.storage)?;
+    let expected_native_amount = EXPECTED_NATIVE_TOKEN_AMOUNT.load(deps.storage)?;
+
+    if provided_liquidity.provided_amount_native >= expected_native_amount {
+        Ok(Some(SubMsg::reply_on_success(
+            CosmosMsg::Wasm(
+                WasmMsg::Execute { 
+                    contract_addr: depositor_addr.to_string(),
+                    msg: b"{\"received\": {}}".into(),
+                    funds: vec![],
+                }
+            ),
+            DEPOSITOR_LS_RECEIVED_REPLY_ID
+        )))
+    } else {
+        Ok(None)
+    }
+}
+
 fn try_lp(mut deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
     let contract_addr = env.contract.address;
 
@@ -152,9 +179,18 @@ fn try_lp(mut deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, C
     let single_sided_submsg =
         try_get_single_side_lp_submsg(deps.branch(), contract_addr.to_string())?;
     if let Some(msg) = single_sided_submsg {
-        return Ok(Response::default()
-            .add_submessage(msg)
-            .add_attribute("method", "single_side_lp"));
+        if let Some(depositor_submsg) = try_get_depositor_ls_received_submsg(deps.branch())? {
+            // if all is well we also submit a Received message to depositor
+            return Ok(Response::default()
+                .add_submessages([msg, depositor_submsg])
+                .add_attribute("method", "single_side_lp")
+            )
+        } else {
+            return Ok(Response::default()
+                .add_submessage(msg)
+                .add_attribute("method", "single_side_lp")
+            )
+        }
     }
 
     deps.api
@@ -482,6 +518,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
         DOUBLE_SIDED_REPLY_ID => handle_double_sided_reply_id(deps, _env, msg),
         SINGLE_SIDED_REPLY_ID => handle_single_sided_reply_id(deps, _env, msg),
         DEPOSITOR_NATIVE_RECEIVED_REPLY_ID => handle_depositor_native_received_reply_id(deps, _env, msg),
+        DEPOSITOR_LS_RECEIVED_REPLY_ID => handle_depositor_ls_received_reply_id(deps, _env, msg),
         _ => Err(ContractError::from(StdError::GenericErr {
             msg: "err".to_string(),
         })),
@@ -502,13 +539,22 @@ fn handle_depositor_native_received_reply_id(
     )
 }
 
+fn handle_depositor_ls_received_reply_id(
+    _deps: DepsMut,
+    _env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
+    Ok(Response::default()
+        .add_attribute("method", "handle_depositor_ls_received_reply_id")
+        .add_attribute("reply_id", msg.id.to_string())
+    )
+}
+
 fn handle_double_sided_reply_id(
     _deps: DepsMut,
     _env: Env,
     msg: Reply,
 ) -> Result<Response, ContractError> {
-    // TODO: query balances here and if both are 0, exit?
-
     Ok(Response::default()
         .add_attribute("method", "handle_double_sided_reply_id")
         .add_attribute("reply_id", msg.id.to_string()))
