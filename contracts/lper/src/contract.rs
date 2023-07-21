@@ -436,22 +436,37 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             clock_addr,
             lp_position,
             holder_address,
-            price_delta,
+            expected_return_amount,
+            allowed_return_delta,
         } => {
+            let mut response = Response::default().add_attribute("method", "update_config");
+
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
+                response = response.add_attribute("clock_addr", clock_addr);
             }
 
             if let Some(lp_position) = lp_position {
                 LP_POSITION.save(deps.storage, &lp_position)?;
+                response = response.add_attribute("lp_position", lp_position.addr);
             }
 
             if let Some(holder_address) = holder_address {
                 HOLDER_ADDRESS.save(deps.storage, &holder_address)?;
+                response = response.add_attribute("holder_address", holder_address);
             }
 
+            if let Some(return_amount) = expected_return_amount {
+                EXPECTED_RETURN_AMOUNT.save(deps.storage, &return_amount)?;
+                response = response.add_attribute("expected_return_amount", return_amount);
+            }
 
-            Ok(Response::default().add_attribute("method", "update_config"))
+            if let Some(return_delta) = allowed_return_delta {
+                ALLOWED_RETURN_DELTA.save(deps.storage, &return_delta)?;
+                response = response.add_attribute("allowed_return_delta", return_delta);
+            }
+
+            Ok(response)
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
             // This is a migrate message to update code id,

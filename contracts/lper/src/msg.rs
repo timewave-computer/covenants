@@ -119,7 +119,8 @@ pub enum MigrateMsg {
         clock_addr: Option<String>,
         lp_position: Option<LPInfo>,
         holder_address: Option<String>,
-        price_delta: Option<Decimal>,
+        expected_return_amount: Option<Uint128>,
+        allowed_return_delta: Option<Uint128>,
     },
     UpdateCodeId {
         data: Option<Binary>,
