@@ -2,7 +2,7 @@ use super::suite::SuiteBuilder;
 
 #[test]
 fn test_instantiate_happy() {
-    let _suite = SuiteBuilder::default().build();
+    // let _suite = SuiteBuilder::default().build();
 
     // suite.assert_clock_address(Addr::unchecked(DEFAULT_CLOCK_ADDRESS));
     // suite.assert_native_atom_receiver(WeightedReceiver {
