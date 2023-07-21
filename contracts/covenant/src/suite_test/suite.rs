@@ -2,7 +2,7 @@ use cosmwasm_std::{Addr, Empty, Uint64, Uint128};
 use covenant_lp::msg::AssetData;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use crate::msg::{InstantiateMsg, QueryMsg, PresetIbcFee};
+use crate::msg::{InstantiateMsg, QueryMsg, PresetIbcFee, Timeouts};
 
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";
@@ -102,6 +102,10 @@ impl Default for SuiteBuilder {
                 preset_ibc_fee: PresetIbcFee {
                     ack_fee: Uint128::new(1000),
                     timeout_fee: Uint128::new(1000),
+                },
+                timeouts: Timeouts {
+                    ica_timeout: Uint64::new(18000),           // 5 hours
+                    ibc_transfer_timeout: Uint64::new(120),    // 2 minutes
                 },
             },
         }

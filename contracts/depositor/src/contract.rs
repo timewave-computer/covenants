@@ -3,7 +3,6 @@ use std::fmt::Error;
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 
-use cosmos_sdk_proto::ibc::core::client::v1::Height;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -17,7 +16,7 @@ use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg};
+use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg}, state::{IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT}};
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
@@ -33,7 +32,7 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
-    IBC_PORT_ID, IBC_TIMEOUT, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
+    IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
     NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
 };
 
@@ -71,10 +70,11 @@ pub fn instantiate(
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     LS_ADDRESS.save(deps.storage, &msg.ls_address)?;
     AUTOPILOT_FORMAT.save(deps.storage, &msg.autopilot_format)?;
-    IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
+    IBC_TRANSFER_TIMEOUT.save(deps.storage, &msg.ibc_transfer_timeout)?;
+    ICA_TIMEOUT.save(deps.storage, &msg.ica_timeout)?;
 
     Ok(Response::default().add_attribute("method", "depositor_instantiate"))
 }
@@ -127,7 +127,7 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 
 fn try_liquid_stake(
     mut deps: ExecuteDeps,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -158,8 +158,9 @@ fn try_liquid_stake(
             let stride_receiver = STRIDE_ATOM_RECEIVER.load(deps.storage)?;
             let gaia_stride_channel: String =
                 GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
-            let timeout = IBC_TIMEOUT.load(deps.storage)?;
-
+            let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
+            let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
+    
             let amount = stride_receiver.amount.to_string();
             let st_ica = stride_ica_addr;
 
@@ -179,11 +180,8 @@ fn try_liquid_stake(
                 token: Some(coin),
                 sender: address,
                 receiver: autopilot_receiver,
-                timeout_height: Some(Height {
-                    revision_number: 3,
-                    revision_height: 1000,
-                }),
-                timeout_timestamp: 0,
+                timeout_height: None,
+                timeout_timestamp: env.block.time.plus_seconds(ibc_transfer_timeout.u64()).nanos(),
             };
 
             // Serialize the Transfer message
@@ -203,7 +201,7 @@ fn try_liquid_stake(
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
                 "".to_string(),
-                timeout,
+                ica_timeout.u64(),
                 fee,
             );
 
@@ -218,8 +216,6 @@ fn try_liquid_stake(
                 },
             )?;
 
-            // CONTRACT_STATE.save(deps.storage, &ContractState::LiquidStaked)?;
-
             Ok(Response::default()
                 .add_attribute("method", "try_liquid_stake")
                 // .add_attribute("stride_submit_msg_hex", encode_hex(protobuf.value.as_slice()))
@@ -233,7 +229,7 @@ fn try_liquid_stake(
 
 fn try_receive_atom_from_ica(
     deps: ExecuteDeps,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     _gaia_account_address: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -246,7 +242,8 @@ fn try_receive_atom_from_ica(
             let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
             let amount = lp_receiver.amount.to_string();
-            let timeout = IBC_TIMEOUT.load(deps.storage)?;
+            let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
+            let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
             let fee = IBC_FEE.load(deps.storage)?;
 
             let coin = Coin {
@@ -260,11 +257,8 @@ fn try_receive_atom_from_ica(
                 token: Some(coin),
                 sender: address.clone(),
                 receiver: lp_receiver.address,
-                timeout_height: Some(Height {
-                    revision_number: 2,
-                    revision_height: 1300,
-                }),
-                timeout_timestamp: 0,
+                timeout_height: None,
+                timeout_timestamp: env.block.time.plus_seconds(ibc_transfer_timeout.u64()).nanos(),
             };
 
             // Serialize the Transfer message
@@ -284,7 +278,7 @@ fn try_receive_atom_from_ica(
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
                 address,
-                timeout,
+                ica_timeout.u64(),
                 fee,
             );
 
@@ -488,8 +482,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             gaia_stride_ibc_transfer_channel_id,
             ls_address,
             autopilot_format,
-            ibc_timeout,
             ibc_fee,
+            ibc_transfer_timeout,
+            ica_timeout,
         } => {
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
@@ -526,8 +521,12 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 AUTOPILOT_FORMAT.save(deps.storage, &autopilot_f)?;
             }
 
-            if let Some(timeout) = ibc_timeout {
-                IBC_TIMEOUT.save(deps.storage, &timeout)?;
+            if let Some(timeout) = ibc_transfer_timeout {
+                IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
+            }
+
+            if let Some(timeout) = ica_timeout {
+                ICA_TIMEOUT.save(deps.storage, &timeout)?;
             }
 
             if let Some(fee) = ibc_fee {

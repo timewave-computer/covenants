@@ -1024,16 +1024,21 @@ func TestICS(t *testing.T) {
 				TimeoutFee: "1000",
 			}
 
+			timeouts := Timeouts{
+				IcaTimeout:         "18000", // 5 hours
+				IbcTransferTimeout: "120",   // 2 minutes
+			}
+
 			covenantMsg := CovenantInstantiateMsg{
-				Label:                          "stride-covenant",
-				PresetClock:                    clockMsg,
-				PresetLs:                       lsMsg,
-				PresetDepositor:                depositorMsg,
-				PresetLp:                       lpMsg,
-				PresetHolder:                   holderMsg,
-				PoolAddress:                    stableswapAddress,
-				IbcMsgTransferTimeoutTimestamp: 10000000000,
-				PresetIbcFee:                   presetIbcFee,
+				Label:           "stride-covenant",
+				PresetClock:     clockMsg,
+				PresetLs:        lsMsg,
+				PresetDepositor: depositorMsg,
+				PresetLp:        lpMsg,
+				PresetHolder:    holderMsg,
+				PoolAddress:     stableswapAddress,
+				Timeouts:        timeouts,
+				PresetIbcFee:    presetIbcFee,
 			}
 
 			str, err := json.Marshal(covenantMsg)

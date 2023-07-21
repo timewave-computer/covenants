@@ -2,12 +2,11 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
-    SubMsg, Uint128, WasmMsg,
+    SubMsg, WasmMsg,
 };
 
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
-use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::{
     error::ContractError,
@@ -16,7 +15,7 @@ use crate::{
         CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
         COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, IBC_FEE, IBC_TIMEOUT,
         LP_CODE, LS_CODE, POOL_ADDRESS, PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS,
-        PRESET_HOLDER_FIELDS, PRESET_LP_FIELDS, PRESET_LS_FIELDS,
+        PRESET_HOLDER_FIELDS, PRESET_LP_FIELDS, PRESET_LS_FIELDS, TIMEOUTS,
     },
 };
 
@@ -47,20 +46,12 @@ pub fn instantiate(
     CLOCK_CODE.save(deps.storage, &msg.preset_clock_fields.clock_code)?;
 
     POOL_ADDRESS.save(deps.storage, &msg.pool_address)?;
-
     PRESET_CLOCK_FIELDS.save(deps.storage, &msg.preset_clock_fields)?;
     PRESET_LP_FIELDS.save(deps.storage, &msg.preset_lp_fields)?;
     PRESET_LS_FIELDS.save(deps.storage, &msg.preset_ls_fields)?;
     PRESET_DEPOSITOR_FIELDS.save(deps.storage, &msg.preset_depositor_fields)?;
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
-
-    let ibc_timeout = if let Some(timeout) = msg.ibc_msg_transfer_timeout_timestamp {
-        timeout
-    } else {
-        DEFAULT_TIMEOUT_SECONDS
-    };
-
-    IBC_TIMEOUT.save(deps.storage, &ibc_timeout)?;
+    TIMEOUTS.save(deps.storage, &msg.timeouts)?;
     IBC_FEE.save(
         deps.storage,
         &msg.preset_ibc_fee.to_ibc_fee(),
@@ -189,14 +180,15 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let clock_address = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let code_id = LS_CODE.load(deps.storage)?;
             let preset_ls_fields = PRESET_LS_FIELDS.load(deps.storage)?;
-            let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
             let ibc_fee = IBC_FEE.load(deps.storage)?;
+            let timeouts = TIMEOUTS.load(deps.storage)?;
 
             let instantiate_msg = preset_ls_fields.clone().to_instantiate_msg(
                 clock_address.to_string(),
                 response.contract_address,
-                ibc_timeout,
                 ibc_fee,
+                timeouts.ica_timeout,
+                timeouts.ibc_transfer_timeout,
             );
 
             let ls_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -232,7 +224,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
             let code_id = DEPOSITOR_CODE.load(deps.storage)?;
             let preset_depositor_fields = PRESET_DEPOSITOR_FIELDS.load(deps.storage)?;
-            let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+            let timeouts = TIMEOUTS.load(deps.storage)?;
             let ibc_fee = IBC_FEE.load(deps.storage)?;
 
             let instantiate_msg = preset_depositor_fields.clone().to_instantiate_msg(
@@ -240,8 +232,9 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 clock_addr.to_string(),
                 response.contract_address,
                 lp_addr.to_string(),
-                ibc_timeout,
                 ibc_fee,
+                timeouts.ibc_transfer_timeout,
+                timeouts.ica_timeout,
             );
 
             let depositor_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
