@@ -83,8 +83,8 @@ pub(crate) fn get_default_init_msg() -> InstantiateMsg {
       gaia_stride_ibc_transfer_channel_id: "channel-1".to_string(),
       depositor_code: 1,
       label: "depositor".to_string(),
-      st_atom_receiver_amount: WeightedReceiverAmount { amount: 1 },
-      atom_receiver_amount: WeightedReceiverAmount { amount: 1 },
+      st_atom_receiver_amount: WeightedReceiverAmount { amount: 1000 },
+      atom_receiver_amount: WeightedReceiverAmount { amount: 1000 },
       autopilot_format: "{\"autopilot\": {\"receiver\": \"{st_ica}\",\"stakeibc\": {\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}".to_string(),
     }.to_instantiate_msg("reciever".to_string(), CLOCK_ADDR.to_string(), LS_ADDR.to_string(), LP_ADDR.to_string(), DEFAULT_TIMEOUT_SECONDS, get_default_ibc_fee())
 }
@@ -149,14 +149,6 @@ pub fn do_instantiate() -> (Owned, MessageInfo) {
 pub fn do_tick(deps: DepsMut<NeutronQuery>) -> Result<Response<NeutronMsg>, NeutronError> {
     let info = mock_info(CLOCK_ADDR, &[]);
     execute(deps, mock_env(), info, ExecuteMsg::Tick {})
-}
-
-pub fn execute_received(
-    deps: DepsMut<NeutronQuery>,
-    lper: &str,
-) -> Result<Response<NeutronMsg>, NeutronError> {
-    let info = mock_info(lper, &[]);
-    execute(deps, mock_env(), info, ExecuteMsg::Received {})
 }
 
 pub fn verify_state(deps: &Owned, contract_state: ContractState) {

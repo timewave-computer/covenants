@@ -80,9 +80,7 @@ pub struct WeightedReceiver {
 
 #[clocked]
 #[cw_serde]
-pub enum ExecuteMsg {
-    Received {},
-}
+pub enum ExecuteMsg {}
 
 #[cw_serde]
 #[derive(QueryResponses)]

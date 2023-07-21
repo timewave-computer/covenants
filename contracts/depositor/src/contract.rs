@@ -5,7 +5,7 @@ use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
-    StdResult, SubMsg,
+    StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -14,7 +14,10 @@ use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg};
+use crate::{
+    error::ContractError,
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg},
+};
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
@@ -90,7 +93,6 @@ pub fn execute(
         .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Received {} => try_handle_received(deps, info),
     }
 }
 
@@ -106,16 +108,15 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
             let ica_address = ICA_ADDRESS.may_load(deps.storage)?;
 
             if ica_address.is_some() {
-                try_send_funds(deps, env, info)
+                try_send_native_token(deps)
             } else {
                 Ok(Response::default()
                     .add_attribute("method", "try_tick")
                     .add_attribute("ica_status", "not_created"))
             }
         }
-        ContractState::FundsSent => Ok(Response::default()
-            .add_attribute("method", "try_tick")
-            .add_attribute("funds_status", "waiting_for_received")),
+        ContractState::VerifyNativeToken => try_verify_native_token(deps),
+        ContractState::VerifyLp => try_verify_lp(deps),
         ContractState::Complete => {
             Ok(Response::default().add_attribute("status", "function_completed"))
         }
@@ -136,12 +137,72 @@ fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
     })
 }
 
-// Try to send funds via ICA to liquid staked on stride, and to lper
-fn try_send_funds(
-    mut deps: ExecuteDeps,
-    _env: Env,
-    _info: MessageInfo,
-) -> NeutronResult<Response<NeutronMsg>> {
+fn try_send_native_token(mut deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
+    let fee = IBC_FEE.load(deps.storage)?;
+    let port_id = IBC_PORT_ID.load(deps.storage)?;
+
+    let interchain_account = INTERCHAIN_ACCOUNTS.may_load(deps.storage, port_id.clone())?;
+
+    match interchain_account {
+        Some((address, controller_conn_id)) => {
+            let timeout = IBC_TIMEOUT.load(deps.storage)?;
+            let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+            let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
+
+            let coin = Coin {
+                denom: ATOM_DENOM.to_string(),
+                amount: receiver.amount.to_string(),
+            };
+
+            let lper_msg = MsgTransfer {
+                source_port: "transfer".to_string(),
+                source_channel,
+                token: Some(coin),
+                sender: address.clone(),
+                receiver: receiver.address,
+                timeout_height: None,
+                timeout_timestamp: timeout,
+            };
+
+            let lp_protobuf = to_proto_msg_transfer(lper_msg)?;
+
+            let submit_msg = NeutronMsg::submit_tx(
+                controller_conn_id,
+                INTERCHAIN_ACCOUNT_ID.to_string(),
+                vec![lp_protobuf],
+                "".to_string(),
+                timeout,
+                fee,
+            );
+
+            let submsg = msg_with_sudo_callback(
+                deps.branch(),
+                submit_msg,
+                SudoPayload {
+                    port_id,
+                    // Here you can store some information about the transaction to help you parse
+                    // the acknowledgement later.
+                    message: "try_send_native_token".to_string(),
+                },
+            )?;
+
+            CONTRACT_STATE.save(deps.storage, &ContractState::VerifyNativeToken)?;
+
+            Ok(Response::default()
+                .add_attribute("method", "try_send_native_token")
+                .add_submessage(submsg))
+        }
+        None => Ok(Response::default()
+            .add_attribute("method", "try_send_native_token")
+            .add_attribute("error", "no_ica_found")),
+    }
+}
+
+fn query_lper_balance(deps: QueryDeps, lper: &str) -> StdResult<cosmwasm_std::Coin> {
+    deps.querier.query_balance(lper, ATOM_DENOM)
+}
+
+fn send_ls_token_msg(mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>> {
     let ls_address = LS_ADDRESS.load(deps.storage)?;
 
     let stride_ica_query: Option<String> = deps
@@ -193,55 +254,75 @@ fn try_send_funds(
 
             let stride_protobuf = to_proto_msg_transfer(stride_msg)?;
 
-            // Transfer to lper
-            let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
-            let lp_receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
-
-            let lper_coin = Coin {
-                denom: ATOM_DENOM.to_string(),
-                amount: lp_receiver.amount.to_string(),
-            };
-
-            let lper_msg = MsgTransfer {
-                source_port: "transfer".to_string(),
-                source_channel,
-                token: Some(lper_coin),
-                sender: address.clone(),
-                receiver: lp_receiver.address,
-                timeout_height: None,
-                timeout_timestamp: timeout,
-            };
-
-            let lp_protobuf = to_proto_msg_transfer(lper_msg)?;
-
             let submit_msg = NeutronMsg::submit_tx(
                 controller_conn_id,
                 INTERCHAIN_ACCOUNT_ID.to_string(),
-                vec![lp_protobuf, stride_protobuf],
+                vec![stride_protobuf],
                 "".to_string(),
                 timeout,
                 fee,
             );
 
-            let submsg = msg_with_sudo_callback(
+            return Ok(msg_with_sudo_callback(
                 deps.branch(),
                 submit_msg,
                 SudoPayload {
                     port_id,
                     // Here you can store some information about the transaction to help you parse
                     // the acknowledgement later.
-                    message: "try_send_funds".to_string(),
+                    message: "try_send_st_token".to_string(),
                 },
-            )?;
-
-            Ok(Response::default()
-                .add_attribute("method", "try_send_funds")
-                // .add_attribute("stride_submit_msg_hex", encode_hex(protobuf.value.as_slice()))
-                .add_submessage(submsg))
+            )?);
         }
-        None => Ok(Response::default()
-            .add_attribute("method", "try_send_funds")
-            .add_attribute("error", "no_ica_found")),
+        None => {
+            return Err(NeutronError::Std(StdError::not_found("no ica found")));
+        }
+    }
+}
+
+fn try_verify_native_token(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
+    let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
+    let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
+
+    if lper_native_token_balance.amount >= Uint128::from(receiver.amount) {
+        CONTRACT_STATE.save(deps.storage, &ContractState::VerifyLp)?;
+
+        let ls_token_msg = send_ls_token_msg(deps)?;
+
+        return Ok(Response::default()
+            .add_submessage(ls_token_msg)
+            .add_attribute("method", "try_verify_native_token")
+            .add_attribute("receiver_balance", lper_native_token_balance.amount));
+    }
+
+    Ok(Response::default()
+        .add_attribute("method", "try_verify_native_token")
+        .add_attribute("status", "native_token_not_received"))
+}
+
+fn try_verify_lp(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
+    let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
+    let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
+
+    if lper_native_token_balance.amount.is_zero() {
+        // The amount is zero, meaning we can dequeue from clock and move state to complete
+        let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+        let clock_msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
+
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+
+        Ok(Response::default()
+            .add_message(clock_msg)
+            .add_attribute("method", "try_verify_lp")
+            .add_attribute("status", "completed"))
+    } else {
+        // Balance is still there, so retry to send st token
+        let ls_token_msg = send_ls_token_msg(deps)?;
+
+        Ok(Response::default()
+            .add_submessage(ls_token_msg)
+            .add_attribute("method", "try_verify_lp")
+            .add_attribute("status", "retry_send_st_token"))
     }
 }
 
@@ -277,28 +358,6 @@ pub fn register_transfers_query(
         new_register_transfers_query_msg(connection_id, recipient, update_period, min_height)?;
 
     Ok(Response::new().add_message(msg))
-}
-
-fn try_handle_received(
-    deps: ExecuteDeps,
-    info: MessageInfo,
-) -> NeutronResult<Response<NeutronMsg>> {
-    let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?.address;
-
-    if receiver != info.sender {
-        return Err(NeutronError::Std(StdError::generic_err(
-            "sender is not the receiver",
-        )));
-    }
-
-    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-    let clock_msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
-
-    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-
-    Ok(Response::default()
-        .add_message(clock_msg)
-        .add_attribute("try_handle_received", "received msg`"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -596,10 +655,9 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
     }
 
     if let Some(payload) = payload {
-        if payload.message == "try_send_funds" {
-            CONTRACT_STATE.save(deps.storage, &ContractState::FundsSent)?;
-            response = response.add_attribute("payload_message", "try_send_funds")
-        }
+        // if payload.message == "try_send_funds" {
+        //     CONTRACT_STATE.save(deps.storage, &ContractState::FundsSent)?;
+        //     response = response.add_attribute("payload_message", "try_send_funds")
         // } else if payload.message == "try_receive_atom_from_ica" {
         //     CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
         //     response = response.add_attribute("payload_message", "try_receive_atom_from_ica")

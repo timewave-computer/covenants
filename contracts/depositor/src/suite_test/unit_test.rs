@@ -1,4 +1,4 @@
-use cosmwasm_std::{testing::mock_env, to_binary, Binary, CosmosMsg, WasmMsg};
+use cosmwasm_std::{coins, testing::mock_env, to_binary, Binary, CosmosMsg, WasmMsg};
 use neutron_sdk::bindings::{msg::NeutronMsg, types::ProtobufAny};
 
 use crate::{
@@ -6,11 +6,14 @@ use crate::{
     state::ContractState,
     suite_test::unit_helpers::{
         get_default_ibc_fee, get_default_init_msg, get_default_msg_transfer,
-        get_default_sudo_open_ack, to_proto, CLOCK_ADDR, LP_ADDR, execute_received,
+        get_default_sudo_open_ack, to_proto, CLOCK_ADDR, LP_ADDR,
     },
 };
 
-use super::unit_helpers::{do_instantiate, do_tick, verify_state, Owned};
+use super::{
+    suite::NATIVE_ATOM_DENOM,
+    unit_helpers::{do_instantiate, do_tick, verify_state, Owned},
+};
 
 #[test]
 fn test_init() {
@@ -47,6 +50,7 @@ fn test_tick_1() {
     verify_state(&deps, ContractState::ICACreated);
 }
 
+// This test should send the native token to the lper and set state to VerifyNativeToken
 #[test]
 fn test_tick_2() {
     let (mut deps, _) = do_instantiate();
@@ -57,29 +61,21 @@ fn test_tick_2() {
     let (_, default_version) = get_default_sudo_open_ack();
     let default_init_msg = get_default_init_msg();
 
-    let stride_transfer_msg = get_default_msg_transfer();
-
     let mut lp_transfer_msg = get_default_msg_transfer();
     lp_transfer_msg.source_channel = default_init_msg.gaia_neutron_ibc_transfer_channel_id;
     lp_transfer_msg.receiver = LP_ADDR.to_string();
 
-    verify_state(&deps, ContractState::FundsSent);
+    verify_state(&deps, ContractState::VerifyNativeToken);
     assert_eq!(tick_res.messages.len(), 1);
     assert_eq!(
         tick_res.messages[0].msg,
         CosmosMsg::Custom(NeutronMsg::SubmitTx {
             connection_id: default_version.controller_connection_id,
             interchain_account_id: INTERCHAIN_ACCOUNT_ID.to_string(),
-            msgs: vec![
-                ProtobufAny {
-                    type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-                    value: Binary::from(to_proto(stride_transfer_msg)),
-                },
-                ProtobufAny {
-                    type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-                    value: Binary::from(to_proto(lp_transfer_msg)),
-                }
-            ],
+            msgs: vec![ProtobufAny {
+                type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+                value: Binary::from(to_proto(lp_transfer_msg)),
+            }],
             memo: "".to_string(),
             timeout: DEFAULT_TIMEOUT_SECONDS,
             fee: get_default_ibc_fee()
@@ -87,6 +83,7 @@ fn test_tick_2() {
     );
 }
 
+// This tick should verify lper got native token, and send st tokens to the lper
 #[test]
 fn test_tick_3() {
     let (mut deps, _) = do_instantiate();
@@ -96,32 +93,84 @@ fn test_tick_3() {
     //tick 2
     do_tick(deps.as_mut()).unwrap();
 
-    // We are waiting for the received msg from lper to move state,
-    // So the tick should be successful and state stay as FundsSent
+    // Balance is incorrect, so it should still be in VerifyNativeToken state
     do_tick(deps.as_mut()).unwrap();
-    verify_state(&deps, ContractState::FundsSent);
+    verify_state(&deps, ContractState::VerifyNativeToken);
+
+    // Increase balance of lper
+    deps.querier
+        .update_balance(LP_ADDR, coins(1000, NATIVE_ATOM_DENOM));
+    // do another tick
+    let tick_res = do_tick(deps.as_mut()).unwrap();
+
+    let stride_transfer_msg = get_default_msg_transfer();
+    let (_, default_version) = get_default_sudo_open_ack();
+
+    verify_state(&deps, ContractState::VerifyLp);
+    assert_eq!(
+        tick_res.messages[0].msg,
+        CosmosMsg::Custom(NeutronMsg::SubmitTx {
+            connection_id: default_version.controller_connection_id,
+            interchain_account_id: INTERCHAIN_ACCOUNT_ID.to_string(),
+            msgs: vec![ProtobufAny {
+                type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+                value: Binary::from(to_proto(stride_transfer_msg)),
+            }],
+            memo: "".to_string(),
+            timeout: DEFAULT_TIMEOUT_SECONDS,
+            fee: get_default_ibc_fee()
+        })
+    );
 }
 
+// This tests the final tick, where the balance of the lper is reduced to 0
 #[test]
-fn test_received() {
+fn test_tick_4() {
     let (mut deps, _) = do_instantiate();
-    let default_init_msg = get_default_init_msg();
 
     // tick 1
     deps = do_tick_1(deps);
     //tick 2
     do_tick(deps.as_mut()).unwrap();
 
-    // MUST error, because sent not by the lper
-    execute_received(deps.as_mut(), "random_addr").unwrap_err();
+    // Increase balance of lper
+    deps.querier
+        .update_balance(LP_ADDR, coins(1000, NATIVE_ATOM_DENOM));
+    // tick 3
+    do_tick(deps.as_mut()).unwrap();
 
-    //Do recieved from the lper
-    let res = execute_received(deps.as_mut(), default_init_msg.atom_receiver.address.as_str()).unwrap();
+    // balance wasnt reduced yet, so we should try transfer to stride again
+    let tick_res = do_tick(deps.as_mut()).unwrap();
+
+    let stride_transfer_msg = get_default_msg_transfer();
+    let (_, default_version) = get_default_sudo_open_ack();
+
+    verify_state(&deps, ContractState::VerifyLp);
+    assert_eq!(
+        tick_res.messages[0].msg,
+        CosmosMsg::Custom(NeutronMsg::SubmitTx {
+            connection_id: default_version.controller_connection_id,
+            interchain_account_id: INTERCHAIN_ACCOUNT_ID.to_string(),
+            msgs: vec![ProtobufAny {
+                type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+                value: Binary::from(to_proto(stride_transfer_msg)),
+            }],
+            memo: "".to_string(),
+            timeout: DEFAULT_TIMEOUT_SECONDS,
+            fee: get_default_ibc_fee()
+        })
+    );
+
+    // reduce balance to 0, should change state to complete and dequeue from clock
+    deps.querier
+        .update_balance(LP_ADDR, coins(0, NATIVE_ATOM_DENOM));
+
+    let tick_res = do_tick(deps.as_mut()).unwrap();
 
     verify_state(&deps, ContractState::Complete);
-    assert_eq!(res.messages.len(), 1);
+    assert_eq!(tick_res.messages.len(), 1);
     assert_eq!(
-      res.messages[0].msg,
+        tick_res.messages[0].msg,
         WasmMsg::Execute {
             contract_addr: CLOCK_ADDR.to_string(),
             msg: to_binary(&covenant_clock::msg::ExecuteMsg::Dequeue {}).unwrap(),
@@ -129,5 +178,4 @@ fn test_received() {
         }
         .into()
     );
-    println!("{:?}", res);
 }

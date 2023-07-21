@@ -115,7 +115,7 @@ fn verify_native_token_amount(deps: DepsMut, env: Env) -> Result<Response, Contr
     // on successful reply we will advance the state
     let depositor_received_submsg = SubMsg::reply_on_success(
         CosmosMsg::Wasm(
-            WasmMsg::Execute { 
+            WasmMsg::Execute {
                 contract_addr: depositor_addr.to_string(),
                 msg: b"{\"received\": {}}".into(),
                 funds: vec![],
@@ -148,7 +148,7 @@ fn try_get_depositor_ls_received_submsg(deps: DepsMut) -> Result<Option<SubMsg>,
     if provided_liquidity.provided_amount_native >= expected_native_amount {
         Ok(Some(SubMsg::reply_on_success(
             CosmosMsg::Wasm(
-                WasmMsg::Execute { 
+                WasmMsg::Execute {
                     contract_addr: depositor_addr.to_string(),
                     msg: b"{\"received\": {}}".into(),
                     funds: vec![],
