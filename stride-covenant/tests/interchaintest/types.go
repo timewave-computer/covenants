@@ -23,12 +23,12 @@ type CovenantInstantiateMsg struct {
 	PresetHolder                   PresetHolderFields    `json:"preset_holder_fields"`
 	PoolAddress                    string                `json:"pool_address"`
 	IbcMsgTransferTimeoutTimestamp uint64                `json:"ibc_msg_transfer_timeout_timestamp"`
-	// PresetIbcFee                   PresetIbcFee          `json:"preset_ibc_fee"`
+	PresetIbcFee                   PresetIbcFee          `json:"preset_ibc_fee"`
 }
 
 type PresetIbcFee struct {
-	AckFee     CwCoin `json:"ack_fee"`
-	TimeoutFee CwCoin `json:"timeout_fee"`
+	AckFee     string `json:"ack_fee"`
+	TimeoutFee string `json:"timeout_fee"`
 }
 
 type PresetClockFields struct {

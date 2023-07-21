@@ -59,21 +59,11 @@ pub fn instantiate(
     } else {
         DEFAULT_TIMEOUT_SECONDS
     };
-    // 10 seconds
+
     IBC_TIMEOUT.save(deps.storage, &ibc_timeout)?;
     IBC_FEE.save(
         deps.storage,
-        &IbcFee {
-            recv_fee: vec![],
-            ack_fee: vec![cosmwasm_std::Coin {
-                denom: "untrn".to_string(),
-                amount: Uint128::new(1000u128),
-            }],
-            timeout_fee: vec![cosmwasm_std::Coin {
-                denom: "untrn".to_string(),
-                amount: Uint128::new(1000u128),
-            }],
-        },
+        &msg.preset_ibc_fee.to_ibc_fee(),
     )?;
 
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {

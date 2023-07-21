@@ -168,11 +168,10 @@ fn try_liquid_stake(
                 amount,
             };
 
-            // let autopilot_receiver = AUTOPILOT_FORMAT
-            //     .load(deps.storage)?
-            //     .replace("{st_ica}", &st_ica);
-            // AUTOPILOT_FORMAT.save(deps.storage, &autopilot_receiver)?;
-            let autopilot_receiver = format!("{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}");
+            let autopilot_receiver = AUTOPILOT_FORMAT
+                .load(deps.storage)?
+                .replace("{st_ica}", &st_ica);
+            AUTOPILOT_FORMAT.save(deps.storage, &autopilot_receiver)?;
 
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
