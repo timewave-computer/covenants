@@ -1025,8 +1025,8 @@ func TestICS(t *testing.T) {
 			}
 
 			timeouts := Timeouts{
-				IcaTimeout:         "18000", // 5 hours
-				IbcTransferTimeout: "120",   // 2 minutes
+				IcaTimeout:         "30", // 30sec
+				IbcTransferTimeout: "45", // 45sec
 			}
 
 			covenantMsg := CovenantInstantiateMsg{
