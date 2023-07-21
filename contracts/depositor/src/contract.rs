@@ -8,18 +8,13 @@ use cosmwasm_std::{
     StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
-use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
-use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
 
-use crate::{
-    error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg},
-};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg};
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
@@ -33,10 +28,6 @@ use neutron_sdk::{
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
-    GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
-    IBC_PORT_ID, IBC_TIMEOUT, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
-    NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
     ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
     IBC_PORT_ID, IBC_TIMEOUT, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
@@ -86,12 +77,10 @@ pub fn instantiate(
     IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
 
     Ok(Response::default().add_attribute("method", "depositor_instantiate"))
-    Ok(Response::default().add_attribute("method", "depositor_instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: ExecuteDeps,
     deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
@@ -105,9 +94,7 @@ pub fn execute(
 }
 
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
@@ -120,9 +107,6 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
             if ica_address.is_some() {
                 try_send_native_token(deps)
             } else {
-                Ok(Response::default()
-                    .add_attribute("method", "try_tick")
-                    .add_attribute("ica_status", "not_created"))
                 Ok(Response::default()
                     .add_attribute("method", "try_tick")
                     .add_attribute("ica_status", "not_created"))
@@ -340,7 +324,6 @@ fn try_verify_lp(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
 }
 
 fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
     let connection_id = NEUTRON_GAIA_CONNECTION_ID.load(deps.storage)?;
     let register = NeutronMsg::register_interchain_account(connection_id, gaia_acc_id.clone());
@@ -354,7 +337,6 @@ fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<
 
 #[allow(unused)]
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
-    deps: ExecuteDeps,
     deps: ExecuteDeps,
     msg: C,
     payload: SudoPayload,
@@ -506,7 +488,6 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             neutron_gaia_connection_id,
             gaia_stride_ibc_transfer_channel_id,
             ls_address,
-            ls_address,
             autopilot_format,
             ibc_timeout,
             ibc_fee,
@@ -597,7 +578,7 @@ fn sudo_open_ack(
 }
 
 fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response> {
-    let mut response = Response::default().add_attribute("method", "sudo_response");
+    let response = Response::default().add_attribute("method", "sudo_response");
     deps.api.debug(
         format!(
             "WASMDEBUG: sudo_response: sudo received: {:?} {:?}",
