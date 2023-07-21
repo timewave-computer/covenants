@@ -93,11 +93,10 @@ pub fn execute(
                 return Err(ContractError::AlreadyEnqueued);
             }
             // Make sure the caller is whitelisted
-            if WHITELIST
+            if !WHITELIST
                 .load(deps.storage)?
                 .iter()
-                .find(|&a| a == &info.sender)
-                .is_none()
+                .any(|a| a == info.sender)
             {
                 return Err(ContractError::NotWhitelisted);
             }

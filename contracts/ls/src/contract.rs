@@ -12,7 +12,6 @@ use cosmwasm_std::{
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
-use neutron_sdk::bindings::msg::IbcFee;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
@@ -34,7 +33,6 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 
-const NEUTRON_DENOM: &str = "untrn";
 const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ls";

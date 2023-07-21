@@ -119,7 +119,7 @@ fn test_fund_multi_denom_withdraw_exact_single_denom() {
 fn test_fund_single_and_withdraw_too_big_single_denom() {
     let mut suite = SuiteBuilder::default().build();
     let holder_balances = vec![coin(80, "atom"), coin(70, "statom")];
-    suite.fund_holder(holder_balances.clone());
+    suite.fund_holder(holder_balances);
 
     suite.withdraw_tokens(DEFAULT_WITHDRAWER, coins(100, "statom"));
 }

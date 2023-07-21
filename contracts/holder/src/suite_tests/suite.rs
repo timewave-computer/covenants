@@ -1,6 +1,6 @@
 use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_std::{Addr, Coin};
-use cw_multi_test::{App, AppBuilder, AppResponse, Executor};
+use cw_multi_test::{App, AppResponse, Executor};
 
 use super::holder_contract;
 
@@ -99,13 +99,6 @@ impl Suite {
         self.app
             .wrap()
             .query_wasm_smart(&self.holder, &QueryMsg::Withdrawer {})
-            .unwrap()
-    }
-
-    pub fn query_lp_address(&self) -> Addr {
-        self.app
-            .wrap()
-            .query_wasm_smart(&self.holder, &QueryMsg::LpAddress {})
             .unwrap()
     }
 }
