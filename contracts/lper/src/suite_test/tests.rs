@@ -7,7 +7,7 @@ use super::suite::{SuiteBuilder, NATIVE_ATOM_DENOM, ST_ATOM_DENOM};
 fn test_instantiate_happy() {
     let mut suite = SuiteBuilder::default().build();
 
-    let redemption_rate = Decimal::from_ratio(Uint128::new(10), Uint128::new(22));    
+    let redemption_rate = Decimal::from_ratio(Uint128::new(95), Uint128::new(100));    
     let atom_amt = Uint128::new(400000);
     let statom_amt = atom_amt * redemption_rate;
     // fund pool with balanced amounts of underlying tokens
@@ -227,26 +227,26 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
 }
 
 #[test]
-#[should_panic("Pool validation error")]
+#[should_panic(expected = "Price range error")]
 fn test_validate_price_range_out_of_bounds() {
     let mut suite = SuiteBuilder::default().build();
 
     let redemption_rate = Decimal::from_ratio(Uint128::new(10), Uint128::new(12));
-    let atom_amt = Uint128::new(10000);
+    let atom_amt = Uint128::new(40000);
     let statom_amt = redemption_rate.checked_mul_uint128(atom_amt).unwrap();
 
-    suite.provide_manual_liquidity("alice".to_string(), statom_amt, atom_amt);
+    suite.provide_manual_liquidity("alice".to_string(),  Uint128::new(10000), Uint128::new(10000));
 
     println!("pool info: {:?}", suite.query_pool_info());
     suite.mint_coins_to_addr(
         suite.liquid_pooler.1.to_string(),
         ST_ATOM_DENOM.to_string(),
-        Uint128::new(10000),
+        statom_amt,
     );
     suite.mint_coins_to_addr(
         suite.liquid_pooler.1.to_string(),
         NATIVE_ATOM_DENOM.to_string(),
-        Uint128::new(10000),
+        atom_amt,
     );
     suite.pass_blocks(10);
     suite.tick();

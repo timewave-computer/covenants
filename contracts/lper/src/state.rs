@@ -16,7 +16,10 @@ pub const ASSETS: Item<AssetData> = Item::new("assets");
 pub const SINGLE_SIDED_LP_LIMITS: Item<SingleSideLpLimits> = Item::new("single_side_lp_limit");
 pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> =
     Item::new("provided_liquidity_info");
-pub const PRICE_DELTA: Item<Decimal> = Item::new("price_delta");
+
+pub const EXPECTED_NATIVE_TOKEN_AMOUNT: Item<Uint128> = Item::new("expected_native_token_amount");
+pub const EXPECTED_RETURN_AMOUNT: Item<Uint128> = Item::new("expected_return_amount");
+pub const ALLOWED_RETURN_DELTA: Item<Uint128> = Item::new("allowed_return_delta");
 
 #[cw_serde]
 pub struct ProvidedLiquidityInfo {

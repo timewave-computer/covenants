@@ -17,7 +17,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         ProvidedLiquidityInfo, ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION,
-        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, PRICE_DELTA,
+        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, ALLOWED_RETURN_DELTA, EXPECTED_RETURN_AMOUNT, EXPECTED_NATIVE_TOKEN_AMOUNT,
     },
 };
 
@@ -58,7 +58,9 @@ pub fn instantiate(
             provided_amount_native: Uint128::zero(),
         },
     )?;
-    PRICE_DELTA.save(deps.storage, &msg.expected_price_delta)?;
+    ALLOWED_RETURN_DELTA.save(deps.storage, &msg.allowed_return_delta)?;
+    EXPECTED_RETURN_AMOUNT.save(deps.storage, &msg.expected_return_amount)?;
+    EXPECTED_NATIVE_TOKEN_AMOUNT.save(deps.storage, &msg.expected_native_token_amount)?;
 
     Ok(Response::default().add_attribute("method", "instantiate"))
 }
@@ -144,16 +146,30 @@ fn get_relevant_balances(coins: Vec<Coin>, ls_denom: String, native_denom: Strin
     (native_bal, ls_bal)
 }
 
-fn validate_price_range(offer_asset_amount: Uint128, return_asset_amount: Uint128, delta: Decimal) -> Result<(), ContractError> {
-    let abs_diff = offer_asset_amount.abs_diff(return_asset_amount);
-    let avg = match (offer_asset_amount + return_asset_amount).checked_div(Uint128::new(2)) {
-        Ok(val) => val,
-        Err(e) => return Err(ContractError::Std(e.into())),
-    };
+fn validate_price_range(
+    offer_asset_amount: Uint128,
+    return_asset_amount: Uint128,
+    expected_native_token_amount: Uint128,
+    expected_return_amount: Uint128,
+    allowed_return_delta: Uint128
+) -> Result<(), ContractError> {
+    // find the min and max return amounts allowed by deviating away from expected return amount
+    // by allowed delta
+    println!("exp re amt :{:?}", expected_return_amount);
+    let min_return_amount = expected_return_amount - allowed_return_delta;
+    let max_return_amount = expected_return_amount + allowed_return_delta;
 
-    let ratio = Decimal::from_ratio(abs_diff, avg);
-    if ratio.gt(&delta) {
-        return Err(ContractError::PoolValidationError {  })
+    // derive allowed proportions
+    let min_accepted_ratio = Decimal::from_ratio(min_return_amount, expected_native_token_amount);
+    let max_accepted_ratio = Decimal::from_ratio(max_return_amount, expected_native_token_amount);
+
+    // we find the proportion of the price range being validated
+    let validation_ratio = Decimal::from_ratio(return_asset_amount, offer_asset_amount);
+
+    // if current return to offer amount ratio falls out of [min_accepted_ratio, max_return_amount],
+    // return price range error
+    if validation_ratio < min_accepted_ratio || validation_ratio > max_accepted_ratio {
+        return Err(ContractError::PriceRangeError {})
     }
 
     Ok(())
@@ -199,11 +215,17 @@ fn try_get_double_side_lp_submsg(
             ask_asset_info: None,
         },
     )?;
-    let delta = PRICE_DELTA.load(deps.storage)?;
+
+    let expected_return_amount = EXPECTED_RETURN_AMOUNT.load(deps.storage)?;
+    let expected_native_token_amount = EXPECTED_NATIVE_TOKEN_AMOUNT.load(deps.storage)?;
+
+    let allowed_return_delta = ALLOWED_RETURN_DELTA.load(deps.storage)?;
     validate_price_range(
         native_asset.clone().amount, 
         simulation.return_amount,
-        delta
+        expected_native_token_amount,
+        expected_return_amount,
+        allowed_return_delta,
     )?;
 
     let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
@@ -404,7 +426,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::Assets {} => Ok(to_binary(&ASSETS.may_load(deps.storage)?)?),
-        QueryMsg::PriceDelta {} => Ok(to_binary(&PRICE_DELTA.may_load(deps.storage)?)?),
+        QueryMsg::ExpectedReturnAmount {} => Ok(to_binary(&EXPECTED_RETURN_AMOUNT.may_load(deps.storage)?)?),
+        QueryMsg::AllowedReturnDelta {} => Ok(to_binary(&ALLOWED_RETURN_DELTA.may_load(deps.storage)?)?),
+        QueryMsg::ExpectedNativeTokenAmount {} => Ok(to_binary(&EXPECTED_NATIVE_TOKEN_AMOUNT.may_load(deps.storage)?)?),
     }
 }
 
@@ -431,9 +455,6 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 HOLDER_ADDRESS.save(deps.storage, &holder_address)?;
             }
 
-            if let Some(decimal) = price_delta {
-                PRICE_DELTA.save(deps.storage, &decimal)?;
-            }
 
             Ok(Response::default().add_attribute("method", "update_config"))
         }

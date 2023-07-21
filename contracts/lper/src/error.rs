@@ -30,4 +30,7 @@ pub enum ContractError {
 
     #[error("Pool validation error")]
     PoolValidationError {},
+
+    #[error("Price range error")]
+    PriceRangeError {},
 }
