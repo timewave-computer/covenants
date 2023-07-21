@@ -166,11 +166,11 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
 fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
     let mut suite = SuiteBuilder::default().build();
 
-    let redemption_rate = Decimal::from_ratio(Uint128::new(100), Uint128::new(105));
+    let redemption_rate = Decimal::from_ratio(Uint128::new(100), Uint128::new(101));
     let atom_amt = Uint128::new(100000);
     let statom_amt = redemption_rate.checked_mul_uint128(atom_amt).unwrap();
 
-    suite.provide_manual_liquidity("alice".to_string(), statom_amt, atom_amt);
+    suite.provide_manual_liquidity("alice".to_string(), atom_amt, atom_amt);
     suite.mint_coins_to_addr(
         suite.liquid_pooler.1.to_string(),
         ST_ATOM_DENOM.to_string(),
@@ -197,7 +197,7 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
 
     suite.mint_coins_to_addr(
         suite.liquid_pooler.1.to_string(),
-        NATIVE_ATOM_DENOM.to_string(),
+        ST_ATOM_DENOM.to_string(),
         intervention_amount,
     );
     suite.tick();
@@ -231,11 +231,12 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
 fn test_validate_price_range_out_of_bounds() {
     let mut suite = SuiteBuilder::default().build();
 
-    let redemption_rate = Decimal::from_ratio(Uint128::new(10), Uint128::new(12));
+    let redemption_rate = Decimal::from_ratio(Uint128::new(10), Uint128::new(11));
     let atom_amt = Uint128::new(40000);
     let statom_amt = redemption_rate.checked_mul_uint128(atom_amt).unwrap();
 
-    suite.provide_manual_liquidity("alice".to_string(),  Uint128::new(10000), Uint128::new(10000));
+    // create an unbalanced pool
+    suite.provide_manual_liquidity("alice".to_string(),  Uint128::new(7000), Uint128::new(10000));
 
     println!("pool info: {:?}", suite.query_pool_info());
     suite.mint_coins_to_addr(

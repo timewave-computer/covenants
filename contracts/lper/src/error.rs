@@ -1,4 +1,4 @@
-use cosmwasm_std::StdError;
+use cosmwasm_std::{StdError, OverflowError};
 use neutron_sdk::NeutronError;
 use thiserror::Error;
 
@@ -9,6 +9,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     NeutronError(#[from] NeutronError),
+
+    #[error("{0}")]
+    OverflowError(#[from] OverflowError),
 
     #[error("Not clock")]
     ClockVerificationError {},

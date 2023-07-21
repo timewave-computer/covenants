@@ -1001,17 +1001,18 @@ func TestICS(t *testing.T) {
 
 			// slippageTolerance := "0.01"
 			singleSideLpLimits := SingleSideLpLimits{
-				NativeAssetLimit: "7204688721",
-				LsAssetLimit:     "7204688721",
+				NativeAssetLimit: "100000",
+				LsAssetLimit:     "100000",
 			}
 			lpMsg := PresetLpFields{
-				// SlippageTolerance: "",
-				Autostake:          false,
-				Assets:             assets,
-				LpCode:             lperCodeId,
-				Label:              "covenant-lp",
-				ExpectedPriceDelta: "0.5",
-				SingleSideLpLimits: singleSideLpLimits,
+				Autostake:                 false,
+				Assets:                    assets,
+				LpCode:                    lperCodeId,
+				Label:                     "covenant-lp",
+				SingleSideLpLimits:        singleSideLpLimits,
+				ExpectedReturnAmount:      "50000000000",
+				AllowedReturnDelta:        "10000",
+				ExpectedNativeTokenAmount: "50000000000",
 			}
 
 			holderMsg := PresetHolderFields{

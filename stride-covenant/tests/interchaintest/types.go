@@ -56,13 +56,15 @@ type PresetDepositorFields struct {
 }
 
 type PresetLpFields struct {
-	SlippageTolerance  string             `json:"slippage_tolerance,omitempty"`
-	Autostake          bool               `json:"autostake,omitempty"`
-	Assets             AssetData          `json:"assets"`
-	LpCode             uint64             `json:"lp_code"`
-	Label              string             `json:"label"`
-	ExpectedPriceDelta string             `json:"expected_price_delta"`
-	SingleSideLpLimits SingleSideLpLimits `json:"single_side_lp_limits"`
+	SlippageTolerance         string             `json:"slippage_tolerance,omitempty"`
+	Autostake                 bool               `json:"autostake,omitempty"`
+	Assets                    AssetData          `json:"assets"`
+	LpCode                    uint64             `json:"lp_code"`
+	Label                     string             `json:"label"`
+	SingleSideLpLimits        SingleSideLpLimits `json:"single_side_lp_limits"`
+	ExpectedReturnAmount      string             `json:"expected_return_amount"`
+	AllowedReturnDelta        string             `json:"allowed_return_delta"`
+	ExpectedNativeTokenAmount string             `json:"expected_native_token_amount"`
 }
 
 type SingleSideLpLimits struct {
