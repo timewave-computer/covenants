@@ -90,6 +90,9 @@ impl Default for SuiteBuilder {
                         native_asset_denom: "uatom".to_string(),
                         ls_asset_denom: "stuatom".to_string(),
                     },
+                    expected_ls_token_amount: Uint128::new(1),
+                    allowed_return_delta: Uint128::new(1),
+                    expected_native_token_amount: Uint128::new(1),
                 },
                 preset_holder_fields: covenant_holder::msg::PresetHolderFields {
                     withdrawer: CREATOR_ADDR.to_string(),
