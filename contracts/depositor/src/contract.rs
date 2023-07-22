@@ -37,11 +37,8 @@ use crate::state::{
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
-const _NEUTRON_DENOM: &str = "untrn";
 const ATOM_DENOM: &str = "uatom";
 pub(crate) const INTERCHAIN_ACCOUNT_ID: &str = "ica";
-
-pub(crate) const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
 const CONTRACT_NAME: &str = "crates.io:covenant-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -500,54 +497,71 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             ibc_transfer_timeout,
             ica_timeout,
         } => {
+            let mut resp = Response::default().add_attribute("method", "update_config");
+
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
+                resp = resp.add_attribute("clock_addr", clock_addr);
             }
 
             if let Some(st_atom_receiver) = st_atom_receiver {
                 STRIDE_ATOM_RECEIVER.save(deps.storage, &st_atom_receiver)?;
+                resp = resp.add_attribute("ls_receiver_addr", st_atom_receiver.address);
+                resp = resp.add_attribute("ls_receiver_amount", st_atom_receiver.amount);
             }
 
             if let Some(atom_receiver) = atom_receiver {
                 NATIVE_ATOM_RECEIVER.save(deps.storage, &atom_receiver)?;
+                resp = resp.add_attribute("native_receiver_addr", atom_receiver.address);
+                resp = resp.add_attribute("native_receiver_amount", atom_receiver.amount);
             }
 
-            if let Some(gaia_neutron_ibc_transfer_channel_id) = gaia_neutron_ibc_transfer_channel_id
-            {
-                GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID
-                    .save(deps.storage, &gaia_neutron_ibc_transfer_channel_id)?;
+            if let Some(channel_id) = gaia_neutron_ibc_transfer_channel_id {
+                GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &channel_id)?;
+                resp = resp.add_attribute("gaia_neutron_ibc_transfer_channel_id", channel_id);
             }
 
-            if let Some(neutron_gaia_connection_id) = neutron_gaia_connection_id {
-                NEUTRON_GAIA_CONNECTION_ID.save(deps.storage, &neutron_gaia_connection_id)?;
+            if let Some(connection_id) = neutron_gaia_connection_id {
+                NEUTRON_GAIA_CONNECTION_ID.save(deps.storage, &connection_id)?;
+                resp = resp.add_attribute("neutron_gaia_connection_id", connection_id);
             }
 
-            if let Some(gaia_stride_ibc_transfer_channel_id) = gaia_stride_ibc_transfer_channel_id {
-                GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
-                    .save(deps.storage, &gaia_stride_ibc_transfer_channel_id)?;
+            if let Some(channel_id) = gaia_stride_ibc_transfer_channel_id {
+                GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &channel_id)?;
+                resp = resp.add_attribute("gaia_stride_ibc_transfer_channel_id", channel_id);
             }
 
             if let Some(ls_address) = ls_address {
-                LS_ADDRESS.save(deps.storage, &deps.api.addr_validate(&ls_address)?)?;
+                let addr = deps.api.addr_validate(&ls_address)?;
+                LS_ADDRESS.save(deps.storage, &addr)?;
+                resp = resp.add_attribute("ls_address", addr);
             }
 
             if let Some(autopilot_f) = autopilot_format {
                 AUTOPILOT_FORMAT.save(deps.storage, &autopilot_f)?;
+                resp = resp.add_attribute("autopilot_format", autopilot_f);
             }
 
             if let Some(timeout) = ibc_transfer_timeout {
                 IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
+                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
             }
 
             if let Some(timeout) = ica_timeout {
                 ICA_TIMEOUT.save(deps.storage, &timeout)?;
+                resp = resp.add_attribute("ica_timeout", timeout);
             }
 
             if let Some(fee) = ibc_fee {
                 IBC_FEE.save(deps.storage, &fee)?;
+                if fee.ack_fee.len() == 0 || fee.timeout_fee.len() == 0 {
+                    return Err(StdError::GenericErr { msg: "invalid IbcFee".to_string() })
+                }
+                resp = resp.add_attribute("ibc_fee_ack", fee.ack_fee[0].to_string());
+                resp = resp.add_attribute("ibc_fee_timeout", fee.timeout_fee[0].to_string());
             }
 
-            Ok(Response::default().add_attribute("method", "update_config"))
+            Ok(resp)
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
             // This is a migrate message to update code id,

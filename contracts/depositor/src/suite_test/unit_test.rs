@@ -2,7 +2,7 @@ use cosmwasm_std::{coins, testing::mock_env, to_binary, Binary, CosmosMsg, WasmM
 use neutron_sdk::bindings::{msg::NeutronMsg, types::ProtobufAny};
 
 use crate::{
-    contract::{sudo, DEFAULT_TIMEOUT_SECONDS, INTERCHAIN_ACCOUNT_ID},
+    contract::{sudo, INTERCHAIN_ACCOUNT_ID},
     state::ContractState,
     suite_test::unit_helpers::{
         get_default_ibc_fee, get_default_init_msg, get_default_msg_transfer,

@@ -145,7 +145,7 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
                 clock_addr.to_string(),
                 response.contract_address,
                 pool_address,
-                Uint128::new(preset_depositor_fields.atom_receiver_amount.amount.into()),
+                preset_depositor_fields.atom_receiver_amount.amount,
             );
 
             let lp_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -283,7 +283,6 @@ pub fn handle_depositor_reply(
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let clock_code_id = CLOCK_CODE.load(deps.storage)?;
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
-            let lp_code_id = LP_CODE.load(deps.storage)?;
             let ls_addr = COVENANT_LS_ADDR.load(deps.storage)?;
             
             let update_clock_whitelist_msg = WasmMsg::Migrate {
@@ -299,21 +298,8 @@ pub fn handle_depositor_reply(
                 })?,
             };
 
-            let update_depositor_addr_msg = WasmMsg::Migrate {
-                contract_addr: lp_addr.to_string(),
-                new_code_id: lp_code_id,
-                msg: to_binary(&covenant_lp::msg::MigrateMsg::UpdateConfig {
-                    clock_addr: None,
-                    lp_position: None,
-                    holder_address: None,
-                    expected_ls_token_amount: None,
-                    allowed_return_delta: None,
-                })?,
-            };
-
             Ok(Response::default()
                 .add_message(update_clock_whitelist_msg)
-                .add_message(update_depositor_addr_msg)
                 .add_attribute("method", "handle_depositor_reply"))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {

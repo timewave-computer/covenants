@@ -19,7 +19,7 @@ use neutron_sdk::{
 use prost::Message;
 
 use crate::{
-    contract::{execute, instantiate, DEFAULT_TIMEOUT_SECONDS, INTERCHAIN_ACCOUNT_ID},
+    contract::{execute, instantiate, INTERCHAIN_ACCOUNT_ID},
     msg::{
         ExecuteMsg, InstantiateMsg, OpenAckVersion, PresetDepositorFields, WeightedReceiverAmount,
     },
@@ -134,7 +134,7 @@ pub fn get_default_msg_transfer() -> MsgTransfer {
             .autopilot_format
             .replace("{st_ica}", "some_ica_addr"),
         timeout_height: None,
-        timeout_timestamp: DEFAULT_TIMEOUT_SECONDS,
+        timeout_timestamp: 99999999999,
     }
 }
 
