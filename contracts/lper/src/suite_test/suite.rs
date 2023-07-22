@@ -170,7 +170,7 @@ impl Default for SuiteBuilder {
                     native_asset_limit: Uint128::new(100),
                     ls_asset_limit: Uint128::new(100),
                 },
-                expected_return_amount: Uint128::new(40000),
+                expected_ls_token_amount: Uint128::new(40000),
                 allowed_return_delta: Uint128::new(10000),
                 expected_native_token_amount: Uint128::new(40000),
             },

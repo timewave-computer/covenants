@@ -1,4 +1,4 @@
-use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage};
+use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint128, Uint64};
 use cw_storage_plus::{Item, Map};
 use neutron_sdk::bindings::msg::IbcFee;
 use schemars::JsonSchema;
@@ -18,7 +18,8 @@ pub const LS_DENOM: Item<String> = Item::new("ls_denom");
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
 pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
-pub const IBC_TIMEOUT: Item<u64> = Item::new("ibc_timeout");
+pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
+pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
 pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

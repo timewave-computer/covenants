@@ -18,7 +18,7 @@ pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> =
     Item::new("provided_liquidity_info");
 
 pub const EXPECTED_NATIVE_TOKEN_AMOUNT: Item<Uint128> = Item::new("expected_native_token_amount");
-pub const EXPECTED_RETURN_AMOUNT: Item<Uint128> = Item::new("expected_return_amount");
+pub const EXPECTED_LS_TOKEN_AMOUNT: Item<Uint128> = Item::new("expected_ls_token_amount");
 pub const ALLOWED_RETURN_DELTA: Item<Uint128> = Item::new("allowed_return_delta");
 
 #[cw_serde]

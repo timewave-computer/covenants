@@ -8,8 +8,8 @@ use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 
 use astroport::{
-    asset::{Asset, AssetInfo},
-    pair::{ExecuteMsg::ProvideLiquidity, SimulationResponse, PoolResponse}, DecimalCheckedOps,
+    asset::{Asset},
+    pair::{ExecuteMsg::ProvideLiquidity, PoolResponse}, DecimalCheckedOps,
 };
 
 use crate::{
@@ -17,7 +17,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         ProvidedLiquidityInfo, ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION,
-        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, ALLOWED_RETURN_DELTA, EXPECTED_RETURN_AMOUNT, EXPECTED_NATIVE_TOKEN_AMOUNT,
+        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, ALLOWED_RETURN_DELTA, EXPECTED_NATIVE_TOKEN_AMOUNT, EXPECTED_LS_TOKEN_AMOUNT,
     },
 };
 
@@ -59,7 +59,7 @@ pub fn instantiate(
         },
     )?;
     ALLOWED_RETURN_DELTA.save(deps.storage, &msg.allowed_return_delta)?;
-    EXPECTED_RETURN_AMOUNT.save(deps.storage, &msg.expected_return_amount)?;
+    EXPECTED_LS_TOKEN_AMOUNT.save(deps.storage, &msg.expected_ls_token_amount)?;
     EXPECTED_NATIVE_TOKEN_AMOUNT.save(deps.storage, &msg.expected_native_token_amount)?;
 
     Ok(Response::default().add_attribute("method", "instantiate"))
@@ -150,13 +150,13 @@ fn validate_price_range(
     pool_native_amount: Uint128,
     pool_ls_amount: Uint128,
     expected_native_token_amount: Uint128,
-    expected_return_amount: Uint128,
+    expected_ls_token_amount: Uint128,
     allowed_return_delta: Uint128
 ) -> Result<(), ContractError> {
     // find the min and max return amounts allowed by deviating away from expected return amount
     // by allowed delta
-    let min_return_amount = expected_return_amount.checked_sub(allowed_return_delta)?;
-    let max_return_amount = expected_return_amount.checked_add(allowed_return_delta)?;
+    let min_return_amount = expected_ls_token_amount.checked_sub(allowed_return_delta)?;
+    let max_return_amount = expected_ls_token_amount.checked_add(allowed_return_delta)?;
 
     // derive allowed proportions
     let min_accepted_ratio = Decimal::from_ratio(min_return_amount, expected_native_token_amount);
@@ -208,7 +208,7 @@ fn try_get_double_side_lp_submsg(
     let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
     let asset_data = ASSETS.load(deps.storage)?;
     let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
-    let expected_return_amount = EXPECTED_RETURN_AMOUNT.load(deps.storage)?;
+    let expected_ls_token_amount = EXPECTED_LS_TOKEN_AMOUNT.load(deps.storage)?;
     let expected_native_token_amount = EXPECTED_NATIVE_TOKEN_AMOUNT.load(deps.storage)?;
     let allowed_return_delta = ALLOWED_RETURN_DELTA.load(deps.storage)?;
 
@@ -243,7 +243,7 @@ fn try_get_double_side_lp_submsg(
         pool_native_bal, 
         pool_ls_bal,
         expected_native_token_amount,
-        expected_return_amount,
+        expected_ls_token_amount,
         allowed_return_delta,
     )?;
 
@@ -421,7 +421,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::Assets {} => Ok(to_binary(&ASSETS.may_load(deps.storage)?)?),
-        QueryMsg::ExpectedReturnAmount {} => Ok(to_binary(&EXPECTED_RETURN_AMOUNT.may_load(deps.storage)?)?),
+        QueryMsg::ExpectedLsTokenAmount {} => Ok(to_binary(&EXPECTED_LS_TOKEN_AMOUNT.may_load(deps.storage)?)?),
         QueryMsg::AllowedReturnDelta {} => Ok(to_binary(&ALLOWED_RETURN_DELTA.may_load(deps.storage)?)?),
         QueryMsg::ExpectedNativeTokenAmount {} => Ok(to_binary(&EXPECTED_NATIVE_TOKEN_AMOUNT.may_load(deps.storage)?)?),
     }
@@ -436,7 +436,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             clock_addr,
             lp_position,
             holder_address,
-            expected_return_amount,
+            expected_ls_token_amount,
             allowed_return_delta,
         } => {
             let mut response = Response::default().add_attribute("method", "update_config");
@@ -456,9 +456,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 response = response.add_attribute("holder_address", holder_address);
             }
 
-            if let Some(return_amount) = expected_return_amount {
-                EXPECTED_RETURN_AMOUNT.save(deps.storage, &return_amount)?;
-                response = response.add_attribute("expected_return_amount", return_amount);
+            if let Some(return_amount) = expected_ls_token_amount {
+                EXPECTED_LS_TOKEN_AMOUNT.save(deps.storage, &return_amount)?;
+                response = response.add_attribute("expected_ls_token_amount", return_amount);
             }
 
             if let Some(return_delta) = allowed_return_delta {

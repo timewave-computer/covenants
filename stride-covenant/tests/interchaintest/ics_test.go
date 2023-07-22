@@ -1010,7 +1010,7 @@ func TestICS(t *testing.T) {
 				LpCode:                    lperCodeId,
 				Label:                     "covenant-lp",
 				SingleSideLpLimits:        singleSideLpLimits,
-				ExpectedReturnAmount:      "50000000000",
+				ExpectedLsTokenAmount:     "50000000000",
 				AllowedReturnDelta:        "10000",
 				ExpectedNativeTokenAmount: "50000000000",
 			}
@@ -1020,21 +1020,26 @@ func TestICS(t *testing.T) {
 				Label:      "covenant-holder",
 				Withdrawer: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
 			}
-			// presetIbcFee := PresetIbcFee{
-			// AckFee:     CwCoin{Amount: 1000, Denom: "untrn"},
-			// TimeoutFee: CwCoin{Amount: 1000, Denom: "untrn"},
-			// }
+			presetIbcFee := PresetIbcFee{
+				AckFee:     "1000",
+				TimeoutFee: "1000",
+			}
+
+			timeouts := Timeouts{
+				IcaTimeout:         "30", // 30sec
+				IbcTransferTimeout: "45", // 45sec
+			}
 
 			covenantMsg := CovenantInstantiateMsg{
-				Label:                          "stride-covenant",
-				PresetClock:                    clockMsg,
-				PresetLs:                       lsMsg,
-				PresetDepositor:                depositorMsg,
-				PresetLp:                       lpMsg,
-				PresetHolder:                   holderMsg,
-				PoolAddress:                    stableswapAddress,
-				IbcMsgTransferTimeoutTimestamp: 10000000000,
-				// PresetIbcFee:    presetIbcFee,
+				Label:           "stride-covenant",
+				PresetClock:     clockMsg,
+				PresetLs:        lsMsg,
+				PresetDepositor: depositorMsg,
+				PresetLp:        lpMsg,
+				PresetHolder:    holderMsg,
+				PoolAddress:     stableswapAddress,
+				Timeouts:        timeouts,
+				PresetIbcFee:    presetIbcFee,
 			}
 
 			str, err := json.Marshal(covenantMsg)

@@ -2,7 +2,6 @@ use std::fmt::Error;
 
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
-use cosmos_sdk_proto::ibc::core::client::v1::Height;
 use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -19,9 +18,9 @@ use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMs
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_FEE, IBC_PORT_ID, IBC_TIMEOUT,
+    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_FEE, IBC_PORT_ID,
     ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
-    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID,
+    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT,
 };
 use neutron_sdk::{
     bindings::{
@@ -61,7 +60,8 @@ pub fn instantiate(
     LP_ADDRESS.save(deps.storage, &msg.lp_address)?;
     NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &msg.neutron_stride_ibc_connection_id)?;
     LS_DENOM.save(deps.storage, &msg.ls_denom)?;
-    IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
+    IBC_TRANSFER_TIMEOUT.save(deps.storage, &msg.ibc_transfer_timeout)?;
+    ICA_TIMEOUT.save(deps.storage, &msg.ica_timeout)?;
     IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
 
     Ok(Response::default().add_attribute("method", "instantiate"))
@@ -114,7 +114,7 @@ fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
 // permisionless transfer
 fn try_execute_transfer(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     amount: Uint128,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -127,7 +127,8 @@ fn try_execute_transfer(
             let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let lp_receiver = LP_ADDRESS.load(deps.storage)?;
             let denom = LS_DENOM.load(deps.storage)?;
-            let timeout = IBC_TIMEOUT.load(deps.storage)?;
+            let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
+            let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
 
             let coin = Coin {
                 denom,
@@ -140,11 +141,8 @@ fn try_execute_transfer(
                 token: Some(coin),
                 sender: address,
                 receiver: lp_receiver.clone(),
-                timeout_height: Some(Height {
-                    revision_number: 3,
-                    revision_height: 1500,
-                }),
-                timeout_timestamp: 0,
+                timeout_height: None,
+                timeout_timestamp: env.block.time.plus_seconds(ibc_transfer_timeout.u64()).nanos(),
             };
 
             // Serialize the Transfer message
@@ -164,7 +162,7 @@ fn try_execute_transfer(
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf],
                 lp_receiver,
-                timeout,
+                ica_timeout.u64(),
                 fee,
             );
 
@@ -317,8 +315,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             lp_address,
             neutron_stride_ibc_connection_id,
             ls_denom,
-            ibc_timeout,
             ibc_fee,
+            ibc_transfer_timeout,
+            ica_timeout,
         } => {
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
@@ -344,8 +343,12 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 LS_DENOM.save(deps.storage, &ls_denom)?;
             }
 
-            if let Some(timeout) = ibc_timeout {
-                IBC_TIMEOUT.save(deps.storage, &timeout)?;
+            if let Some(timeout) = ibc_transfer_timeout {
+                IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
+            }
+
+            if let Some(timeout) = ica_timeout {
+                ICA_TIMEOUT.save(deps.storage, &timeout)?;
             }
 
             if let Some(fee) = ibc_fee {
