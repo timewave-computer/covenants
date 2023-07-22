@@ -13,7 +13,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
-        COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, IBC_FEE, IBC_TIMEOUT,
+        COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, IBC_FEE,
         LP_CODE, LS_CODE, POOL_ADDRESS, PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS,
         PRESET_HOLDER_FIELDS, PRESET_LP_FIELDS, PRESET_LS_FIELDS, TIMEOUTS,
     },
@@ -21,7 +21,6 @@ use crate::{
 
 const CONTRACT_NAME: &str = "crates.io:covenant-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-pub(crate) const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
 pub(crate) const CLOCK_REPLY_ID: u64 = 1u64;
 pub(crate) const HOLDER_REPLY_ID: u64 = 2u64;

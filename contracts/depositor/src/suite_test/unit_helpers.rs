@@ -83,8 +83,8 @@ pub(crate) fn get_default_init_msg() -> InstantiateMsg {
       gaia_stride_ibc_transfer_channel_id: "channel-1".to_string(),
       depositor_code: 1,
       label: "depositor".to_string(),
-      st_atom_receiver_amount: WeightedReceiverAmount { amount: 1000 },
-      atom_receiver_amount: WeightedReceiverAmount { amount: 1000 },
+      st_atom_receiver_amount: WeightedReceiverAmount { amount: Uint128::new(1000) },
+      atom_receiver_amount: WeightedReceiverAmount { amount: Uint128::new(1000) },
       autopilot_format: "{\"autopilot\": {\"receiver\": \"{st_ica}\",\"stakeibc\": {\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}".to_string(),
       neutron_atom_ibc_denom: "uatom".to_string(),
     }.to_instantiate_msg(

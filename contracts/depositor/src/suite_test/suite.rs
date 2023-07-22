@@ -55,11 +55,11 @@ impl Default for SuiteBuilder {
         Self {
             instantiate: InstantiateMsg {
                 st_atom_receiver: WeightedReceiver {
-                    amount: 10,
+                    amount: Uint128::new(10),
                     address: ST_ATOM_DENOM.to_string(),
                 },
                 atom_receiver: WeightedReceiver {
-                    amount: 10,
+                    amount: Uint128::new(10),
                     address: NATIVE_ATOM_DENOM.to_string(),
                 },
                 clock_address: "default-clock".to_string(),

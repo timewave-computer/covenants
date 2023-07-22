@@ -73,10 +73,10 @@ impl Default for SuiteBuilder {
                     depositor_code: 1,
                     label: "covenant_depositor_contract".to_string(),
                     st_atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount {
-                        amount: 1,
+                        amount: Uint128::one(),
                     },
                     atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount {
-                        amount: 1,
+                        amount: Uint128::one(),
                     },
                     autopilot_format: "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}".to_string(),
                     neutron_atom_ibc_denom: "neutron_atom_ibc_denom".to_string(),

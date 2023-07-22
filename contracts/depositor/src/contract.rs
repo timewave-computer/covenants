@@ -299,7 +299,6 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
     }
 
     // should we query for lper_native_token_balance.amount being refunded to the ICA?
-    // if thats the case we can
     Ok(Response::default()
         .add_attribute("method", "try_verify_native_token")
         .add_attribute("status", "native_token_not_received"))
