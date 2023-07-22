@@ -1,4 +1,4 @@
-use cosmwasm_std::{testing::MockApi, Addr, Empty, MemoryStorage, Uint128};
+use cosmwasm_std::{testing::MockApi, Addr, Empty, MemoryStorage, Uint128, Uint64};
 use cw_multi_test::{
     App, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, Executor, FailingModule,
     WasmKeeper,
@@ -68,7 +68,6 @@ impl Default for SuiteBuilder {
                 gaia_stride_ibc_transfer_channel_id: "channel-3".to_string(),
                 ls_address: "TODO".to_string(),
                 autopilot_format: "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}".to_string(),
-                ibc_timeout: 100000,
                 ibc_fee: IbcFee {
                     recv_fee: vec![], // must be empty
                     ack_fee: vec![cosmwasm_std::Coin {
@@ -81,6 +80,8 @@ impl Default for SuiteBuilder {
                     }],
                 },
                 neutron_atom_ibc_denom: "neutronatomibcdenom".to_string(),
+                ica_timeout: Uint64::new(18000),           // 5 hours
+                ibc_transfer_timeout: Uint64::new(120),    // 2 minutes
             },
         }
     }

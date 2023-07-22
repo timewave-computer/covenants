@@ -7,7 +7,7 @@ use super::suite::{SuiteBuilder, NATIVE_ATOM_DENOM, ST_ATOM_DENOM};
 fn test_instantiate_happy() {
     let mut suite = SuiteBuilder::default().build();
 
-    let redemption_rate = Decimal::from_ratio(Uint128::new(22), Uint128::new(10));
+    let redemption_rate = Decimal::from_ratio(Uint128::new(95), Uint128::new(100));    
     let atom_amt = Uint128::new(400000);
     let statom_amt = atom_amt * redemption_rate;
     // fund pool with balanced amounts of underlying tokens
@@ -36,7 +36,7 @@ fn test_instantiate_happy() {
 
     let liquidity_token_addr = pairinfo.liquidity_token.to_string();
 
-    let holder_balances = suite.query_cw20_bal(liquidity_token_addr, suite.holder_addr.to_string());
+    let holder_balances = suite.query_cw20_bal(liquidity_token_addr.to_string(), suite.holder_addr.to_string());
     assert_eq!(Uint128::zero(), holder_balances.balance);
 
     suite.pass_blocks(10);
@@ -57,21 +57,14 @@ fn test_instantiate_happy() {
         liquid_pooler_balances
     );
 
-    let holder_balances = suite.query_cw20_bal(
-        pairinfo.liquidity_token.to_string(),
-        suite.holder_addr.to_string(),
-    );
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
     assert_ne!(Uint128::zero(), holder_balances.balance);
 
     suite.holder_withdraw();
 
-    let holder_balances = suite.query_cw20_bal(
-        pairinfo.liquidity_token.to_string(),
-        suite.holder_addr.to_string(),
-    );
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
     assert_eq!(Uint128::zero(), holder_balances.balance);
-    let holder_native_balances =
-        suite.query_addr_balances(Addr::unchecked(suite.holder_addr.to_string()));
+    let holder_native_balances = suite.query_addr_balances(Addr::unchecked(suite.holder_addr.to_string()));
     assert_eq!(2, holder_native_balances.len());
     assert_ne!(Uint128::zero(), holder_native_balances[0].amount);
     assert_ne!(Uint128::zero(), holder_native_balances[1].amount);
@@ -91,8 +84,8 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
     // and any leftovers to be LP'd via single sided liquidity
     let mut suite = SuiteBuilder::default().build();
 
-    let redemption_rate = Decimal::from_ratio(Uint128::new(10), Uint128::new(13));
-    let atom_amt = Uint128::new(100000);
+    let redemption_rate = Decimal::from_ratio(Uint128::new(100), Uint128::new(104));
+    let atom_amt = Uint128::new(10000);
     let statom_amt = atom_amt * redemption_rate;
 
     suite.provide_manual_liquidity("alice".to_string(), statom_amt, atom_amt);
@@ -100,19 +93,17 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
     suite.mint_coins_to_addr(
         suite.liquid_pooler.1.to_string(),
         ST_ATOM_DENOM.to_string(),
-        statom_amt,
+        Uint128::new(10000),
     );
     suite.mint_coins_to_addr(
         suite.liquid_pooler.1.to_string(),
         NATIVE_ATOM_DENOM.to_string(),
-        atom_amt,
+        Uint128::new(10000),
     );
+    suite.pass_blocks(10);
 
     let pairinfo = suite.query_liquidity_token_addr();
-    let holder_balances = suite.query_cw20_bal(
-        pairinfo.liquidity_token.to_string(),
-        suite.holder_addr.to_string(),
-    );
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
     assert_eq!(Uint128::zero(), holder_balances.balance);
 
     suite.tick();
@@ -131,8 +122,6 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
     println!("lp balances: {:?}", liquid_pooler_balances);
 
     suite.tick();
-    suite.tick();
-    suite.tick();
     suite.pass_blocks(10);
 
     assert_eq!(
@@ -140,19 +129,17 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
         suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()))
     );
 
-    // given our single-side lp limit is 100 tokens and there are 148stuatom remaining,
-    // we fund the contract with 100 uatom. this should enable double sided liquidity to be
+    // given our single-side lp limit is 100 tokens and there are 4stuatom remaining,
+    // we fund the contract with 400uatom. this should enable double sided liquidity to be
     // provided, and result in a leftoveramount <= 100 to single-side lp
     suite.mint_coins_to_addr(
         suite.liquid_pooler.1.to_string(),
         NATIVE_ATOM_DENOM.to_string(),
-        Uint128::new(100),
+        Uint128::new(400),
     );
-    suite.tick();
     suite.tick();
     suite.pass_blocks(10);
 
-    suite.tick();
     suite.tick();
     suite.pass_blocks(10);
 
@@ -162,21 +149,14 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
             .query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()))
             .len()
     );
-    let holder_balances = suite.query_cw20_bal(
-        pairinfo.liquidity_token.to_string(),
-        suite.holder_addr.to_string(),
-    );
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
     assert_ne!(Uint128::zero(), holder_balances.balance);
 
     suite.holder_withdraw();
 
-    let holder_balances = suite.query_cw20_bal(
-        pairinfo.liquidity_token.to_string(),
-        suite.holder_addr.to_string(),
-    );
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
     assert_eq!(Uint128::zero(), holder_balances.balance);
-    let holder_native_balances =
-        suite.query_addr_balances(Addr::unchecked(suite.holder_addr.to_string()));
+    let holder_native_balances = suite.query_addr_balances(Addr::unchecked(suite.holder_addr.to_string()));
     assert_eq!(2, holder_native_balances.len());
     assert_ne!(Uint128::zero(), holder_native_balances[0].amount);
     assert_ne!(Uint128::zero(), holder_native_balances[1].amount);
@@ -186,11 +166,11 @@ fn test_exceeded_single_side_lp_ratio_first_asset_dominant() {
 fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
     let mut suite = SuiteBuilder::default().build();
 
-    let redemption_rate = Decimal::from_ratio(Uint128::new(103), Uint128::new(100));
+    let redemption_rate = Decimal::from_ratio(Uint128::new(100), Uint128::new(101));
     let atom_amt = Uint128::new(100000);
     let statom_amt = redemption_rate.checked_mul_uint128(atom_amt).unwrap();
 
-    suite.provide_manual_liquidity("alice".to_string(), statom_amt, atom_amt);
+    suite.provide_manual_liquidity("alice".to_string(), atom_amt, atom_amt);
     suite.mint_coins_to_addr(
         suite.liquid_pooler.1.to_string(),
         ST_ATOM_DENOM.to_string(),
@@ -203,10 +183,7 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
     );
 
     let pairinfo = suite.query_liquidity_token_addr();
-    let holder_balances = suite.query_cw20_bal(
-        pairinfo.liquidity_token.to_string(),
-        suite.holder_addr.to_string(),
-    );
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
     assert_eq!(Uint128::zero(), holder_balances.balance);
 
     suite.tick();
@@ -220,7 +197,7 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
 
     suite.mint_coins_to_addr(
         suite.liquid_pooler.1.to_string(),
-        NATIVE_ATOM_DENOM.to_string(),
+        ST_ATOM_DENOM.to_string(),
         intervention_amount,
     );
     suite.tick();
@@ -236,22 +213,42 @@ fn test_exceeded_single_side_lp_ratio_second_asset_dominant() {
             .query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()))
             .len()
     );
-    let holder_balances = suite.query_cw20_bal(
-        pairinfo.liquidity_token.to_string(),
-        suite.holder_addr.to_string(),
-    );
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
     assert_ne!(Uint128::zero(), holder_balances.balance);
 
     suite.holder_withdraw();
 
-    let holder_balances = suite.query_cw20_bal(
-        pairinfo.liquidity_token.to_string(),
-        suite.holder_addr.to_string(),
-    );
+    let holder_balances = suite.query_cw20_bal(pairinfo.liquidity_token.to_string(), suite.holder_addr.to_string());
     assert_eq!(Uint128::zero(), holder_balances.balance);
-    let holder_native_balances =
-        suite.query_addr_balances(Addr::unchecked(suite.holder_addr.to_string()));
+    let holder_native_balances = suite.query_addr_balances(Addr::unchecked(suite.holder_addr.to_string()));
     assert_eq!(2, holder_native_balances.len());
     assert_ne!(Uint128::zero(), holder_native_balances[0].amount);
     assert_ne!(Uint128::zero(), holder_native_balances[1].amount);
+}
+
+#[test]
+#[should_panic(expected = "Price range error")]
+fn test_validate_price_range_out_of_bounds() {
+    let mut suite = SuiteBuilder::default().build();
+
+    let redemption_rate = Decimal::from_ratio(Uint128::new(10), Uint128::new(11));
+    let atom_amt = Uint128::new(40000);
+    let statom_amt = redemption_rate.checked_mul_uint128(atom_amt).unwrap();
+
+    // create an unbalanced pool
+    suite.provide_manual_liquidity("alice".to_string(),  Uint128::new(7000), Uint128::new(10000));
+
+    println!("pool info: {:?}", suite.query_pool_info());
+    suite.mint_coins_to_addr(
+        suite.liquid_pooler.1.to_string(),
+        ST_ATOM_DENOM.to_string(),
+        statom_amt,
+    );
+    suite.mint_coins_to_addr(
+        suite.liquid_pooler.1.to_string(),
+        NATIVE_ATOM_DENOM.to_string(),
+        atom_amt,
+    );
+    suite.pass_blocks(10);
+    suite.tick();
 }

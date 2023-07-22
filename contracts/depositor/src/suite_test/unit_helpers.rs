@@ -5,7 +5,7 @@ use cosmwasm_std::{
     from_binary,
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
     to_binary, Addr, ContractResult, DepsMut, MemoryStorage, MessageInfo, OwnedDeps, Response,
-    SystemResult, Uint128, WasmQuery,
+    SystemResult, Uint128, WasmQuery, Uint64,
 };
 use neutron_sdk::{
     bindings::{
@@ -86,8 +86,16 @@ pub(crate) fn get_default_init_msg() -> InstantiateMsg {
       st_atom_receiver_amount: WeightedReceiverAmount { amount: 1000 },
       atom_receiver_amount: WeightedReceiverAmount { amount: 1000 },
       autopilot_format: "{\"autopilot\": {\"receiver\": \"{st_ica}\",\"stakeibc\": {\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}".to_string(),
-      neutron_atom_ibc_denom: "neutronatomibcdenom".to_string(),
-    }.to_instantiate_msg("reciever".to_string(), CLOCK_ADDR.to_string(), LS_ADDR.to_string(), LP_ADDR.to_string(), DEFAULT_TIMEOUT_SECONDS, get_default_ibc_fee())
+      neutron_atom_ibc_denom: "uatom".to_string(),
+    }.to_instantiate_msg(
+        "reciever".to_string(),
+        CLOCK_ADDR.to_string(),
+        LS_ADDR.to_string(),
+        LP_ADDR.to_string(),
+        get_default_ibc_fee(),
+        Uint64::new(100),
+        Uint64::new(100),
+    )
 }
 
 pub fn get_default_sudo_open_ack() -> (SudoMsg, OpenAckVersion) {

@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary};
+use cosmwasm_std::{Addr, Binary, Uint64};
 use covenant_clock_derive::clocked;
 use neutron_sdk::bindings::{msg::IbcFee, query::QueryInterchainAccountAddressResponse};
 
@@ -15,9 +15,10 @@ pub struct InstantiateMsg {
     pub gaia_stride_ibc_transfer_channel_id: String,
     pub ls_address: String,
     pub autopilot_format: String,
-    pub ibc_timeout: u64,
     pub ibc_fee: IbcFee,
     pub neutron_atom_ibc_denom: String,
+    pub ibc_transfer_timeout: Uint64,
+    pub ica_timeout: Uint64,
 }
 
 #[cw_serde]
@@ -54,8 +55,9 @@ impl PresetDepositorFields {
         clock_address: String,
         ls_address: String,
         lp_address: String,
-        ibc_timeout: u64,
         ibc_fee: IbcFee,
+        ibc_transfer_timeout: Uint64,
+        ica_timeout: Uint64,
     ) -> InstantiateMsg {
         InstantiateMsg {
             st_atom_receiver: self
@@ -68,9 +70,10 @@ impl PresetDepositorFields {
             gaia_stride_ibc_transfer_channel_id: self.gaia_stride_ibc_transfer_channel_id,
             ls_address,
             autopilot_format: self.autopilot_format,
-            ibc_timeout,
             ibc_fee,
             neutron_atom_ibc_denom: self.neutron_atom_ibc_denom,
+            ibc_transfer_timeout,
+            ica_timeout,
         }
     }
 }
@@ -131,8 +134,9 @@ pub enum MigrateMsg {
         gaia_stride_ibc_transfer_channel_id: Option<String>,
         ls_address: Option<String>,
         autopilot_format: Option<String>,
-        ibc_timeout: Option<u64>,
         ibc_fee: Option<IbcFee>,
+        ibc_transfer_timeout: Option<Uint64>,
+        ica_timeout: Option<Uint64>,
     },
     UpdateCodeId {
         data: Option<Binary>,

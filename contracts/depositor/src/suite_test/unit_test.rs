@@ -1,4 +1,4 @@
-use cosmwasm_std::{coins, testing::mock_env, to_binary, Binary, CosmosMsg, WasmMsg};
+use cosmwasm_std::{coins, testing::mock_env, to_binary, Binary, CosmosMsg, WasmMsg, Querier};
 use neutron_sdk::bindings::{msg::NeutronMsg, types::ProtobufAny};
 
 use crate::{
@@ -64,7 +64,8 @@ fn test_tick_2() {
     let mut lp_transfer_msg = get_default_msg_transfer();
     lp_transfer_msg.source_channel = default_init_msg.gaia_neutron_ibc_transfer_channel_id;
     lp_transfer_msg.receiver = LP_ADDR.to_string();
-
+    // env.block.time + ibc transfer timeout (100sec)
+    lp_transfer_msg.timeout_timestamp = 1571797519879305533;
     verify_state(&deps, ContractState::VerifyNativeToken);
     assert_eq!(tick_res.messages.len(), 1);
     assert_eq!(
@@ -77,7 +78,7 @@ fn test_tick_2() {
                 value: Binary::from(to_proto(lp_transfer_msg)),
             }],
             memo: "".to_string(),
-            timeout: DEFAULT_TIMEOUT_SECONDS,
+            timeout: 100,
             fee: get_default_ibc_fee()
         })
     );
@@ -103,7 +104,8 @@ fn test_tick_3() {
     // do another tick
     let tick_res = do_tick(deps.as_mut()).unwrap();
 
-    let stride_transfer_msg = get_default_msg_transfer();
+    let mut stride_transfer_msg = get_default_msg_transfer();
+    stride_transfer_msg.timeout_timestamp = 1571797519879305533;
     let (_, default_version) = get_default_sudo_open_ack();
 
     verify_state(&deps, ContractState::VerifyLp);
@@ -117,7 +119,7 @@ fn test_tick_3() {
                 value: Binary::from(to_proto(stride_transfer_msg)),
             }],
             memo: "".to_string(),
-            timeout: DEFAULT_TIMEOUT_SECONDS,
+            timeout: 100,
             fee: get_default_ibc_fee()
         })
     );
@@ -141,8 +143,9 @@ fn test_tick_4() {
 
     // balance wasnt reduced yet, so we should try transfer to stride again
     let tick_res = do_tick(deps.as_mut()).unwrap();
-
-    let stride_transfer_msg = get_default_msg_transfer();
+    
+    let mut stride_transfer_msg = get_default_msg_transfer();
+    stride_transfer_msg.timeout_timestamp = 1571797519879305533;
     let (_, default_version) = get_default_sudo_open_ack();
 
     verify_state(&deps, ContractState::VerifyLp);
@@ -156,7 +159,7 @@ fn test_tick_4() {
                 value: Binary::from(to_proto(stride_transfer_msg)),
             }],
             memo: "".to_string(),
-            timeout: DEFAULT_TIMEOUT_SECONDS,
+            timeout: 100,
             fee: get_default_ibc_fee()
         })
     );

@@ -794,7 +794,6 @@ func TestICS(t *testing.T) {
 
 				str, err := json.Marshal(createPairMsg)
 				require.NoError(t, err, "Failed to marshall CreatePair message")
-				print("\ncreate pair msg: ", string(str))
 
 				createCmd := []string{"neutrond", "tx", "wasm", "execute",
 					factoryAddress,
@@ -813,7 +812,6 @@ func TestICS(t *testing.T) {
 					"-y",
 				}
 
-				print("\ncreate pair cmd: ", string(strings.Join(createCmd, " ")))
 				_, _, err = cosmosNeutron.Exec(ctx, createCmd, nil)
 				require.NoError(t, err, err)
 				err = testutil.WaitForBlocks(ctx, 30, atom, neutron)
@@ -1004,15 +1002,18 @@ func TestICS(t *testing.T) {
 
 			// slippageTolerance := "0.01"
 			singleSideLpLimits := SingleSideLpLimits{
-				NativeAssetLimit: "7204688721",
-				LsAssetLimit:     "7204688721",
+				NativeAssetLimit: "100000",
+				LsAssetLimit:     "100000",
 			}
 			lpMsg := PresetLpFields{
-				LpCode:             lperCodeId,
-				Label:              "covenant-lp",
-				Autostake:          false,
-				Assets:             assets,
-				SingleSideLpLimits: singleSideLpLimits,
+				Autostake:                 false,
+				Assets:                    assets,
+				LpCode:                    lperCodeId,
+				Label:                     "covenant-lp",
+				SingleSideLpLimits:        singleSideLpLimits,
+				ExpectedLsTokenAmount:     "50000000000",
+				AllowedReturnDelta:        "10000",
+				ExpectedNativeTokenAmount: "50000000000",
 			}
 
 			holderMsg := PresetHolderFields{
@@ -1020,21 +1021,26 @@ func TestICS(t *testing.T) {
 				Label:      "covenant-holder",
 				Withdrawer: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
 			}
-			// presetIbcFee := PresetIbcFee{
-			// AckFee:     CwCoin{Amount: 1000, Denom: "untrn"},
-			// TimeoutFee: CwCoin{Amount: 1000, Denom: "untrn"},
-			// }
+			presetIbcFee := PresetIbcFee{
+				AckFee:     "1000",
+				TimeoutFee: "1000",
+			}
+
+			timeouts := Timeouts{
+				IcaTimeout:         "30", // 30sec
+				IbcTransferTimeout: "45", // 45sec
+			}
 
 			covenantMsg := CovenantInstantiateMsg{
-				Label:                          "stride-covenant",
-				PresetClock:                    clockMsg,
-				PresetLs:                       lsMsg,
-				PresetDepositor:                depositorMsg,
-				PresetLp:                       lpMsg,
-				PresetHolder:                   holderMsg,
-				PoolAddress:                    stableswapAddress,
-				IbcMsgTransferTimeoutTimestamp: 10000000000,
-				// PresetIbcFee:    presetIbcFee,
+				Label:           "stride-covenant",
+				PresetClock:     clockMsg,
+				PresetLs:        lsMsg,
+				PresetDepositor: depositorMsg,
+				PresetLp:        lpMsg,
+				PresetHolder:    holderMsg,
+				PoolAddress:     stableswapAddress,
+				Timeouts:        timeouts,
+				PresetIbcFee:    presetIbcFee,
 			}
 
 			str, err := json.Marshal(covenantMsg)

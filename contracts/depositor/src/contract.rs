@@ -14,7 +14,7 @@ use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
 
-use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg}, state::NEUTRON_ATOM_IBC_DENOM};
+use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg}, state::{NEUTRON_ATOM_IBC_DENOM, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT}};
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
@@ -30,7 +30,7 @@ use crate::state::{
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
-    IBC_PORT_ID, IBC_TIMEOUT, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
+    IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
     NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
 };
 
@@ -71,11 +71,12 @@ pub fn instantiate(
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     LS_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.ls_address)?)?;
     AUTOPILOT_FORMAT.save(deps.storage, &msg.autopilot_format)?;
-    IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
     NEUTRON_ATOM_IBC_DENOM.save(deps.storage, &msg.neutron_atom_ibc_denom)?;
+    ICA_TIMEOUT.save(deps.storage, &msg.ica_timeout)?;
+    IBC_TRANSFER_TIMEOUT.save(deps.storage, &msg.ibc_transfer_timeout)?;
 
     Ok(Response::default().add_attribute("method", "depositor_instantiate"))
 }
@@ -143,7 +144,8 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
-            let timeout = IBC_TIMEOUT.load(deps.storage)?;
+            let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
+            let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
             let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
 
@@ -159,7 +161,7 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                 sender: address.clone(),
                 receiver: receiver.address,
                 timeout_height: None,
-                timeout_timestamp: env.block.time.plus_seconds(timeout).nanos(),
+                timeout_timestamp: env.block.time.plus_seconds(ibc_transfer_timeout.u64()).nanos(),
             };
 
             let lp_protobuf = to_proto_msg_transfer(lper_msg)?;
@@ -169,7 +171,7 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![lp_protobuf],
                 "".to_string(),
-                timeout,
+                ica_timeout.u64(),
                 fee,
             );
 
@@ -228,8 +230,10 @@ fn send_ls_token_msg(env:Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Neu
         Some((address, controller_conn_id)) => {
             let gaia_stride_channel: String =
                 GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
-            let timeout = IBC_TIMEOUT.load(deps.storage)?;
-
+            let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
+            let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
+        
+    
             // Transfer to stride to liquid staked and autopilot
             let stride_coin = Coin {
                 denom: ATOM_DENOM.to_string(),
@@ -248,7 +252,7 @@ fn send_ls_token_msg(env:Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Neu
                 sender: address.clone(),
                 receiver: autopilot_receiver,
                 timeout_height: None,
-                timeout_timestamp: env.block.time.plus_seconds(timeout).nanos(),
+                timeout_timestamp: env.block.time.plus_seconds(ibc_transfer_timeout.u64()).nanos(),
             };
 
             let stride_protobuf = to_proto_msg_transfer(stride_msg)?;
@@ -258,7 +262,7 @@ fn send_ls_token_msg(env:Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Neu
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![stride_protobuf],
                 "".to_string(),
-                timeout,
+                ica_timeout.u64(),
                 fee,
             );
 
@@ -493,8 +497,9 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             gaia_stride_ibc_transfer_channel_id,
             ls_address,
             autopilot_format,
-            ibc_timeout,
             ibc_fee,
+            ibc_transfer_timeout,
+            ica_timeout,
         } => {
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
@@ -531,8 +536,12 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
                 AUTOPILOT_FORMAT.save(deps.storage, &autopilot_f)?;
             }
 
-            if let Some(timeout) = ibc_timeout {
-                IBC_TIMEOUT.save(deps.storage, &timeout)?;
+            if let Some(timeout) = ibc_transfer_timeout {
+                IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
+            }
+
+            if let Some(timeout) = ica_timeout {
+                ICA_TIMEOUT.save(deps.storage, &timeout)?;
             }
 
             if let Some(fee) = ibc_fee {
@@ -820,12 +829,6 @@ pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
         .debug(format!("WASMDEBUG: reply msg: {:?}", msg).as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
-        10 => {
-            let payload = format!("{:?}", msg);
-            Ok(Response::default()
-                .add_attribute("method", "try_ls_reply")
-                .add_attribute("msgpayload", payload))
-        }
         _ => Err(StdError::generic_err(format!(
             "unsupported reply message id {}",
             msg.id

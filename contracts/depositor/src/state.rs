@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage};
+use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint64};
 use cw_storage_plus::{Item, Map};
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -23,7 +23,8 @@ pub const GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gs_ibc_
 
 pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
 pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
-pub const IBC_TIMEOUT: Item<u64> = Item::new("ibc_timeout");
+pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
+pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
 pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 pub const NEUTRON_ATOM_IBC_DENOM: Item<String> = Item::new("neutron_atom_ibc_denom");
 

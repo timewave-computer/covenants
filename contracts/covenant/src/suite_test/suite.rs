@@ -1,8 +1,8 @@
-use cosmwasm_std::{Addr, Empty, Uint64};
+use cosmwasm_std::{Addr, Empty, Uint64, Uint128};
 use covenant_lp::msg::AssetData;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use crate::msg::{InstantiateMsg, QueryMsg};
+use crate::msg::{InstantiateMsg, QueryMsg, PresetIbcFee, Timeouts};
 
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";
@@ -91,6 +91,9 @@ impl Default for SuiteBuilder {
                         native_asset_denom: "uatom".to_string(),
                         ls_asset_denom: "stuatom".to_string(),
                     },
+                    expected_ls_token_amount: Uint128::new(1),
+                    allowed_return_delta: Uint128::new(1),
+                    expected_native_token_amount: Uint128::new(1),
                 },
                 preset_holder_fields: covenant_holder::msg::PresetHolderFields {
                     withdrawer: CREATOR_ADDR.to_string(),
@@ -100,16 +103,14 @@ impl Default for SuiteBuilder {
                 label: "covenant_contract".to_string(),
                 pool_address: TODO.to_string(),
                 ibc_msg_transfer_timeout_timestamp: None,
-                // preset_ibc_fee: PresetIbcFee {
-                //     ack_fee: cosmwasm_std::Coin {
-                //         denom: NEUTRON_DENOM.to_string(),
-                //         amount: Uint128::new(1000u128),
-                //     },
-                //     timeout_fee: cosmwasm_std::Coin {
-                //         denom: NEUTRON_DENOM.to_string(),
-                //         amount: Uint128::new(1000u128),
-                //     },
-                // },
+                preset_ibc_fee: PresetIbcFee {
+                    ack_fee: Uint128::new(1000),
+                    timeout_fee: Uint128::new(1000),
+                },
+                timeouts: Timeouts {
+                    ica_timeout: Uint64::new(18000),           // 5 hours
+                    ibc_transfer_timeout: Uint64::new(120),    // 2 minutes
+                },
             },
         }
     }
