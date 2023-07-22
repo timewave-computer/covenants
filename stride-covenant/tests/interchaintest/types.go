@@ -129,12 +129,12 @@ type ContractStateQueryResponse struct {
 
 // Instantiation
 type WeightedReceiver struct {
-	Amount  uint64 `json:"amount"`
+	Amount  string `json:"amount"`
 	Address string `json:"address"`
 }
 
 type WeightedReceiverAmount struct {
-	Amount uint64 `json:"amount"`
+	Amount string `json:"amount"`
 }
 
 type StAtomWeightedReceiverQuery struct {

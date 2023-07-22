@@ -65,7 +65,7 @@ fn test_tick_2() {
     lp_transfer_msg.source_channel = default_init_msg.gaia_neutron_ibc_transfer_channel_id;
     lp_transfer_msg.receiver = LP_ADDR.to_string();
     // env.block.time + ibc transfer timeout (100sec)
-    lp_transfer_msg.timeout_timestamp = 1571797519879305533;
+    lp_transfer_msg.timeout_timestamp = 1571797619879305533;
     verify_state(&deps, ContractState::VerifyNativeToken);
     assert_eq!(tick_res.messages.len(), 1);
     assert_eq!(

@@ -14,7 +14,7 @@ use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
 
-use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg}, state::{NEUTRON_ATOM_IBC_DENOM, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT}};
+use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg}, state::{NEUTRON_ATOM_IBC_DENOM, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, PENDING_NATIVE_TRANSFER_TIMEOUT}};
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
@@ -151,6 +151,13 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                 amount: receiver.amount.to_string(),
             };
 
+            let msg_transfer_timeout = env.block.time
+                // we take the wrapping ICA tx timeout into account and assume the worst
+                .plus_seconds(ica_timeout.u64())
+                // and then add the preset ibc transfer timeout
+                .plus_seconds(ibc_transfer_timeout.u64());
+            PENDING_NATIVE_TRANSFER_TIMEOUT.save(deps.storage, &msg_transfer_timeout)?;
+
             let lper_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel,
@@ -158,11 +165,10 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                 sender: address.clone(),
                 receiver: receiver.address,
                 timeout_height: None,
-                timeout_timestamp: env.block.time.plus_seconds(ibc_transfer_timeout.u64()).nanos(),
+                timeout_timestamp: msg_transfer_timeout.nanos(),
             };
 
             let lp_protobuf = to_proto_msg_transfer(lper_msg)?;
-
             let submit_msg = NeutronMsg::submit_tx(
                 controller_conn_id,
                 INTERCHAIN_ACCOUNT_ID.to_string(),
@@ -283,6 +289,7 @@ fn send_ls_token_msg(env:Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Neu
 fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
     let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
+    let pending_transfer_timeout = PENDING_NATIVE_TRANSFER_TIMEOUT.load(deps.storage)?;
 
     if lper_native_token_balance.amount >= Uint128::from(receiver.amount) {
         CONTRACT_STATE.save(deps.storage, &ContractState::VerifyLp)?;
@@ -293,6 +300,15 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
             .add_submessage(ls_token_msg)
             .add_attribute("method", "try_verify_native_token")
             .add_attribute("receiver_balance", lper_native_token_balance.amount));
+    } else if env.block.time.nanos() >= pending_transfer_timeout.nanos() {
+        // funds are still not on the LP module and the msgTransfer timeout is due
+        // we can safely retry sending the funds again by reverting the state
+        // to ICACreated
+        CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+        return Ok(Response::default()
+            .add_attribute("method", "try_verify_native_token")
+            .add_attribute("status", "pending_transfer_timeout_due")
+        )
     }
 
     // should we query for lper_native_token_balance.amount being refunded to the ICA?

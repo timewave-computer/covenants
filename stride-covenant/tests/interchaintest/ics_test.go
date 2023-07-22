@@ -969,10 +969,10 @@ func TestICS(t *testing.T) {
 			// Depositor instantiation message
 			// note that clock address needs to be filled
 			stAtomWeightedReceiverAmount = WeightedReceiverAmount{
-				Amount: atomToLiquidStake,
+				Amount: strconv.FormatUint(atomToLiquidStake, 10),
 			}
 			atomWeightedReceiverAmount = WeightedReceiverAmount{
-				Amount: atomFunds,
+				Amount: strconv.FormatUint(atomFunds, 10),
 			}
 			depositorMsg := PresetDepositorFields{
 				GaiaNeutronIBCTransferChannelId: gaiaNeutronTransferChannelId,

@@ -102,7 +102,6 @@ impl Default for SuiteBuilder {
                 },
                 label: "covenant_contract".to_string(),
                 pool_address: TODO.to_string(),
-                ibc_msg_transfer_timeout_timestamp: None,
                 preset_ibc_fee: PresetIbcFee {
                     ack_fee: Uint128::new(1000),
                     timeout_fee: Uint128::new(1000),
