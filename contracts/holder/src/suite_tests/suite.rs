@@ -33,8 +33,8 @@ impl Default for SuiteBuilder {
 }
 
 impl SuiteBuilder {
-    pub fn with_withdrawer(mut self, addr: String) -> Self {
-        self.instantiate.withdrawer = Some(addr);
+    pub fn with_withdrawer(mut self, addr: Option<String>) -> Self {
+        self.instantiate.withdrawer = addr;
         self
     }
 
@@ -68,6 +68,17 @@ impl SuiteBuilder {
 
 // actions
 impl Suite {
+    pub fn withdraw_liquidity(&mut self, caller: &str) -> AppResponse {
+        self.app
+            .execute_contract(
+                Addr::unchecked(caller),
+                self.holder.clone(),
+                &ExecuteMsg::WithdrawLiquidity {  },
+                &[],
+            )
+            .unwrap()
+    }
+
     /// sends a message on caller's behalf to withdraw a specified amount of tokens
     pub fn withdraw_tokens(&mut self, caller: &str, quantity: Vec<Coin>) -> AppResponse {
         self.app
