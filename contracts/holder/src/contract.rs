@@ -24,17 +24,19 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     deps.api.debug("WASMDEBUG: holder instantiate");
+    let mut resp = Response::default()
+        .add_attribute("method", "instantiate");
 
-    let withdrawer = deps.api.addr_validate(&msg.withdrawer)?;
+    // withdrawer is optional on instantiation; can be set later
+    if let Some(addr) = msg.withdrawer {
+        WITHDRAWER.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
+        resp = resp.add_attribute("withdrawer", addr.to_string());
+    };
+
     let lp_addr = deps.api.addr_validate(&msg.lp_address)?;
-
-    WITHDRAWER.save(deps.storage, &withdrawer)?;
     LP_ADDRESS.save(deps.storage, &lp_addr)?;
 
-    Ok(Response::default()
-        .add_attribute("method", "instantiate")
-        .add_attribute("withdrawer", withdrawer)
-        .add_attribute("lp_address", lp_addr))
+    Ok(resp.add_attribute("lp_address", lp_addr))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -68,8 +70,14 @@ fn try_withdraw_liquidity(
 ) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: withdrawing liquidity");
 
+    // withdrawer has to be set for initiating liquidity withdrawal
+    let withdrawer = if let Some(addr) = WITHDRAWER.may_load(deps.storage)? {
+        addr
+    } else {
+        return Err(ContractError::NoWithdrawerError {})
+    };
+    
     // we validate who is initiating the liquidity removal
-    let withdrawer = WITHDRAWER.load(deps.storage)?;
     if withdrawer != info.sender {
         return Err(ContractError::Unauthorized {});
     }
@@ -109,8 +117,14 @@ pub fn try_withdraw_balances(
     info: MessageInfo,
     quantity: Option<Vec<Coin>>,
 ) -> Result<Response, ContractError> {
+    // withdrawer has to be set for initiating liquidity withdrawal
+    let withdrawer = if let Some(addr) = WITHDRAWER.may_load(deps.storage)? {
+        addr
+    } else {
+        return Err(ContractError::NoWithdrawerError {})
+    };
+
     // Check if the sender is the withdrawer
-    let withdrawer = WITHDRAWER.load(deps.storage)?;
     if info.sender != withdrawer {
         return Err(ContractError::Unauthorized {});
     }

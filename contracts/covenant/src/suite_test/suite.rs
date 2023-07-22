@@ -95,7 +95,7 @@ impl Default for SuiteBuilder {
                     expected_native_token_amount: Uint128::new(1),
                 },
                 preset_holder_fields: covenant_holder::msg::PresetHolderFields {
-                    withdrawer: CREATOR_ADDR.to_string(),
+                    withdrawer: Some(CREATOR_ADDR.to_string()),
                     holder_code: 1,
                     label: "covenant_holder_contract".to_string(),
                 },
