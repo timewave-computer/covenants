@@ -104,6 +104,7 @@ fn try_withdraw_liquidity(
 
     Ok(Response::default()
         .add_attribute("method", "try_withdraw")
+        .add_attribute("lp_token_amount", liquidity_token_balance.balance)
         .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pair_info.liquidity_token.to_string(),
             msg: to_binary(withdraw_msg)?,
@@ -117,7 +118,7 @@ pub fn try_withdraw_balances(
     info: MessageInfo,
     quantity: Option<Vec<Coin>>,
 ) -> Result<Response, ContractError> {
-    // withdrawer has to be set for initiating liquidity withdrawal
+    // withdrawer has to be set for initiating balance withdrawal
     let withdrawer = if let Some(addr) = WITHDRAWER.may_load(deps.storage)? {
         addr
     } else {
