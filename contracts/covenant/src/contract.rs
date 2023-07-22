@@ -159,11 +159,13 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             let code_id = LP_CODE.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let preset_lp_fields = PRESET_LP_FIELDS.load(deps.storage)?;
+            let preset_depositor_fields = PRESET_DEPOSITOR_FIELDS.load(deps.storage)?;
 
             let instantiate_msg = preset_lp_fields.clone().to_instantiate_msg(
                 clock_addr.to_string(),
                 response.contract_address,
                 pool_address,
+                Uint128::new(preset_depositor_fields.atom_receiver_amount.amount.into()),
             );
 
             let lp_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {

@@ -53,6 +53,7 @@ type PresetDepositorFields struct {
 	StAtomReceiverAmount            WeightedReceiverAmount `json:"st_atom_receiver_amount"`
 	AtomReceiverAmount              WeightedReceiverAmount `json:"atom_receiver_amount"`
 	AutopilotFormat                 string                 `json:"autopilot_format"`
+	NeutronAtomIbcDenom             string                 `json:"neutron_atom_ibc_denom"`
 }
 
 type PresetLpFields struct {

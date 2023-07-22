@@ -25,6 +25,7 @@ pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
 pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
 pub const IBC_TIMEOUT: Item<u64> = Item::new("ibc_timeout");
 pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
+pub const NEUTRON_ATOM_IBC_DENOM: Item<String> = Item::new("neutron_atom_ibc_denom");
 
 // ICA
 pub const INTERCHAIN_ACCOUNTS: Map<String, (String, String)> =

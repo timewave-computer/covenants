@@ -14,7 +14,7 @@ use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg};
+use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg}, state::NEUTRON_ATOM_IBC_DENOM};
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
@@ -75,6 +75,7 @@ pub fn instantiate(
     GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
+    NEUTRON_ATOM_IBC_DENOM.save(deps.storage, &msg.neutron_atom_ibc_denom)?;
 
     Ok(Response::default().add_attribute("method", "depositor_instantiate"))
 }
@@ -105,15 +106,15 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
             let ica_address = ICA_ADDRESS.may_load(deps.storage)?;
 
             if ica_address.is_some() {
-                try_send_native_token(deps)
+                try_send_native_token(env, deps)
             } else {
                 Ok(Response::default()
                     .add_attribute("method", "try_tick")
                     .add_attribute("ica_status", "not_created"))
             }
         }
-        ContractState::VerifyNativeToken => try_verify_native_token(deps),
-        ContractState::VerifyLp => try_verify_lp(deps),
+        ContractState::VerifyNativeToken => try_verify_native_token(env, deps),
+        ContractState::VerifyLp => try_verify_lp(env, deps),
         ContractState::Complete => {
             Ok(Response::default().add_attribute("status", "function_completed"))
         }
@@ -134,7 +135,7 @@ fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
     })
 }
 
-fn try_send_native_token(mut deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
+fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let fee = IBC_FEE.load(deps.storage)?;
     let port_id = IBC_PORT_ID.load(deps.storage)?;
 
@@ -158,7 +159,7 @@ fn try_send_native_token(mut deps: ExecuteDeps) -> NeutronResult<Response<Neutro
                 sender: address.clone(),
                 receiver: receiver.address,
                 timeout_height: None,
-                timeout_timestamp: timeout,
+                timeout_timestamp: env.block.time.plus_seconds(timeout).nanos(),
             };
 
             let lp_protobuf = to_proto_msg_transfer(lper_msg)?;
@@ -196,10 +197,11 @@ fn try_send_native_token(mut deps: ExecuteDeps) -> NeutronResult<Response<Neutro
 }
 
 fn query_lper_balance(deps: QueryDeps, lper: &str) -> StdResult<cosmwasm_std::Coin> {
-    deps.querier.query_balance(lper, ATOM_DENOM)
+    let neutron_atom_ibc_denom = NEUTRON_ATOM_IBC_DENOM.load(deps.storage)?;
+    deps.querier.query_balance(lper, neutron_atom_ibc_denom)
 }
 
-fn send_ls_token_msg(mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>> {
+fn send_ls_token_msg(env:Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>> {
     let ls_address = LS_ADDRESS.load(deps.storage)?;
 
     let stride_ica_query: Option<String> = deps
@@ -238,7 +240,7 @@ fn send_ls_token_msg(mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>>
                 .load(deps.storage)?
                 .replace("{st_ica}", &stride_ica_addr);
             AUTOPILOT_FORMAT.save(deps.storage, &autopilot_receiver)?;
-
+            
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: gaia_stride_channel,
@@ -246,7 +248,7 @@ fn send_ls_token_msg(mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>>
                 sender: address.clone(),
                 receiver: autopilot_receiver,
                 timeout_height: None,
-                timeout_timestamp: timeout,
+                timeout_timestamp: env.block.time.plus_seconds(timeout).nanos(),
             };
 
             let stride_protobuf = to_proto_msg_transfer(stride_msg)?;
@@ -277,14 +279,14 @@ fn send_ls_token_msg(mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>>
     }
 }
 
-fn try_verify_native_token(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
+fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
     let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
 
     if lper_native_token_balance.amount >= Uint128::from(receiver.amount) {
         CONTRACT_STATE.save(deps.storage, &ContractState::VerifyLp)?;
 
-        let ls_token_msg = send_ls_token_msg(deps)?;
+        let ls_token_msg = send_ls_token_msg(env, deps)?;
 
         return Ok(Response::default()
             .add_submessage(ls_token_msg)
@@ -292,12 +294,14 @@ fn try_verify_native_token(deps: ExecuteDeps) -> NeutronResult<Response<NeutronM
             .add_attribute("receiver_balance", lper_native_token_balance.amount));
     }
 
+    // should we query for lper_native_token_balance.amount being refunded to the ICA?
+    // if thats the case we can
     Ok(Response::default()
         .add_attribute("method", "try_verify_native_token")
         .add_attribute("status", "native_token_not_received"))
 }
 
-fn try_verify_lp(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
+fn try_verify_lp(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
     let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
 
@@ -314,7 +318,7 @@ fn try_verify_lp(deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
             .add_attribute("status", "completed"))
     } else {
         // Balance is still there, so retry to send st token
-        let ls_token_msg = send_ls_token_msg(deps)?;
+        let ls_token_msg = send_ls_token_msg(env, deps)?;
 
         Ok(Response::default()
             .add_submessage(ls_token_msg)

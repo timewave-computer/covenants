@@ -17,6 +17,7 @@ pub struct InstantiateMsg {
     pub autopilot_format: String,
     pub ibc_timeout: u64,
     pub ibc_fee: IbcFee,
+    pub neutron_atom_ibc_denom: String,
 }
 
 #[cw_serde]
@@ -29,6 +30,7 @@ pub struct PresetDepositorFields {
     pub st_atom_receiver_amount: WeightedReceiverAmount,
     pub atom_receiver_amount: WeightedReceiverAmount,
     pub autopilot_format: String,
+    pub neutron_atom_ibc_denom: String,
 }
 
 #[cw_serde]
@@ -68,6 +70,7 @@ impl PresetDepositorFields {
             autopilot_format: self.autopilot_format,
             ibc_timeout,
             ibc_fee,
+            neutron_atom_ibc_denom: self.neutron_atom_ibc_denom,
         }
     }
 }

@@ -985,6 +985,7 @@ func TestICS(t *testing.T) {
 				StAtomReceiverAmount:            stAtomWeightedReceiverAmount,
 				AtomReceiverAmount:              atomWeightedReceiverAmount,
 				AutopilotFormat:                 "{\"autopilot\": {\"receiver\": \"{st_ica}\",\"stakeibc\": {\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}",
+				NeutronAtomIbcDenom:             neutronAtomIbcDenom,
 			}
 			// LS instantiation message
 			lsMsg := PresetLsFields{
@@ -1125,7 +1126,7 @@ func TestICS(t *testing.T) {
 			require.EqualValues(t, 500001, lsNeutronBal)
 		})
 
-		tickClock := func() {
+		tickClock := func() (string, string, string) {
 			cmd = []string{"neutrond", "tx", "wasm", "execute", clockContractAddress,
 				`{"tick":{}}`,
 				"--from", neutronUser.KeyName,
@@ -1141,10 +1142,31 @@ func TestICS(t *testing.T) {
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
-			resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+			_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
-			jsonResp, _ := json.Marshal(resp)
-			print("\ntick response: ", string(jsonResp), "\n")
+
+			err = testutil.WaitForBlocks(ctx, 3, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			var response ContractStateQueryResponse
+			// Query depositor
+			err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, ContractStateQuery{}, &response)
+			require.NoError(t, err, "failed to query depositor state")
+			currentDepositorState = response.Data
+			print("\n depositor state: ", currentDepositorState)
+
+			// Query Lser
+			err = cosmosNeutron.QueryContract(ctx, lsContractAddress, ContractStateQuery{}, &response)
+			require.NoError(t, err, "failed to query ls state")
+			currentLsState = response.Data
+			print("\n ls state: ", currentLsState)
+
+			// Query Lper
+			err = cosmosNeutron.QueryContract(ctx, lperContractAddress, ContractStateQuery{}, &response)
+			require.NoError(t, err, "failed to query lp state")
+			currentLpState = response.Data
+			print("\n lp state: ", currentLpState)
+			return currentDepositorState, currentLsState, currentLpState
 		}
 
 		// Tick the clock until the depositor has created i_c_a
@@ -1153,34 +1175,12 @@ func TestICS(t *testing.T) {
 			tick := 1
 			for tick <= maxTicks {
 				print("\n Ticking clock ", tick, " of ", maxTicks)
-				tickClock()
-
-				var response ContractStateQueryResponse
-				// Query depositor
-				err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, ContractStateQuery{}, &response)
-				require.NoError(t, err, "failed to query depositor state")
-				currentDepositorState = response.Data
-				print("\n depositor state: ", currentDepositorState)
-
-				// Query Lser
-				err = cosmosNeutron.QueryContract(ctx, lsContractAddress, ContractStateQuery{}, &response)
-				require.NoError(t, err, "failed to query ls state")
-				currentLsState = response.Data
-				print("\n ls state: ", currentLsState)
-
-				// Query Lper
-				err = cosmosNeutron.QueryContract(ctx, lperContractAddress, ContractStateQuery{}, &response)
-				require.NoError(t, err, "failed to query lp state")
-				currentLpState = response.Data
-				print("\n lp state: ", currentLpState)
-
-				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+				currentDepositorState, currentLsState, _ := tickClock()
 
 				if currentDepositorState == depositorStateIcaCreated &&
 					currentLsState == lsStateIcaCreated {
 					break
 				}
-				require.NoError(t, err, "failed to wait for blocks")
 				tick += 1
 			}
 			// fail if we haven't created the ICAs under max ticks
@@ -1269,21 +1269,10 @@ func TestICS(t *testing.T) {
 				require.NoError(t, err, "failed to query ICA balance")
 				print("\n gaia ica atom bal: ", gaiaIcaBalance, "\n")
 
-				queryCmd := []string{"neutrond", "query", "wasm", "contract-state", "smart",
-					clockContractAddress, "'{\"queue\":{}}'",
-				}
-
-				clockQueueBytes, _, _ := neutron.Exec(ctx, queryCmd, nil)
-
-				clockQueue, _ := json.Marshal(clockQueueBytes)
-				print("\n clock queue bytes: ", string(clockQueueBytes), ", queue itself: ", (clockQueue), "\n")
-
 				if strideICABal == int64(strideRedemptionRate*atomToLiquidStake) &&
 					lpAtomBalance == int64(atomFunds) {
 					break
 				}
-				err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
-				require.NoError(t, err, "failed to wait for blocks")
 				tick += 1
 			}
 
@@ -1356,22 +1345,6 @@ func TestICS(t *testing.T) {
 			print("\n balance response: ", string(jsonResp), "\n")
 			return response.Data.Balance
 		}
-
-		// queryAllLpHolders := func(token string) {
-		// 	allAccounts := AllAccounts{}
-
-		// 	accountsQueryMsg := Cw20QueryMsg{
-		// 		AllAccounts: &allAccounts,
-		// 	}
-		// 	var response AllAccountsResponse
-		// 	err = cosmosNeutron.QueryContract(ctx, token, accountsQueryMsg, &response)
-		// 	require.NoError(t, err, "failed to query all accounts")
-		// 	jsonResp, _ := json.Marshal(response)
-		// 	print("\n all accounts: ", string(jsonResp), "\n")
-		// }
-
-		// TEST: LPer provides liquidity, tick the LPer
-		// Check if LP tokens arrive in the Holder
 
 		t.Run("LPer provides liqudity when ticked", func(t *testing.T) {
 			const maxTicks = 20

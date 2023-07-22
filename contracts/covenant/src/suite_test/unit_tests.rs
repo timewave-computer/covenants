@@ -47,6 +47,7 @@ fn get_init_msg() -> InstantiateMsg {
             amount: 1,
         },
         autopilot_format: "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}".to_string(),
+        neutron_atom_ibc_denom: "neutron_atom_ibc_denom".to_string(),
     },
     preset_lp_fields: covenant_lp::msg::PresetLpFields {
         slippage_tolerance: None,
@@ -116,7 +117,6 @@ fn test_init() {
 
     let init_msg = get_init_msg();
     let res = instantiate(deps.as_mut(), mock_env(), info, init_msg.clone()).unwrap();
-
     assert_eq!(res.messages.len(), 1);
     assert_eq!(res.messages[0].id, CLOCK_REPLY_ID);
     assert_eq!(
@@ -130,7 +130,6 @@ fn test_init() {
         }
         .into()
     );
-
     // Verify ibc timeout and fee are saved correctly
     // TODO: change code to actually get it from user
     let ibc_timeout = IBC_TIMEOUT.load(&deps.storage).unwrap();
@@ -201,7 +200,8 @@ fn test_init() {
             msg: to_binary(&init_msg.clone().preset_lp_fields.to_instantiate_msg(
                 clock_reply_res.contract_address.clone(),
                 holder_reply_res.contract_address.clone(),
-                init_msg.clone().pool_address
+                init_msg.clone().pool_address,
+                Uint128::new(1),
             ))
             .unwrap(),
             funds: vec![],

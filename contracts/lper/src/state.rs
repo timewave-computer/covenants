@@ -28,6 +28,5 @@ pub struct ProvidedLiquidityInfo {
 #[cw_serde]
 pub enum ContractState {
     Instantiated,
-    NativeTokenReceived,
     WithdrawComplete,
 }

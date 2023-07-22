@@ -85,8 +85,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     println!("\n tick state: {:?}", current_state);
     match current_state {
-        ContractState::Instantiated => verify_native_token_amount(deps, env),
-        ContractState::NativeTokenReceived => try_lp(deps, env, info),
+        ContractState::Instantiated => try_lp(deps, env, info),
         ContractState::WithdrawComplete => try_completed(deps),
     }
 }
@@ -531,7 +530,7 @@ fn handle_depositor_native_received_reply_id(
     msg: Reply,
 ) -> Result<Response, ContractError> {
     // now that depositor received the Received message, we advance the state
-    CONTRACT_STATE.save(deps.storage, &ContractState::NativeTokenReceived)?;
+    // CONTRACT_STATE.save(deps.storage, &ContractState::NativeTokenReceived)?;
 
     Ok(Response::default()
         .add_attribute("method", "handle_depositor_native_received_reply_id")

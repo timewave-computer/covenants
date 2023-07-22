@@ -86,6 +86,7 @@ pub(crate) fn get_default_init_msg() -> InstantiateMsg {
       st_atom_receiver_amount: WeightedReceiverAmount { amount: 1000 },
       atom_receiver_amount: WeightedReceiverAmount { amount: 1000 },
       autopilot_format: "{\"autopilot\": {\"receiver\": \"{st_ica}\",\"stakeibc\": {\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}".to_string(),
+      neutron_atom_ibc_denom: "neutronatomibcdenom".to_string(),
     }.to_instantiate_msg("reciever".to_string(), CLOCK_ADDR.to_string(), LS_ADDR.to_string(), LP_ADDR.to_string(), DEFAULT_TIMEOUT_SECONDS, get_default_ibc_fee())
 }
 

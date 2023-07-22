@@ -80,6 +80,7 @@ impl Default for SuiteBuilder {
                         amount: Uint128::new(1000u128),
                     }],
                 },
+                neutron_atom_ibc_denom: "neutronatomibcdenom".to_string(),
             },
         }
     }

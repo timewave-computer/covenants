@@ -170,6 +170,7 @@ impl Default for SuiteBuilder {
                     native_asset_limit: Uint128::new(100),
                     ls_asset_limit: Uint128::new(100),
                 },
+                expected_native_token_amount: Uint128::new(400000),
             },
             token_instantiate: TokenInstantiateMsg {
                 name: "nativetoken".to_string(),
