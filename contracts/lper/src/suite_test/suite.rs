@@ -230,7 +230,7 @@ impl Default for SuiteBuilder {
                 whitelist: vec!["contract9".to_string()],
             },
             holder_instantiate: covenant_holder::msg::InstantiateMsg {
-                withdrawer: CREATOR_ADDR.to_string(),
+                withdrawer: Some(CREATOR_ADDR.to_string()),
                 // deterministic based on instantiate flow
                 lp_address: "contract7".to_string(),
             },

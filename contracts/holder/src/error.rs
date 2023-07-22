@@ -9,6 +9,6 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
-    #[error("Initial withdrawer is required")]
-    NoInitialWithdrawer {},
+    #[error("No withdrawer address configured")]
+    NoWithdrawerError {},
 }
