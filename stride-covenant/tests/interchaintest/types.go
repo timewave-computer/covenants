@@ -15,20 +15,25 @@ type PresetLsFields struct {
 }
 
 type CovenantInstantiateMsg struct {
-	Label                          string                `json:"label"`
-	PresetClock                    PresetClockFields     `json:"preset_clock_fields"`
-	PresetLs                       PresetLsFields        `json:"preset_ls_fields"`
-	PresetDepositor                PresetDepositorFields `json:"preset_depositor_fields"`
-	PresetLp                       PresetLpFields        `json:"preset_lp_fields"`
-	PresetHolder                   PresetHolderFields    `json:"preset_holder_fields"`
-	PoolAddress                    string                `json:"pool_address"`
-	IbcMsgTransferTimeoutTimestamp uint64                `json:"ibc_msg_transfer_timeout_timestamp"`
-	// PresetIbcFee                   PresetIbcFee          `json:"preset_ibc_fee"`
+	Label           string                `json:"label"`
+	PresetClock     PresetClockFields     `json:"preset_clock_fields"`
+	PresetLs        PresetLsFields        `json:"preset_ls_fields"`
+	PresetDepositor PresetDepositorFields `json:"preset_depositor_fields"`
+	PresetLp        PresetLpFields        `json:"preset_lp_fields"`
+	PresetHolder    PresetHolderFields    `json:"preset_holder_fields"`
+	PoolAddress     string                `json:"pool_address"`
+	PresetIbcFee    PresetIbcFee          `json:"preset_ibc_fee"`
+	Timeouts        Timeouts              `json:"timeouts"`
+}
+
+type Timeouts struct {
+	IcaTimeout         string `json:"ica_timeout"`
+	IbcTransferTimeout string `json:"ibc_transfer_timeout"`
 }
 
 type PresetIbcFee struct {
-	AckFee     CwCoin `json:"ack_fee"`
-	TimeoutFee CwCoin `json:"timeout_fee"`
+	AckFee     string `json:"ack_fee"`
+	TimeoutFee string `json:"timeout_fee"`
 }
 
 type PresetClockFields struct {

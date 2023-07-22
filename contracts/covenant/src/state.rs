@@ -2,6 +2,8 @@ use cosmwasm_std::Addr;
 use cw_storage_plus::Item;
 use neutron_sdk::bindings::msg::IbcFee;
 
+use crate::msg::Timeouts;
+
 pub const LS_CODE: Item<u64> = Item::new("ls_code");
 pub const LP_CODE: Item<u64> = Item::new("lp_code");
 pub const DEPOSITOR_CODE: Item<u64> = Item::new("depositor_code");
@@ -11,6 +13,7 @@ pub const HOLDER_CODE: Item<u64> = Item::new("holder_code");
 pub const POOL_ADDRESS: Item<String> = Item::new("pool_address");
 pub const IBC_TIMEOUT: Item<u64> = Item::new("ibc_timeout");
 pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
+pub const TIMEOUTS: Item<Timeouts> = Item::new("timeouts");
 
 pub const PRESET_LS_FIELDS: Item<covenant_ls::msg::PresetLsFields> = Item::new("preset_ls_fields");
 pub const PRESET_LP_FIELDS: Item<covenant_lp::msg::PresetLpFields> = Item::new("preset_lp_fields");
