@@ -24,8 +24,21 @@ pub struct InstantiateMsg {
     /// required because we only allow transfers of this denom
     /// out of the LSer
     pub ls_denom: String,
+    /// Neutron requires fees to be set to refund relayers for 
+    /// submission of ack and timeout messages.
+    /// recv_fee and ack_fee paid in untrn from this contract
     pub ibc_fee: IbcFee,
+    /// Time in seconds for ICA SubmitTX messages from Neutron
+    /// Note that ICA uses ordered channels, a timeout implies
+    /// channel closed. We can reopen the channel by reregistering
+    /// the ICA with the same port id and connection id
     pub ica_timeout: Uint64,
+    /// Timeout in seconds. This is used to craft a timeout timestamp
+    /// that will be attached to the IBC transfer message from the ICA
+    /// on the host chain (Stride) to its destination. Typically
+    /// this timeout should be greater than the ICA timeout, otherwise
+    /// if the ICA times out, the destination chain receiving the funds
+    /// will also receive the IBC packet with an expired timestamp.
     pub ibc_transfer_timeout: Uint64,
 }
 
@@ -64,6 +77,9 @@ impl PresetLsFields {
 #[cw_serde]
 pub enum ExecuteMsg {
     Received {},
+    /// The transfer message allows anybody to permissionlessly
+    /// transfer a specified amount of tokens of the preset ls_denom
+    /// from the ICA of the host chain to the preset lp_address
     Transfer { amount: Uint128 },
 }
 
