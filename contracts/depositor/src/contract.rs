@@ -576,12 +576,12 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             }
 
             if let Some(fee) = ibc_fee {
-                IBC_FEE.save(deps.storage, &fee)?;
                 if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() {
                     return Err(StdError::GenericErr {
                         msg: "invalid IbcFee".to_string(),
                     });
                 }
+                IBC_FEE.save(deps.storage, &fee)?;
                 resp = resp.add_attribute("ibc_fee_ack", fee.ack_fee[0].to_string());
                 resp = resp.add_attribute("ibc_fee_timeout", fee.timeout_fee[0].to_string());
             }
