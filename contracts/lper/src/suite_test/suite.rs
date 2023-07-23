@@ -295,7 +295,7 @@ impl SuiteBuilder {
                 Some(CREATOR_ADDR.to_string()),
             )
             .unwrap();
-        println!("holder addr: {:?}", holder_address);
+        println!("holder addr: {holder_address:?}");
         self.lp_instantiate.clock_address = clock_address.to_string();
         self.lp_instantiate.holder_address = holder_address.to_string();
         self.factory_instantiate.token_code_id = token_code;
@@ -376,7 +376,7 @@ impl SuiteBuilder {
             ),
         };
         app.update_block(|b| b.height += 5);
-        println!("init pair msg: {:?}", init_pair_msg);
+        println!("init pair msg: {init_pair_msg:?}");
         let pair_msg = app
             .execute_contract(
                 Addr::unchecked(CREATOR_ADDR),
@@ -418,7 +418,7 @@ impl SuiteBuilder {
             )
             .unwrap();
 
-        println!("stablepair : {:?}", stable_pair_addr);
+        println!("stablepair : {stable_pair_addr:?}");
         app.update_block(|b| b.height += 5);
 
         self.lp_instantiate.lp_position.addr = stable_pair_addr.to_string();
@@ -528,7 +528,7 @@ impl Suite {
                 denom: ST_ATOM_DENOM.to_string(),
             }),
         };
-        println!("\nquerying simulation: {:?}\n", query);
+        println!("\nquerying simulation: {query:?}\n");
 
         self.app.wrap().query_wasm_smart(addr, &query).unwrap()
     }
@@ -543,7 +543,7 @@ impl Suite {
             .unwrap();
         match std::str::from_utf8(&bytes) {
             Ok(v) => v.to_string(),
-            Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+            Err(e) => panic!("Invalid UTF-8 sequence: {e}"),
         }
     }
 

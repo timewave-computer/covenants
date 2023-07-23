@@ -5,7 +5,7 @@ use cosmwasm_std::{
     from_binary,
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
     to_binary, Addr, ContractResult, DepsMut, MemoryStorage, MessageInfo, OwnedDeps, Response,
-    SystemResult, Uint128, WasmQuery, Uint64,
+    SystemResult, Uint128, Uint64, WasmQuery,
 };
 use neutron_sdk::{
     bindings::{
@@ -26,11 +26,13 @@ use crate::{
     state::{ContractState, CONTRACT_STATE},
 };
 
-use super::suite::NATIVE_ATOM_DENOM;
+pub const CREATOR_ADDR: &str = "creator";
+pub const _NEUTRON_DENOM: &str = "untrn";
+pub const _ST_ATOM_DENOM: &str = "statom";
+pub const NATIVE_ATOM_DENOM: &str = "uatom";
 
 pub type Owned = OwnedDeps<MemoryStorage, MockApi, MockQuerier, NeutronQuery>;
 
-const CREATOR_ADDR: &str = "creator";
 pub const CLOCK_ADDR: &str = "contract_clock";
 pub const LP_ADDR: &str = "contract_lp";
 const LS_ADDR: &str = "contract_ls";
@@ -52,7 +54,7 @@ pub(crate) fn get_default_ibc_fee() -> IbcFee {
 pub fn wasm_handler(wasm_query: &WasmQuery) -> SystemResult<ContractResult<cosmwasm_std::Binary>> {
     match wasm_query {
         WasmQuery::Smart { contract_addr, msg } => match contract_addr.as_ref() {
-            LS_ADDR => match from_binary::<covenant_ls::msg::QueryMsg>(&msg).unwrap() {
+            LS_ADDR => match from_binary::<covenant_ls::msg::QueryMsg>(msg).unwrap() {
                 covenant_ls::msg::QueryMsg::StrideICA {} => SystemResult::Ok(ContractResult::Ok(
                     to_binary(&Addr::unchecked("some_ica_addr")).unwrap(),
                 )),
@@ -68,7 +70,7 @@ pub fn mock_dependencies() -> OwnedDeps<MockStorage, MockApi, MockQuerier, Neutr
     let mut owned_deps = OwnedDeps {
         storage: MockStorage::default(),
         api: MockApi::default(),
-        querier: MockQuerier::new(&vec![]),
+        querier: MockQuerier::new(&[]),
         custom_query_type: PhantomData,
     };
 

@@ -1,4 +1,4 @@
-use cosmwasm_std::{coins, testing::mock_env, to_binary, Binary, CosmosMsg, WasmMsg, Querier};
+use cosmwasm_std::{coins, testing::mock_env, to_binary, Binary, CosmosMsg, WasmMsg};
 use neutron_sdk::bindings::{msg::NeutronMsg, types::ProtobufAny};
 
 use crate::{
@@ -6,14 +6,11 @@ use crate::{
     state::ContractState,
     suite_test::unit_helpers::{
         get_default_ibc_fee, get_default_init_msg, get_default_msg_transfer,
-        get_default_sudo_open_ack, to_proto, CLOCK_ADDR, LP_ADDR,
+        get_default_sudo_open_ack, to_proto, CLOCK_ADDR, LP_ADDR, NATIVE_ATOM_DENOM,
     },
 };
 
-use super::{
-    suite::NATIVE_ATOM_DENOM,
-    unit_helpers::{do_instantiate, do_tick, verify_state, Owned},
-};
+use super::unit_helpers::{do_instantiate, do_tick, verify_state, Owned};
 
 #[test]
 fn test_init() {
@@ -143,7 +140,7 @@ fn test_tick_4() {
 
     // balance wasnt reduced yet, so we should try transfer to stride again
     let tick_res = do_tick(deps.as_mut()).unwrap();
-    
+
     let mut stride_transfer_msg = get_default_msg_transfer();
     stride_transfer_msg.timeout_timestamp = 1571797519879305533;
     let (_, default_version) = get_default_sudo_open_ack();

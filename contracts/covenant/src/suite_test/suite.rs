@@ -1,8 +1,8 @@
-use cosmwasm_std::{Addr, Empty, Uint64, Uint128};
+use cosmwasm_std::{Addr, Empty, Uint128, Uint64};
 use covenant_lp::msg::AssetData;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use crate::msg::{InstantiateMsg, QueryMsg, PresetIbcFee, Timeouts};
+use crate::msg::{InstantiateMsg, PresetIbcFee, QueryMsg, Timeouts};
 
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";

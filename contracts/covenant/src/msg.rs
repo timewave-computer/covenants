@@ -8,6 +8,7 @@ use covenant_ls::msg::PresetLsFields;
 use neutron_sdk::bindings::msg::IbcFee;
 
 const NEUTRON_DENOM: &str = "untrn";
+pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -28,6 +29,15 @@ pub struct Timeouts {
     pub ibc_transfer_timeout: Uint64,
 }
 
+impl Default for Timeouts {
+    fn default() -> Self {
+        Self {
+            ica_timeout: Uint64::new(DEFAULT_TIMEOUT),
+            ibc_transfer_timeout: Uint64::new(DEFAULT_TIMEOUT),
+        }
+    }
+}
+
 #[cw_serde]
 pub struct PresetIbcFee {
     pub ack_fee: Uint128,
@@ -39,7 +49,7 @@ impl PresetIbcFee {
         IbcFee {
             // must be empty
             recv_fee: vec![],
-            ack_fee: vec![cosmwasm_std::Coin { 
+            ack_fee: vec![cosmwasm_std::Coin {
                 denom: NEUTRON_DENOM.to_string(),
                 amount: self.ack_fee,
             }],

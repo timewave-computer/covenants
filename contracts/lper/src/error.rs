@@ -1,4 +1,4 @@
-use cosmwasm_std::{StdError, OverflowError};
+use cosmwasm_std::{OverflowError, StdError};
 use neutron_sdk::NeutronError;
 use thiserror::Error;
 

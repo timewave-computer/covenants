@@ -19,8 +19,9 @@ use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
     ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_FEE, IBC_PORT_ID,
-    ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
-    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT,
+    IBC_TRANSFER_TIMEOUT, ICA_ADDRESS, ICA_TIMEOUT, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM,
+    NEUTRON_STRIDE_IBC_CONNECTION_ID, STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
+    SUDO_PAYLOAD_REPLY_ID,
 };
 use neutron_sdk::{
     bindings::{
@@ -75,7 +76,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
     deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
+        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Transfer { amount } => try_execute_transfer(deps, env, info, amount),
@@ -142,14 +143,18 @@ fn try_execute_transfer(
                 sender: address,
                 receiver: lp_receiver.clone(),
                 timeout_height: None,
-                timeout_timestamp: env.block.time.plus_seconds(ibc_transfer_timeout.u64()).nanos(),
+                timeout_timestamp: env
+                    .block
+                    .time
+                    .plus_seconds(ibc_transfer_timeout.u64())
+                    .nanos(),
             };
 
             // Serialize the Transfer message
             let mut buf = Vec::new();
             buf.reserve(msg.encoded_len());
             if let Err(e) = msg.encode(&mut buf) {
-                return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
+                return Err(StdError::generic_err(format!("Encode error: {e}",)).into());
             }
 
             let protobuf = ProtobufAny {
@@ -274,7 +279,7 @@ pub fn query_errors_queue(deps: Deps<NeutronQuery>) -> NeutronResult<Binary> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
     deps.api
-        .debug(format!("WASMDEBUG: sudo: received sudo msg: {:?}", msg).as_str());
+        .debug(format!("WASMDEBUG: sudo: received sudo msg: {msg:?}").as_str());
 
     match msg {
         // For handling successful (non-error) acknowledgements.
@@ -398,13 +403,8 @@ fn sudo_open_ack(
 }
 
 fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResult<Response> {
-    deps.api.debug(
-        format!(
-            "WASMDEBUG: sudo_response: sudo received: {:?} {:?}",
-            request, data
-        )
-        .as_str(),
-    );
+    deps.api
+        .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}",).as_str());
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
     // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
@@ -441,7 +441,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
     }
 
     deps.api
-        .debug(format!("WASMDEBUG: sudo_response: sudo payload: {:?}", payload).as_str());
+        .debug(format!("WASMDEBUG: sudo_response: sudo payload: {payload:?}").as_str());
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
     // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
@@ -462,11 +462,8 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
             }
             _ => {
                 deps.api.debug(
-                    format!(
-                        "This type of acknowledgement is not implemented: {:?}",
-                        payload
-                    )
-                    .as_str(),
+                    format!("This type of acknowledgement is not implemented: {payload:?}")
+                        .as_str(),
                 );
             }
         }
@@ -491,7 +488,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
 
 fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<Response> {
     deps.api
-        .debug(format!("WASMDEBUG: sudo timeout request: {:?}", request).as_str());
+        .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
     // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
@@ -544,9 +541,9 @@ fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<R
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {
     deps.api
-        .debug(format!("WASMDEBUG: sudo error: {}", details).as_str());
+        .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
     deps.api
-        .debug(format!("WASMDEBUG: request packet: {:?}", request).as_str());
+        .debug(format!("WASMDEBUG: request packet: {request:?}").as_str());
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
     // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
@@ -602,9 +599,9 @@ fn prepare_sudo_payload(mut deps: DepsMut, _env: Env, msg: Reply) -> StdResult<R
             .ok_or_else(|| StdError::generic_err("no result"))?
             .as_slice(),
     )
-    .map_err(|e| StdError::generic_err(format!("failed to parse response: {:?}", e)))?;
+    .map_err(|e| StdError::generic_err(format!("failed to parse response: {e:?}")))?;
     deps.api
-        .debug(format!("WASMDEBUG: reply msg: {:?}", resp).as_str());
+        .debug(format!("WASMDEBUG: reply msg: {resp:?}").as_str());
     let seq_id = resp.sequence_id;
     let channel_id = resp.channel;
     save_sudo_payload(deps.branch().storage, channel_id, seq_id, payload)?;
@@ -626,7 +623,7 @@ fn get_ica(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     deps.api
-        .debug(format!("WASMDEBUG: reply msg: {:?}", msg).as_str());
+        .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
         TRANSFER_REPLY_ID => handle_transfer_reply(deps, env, msg),

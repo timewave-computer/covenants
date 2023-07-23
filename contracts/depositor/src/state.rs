@@ -1,5 +1,7 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint64, Timestamp};
+use cosmwasm_std::{
+    from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Timestamp, Uint64,
+};
 use cw_storage_plus::{Item, Map};
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -29,16 +31,16 @@ pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 pub const NEUTRON_ATOM_IBC_DENOM: Item<String> = Item::new("neutron_atom_ibc_denom");
 
 // ICA
-pub const INTERCHAIN_ACCOUNTS: Map<String, (String, String)> =
-    Map::new("interchain_accounts");
+pub const INTERCHAIN_ACCOUNTS: Map<String, (String, String)> = Map::new("interchain_accounts");
 pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 
 // pending transaction timeout timestamp
-pub const PENDING_NATIVE_TRANSFER_TIMEOUT: Item<Timestamp> = Item::new("pending_native_transfer_timeout");
+pub const PENDING_NATIVE_TRANSFER_TIMEOUT: Item<Timestamp> =
+    Item::new("pending_native_transfer_timeout");
 
 #[cw_serde]
 pub enum ContractState {
-  /// Contract was instantiated, create ica
+    /// Contract was instantiated, create ica
     Instantiated,
     /// ICA was created, send native token to lper
     ICACreated,
