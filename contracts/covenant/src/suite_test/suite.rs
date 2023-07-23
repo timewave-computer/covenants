@@ -1,12 +1,11 @@
-use cosmwasm_std::{Addr, Empty, Uint64, Uint128};
+use cosmwasm_std::{Addr, Empty, Uint128, Uint64};
 use covenant_lp::msg::AssetData;
 use cw_multi_test::{App, Contract, ContractWrapper, Executor};
 
-use crate::msg::{InstantiateMsg, QueryMsg, PresetIbcFee, Timeouts};
+use crate::msg::{InstantiateMsg, PresetIbcFee, QueryMsg, Timeouts};
 
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";
-pub const NEUTRON_DENOM: &str = "untrn";
 
 fn covenant_clock() -> Box<dyn Contract<Empty>> {
     Box::new(
@@ -73,12 +72,13 @@ impl Default for SuiteBuilder {
                     depositor_code: 1,
                     label: "covenant_depositor_contract".to_string(),
                     st_atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount {
-                        amount: 1,
+                        amount: Uint128::one(),
                     },
                     atom_receiver_amount: covenant_depositor::msg::WeightedReceiverAmount {
-                        amount: 1,
+                        amount: Uint128::one(),
                     },
                     autopilot_format: "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}".to_string(),
+                    neutron_atom_ibc_denom: "neutron_atom_ibc_denom".to_string(),
                 },
                 preset_lp_fields: covenant_lp::msg::PresetLpFields {
                     slippage_tolerance: None,
@@ -101,7 +101,6 @@ impl Default for SuiteBuilder {
                 },
                 label: "covenant_contract".to_string(),
                 pool_address: TODO.to_string(),
-                ibc_msg_transfer_timeout_timestamp: None,
                 preset_ibc_fee: PresetIbcFee {
                     ack_fee: Uint128::new(1000),
                     timeout_fee: Uint128::new(1000),

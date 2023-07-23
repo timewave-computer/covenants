@@ -12,8 +12,8 @@ use crate::msg::{InstantiateMsg, QueryMsg, WeightedReceiver};
 
 pub const CREATOR_ADDR: &str = "creator";
 pub const NEUTRON_DENOM: &str = "untrn";
-pub const ST_ATOM_DENOM: &str = "stride-atom";
-pub const NATIVE_ATOM_DENOM: &str = "native-atom";
+pub const ST_ATOM_DENOM: &str = "statom";
+pub const NATIVE_ATOM_DENOM: &str = "uatom";
 pub const _DEFAULT_RECEIVER_AMOUNT: Uint128 = Uint128::new(10);
 pub const _DEFAULT_CLOCK_ADDRESS: &str = "clock-address";
 
@@ -55,11 +55,11 @@ impl Default for SuiteBuilder {
         Self {
             instantiate: InstantiateMsg {
                 st_atom_receiver: WeightedReceiver {
-                    amount: 10,
+                    amount: Uint128::new(10),
                     address: ST_ATOM_DENOM.to_string(),
                 },
                 atom_receiver: WeightedReceiver {
-                    amount: 10,
+                    amount: Uint128::new(10),
                     address: NATIVE_ATOM_DENOM.to_string(),
                 },
                 clock_address: "default-clock".to_string(),
@@ -79,6 +79,7 @@ impl Default for SuiteBuilder {
                         amount: Uint128::new(1000u128),
                     }],
                 },
+                neutron_atom_ibc_denom: "neutronatomibcdenom".to_string(),
                 ica_timeout: Uint64::new(18000),           // 5 hours
                 ibc_transfer_timeout: Uint64::new(120),    // 2 minutes
             },

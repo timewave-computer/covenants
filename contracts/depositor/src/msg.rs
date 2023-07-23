@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint64};
+use cosmwasm_std::{Addr, Binary, Uint128, Uint64};
 use covenant_clock_derive::clocked;
 use neutron_sdk::bindings::{msg::IbcFee, query::QueryInterchainAccountAddressResponse};
 
@@ -16,6 +16,7 @@ pub struct InstantiateMsg {
     pub ls_address: String,
     pub autopilot_format: String,
     pub ibc_fee: IbcFee,
+    pub neutron_atom_ibc_denom: String,
     pub ibc_transfer_timeout: Uint64,
     pub ica_timeout: Uint64,
 }
@@ -30,11 +31,12 @@ pub struct PresetDepositorFields {
     pub st_atom_receiver_amount: WeightedReceiverAmount,
     pub atom_receiver_amount: WeightedReceiverAmount,
     pub autopilot_format: String,
+    pub neutron_atom_ibc_denom: String,
 }
 
 #[cw_serde]
 pub struct WeightedReceiverAmount {
-    pub amount: u64,
+    pub amount: Uint128,
 }
 
 impl WeightedReceiverAmount {
@@ -46,6 +48,7 @@ impl WeightedReceiverAmount {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl PresetDepositorFields {
     pub fn to_instantiate_msg(
         self,
@@ -69,6 +72,7 @@ impl PresetDepositorFields {
             ls_address,
             autopilot_format: self.autopilot_format,
             ibc_fee,
+            neutron_atom_ibc_denom: self.neutron_atom_ibc_denom,
             ibc_transfer_timeout,
             ica_timeout,
         }
@@ -77,15 +81,13 @@ impl PresetDepositorFields {
 
 #[cw_serde]
 pub struct WeightedReceiver {
-    pub amount: u64,
+    pub amount: Uint128,
     pub address: String,
 }
 
 #[clocked]
 #[cw_serde]
-pub enum ExecuteMsg {
-    Received {},
-}
+pub enum ExecuteMsg {}
 
 #[cw_serde]
 #[derive(QueryResponses)]
@@ -123,6 +125,7 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
+#[allow(clippy::large_enum_variant)]
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,

@@ -1,4 +1,4 @@
-use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint128, Uint64};
+use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint64};
 use cw_storage_plus::{Item, Map};
 use neutron_sdk::bindings::msg::IbcFee;
 use schemars::JsonSchema;
