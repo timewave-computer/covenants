@@ -54,14 +54,26 @@ pub struct SingleSideLpLimits {
 /// the `InstantiateMsg` by providing the non-deterministic fields.
 #[cw_serde]
 pub struct PresetLpFields {
+    /// slippage tolerance for providing liquidity
     pub slippage_tolerance: Option<Decimal>,
+    /// determines whether provided liquidity is automatically staked
     pub autostake: Option<bool>,
+    /// denominations of native and ls assets
     pub assets: AssetData,
+    /// limits (in `Uint128`) for single side liquidity provision.
+    /// Defaults to 100 if none are provided.
     pub single_side_lp_limits: Option<SingleSideLpLimits>,
+    /// lp contract code
     pub lp_code: u64,
+    /// label for contract to be instantiated with
     pub label: String,
+    /// workaround for the current lack of stride redemption rate query.
+    /// we set the expected amount of ls tokens we expect to receive for
+    /// the relevant half of the native tokens we have 
     pub expected_ls_token_amount: Uint128,
+    /// difference (both ways) we tolerate with regards to the `expected_ls_token_amount`
     pub allowed_return_delta: Uint128,
+    /// amount of native tokens we expect to receive from depositor
     pub expected_native_token_amount: Uint128,
 }
 
