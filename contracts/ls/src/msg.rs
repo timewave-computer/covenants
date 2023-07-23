@@ -51,7 +51,6 @@ impl PresetLsFields {
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {
-    Received {},
     Transfer { amount: Uint128 },
 }
 

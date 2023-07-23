@@ -3,11 +3,9 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
 use covenant_clock_derive::clocked;
 
-use crate::state::ContractState;
-
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub lp_position: LPInfo,
+    pub pool_address: String,
     pub clock_address: String,
     pub holder_address: String,
     pub slippage_tolerance: Option<Decimal>,
@@ -19,6 +17,7 @@ pub struct InstantiateMsg {
     pub expected_native_token_amount: Uint128,
 }
 
+/// holds the native and ls asset denoms relevant for providing liquidity.
 #[cw_serde]
 pub struct AssetData {
     pub native_asset_denom: String,
@@ -26,12 +25,14 @@ pub struct AssetData {
 }
 
 impl AssetData {
+    /// helper method to get astroport AssetInfo for native token
     pub fn get_native_asset_info(&self) -> AssetInfo {
         AssetInfo::NativeToken {
             denom: self.native_asset_denom.to_string(),
         }
     }
 
+    /// helper method to get astroport AssetInfo for ls token
     pub fn get_ls_asset_info(&self) -> AssetInfo {
         AssetInfo::NativeToken {
             denom: self.ls_asset_denom.to_string(),
@@ -39,12 +40,18 @@ impl AssetData {
     }
 }
 
+/// single side lp limits define the highest amount (in `Uint128`) that
+/// we consider acceptable to provide single-sided. 
+/// if asset balance exceeds these limits, double-sided liquidity should be provided.
 #[cw_serde]
 pub struct SingleSideLpLimits {
     pub native_asset_limit: Uint128,
     pub ls_asset_limit: Uint128,
 }
 
+/// Defines fields relevant to LP module that are known prior to covenant
+/// being instantiated. Use `to_instantiate_msg` implemented method to obtain
+/// the `InstantiateMsg` by providing the non-deterministic fields.
 #[cw_serde]
 pub struct PresetLpFields {
     pub slippage_tolerance: Option<Decimal>,
@@ -59,6 +66,7 @@ pub struct PresetLpFields {
 }
 
 impl PresetLpFields {
+    /// builds an `InstantiateMsg` by taking in any fields not known on instantiation.
     pub fn to_instantiate_msg(
         self,
         clock_address: String,
@@ -66,7 +74,7 @@ impl PresetLpFields {
         pool_address: String,
     ) -> InstantiateMsg {
         InstantiateMsg {
-            lp_position: LPInfo { addr: pool_address },
+            pool_address,
             clock_address,
             holder_address,
             slippage_tolerance: self.slippage_tolerance,
@@ -83,11 +91,6 @@ impl PresetLpFields {
     }
 }
 
-#[cw_serde]
-pub struct LPInfo {
-    pub addr: String,
-}
-
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {}
@@ -95,8 +98,8 @@ pub enum ExecuteMsg {}
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(LPInfo)]
-    LpPosition {},
+    #[returns(Addr)]
+    PoolAddress {},
     #[returns(Addr)]
     ClockAddress {},
     #[returns(ContractState)]
@@ -117,12 +120,27 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
-        lp_position: Option<LPInfo>,
+        pool_address: Option<String>,
         holder_address: Option<String>,
         expected_ls_token_amount: Option<Uint128>,
         allowed_return_delta: Option<Uint128>,
+        single_side_lp_limits: Option<SingleSideLpLimits>,
+        slippage_tolerance: Option<Decimal>,
     },
     UpdateCodeId {
         data: Option<Binary>,
     },
+}
+
+/// keeps track of provided native and ls asset liquidity in `Uint128`.
+#[cw_serde]
+pub struct ProvidedLiquidityInfo {
+    pub provided_amount_ls: Uint128,
+    pub provided_amount_native: Uint128,
+}
+
+/// state of the LP state machine
+#[cw_serde]
+pub enum ContractState {
+    Instantiated,
 }

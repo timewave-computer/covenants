@@ -15,7 +15,7 @@ use cw_multi_test::{
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use crate::msg::{AssetData, InstantiateMsg, LPInfo, QueryMsg, SingleSideLpLimits};
+use crate::msg::{AssetData, InstantiateMsg, QueryMsg, SingleSideLpLimits};
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
 use astroport::native_coin_registry::InstantiateMsg as NativeCoinRegistryInstantiateMsg;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
@@ -155,9 +155,7 @@ impl Default for SuiteBuilder {
         Self {
             lp_instantiate: InstantiateMsg {
                 clock_address: "clock-addr".to_string(),
-                lp_position: LPInfo {
-                    addr: "lp-addr".to_string(),
-                },
+                pool_address: "lp-addr".to_string(),
                 // deterministic based on instantiate sequence
                 holder_address: "contract1".to_string(),
                 slippage_tolerance: Some(Decimal::one()),
@@ -421,7 +419,7 @@ impl SuiteBuilder {
         println!("stablepair : {stable_pair_addr:?}");
         app.update_block(|b| b.height += 5);
 
-        self.lp_instantiate.lp_position.addr = stable_pair_addr.to_string();
+        self.lp_instantiate.pool_address = stable_pair_addr.to_string();
 
         let lper_address = app
             .instantiate_contract(
@@ -461,10 +459,10 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_lp_position(&self) -> LPInfo {
+    pub fn query_lp_position(&self) -> String {
         self.app
             .wrap()
-            .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::LpPosition {})
+            .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::PoolAddress {})
             .unwrap()
     }
 

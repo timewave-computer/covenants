@@ -80,7 +80,6 @@ pub fn execute(
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Transfer { amount } => try_execute_transfer(deps, env, info, amount),
-        ExecuteMsg::Received {} => try_handle_received(),
     }
 }
 
@@ -199,10 +198,6 @@ pub fn register_transfers_query(
         new_register_transfers_query_msg(connection_id, recipient, update_period, min_height)?;
 
     Ok(Response::new().add_message(msg))
-}
-
-fn try_handle_received() -> NeutronResult<Response<NeutronMsg>> {
-    Ok(Response::default().add_attribute("try_handle_received", "received msg`"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -324,43 +319,55 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             ibc_transfer_timeout,
             ica_timeout,
         } => {
+            let mut resp = Response::default().add_attribute("method", "update_config");
+
             if let Some(clock_addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
+                resp = resp.add_attribute("clock_addr", clock_addr);
             }
 
-            if let Some(stride_neutron_ibc_transfer_channel_id) =
-                stride_neutron_ibc_transfer_channel_id
-            {
-                STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID
-                    .save(deps.storage, &stride_neutron_ibc_transfer_channel_id)?;
+            if let Some(channel_id) = stride_neutron_ibc_transfer_channel_id {
+                STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &channel_id)?;
+                resp = resp.add_attribute("stride_neutron_ibc_transfer_channel_id", channel_id);
             }
 
-            if let Some(lp_address) = lp_address {
-                LP_ADDRESS.save(deps.storage, &lp_address)?;
+            if let Some(addr) = lp_address {
+                LP_ADDRESS.save(deps.storage, &addr)?;
+                resp = resp.add_attribute("lp_address", addr);
             }
 
-            if let Some(neutron_stride_ibc_connection_id) = neutron_stride_ibc_connection_id {
-                NEUTRON_STRIDE_IBC_CONNECTION_ID
-                    .save(deps.storage, &neutron_stride_ibc_connection_id)?;
+            if let Some(connection_id) = neutron_stride_ibc_connection_id {
+                NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &connection_id)?;
+                resp = resp.add_attribute("neutron_stride_ibc_connection_id", connection_id);
             }
 
-            if let Some(ls_denom) = ls_denom {
-                LS_DENOM.save(deps.storage, &ls_denom)?;
+            if let Some(denom) = ls_denom {
+                LS_DENOM.save(deps.storage, &denom)?;
+                resp = resp.add_attribute("ls_denom", denom);
             }
 
             if let Some(timeout) = ibc_transfer_timeout {
                 IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
+                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
             }
 
             if let Some(timeout) = ica_timeout {
                 ICA_TIMEOUT.save(deps.storage, &timeout)?;
+                resp = resp.add_attribute("ica_timeout", timeout);
             }
 
             if let Some(fee) = ibc_fee {
+                if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() || !fee.recv_fee.is_empty() {
+                    return Err(StdError::GenericErr {
+                        msg: "invalid IbcFee".to_string(),
+                    });
+                }
                 IBC_FEE.save(deps.storage, &fee)?;
+                resp = resp.add_attribute("ibc_fee_ack", fee.ack_fee[0].to_string());
+                resp = resp.add_attribute("ibc_fee_timeout", fee.timeout_fee[0].to_string());
             }
 
-            Ok(Response::default().add_attribute("method", "update_config"))
+            Ok(resp)
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
             // This is a migrate message to update code id,

@@ -576,7 +576,7 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             }
 
             if let Some(fee) = ibc_fee {
-                if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() {
+                if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() || !fee.recv_fee.is_empty() {
                     return Err(StdError::GenericErr {
                         msg: "invalid IbcFee".to_string(),
                     });
