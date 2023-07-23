@@ -23,7 +23,7 @@ pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
 
 pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
 pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
-/// 
+///
 pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

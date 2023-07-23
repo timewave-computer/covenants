@@ -11,7 +11,7 @@ pub struct InstantiateMsg {
     /// that only the clock can execute Ticks
     pub clock_address: String,
     /// IBC transfer channel on Stride for Neutron
-    /// This is used to IBC transfer stuatom on Stride 
+    /// This is used to IBC transfer stuatom on Stride
     /// to the LP contract
     pub stride_neutron_ibc_transfer_channel_id: String,
     /// IBC connection ID on Neutron for Stride
@@ -24,7 +24,7 @@ pub struct InstantiateMsg {
     /// required because we only allow transfers of this denom
     /// out of the LSer
     pub ls_denom: String,
-    /// Neutron requires fees to be set to refund relayers for 
+    /// Neutron requires fees to be set to refund relayers for
     /// submission of ack and timeout messages.
     /// recv_fee and ack_fee paid in untrn from this contract
     pub ibc_fee: IbcFee,
@@ -93,6 +93,18 @@ pub enum QueryMsg {
     LpAddress {},
     #[returns(ContractState)]
     ContractState {},
+    #[returns(String)]
+    StrideNeutronIbcTransferChannelId {},
+    #[returns(String)]
+    NeutronStrideIbcConnectionId {},
+    #[returns(IbcFee)]
+    IbcFee {},
+    #[returns(Uint64)]
+    IcaTimeout {},
+    #[returns(Uint64)]
+    IbcTransferTimeout {},
+    #[returns(String)]
+    LsDenom {},
 }
 
 #[cw_serde]

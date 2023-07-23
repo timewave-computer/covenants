@@ -279,7 +279,7 @@ fn send_ls_token_msg(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
                 fee,
             );
 
-            return Ok(msg_with_sudo_callback(
+            Ok(msg_with_sudo_callback(
                 deps.branch(),
                 submit_msg,
                 SudoPayload {
@@ -288,7 +288,7 @@ fn send_ls_token_msg(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
                     // the acknowledgement later.
                     message: "try_send_st_token".to_string(),
                 },
-            )?);
+            )?)
         }
         None => Err(NeutronError::Std(StdError::not_found("no ica found"))),
     }

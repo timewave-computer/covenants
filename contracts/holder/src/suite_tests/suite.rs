@@ -73,7 +73,7 @@ impl Suite {
             .execute_contract(
                 Addr::unchecked(caller),
                 self.holder.clone(),
-                &ExecuteMsg::WithdrawLiquidity {  },
+                &ExecuteMsg::WithdrawLiquidity {},
                 &[],
             )
             .unwrap()
