@@ -14,13 +14,15 @@ use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg};
+use crate::msg::{
+    AcknowledgementResult, ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion,
+    QueryMsg, SudoPayload,
+};
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
-    save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
-    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, IBC_FEE, IBC_TRANSFER_TIMEOUT,
-    ICA_TIMEOUT, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM, NEUTRON_STRIDE_IBC_CONNECTION_ID,
-    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, SUDO_PAYLOAD_REPLY_ID,
+    save_reply_payload, save_sudo_payload, ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE,
+    IBC_FEE, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM,
+    NEUTRON_STRIDE_IBC_CONNECTION_ID, STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
 };
 use neutron_sdk::{
     bindings::{
@@ -37,6 +39,7 @@ const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 const CONTRACT_NAME: &str = "crates.io:covenant-ls";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+const SUDO_PAYLOAD_REPLY_ID: u64 = 1u64;
 const TRANSFER_REPLY_ID: u64 = 3u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]

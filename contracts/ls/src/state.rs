@@ -1,8 +1,11 @@
 use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint64};
 use cw_storage_plus::{Item, Map};
 use neutron_sdk::bindings::msg::IbcFee;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+
+use crate::msg::{AcknowledgementResult, ContractState, SudoPayload};
+
+/// tracks the current state of state machine
+pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
 /// clock module address to verify the incoming ticks sender
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
@@ -21,49 +24,19 @@ pub const LS_DENOM: Item<String> = Item::new("ls_denom");
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
 
+/// timeout in seconds for inner ibc MsgTransfer
 pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
+/// time in seconds for ICA SubmitTX messages from neutron
 pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
-///
+/// neutron IbcFee for relayers
 pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ContractState {
-    Instantiated,
-    ICACreated,
-}
-
-pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub struct SudoPayload {
-    pub message: String,
-    pub port_id: String,
-}
-
-pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1;
-
-pub const REPLY_ID_STORAGE: Item<Vec<u8>> = Item::new("reply_queue_id");
-pub const SUDO_PAYLOAD: Map<(String, u64), Vec<u8>> = Map::new("sudo_payload");
-
-// interchain transaction responses - ack/err/timeout state to query later
+/// interchain transaction responses - ack/err/timeout state to query later
 pub const ACKNOWLEDGEMENT_RESULTS: Map<(String, u64), AcknowledgementResult> =
     Map::new("acknowledgement_results");
-
+pub const REPLY_ID_STORAGE: Item<Vec<u8>> = Item::new("reply_queue_id");
+pub const SUDO_PAYLOAD: Map<(String, u64), Vec<u8>> = Map::new("sudo_payload");
 pub const ERRORS_QUEUE: Map<u32, String> = Map::new("errors_queue");
-
-/// Serves for storing acknowledgement calls for interchain transactions
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
-#[serde(rename_all = "snake_case")]
-pub enum AcknowledgementResult {
-    /// Success - Got success acknowledgement in sudo with array of message item types in it
-    Success(Vec<String>),
-    /// Error - Got error acknowledgement in sudo with payload message in it and error details
-    Error((String, String)),
-    /// Timeout - Got timeout acknowledgement in sudo with payload message in it
-    Timeout(String),
-}
 
 pub fn save_reply_payload(store: &mut dyn Storage, payload: SudoPayload) -> StdResult<()> {
     REPLY_ID_STORAGE.save(store, &to_vec(&payload)?)
