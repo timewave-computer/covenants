@@ -5,7 +5,7 @@ use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
-    StdResult, SubMsg, Uint128,
+    StdResult, SubMsg,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -14,7 +14,12 @@ use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
 
-use crate::{msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg}, state::{NEUTRON_ATOM_IBC_DENOM, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, PENDING_NATIVE_TRANSFER_TIMEOUT}};
+use crate::{
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg},
+    state::{
+        IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT,
+    },
+};
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
@@ -86,7 +91,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
     deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
+        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
     }
@@ -124,7 +129,7 @@ fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
     let mut buf = Vec::new();
     buf.reserve(msg.encoded_len());
     if let Err(e) = msg.encode(&mut buf) {
-        return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
+        return Err(StdError::generic_err(format!("Encode error: {e}")).into());
     }
 
     Ok(ProtobufAny {
@@ -151,7 +156,9 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                 amount: receiver.amount.to_string(),
             };
 
-            let msg_transfer_timeout = env.block.time
+            let msg_transfer_timeout = env
+                .block
+                .time
                 // we take the wrapping ICA tx timeout into account and assume the worst
                 .plus_seconds(ica_timeout.u64())
                 // and then add the preset ibc transfer timeout
@@ -162,7 +169,7 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                 source_port: "transfer".to_string(),
                 source_channel,
                 token: Some(coin),
-                sender: address.clone(),
+                sender: address,
                 receiver: receiver.address,
                 timeout_height: None,
                 timeout_timestamp: msg_transfer_timeout.nanos(),
@@ -206,7 +213,7 @@ fn query_lper_balance(deps: QueryDeps, lper: &str) -> StdResult<cosmwasm_std::Co
     deps.querier.query_balance(lper, neutron_atom_ibc_denom)
 }
 
-fn send_ls_token_msg(env:Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>> {
+fn send_ls_token_msg(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>> {
     let ls_address = LS_ADDRESS.load(deps.storage)?;
 
     let stride_ica_query: Option<String> = deps
@@ -235,8 +242,7 @@ fn send_ls_token_msg(env:Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Neu
                 GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
             let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
-        
-    
+
             // Transfer to stride to liquid staked and autopilot
             let stride_coin = Coin {
                 denom: ATOM_DENOM.to_string(),
@@ -247,15 +253,19 @@ fn send_ls_token_msg(env:Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Neu
                 .load(deps.storage)?
                 .replace("{st_ica}", &stride_ica_addr);
             AUTOPILOT_FORMAT.save(deps.storage, &autopilot_receiver)?;
-            
+
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: gaia_stride_channel,
                 token: Some(stride_coin),
-                sender: address.clone(),
+                sender: address,
                 receiver: autopilot_receiver,
                 timeout_height: None,
-                timeout_timestamp: env.block.time.plus_seconds(ibc_transfer_timeout.u64()).nanos(),
+                timeout_timestamp: env
+                    .block
+                    .time
+                    .plus_seconds(ibc_transfer_timeout.u64())
+                    .nanos(),
             };
 
             let stride_protobuf = to_proto_msg_transfer(stride_msg)?;
@@ -280,9 +290,7 @@ fn send_ls_token_msg(env:Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Neu
                 },
             )?);
         }
-        None => {
-            return Err(NeutronError::Std(StdError::not_found("no ica found")));
-        }
+        None => Err(NeutronError::Std(StdError::not_found("no ica found"))),
     }
 }
 
@@ -291,7 +299,7 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
     let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
     let pending_transfer_timeout = PENDING_NATIVE_TRANSFER_TIMEOUT.load(deps.storage)?;
 
-    if lper_native_token_balance.amount >= Uint128::from(receiver.amount) {
+    if lper_native_token_balance.amount >= receiver.amount {
         CONTRACT_STATE.save(deps.storage, &ContractState::VerifyLp)?;
 
         let ls_token_msg = send_ls_token_msg(env, deps)?;
@@ -307,8 +315,7 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
         return Ok(Response::default()
             .add_attribute("method", "try_verify_native_token")
-            .add_attribute("status", "pending_transfer_timeout_due")
-        )
+            .add_attribute("status", "pending_transfer_timeout_due"));
     }
 
     // should we query for lper_native_token_balance.amount being refunded to the ICA?
@@ -465,7 +472,7 @@ pub fn query_errors_queue(deps: QueryDeps) -> NeutronResult<Binary> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response> {
     deps.api
-        .debug(format!("WASMDEBUG: sudo: received sudo msg: {:?}", msg).as_str());
+        .debug(format!("WASMDEBUG: sudo: received sudo msg: {msg:?}").as_str());
 
     match msg {
         // For handling successful (non-error) acknowledgements.
@@ -570,8 +577,10 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
 
             if let Some(fee) = ibc_fee {
                 IBC_FEE.save(deps.storage, &fee)?;
-                if fee.ack_fee.len() == 0 || fee.timeout_fee.len() == 0 {
-                    return Err(StdError::GenericErr { msg: "invalid IbcFee".to_string() })
+                if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() {
+                    return Err(StdError::GenericErr {
+                        msg: "invalid IbcFee".to_string(),
+                    });
                 }
                 resp = resp.add_attribute("ibc_fee_ack", fee.ack_fee[0].to_string());
                 resp = resp.add_attribute("ibc_fee_timeout", fee.timeout_fee[0].to_string());
@@ -621,13 +630,8 @@ fn sudo_open_ack(
 
 fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response> {
     let response = Response::default().add_attribute("method", "sudo_response");
-    deps.api.debug(
-        format!(
-            "WASMDEBUG: sudo_response: sudo received: {:?} {:?}",
-            request, data
-        )
-        .as_str(),
-    );
+    deps.api
+        .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}").as_str());
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
     // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
@@ -662,7 +666,7 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
     }
 
     deps.api
-        .debug(format!("WASMDEBUG: sudo_response: sudo payload: {:?}", payload).as_str());
+        .debug(format!("WASMDEBUG: sudo_response: sudo payload: {payload:?}").as_str());
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
     // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
@@ -683,11 +687,8 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
             }
             _ => {
                 deps.api.debug(
-                    format!(
-                        "This type of acknowledgement is not implemented: {:?}",
-                        payload
-                    )
-                    .as_str(),
+                    format!("This type of acknowledgement is not implemented: {payload:?}")
+                        .as_str(),
                 );
             }
         }
@@ -720,7 +721,7 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
 
 fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response> {
     deps.api
-        .debug(format!("WASMDEBUG: sudo timeout request: {:?}", request).as_str());
+        .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
     // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
@@ -773,9 +774,9 @@ fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResu
 
 fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> StdResult<Response> {
     deps.api
-        .debug(format!("WASMDEBUG: sudo error: {}", details).as_str());
+        .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
     deps.api
-        .debug(format!("WASMDEBUG: request packet: {:?}", request).as_str());
+        .debug(format!("WASMDEBUG: request packet: {request:?}").as_str());
 
     // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
     // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
@@ -831,9 +832,9 @@ fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResu
             .ok_or_else(|| StdError::generic_err("no result"))?
             .as_slice(),
     )
-    .map_err(|e| StdError::generic_err(format!("failed to parse response: {:?}", e)))?;
+    .map_err(|e| StdError::generic_err(format!("failed to parse response: {e:?}")))?;
     deps.api
-        .debug(format!("WASMDEBUG: reply msg: {:?}", resp).as_str());
+        .debug(format!("WASMDEBUG: reply msg: {resp:?}").as_str());
     let seq_id = resp.sequence_id;
     let channel_id = resp.channel;
     save_sudo_payload(deps.branch().storage, channel_id, seq_id, payload)?;
@@ -855,7 +856,7 @@ fn get_ica(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
     deps.api
-        .debug(format!("WASMDEBUG: reply msg: {:?}", msg).as_str());
+        .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
         _ => Err(StdError::generic_err(format!(

@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
-    SubMsg, WasmMsg, Uint128,
+    SubMsg, WasmMsg,
 };
 
 use cw2::set_contract_version;
@@ -13,9 +13,9 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
-        COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, IBC_FEE,
-        LP_CODE, LS_CODE, POOL_ADDRESS, PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS,
-        PRESET_HOLDER_FIELDS, PRESET_LP_FIELDS, PRESET_LS_FIELDS, TIMEOUTS,
+        COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, IBC_FEE, LP_CODE, LS_CODE,
+        POOL_ADDRESS, PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS, PRESET_HOLDER_FIELDS,
+        PRESET_LP_FIELDS, PRESET_LS_FIELDS, TIMEOUTS,
     },
 };
 
@@ -51,10 +51,7 @@ pub fn instantiate(
     PRESET_DEPOSITOR_FIELDS.save(deps.storage, &msg.preset_depositor_fields)?;
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
     TIMEOUTS.save(deps.storage, &msg.timeouts)?;
-    IBC_FEE.save(
-        deps.storage,
-        &msg.preset_ibc_fee.to_ibc_fee(),
-    )?;
+    IBC_FEE.save(deps.storage, &msg.preset_ibc_fee.to_ibc_fee())?;
 
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
@@ -139,13 +136,11 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             let code_id = LP_CODE.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let preset_lp_fields = PRESET_LP_FIELDS.load(deps.storage)?;
-            let preset_depositor_fields = PRESET_DEPOSITOR_FIELDS.load(deps.storage)?;
 
             let instantiate_msg = preset_lp_fields.clone().to_instantiate_msg(
                 clock_addr.to_string(),
                 response.contract_address,
                 pool_address,
-                preset_depositor_fields.atom_receiver_amount.amount,
             );
 
             let lp_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -284,7 +279,7 @@ pub fn handle_depositor_reply(
             let clock_code_id = CLOCK_CODE.load(deps.storage)?;
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
             let ls_addr = COVENANT_LS_ADDR.load(deps.storage)?;
-            
+
             let update_clock_whitelist_msg = WasmMsg::Migrate {
                 contract_addr: clock_addr.to_string(),
                 new_code_id: clock_code_id,
@@ -292,7 +287,7 @@ pub fn handle_depositor_reply(
                     add: Some(vec![
                         lp_addr.to_string(),
                         ls_addr.to_string(),
-                        response.contract_address.clone(), //depositor
+                        response.contract_address, //depositor
                     ]),
                     remove: None,
                 })?,
@@ -317,7 +312,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
+        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
 
     Ok(Response::default())
 }

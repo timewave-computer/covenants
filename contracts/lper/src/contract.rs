@@ -1,23 +1,25 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
-    StdResult, SubMsg, Uint128, WasmMsg, Decimal,
+    to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 
 use astroport::{
-    asset::{Asset},
-    pair::{ExecuteMsg::ProvideLiquidity, PoolResponse}, DecimalCheckedOps,
+    asset::Asset,
+    pair::{ExecuteMsg::ProvideLiquidity, PoolResponse},
+    DecimalCheckedOps,
 };
 
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        ProvidedLiquidityInfo, ASSETS, AUTOSTAKE, HOLDER_ADDRESS, LP_POSITION,
-        PROVIDED_LIQUIDITY_INFO, SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, ALLOWED_RETURN_DELTA, EXPECTED_NATIVE_TOKEN_AMOUNT, EXPECTED_LS_TOKEN_AMOUNT,
+        ProvidedLiquidityInfo, ALLOWED_RETURN_DELTA, ASSETS, AUTOSTAKE, EXPECTED_LS_TOKEN_AMOUNT,
+        EXPECTED_NATIVE_TOKEN_AMOUNT, HOLDER_ADDRESS, LP_POSITION, PROVIDED_LIQUIDITY_INFO,
+        SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE,
     },
 };
 
@@ -83,7 +85,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
-    println!("\n tick state: {:?}", current_state);
+    println!("\n tick state: {current_state:?}");
     match current_state {
         ContractState::Instantiated => try_lp(deps, env, info),
         ContractState::WithdrawComplete => try_completed(deps),
@@ -92,7 +94,6 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 
 fn try_lp(mut deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
     let contract_addr = env.contract.address;
-    let pool_address = LP_POSITION.load(deps.storage)?;
 
     // we try to submit a double-sided liquidity message first
     let double_sided_submsg =
@@ -151,7 +152,7 @@ fn validate_price_range(
     pool_ls_amount: Uint128,
     expected_native_token_amount: Uint128,
     expected_ls_token_amount: Uint128,
-    allowed_return_delta: Uint128
+    allowed_return_delta: Uint128,
 ) -> Result<(), ContractError> {
     // find the min and max return amounts allowed by deviating away from expected return amount
     // by allowed delta
@@ -168,7 +169,7 @@ fn validate_price_range(
     // if current return to offer amount ratio falls out of [min_accepted_ratio, max_return_amount],
     // return price range error
     if validation_ratio < min_accepted_ratio || validation_ratio > max_accepted_ratio {
-        return Err(ContractError::PriceRangeError {})
+        return Err(ContractError::PriceRangeError {});
     }
 
     Ok(())
@@ -177,7 +178,7 @@ fn validate_price_range(
 fn get_pool_asset_amounts(
     assets: Vec<Asset>,
     ls_denom: String,
-    native_denom: String
+    native_denom: String,
 ) -> Result<(Uint128, Uint128), StdError> {
     let mut native_bal = Uint128::zero();
     let mut ls_bal = Uint128::zero();
@@ -228,10 +229,9 @@ fn try_get_double_side_lp_submsg(
     }
 
     // we now query the pool to know the balances
-    let pool_response: PoolResponse = deps.querier.query_wasm_smart(
-        &pool_address.addr,
-        &astroport::pair::QueryMsg::Pool {},
-    )?;
+    let pool_response: PoolResponse = deps
+        .querier
+        .query_wasm_smart(&pool_address.addr, &astroport::pair::QueryMsg::Pool {})?;
     let (pool_native_bal, pool_ls_bal) = get_pool_asset_amounts(
         pool_response.assets,
         asset_data.clone().ls_asset_denom,
@@ -240,7 +240,7 @@ fn try_get_double_side_lp_submsg(
 
     // we validate the pool to match our price expectations
     validate_price_range(
-        pool_native_bal, 
+        pool_native_bal,
         pool_ls_bal,
         expected_native_token_amount,
         expected_ls_token_amount,
@@ -255,47 +255,54 @@ fn try_get_double_side_lp_submsg(
     // we thus find the required token amount to enter into the position using all available ls tokens:
     let required_native_amount = native_to_ls_ratio.checked_mul_uint128(ls_bal.amount)?;
 
-    // depending on available balances we determine the highest amount 
+    // depending on available balances we determine the highest amount
     // of liquidity we can provide:
-    let (native_asset_double_sided, ls_asset_double_sided) = if native_bal.amount >= required_native_amount {
-        // if we are able to satisfy the required amount, we do that:
-        // provide all statom tokens along with required amount of native tokens
-        let ls_asset_double_sided = Asset {
-            info: asset_data.get_ls_asset_info(),
-            amount: ls_bal.amount,
-        };
-        let native_asset_double_sided = Asset {
-            info: asset_data.get_native_asset_info(),
-            amount: required_native_amount,
-        };
+    let (native_asset_double_sided, ls_asset_double_sided) =
+        if native_bal.amount >= required_native_amount {
+            // if we are able to satisfy the required amount, we do that:
+            // provide all statom tokens along with required amount of native tokens
+            let ls_asset_double_sided = Asset {
+                info: asset_data.get_ls_asset_info(),
+                amount: ls_bal.amount,
+            };
+            let native_asset_double_sided = Asset {
+                info: asset_data.get_native_asset_info(),
+                amount: required_native_amount,
+            };
 
-        (native_asset_double_sided, ls_asset_double_sided)
-    } else {
-        // otherwise, our native token amount is insufficient to provide double
-        // sided liquidity using all of our ls tokens.
-        // this means that we should provide all of our available native tokens,
-        // and as many ls tokens as needed to satisfy the existing ratio
-        let native_asset_double_sided = Asset {
-            info: asset_data.get_native_asset_info(),
-            amount: native_bal.amount,
+            (native_asset_double_sided, ls_asset_double_sided)
+        } else {
+            // otherwise, our native token amount is insufficient to provide double
+            // sided liquidity using all of our ls tokens.
+            // this means that we should provide all of our available native tokens,
+            // and as many ls tokens as needed to satisfy the existing ratio
+            let native_asset_double_sided = Asset {
+                info: asset_data.get_native_asset_info(),
+                amount: native_bal.amount,
+            };
+            let ls_asset_double_sided = Asset {
+                info: asset_data.get_ls_asset_info(),
+                amount: Decimal::from_ratio(pool_ls_bal, pool_native_bal)
+                    .checked_mul_uint128(native_bal.amount)?,
+            };
+
+            (native_asset_double_sided, ls_asset_double_sided)
         };
-        let ls_asset_double_sided = Asset {
-            info: asset_data.get_ls_asset_info(),
-            amount: Decimal::from_ratio(pool_ls_bal, pool_native_bal)
-                .checked_mul_uint128(native_bal.amount)?,
-        };
-        
-        (native_asset_double_sided, ls_asset_double_sided)
-    };
 
     // craft a ProvideLiquidity message with the determined assets
     let double_sided_liq_msg = ProvideLiquidity {
-        assets: vec![native_asset_double_sided.clone(), ls_asset_double_sided.clone()],
+        assets: vec![
+            native_asset_double_sided.clone(),
+            ls_asset_double_sided.clone(),
+        ],
         slippage_tolerance,
         auto_stake,
         receiver: Some(holder_address),
     };
-    let (native_coin, ls_coin) = (native_asset_double_sided.to_coin()?, ls_asset_double_sided.to_coin()?);
+    let (native_coin, ls_coin) = (
+        native_asset_double_sided.to_coin()?,
+        ls_asset_double_sided.to_coin()?,
+    );
 
     // update the provided amounts and leftover assets
     PROVIDED_LIQUIDITY_INFO.update(
@@ -340,8 +347,8 @@ fn try_get_single_side_lp_submsg(
         asset_data.clone().native_asset_denom,
     );
 
-    println!("native bal\t: {:?}", native_bal);
-    println!("ls bal\t\t: {:?}", ls_bal);
+    println!("native bal\t: {native_bal:?}");
+    println!("ls bal\t\t: {ls_bal:?}");
 
     let native_asset = Asset {
         info: asset_data.get_native_asset_info(),
@@ -371,7 +378,7 @@ fn try_get_single_side_lp_submsg(
         receiver: Some(holder_address),
     };
 
-    println!("single side liquidity msg: {:?}", single_sided_liq_msg);
+    println!("single side liquidity msg: {single_sided_liq_msg:?}");
 
     // now we try to submit the message for either LS or native single side liquidity
     if native_bal.amount.is_zero() && ls_bal.amount <= single_side_lp_limits.ls_asset_limit {
@@ -421,9 +428,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::Assets {} => Ok(to_binary(&ASSETS.may_load(deps.storage)?)?),
-        QueryMsg::ExpectedLsTokenAmount {} => Ok(to_binary(&EXPECTED_LS_TOKEN_AMOUNT.may_load(deps.storage)?)?),
-        QueryMsg::AllowedReturnDelta {} => Ok(to_binary(&ALLOWED_RETURN_DELTA.may_load(deps.storage)?)?),
-        QueryMsg::ExpectedNativeTokenAmount {} => Ok(to_binary(&EXPECTED_NATIVE_TOKEN_AMOUNT.may_load(deps.storage)?)?),
+        QueryMsg::ExpectedLsTokenAmount {} => Ok(to_binary(
+            &EXPECTED_LS_TOKEN_AMOUNT.may_load(deps.storage)?,
+        )?),
+        QueryMsg::AllowedReturnDelta {} => {
+            Ok(to_binary(&ALLOWED_RETURN_DELTA.may_load(deps.storage)?)?)
+        }
+        QueryMsg::ExpectedNativeTokenAmount {} => Ok(to_binary(
+            &EXPECTED_NATIVE_TOKEN_AMOUNT.may_load(deps.storage)?,
+        )?),
     }
 }
 

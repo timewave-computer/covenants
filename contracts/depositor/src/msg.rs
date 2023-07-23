@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint64, Uint128};
+use cosmwasm_std::{Addr, Binary, Uint128, Uint64};
 use covenant_clock_derive::clocked;
 use neutron_sdk::bindings::{msg::IbcFee, query::QueryInterchainAccountAddressResponse};
 
@@ -48,6 +48,7 @@ impl WeightedReceiverAmount {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl PresetDepositorFields {
     pub fn to_instantiate_msg(
         self,
@@ -124,6 +125,7 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
+#[allow(clippy::large_enum_variant)]
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,

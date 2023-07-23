@@ -64,7 +64,6 @@ impl PresetLpFields {
         clock_address: String,
         holder_address: String,
         pool_address: String,
-        expected_native_token_amount: Uint128,
     ) -> InstantiateMsg {
         InstantiateMsg {
             lp_position: LPInfo { addr: pool_address },
