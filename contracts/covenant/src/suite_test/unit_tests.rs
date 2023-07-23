@@ -70,7 +70,7 @@ fn get_init_msg() -> InstantiateMsg {
       },
       label: "covenant_contract".to_string(),
       pool_address: TODO.to_string(),
-      preset_ibc_fee: PresetIbcFee { ack_fee: Uint128::new(100), timeout_fee: Uint128::new(100) },
+      preset_ibc_fee: PresetIbcFee { ack_fee: Uint128::new(1000), timeout_fee: Uint128::new(1000) },
       timeouts: Timeouts::default(),
     }
 }
@@ -297,7 +297,7 @@ fn test_init() {
 
     let reply_res = reply(deps.as_mut(), mock_env(), reply_depositor).unwrap();
 
-    assert_eq!(reply_res.messages.len(), 2);
+    assert_eq!(reply_res.messages.len(), 1);
     assert_eq!(
         reply_res.messages[0],
         SubMsg {
