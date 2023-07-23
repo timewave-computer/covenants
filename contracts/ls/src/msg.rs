@@ -76,7 +76,6 @@ impl PresetLsFields {
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {
-    Received {},
     /// The transfer message allows anybody to permissionlessly
     /// transfer a specified amount of tokens of the preset ls_denom
     /// from the ICA of the host chain to the preset lp_address
@@ -88,11 +87,6 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(Addr)]
     ClockAddress {},
-    #[returns(Addr)]
-    InterchainAccountAddress {
-        interchain_account_id: String,
-        connection_id: String,
-    },
     #[returns(Addr)]
     StrideICA {},
     #[returns(Addr)]
