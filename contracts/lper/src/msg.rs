@@ -138,6 +138,9 @@ pub enum MigrateMsg {
         allowed_return_delta: Option<Uint128>,
         single_side_lp_limits: Option<SingleSideLpLimits>,
         slippage_tolerance: Option<Decimal>,
+        assets: Option<AssetData>,
+        expected_native_token_amount: Option<Uint128>,
+        autostake: Option<bool>,
     },
     UpdateCodeId {
         data: Option<Binary>,

@@ -462,6 +462,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             allowed_return_delta,
             single_side_lp_limits,
             slippage_tolerance,
+            assets,
+            expected_native_token_amount,
+            autostake,
         } => {
             let mut response = Response::default().add_attribute("method", "update_config");
 
@@ -499,6 +502,22 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             if let Some(decimal) = slippage_tolerance {
                 SLIPPAGE_TOLERANCE.save(deps.storage, &decimal)?;
                 response = response.add_attribute("slippage_tolerance", decimal.to_string());
+            }
+
+            if let Some(denoms) = assets {
+                ASSETS.save(deps.storage, &denoms)?;
+                response = response.add_attribute("ls_denom", denoms.ls_asset_denom.to_string());
+                response = response.add_attribute("native_denom", denoms.native_asset_denom.to_string());
+            }
+
+            if let Some(amount) = expected_native_token_amount {
+                EXPECTED_NATIVE_TOKEN_AMOUNT.save(deps.storage, &amount)?;
+                response = response.add_attribute("expected_native_token_amount", amount);
+            }
+
+            if let Some(stake) = autostake {
+                AUTOSTAKE.save(deps.storage, &stake)?;
+                response = response.add_attribute("autostake", stake.to_string());
             }
 
             Ok(response)
