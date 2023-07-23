@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
-    SubMsg, WasmMsg,
+    SubMsg, WasmMsg, Uint128,
 };
 
 use cw2::set_contract_version;
@@ -13,7 +13,7 @@ use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
-        COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, IBC_FEE, IBC_TIMEOUT,
+        COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, IBC_FEE,
         LP_CODE, LS_CODE, POOL_ADDRESS, PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS,
         PRESET_HOLDER_FIELDS, PRESET_LP_FIELDS, PRESET_LS_FIELDS, TIMEOUTS,
     },
@@ -21,13 +21,12 @@ use crate::{
 
 const CONTRACT_NAME: &str = "crates.io:covenant-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
-const CLOCK_REPLY_ID: u64 = 1u64;
-const HOLDER_REPLY_ID: u64 = 2u64;
-const LP_REPLY_ID: u64 = 3u64;
-const LS_REPLY_ID: u64 = 4u64;
-const DEPOSITOR_REPLY_ID: u64 = 5u64;
+pub(crate) const CLOCK_REPLY_ID: u64 = 1u64;
+pub(crate) const HOLDER_REPLY_ID: u64 = 2u64;
+pub(crate) const LP_REPLY_ID: u64 = 3u64;
+pub(crate) const LS_REPLY_ID: u64 = 4u64;
+pub(crate) const DEPOSITOR_REPLY_ID: u64 = 5u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -118,8 +117,9 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
                 .add_attribute("method", "handle_clock_reply")
                 .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "clock".to_string(),
+            err,
         }),
     }
 }
@@ -139,11 +139,13 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             let code_id = LP_CODE.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let preset_lp_fields = PRESET_LP_FIELDS.load(deps.storage)?;
+            let preset_depositor_fields = PRESET_DEPOSITOR_FIELDS.load(deps.storage)?;
 
             let instantiate_msg = preset_lp_fields.clone().to_instantiate_msg(
                 clock_addr.to_string(),
                 response.contract_address,
                 pool_address,
+                preset_depositor_fields.atom_receiver_amount.amount,
             );
 
             let lp_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -158,8 +160,9 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
                 .add_attribute("method", "handle_holder_reply")
                 .add_submessage(SubMsg::reply_always(lp_instantiate_tx, LP_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "holder".to_string(),
+            err,
         }),
     }
 }
@@ -203,8 +206,9 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 .add_attribute("method", "handle_lp_reply")
                 .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "lp".to_string(),
+            err,
         }),
     }
 }
@@ -252,8 +256,9 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                     DEPOSITOR_REPLY_ID,
                 )))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "ls".to_string(),
+            err,
         }),
     }
 }
@@ -279,26 +284,27 @@ pub fn handle_depositor_reply(
             let clock_code_id = CLOCK_CODE.load(deps.storage)?;
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
             let ls_addr = COVENANT_LS_ADDR.load(deps.storage)?;
-
-            let migrate_msg = WasmMsg::Migrate {
+            
+            let update_clock_whitelist_msg = WasmMsg::Migrate {
                 contract_addr: clock_addr.to_string(),
                 new_code_id: clock_code_id,
                 msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
                     add: Some(vec![
                         lp_addr.to_string(),
                         ls_addr.to_string(),
-                        response.contract_address, //depositor
+                        response.contract_address.clone(), //depositor
                     ]),
                     remove: None,
                 })?,
             };
 
             Ok(Response::default()
-                .add_message(migrate_msg)
+                .add_message(update_clock_whitelist_msg)
                 .add_attribute("method", "handle_depositor_reply"))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "depositor".to_string(),
+            err,
         }),
     }
 }

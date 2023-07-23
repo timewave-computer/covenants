@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint64};
+use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint64, Timestamp};
 use cw_storage_plus::{Item, Map};
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -13,8 +13,8 @@ pub const NATIVE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("native_atom_
 
 // store the clock address to verify calls
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
-pub const LS_ADDRESS: Item<String> = Item::new("ls_address");
-pub const LP_ADDRESS: Item<String> = Item::new("lp_address");
+pub const LS_ADDRESS: Item<Addr> = Item::new("ls_address");
+pub const LP_ADDRESS: Item<Addr> = Item::new("lp_address");
 pub const AUTOPILOT_FORMAT: Item<String> = Item::new("autopilot_format");
 
 // the ibc transfer channel
@@ -26,17 +26,27 @@ pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
 pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
 pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
 pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
+pub const NEUTRON_ATOM_IBC_DENOM: Item<String> = Item::new("neutron_atom_ibc_denom");
 
 // ICA
-pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
+pub const INTERCHAIN_ACCOUNTS: Map<String, (String, String)> =
     Map::new("interchain_accounts");
 pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
 
+// pending transaction timeout timestamp
+pub const PENDING_NATIVE_TRANSFER_TIMEOUT: Item<Timestamp> = Item::new("pending_native_transfer_timeout");
+
 #[cw_serde]
 pub enum ContractState {
+  /// Contract was instantiated, create ica
     Instantiated,
+    /// ICA was created, send native token to lper
     ICACreated,
-    LiquidStaked,
+    /// Verify native token was sent to lper and send ls msg
+    VerifyNativeToken,
+    /// Verify the lper entered a position, if not try to resend ls msg again
+    VerifyLp,
+    /// Depositor completed his mission.
     Complete,
 }
 

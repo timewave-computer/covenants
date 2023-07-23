@@ -1,4 +1,5 @@
 use cosmwasm_std::StdError;
+use cw_utils::ParseReplyError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -19,5 +20,8 @@ pub enum ContractError {
     ReplyError { err: String },
 
     #[error("Failed to instantiate {contract:?} contract")]
-    ContractInstantiationError { contract: String },
+    ContractInstantiationError {
+        contract: String,
+        err: ParseReplyError,
+    },
 }

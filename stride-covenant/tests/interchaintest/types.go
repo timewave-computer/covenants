@@ -58,6 +58,7 @@ type PresetDepositorFields struct {
 	StAtomReceiverAmount            WeightedReceiverAmount `json:"st_atom_receiver_amount"`
 	AtomReceiverAmount              WeightedReceiverAmount `json:"atom_receiver_amount"`
 	AutopilotFormat                 string                 `json:"autopilot_format"`
+	NeutronAtomIbcDenom             string                 `json:"neutron_atom_ibc_denom"`
 }
 
 type PresetLpFields struct {
@@ -128,12 +129,12 @@ type ContractStateQueryResponse struct {
 
 // Instantiation
 type WeightedReceiver struct {
-	Amount  uint64 `json:"amount"`
+	Amount  string `json:"amount"`
 	Address string `json:"address"`
 }
 
 type WeightedReceiverAmount struct {
-	Amount uint64 `json:"amount"`
+	Amount string `json:"amount"`
 }
 
 type StAtomWeightedReceiverQuery struct {
