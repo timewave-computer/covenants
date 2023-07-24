@@ -38,21 +38,29 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
+    // store all the codes for covenant configuration
     LP_CODE.save(deps.storage, &msg.preset_lp_fields.lp_code)?;
     DEPOSITOR_CODE.save(deps.storage, &msg.preset_depositor_fields.depositor_code)?;
     LS_CODE.save(deps.storage, &msg.preset_ls_fields.ls_code)?;
     HOLDER_CODE.save(deps.storage, &msg.preset_holder_fields.holder_code)?;
     CLOCK_CODE.save(deps.storage, &msg.preset_clock_fields.clock_code)?;
+    
+    // validate and store the liquidity pool we wish to operate with
+    let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
+    POOL_ADDRESS.save(deps.storage, &pool_addr)?;
 
-    POOL_ADDRESS.save(deps.storage, &msg.pool_address)?;
+    // store all the preset fields for each module instantiation
     PRESET_CLOCK_FIELDS.save(deps.storage, &msg.preset_clock_fields)?;
     PRESET_LP_FIELDS.save(deps.storage, &msg.preset_lp_fields)?;
     PRESET_LS_FIELDS.save(deps.storage, &msg.preset_ls_fields)?;
     PRESET_DEPOSITOR_FIELDS.save(deps.storage, &msg.preset_depositor_fields)?;
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
+
+    // save ibc transfer and ica timeouts, as well as the ibc fees
     TIMEOUTS.save(deps.storage, &msg.timeouts)?;
     IBC_FEE.save(deps.storage, &msg.preset_ibc_fee.to_ibc_fee())?;
 
+    // we start the module instantiation chain with the clock
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
         code_id: msg.preset_clock_fields.clock_code,
@@ -62,11 +70,12 @@ pub fn instantiate(
     });
 
     Ok(Response::default()
+        .add_attribute("method", "instantiate")
         .add_submessage(SubMsg::reply_on_success(
             clock_instantiate_tx,
             CLOCK_REPLY_ID,
         ))
-        .add_attribute("method", "instantiate"))
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -81,20 +90,20 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
     }
 }
 
+/// clock instantiation reply means we can proceed with the instantiation chain.
+/// we store the clock address and submit the holder instantiate tx.
 pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: clock reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
         Ok(response) => {
-            // successful clock instantiation means we are ready to proceed with
-            // remaining instantiations
-            COVENANT_CLOCK_ADDR.save(
-                deps.storage,
-                &deps.api.addr_validate(&response.contract_address)?,
-            )?;
-            let pool_address = POOL_ADDRESS.load(deps.storage)?;
+            // validate and store the clock address
+            let clock_addr = deps.api.addr_validate(&response.contract_address)?;
+            COVENANT_CLOCK_ADDR.save(deps.storage, &clock_addr)?;
 
+            // load the fields relevant to holder instantiation
+            let pool_address = POOL_ADDRESS.load(deps.storage)?;
             let code_id = HOLDER_CODE.load(deps.storage)?;
             let preset_holder_fields = PRESET_HOLDER_FIELDS.load(deps.storage)?;
 
@@ -104,7 +113,7 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
                 msg: to_binary(
                     &preset_holder_fields
                         .clone()
-                        .to_instantiate_msg(pool_address),
+                        .to_instantiate_msg(pool_address.to_string()),
                 )?,
                 funds: vec![],
                 label: preset_holder_fields.label,
@@ -112,7 +121,9 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
 
             Ok(Response::default()
                 .add_attribute("method", "handle_clock_reply")
-                .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
+                .add_attribute("clock_address", clock_addr)
+                .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID))
+            )
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "clock".to_string(),
@@ -121,26 +132,29 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
     }
 }
 
+/// holder instantiation reply means we can proceed with the instantiation chain.
+/// we store the holder address and submit the liquid pooler instantiate tx.
 pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: holder reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
         Ok(response) => {
-            COVENANT_HOLDER_ADDR.save(
-                deps.storage,
-                &deps.api.addr_validate(&response.contract_address)?,
-            )?;
+            // validate and store the holder address
+            let holder_addr = deps.api.addr_validate(&response.contract_address)?;
+            COVENANT_HOLDER_ADDR.save(deps.storage, &holder_addr)?;
 
+            // load the fields relevant to holder instantiation
             let pool_address = POOL_ADDRESS.load(deps.storage)?;
             let code_id = LP_CODE.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let preset_lp_fields = PRESET_LP_FIELDS.load(deps.storage)?;
 
+            // use the fields from previous instantiations to complete the LP InstantiateMsg
             let instantiate_msg = preset_lp_fields.clone().to_instantiate_msg(
                 clock_addr.to_string(),
                 response.contract_address,
-                pool_address,
+                pool_address.to_string(),
             );
 
             let lp_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -153,7 +167,9 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
 
             Ok(Response::default()
                 .add_attribute("method", "handle_holder_reply")
-                .add_submessage(SubMsg::reply_always(lp_instantiate_tx, LP_REPLY_ID)))
+                .add_attribute("holder_address", holder_addr)
+                .add_submessage(SubMsg::reply_always(lp_instantiate_tx, LP_REPLY_ID))
+            )
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "holder".to_string(),
@@ -162,25 +178,26 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
     }
 }
 
+/// LP instantiation reply means we can proceed with the instantiation chain.
+/// we store the liquid pooler address and submit the liquid staker instantiate tx.
 pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: lp reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
         Ok(response) => {
-            // store the lp address to fill other InstantiateMsg
-            COVENANT_LP_ADDR.save(
-                deps.storage,
-                &deps.api.addr_validate(&response.contract_address)?,
-            )?;
+            // validate and store the liquid pooler address
+            let lp_addr = deps.api.addr_validate(&response.contract_address)?;
+            COVENANT_LP_ADDR.save(deps.storage, &lp_addr)?;
 
-            // load missing params
+            // load the fields relevant to liquid staker instantiation
             let clock_address = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let code_id = LS_CODE.load(deps.storage)?;
             let preset_ls_fields = PRESET_LS_FIELDS.load(deps.storage)?;
             let ibc_fee = IBC_FEE.load(deps.storage)?;
             let timeouts = TIMEOUTS.load(deps.storage)?;
 
+            // use the fields from previous instantiations to complete the LS InstantiateMsg
             let instantiate_msg = preset_ls_fields.clone().to_instantiate_msg(
                 clock_address.to_string(),
                 response.contract_address,
@@ -199,7 +216,9 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
 
             Ok(Response::default()
                 .add_attribute("method", "handle_lp_reply")
-                .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID)))
+                .add_attribute("lp_address", lp_addr)
+                .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID))
+            )
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "lp".to_string(),
@@ -208,17 +227,19 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
     }
 }
 
+/// LS instantiation reply means we can proceed with the instantiation chain.
+/// we store the LS address and submit the depositor instantiate tx.
 pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: ls reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
         Ok(response) => {
-            COVENANT_LS_ADDR.save(
-                deps.storage,
-                &deps.api.addr_validate(&response.contract_address)?,
-            )?;
+            // validate and store the LS address
+            let ls_addr = deps.api.addr_validate(&response.contract_address)?;
+            COVENANT_LS_ADDR.save(deps.storage,&ls_addr)?;
 
+            // load the fields relevant to depositor instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
             let code_id = DEPOSITOR_CODE.load(deps.storage)?;
@@ -226,6 +247,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let timeouts = TIMEOUTS.load(deps.storage)?;
             let ibc_fee = IBC_FEE.load(deps.storage)?;
 
+            // use the fields from previous instantiations to complete the LS InstantiateMsg
             let instantiate_msg = preset_depositor_fields.clone().to_instantiate_msg(
                 "to be queried".to_string(),
                 clock_addr.to_string(),
@@ -246,10 +268,12 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
 
             Ok(Response::default()
                 .add_attribute("method", "handle_holder_reply")
+                .add_attribute("ls_address", ls_addr)
                 .add_submessage(SubMsg::reply_always(
                     depositor_instantiate_tx,
                     DEPOSITOR_REPLY_ID,
-                )))
+                ))
+            )
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "ls".to_string(),
@@ -258,6 +282,9 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
     }
 }
 
+/// depositor instantiation reply means our instantiation chain is complete.
+/// we store the depositor address and update the clock whitelist to include
+/// the LP, LS, and depositor modules.
 pub fn handle_depositor_reply(
     deps: DepsMut,
     _env: Env,
@@ -268,10 +295,9 @@ pub fn handle_depositor_reply(
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
         Ok(response) => {
-            COVENANT_DEPOSITOR_ADDR.save(
-                deps.storage,
-                &deps.api.addr_validate(&response.contract_address)?,
-            )?;
+            // validate and store the depositor address
+            let depositor_addr = deps.api.addr_validate(&response.contract_address)?;
+            COVENANT_DEPOSITOR_ADDR.save(deps.storage, &depositor_addr)?;
 
             // this is the last reply, we can now whitelist all contracts on the clock
             // and it will automatically enqueue them.
@@ -287,7 +313,7 @@ pub fn handle_depositor_reply(
                     add: Some(vec![
                         lp_addr.to_string(),
                         ls_addr.to_string(),
-                        response.contract_address, //depositor
+                        depositor_addr.to_string(),
                     ]),
                     remove: None,
                 })?,
@@ -295,7 +321,9 @@ pub fn handle_depositor_reply(
 
             Ok(Response::default()
                 .add_message(update_clock_whitelist_msg)
-                .add_attribute("method", "handle_depositor_reply"))
+                .add_attribute("depositor_address", depositor_addr)
+                .add_attribute("method", "handle_depositor_reply")
+            )
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "depositor".to_string(),
@@ -344,50 +372,59 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             holder,
         } => {
             let mut migrate_msgs = vec![];
+            let mut resp = Response::default().add_attribute("method", "update_config");
 
             if let Some(clock) = clock {
+                let msg = to_binary(&clock)?;
+                resp = resp.add_attribute("clock_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_CLOCK_ADDR.load(deps.storage)?.to_string(),
                     new_code_id: CLOCK_CODE.load(deps.storage)?,
-                    msg: to_binary(&clock)?,
-                })
+                    msg,
+                });
             }
 
             if let Some(depositor) = depositor {
+                let msg = to_binary(&depositor)?;
+                resp = resp.add_attribute("depositor_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_DEPOSITOR_ADDR.load(deps.storage)?.to_string(),
                     new_code_id: DEPOSITOR_CODE.load(deps.storage)?,
-                    msg: to_binary(&depositor)?,
+                    msg,
                 })
             }
 
             if let Some(lp) = lp {
+                let msg = to_binary(&lp)?;
+                resp = resp.add_attribute("lp_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_LP_ADDR.load(deps.storage)?.to_string(),
                     new_code_id: LP_CODE.load(deps.storage)?,
-                    msg: to_binary(&lp)?,
+                    msg,
                 })
             }
 
             if let Some(ls) = ls {
+                let msg = to_binary(&ls)?;
+                resp = resp.add_attribute("ls_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_LS_ADDR.load(deps.storage)?.to_string(),
                     new_code_id: LS_CODE.load(deps.storage)?,
-                    msg: to_binary(&ls)?,
+                    msg,
                 })
             }
 
             if let Some(holder) = holder {
+                let msg = to_binary(&holder)?;
+                resp = resp.add_attribute("holder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_HOLDER_ADDR.load(deps.storage)?.to_string(),
                     new_code_id: HOLDER_CODE.load(deps.storage)?,
-                    msg: to_binary(&holder)?,
+                    msg,
                 })
             }
 
-            Ok(Response::default()
-                .add_attribute("method", "update_config")
-                .add_messages(migrate_msgs))
+            Ok(resp.add_messages(migrate_msgs))
         }
     }
 }
