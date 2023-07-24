@@ -328,7 +328,8 @@ fn try_send_ls_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
 
 /// attempts to advance the state machine past the sending native tokens to LP module phase.
 /// it queries the balances of the LP module and validates the amount there against our
-/// expectations. if funds are not yet there, the timeout of previous transfer is validated.
+/// expectations. if funds are not yet there, the timeout of previous transfer is validated,
+/// taking an extra 5 minutes buffer into account.
 /// if timeout is not yet due, and the funds did not arrive, we wait.
 fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
@@ -345,7 +346,7 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
             .add_submessage(ls_token_msg)
             .add_attribute("method", "try_verify_native_token")
             .add_attribute("receiver_balance", lper_native_token_balance.amount));
-    } else if env.block.time.nanos() >= pending_transfer_timeout.nanos() {
+    } else if env.block.time.nanos() >= pending_transfer_timeout.plus_minutes(5).nanos() {
         // funds are still not on the LP module and the msgTransfer timeout is due
         // we can safely retry sending the funds again by reverting the state
         // to ICACreated
