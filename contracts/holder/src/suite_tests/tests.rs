@@ -127,9 +127,7 @@ fn test_fund_single_and_withdraw_too_big_single_denom() {
 #[test]
 #[should_panic(expected = "No withdrawer address configured")]
 fn test_withdraw_liquidity_no_withdrawer() {
-    let mut suite = SuiteBuilder::default()
-        .with_withdrawer(None)
-        .build();
+    let mut suite = SuiteBuilder::default().with_withdrawer(None).build();
 
     suite.withdraw_liquidity(DEFAULT_WITHDRAWER);
 }
@@ -137,9 +135,7 @@ fn test_withdraw_liquidity_no_withdrawer() {
 #[test]
 #[should_panic(expected = "No withdrawer address configured")]
 fn test_withdraw_balances_no_withdrawer() {
-    let mut suite = SuiteBuilder::default()
-        .with_withdrawer(None)
-        .build();
+    let mut suite = SuiteBuilder::default().with_withdrawer(None).build();
 
     suite.withdraw_tokens(DEFAULT_WITHDRAWER, coins(100, "statom"));
 }
