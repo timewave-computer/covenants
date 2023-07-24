@@ -200,10 +200,6 @@ type LPPositionQuery struct {
 }
 type LpPositionQuery struct{}
 
-type LpInfo struct {
-	Addr string `json:"addr"`
-}
-
 type PairInfo struct {
 	LiquidityToken string      `json:"liquidity_token"`
 	ContractAddr   string      `json:"contract_addr"`
@@ -407,7 +403,7 @@ type ClockQueryResponse struct {
 }
 
 type LpPositionQueryResponse struct {
-	Data LpInfo `json:"data"`
+	Data string `json:"data"`
 }
 
 type AstroportAsset struct {
