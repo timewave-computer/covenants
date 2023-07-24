@@ -10,7 +10,7 @@ use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{LP_ADDRESS, WITHDRAWER};
+use crate::state::{WITHDRAWER, POOL_ADDRESS};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -32,17 +32,17 @@ pub fn instantiate(
         resp = resp.add_attribute("withdrawer", addr);
     };
 
-    let lp_addr = deps.api.addr_validate(&msg.lp_address)?;
-    LP_ADDRESS.save(deps.storage, &lp_addr)?;
+    let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
+    POOL_ADDRESS.save(deps.storage, &pool_addr)?;
 
-    Ok(resp.add_attribute("lp_address", lp_addr))
+    Ok(resp.add_attribute("pool_address", pool_addr))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Withdrawer {} => Ok(to_binary(&WITHDRAWER.may_load(deps.storage)?)?),
-        QueryMsg::LpAddress {} => Ok(to_binary(&LP_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::PoolAddress {} => Ok(to_binary(&POOL_ADDRESS.may_load(deps.storage)?)?),
     }
 }
 
@@ -59,9 +59,11 @@ pub fn execute(
     }
 }
 
-// this is tested in the LP module
-/// should be sent to the LP token contract associated with the pool
-/// to withdraw liquidity from
+/// tries to remove liquidity from the pool. withdrawer has to be set for this to work.
+/// withdrawer is also the only permitted caller of this method.
+/// works by querying the pool for the amount of LP tokens held by this contract.
+/// then it submits a `WithdrawLiquidity` hook to the pool which in turn
+/// burns the LP tokens and credits this contract with the underlying assets.
 fn try_withdraw_liquidity(
     deps: DepsMut,
     env: Env,
@@ -81,12 +83,16 @@ fn try_withdraw_liquidity(
         return Err(ContractError::Unauthorized {});
     }
 
-    let lp_address = LP_ADDRESS.load(deps.storage)?;
+    let pool_address = POOL_ADDRESS.load(deps.storage)?;
 
+    // We query the pool to get the contract for the pool info
+    // The pool info is required to fetch the address of the
+    // liquidity token contract. The liquidity tokens are CW20 tokens
     let pair_info: astroport::asset::PairInfo = deps
         .querier
-        .query_wasm_smart(lp_address.to_string(), &astroport::pair::QueryMsg::Pair {})?;
+        .query_wasm_smart(pool_address.to_string(), &astroport::pair::QueryMsg::Pair {})?;
 
+    // We query our own liquidity token balance
     let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
         pair_info.clone().liquidity_token,
         &cw20::Cw20QueryMsg::Balance {
@@ -94,13 +100,17 @@ fn try_withdraw_liquidity(
         },
     )?;
 
+    // We withdraw our liquidity constructing a CW20 send message
+    // The message contains our liquidity token balance
+    // The pool address and a message to call the withdraw liquidity hook of the pool contract
     let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
     let withdraw_msg = &Cw20ExecuteMsg::Send {
-        contract: lp_address.to_string(),
+        contract: pool_address.to_string(),
         amount: liquidity_token_balance.balance,
         msg: to_binary(withdraw_liquidity_hook)?,
     };
-
+    // We execute the message on the liquidity token contract
+    // This will burn the LP tokens and withdraw liquidity into the holder
     Ok(Response::default()
         .add_attribute("method", "try_withdraw")
         .add_attribute("lp_token_amount", liquidity_token_balance.balance)
@@ -111,6 +121,10 @@ fn try_withdraw_liquidity(
         })))
 }
 
+/// tries to withdraw assets from this contract to the withdrawer address.
+/// withdrawer has to be set for this to work; it is also the only permitted caller.
+/// accepts an optional quantity in form of `Vec<Coin>`. if no quantity is
+/// provided, all assets are withdrawn. otherwise only the specified ones.
 pub fn try_withdraw_balances(
     deps: DepsMut,
     env: Env,
@@ -154,7 +168,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
     match msg {
         MigrateMsg::UpdateConfig {
             withdrawer,
-            lp_address,
+            pool_address,
         } => {
             let mut response = Response::default().add_attribute("method", "update_withdrawer");
 
@@ -163,9 +177,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
                 response = response.add_attribute("withdrawer", addr);
             }
 
-            if let Some(addr) = lp_address {
-                LP_ADDRESS.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
-                response = response.add_attribute("lp_address", addr);
+            if let Some(addr) = pool_address {
+                POOL_ADDRESS.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
+                response = response.add_attribute("pool_address", addr);
             }
 
             Ok(response)

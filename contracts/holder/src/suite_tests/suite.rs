@@ -25,7 +25,7 @@ impl Default for SuiteBuilder {
         Self {
             instantiate: InstantiateMsg {
                 withdrawer: Some(DEFAULT_WITHDRAWER.to_string()),
-                lp_address: "stablepairpool".to_string(),
+                pool_address: "stablepairpool".to_string(),
             },
             app: App::default(),
         }
@@ -38,8 +38,8 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn with_lp(mut self, addr: String) -> Self {
-        self.instantiate.lp_address = addr;
+    pub fn with_pool(mut self, addr: String) -> Self {
+        self.instantiate.pool_address = addr;
         self
     }
 
@@ -61,7 +61,7 @@ impl SuiteBuilder {
             holder,
             admin: Addr::unchecked(ADMIN),
             holder_code_id: holder_code,
-            pool_address: self.instantiate.lp_address,
+            pool_address: self.instantiate.pool_address,
         }
     }
 }

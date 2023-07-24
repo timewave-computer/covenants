@@ -22,7 +22,7 @@ fn test_instantiate_invalid_withdrawer() {
 #[should_panic(expected = "Invalid input: address not normalized")]
 fn test_instantiate_invalid_lp_addr() {
     SuiteBuilder::default()
-        .with_lp("0Oo0Oo".to_string())
+        .with_pool("0Oo0Oo".to_string())
         .build();
 }
 
