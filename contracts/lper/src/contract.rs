@@ -15,17 +15,17 @@ use astroport::{
 
 use crate::{
     error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, ProvidedLiquidityInfo, ContractState},
     state::{
-        ProvidedLiquidityInfo, ALLOWED_RETURN_DELTA, ASSETS, AUTOSTAKE, EXPECTED_LS_TOKEN_AMOUNT,
-        EXPECTED_NATIVE_TOKEN_AMOUNT, HOLDER_ADDRESS, LP_POSITION, PROVIDED_LIQUIDITY_INFO,
-        SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE,
+        ALLOWED_RETURN_DELTA, ASSETS, AUTOSTAKE, EXPECTED_LS_TOKEN_AMOUNT,
+        EXPECTED_NATIVE_TOKEN_AMOUNT, HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO,
+        SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, POOL_ADDRESS,
     },
 };
 
 use neutron_sdk::NeutronResult;
 
-use crate::state::{ContractState, CLOCK_ADDRESS, CONTRACT_STATE};
+use crate::state::{CLOCK_ADDRESS, CONTRACT_STATE};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-lp";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -44,15 +44,28 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: lp instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    
+    // validate the contract addresses
+    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
+    let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
+    let holder_addr = deps.api.addr_validate(&msg.holder_address)?;
 
-    //enqueue clock
-    CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.clock_address)?)?;
-
+    // contract starts at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
-    LP_POSITION.save(deps.storage, &msg.lp_position)?;
-    HOLDER_ADDRESS.save(deps.storage, &msg.holder_address)?;
+
+    // store the relevant module addresses
+    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+    POOL_ADDRESS.save(deps.storage, &pool_addr)?;
+    HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
+
+    // store fields needed for liquidity provision
     ASSETS.save(deps.storage, &msg.assets)?;
     SINGLE_SIDED_LP_LIMITS.save(deps.storage, &msg.single_side_lp_limits)?;
+    ALLOWED_RETURN_DELTA.save(deps.storage, &msg.allowed_return_delta)?;
+    EXPECTED_LS_TOKEN_AMOUNT.save(deps.storage, &msg.expected_ls_token_amount)?;
+    EXPECTED_NATIVE_TOKEN_AMOUNT.save(deps.storage, &msg.expected_native_token_amount)?;
+
+    // we begin with no liquidity provided
     PROVIDED_LIQUIDITY_INFO.save(
         deps.storage,
         &ProvidedLiquidityInfo {
@@ -60,11 +73,20 @@ pub fn instantiate(
             provided_amount_native: Uint128::zero(),
         },
     )?;
-    ALLOWED_RETURN_DELTA.save(deps.storage, &msg.allowed_return_delta)?;
-    EXPECTED_LS_TOKEN_AMOUNT.save(deps.storage, &msg.expected_ls_token_amount)?;
-    EXPECTED_NATIVE_TOKEN_AMOUNT.save(deps.storage, &msg.expected_native_token_amount)?;
 
-    Ok(Response::default().add_attribute("method", "instantiate"))
+    Ok(Response::default()
+        .add_attribute("method", "lp_instantiate")
+        .add_attribute("clock_addr", clock_addr)
+        .add_attribute("pool_addr", pool_addr)
+        .add_attribute("holder_addr", holder_addr)
+        .add_attribute("ls_asset_denom", msg.assets.ls_asset_denom)
+        .add_attribute("native_asset_denom", msg.assets.native_asset_denom)
+        .add_attribute("expected_native_token_amount", msg.expected_native_token_amount)
+        .add_attribute("expected_ls_token_amount", msg.expected_ls_token_amount)
+        .add_attribute("allowed_return_delta", msg.allowed_return_delta)
+        .add_attribute("single_side_ls_limit", msg.single_side_lp_limits.ls_asset_limit)
+        .add_attribute("single_side_native_limit", msg.single_side_lp_limits.native_asset_limit)
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -74,137 +96,87 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    // validate clock
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
     }
 }
 
+/// attempts to advance the state machine. performs `info.sender` validation.
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
-    println!("\n tick state: {current_state:?}");
     match current_state {
-        ContractState::Instantiated => try_lp(deps, env, info),
-        ContractState::WithdrawComplete => try_completed(deps),
+        ContractState::Instantiated => try_lp(deps, env),
     }
 }
 
-fn try_lp(mut deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
-    let contract_addr = env.contract.address;
+/// method which attempts to provision liquidity to the pool.
+/// if both desired asset balances are non-zero, double sided liquidity
+/// is provided. 
+/// otherwise, single-sided liquidity provision is attempted.
+fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+    let asset_data = ASSETS.load(deps.storage)?;
+    let contract = env.contract.address;
+    // first we query our own balances and filter out any unexpected denoms
+    let bal_coins = deps.querier.query_all_balances(contract.clone())?;
+    let (native_bal, ls_bal) = get_relevant_balances(
+        bal_coins,
+        asset_data.clone().ls_asset_denom,
+        asset_data.clone().native_asset_denom,
+    );
 
-    // we try to submit a double-sided liquidity message first
-    let double_sided_submsg =
-        try_get_double_side_lp_submsg(deps.branch(), contract_addr.to_string())?;
-    deps.api.debug("Trying to double-side lp...");
-    if let Some(msg) = double_sided_submsg {
-        return Ok(Response::default()
-            .add_submessage(msg)
-            .add_attribute("method", "double_side_lp"));
-    }
-    deps.api.debug("Trying to single-side lp...");
-    // if ds msg fails, try to submit a single-sided liquidity message
-    let single_sided_submsg =
-        try_get_single_side_lp_submsg(deps.branch(), contract_addr.to_string())?;
-    if let Some(msg) = single_sided_submsg {
-        return Ok(Response::default()
-            .add_submessage(msg)
-            .add_attribute("method", "single_side_lp"));
+    // depending on available balances we attempt a different action:
+    match (native_bal.amount.is_zero(), ls_bal.amount.is_zero()) {
+        // one balance is non-zero, we attempt single-side
+        (true, false) | (false, true) => {
+            let single_sided_submsg = try_get_single_side_lp_submsg(
+                deps.branch(), 
+                native_bal,
+                ls_bal,
+            )?;
+            if let Some(msg) = single_sided_submsg {
+                return Ok(Response::default()
+                    .add_submessage(msg)
+                    .add_attribute("method", "single_side_lp"));
+            }
+        },
+        // both balances are non-zero, we attempt double-side
+        (false, false) => {
+            let double_sided_submsg = try_get_double_side_lp_submsg(
+                deps.branch(),
+                native_bal,
+                ls_bal,
+            )?;
+        
+            if let Some(msg) = double_sided_submsg {
+                return Ok(Response::default()
+                    .add_submessage(msg)
+                    .add_attribute("method", "double_side_lp"));
+            }
+        },
+        // both balances zero, no liquidity can be provisioned
+        _ => (),
     }
 
-    deps.api
-        .debug("Neither single nor double-sided liquidity can be provided");
-    // if neither worked, we do not advance the state machine and
-    // keep waiting for more funds to arrive
+    // if no message could be constructed, we keep waiting for funds
     Ok(Response::default()
         .add_attribute("method", "try_lp")
-        .add_attribute("status", "not enough funds"))
+        .add_attribute("status", "not enough funds")
+    )
 }
 
-fn try_completed(deps: DepsMut) -> Result<Response, ContractError> {
-    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-    let msg = covenant_clock::helpers::dequeue_msg(clock_addr.as_str())?;
-
-    Ok(Response::default().add_message(msg))
-}
-
-fn get_relevant_balances(coins: Vec<Coin>, ls_denom: String, native_denom: String) -> (Coin, Coin) {
-    let mut native_bal = Coin::default();
-    let mut ls_bal = Coin::default();
-
-    for c in coins {
-        if c.denom == ls_denom {
-            // found ls balance
-            ls_bal = c;
-        } else if c.denom == native_denom {
-            // found native token balance
-            native_bal = c;
-        }
-    }
-
-    (native_bal, ls_bal)
-}
-
-fn validate_price_range(
-    pool_native_amount: Uint128,
-    pool_ls_amount: Uint128,
-    expected_native_token_amount: Uint128,
-    expected_ls_token_amount: Uint128,
-    allowed_return_delta: Uint128,
-) -> Result<(), ContractError> {
-    // find the min and max return amounts allowed by deviating away from expected return amount
-    // by allowed delta
-    let min_return_amount = expected_ls_token_amount.checked_sub(allowed_return_delta)?;
-    let max_return_amount = expected_ls_token_amount.checked_add(allowed_return_delta)?;
-
-    // derive allowed proportions
-    let min_accepted_ratio = Decimal::from_ratio(min_return_amount, expected_native_token_amount);
-    let max_accepted_ratio = Decimal::from_ratio(max_return_amount, expected_native_token_amount);
-
-    // we find the proportion of the price range being validated
-    let validation_ratio = Decimal::from_ratio(pool_ls_amount, pool_native_amount);
-
-    // if current return to offer amount ratio falls out of [min_accepted_ratio, max_return_amount],
-    // return price range error
-    if validation_ratio < min_accepted_ratio || validation_ratio > max_accepted_ratio {
-        return Err(ContractError::PriceRangeError {});
-    }
-
-    Ok(())
-}
-
-fn get_pool_asset_amounts(
-    assets: Vec<Asset>,
-    ls_denom: String,
-    native_denom: String,
-) -> Result<(Uint128, Uint128), StdError> {
-    let mut native_bal = Uint128::zero();
-    let mut ls_bal = Uint128::zero();
-
-    for asset in assets {
-        let coin = asset.to_coin()?;
-
-        if coin.denom == ls_denom {
-            // found ls balance
-            ls_bal = coin.amount;
-        } else if coin.denom == native_denom {
-            // found native token balance
-            native_bal = coin.amount;
-        }
-    }
-
-    Ok((native_bal, ls_bal))
-}
-
-// here we try to provide double sided liquidity.
-// we don't care about the amounts; just try to provide as much as possible
+/// attempts to get a double sided ProvideLiquidity submessage.
+/// amounts here do not matter. as long as we have non-zero balances of both
+/// native and ls tokens, the maximum amount of liquidity is provided to maintain
+/// the existing pool ratio.
 fn try_get_double_side_lp_submsg(
     deps: DepsMut,
-    lp_contract: String,
+    native_bal: Coin,
+    ls_bal: Coin,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let pool_address = LP_POSITION.load(deps.storage)?;
+    let pool_address = POOL_ADDRESS.load(deps.storage)?;
     let slippage_tolerance = SLIPPAGE_TOLERANCE.may_load(deps.storage)?;
     let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
     let asset_data = ASSETS.load(deps.storage)?;
@@ -213,25 +185,10 @@ fn try_get_double_side_lp_submsg(
     let expected_native_token_amount = EXPECTED_NATIVE_TOKEN_AMOUNT.load(deps.storage)?;
     let allowed_return_delta = ALLOWED_RETURN_DELTA.load(deps.storage)?;
 
-    let bal_coins = deps.querier.query_all_balances(lp_contract)?;
-
-    // First we filter out non-relevant token balances
-    let (native_bal, ls_bal) = get_relevant_balances(
-        bal_coins,
-        asset_data.clone().ls_asset_denom,
-        asset_data.clone().native_asset_denom,
-    );
-
-    // if either of the balances are zero we should provide single sided liquidity; exit
-    if native_bal.amount.is_zero() || ls_bal.amount.is_zero() {
-        deps.api.debug("Either native or ls balance is zero");
-        return Ok(None);
-    }
-
     // we now query the pool to know the balances
     let pool_response: PoolResponse = deps
         .querier
-        .query_wasm_smart(&pool_address.addr, &astroport::pair::QueryMsg::Pool {})?;
+        .query_wasm_smart(&pool_address, &astroport::pair::QueryMsg::Pool {})?;
     let (pool_native_bal, pool_ls_bal) = get_pool_asset_amounts(
         pool_response.assets,
         asset_data.clone().ls_asset_denom,
@@ -297,7 +254,7 @@ fn try_get_double_side_lp_submsg(
         ],
         slippage_tolerance,
         auto_stake,
-        receiver: Some(holder_address),
+        receiver: Some(holder_address.to_string()),
     };
     let (native_coin, ls_coin) = (
         native_asset_double_sided.to_coin()?,
@@ -320,7 +277,7 @@ fn try_get_double_side_lp_submsg(
 
     Ok(Some(SubMsg::reply_on_success(
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pool_address.addr,
+            contract_addr: pool_address.to_string(),
             msg: to_binary(&double_sided_liq_msg)?,
             funds: vec![native_coin, ls_coin],
         }),
@@ -328,27 +285,21 @@ fn try_get_double_side_lp_submsg(
     )))
 }
 
+/// attempts to build a single sided `ProvideLiquidity` message.
+/// pool ratio does not get validated here. as long as the single
+/// side asset amount being provided is within our predefined
+/// single-side liquidity limits, we provide it.
 fn try_get_single_side_lp_submsg(
     deps: DepsMut,
-    lp_contract: String,
+    native_bal: Coin,
+    ls_bal: Coin,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let pool_address = LP_POSITION.load(deps.storage)?;
+    let pool_address = POOL_ADDRESS.load(deps.storage)?;
     let slippage_tolerance = SLIPPAGE_TOLERANCE.may_load(deps.storage)?;
     let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
     let asset_data = ASSETS.load(deps.storage)?;
     let single_side_lp_limits = SINGLE_SIDED_LP_LIMITS.load(deps.storage)?;
-
-    let bal_coins = deps.querier.query_all_balances(lp_contract)?;
-
-    // First we filter out non-relevant token balances
-    let (native_bal, ls_bal) = get_relevant_balances(
-        bal_coins,
-        asset_data.clone().ls_asset_denom,
-        asset_data.clone().native_asset_denom,
-    );
-
-    println!("native bal\t: {native_bal:?}");
-    println!("ls bal\t\t: {ls_bal:?}");
+    let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
 
     let native_asset = Asset {
         info: asset_data.get_native_asset_info(),
@@ -359,33 +310,20 @@ fn try_get_single_side_lp_submsg(
         amount: ls_bal.amount,
     };
 
-    // if both balances are non-zero we should provide double sided liquidity
-    // if both balances are zero, we can't provide anything
-    // in both cases we exit
-    if (!native_bal.amount.is_zero() && !ls_bal.amount.is_zero())
-        || (native_bal.amount.is_zero() && ls_bal.amount.is_zero())
-    {
-        return Ok(None);
-    }
-
-    let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
-
     // given one non-zero asset, we build the ProvideLiquidity message
     let single_sided_liq_msg = ProvideLiquidity {
         assets: vec![ls_asset, native_asset],
         slippage_tolerance,
         auto_stake,
-        receiver: Some(holder_address),
+        receiver: Some(holder_address.to_string()),
     };
-
-    println!("single side liquidity msg: {single_sided_liq_msg:?}");
 
     // now we try to submit the message for either LS or native single side liquidity
     if native_bal.amount.is_zero() && ls_bal.amount <= single_side_lp_limits.ls_asset_limit {
         // if available ls token amount is within single side limits we build a single side msg
         let submsg = SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: pool_address.addr,
+                contract_addr: pool_address.to_string(),
                 msg: to_binary(&single_sided_liq_msg)?,
                 funds: vec![ls_bal.clone()],
             }),
@@ -402,7 +340,7 @@ fn try_get_single_side_lp_submsg(
         // if available native token amount is within single side limits we build a single side msg
         let submsg = SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: pool_address.addr,
+                contract_addr: pool_address.to_string(),
                 msg: to_binary(&single_sided_liq_msg)?,
                 funds: vec![native_bal.clone()],
             }),
@@ -420,11 +358,82 @@ fn try_get_single_side_lp_submsg(
     Ok(None)
 }
 
+/// filters out a vector of `Coin`s to retrieve ones with ls/native denoms
+fn get_relevant_balances(coins: Vec<Coin>, ls_denom: String, native_denom: String) -> (Coin, Coin) {
+    let (mut native_bal, mut ls_bal) = (Coin::default(), Coin::default());
+
+    for c in coins {
+        if c.denom == ls_denom {
+            // found ls balance
+            ls_bal = c;
+        } else if c.denom == native_denom {
+            // found native token balance
+            native_bal = c;
+        }
+    }
+    (native_bal, ls_bal)
+}
+
+/// validates the existing pool balances to match our initial expectations.
+/// if `PriceRangeError` is returned, it most likely means that the pool had a 
+/// significant shift in its balance ratio.
+fn validate_price_range(
+    pool_native_amount: Uint128,
+    pool_ls_amount: Uint128,
+    expected_native_token_amount: Uint128,
+    expected_ls_token_amount: Uint128,
+    allowed_return_delta: Uint128,
+) -> Result<(), ContractError> {
+    // find the min and max return amounts allowed by deviating away from expected return amount
+    // by allowed delta
+    let min_return_amount = expected_ls_token_amount.checked_sub(allowed_return_delta)?;
+    let max_return_amount = expected_ls_token_amount.checked_add(allowed_return_delta)?;
+
+    // derive allowed proportions
+    let min_accepted_ratio = Decimal::from_ratio(min_return_amount, expected_native_token_amount);
+    let max_accepted_ratio = Decimal::from_ratio(max_return_amount, expected_native_token_amount);
+
+    // we find the proportion of the price range being validated
+    let validation_ratio = Decimal::from_ratio(pool_ls_amount, pool_native_amount);
+
+    // if current return to offer amount ratio falls out of [min_accepted_ratio, max_return_amount],
+    // return price range error
+    if validation_ratio < min_accepted_ratio || validation_ratio > max_accepted_ratio {
+        return Err(ContractError::PriceRangeError {});
+    }
+
+    Ok(())
+}
+
+/// filters out irrelevant balances and returns ls and native amounts
+fn get_pool_asset_amounts(
+    assets: Vec<Asset>,
+    ls_denom: String,
+    native_denom: String,
+) -> Result<(Uint128, Uint128), StdError> {
+    let (mut native_bal, mut ls_bal) = (Uint128::zero(), Uint128::zero());
+
+    for asset in assets {
+        let coin = asset.to_coin()?;
+
+        if coin.denom == ls_denom {
+            // found ls balance
+            ls_bal = coin.amount;
+        } else if coin.denom == native_denom {
+            // found native token balance
+            native_bal = coin.amount;
+        }
+    }
+
+    Ok((native_bal, ls_bal))
+}
+
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
-        QueryMsg::LpPosition {} => Ok(to_binary(&LP_POSITION.may_load(deps.storage)?)?),
+        QueryMsg::PoolAddress {} => Ok(to_binary(&POOL_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::Assets {} => Ok(to_binary(&ASSETS.may_load(deps.storage)?)?),
@@ -447,10 +456,15 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
-            lp_position,
+            pool_address,
             holder_address,
             expected_ls_token_amount,
             allowed_return_delta,
+            single_side_lp_limits,
+            slippage_tolerance,
+            assets,
+            expected_native_token_amount,
+            autostake,
         } => {
             let mut response = Response::default().add_attribute("method", "update_config");
 
@@ -459,13 +473,13 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 response = response.add_attribute("clock_addr", clock_addr);
             }
 
-            if let Some(lp_position) = lp_position {
-                LP_POSITION.save(deps.storage, &lp_position)?;
-                response = response.add_attribute("lp_position", lp_position.addr);
+            if let Some(addr) = pool_address {
+                POOL_ADDRESS.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
+                response = response.add_attribute("pool_address", addr);
             }
 
             if let Some(holder_address) = holder_address {
-                HOLDER_ADDRESS.save(deps.storage, &holder_address)?;
+                HOLDER_ADDRESS.save(deps.storage, &deps.api.addr_validate(&holder_address)?)?;
                 response = response.add_attribute("holder_address", holder_address);
             }
 
@@ -477,6 +491,33 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             if let Some(return_delta) = allowed_return_delta {
                 ALLOWED_RETURN_DELTA.save(deps.storage, &return_delta)?;
                 response = response.add_attribute("allowed_return_delta", return_delta);
+            }
+
+            if let Some(limits) = single_side_lp_limits {
+                SINGLE_SIDED_LP_LIMITS.save(deps.storage, &limits)?;
+                response = response.add_attribute("ls_asset_limit", limits.ls_asset_limit);
+                response = response.add_attribute("native_asset_limit", limits.native_asset_limit);
+            }
+
+            if let Some(decimal) = slippage_tolerance {
+                SLIPPAGE_TOLERANCE.save(deps.storage, &decimal)?;
+                response = response.add_attribute("slippage_tolerance", decimal.to_string());
+            }
+
+            if let Some(denoms) = assets {
+                ASSETS.save(deps.storage, &denoms)?;
+                response = response.add_attribute("ls_denom", denoms.ls_asset_denom.to_string());
+                response = response.add_attribute("native_denom", denoms.native_asset_denom.to_string());
+            }
+
+            if let Some(amount) = expected_native_token_amount {
+                EXPECTED_NATIVE_TOKEN_AMOUNT.save(deps.storage, &amount)?;
+                response = response.add_attribute("expected_native_token_amount", amount);
+            }
+
+            if let Some(stake) = autostake {
+                AUTOSTAKE.save(deps.storage, &stake)?;
+                response = response.add_attribute("autostake", stake.to_string());
             }
 
             Ok(response)
@@ -508,8 +549,6 @@ fn handle_double_sided_reply_id(
     _env: Env,
     msg: Reply,
 ) -> Result<Response, ContractError> {
-    // TODO: query balances here and if both are 0, exit?
-
     Ok(Response::default()
         .add_attribute("method", "handle_double_sided_reply_id")
         .add_attribute("reply_id", msg.id.to_string()))
@@ -520,7 +559,6 @@ fn handle_single_sided_reply_id(
     _env: Env,
     msg: Reply,
 ) -> Result<Response, ContractError> {
-    // TODO: query balances here and if both are 0, exit?
     Ok(Response::default()
         .add_attribute("method", "handle_single_sided_reply_id")
         .add_attribute("reply_id", msg.id.to_string()))

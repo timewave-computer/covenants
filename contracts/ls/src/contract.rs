@@ -362,7 +362,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
 
             if let Some(connection_id) = neutron_stride_ibc_connection_id {
                 NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &connection_id)?;
-                resp = resp.add_attribute("connection_id", connection_id);
+                resp = resp.add_attribute("neutron_stride_ibc_connection_id", connection_id);
             }
 
             if let Some(denom) = ls_denom {
@@ -373,11 +373,13 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             if let Some(timeout) = ibc_transfer_timeout {
                 resp = resp.add_attribute("ibc_transfer_timeout", timeout);
                 IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
+                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
             }
 
             if let Some(timeout) = ica_timeout {
                 resp = resp.add_attribute("ica_timeout", timeout);
                 ICA_TIMEOUT.save(deps.storage, &timeout)?;
+                resp = resp.add_attribute("ica_timeout", timeout);
             }
 
             if let Some(fee) = ibc_fee {
