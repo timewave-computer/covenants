@@ -2,33 +2,31 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
-    SubMsg, Uint128, WasmMsg,
+    SubMsg, WasmMsg,
 };
 
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
-use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         CLOCK_CODE, COVENANT_CLOCK_ADDR, COVENANT_DEPOSITOR_ADDR, COVENANT_HOLDER_ADDR,
-        COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, IBC_FEE, IBC_TIMEOUT,
-        LP_CODE, LS_CODE, POOL_ADDRESS, PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS,
-        PRESET_HOLDER_FIELDS, PRESET_LP_FIELDS, PRESET_LS_FIELDS,
+        COVENANT_LP_ADDR, COVENANT_LS_ADDR, DEPOSITOR_CODE, HOLDER_CODE, IBC_FEE, LP_CODE, LS_CODE,
+        POOL_ADDRESS, PRESET_CLOCK_FIELDS, PRESET_DEPOSITOR_FIELDS, PRESET_HOLDER_FIELDS,
+        PRESET_LP_FIELDS, PRESET_LS_FIELDS, TIMEOUTS,
     },
 };
 
 const CONTRACT_NAME: &str = "crates.io:covenant-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 60 * 24 * 7 * 2;
 
-const CLOCK_REPLY_ID: u64 = 1u64;
-const HOLDER_REPLY_ID: u64 = 2u64;
-const LP_REPLY_ID: u64 = 3u64;
-const LS_REPLY_ID: u64 = 4u64;
-const DEPOSITOR_REPLY_ID: u64 = 5u64;
+pub(crate) const CLOCK_REPLY_ID: u64 = 1u64;
+pub(crate) const HOLDER_REPLY_ID: u64 = 2u64;
+pub(crate) const LP_REPLY_ID: u64 = 3u64;
+pub(crate) const LS_REPLY_ID: u64 = 4u64;
+pub(crate) const DEPOSITOR_REPLY_ID: u64 = 5u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -47,34 +45,13 @@ pub fn instantiate(
     CLOCK_CODE.save(deps.storage, &msg.preset_clock_fields.clock_code)?;
 
     POOL_ADDRESS.save(deps.storage, &msg.pool_address)?;
-
     PRESET_CLOCK_FIELDS.save(deps.storage, &msg.preset_clock_fields)?;
     PRESET_LP_FIELDS.save(deps.storage, &msg.preset_lp_fields)?;
     PRESET_LS_FIELDS.save(deps.storage, &msg.preset_ls_fields)?;
     PRESET_DEPOSITOR_FIELDS.save(deps.storage, &msg.preset_depositor_fields)?;
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
-
-    let ibc_timeout = if let Some(timeout) = msg.ibc_msg_transfer_timeout_timestamp {
-        timeout
-    } else {
-        DEFAULT_TIMEOUT_SECONDS
-    };
-    // 10 seconds
-    IBC_TIMEOUT.save(deps.storage, &ibc_timeout)?;
-    IBC_FEE.save(
-        deps.storage,
-        &IbcFee {
-            recv_fee: vec![],
-            ack_fee: vec![cosmwasm_std::Coin {
-                denom: "untrn".to_string(),
-                amount: Uint128::new(1000u128),
-            }],
-            timeout_fee: vec![cosmwasm_std::Coin {
-                denom: "untrn".to_string(),
-                amount: Uint128::new(1000u128),
-            }],
-        },
-    )?;
+    TIMEOUTS.save(deps.storage, &msg.timeouts)?;
+    IBC_FEE.save(deps.storage, &msg.preset_ibc_fee.to_ibc_fee())?;
 
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
@@ -137,8 +114,9 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
                 .add_attribute("method", "handle_clock_reply")
                 .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "clock".to_string(),
+            err,
         }),
     }
 }
@@ -177,8 +155,9 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
                 .add_attribute("method", "handle_holder_reply")
                 .add_submessage(SubMsg::reply_always(lp_instantiate_tx, LP_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "holder".to_string(),
+            err,
         }),
     }
 }
@@ -199,14 +178,15 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let clock_address = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let code_id = LS_CODE.load(deps.storage)?;
             let preset_ls_fields = PRESET_LS_FIELDS.load(deps.storage)?;
-            let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
             let ibc_fee = IBC_FEE.load(deps.storage)?;
+            let timeouts = TIMEOUTS.load(deps.storage)?;
 
             let instantiate_msg = preset_ls_fields.clone().to_instantiate_msg(
                 clock_address.to_string(),
                 response.contract_address,
-                ibc_timeout,
                 ibc_fee,
+                timeouts.ica_timeout,
+                timeouts.ibc_transfer_timeout,
             );
 
             let ls_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -221,8 +201,9 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 .add_attribute("method", "handle_lp_reply")
                 .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID)))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "lp".to_string(),
+            err,
         }),
     }
 }
@@ -242,7 +223,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
             let code_id = DEPOSITOR_CODE.load(deps.storage)?;
             let preset_depositor_fields = PRESET_DEPOSITOR_FIELDS.load(deps.storage)?;
-            let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+            let timeouts = TIMEOUTS.load(deps.storage)?;
             let ibc_fee = IBC_FEE.load(deps.storage)?;
 
             let instantiate_msg = preset_depositor_fields.clone().to_instantiate_msg(
@@ -250,8 +231,9 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 clock_addr.to_string(),
                 response.contract_address,
                 lp_addr.to_string(),
-                ibc_timeout,
                 ibc_fee,
+                timeouts.ibc_transfer_timeout,
+                timeouts.ica_timeout,
             );
 
             let depositor_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -269,8 +251,9 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                     DEPOSITOR_REPLY_ID,
                 )))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "ls".to_string(),
+            err,
         }),
     }
 }
@@ -297,7 +280,7 @@ pub fn handle_depositor_reply(
             let lp_addr = COVENANT_LP_ADDR.load(deps.storage)?;
             let ls_addr = COVENANT_LS_ADDR.load(deps.storage)?;
 
-            let migrate_msg = WasmMsg::Migrate {
+            let update_clock_whitelist_msg = WasmMsg::Migrate {
                 contract_addr: clock_addr.to_string(),
                 new_code_id: clock_code_id,
                 msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
@@ -311,11 +294,12 @@ pub fn handle_depositor_reply(
             };
 
             Ok(Response::default()
-                .add_message(migrate_msg)
+                .add_message(update_clock_whitelist_msg)
                 .add_attribute("method", "handle_depositor_reply"))
         }
-        Err(_err) => Err(ContractError::ContractInstantiationError {
+        Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "depositor".to_string(),
+            err,
         }),
     }
 }
@@ -328,7 +312,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {:?}", msg).as_str());
+        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
 
     Ok(Response::default())
 }

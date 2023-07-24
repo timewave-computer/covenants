@@ -1,11 +1,14 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::{Addr, Uint128, Uint64};
 use covenant_clock::msg::PresetClockFields;
 use covenant_depositor::msg::PresetDepositorFields;
 use covenant_holder::msg::PresetHolderFields;
 use covenant_lp::msg::PresetLpFields;
 use covenant_ls::msg::PresetLsFields;
 use neutron_sdk::bindings::msg::IbcFee;
+
+const NEUTRON_DENOM: &str = "untrn";
+pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -16,14 +19,29 @@ pub struct InstantiateMsg {
     pub preset_lp_fields: PresetLpFields,
     pub preset_holder_fields: PresetHolderFields,
     pub pool_address: String,
-    pub ibc_msg_transfer_timeout_timestamp: Option<u64>,
-    // pub preset_ibc_fee: Option<PresetIbcFee>,
+    pub preset_ibc_fee: PresetIbcFee,
+    pub timeouts: Timeouts,
+}
+
+#[cw_serde]
+pub struct Timeouts {
+    pub ica_timeout: Uint64,
+    pub ibc_transfer_timeout: Uint64,
+}
+
+impl Default for Timeouts {
+    fn default() -> Self {
+        Self {
+            ica_timeout: Uint64::new(DEFAULT_TIMEOUT),
+            ibc_transfer_timeout: Uint64::new(DEFAULT_TIMEOUT),
+        }
+    }
 }
 
 #[cw_serde]
 pub struct PresetIbcFee {
-    pub ack_fee: Coin,
-    pub timeout_fee: Coin,
+    pub ack_fee: Uint128,
+    pub timeout_fee: Uint128,
 }
 
 impl PresetIbcFee {
@@ -31,8 +49,14 @@ impl PresetIbcFee {
         IbcFee {
             // must be empty
             recv_fee: vec![],
-            ack_fee: vec![self.ack_fee],
-            timeout_fee: vec![self.timeout_fee],
+            ack_fee: vec![cosmwasm_std::Coin {
+                denom: NEUTRON_DENOM.to_string(),
+                amount: self.ack_fee,
+            }],
+            timeout_fee: vec![cosmwasm_std::Coin {
+                denom: NEUTRON_DENOM.to_string(),
+                amount: self.timeout_fee,
+            }],
         }
     }
 }

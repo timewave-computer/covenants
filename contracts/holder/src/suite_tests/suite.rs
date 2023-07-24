@@ -24,7 +24,7 @@ impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
             instantiate: InstantiateMsg {
-                withdrawer: DEFAULT_WITHDRAWER.to_string(),
+                withdrawer: Some(DEFAULT_WITHDRAWER.to_string()),
                 lp_address: "stablepairpool".to_string(),
             },
             app: App::default(),
@@ -33,7 +33,7 @@ impl Default for SuiteBuilder {
 }
 
 impl SuiteBuilder {
-    pub fn with_withdrawer(mut self, addr: String) -> Self {
+    pub fn with_withdrawer(mut self, addr: Option<String>) -> Self {
         self.instantiate.withdrawer = addr;
         self
     }
@@ -68,6 +68,17 @@ impl SuiteBuilder {
 
 // actions
 impl Suite {
+    pub fn withdraw_liquidity(&mut self, caller: &str) -> AppResponse {
+        self.app
+            .execute_contract(
+                Addr::unchecked(caller),
+                self.holder.clone(),
+                &ExecuteMsg::WithdrawLiquidity {},
+                &[],
+            )
+            .unwrap()
+    }
+
     /// sends a message on caller's behalf to withdraw a specified amount of tokens
     pub fn withdraw_tokens(&mut self, caller: &str, quantity: Vec<Coin>) -> AppResponse {
         self.app

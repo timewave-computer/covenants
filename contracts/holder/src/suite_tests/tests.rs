@@ -14,7 +14,7 @@ fn test_instantiate_and_query_withdrawer() {
 #[should_panic(expected = "Invalid input: address not normalized")]
 fn test_instantiate_invalid_withdrawer() {
     SuiteBuilder::default()
-        .with_withdrawer("0Oo0Oo".to_string())
+        .with_withdrawer(Some("0Oo0Oo".to_string()))
         .build();
 }
 
@@ -120,6 +120,22 @@ fn test_fund_single_and_withdraw_too_big_single_denom() {
     let mut suite = SuiteBuilder::default().build();
     let holder_balances = vec![coin(80, "atom"), coin(70, "statom")];
     suite.fund_holder(holder_balances);
+
+    suite.withdraw_tokens(DEFAULT_WITHDRAWER, coins(100, "statom"));
+}
+
+#[test]
+#[should_panic(expected = "No withdrawer address configured")]
+fn test_withdraw_liquidity_no_withdrawer() {
+    let mut suite = SuiteBuilder::default().with_withdrawer(None).build();
+
+    suite.withdraw_liquidity(DEFAULT_WITHDRAWER);
+}
+
+#[test]
+#[should_panic(expected = "No withdrawer address configured")]
+fn test_withdraw_balances_no_withdrawer() {
+    let mut suite = SuiteBuilder::default().with_withdrawer(None).build();
 
     suite.withdraw_tokens(DEFAULT_WITHDRAWER, coins(100, "statom"));
 }

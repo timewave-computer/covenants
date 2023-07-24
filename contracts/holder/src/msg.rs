@@ -5,7 +5,7 @@ use cosmwasm_std::{Addr, Binary, Coin};
 pub struct InstantiateMsg {
     /// A withdrawer is the only authorized address that can withdraw
     /// from the contract. Anyone can instantiate the contract.
-    pub withdrawer: String,
+    pub withdrawer: Option<String>,
     /// lp address is the address of the pool where liquidity has been provided
     /// The holder holds LP tokens associated with this pool
     pub lp_address: String,
@@ -14,7 +14,7 @@ pub struct InstantiateMsg {
 // Preset fields are set by the user when instantiating the covenant
 #[cw_serde]
 pub struct PresetHolderFields {
-    pub withdrawer: String,
+    pub withdrawer: Option<String>,
     pub holder_code: u64,
     pub label: String,
 }
@@ -47,7 +47,7 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     // Queries the withdrawer address
-    #[returns(Addr)]
+    #[returns(Option<Addr>)]
     Withdrawer {},
     // Queries the pool address
     #[returns(Addr)]

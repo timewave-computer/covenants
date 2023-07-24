@@ -14,6 +14,9 @@ pub struct InstantiateMsg {
     pub autostake: Option<bool>,
     pub assets: AssetData,
     pub single_side_lp_limits: SingleSideLpLimits,
+    pub expected_ls_token_amount: Uint128,
+    pub allowed_return_delta: Uint128,
+    pub expected_native_token_amount: Uint128,
 }
 
 #[cw_serde]
@@ -50,6 +53,9 @@ pub struct PresetLpFields {
     pub single_side_lp_limits: Option<SingleSideLpLimits>,
     pub lp_code: u64,
     pub label: String,
+    pub expected_ls_token_amount: Uint128,
+    pub allowed_return_delta: Uint128,
+    pub expected_native_token_amount: Uint128,
 }
 
 impl PresetLpFields {
@@ -70,6 +76,9 @@ impl PresetLpFields {
                 native_asset_limit: Uint128::new(100),
                 ls_asset_limit: Uint128::new(100),
             }),
+            allowed_return_delta: self.allowed_return_delta,
+            expected_ls_token_amount: self.expected_ls_token_amount,
+            expected_native_token_amount: self.expected_native_token_amount,
         }
     }
 }
@@ -96,6 +105,12 @@ pub enum QueryMsg {
     HolderAddress {},
     #[returns(Vec<Asset>)]
     Assets {},
+    #[returns(Uint128)]
+    ExpectedLsTokenAmount {},
+    #[returns(Uint128)]
+    AllowedReturnDelta {},
+    #[returns(Uint128)]
+    ExpectedNativeTokenAmount {},
 }
 
 #[cw_serde]
@@ -104,6 +119,8 @@ pub enum MigrateMsg {
         clock_addr: Option<String>,
         lp_position: Option<LPInfo>,
         holder_address: Option<String>,
+        expected_ls_token_amount: Option<Uint128>,
+        allowed_return_delta: Option<Uint128>,
     },
     UpdateCodeId {
         data: Option<Binary>,
