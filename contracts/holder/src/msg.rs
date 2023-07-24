@@ -4,14 +4,15 @@ use cosmwasm_std::{Addr, Binary, Coin};
 #[cw_serde]
 pub struct InstantiateMsg {
     /// A withdrawer is the only authorized address that can withdraw
-    /// from the contract. Anyone can instantiate the contract.
+    /// from the contract.
     pub withdrawer: Option<String>,
-    /// lp address is the address of the pool where liquidity has been provided
+    /// pool address is the address of the pool where liquidity has been provided
     /// The holder holds LP tokens associated with this pool
-    pub lp_address: String,
+    pub pool_address: String,
 }
 
-// Preset fields are set by the user when instantiating the covenant
+/// Preset fields are set by the user when instantiating the covenant.
+/// use `to_instantiate_msg` implementation method to get `InstantiateMsg`.
 #[cw_serde]
 pub struct PresetHolderFields {
     pub withdrawer: Option<String>,
@@ -20,10 +21,12 @@ pub struct PresetHolderFields {
 }
 
 impl PresetHolderFields {
-    pub fn to_instantiate_msg(self, lp_address: String) -> InstantiateMsg {
+    /// takes in the `pool_address` from which the funds would be withdrawn
+    /// and returns an `InstantiateMsg`.
+    pub fn to_instantiate_msg(self, pool_address: String) -> InstantiateMsg {
         InstantiateMsg {
             withdrawer: self.withdrawer,
-            lp_address,
+            pool_address,
         }
     }
 }
@@ -51,14 +54,14 @@ pub enum QueryMsg {
     Withdrawer {},
     // Queries the pool address
     #[returns(Addr)]
-    LpAddress {},
+    PoolAddress {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
         withdrawer: Option<String>,
-        lp_address: Option<String>,
+        pool_address: Option<String>,
     },
     UpdateCodeId {
         data: Option<Binary>,

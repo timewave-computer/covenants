@@ -230,7 +230,7 @@ impl Default for SuiteBuilder {
             holder_instantiate: covenant_holder::msg::InstantiateMsg {
                 withdrawer: Some(CREATOR_ADDR.to_string()),
                 // deterministic based on instantiate flow
-                lp_address: "contract7".to_string(),
+                pool_address: "contract7".to_string(),
             },
         }
     }
