@@ -3,11 +3,10 @@ use neutron_sdk::bindings::{msg::NeutronMsg, types::ProtobufAny};
 
 use crate::{
     contract::{sudo, INTERCHAIN_ACCOUNT_ID},
-    state::ContractState,
     suite_test::unit_helpers::{
         get_default_ibc_fee, get_default_init_msg, get_default_msg_transfer,
         get_default_sudo_open_ack, to_proto, CLOCK_ADDR, LP_ADDR, NATIVE_ATOM_DENOM,
-    },
+    }, msg::ContractState,
 };
 
 use super::unit_helpers::{do_instantiate, do_tick, verify_state, Owned};

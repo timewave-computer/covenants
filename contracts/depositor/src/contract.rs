@@ -15,7 +15,7 @@ use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 use prost::Message;
 
 use crate::{
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg},
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg, ContractState, SudoPayload, AcknowledgementResult},
     state::{
         IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT,
     },
@@ -32,11 +32,11 @@ use neutron_sdk::{
 
 use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
-    save_reply_payload, save_sudo_payload, AcknowledgementResult, ContractState, SudoPayload,
+    save_reply_payload, save_sudo_payload,
     ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
-    IBC_PORT_ID, ICA_ADDRESS, INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
-    NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER, SUDO_PAYLOAD_REPLY_ID,
+    INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
+    NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
@@ -44,6 +44,8 @@ type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
 const ATOM_DENOM: &str = "uatom";
 pub(crate) const INTERCHAIN_ACCOUNT_ID: &str = "ica";
+
+pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1;
 
 const CONTRACT_NAME: &str = "crates.io:covenant-depositor";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -58,29 +60,48 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // TODO: validations
+    // contract begins at Instantiated state
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.clock_address)?)?;
+    // validate and store other module addresses
+    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
+    let ls_addr = deps.api.addr_validate(&msg.ls_address)?;
+    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+    LS_ADDRESS.save(deps.storage, &ls_addr)?;
 
-    // minations and amounts
+    // store information needed to forward funds to next modules
     STRIDE_ATOM_RECEIVER.save(deps.storage, &msg.st_atom_receiver)?;
     NATIVE_ATOM_RECEIVER.save(deps.storage, &msg.atom_receiver)?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+    NEUTRON_ATOM_IBC_DENOM.save(deps.storage, &msg.neutron_atom_ibc_denom)?;
+
+    // store the channel and connection ids for ibc transactions
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID
         .save(deps.storage, &msg.gaia_neutron_ibc_transfer_channel_id)?;
+    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
+        .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
     NEUTRON_GAIA_CONNECTION_ID.save(deps.storage, &msg.neutron_gaia_connection_id)?;
-    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
-        .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
-    LS_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.ls_address)?)?;
+    
+    // autopilot string formatting
     AUTOPILOT_FORMAT.save(deps.storage, &msg.autopilot_format)?;
-    GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID
-        .save(deps.storage, &msg.gaia_stride_ibc_transfer_channel_id)?;
+    
+    // ibc fees and timeouts
     IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
-    NEUTRON_ATOM_IBC_DENOM.save(deps.storage, &msg.neutron_atom_ibc_denom)?;
     ICA_TIMEOUT.save(deps.storage, &msg.ica_timeout)?;
     IBC_TRANSFER_TIMEOUT.save(deps.storage, &msg.ibc_transfer_timeout)?;
 
-    Ok(Response::default().add_attribute("method", "depositor_instantiate"))
+    Ok(Response::default()
+        .add_attribute("method", "depositor_instantiate")
+        .add_attribute("clock_address", clock_addr)
+        .add_attribute("ls_address", ls_addr)
+        .add_attribute("neutron_atom_ibc_denom", msg.neutron_atom_ibc_denom)
+        .add_attribute("gaia_neutron_ibc_transfer_channel_id", msg.gaia_neutron_ibc_transfer_channel_id)
+        .add_attribute("gaia_stride_ibc_transfer_channel_id", msg.gaia_stride_ibc_transfer_channel_id)
+        .add_attribute("neutron_gaia_connection_id", msg.neutron_gaia_connection_id)
+        .add_attribute("autopilot_format", msg.autopilot_format)
+        .add_attribute("ica_timeout", msg.ica_timeout)
+        .add_attribute("ibc_transfer_timeout", msg.ibc_transfer_timeout)
+
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -97,6 +118,7 @@ pub fn execute(
     }
 }
 
+/// attempts to advance the state machine. validates the caller to be the clock.
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
@@ -106,14 +128,15 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
     match current_state {
         ContractState::Instantiated => try_register_gaia_ica(deps, env),
         ContractState::ICACreated => {
-            let ica_address = ICA_ADDRESS.may_load(deps.storage)?;
-
-            if ica_address.is_some() {
-                try_send_native_token(env, deps)
-            } else {
-                Ok(Response::default()
+            let ica_address = get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID);
+            match ica_address {
+                Ok((_, _)) => {
+                    try_send_native_token(env, deps)
+                },
+                Err(_) => Ok(Response::default()
                     .add_attribute("method", "try_tick")
-                    .add_attribute("ica_status", "not_created"))
+                    .add_attribute("ica_status", "not_created")
+                ),
             }
         }
         ContractState::VerifyNativeToken => try_verify_native_token(env, deps),
@@ -124,6 +147,7 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
     }
 }
 
+/// helper that serializes a MsgTransfer to protobuf
 fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
     // Serialize the Transfer message
     let mut buf = Vec::new();
@@ -138,11 +162,10 @@ fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
     })
 }
 
+/// attempts to forward the funds to LP module
 fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
-    let fee = IBC_FEE.load(deps.storage)?;
-    let port_id = IBC_PORT_ID.load(deps.storage)?;
-
-    let interchain_account = INTERCHAIN_ACCOUNTS.may_load(deps.storage, port_id.clone())?;
+    let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -150,12 +173,17 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
             let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
             let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
+            let fee = IBC_FEE.load(deps.storage)?;
 
             let coin = Coin {
                 denom: ATOM_DENOM.to_string(),
                 amount: receiver.amount.to_string(),
             };
 
+            // we define the gaia->neutron timeout to be equal to:
+            // current block + ICA timeout + ibc transfer timeout.
+            // this assumes the worst possible time of delivery for the ICA message
+            // which wraps the underlying MsgTransfer.
             let msg_transfer_timeout = env
                 .block
                 .time
@@ -163,8 +191,11 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                 .plus_seconds(ica_timeout.u64())
                 // and then add the preset ibc transfer timeout
                 .plus_seconds(ibc_transfer_timeout.u64());
+
+            // we store that timeout for later validation of pending transfers
             PENDING_NATIVE_TRANSFER_TIMEOUT.save(deps.storage, &msg_transfer_timeout)?;
 
+            // transfer message that will send funds from the ICA on gaia to our LP module
             let lper_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel,
@@ -176,6 +207,8 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
             };
 
             let lp_protobuf = to_proto_msg_transfer(lper_msg)?;
+
+            // tx to our ICA that wraps the transfer message defined above
             let submit_msg = NeutronMsg::submit_tx(
                 controller_conn_id,
                 INTERCHAIN_ACCOUNT_ID.to_string(),
@@ -190,12 +223,12 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                 submit_msg,
                 SudoPayload {
                     port_id,
-                    // Here you can store some information about the transaction to help you parse
-                    // the acknowledgement later.
                     message: "try_send_native_token".to_string(),
                 },
             )?;
 
+            // we advance the state machine to validation phase where we will query the balances of
+            // LP module to confirm that funds have arrived
             CONTRACT_STATE.save(deps.storage, &ContractState::VerifyNativeToken)?;
 
             Ok(Response::default()
@@ -213,9 +246,11 @@ fn query_lper_balance(deps: QueryDeps, lper: &str) -> StdResult<cosmwasm_std::Co
     deps.querier.query_balance(lper, neutron_atom_ibc_denom)
 }
 
-fn send_ls_token_msg(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>> {
+/// we attempt to send funds to the ICA on stride
+fn try_send_ls_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>> {
+    // first we load the LS module address which is responsible for creating
+    // an ICA on stride so that we can query for that ICA address
     let ls_address = LS_ADDRESS.load(deps.storage)?;
-
     let stride_ica_query: Option<String> = deps
         .querier
         .query_wasm_smart(ls_address, &covenant_ls::msg::QueryMsg::StrideICA {})?;
@@ -223,37 +258,35 @@ fn send_ls_token_msg(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
         Some(addr) => addr,
         None => return Err(NeutronError::Std(StdError::not_found("no LS ica found"))),
     };
-    // TODO: validate balances of stride ica / liquid pooler here.
-    // if either has the expected amount of statom, advance the state
 
-    // Update receiver on stride (ls ica address)
-    let mut stride_receiver = STRIDE_ATOM_RECEIVER.load(deps.storage)?;
-    stride_receiver.address = stride_ica_addr.clone();
-    STRIDE_ATOM_RECEIVER.save(deps.storage, &stride_receiver)?;
+    // update the stride receiver to reflect where the funds are about to be sent to
+    let stride_receiver = STRIDE_ATOM_RECEIVER.update(deps.storage, |mut r| -> StdResult<_> {
+        r.address = stride_ica_addr.to_string();
+        Ok(r)
+    })?;
 
-    let fee = IBC_FEE.load(deps.storage)?;
-    let port_id = IBC_PORT_ID.load(deps.storage)?;
-
-    let interchain_account = INTERCHAIN_ACCOUNTS.may_load(deps.storage, port_id.clone())?;
+    let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
-            let gaia_stride_channel: String =
-                GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+            let gaia_stride_channel = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
             let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
             let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
+            let fee = IBC_FEE.load(deps.storage)?;
 
-            // Transfer to stride to liquid staked and autopilot
             let stride_coin = Coin {
                 denom: ATOM_DENOM.to_string(),
                 amount: stride_receiver.amount.to_string(),
             };
 
+            // we load the stored format string of autopilot and replace the dynamic fields
+            // with our queried data
             let autopilot_receiver = AUTOPILOT_FORMAT
                 .load(deps.storage)?
                 .replace("{st_ica}", &stride_ica_addr);
-            AUTOPILOT_FORMAT.save(deps.storage, &autopilot_receiver)?;
 
+            // transfer message that will send funds from the ICA on gaia to our ICA on stride
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: gaia_stride_channel,
@@ -270,6 +303,7 @@ fn send_ls_token_msg(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
 
             let stride_protobuf = to_proto_msg_transfer(stride_msg)?;
 
+            // tx to our ICA that wraps the transfer message defined above
             let submit_msg = NeutronMsg::submit_tx(
                 controller_conn_id,
                 INTERCHAIN_ACCOUNT_ID.to_string(),
@@ -284,8 +318,6 @@ fn send_ls_token_msg(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
                 submit_msg,
                 SudoPayload {
                     port_id,
-                    // Here you can store some information about the transaction to help you parse
-                    // the acknowledgement later.
                     message: "try_send_st_token".to_string(),
                 },
             )?)
@@ -294,15 +326,20 @@ fn send_ls_token_msg(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
     }
 }
 
+/// attempts to advance the state machine past the sending native tokens to LP module phase.
+/// it queries the balances of the LP module and validates the amount there against our
+/// expectations. if funds are not yet there, the timeout of previous transfer is validated.
+/// if timeout is not yet due, and the funds did not arrive, we wait.
 fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
     let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
     let pending_transfer_timeout = PENDING_NATIVE_TRANSFER_TIMEOUT.load(deps.storage)?;
 
     if lper_native_token_balance.amount >= receiver.amount {
+        // if funds have arrived on LP module, we advance the state and attempt to
+        // send the remaining funds to ICA on stride
         CONTRACT_STATE.save(deps.storage, &ContractState::VerifyLp)?;
-
-        let ls_token_msg = send_ls_token_msg(env, deps)?;
+        let ls_token_msg = try_send_ls_token(env, deps)?;
 
         return Ok(Response::default()
             .add_submessage(ls_token_msg)
@@ -315,15 +352,24 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
         return Ok(Response::default()
             .add_attribute("method", "try_verify_native_token")
-            .add_attribute("status", "pending_transfer_timeout_due"));
+            .add_attribute("status", "pending_transfer_timeout_due")
+            .add_attribute("contract_state", "ica_created")
+        );
     }
 
-    // should we query for lper_native_token_balance.amount being refunded to the ICA?
+    // if tokens native tokens did not yet arrive to the LP module and the
+    // timeout is not yet expired, we wait
     Ok(Response::default()
         .add_attribute("method", "try_verify_native_token")
         .add_attribute("status", "native_token_not_received"))
 }
 
+/// attempts to advance the state machine to its completed phase.
+/// it does so by querying the LP module for its balance of the native tokens.
+/// the expectation is for all (LS and native) tokens to be liquid staked, resulting
+/// in zero balances of the tokens. we therefore expect the native token balance to be
+/// zero and complete. this works because in previous states we queried and asserted
+/// the native token balance to be non-zero.
 fn try_verify_lp(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
     let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
@@ -341,7 +387,7 @@ fn try_verify_lp(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronM
             .add_attribute("status", "completed"))
     } else {
         // Balance is still there, so retry to send st token
-        let ls_token_msg = send_ls_token_msg(env, deps)?;
+        let ls_token_msg = try_send_ls_token(env, deps)?;
 
         Ok(Response::default()
             .add_submessage(ls_token_msg)
@@ -350,12 +396,15 @@ fn try_verify_lp(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronM
     }
 }
 
+/// tries to register an ICA on gaia on the connection stored in `NEUTRON_GAIA_CONNECTION_ID`
 fn try_register_gaia_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let gaia_acc_id = INTERCHAIN_ACCOUNT_ID.to_string();
     let connection_id = NEUTRON_GAIA_CONNECTION_ID.load(deps.storage)?;
     let register = NeutronMsg::register_interchain_account(connection_id, gaia_acc_id.clone());
-    let key = get_port_id(env.contract.address.as_str(), &gaia_acc_id);
-    IBC_PORT_ID.save(deps.storage, &key)?;
+
+    let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
+    // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
+    INTERCHAIN_ACCOUNTS.save(deps.storage, key, &None)?;
 
     Ok(Response::new()
         .add_attribute("method", "try_register_gaia_ica")
@@ -412,13 +461,13 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
     }
 }
 
-pub fn query_depositor_interchain_address(deps: QueryDeps, _env: Env) -> NeutronResult<Binary> {
-    let addr = ICA_ADDRESS.load(deps.storage);
+pub fn query_depositor_interchain_address(deps: QueryDeps, env: Env) -> NeutronResult<Binary> {
+    let addr = get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID);
 
     match addr {
-        Ok(val) => {
+        Ok((addr, _)) => {
             let address_response = QueryInterchainAccountAddressResponse {
-                interchain_account_address: val,
+                interchain_account_address: addr,
             };
             Ok(to_binary(&address_response)?)
         }
@@ -616,12 +665,11 @@ fn sudo_open_ack(
         INTERCHAIN_ACCOUNTS.save(
             deps.storage,
             port_id,
-            &(
+            &Some((
                 parsed_version.clone().address,
                 parsed_version.clone().controller_connection_id,
-            ),
+            )),
         )?;
-        ICA_ADDRESS.save(deps.storage, &parsed_version.address)?;
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
         return Ok(Response::default().add_attribute("method", "sudo_open_ack"));
     }
@@ -841,6 +889,7 @@ fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResu
     Ok(Response::new())
 }
 
+/// tries to retrieve the interchain account add
 fn get_ica(
     deps: QueryDeps,
     env: &Env,
@@ -849,7 +898,7 @@ fn get_ica(
     let key = get_port_id(env.contract.address.as_str(), interchain_account_id);
 
     INTERCHAIN_ACCOUNTS
-        .may_load(deps.storage, key)?
+        .load(deps.storage, key)?
         .ok_or_else(|| StdError::generic_err("Interchain account is not created yet"))
 }
 

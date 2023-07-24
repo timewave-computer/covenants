@@ -1,68 +1,52 @@
-use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Timestamp, Uint64,
 };
 use cw_storage_plus::{Item, Map};
 use neutron_sdk::bindings::msg::IbcFee;
+use crate::msg::{WeightedReceiver, AcknowledgementResult, SudoPayload, ContractState};
 
-use crate::msg::WeightedReceiver;
+/// tracks the current state of state machine
+pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
-// addr and amount of atom to liquid stake on stride
-pub const STRIDE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("stride_atom_receiver");
-
-// addr and amount of atom
-pub const NATIVE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("native_atom_receiver");
-
-// store the clock address to verify calls
+/// clock module address to verify the sender of incoming ticks
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
+/// liquid staker module address to query the stride ICA address to autopilot to
 pub const LS_ADDRESS: Item<Addr> = Item::new("ls_address");
+/// liquid pooler module address to forward the native tokens to
 pub const LP_ADDRESS: Item<Addr> = Item::new("lp_address");
+
+/// formatting of stride autopilot message.
+/// we use string match & replace with relevant fields to obtain the valid message. 
 pub const AUTOPILOT_FORMAT: Item<String> = Item::new("autopilot_format");
 
-// the ibc transfer channel
-pub const GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gn_ibc_chann_id");
-pub const GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gs_ibc_chan_id");
+/// addr and amount of atom to liquid stake on stride
+pub const STRIDE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("stride_atom_receiver");
+/// addr and amount of atom
+pub const NATIVE_ATOM_RECEIVER: Item<WeightedReceiver> = Item::new("native_atom_receiver");
 
-pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
-pub const ICA_ADDRESS: Item<String> = Item::new("ica_address");
-pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
-pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
-pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
+/// ibc denom of atom on neutron
 pub const NEUTRON_ATOM_IBC_DENOM: Item<String> = Item::new("neutron_atom_ibc_denom");
 
-// ICA
-pub const INTERCHAIN_ACCOUNTS: Map<String, (String, String)> = Map::new("interchain_accounts");
-pub const IBC_PORT_ID: Item<String> = Item::new("ibc_port_id");
+/// neutron ibc transfer channel id on gaia
+pub const GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gn_ibc_chann_id");
+/// stride ibc transfer channel id on gaia
+pub const GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gs_ibc_chan_id");
+/// connection id of gaia on neutron
+pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
+
+/// timeout in seconds for inner ibc MsgTransfer
+pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
+/// time in seconds for ICA SubmitTX messages from neutron
+pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
+/// neutron IbcFee for relayers
+pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
+
+/// interchain accounts storage in form of (port_id) -> (address, controller_connection_id)
+pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> = Map::new("interchain_accounts");
 
 // pending transaction timeout timestamp
 pub const PENDING_NATIVE_TRANSFER_TIMEOUT: Item<Timestamp> =
     Item::new("pending_native_transfer_timeout");
-
-#[cw_serde]
-pub enum ContractState {
-    /// Contract was instantiated, create ica
-    Instantiated,
-    /// ICA was created, send native token to lper
-    ICACreated,
-    /// Verify native token was sent to lper and send ls msg
-    VerifyNativeToken,
-    /// Verify the lper entered a position, if not try to resend ls msg again
-    VerifyLp,
-    /// Depositor completed his mission.
-    Complete,
-}
-
-pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
-
-/// SudoPayload is a type that stores information about a transaction that we try to execute
-/// on the host chain. This is a type introduced for our convenience.
-#[cw_serde]
-pub struct SudoPayload {
-    pub message: String,
-    pub port_id: String,
-}
-
-pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1;
 
 pub const REPLY_ID_STORAGE: Item<Vec<u8>> = Item::new("reply_queue_id");
 pub const SUDO_PAYLOAD: Map<(String, u64), Vec<u8>> = Map::new("sudo_payload");
@@ -73,16 +57,6 @@ pub const ACKNOWLEDGEMENT_RESULTS: Map<(String, u64), AcknowledgementResult> =
 
 pub const ERRORS_QUEUE: Map<u32, String> = Map::new("errors_queue");
 
-/// Serves for storing acknowledgement calls for interchain transactions
-#[cw_serde]
-pub enum AcknowledgementResult {
-    /// Success - Got success acknowledgement in sudo with array of message item types in it
-    Success(Vec<String>),
-    /// Error - Got error acknowledgement in sudo with payload message in it and error details
-    Error((String, String)),
-    /// Timeout - Got timeout acknowledgement in sudo with payload message in it
-    Timeout(String),
-}
 
 pub fn save_reply_payload(store: &mut dyn Storage, payload: SudoPayload) -> StdResult<()> {
     REPLY_ID_STORAGE.save(store, &to_vec(&payload)?)

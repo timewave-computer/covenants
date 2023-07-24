@@ -7,7 +7,7 @@ use crate::msg::{AcknowledgementResult, ContractState, SudoPayload};
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
-/// clock module address to verify the incoming ticks sender
+/// clock module address to verify the sender of incoming ticks
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 /// liquid pooler module address to forward the liquid staked funds to
 pub const LP_ADDRESS: Item<Addr> = Item::new("lp_address");
