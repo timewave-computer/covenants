@@ -1,0 +1,1071 @@
+{
+  "contract_name": "covenant-depositor",
+  "contract_version": "1.0.0",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "atom_receiver",
+      "autopilot_format",
+      "clock_address",
+      "gaia_neutron_ibc_transfer_channel_id",
+      "gaia_stride_ibc_transfer_channel_id",
+      "ibc_fee",
+      "ibc_transfer_timeout",
+      "ica_timeout",
+      "ls_address",
+      "neutron_atom_ibc_denom",
+      "neutron_gaia_connection_id",
+      "st_atom_receiver"
+    ],
+    "properties": {
+      "atom_receiver": {
+        "$ref": "#/definitions/WeightedReceiver"
+      },
+      "autopilot_format": {
+        "description": "json formatted string meant to be used for one-click liquid staking on stride",
+        "type": "string"
+      },
+      "clock_address": {
+        "description": "address for the clock. this contract verifies that only the clock can execute ticks",
+        "type": "string"
+      },
+      "gaia_neutron_ibc_transfer_channel_id": {
+        "description": "ibc transfer channel on gaia for neutron this is used to ibc transfer uatom on gaia to the LP contract",
+        "type": "string"
+      },
+      "gaia_stride_ibc_transfer_channel_id": {
+        "description": "ibc transfer channel on gaia for stride This is used to ibc transfer uatom on gaia to the ica on stride",
+        "type": "string"
+      },
+      "ibc_fee": {
+        "description": "neutron requires fees to be set to refund relayers for submission of ack and timeout messages. recv_fee and ack_fee paid in untrn from this contract",
+        "allOf": [
+          {
+            "$ref": "#/definitions/IbcFee"
+          }
+        ]
+      },
+      "ibc_transfer_timeout": {
+        "description": "timeout in seconds. this is used to craft a timeout timestamp that will be attached to the IBC transfer message from the ICA on the host chain (gaia) to its destination. typically this timeout should be greater than the ICA timeout, otherwise if the ICA times out, the destination chain receiving the funds will also receive the IBC packet with an expired timestamp.",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Uint64"
+          }
+        ]
+      },
+      "ica_timeout": {
+        "description": "time in seconds for ICA SubmitTX messages from neutron note that ICA uses ordered channels, a timeout implies channel closed. We can reopen the channel by reregistering the ICA with the same port id and connection id",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Uint64"
+          }
+        ]
+      },
+      "ls_address": {
+        "description": "address of the liquid staker module that will be used to query for the ICA address on stride",
+        "type": "string"
+      },
+      "neutron_atom_ibc_denom": {
+        "description": "ibc denom of uatom on neutron",
+        "type": "string"
+      },
+      "neutron_gaia_connection_id": {
+        "description": "IBC connection ID on neutron for gaia We make an Interchain Account over this connection",
+        "type": "string"
+      },
+      "st_atom_receiver": {
+        "description": "weighted receiver information used to determine where and how many funds should be sent from depositor",
+        "allOf": [
+          {
+            "$ref": "#/definitions/WeightedReceiver"
+          }
+        ]
+      }
+    },
+    "additionalProperties": false,
+    "definitions": {
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        }
+      },
+      "IbcFee": {
+        "description": "IbcFee defines struct for fees that refund the relayer for `SudoMsg` messages submission. Unused fee kind will be returned back to message sender. Please refer to these links for more information: IBC transaction structure - <https://docs.neutron.org/neutron/interchain-txs/messages/#msgsubmittx> General mechanics of fee payments - <https://docs.neutron.org/neutron/feerefunder/overview/#general-mechanics>",
+        "type": "object",
+        "required": [
+          "ack_fee",
+          "recv_fee",
+          "timeout_fee"
+        ],
+        "properties": {
+          "ack_fee": {
+            "description": "*ack_fee** is an amount of coins to refund relayer for submitting ack message for a particular IBC packet.",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Coin"
+            }
+          },
+          "recv_fee": {
+            "description": "**recv_fee** currently is used for compatibility with ICS-29 interface only and must be set to zero (i.e. 0untrn), because Neutron's fee module can't refund relayer for submission of Recv IBC packets due to compatibility with target chains.",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Coin"
+            }
+          },
+          "timeout_fee": {
+            "description": "*timeout_fee** amount of coins to refund relayer for submitting timeout message for a particular IBC packet.",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Coin"
+            }
+          }
+        }
+      },
+      "Uint128": {
+        "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+        "type": "string"
+      },
+      "Uint64": {
+        "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+        "type": "string"
+      },
+      "WeightedReceiver": {
+        "type": "object",
+        "required": [
+          "address",
+          "amount"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "description": "Wakes the state machine up. The caller should check the sender of the tick is the clock if they'd like to pause when the clock does.",
+        "type": "object",
+        "required": [
+          "tick"
+        ],
+        "properties": {
+          "tick": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "st_atom_receiver"
+        ],
+        "properties": {
+          "st_atom_receiver": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "atom_receiver"
+        ],
+        "properties": {
+          "atom_receiver": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "clock_address"
+        ],
+        "properties": {
+          "clock_address": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "contract_state"
+        ],
+        "properties": {
+          "contract_state": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "depositor_interchain_account_address"
+        ],
+        "properties": {
+          "depositor_interchain_account_address": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "this query goes to neutron and get stored ICA with a specific query",
+        "type": "object",
+        "required": [
+          "interchain_account_address"
+        ],
+        "properties": {
+          "interchain_account_address": {
+            "type": "object",
+            "required": [
+              "connection_id",
+              "interchain_account_id"
+            ],
+            "properties": {
+              "connection_id": {
+                "type": "string"
+              },
+              "interchain_account_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "interchain_account_address_from_contract"
+        ],
+        "properties": {
+          "interchain_account_address_from_contract": {
+            "type": "object",
+            "required": [
+              "interchain_account_id"
+            ],
+            "properties": {
+              "interchain_account_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "acknowledgement_result"
+        ],
+        "properties": {
+          "acknowledgement_result": {
+            "type": "object",
+            "required": [
+              "interchain_account_id",
+              "sequence_id"
+            ],
+            "properties": {
+              "interchain_account_id": {
+                "type": "string"
+              },
+              "sequence_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "errors_queue"
+        ],
+        "properties": {
+          "errors_queue": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "autopilot_format"
+        ],
+        "properties": {
+          "autopilot_format": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ]
+  },
+  "migrate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "MigrateMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "update_config"
+        ],
+        "properties": {
+          "update_config": {
+            "type": "object",
+            "properties": {
+              "atom_receiver": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/WeightedReceiver"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "autopilot_format": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "clock_addr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "gaia_neutron_ibc_transfer_channel_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "gaia_stride_ibc_transfer_channel_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "ibc_fee": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/IbcFee"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ibc_transfer_timeout": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Uint64"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ica_timeout": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Uint64"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ls_address": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "neutron_gaia_connection_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "st_atom_receiver": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/WeightedReceiver"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_code_id"
+        ],
+        "properties": {
+          "update_code_id": {
+            "type": "object",
+            "properties": {
+              "data": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Binary"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Binary": {
+        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+        "type": "string"
+      },
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        }
+      },
+      "IbcFee": {
+        "description": "IbcFee defines struct for fees that refund the relayer for `SudoMsg` messages submission. Unused fee kind will be returned back to message sender. Please refer to these links for more information: IBC transaction structure - <https://docs.neutron.org/neutron/interchain-txs/messages/#msgsubmittx> General mechanics of fee payments - <https://docs.neutron.org/neutron/feerefunder/overview/#general-mechanics>",
+        "type": "object",
+        "required": [
+          "ack_fee",
+          "recv_fee",
+          "timeout_fee"
+        ],
+        "properties": {
+          "ack_fee": {
+            "description": "*ack_fee** is an amount of coins to refund relayer for submitting ack message for a particular IBC packet.",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Coin"
+            }
+          },
+          "recv_fee": {
+            "description": "**recv_fee** currently is used for compatibility with ICS-29 interface only and must be set to zero (i.e. 0untrn), because Neutron's fee module can't refund relayer for submission of Recv IBC packets due to compatibility with target chains.",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Coin"
+            }
+          },
+          "timeout_fee": {
+            "description": "*timeout_fee** amount of coins to refund relayer for submitting timeout message for a particular IBC packet.",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/Coin"
+            }
+          }
+        }
+      },
+      "Uint128": {
+        "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+        "type": "string"
+      },
+      "Uint64": {
+        "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+        "type": "string"
+      },
+      "WeightedReceiver": {
+        "type": "object",
+        "required": [
+          "address",
+          "amount"
+        ],
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "sudo": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "SudoMsg",
+    "oneOf": [
+      {
+        "type": "object",
+        "required": [
+          "response"
+        ],
+        "properties": {
+          "response": {
+            "type": "object",
+            "required": [
+              "data",
+              "request"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/Binary"
+              },
+              "request": {
+                "$ref": "#/definitions/RequestPacket"
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "details",
+              "request"
+            ],
+            "properties": {
+              "details": {
+                "type": "string"
+              },
+              "request": {
+                "$ref": "#/definitions/RequestPacket"
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "timeout"
+        ],
+        "properties": {
+          "timeout": {
+            "type": "object",
+            "required": [
+              "request"
+            ],
+            "properties": {
+              "request": {
+                "$ref": "#/definitions/RequestPacket"
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "open_ack"
+        ],
+        "properties": {
+          "open_ack": {
+            "type": "object",
+            "required": [
+              "channel_id",
+              "counterparty_channel_id",
+              "counterparty_version",
+              "port_id"
+            ],
+            "properties": {
+              "channel_id": {
+                "type": "string"
+              },
+              "counterparty_channel_id": {
+                "type": "string"
+              },
+              "counterparty_version": {
+                "type": "string"
+              },
+              "port_id": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "tx_query_result"
+        ],
+        "properties": {
+          "tx_query_result": {
+            "type": "object",
+            "required": [
+              "data",
+              "height",
+              "query_id"
+            ],
+            "properties": {
+              "data": {
+                "$ref": "#/definitions/Binary"
+              },
+              "height": {
+                "$ref": "#/definitions/Height"
+              },
+              "query_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "kv_query_result"
+        ],
+        "properties": {
+          "kv_query_result": {
+            "type": "object",
+            "required": [
+              "query_id"
+            ],
+            "properties": {
+              "query_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Binary": {
+        "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+        "type": "string"
+      },
+      "Height": {
+        "type": "object",
+        "properties": {
+          "revision_height": {
+            "description": "*height** is a height of remote chain",
+            "default": 0,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "revision_number": {
+            "description": "the revision that the client is currently on",
+            "default": 0,
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      },
+      "RequestPacket": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Binary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "destination_channel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "destination_port": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sequence": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "source_channel": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_port": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "timeout_height": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/RequestPacketTimeoutHeight"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "timeout_timestamp": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      },
+      "RequestPacketTimeoutHeight": {
+        "type": "object",
+        "properties": {
+          "revision_height": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "revision_number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        }
+      }
+    }
+  },
+  "responses": {
+    "acknowledgement_result": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Nullable_AcknowledgementResult",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/AcknowledgementResult"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "definitions": {
+        "AcknowledgementResult": {
+          "description": "Serves for storing acknowledgement calls for interchain transactions",
+          "oneOf": [
+            {
+              "description": "Success - Got success acknowledgement in sudo with array of message item types in it",
+              "type": "object",
+              "required": [
+                "success"
+              ],
+              "properties": {
+                "success": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Error - Got error acknowledgement in sudo with payload message in it and error details",
+              "type": "object",
+              "required": [
+                "error"
+              ],
+              "properties": {
+                "error": {
+                  "type": "array",
+                  "items": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ],
+                  "maxItems": 2,
+                  "minItems": 2
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Timeout - Got timeout acknowledgement in sudo with payload message in it",
+              "type": "object",
+              "required": [
+                "timeout"
+              ],
+              "properties": {
+                "timeout": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        }
+      }
+    },
+    "atom_receiver": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WeightedReceiver",
+      "type": "object",
+      "required": [
+        "address",
+        "amount"
+      ],
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "autopilot_format": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "String",
+      "type": "string"
+    },
+    "clock_address": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Addr",
+      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+      "type": "string"
+    },
+    "contract_state": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ContractState",
+      "oneOf": [
+        {
+          "description": "Contract was instantiated, create ica",
+          "type": "string",
+          "enum": [
+            "instantiated"
+          ]
+        },
+        {
+          "description": "ICA was created, send native token to lper",
+          "type": "string",
+          "enum": [
+            "i_c_a_created"
+          ]
+        },
+        {
+          "description": "Verify native token was sent to lper and send ls msg",
+          "type": "string",
+          "enum": [
+            "verify_native_token"
+          ]
+        },
+        {
+          "description": "Verify the lper entered a position, if not try to resend ls msg again",
+          "type": "string",
+          "enum": [
+            "verify_lp"
+          ]
+        },
+        {
+          "description": "Depositor completed his mission.",
+          "type": "string",
+          "enum": [
+            "complete"
+          ]
+        }
+      ]
+    },
+    "depositor_interchain_account_address": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "QueryInterchainAccountAddressResponse",
+      "type": "object",
+      "required": [
+        "interchain_account_address"
+      ],
+      "properties": {
+        "interchain_account_address": {
+          "description": "*interchain_account_address** is a interchain account address on the remote chain",
+          "type": "string"
+        }
+      }
+    },
+    "errors_queue": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Array_of_Tuple_of_Array_of_uint8_and_String",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": [
+          {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "uint8",
+              "minimum": 0.0
+            }
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "maxItems": 2,
+        "minItems": 2
+      }
+    },
+    "interchain_account_address": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "QueryInterchainAccountAddressResponse",
+      "type": "object",
+      "required": [
+        "interchain_account_address"
+      ],
+      "properties": {
+        "interchain_account_address": {
+          "description": "*interchain_account_address** is a interchain account address on the remote chain",
+          "type": "string"
+        }
+      }
+    },
+    "interchain_account_address_from_contract": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Tuple_of_String_and_String",
+      "type": "array",
+      "items": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "maxItems": 2,
+      "minItems": 2
+    },
+    "st_atom_receiver": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "WeightedReceiver",
+      "type": "object",
+      "required": [
+        "address",
+        "amount"
+      ],
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

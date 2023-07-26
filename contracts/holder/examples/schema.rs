@@ -1,6 +1,5 @@
 use cosmwasm_schema::write_api;
-use covenant_depositor::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg};
-use neutron_sdk::sudo::msg::SudoMsg;
+use covenant_holder::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 fn main() {
     write_api! {
@@ -8,6 +7,5 @@ fn main() {
         execute: ExecuteMsg,
         query: QueryMsg,
         migrate: MigrateMsg,
-        sudo: SudoMsg,
     }
 }

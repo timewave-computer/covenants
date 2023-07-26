@@ -5,7 +5,7 @@ gen: build gen-schema
 
 gen-schema:
 	START_DIR=$(pwd); \
-	for f in ./packages/*; do \
+	for f in ../contracts/*; do \
 		echo "generating schema"; \
 		cd "$f"; \
 		CMD="cargo run --example schema"; \
