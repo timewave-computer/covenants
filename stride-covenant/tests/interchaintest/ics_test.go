@@ -15,9 +15,9 @@ import (
 	ibctest "github.com/strangelove-ventures/interchaintest/v3"
 	"github.com/strangelove-ventures/interchaintest/v3/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v3/ibc"
+	"github.com/strangelove-ventures/interchaintest/v3/relayer/rly"
 
 	"github.com/strangelove-ventures/interchaintest/v3/relayer"
-	"github.com/strangelove-ventures/interchaintest/v3/relayer/rly"
 	"github.com/strangelove-ventures/interchaintest/v3/testreporter"
 	"github.com/strangelove-ventures/interchaintest/v3/testutil"
 	"github.com/stretchr/testify/require"
@@ -186,8 +186,7 @@ func TestICS(t *testing.T) {
 		Client:            client,
 		NetworkID:         network,
 		BlockDatabaseFile: ibctest.DefaultBlockDatabaseFilepath(),
-
-		SkipPathCreation: false,
+		SkipPathCreation:  false,
 	})
 	require.NoError(t, err, "failed to build interchain")
 
@@ -1229,6 +1228,25 @@ func TestICS(t *testing.T) {
 			atomBal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to get ICA balance")
 			require.EqualValues(t, int64(atomFundsToDepositor), atomBal)
+		})
+
+		killChannel := func(path string, channelId string, portId string) ibc.RelayerExecResult {
+			channelClosureCmd := []string{
+				"rly", "transact", "channel-close", path, channelId, portId,
+			}
+			relayerResult := r.Exec(ctx, eRep, channelClosureCmd, nil)
+			return relayerResult
+		}
+
+		t.Run("kill gaia-neutron channel", func(t *testing.T) {
+			print("\nkilling gn channel\n")
+
+			resp := killChannel(gaiaNeutronIBCPath, neutronGaiaTransferChannelId, "transfer")
+			// err = testutil.WaitForBlocks(ctx, 200, atom, neutron)
+
+			print(string(resp.Stdout))
+			err = testutil.WaitForBlocks(ctx, 200, atom, neutron)
+
 		})
 
 		// Tick the clock until the LSer has received stATOM
