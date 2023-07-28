@@ -457,3 +457,7 @@ type AllAccounts struct {
 type Balance struct {
 	Address string `json:"address"`
 }
+
+type QueryContractResponse struct {
+	Contracts []string `json:"contracts"`
+}

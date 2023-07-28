@@ -3,7 +3,7 @@ package ibc_test
 import (
 	"errors"
 
-	"github.com/strangelove-ventures/interchaintest/v3/ibc"
+	"github.com/strangelove-ventures/interchaintest/v4/ibc"
 )
 
 func getPairwiseConnectionIds(aconns ibc.ConnectionOutputs, bconns ibc.ConnectionOutputs) ([]string, []string, error) {

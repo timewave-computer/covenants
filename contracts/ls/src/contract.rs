@@ -568,6 +568,7 @@ fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<R
         deps.api.debug(error_msg);
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     Ok(Response::default().add_attribute("method", "sudo_timeout"))
 }

@@ -11,15 +11,15 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	transfertypes "github.com/cosmos/ibc-go/v3/modules/apps/transfer/types"
-	ibctest "github.com/strangelove-ventures/interchaintest/v3"
-	"github.com/strangelove-ventures/interchaintest/v3/chain/cosmos"
-	"github.com/strangelove-ventures/interchaintest/v3/ibc"
+	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
+	ibctest "github.com/strangelove-ventures/interchaintest/v4"
+	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
+	"github.com/strangelove-ventures/interchaintest/v4/ibc"
 
-	"github.com/strangelove-ventures/interchaintest/v3/relayer"
-	"github.com/strangelove-ventures/interchaintest/v3/relayer/rly"
-	"github.com/strangelove-ventures/interchaintest/v3/testreporter"
-	"github.com/strangelove-ventures/interchaintest/v3/testutil"
+	"github.com/strangelove-ventures/interchaintest/v4/relayer"
+	"github.com/strangelove-ventures/interchaintest/v4/relayer/rly"
+	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
+	"github.com/strangelove-ventures/interchaintest/v4/testutil"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
@@ -127,7 +127,6 @@ func TestICS(t *testing.T) {
 	// We have three chains
 	atom, neutron, stride := chains[0], chains[1], chains[2]
 	cosmosAtom, cosmosNeutron, cosmosStride := atom.(*cosmos.CosmosChain), neutron.(*cosmos.CosmosChain), stride.(*cosmos.CosmosChain)
-
 	// Relayer Factory
 	client, network := ibctest.DockerSetup(t)
 	r := ibctest.NewBuiltinRelayerFactory(
@@ -1045,16 +1044,67 @@ func TestICS(t *testing.T) {
 
 			str, err := json.Marshal(covenantMsg)
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
-
-			covenantContractAddress, err = cosmosNeutron.InstantiateContract(
-				ctx,
-				neutronUser.KeyName,
+			instantiateCmd := []string{"neutrond", "tx", "wasm", "instantiate",
 				covenantCodeIdStr,
 				string(str),
-				true, "--gas", "1500000",
-			)
-			require.NoError(t, err, "failed to instantiate contract: ", err)
-			print("\n covenant address: ", covenantContractAddress)
+				"--label", "covenant-covenant",
+				"--from", neutronUser.KeyName,
+				"--gas", "1500000",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--home", neutron.HomeDir(),
+				"--chain-id", neutron.Config().ChainID,
+				"--keyring-backend", keyring.BackendTest,
+				"--gas-adjustment", `1.8`,
+				"--output", "json",
+				"--no-admin",
+				"-y",
+			}
+
+			_, _, err = cosmosNeutron.Exec(ctx, instantiateCmd, nil)
+			require.NoError(t, err, "failed to instantiate covenant")
+
+			contractAddrQuery := []string{"neutrond", "query", "wasm",
+				"list-contract-by-code", covenantCodeIdStr,
+				"--node", neutron.GetRPCAddress(),
+				"--home", neutron.HomeDir(),
+				"--chain-id", neutron.Config().ChainID,
+				"--output", "json",
+			}
+
+			resp, _, err := cosmosNeutron.Exec(ctx, contractAddrQuery, nil)
+			require.NoError(t, err, "failed to query contract by code")
+
+			testutil.WaitForBlocks(ctx, 100, neutron)
+			contractsRes := QueryContractResponse{}
+			err = json.Unmarshal([]byte(resp), &contractsRes)
+			require.NoError(t, err, "failed to unmarshal contractsResp")
+			print("\n contracts response: ", strings.Join(contractsRes.Contracts, " "))
+			contractAddress := contractsRes.Contracts[len(contractsRes.Contracts)-1]
+			print("COVENANT ADDR: ", contractAddress)
+			covenantContractAddress = contractAddress
+			// neutron
+			// stdout, _, err := cosmosNeutron.getFullNode().ExecQuery(ctx, "wasm", "list-contract-by-code", covenantCodeIdStr)
+			// if err != nil {
+			// 	return "", err
+			// }
+
+			// contactsRes := QueryContractResponse{}
+			// if err := json.Unmarshal([]byte(stdout), &contactsRes); err != nil {
+			// 	return "", err
+			// }
+
+			// contractAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
+			// return contractAddress, nil
+			// covenantContractAddress, err = cosmosNeutron.InstantiateContract(
+			// 	ctx,
+			// 	neutronUser.KeyName,
+			// 	covenantCodeIdStr,
+			// 	string(str),
+			// 	true, "--gas", "1500000",
+			// )
+			// require.NoError(t, err, "failed to instantiate contract: ", err)
+			// print("\n covenant address: ", covenantContractAddress)
 		})
 
 		t.Run("query covenant instantiated contracts", func(t *testing.T) {
