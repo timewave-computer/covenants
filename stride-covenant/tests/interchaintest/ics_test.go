@@ -1026,8 +1026,8 @@ func TestICS(t *testing.T) {
 			}
 
 			timeouts := Timeouts{
-				IcaTimeout:         "30", // 30sec
-				IbcTransferTimeout: "45", // 45sec
+				IcaTimeout:         "10", // sec
+				IbcTransferTimeout: "15", // sec
 			}
 
 			covenantMsg := CovenantInstantiateMsg{
@@ -1230,25 +1230,6 @@ func TestICS(t *testing.T) {
 			require.EqualValues(t, int64(atomFundsToDepositor), atomBal)
 		})
 
-		killChannel := func(path string, channelId string, portId string) ibc.RelayerExecResult {
-			channelClosureCmd := []string{
-				"rly", "transact", "channel-close", path, channelId, portId,
-			}
-			relayerResult := r.Exec(ctx, eRep, channelClosureCmd, nil)
-			return relayerResult
-		}
-
-		t.Run("kill gaia-neutron channel", func(t *testing.T) {
-			print("\nkilling gn channel\n")
-
-			resp := killChannel(gaiaNeutronIBCPath, neutronGaiaTransferChannelId, "transfer")
-			// err = testutil.WaitForBlocks(ctx, 200, atom, neutron)
-
-			print(string(resp.Stdout))
-			err = testutil.WaitForBlocks(ctx, 200, atom, neutron)
-
-		})
-
 		// Tick the clock until the LSer has received stATOM
 		// and Lper has received ATOM
 		t.Run("tick clock until LSer receives funds", func(t *testing.T) {
@@ -1272,8 +1253,30 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err, "failed to query ICA balance")
 			print("\n gaia ica atom bal: ", gaiaIcaBalance, "\n")
 
+			// switch off the relayer
+			err = r.StopRelayer(ctx, eRep)
+			require.NoError(t, err, "failed to stop relayer")
+
+			err = testutil.WaitForBlocks(ctx, 5, atom, neutron)
+			require.NoError(t, err, "failed to wait for blocks")
+
 			const maxTicks = 20
 			tick := 1
+			// do some ticks with relayer switched off
+			for tick <= maxTicks {
+				print("\n Ticking clock ", tick, " of ", maxTicks)
+				tickClock()
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
+
+				tick += 1
+			}
+
+			// now we restart the relayer and try again
+			err = r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaStrideIBCPath, neutronStrideIBCPath)
+			require.NoError(t, err, "failed to start relayer with given paths")
+
+			tick = 1
 			for tick <= maxTicks {
 
 				print("\n Ticking clock ", tick, " of ", maxTicks)
