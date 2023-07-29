@@ -133,17 +133,19 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
                 Ok((_, _)) => {
                     try_send_native_token(env, deps)
                 },
-                Err(_) => Ok(Response::default()
-                    .add_attribute("method", "try_tick")
-                    .add_attribute("ica_status", "not_created")
-                ),
+                Err(_) => {
+                    Ok(Response::default()
+                        .add_attribute("method", "try_tick")
+                        .add_attribute("ica_status", "not_created")
+                    )
+                },
             }
         }
         ContractState::VerifyNativeToken => try_verify_native_token(env, deps),
         ContractState::VerifyLp => try_verify_lp(env, deps),
         ContractState::Complete => {
             Ok(Response::default().add_attribute("status", "function_completed"))
-        }
+        },
     }
 }
 
@@ -226,10 +228,6 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                     message: "try_send_native_token".to_string(),
                 },
             )?;
-
-            // we advance the state machine to validation phase where we will query the balances of
-            // LP module to confirm that funds have arrived
-            CONTRACT_STATE.save(deps.storage, &ContractState::VerifyNativeToken)?;
 
             Ok(Response::default()
                 .add_attribute("method", "try_send_native_token")
@@ -337,13 +335,10 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
     let pending_transfer_timeout = PENDING_NATIVE_TRANSFER_TIMEOUT.load(deps.storage)?;
 
     if lper_native_token_balance.amount >= receiver.amount {
-        // if funds have arrived on LP module, we advance the state and attempt to
-        // send the remaining funds to ICA on stride
+        // if funds have arrived on LP module, we advance the state
         CONTRACT_STATE.save(deps.storage, &ContractState::VerifyLp)?;
-        let ls_token_msg = try_send_ls_token(env, deps)?;
 
         return Ok(Response::default()
-            .add_submessage(ls_token_msg)
             .add_attribute("method", "try_verify_native_token")
             .add_attribute("receiver_balance", lper_native_token_balance.amount));
     } else if env.block.time.nanos() >= pending_transfer_timeout.plus_minutes(5).nanos() {
@@ -751,6 +746,11 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
         //     CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
         //     response = response.add_attribute("payload_message", "try_receive_atom_from_ica")
         // }
+        if payload.message == "try_send_native_token".to_string() {
+            // we advance the state machine to validation phase where we will query the balances of
+            // LP module to confirm that funds have arrived
+            CONTRACT_STATE.save(deps.storage, &ContractState::VerifyNativeToken)?;
+        }
 
         // update but also check that we don't update same seq_id twice
         ACKNOWLEDGEMENT_RESULTS.update(
@@ -817,6 +817,10 @@ fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResu
         deps.api.debug(error_msg);
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
+
+    // timeout means that the ICA channel is closed
+    // we rollback the state to Instantiated to force reopen the channel
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     Ok(Response::default().add_attribute("method", "sudo_timeout"))
 }
