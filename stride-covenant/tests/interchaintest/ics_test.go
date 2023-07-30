@@ -1371,6 +1371,11 @@ func TestICS(t *testing.T) {
 			// now we restart the relayer and go again
 			startRelayer()
 
+			r.FlushPackets(ctx, eRep, neutronStrideIBCPath, strideNeutronChannelId)
+			r.FlushPackets(ctx, eRep, neutronStrideIBCPath, neutronStrideChannelId)
+			r.FlushAcknowledgements(ctx, eRep, neutronStrideIBCPath, strideNeutronChannelId)
+			r.FlushAcknowledgements(ctx, eRep, neutronStrideIBCPath, neutronStrideChannelId)
+
 			_, lsState, _ := tickClock()
 			require.EqualValues(t, "instantiated", lsState, "ls did not rollback the state")
 
