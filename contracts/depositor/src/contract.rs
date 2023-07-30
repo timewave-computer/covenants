@@ -284,6 +284,18 @@ fn try_send_ls_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
                 .load(deps.storage)?
                 .replace("{st_ica}", &stride_ica_addr);
 
+            // we define the gaia->neutron timeout to be equal to:
+            // current block + ICA timeout + ibc transfer timeout.
+            // this assumes the worst possible time of delivery for the ICA message
+            // which wraps the underlying MsgTransfer.
+            let msg_transfer_timeout = env
+                .block
+                .time
+                // we take the wrapping ICA tx timeout into account and assume the worst
+                .plus_seconds(ica_timeout.u64())
+                // and then add the preset ibc transfer timeout
+                .plus_seconds(ibc_transfer_timeout.u64());
+
             // transfer message that will send funds from the ICA on gaia to our ICA on stride
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
@@ -292,11 +304,7 @@ fn try_send_ls_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
                 sender: address,
                 receiver: autopilot_receiver,
                 timeout_height: None,
-                timeout_timestamp: env
-                    .block
-                    .time
-                    .plus_seconds(ibc_transfer_timeout.u64())
-                    .nanos(),
+                timeout_timestamp: msg_transfer_timeout.nanos(),
             };
 
             let stride_protobuf = to_proto_msg_transfer(stride_msg)?;
@@ -332,25 +340,35 @@ fn try_send_ls_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
 fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
     let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
-    let pending_transfer_timeout = PENDING_NATIVE_TRANSFER_TIMEOUT.load(deps.storage)?;
+    let pending_transfer_timeout = PENDING_NATIVE_TRANSFER_TIMEOUT.may_load(deps.storage)?;
 
     if lper_native_token_balance.amount >= receiver.amount {
         // if funds have arrived on LP module, we advance the state
         CONTRACT_STATE.save(deps.storage, &ContractState::VerifyLp)?;
+        // nullifying any previous timeouts
+        PENDING_NATIVE_TRANSFER_TIMEOUT.remove(deps.storage);
 
         return Ok(Response::default()
             .add_attribute("method", "try_verify_native_token")
-            .add_attribute("receiver_balance", lper_native_token_balance.amount));
-    } else if env.block.time.nanos() >= pending_transfer_timeout.plus_minutes(5).nanos() {
-        // funds are still not on the LP module and the msgTransfer timeout is due
-        // we can safely retry sending the funds again by reverting the state
-        // to ICACreated
-        CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default()
-            .add_attribute("method", "try_verify_native_token")
-            .add_attribute("status", "pending_transfer_timeout_due")
-            .add_attribute("contract_state", "ica_created")
-        );
+            .add_attribute("contract_state", "verify_lp")
+            .add_attribute("receiver_balance", lper_native_token_balance.amount)
+        )
+    }
+    
+    // if there is an active timeout set we validate it
+    if let Some(active_timeout) = pending_transfer_timeout {
+        if env.block.time.nanos() >= active_timeout.plus_minutes(5).nanos() {
+            // funds are still not on the LP module and the msgTransfer timeout is due
+            // we can safely retry sending the funds again by reverting the state
+            // to ICACreated
+            CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+            PENDING_NATIVE_TRANSFER_TIMEOUT.remove(deps.storage);
+            return Ok(Response::default()
+                .add_attribute("method", "try_verify_native_token")
+                .add_attribute("status", "pending_transfer_timeout_due")
+                .add_attribute("contract_state", "ica_created")
+            )
+        }
     }
 
     // if tokens native tokens did not yet arrive to the LP module and the

@@ -365,6 +365,28 @@ func TestICS(t *testing.T) {
 	print("\n")
 	_ = strideAtomIbcDenom
 
+	stopRelayer := func() {
+		print("\nstopping relayer...\n")
+		err = r.StopRelayer(ctx, eRep)
+		require.NoError(t, err, "failed to stop relayer")
+
+		err = testutil.WaitForBlocks(ctx, 5, atom, neutron)
+		require.NoError(t, err, "failed to wait for blocks")
+
+		print("\n")
+	}
+
+	startRelayer := func() {
+		print("\nstarting relayer...\n")
+		err = r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaStrideIBCPath, neutronStrideIBCPath)
+		require.NoError(t, err, "failed to start relayer with given paths")
+
+		err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+		require.NoError(t, err, "failed to wait for blocks")
+
+		print("\n")
+	}
+
 	t.Run("stride covenant tests", func(t *testing.T) {
 		//----------------------------------------------//
 		// Testing parameters
@@ -1027,7 +1049,7 @@ func TestICS(t *testing.T) {
 
 			timeouts := Timeouts{
 				IcaTimeout:         "10", // sec
-				IbcTransferTimeout: "15", // sec
+				IbcTransferTimeout: "5",  // sec
 			}
 
 			covenantMsg := CovenantInstantiateMsg{
@@ -1149,7 +1171,7 @@ func TestICS(t *testing.T) {
 			}
 			_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
-
+			// print("\n clock response: ", string(resp), "\n")
 			err = testutil.WaitForBlocks(ctx, 3, atom, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
@@ -1254,33 +1276,29 @@ func TestICS(t *testing.T) {
 			print("\n gaia ica atom bal: ", gaiaIcaBalance, "\n")
 
 			// switch off the relayer
-			err = r.StopRelayer(ctx, eRep)
-			require.NoError(t, err, "failed to stop relayer")
+			stopRelayer()
 
-			err = testutil.WaitForBlocks(ctx, 5, atom, neutron)
-			require.NoError(t, err, "failed to wait for blocks")
-
-			const maxTicks = 20
-			tick := 1
-			// do some ticks with relayer switched off
-			for tick <= maxTicks {
-				print("\n Ticking clock ", tick, " of ", maxTicks)
+			maxTicks := 10
+			// do some ticks with relayer switched off until
+			for i := 1; i < maxTicks; i++ {
+				print("\n Ticking clock ", i, " of ", maxTicks)
 				tickClock()
 				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
 				require.NoError(t, err, "failed to wait for blocks")
-
-				tick += 1
 			}
 
 			// now we restart the relayer and try again
-			err = r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaStrideIBCPath, neutronStrideIBCPath)
-			require.NoError(t, err, "failed to start relayer with given paths")
+			startRelayer()
 
-			tick = 1
-			for tick <= maxTicks {
+			// assert depositor is back on instantiated state
+			depositorState, _, _ := tickClock()
+			require.EqualValues(t, "instantiated", depositorState, "depositor did not rollback the state")
 
-				print("\n Ticking clock ", tick, " of ", maxTicks)
+			maxTicks = 20
+			for i := 1; i < maxTicks; i++ {
+				print("\n Ticking clock ", i, " of ", maxTicks)
 				tickClock()
+
 				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
 				require.NoError(t, err, "failed to wait for blocks")
 
@@ -1300,33 +1318,27 @@ func TestICS(t *testing.T) {
 					lpAtomBalance == int64(atomFunds) {
 					break
 				}
-				tick += 1
 			}
 
-			// fail if we haven't transferred funds in under maxTicks
-			require.LessOrEqual(t, tick, maxTicks)
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to query ICA balance")
 			require.Equal(t, int64(0), atomICABal)
 		})
 
 		t.Run("permissionlessly forward funds from Stride to LPer", func(t *testing.T) {
-			// Wait for a few blocks
-			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
+
 			// Construct a transfer message
 			msg := TransferExecutionMsg{
 				Transfer: TransferAmount{
 					Amount: strideRedemptionRate * atomToLiquidStake,
 				},
 			}
-			str, err := json.Marshal(msg)
+			transferMsgJson, err := json.Marshal(msg)
 			require.NoError(t, err)
 
-			// Anyone can call the tranfer function
-			print("\n attempting to move funds by executing message: ", string(str))
-			cmd = []string{"neutrond", "tx", "wasm", "execute", lsContractAddress,
-				string(str),
+			// transfer command for permissionless transfer from stride ica to lper
+			transferCmd := []string{"neutrond", "tx", "wasm", "execute", lsContractAddress,
+				string(transferMsgJson),
 				"--from", neutronUser.KeyName,
 				"--gas-prices", "0.0untrn",
 				"--gas-adjustment", `1.8`,
@@ -1338,8 +1350,45 @@ func TestICS(t *testing.T) {
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
-			_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
+
+			// switch off the relayer
+			stopRelayer()
+			// trigger sudo_timeout which rolls back the state
+			cosmosNeutron.Exec(ctx, transferCmd, nil)
+
+			err = testutil.WaitForBlocks(ctx, 30, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
+
+			maxTicks := 10
+			// do some ticks with relayer switched off
+			for i := 1; i < maxTicks; i++ {
+				print("\n Ticking clock ", i, " of ", maxTicks)
+				tickClock()
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
+			}
+
+			// now we restart the relayer and go again
+			startRelayer()
+
+			_, lsState, _ := tickClock()
+			require.EqualValues(t, "instantiated", lsState, "ls did not rollback the state")
+
+			maxTicks = 20
+			for i := 1; i < maxTicks; i++ {
+				_, lsState, _ = tickClock()
+				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+				require.NoError(t, err, "failed to wait for blocks")
+				if lsState == "i_c_a_created" {
+					break
+				}
+			}
+
+			// retry the transfer again
+			print("\n attempting permisionless transfer\n")
+			resp, _, err := cosmosNeutron.Exec(ctx, transferCmd, nil)
 			require.NoError(t, err)
+			print("\ntransfer response: ", string(resp), "\n")
 
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 			require.NoError(t, err)
@@ -1419,10 +1468,6 @@ func TestICS(t *testing.T) {
 			// TODO check if they are in holder
 
 		})
-
-		// TEST: Withdraw liquidity
-		// Check if LP tokens are burned
-		// Check if stATOM and ATOMs are returned
 
 		t.Run("holder can withdraw liquidity", func(t *testing.T) {
 			lpTokenBal := queryLpTokenBalance(liquidityTokenAddress, holderContractAddress)
