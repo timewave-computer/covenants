@@ -40,7 +40,6 @@ const CONTRACT_NAME: &str = "crates.io:covenant-ls";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const SUDO_PAYLOAD_REPLY_ID: u64 = 1u64;
-const TRANSFER_REPLY_ID: u64 = 3u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -98,7 +97,16 @@ pub fn execute(
         .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Transfer { amount } => try_execute_transfer(deps, env, info, amount),
+        ExecuteMsg::Transfer { amount } => {
+            let state = CONTRACT_STATE.load(deps.storage)?;
+            match state {
+                ContractState::Instantiated => Ok(Response::default()
+                    .add_attribute("method", "permisionless_transfer")
+                    .add_attribute("status", "no_ica")
+                ),
+                ContractState::ICACreated => try_execute_transfer(deps, env, info, amount),
+            }
+        },
     }
 }
 
@@ -139,7 +147,7 @@ fn try_execute_transfer(
     amount: Uint128,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id)?;
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -196,11 +204,20 @@ fn try_execute_transfer(
                 fee,
             );
 
+            let sudo_msg = msg_with_sudo_callback(
+                deps,
+                submit_msg,
+                SudoPayload {
+                    port_id,
+                    message: "permisionless_transfer".to_string(),
+                },
+            )?;
             Ok(Response::default()
+                .add_submessage(sudo_msg)
                 .add_attribute("method", "try_execute_transfer")
-                .add_submessage(SubMsg::reply_on_success(submit_msg, TRANSFER_REPLY_ID)))
+            )
         }
-        None => Err(NeutronError::Fmt(Error)),
+        None => Err(NeutronError::Std(StdError::not_found("no ica found"))),
     }
 }
 
@@ -323,85 +340,6 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
             counterparty_version,
         ),
         _ => Ok(Response::default()),
-    }
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
-    deps.api.debug("WASMDEBUG: migrate");
-
-    match msg {
-        MigrateMsg::UpdateConfig {
-            clock_addr,
-            stride_neutron_ibc_transfer_channel_id,
-            lp_address,
-            neutron_stride_ibc_connection_id,
-            ls_denom,
-            ibc_fee,
-            ibc_transfer_timeout,
-            ica_timeout,
-        } => {
-            let mut resp = Response::default().add_attribute("method", "update_config");
-
-            if let Some(addr) = clock_addr {
-                let addr = deps.api.addr_validate(&addr)?;
-                CLOCK_ADDRESS.save(deps.storage, &addr)?;
-                resp = resp.add_attribute("clock_addr", addr.to_string());
-            }
-
-            if let Some(channel_id) = stride_neutron_ibc_transfer_channel_id {
-                STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &channel_id)?;
-                resp = resp.add_attribute("stride_neutron_ibc_transfer_channel_id", channel_id);
-            }
-
-            if let Some(addr) = lp_address {
-                let addr = deps.api.addr_validate(&addr)?;
-                resp = resp.add_attribute("lp_address", addr.to_string());
-                LP_ADDRESS.save(deps.storage, &addr)?;
-            }
-
-            if let Some(connection_id) = neutron_stride_ibc_connection_id {
-                NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &connection_id)?;
-                resp = resp.add_attribute("neutron_stride_ibc_connection_id", connection_id);
-            }
-
-            if let Some(denom) = ls_denom {
-                LS_DENOM.save(deps.storage, &denom)?;
-                resp = resp.add_attribute("ls_denom", denom);
-            }
-
-            if let Some(timeout) = ibc_transfer_timeout {
-                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
-                IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
-                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
-            }
-
-            if let Some(timeout) = ica_timeout {
-                resp = resp.add_attribute("ica_timeout", timeout);
-                ICA_TIMEOUT.save(deps.storage, &timeout)?;
-                resp = resp.add_attribute("ica_timeout", timeout);
-            }
-
-            if let Some(fee) = ibc_fee {
-                if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() || !fee.recv_fee.is_empty()
-                {
-                    return Err(StdError::GenericErr {
-                        msg: "invalid IbcFee".to_string(),
-                    });
-                }
-                IBC_FEE.save(deps.storage, &fee)?;
-                resp = resp.add_attribute("ibc_fee_ack", fee.ack_fee[0].to_string());
-                resp = resp.add_attribute("ibc_fee_timeout", fee.timeout_fee[0].to_string());
-            }
-
-            Ok(resp)
-        }
-        MigrateMsg::UpdateCodeId { data: _ } => {
-            // This is a migrate message to update code id,
-            // Data is optional base64 that we can parse to any data we would like in the future
-            // let data: SomeStruct = from_binary(&data)?;
-            Ok(Response::default())
-        }
     }
 }
 
@@ -569,7 +507,14 @@ fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<R
         add_error_to_queue(deps.storage, error_msg.to_string());
     }
 
-    Ok(Response::default().add_attribute("method", "sudo_timeout"))
+    // timeout here means channel is closed.
+    // we rollback the state to Instantiated to force reopen the channel.
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+
+    Ok(Response::default()
+        .add_attribute("method", "sudo_timeout")
+        .add_attribute("contract_state", "instantiated")
+    )
 }
 
 fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {
@@ -659,7 +604,6 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
         .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
-        TRANSFER_REPLY_ID => handle_transfer_reply(deps, env, msg),
         _ => Err(StdError::generic_err(format!(
             "unsupported reply message id {}",
             msg.id
@@ -667,13 +611,82 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     }
 }
 
-pub fn handle_transfer_reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
-    deps.api.debug("WASMDEBUG: transfer reply");
-    // if transfer errors, we roll back to instantiated state
-    // this will force an attempt to re-register the ICA
-    if msg.result.is_err() {
-        CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
-    }
 
-    Ok(Response::default().add_attribute("method", "handle_transfer_reply"))
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: migrate");
+
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            stride_neutron_ibc_transfer_channel_id,
+            lp_address,
+            neutron_stride_ibc_connection_id,
+            ls_denom,
+            ibc_fee,
+            ibc_transfer_timeout,
+            ica_timeout,
+        } => {
+            let mut resp = Response::default().add_attribute("method", "update_config");
+
+            if let Some(addr) = clock_addr {
+                let addr = deps.api.addr_validate(&addr)?;
+                CLOCK_ADDRESS.save(deps.storage, &addr)?;
+                resp = resp.add_attribute("clock_addr", addr.to_string());
+            }
+
+            if let Some(channel_id) = stride_neutron_ibc_transfer_channel_id {
+                STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &channel_id)?;
+                resp = resp.add_attribute("stride_neutron_ibc_transfer_channel_id", channel_id);
+            }
+
+            if let Some(addr) = lp_address {
+                let addr = deps.api.addr_validate(&addr)?;
+                resp = resp.add_attribute("lp_address", addr.to_string());
+                LP_ADDRESS.save(deps.storage, &addr)?;
+            }
+
+            if let Some(connection_id) = neutron_stride_ibc_connection_id {
+                NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &connection_id)?;
+                resp = resp.add_attribute("neutron_stride_ibc_connection_id", connection_id);
+            }
+
+            if let Some(denom) = ls_denom {
+                LS_DENOM.save(deps.storage, &denom)?;
+                resp = resp.add_attribute("ls_denom", denom);
+            }
+
+            if let Some(timeout) = ibc_transfer_timeout {
+                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
+                IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
+                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
+            }
+
+            if let Some(timeout) = ica_timeout {
+                resp = resp.add_attribute("ica_timeout", timeout);
+                ICA_TIMEOUT.save(deps.storage, &timeout)?;
+                resp = resp.add_attribute("ica_timeout", timeout);
+            }
+
+            if let Some(fee) = ibc_fee {
+                if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() || !fee.recv_fee.is_empty()
+                {
+                    return Err(StdError::GenericErr {
+                        msg: "invalid IbcFee".to_string(),
+                    });
+                }
+                IBC_FEE.save(deps.storage, &fee)?;
+                resp = resp.add_attribute("ibc_fee_ack", fee.ack_fee[0].to_string());
+                resp = resp.add_attribute("ibc_fee_timeout", fee.timeout_fee[0].to_string());
+            }
+
+            Ok(resp)
+        }
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
+        }
+    }
 }
