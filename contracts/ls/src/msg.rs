@@ -103,6 +103,15 @@ pub enum QueryMsg {
     IbcTransferTimeout {},
     #[returns(String)]
     LsDenom {},
+    // this query returns acknowledgement result after interchain transaction
+    #[returns(Option<AcknowledgementResult>)]
+    AcknowledgementResult {
+        interchain_account_id: String,
+        sequence_id: u64,
+    },
+    // this query returns non-critical errors list
+    #[returns(Vec<(Vec<u8>, String)>)]
+    ErrorsQueue {},
 }
 
 #[cw_serde]

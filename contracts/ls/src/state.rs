@@ -81,3 +81,11 @@ pub fn save_sudo_payload(
 ) -> StdResult<()> {
     SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_vec(&payload)?)
 }
+
+pub fn clear_sudo_payload(
+    store: &mut dyn Storage,
+    channel_id: String,
+    seq_id: u64,
+) {
+    SUDO_PAYLOAD.remove(store, (channel_id, seq_id))
+}

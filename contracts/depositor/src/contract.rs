@@ -10,14 +10,13 @@ use cosmwasm_std::{
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
-use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
 
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg, ContractState, SudoPayload, AcknowledgementResult},
     state::{
-        IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT,
+        IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT, clear_sudo_payload,
     },
 };
 use neutron_sdk::{
@@ -43,7 +42,7 @@ type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
 const ATOM_DENOM: &str = "uatom";
-pub(crate) const INTERCHAIN_ACCOUNT_ID: &str = "ica";
+pub(crate) const INTERCHAIN_ACCOUNT_ID: &str = "gaia-ica";
 
 pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1;
 
@@ -435,18 +434,6 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
     Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
 }
 
-pub fn register_transfers_query(
-    connection_id: String,
-    recipient: String,
-    update_period: u64,
-    min_height: Option<u64>,
-) -> NeutronResult<Response<NeutronMsg>> {
-    let msg =
-        new_register_transfers_query_msg(connection_id, recipient, update_period, min_height)?;
-
-    Ok(Response::new().add_message(msg))
-}
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
@@ -676,6 +663,7 @@ fn sudo_open_ack(
 
     // Update the storage record associated with the interchain account.
     if let Ok(parsed_version) = parsed_version {
+        INTERCHAIN_ACCOUNTS.clear(deps.storage);
         INTERCHAIN_ACCOUNTS.save(
             deps.storage,
             port_id,
@@ -817,28 +805,30 @@ fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResu
     // processing. The decision is based purely on your application logic.
     // Please be careful because it may lead to an unexpected state changes because state might
     // has been changed before this call and will not be reverted because of supressed error.
-    let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
-    if let Some(payload) = payload {
-        // update but also check that we don't update same seq_id twice
-        ACKNOWLEDGEMENT_RESULTS.update(
-            deps.storage,
-            (payload.port_id, seq_id),
-            |maybe_ack| -> StdResult<AcknowledgementResult> {
-                match maybe_ack {
-                    Some(_ack) => Err(StdError::generic_err("trying to update same seq_id")),
-                    None => Ok(AcknowledgementResult::Timeout(payload.message)),
-                }
-            },
-        )?;
-    } else {
-        let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
-        deps.api.debug(error_msg);
-        add_error_to_queue(deps.storage, error_msg.to_string());
-    }
+    // let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
+    // if let Some(payload) = payload {
+    //     // update but also check that we don't update same seq_id twice
+    //     ACKNOWLEDGEMENT_RESULTS.update(
+    //         deps.storage,
+    //         (payload.port_id, seq_id),
+    //         |maybe_ack| -> StdResult<AcknowledgementResult> {
+    //             // match maybe_ack {
+    //             //     Some(_ack) => Err(StdError::generic_err("trying to update same seq_id")),
+    //             //     None => Ok(AcknowledgementResult::Timeout(payload.message)),
+    //             // }
+    //             Ok(AcknowledgementResult::Timeout(payload.message))
+    //         },
+    //     )?;
+    // } else {
+    //     let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
+    //     deps.api.debug(error_msg);
+    //     add_error_to_queue(deps.storage, error_msg.to_string());
+    // }
 
     // timeout means that the ICA channel is closed
     // we rollback the state to Instantiated to force reopen the channel
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+    // clear_sudo_payload(deps.storage, channel_id, seq_id);
 
     Ok(Response::default().add_attribute("method", "sudo_timeout"))
 }
