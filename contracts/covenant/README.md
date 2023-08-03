@@ -9,7 +9,6 @@ clock -> holder -> lp -> ls -> depositor
 1. instantiate clock, holder
 1. instantiate lp with clock and holder addresses
 1. instantiate ls with clock and lper addresses
-1. tick ls, instantiate ICA
 1. instantiate depositor with stride ICA, lper, and clock addresses
 1. tick depositor to instantiate gaia ICA
 1. tick depositor to LS on stride
