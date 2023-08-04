@@ -1,10 +1,29 @@
 package ibc_test
 
 import (
+	"context"
 	"errors"
+	"testing"
 
 	"github.com/strangelove-ventures/interchaintest/v3/ibc"
+	"github.com/strangelove-ventures/interchaintest/v3/testreporter"
+	"github.com/stretchr/testify/require"
 )
+
+func generatePath(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, chainAId string, chainBId string, path string) {
+	err := r.GeneratePath(ctx, eRep, chainAId, chainBId, path)
+	require.NoError(t, err)
+}
+
+func generateClient(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, path string) {
+	err := r.CreateClients(ctx, eRep, path, ibc.CreateClientOptions{TrustingPeriod: "330h"})
+	require.NoError(t, err)
+}
+
+func generateConnections(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, path string) {
+	err := r.CreateConnections(ctx, eRep, path)
+	require.NoError(t, err)
+}
 
 func getPairwiseConnectionIds(aconns ibc.ConnectionOutputs, bconns ibc.ConnectionOutputs) ([]string, []string, error) {
 	abconnids := make([]string, 0)
