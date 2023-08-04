@@ -79,7 +79,7 @@ func TestICS(t *testing.T) {
 				Denom:               "untrn",
 				GasPrices:           "0.0untrn,0.0uatom",
 				GasAdjustment:       1.3,
-				TrustingPeriod:      "1197504s",
+				TrustingPeriod:      "330h",
 				NoHostMount:         false,
 				ModifyGenesis:       setupNeutronGenesis("0.05", []string{"untrn"}, []string{"uatom"}),
 				ConfigFileOverrides: configFileOverrides,
@@ -102,7 +102,7 @@ func TestICS(t *testing.T) {
 				Denom:          "ustrd",
 				GasPrices:      "0.00ustrd",
 				GasAdjustment:  1.3,
-				TrustingPeriod: "1197504s",
+				TrustingPeriod: "330h",
 				NoHostMount:    false,
 				ModifyGenesis: setupStrideGenesis([]string{
 					"/cosmos.bank.v1beta1.MsgSend",
@@ -186,12 +186,77 @@ func TestICS(t *testing.T) {
 		Client:            client,
 		NetworkID:         network,
 		BlockDatabaseFile: ibctest.DefaultBlockDatabaseFilepath(),
-		SkipPathCreation:  false,
+		SkipPathCreation:  true,
 	})
 	require.NoError(t, err, "failed to build interchain")
 
 	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 	require.NoError(t, err, "failed to wait for blocks")
+
+	// generate ibc paths
+	generatePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosNeutron.Config().ChainID, gaiaNeutronIBCPath)
+	generatePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosStride.Config().ChainID, gaiaStrideIBCPath)
+	generatePath(t, ctx, r, eRep, cosmosStride.Config().ChainID, cosmosNeutron.Config().ChainID, neutronStrideIBCPath)
+	// generate ics path
+	generatePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosAtom.Config().ChainID, gaiaNeutronICSPath)
+
+	// create clients
+	generateClient(t, ctx, r, eRep, gaiaNeutronICSPath)
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+	require.NoError(t, err, "failed to wait for blocks")
+
+	neutronClients, _ := r.GetClients(ctx, eRep, cosmosNeutron.Config().ChainID)
+	neutronICSClientId := neutronClients[0].ClientID
+	atomClients, _ := r.GetClients(ctx, eRep, cosmosAtom.Config().ChainID)
+	atomICSClientId := atomClients[0].ClientID
+
+	print("neutron ics client id ", neutronICSClientId)
+	print("atom ics client id ", atomICSClientId)
+
+	err = r.UpdatePath(ctx, eRep, gaiaNeutronICSPath, ibc.PathUpdateOptions{
+		SrcClientID: &neutronICSClientId,
+		DstClientID: &atomICSClientId,
+	})
+	require.NoError(t, err)
+	err = r.CreateConnections(ctx, eRep, gaiaNeutronICSPath)
+	require.NoError(t, err)
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+	require.NoError(t, err, "failed to wait for blocks")
+
+	err = r.CreateChannel(ctx, eRep, gaiaNeutronICSPath, ibc.CreateChannelOptions{
+		SourcePortName: "consumer",
+		DestPortName:   "provider",
+		Order:          ibc.Ordered,
+		Version:        "1",
+	})
+	require.NoError(t, err)
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+	require.NoError(t, err, "failed to wait for blocks")
+
+	generateClient(t, ctx, r, eRep, gaiaNeutronIBCPath)
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+	require.NoError(t, err, "failed to wait for blocks")
+	generateClient(t, ctx, r, eRep, gaiaStrideIBCPath)
+	err = testutil.WaitForBlocks(ctx, 2, atom, stride)
+	require.NoError(t, err, "failed to wait for blocks")
+	generateClient(t, ctx, r, eRep, neutronStrideIBCPath)
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+	require.NoError(t, err, "failed to wait for blocks")
+
+	// create connections
+	generateConnections(t, ctx, r, eRep, gaiaNeutronIBCPath)
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+	require.NoError(t, err, "failed to wait for blocks")
+	generateConnections(t, ctx, r, eRep, neutronStrideIBCPath)
+	err = testutil.WaitForBlocks(ctx, 2, stride, neutron)
+	require.NoError(t, err, "failed to wait for blocks")
+	generateConnections(t, ctx, r, eRep, gaiaStrideIBCPath)
+	err = testutil.WaitForBlocks(ctx, 2, atom, stride)
+	require.NoError(t, err, "failed to wait for blocks")
+
+	r.LinkPath(ctx, eRep, gaiaNeutronIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
+	r.LinkPath(ctx, eRep, neutronStrideIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
+	r.LinkPath(ctx, eRep, gaiaStrideIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
 
 	// Start the relayer and clean it up when the test ends.
 	err = r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaStrideIBCPath, neutronStrideIBCPath)
