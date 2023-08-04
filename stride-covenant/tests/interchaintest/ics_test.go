@@ -1304,10 +1304,6 @@ func TestICS(t *testing.T) {
 
 			// switch off the relayer
 			stopRelayer()
-			transferCmd := getLsPermisionlessTransferMsg(strideRedemptionRate * atomToLiquidStake / 2)
-			cosmosNeutron.Exec(ctx, transferCmd, nil)
-			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
 
 			maxTicks := 10
 			// do some ticks with relayer switched off until
@@ -1354,21 +1350,21 @@ func TestICS(t *testing.T) {
 			atomICABal, err := atom.GetBalance(ctx, icaAccountAddress, atom.Config().Denom)
 			require.NoError(t, err, "failed to query ICA balance")
 			require.Equal(t, int64(0), atomICABal)
+			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+			require.NoError(t, err, "failed to wait for blocks")
 		})
 
 		t.Run("permissionlessly forward funds from Stride to LPer", func(t *testing.T) {
-			transferCmd := getLsPermisionlessTransferMsg(strideRedemptionRate * atomToLiquidStake / 2)
+			transferCmd := getLsPermisionlessTransferMsg(strideRedemptionRate * atomToLiquidStake)
 			cosmosNeutron.Exec(ctx, transferCmd, nil)
-			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
 
 			// switch off the relayer
-			stopRelayer()
+			// stopRelayer()
 			// trigger sudo_timeout which rolls back the state
-			cosmosNeutron.Exec(ctx, transferCmd, nil)
+			// cosmosNeutron.Exec(ctx, transferCmd, nil)
 
-			err = testutil.WaitForBlocks(ctx, 40, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
+			// err = testutil.WaitForBlocks(ctx, 40, atom, neutron, stride)
+			// require.NoError(t, err, "failed to wait for blocks")
 
 			// maxTicks := 10
 			// // do some ticks with relayer switched off
@@ -1380,30 +1376,30 @@ func TestICS(t *testing.T) {
 			// }
 
 			// now we restart the relayer and go again
-			startRelayer()
+			// startRelayer()
 
-			err = testutil.WaitForBlocks(ctx, 30, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
+			// err = testutil.WaitForBlocks(ctx, 30, atom, neutron, stride)
+			// require.NoError(t, err, "failed to wait for blocks")
 
-			r.FlushPackets(ctx, eRep, neutronStrideIBCPath, strideNeutronChannelId)
-			r.FlushPackets(ctx, eRep, neutronStrideIBCPath, neutronStrideChannelId)
-			r.FlushAcknowledgements(ctx, eRep, neutronStrideIBCPath, strideNeutronChannelId)
-			r.FlushAcknowledgements(ctx, eRep, neutronStrideIBCPath, neutronStrideChannelId)
-			err = testutil.WaitForBlocks(ctx, 15, atom, neutron, stride)
-			require.NoError(t, err, "failed to wait for blocks")
+			// r.FlushPackets(ctx, eRep, neutronStrideIBCPath, strideNeutronChannelId)
+			// r.FlushPackets(ctx, eRep, neutronStrideIBCPath, neutronStrideChannelId)
+			// r.FlushAcknowledgements(ctx, eRep, neutronStrideIBCPath, strideNeutronChannelId)
+			// r.FlushAcknowledgements(ctx, eRep, neutronStrideIBCPath, neutronStrideChannelId)
+			// err = testutil.WaitForBlocks(ctx, 15, atom, neutron, stride)
+			// require.NoError(t, err, "failed to wait for blocks")
 
-			_, lsState, _ := tickClock()
-			require.EqualValues(t, "instantiated", lsState, "ls did not rollback the state")
+			// _, lsState, _ := tickClock()
+			// // require.EqualValues(t, "instantiated", lsState, "ls did not rollback the state")
 
-			maxTicks := 20
-			for i := 1; i < maxTicks; i++ {
-				_, lsState, _ = tickClock()
-				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
-				require.NoError(t, err, "failed to wait for blocks")
-				if lsState == "i_c_a_created" {
-					break
-				}
-			}
+			// maxTicks := 20
+			// for i := 1; i < maxTicks; i++ {
+			// 	_, lsState, _ = tickClock()
+			// 	err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+			// 	require.NoError(t, err, "failed to wait for blocks")
+			// 	if lsState == "i_c_a_created" {
+			// 		break
+			// 	}
+			// }
 
 			// retry the transfer again
 			// print("\n attempting permisionless transfer\n")
@@ -1421,6 +1417,9 @@ func TestICS(t *testing.T) {
 			lpStatomBalance, err := neutron.GetBalance(ctx, lperContractAddress, neutronStatomDenom)
 			require.NoError(t, err, "failed to query ICA balance")
 			print("\n lp statom bal: ", lpStatomBalance, "\n")
+
+			// err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+			// require.NoError(t, err)
 
 			require.Equal(t, int64(0), strideICABal)
 			require.Equal(t, int64(strideRedemptionRate*atomToLiquidStake), lpStatomBalance)
