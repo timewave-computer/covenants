@@ -3,10 +3,12 @@ package ibc_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/strangelove-ventures/interchaintest/v3/ibc"
 	"github.com/strangelove-ventures/interchaintest/v3/testreporter"
+	"github.com/strangelove-ventures/interchaintest/v3/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -15,14 +17,79 @@ func generatePath(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testre
 	require.NoError(t, err)
 }
 
-func generateClient(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, path string) {
+func generateClient(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, path string, chainA ibc.Chain, chainB ibc.Chain) {
 	err := r.CreateClients(ctx, eRep, path, ibc.CreateClientOptions{TrustingPeriod: "330h"})
 	require.NoError(t, err)
+	err = testutil.WaitForBlocks(ctx, 2, chainA, chainB)
+	require.NoError(t, err, "failed to wait for blocks")
 }
 
-func generateConnections(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, path string) {
+func generateConnections(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, path string, chainA ibc.Chain, chainB ibc.Chain) (string, string) {
+	chainAConns, _ := r.GetConnections(ctx, eRep, chainA.Config().ChainID)
+	chainBConns, _ := r.GetConnections(ctx, eRep, chainB.Config().ChainID)
+
 	err := r.CreateConnections(ctx, eRep, path)
 	require.NoError(t, err)
+	err = testutil.WaitForBlocks(ctx, 2, chainA, chainB)
+	require.NoError(t, err, "failed to wait for blocks")
+
+	newChainAConns, _ := r.GetConnections(ctx, eRep, chainA.Config().ChainID)
+	newChainBConns, _ := r.GetConnections(ctx, eRep, chainB.Config().ChainID)
+
+	newChainAConnection := connectionDifference(chainAConns, newChainAConns)
+	newChainBConnection := connectionDifference(chainBConns, newChainBConns)
+
+	require.NotEqual(t, 0, len(newChainAConnection), "more than one connection generated", strings.Join(newChainAConnection, " "))
+	require.NotEqual(t, 0, len(newChainBConnection), "more than one connection generated", strings.Join(newChainBConnection, " "))
+
+	return newChainAConnection[0], newChainBConnection[0]
+}
+
+func connectionDifference(a []*ibc.ConnectionOutput, b []*ibc.ConnectionOutput) (diff []string) {
+
+	m := make(map[string]bool)
+
+	// we first mark all existing connections
+	for _, item := range a {
+		m[item.ID] = true
+	}
+
+	// and append all new ones
+	for _, item := range b {
+		if _, ok := m[item.ID]; !ok {
+			diff = append(diff, item.ID)
+		}
+	}
+	return
+}
+
+func printChannels(channels []ibc.ChannelOutput, chain string) {
+	for _, channel := range channels {
+		print("\n\n", chain, " channels after create channel :", channel.ChannelID, " to ", channel.Counterparty.ChannelID, "\n")
+	}
+}
+
+func printConnections(connections ibc.ConnectionOutputs) {
+	for _, connection := range connections {
+		print(connection.ID, "\n")
+	}
+}
+
+func channelDifference(oldChannels, newChannels []ibc.ChannelOutput) (diff []string) {
+	m := make(map[string]bool)
+	// we first mark all existing channels
+	for _, channel := range newChannels {
+		m[channel.ChannelID] = true
+	}
+
+	// then find the new ones
+	for _, channel := range oldChannels {
+		if _, ok := m[channel.ChannelID]; !ok {
+			diff = append(diff, channel.ChannelID)
+		}
+	}
+
+	return
 }
 
 func getPairwiseConnectionIds(aconns ibc.ConnectionOutputs, bconns ibc.ConnectionOutputs) ([]string, []string, error) {
