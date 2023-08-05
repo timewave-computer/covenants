@@ -240,18 +240,21 @@ func TestICS(t *testing.T) {
 	// create connections
 	neutronStrideIBCConnId, strideNeutronIBCConnId := generateConnections(t, ctx, r, eRep, neutronStrideIBCPath, cosmosNeutron, cosmosStride)
 	print("\n neutronStrideIBCConnId: ", neutronStrideIBCConnId, ", strideNeutronIBCConnId: ", strideNeutronIBCConnId, "\n")
+	r.LinkPath(ctx, eRep, neutronStrideIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+	require.NoError(t, err, "failed to wait for blocks")
 
 	gaiaStrideIBCConnId, strideGaiaIBCConnId := generateConnections(t, ctx, r, eRep, gaiaStrideIBCPath, cosmosAtom, cosmosStride)
 	print("\n gaiaStrideIBCConnId: ", gaiaStrideIBCConnId, ", strideGaiaIBCConnId: ", strideGaiaIBCConnId, "\n")
+	r.LinkPath(ctx, eRep, gaiaStrideIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+	require.NoError(t, err, "failed to wait for blocks")
 
 	atomNeutronIBCConnId, neutronAtomIBCConnId := generateConnections(t, ctx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
 	print("\n atomNeutronIBCConnectionId: ", atomNeutronIBCConnId, ", neutronAtomIBCConnectionId: ", neutronAtomIBCConnId, "\n")
-
 	r.LinkPath(ctx, eRep, gaiaNeutronIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
-
-	r.LinkPath(ctx, eRep, neutronStrideIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
-
-	r.LinkPath(ctx, eRep, gaiaStrideIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
+	require.NoError(t, err, "failed to wait for blocks")
 
 	// Start the relayer and clean it up when the test ends.
 	err = r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaStrideIBCPath, neutronStrideIBCPath)
