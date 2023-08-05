@@ -127,6 +127,8 @@ func TestICS(t *testing.T) {
 	// We have three chains
 	atom, neutron, stride := chains[0], chains[1], chains[2]
 	cosmosAtom, cosmosNeutron, cosmosStride := atom.(*cosmos.CosmosChain), neutron.(*cosmos.CosmosChain), stride.(*cosmos.CosmosChain)
+	// var atomChannels, neutronChannels, strideChannels []ibc.ChannelOutput
+	// var atomConnections, neutronConnections, strideConnections []ibc.ConnectionOutput
 
 	// Relayer Factory
 	client, network := ibctest.DockerSetup(t)
@@ -193,35 +195,33 @@ func TestICS(t *testing.T) {
 	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 	require.NoError(t, err, "failed to wait for blocks")
 
-	// generate ibc paths
+	// generate paths
 	generatePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosNeutron.Config().ChainID, gaiaNeutronIBCPath)
 	generatePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosStride.Config().ChainID, gaiaStrideIBCPath)
-	generatePath(t, ctx, r, eRep, cosmosStride.Config().ChainID, cosmosNeutron.Config().ChainID, neutronStrideIBCPath)
-	// generate ics path
+	generatePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosStride.Config().ChainID, neutronStrideIBCPath)
 	generatePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosAtom.Config().ChainID, gaiaNeutronICSPath)
 
+	// fetch the initial channels
+
 	// create clients
-	generateClient(t, ctx, r, eRep, gaiaNeutronICSPath)
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-	require.NoError(t, err, "failed to wait for blocks")
+	generateClient(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
 
 	neutronClients, _ := r.GetClients(ctx, eRep, cosmosNeutron.Config().ChainID)
-	neutronICSClientId := neutronClients[0].ClientID
 	atomClients, _ := r.GetClients(ctx, eRep, cosmosAtom.Config().ChainID)
-	atomICSClientId := atomClients[0].ClientID
+	atomNeutronICSClient := atomClients[0]
+	neutronAtomICSClient := neutronClients[0]
 
-	print("neutron ics client id ", neutronICSClientId)
-	print("atom ics client id ", atomICSClientId)
+	print("\nneutron ics client id ", atomNeutronICSClient.ClientID)
+	print("\natom ics client id ", neutronAtomICSClient.ClientID)
 
 	err = r.UpdatePath(ctx, eRep, gaiaNeutronICSPath, ibc.PathUpdateOptions{
-		SrcClientID: &neutronICSClientId,
-		DstClientID: &atomICSClientId,
+		SrcClientID: &neutronAtomICSClient.ClientID,
+		DstClientID: &atomNeutronICSClient.ClientID,
 	})
 	require.NoError(t, err)
-	err = r.CreateConnections(ctx, eRep, gaiaNeutronICSPath)
-	require.NoError(t, err)
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-	require.NoError(t, err, "failed to wait for blocks")
+
+	atomNeutronICSConnectionId, neutronAtomICSConnectionId := generateConnections(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
+	print("\n atomNeutronICSConnectionId: ", atomNeutronICSConnectionId, ", neutronAtomICSConnectionId: ", neutronAtomICSConnectionId, "\n")
 
 	err = r.CreateChannel(ctx, eRep, gaiaNeutronICSPath, ibc.CreateChannelOptions{
 		SourcePortName: "consumer",
@@ -233,29 +233,24 @@ func TestICS(t *testing.T) {
 	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 	require.NoError(t, err, "failed to wait for blocks")
 
-	generateClient(t, ctx, r, eRep, gaiaNeutronIBCPath)
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-	require.NoError(t, err, "failed to wait for blocks")
-	generateClient(t, ctx, r, eRep, gaiaStrideIBCPath)
-	err = testutil.WaitForBlocks(ctx, 2, atom, stride)
-	require.NoError(t, err, "failed to wait for blocks")
-	generateClient(t, ctx, r, eRep, neutronStrideIBCPath)
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-	require.NoError(t, err, "failed to wait for blocks")
+	generateClient(t, ctx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
+	generateClient(t, ctx, r, eRep, gaiaStrideIBCPath, cosmosAtom, cosmosStride)
+	generateClient(t, ctx, r, eRep, neutronStrideIBCPath, cosmosNeutron, cosmosStride)
 
 	// create connections
-	generateConnections(t, ctx, r, eRep, gaiaNeutronIBCPath)
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-	require.NoError(t, err, "failed to wait for blocks")
-	generateConnections(t, ctx, r, eRep, neutronStrideIBCPath)
-	err = testutil.WaitForBlocks(ctx, 2, stride, neutron)
-	require.NoError(t, err, "failed to wait for blocks")
-	generateConnections(t, ctx, r, eRep, gaiaStrideIBCPath)
-	err = testutil.WaitForBlocks(ctx, 2, atom, stride)
-	require.NoError(t, err, "failed to wait for blocks")
+	neutronStrideIBCConnId, strideNeutronIBCConnId := generateConnections(t, ctx, r, eRep, neutronStrideIBCPath, cosmosNeutron, cosmosStride)
+	print("\n neutronStrideIBCConnId: ", neutronStrideIBCConnId, ", strideNeutronIBCConnId: ", strideNeutronIBCConnId, "\n")
+
+	gaiaStrideIBCConnId, strideGaiaIBCConnId := generateConnections(t, ctx, r, eRep, gaiaStrideIBCPath, cosmosAtom, cosmosStride)
+	print("\n gaiaStrideIBCConnId: ", gaiaStrideIBCConnId, ", strideGaiaIBCConnId: ", strideGaiaIBCConnId, "\n")
+
+	atomNeutronIBCConnId, neutronAtomIBCConnId := generateConnections(t, ctx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
+	print("\n atomNeutronIBCConnectionId: ", atomNeutronIBCConnId, ", neutronAtomIBCConnectionId: ", neutronAtomIBCConnId, "\n")
 
 	r.LinkPath(ctx, eRep, gaiaNeutronIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
+
 	r.LinkPath(ctx, eRep, neutronStrideIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
+
 	r.LinkPath(ctx, eRep, gaiaStrideIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
 
 	// Start the relayer and clean it up when the test ends.
@@ -371,14 +366,14 @@ func TestICS(t *testing.T) {
 			connectionChannelsOk = false
 		}
 		// Print out connections and channels for debugging
-		print("\n strideGaiaConnectionId: ", strideGaiaConnectionId)
-		print("\n strideNeutronConnectionId: ", strideNeutronConnectionId)
-		print("\n neutronStrideConnectionId: ", neutronStrideConnectionId)
-		print("\n neutronGaiaTransferConnectionId: ", neutronGaiaTransferConnectionId)
-		print("\n neutronGaiaICSConnectionId: ", neutronGaiaICSConnectionId)
-		print("\n gaiaStrideConnectionId: ", gaiaStrideConnectionId)
-		print("\n gaiaNeutronTransferConnectionId: ", gaiaNeutronTransferConnectionId)
-		print("\n gaiaNeutronICSConnectionId: ", gaiaNeutronICSConnectionId)
+		print("\n strideGaiaConnectionId: ", strideGaiaConnectionId, " vs. ", strideGaiaIBCConnId)
+		print("\n strideNeutronConnectionId: ", strideNeutronConnectionId, " vs. ", strideNeutronIBCConnId)
+		print("\n neutronStrideConnectionId: ", neutronStrideConnectionId, " vs. ", neutronStrideIBCConnId)
+		print("\n neutronGaiaTransferConnectionId: ", neutronGaiaTransferConnectionId, " vs. ", neutronAtomIBCConnId)
+		print("\n neutronGaiaICSConnectionId: ", neutronGaiaICSConnectionId, " vs. ", neutronGaiaICSConnectionId)
+		print("\n gaiaStrideConnectionId: ", gaiaStrideConnectionId, " vs. ", gaiaStrideIBCConnId)
+		print("\n gaiaNeutronTransferConnectionId: ", gaiaNeutronTransferConnectionId, " vs. ", atomNeutronIBCConnId)
+		print("\n gaiaNeutronICSConnectionId: ", gaiaNeutronICSConnectionId, " vs. ", atomNeutronICSConnectionId)
 		print("\n strideGaiaChannelId: ", strideGaiaChannelId)
 		print("\n strideNeutronChannelId: ", strideNeutronChannelId)
 		print("\n neutronStrideChannelId: ", neutronStrideChannelId)
