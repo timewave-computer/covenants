@@ -201,8 +201,6 @@ func TestICS(t *testing.T) {
 	generatePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosStride.Config().ChainID, neutronStrideIBCPath)
 	generatePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosAtom.Config().ChainID, gaiaNeutronICSPath)
 
-	// fetch the initial channels
-
 	// create clients
 	generateClient(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
 
@@ -210,9 +208,6 @@ func TestICS(t *testing.T) {
 	atomClients, _ := r.GetClients(ctx, eRep, cosmosAtom.Config().ChainID)
 	atomNeutronICSClient := atomClients[0]
 	neutronAtomICSClient := neutronClients[0]
-
-	print("\nneutron ics client id ", atomNeutronICSClient.ClientID)
-	print("\natom ics client id ", neutronAtomICSClient.ClientID)
 
 	err = r.UpdatePath(ctx, eRep, gaiaNeutronICSPath, ibc.PathUpdateOptions{
 		SrcClientID: &neutronAtomICSClient.ClientID,
@@ -233,28 +228,18 @@ func TestICS(t *testing.T) {
 	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 	require.NoError(t, err, "failed to wait for blocks")
 
-	generateClient(t, ctx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
-	generateClient(t, ctx, r, eRep, gaiaStrideIBCPath, cosmosAtom, cosmosStride)
+	// create connections and link everything up
 	generateClient(t, ctx, r, eRep, neutronStrideIBCPath, cosmosNeutron, cosmosStride)
-
-	// create connections
 	neutronStrideIBCConnId, strideNeutronIBCConnId := generateConnections(t, ctx, r, eRep, neutronStrideIBCPath, cosmosNeutron, cosmosStride)
-	print("\n neutronStrideIBCConnId: ", neutronStrideIBCConnId, ", strideNeutronIBCConnId: ", strideNeutronIBCConnId, "\n")
-	r.LinkPath(ctx, eRep, neutronStrideIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
-	require.NoError(t, err, "failed to wait for blocks")
+	linkPath(t, ctx, r, eRep, cosmosNeutron, cosmosStride, neutronStrideIBCPath)
 
+	generateClient(t, ctx, r, eRep, gaiaStrideIBCPath, cosmosAtom, cosmosStride)
 	gaiaStrideIBCConnId, strideGaiaIBCConnId := generateConnections(t, ctx, r, eRep, gaiaStrideIBCPath, cosmosAtom, cosmosStride)
-	print("\n gaiaStrideIBCConnId: ", gaiaStrideIBCConnId, ", strideGaiaIBCConnId: ", strideGaiaIBCConnId, "\n")
-	r.LinkPath(ctx, eRep, gaiaStrideIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
-	require.NoError(t, err, "failed to wait for blocks")
+	linkPath(t, ctx, r, eRep, cosmosAtom, cosmosStride, gaiaStrideIBCPath)
 
+	generateClient(t, ctx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
 	atomNeutronIBCConnId, neutronAtomIBCConnId := generateConnections(t, ctx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
-	print("\n atomNeutronIBCConnectionId: ", atomNeutronIBCConnId, ", neutronAtomIBCConnectionId: ", neutronAtomIBCConnId, "\n")
-	r.LinkPath(ctx, eRep, gaiaNeutronIBCPath, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
-	require.NoError(t, err, "failed to wait for blocks")
+	linkPath(t, ctx, r, eRep, cosmosAtom, cosmosNeutron, gaiaNeutronIBCPath)
 
 	// Start the relayer and clean it up when the test ends.
 	err = r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaStrideIBCPath, neutronStrideIBCPath)
@@ -269,13 +254,7 @@ func TestICS(t *testing.T) {
 	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
 	require.NoError(t, err, "failed to wait for blocks")
 
-	cmd := getCreateValidatorCmd(atom)
-	_, _, err = atom.Exec(ctx, cmd, nil)
-	require.NoError(t, err)
-
-	// Wait a bit for the VSC packet to get relayed.
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-	require.NoError(t, err, "failed to wait for blocks")
+	createValidator(t, ctx, r, eRep, atom, neutron)
 
 	// Once the VSC packet has been relayed, x/bank transfers are
 	// enabled on Neutron and we can fund its account.
@@ -289,7 +268,7 @@ func TestICS(t *testing.T) {
 
 	cosmosStride.SendFunds(ctx, strideUser.KeyName, ibc.WalletAmount{
 		Address: strideAdmin.Bech32Address(stride.Config().Bech32Prefix),
-		Denom:   "ustride",
+		Denom:   "ustrd",
 		Amount:  10000000,
 	})
 
@@ -303,18 +282,7 @@ func TestICS(t *testing.T) {
 	require.NoError(t, err, "failed to fund neutron user")
 	require.EqualValues(t, int64(500_000_000_000), neutronUserBal)
 
-	var strideGaiaConnectionId, gaiaStrideConnectionId string
-	var strideNeutronConnectionId, neutronStrideConnectionId string
-	var neutronGaiaTransferConnectionId, neutronGaiaICSConnectionId string
-	var gaiaNeutronTransferConnectionId, gaiaNeutronICSConnectionId string
 	var liquidityTokenAddress string
-
-	neutronGaiaConnectionIds := make([]string, 0)
-	gaiaNeutronConnectionIds := make([]string, 0)
-	neutronStrideConnectionIds := make([]string, 0)
-	strideNeutronConnectionIds := make([]string, 0)
-	gaiaStrideConnectionIds := make([]string, 0)
-	strideGaiaConnectionIds := make([]string, 0)
 
 	var strideNeutronChannelId, neutronStrideChannelId string
 	var strideGaiaChannelId, gaiaStrideChannelId string
@@ -333,50 +301,35 @@ func TestICS(t *testing.T) {
 		neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
 		gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosAtom.Config().ChainID)
 		strideChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosStride.Config().ChainID)
-		strideConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosStride.Config().ChainID)
-		neutronConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosNeutron.Config().ChainID)
-		gaiaConnectionInfo, _ := r.GetConnections(ctx, eRep, cosmosAtom.Config().ChainID)
 
 		connectionChannelsOk = true
-		/// Find all the pairwise connections
-		strideNeutronConnectionIds, neutronStrideConnectionIds, err = getPairwiseConnectionIds(strideConnectionInfo, neutronConnectionInfo)
-		if err != nil {
-			connectionChannelsOk = false
-		}
-		neutronGaiaConnectionIds, gaiaNeutronConnectionIds, err = getPairwiseConnectionIds(neutronConnectionInfo, gaiaConnectionInfo)
-		if err != nil {
-			connectionChannelsOk = false
-		}
-		strideGaiaConnectionIds, gaiaStrideConnectionIds, err = getPairwiseConnectionIds(strideConnectionInfo, gaiaConnectionInfo)
-		if err != nil {
-			connectionChannelsOk = false
-		}
+
 		// Find all pairwise channels
-		strideNeutronChannelId, neutronStrideChannelId, strideNeutronConnectionId, neutronStrideConnectionId, err = getPairwiseTransferChannelIds(strideChannelInfo, neutronChannelInfo, strideNeutronConnectionIds, neutronStrideConnectionIds)
+		strideNeutronChannelId, neutronStrideChannelId, err = getPairwiseTransferChannelIds(strideChannelInfo, neutronChannelInfo, strideNeutronIBCConnId, neutronStrideIBCConnId)
 		if err != nil {
 			connectionChannelsOk = false
 		}
-		strideGaiaChannelId, gaiaStrideChannelId, strideGaiaConnectionId, gaiaStrideConnectionId, err = getPairwiseTransferChannelIds(strideChannelInfo, gaiaChannelInfo, strideGaiaConnectionIds, gaiaStrideConnectionIds)
+		strideGaiaChannelId, gaiaStrideChannelId, err = getPairwiseTransferChannelIds(strideChannelInfo, gaiaChannelInfo, strideGaiaIBCConnId, gaiaStrideIBCConnId)
 		if err != nil {
 			connectionChannelsOk = false
 		}
-		gaiaNeutronTransferChannelId, neutronGaiaTransferChannelId, gaiaNeutronTransferConnectionId, neutronGaiaTransferConnectionId, err = getPairwiseTransferChannelIds(gaiaChannelInfo, neutronChannelInfo, gaiaNeutronConnectionIds, neutronGaiaConnectionIds)
+		gaiaNeutronTransferChannelId, neutronGaiaTransferChannelId, err = getPairwiseTransferChannelIds(gaiaChannelInfo, neutronChannelInfo, atomNeutronIBCConnId, neutronAtomIBCConnId)
 		if err != nil {
 			connectionChannelsOk = false
 		}
-		gaiaNeutronICSChannelId, neutronGaiaICSChannelId, gaiaNeutronICSConnectionId, neutronGaiaICSConnectionId, err = getPairwiseCCVChannelIds(gaiaChannelInfo, neutronChannelInfo, gaiaNeutronConnectionIds, neutronGaiaConnectionIds)
+		gaiaNeutronICSChannelId, neutronGaiaICSChannelId, err = getPairwiseCCVChannelIds(gaiaChannelInfo, neutronChannelInfo, atomNeutronICSConnectionId, neutronAtomICSConnectionId)
 		if err != nil {
 			connectionChannelsOk = false
 		}
 		// Print out connections and channels for debugging
-		print("\n strideGaiaConnectionId: ", strideGaiaConnectionId, " vs. ", strideGaiaIBCConnId)
-		print("\n strideNeutronConnectionId: ", strideNeutronConnectionId, " vs. ", strideNeutronIBCConnId)
-		print("\n neutronStrideConnectionId: ", neutronStrideConnectionId, " vs. ", neutronStrideIBCConnId)
-		print("\n neutronGaiaTransferConnectionId: ", neutronGaiaTransferConnectionId, " vs. ", neutronAtomIBCConnId)
-		print("\n neutronGaiaICSConnectionId: ", neutronGaiaICSConnectionId, " vs. ", neutronGaiaICSConnectionId)
-		print("\n gaiaStrideConnectionId: ", gaiaStrideConnectionId, " vs. ", gaiaStrideIBCConnId)
-		print("\n gaiaNeutronTransferConnectionId: ", gaiaNeutronTransferConnectionId, " vs. ", atomNeutronIBCConnId)
-		print("\n gaiaNeutronICSConnectionId: ", gaiaNeutronICSConnectionId, " vs. ", atomNeutronICSConnectionId)
+		print("\n strideGaiaConnectionId: ", strideGaiaIBCConnId)
+		print("\n strideNeutronConnectionId: ", strideNeutronIBCConnId)
+		print("\n neutronStrideConnectionId: ", neutronStrideIBCConnId)
+		print("\n neutronGaiaTransferConnectionId: ", neutronAtomIBCConnId)
+		print("\n neutronGaiaICSConnectionId: ", neutronAtomICSConnectionId)
+		print("\n gaiaStrideConnectionId: ", gaiaStrideIBCConnId)
+		print("\n gaiaNeutronTransferConnectionId: ", atomNeutronIBCConnId)
+		print("\n gaiaNeutronICSConnectionId: ", atomNeutronICSConnectionId)
 		print("\n strideGaiaChannelId: ", strideGaiaChannelId)
 		print("\n strideNeutronChannelId: ", strideNeutronChannelId)
 		print("\n neutronStrideChannelId: ", neutronStrideChannelId)
@@ -400,7 +353,6 @@ func TestICS(t *testing.T) {
 		}
 	}
 	_, _, _, _, _ = neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId, neutronGaiaICSChannelId, gaiaNeutronICSChannelId, neutronStrideChannelId
-	_, _, _ = gaiaStrideConnectionId, strideGaiaConnectionId, strideNeutronConnectionId
 
 	// We can determine the ibc denoms of:
 	// 1. ATOM on Neutron
@@ -562,7 +514,7 @@ func TestICS(t *testing.T) {
 		t.Run("register stride host zone", func(t *testing.T) {
 
 			cmd := []string{"strided", "tx", "stakeibc", "register-host-zone",
-				strideGaiaConnectionId,
+				strideGaiaIBCConnId,
 				cosmosAtom.Config().Denom,
 				cosmosAtom.Config().Bech32Prefix,
 				strideAtomIbcDenom,
@@ -1058,9 +1010,10 @@ func TestICS(t *testing.T) {
 			atomWeightedReceiverAmount = WeightedReceiverAmount{
 				Amount: strconv.FormatUint(atomFunds, 10),
 			}
+
 			depositorMsg := PresetDepositorFields{
 				GaiaNeutronIBCTransferChannelId: gaiaNeutronTransferChannelId,
-				NeutronGaiaConnectionId:         neutronGaiaTransferConnectionId,
+				NeutronGaiaConnectionId:         neutronAtomIBCConnId,
 				GaiaStrideIBCTransferChannelId:  gaiaStrideChannelId,
 				DepositorCode:                   depositorCodeId,
 				Label:                           "covenant-depositor",
@@ -1075,7 +1028,7 @@ func TestICS(t *testing.T) {
 				Label:                             "covenant-ls",
 				LsDenom:                           "stuatom",
 				StrideNeutronIBCTransferChannelId: strideNeutronChannelId,
-				NeutronStrideIBCConnectionId:      neutronStrideConnectionId,
+				NeutronStrideIBCConnectionId:      neutronStrideIBCConnId,
 			}
 
 			// For LPer, we need to first gather astroport information
@@ -1217,7 +1170,7 @@ func TestICS(t *testing.T) {
 		})
 
 		tickClock := func() (string, string, string) {
-			cmd = []string{"neutrond", "tx", "wasm", "execute", clockContractAddress,
+			cmd := []string{"neutrond", "tx", "wasm", "execute", clockContractAddress,
 				`{"tick":{}}`,
 				"--from", neutronUser.KeyName,
 				"--gas-prices", "0.0untrn",
@@ -1564,7 +1517,7 @@ func TestICS(t *testing.T) {
 			}
 			str, _ := json.Marshal(withdrawLiquidityMsg)
 			print("\n withdrawing liquidity from LP position...\n")
-			cmd = []string{"neutrond", "tx", "wasm", "execute", holderContractAddress,
+			cmd := []string{"neutrond", "tx", "wasm", "execute", holderContractAddress,
 				string(str),
 				"--from", neutronUser.KeyName,
 				"--gas-prices", "0.0untrn",
@@ -1613,7 +1566,7 @@ func TestICS(t *testing.T) {
 			str, _ := json.Marshal(withdrawMsg)
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 			require.NoError(t, err)
-			cmd = []string{"neutrond", "tx", "wasm", "execute", holderContractAddress,
+			cmd := []string{"neutrond", "tx", "wasm", "execute", holderContractAddress,
 				string(str),
 				"--from", neutronUser.KeyName,
 				"--gas-prices", "0.0untrn",
