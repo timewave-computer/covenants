@@ -17,6 +17,23 @@ func generatePath(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testre
 	require.NoError(t, err)
 }
 
+func createValidator(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, chain ibc.Chain, counterparty ibc.Chain) {
+	cmd := getCreateValidatorCmd(chain)
+	_, _, err := chain.Exec(ctx, cmd, nil)
+	require.NoError(t, err)
+
+	// Wait a bit for the VSC packet to get relayed.
+	err = testutil.WaitForBlocks(ctx, 2, chain, counterparty)
+	require.NoError(t, err, "failed to wait for blocks")
+}
+
+func linkPath(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, chainA ibc.Chain, chainB ibc.Chain, path string) {
+	err := r.LinkPath(ctx, eRep, path, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
+	require.NoError(t, err)
+	err = testutil.WaitForBlocks(ctx, 2, chainA, chainB)
+	require.NoError(t, err, "failed to wait for blocks")
+}
+
 func generateClient(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, path string, chainA ibc.Chain, chainB ibc.Chain) {
 	err := r.CreateClients(ctx, eRep, path, ibc.CreateClientOptions{TrustingPeriod: "330h"})
 	require.NoError(t, err)
@@ -111,18 +128,12 @@ func getPairwiseConnectionIds(aconns ibc.ConnectionOutputs, bconns ibc.Connectio
 	if found {
 		return abconnids, baconnids, nil
 	} else {
-		return abconnids, baconnids, errors.New("No connection found")
+		return abconnids, baconnids, errors.New("no connection found")
 	}
 }
 
-// returns transfer channels and respective connections
-func getPairwiseTransferChannelIds(achans []ibc.ChannelOutput, bchans []ibc.ChannelOutput, abconns []string, baconns []string) (string, string, string, string, error) {
-	var abchan string
-	var bachan string
-	var abconn string
-	var baconn string
-
-	found := false
+// returns transfer channel ids
+func getPairwiseTransferChannelIds(achans []ibc.ChannelOutput, bchans []ibc.ChannelOutput, aToBConnId string, bToAConnId string) (string, string, error) {
 
 	for _, a := range achans {
 		for _, b := range bchans {
@@ -131,37 +142,20 @@ func getPairwiseTransferChannelIds(achans []ibc.ChannelOutput, bchans []ibc.Chan
 				a.PortID == "transfer" &&
 				b.PortID == "transfer" &&
 				a.Ordering == "ORDER_UNORDERED" &&
-				b.Ordering == "ORDER_UNORDERED" {
-				for _, abcon := range abconns {
-					for _, bacon := range baconns {
-						if a.ConnectionHops[0] == abcon &&
-							b.ConnectionHops[0] == bacon {
-							abchan = a.ChannelID
-							bachan = b.ChannelID
-							abconn = abcon
-							baconn = bacon
-							found = true
-						}
-					}
-				}
+				b.Ordering == "ORDER_UNORDERED" &&
+				a.ConnectionHops[0] == aToBConnId &&
+				b.ConnectionHops[0] == bToAConnId {
+
+				return a.ChannelID, b.ChannelID, nil
 			}
 		}
 	}
-	if found {
-		return abchan, bachan, abconn, baconn, nil
-	} else {
-		return abchan, bachan, abconn, baconn, errors.New("No transfer channel found")
-	}
+
+	return "", "", errors.New("no transfer channel found")
 }
 
-// returns ccv channels and respective connections
-func getPairwiseCCVChannelIds(achans []ibc.ChannelOutput, bchans []ibc.ChannelOutput, abconns []string, baconns []string) (string, string, string, string, error) {
-	var abchan string
-	var bachan string
-	var abconn string
-	var baconn string
-
-	found := false
+// returns ccv channel ids
+func getPairwiseCCVChannelIds(achans []ibc.ChannelOutput, bchans []ibc.ChannelOutput, aToBConnId string, bToAConnId string) (string, string, error) {
 	for _, a := range achans {
 		for _, b := range bchans {
 			if a.ChannelID == b.Counterparty.ChannelID &&
@@ -169,25 +163,12 @@ func getPairwiseCCVChannelIds(achans []ibc.ChannelOutput, bchans []ibc.ChannelOu
 				a.PortID == "provider" &&
 				b.PortID == "consumer" &&
 				a.Ordering == "ORDER_ORDERED" &&
-				b.Ordering == "ORDER_ORDERED" {
-				for _, abcon := range abconns {
-					for _, bacon := range baconns {
-						if a.ConnectionHops[0] == abcon &&
-							b.ConnectionHops[0] == bacon {
-							abchan = a.ChannelID
-							bachan = b.ChannelID
-							abconn = abcon
-							baconn = bacon
-							found = true
-						}
-					}
-				}
+				b.Ordering == "ORDER_ORDERED" &&
+				a.ConnectionHops[0] == aToBConnId &&
+				b.ConnectionHops[0] == bToAConnId {
+				return a.ChannelID, b.ChannelID, nil
 			}
 		}
 	}
-	if found {
-		return abchan, bachan, abconn, baconn, nil
-	} else {
-		return abchan, bachan, abconn, baconn, errors.New("No ccv channel found")
-	}
+	return "", "", errors.New("no ccv channel found")
 }
