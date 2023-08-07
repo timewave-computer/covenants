@@ -203,30 +203,18 @@ func TestICS(t *testing.T) {
 
 	// create clients
 	generateClient(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
-
 	neutronClients, _ := r.GetClients(ctx, eRep, cosmosNeutron.Config().ChainID)
 	atomClients, _ := r.GetClients(ctx, eRep, cosmosAtom.Config().ChainID)
-	atomNeutronICSClient := atomClients[0]
-	neutronAtomICSClient := neutronClients[0]
 
 	err = r.UpdatePath(ctx, eRep, gaiaNeutronICSPath, ibc.PathUpdateOptions{
-		SrcClientID: &neutronAtomICSClient.ClientID,
-		DstClientID: &atomNeutronICSClient.ClientID,
+		SrcClientID: &neutronClients[0].ClientID,
+		DstClientID: &atomClients[0].ClientID,
 	})
 	require.NoError(t, err)
 
 	atomNeutronICSConnectionId, neutronAtomICSConnectionId := generateConnections(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
-	print("\n atomNeutronICSConnectionId: ", atomNeutronICSConnectionId, ", neutronAtomICSConnectionId: ", neutronAtomICSConnectionId, "\n")
 
-	err = r.CreateChannel(ctx, eRep, gaiaNeutronICSPath, ibc.CreateChannelOptions{
-		SourcePortName: "consumer",
-		DestPortName:   "provider",
-		Order:          ibc.Ordered,
-		Version:        "1",
-	})
-	require.NoError(t, err)
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-	require.NoError(t, err, "failed to wait for blocks")
+	generateICSChannel(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
 
 	// create connections and link everything up
 	generateClient(t, ctx, r, eRep, neutronStrideIBCPath, cosmosNeutron, cosmosStride)
@@ -272,7 +260,7 @@ func TestICS(t *testing.T) {
 		Amount:  10000000,
 	})
 
-	err = testutil.WaitForBlocks(ctx, 30, atom, neutron, stride)
+	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 	require.NoError(t, err, "failed to wait for blocks")
 
 	neutronUserBal, err := neutron.GetBalance(
