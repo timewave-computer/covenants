@@ -12,12 +12,48 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func generatePath(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, chainAId string, chainBId string, path string) {
+func generatePath(
+	t *testing.T,
+	ctx context.Context,
+	r ibc.Relayer,
+	eRep *testreporter.RelayerExecReporter,
+	chainAId string,
+	chainBId string,
+	path string,
+) {
 	err := r.GeneratePath(ctx, eRep, chainAId, chainBId, path)
 	require.NoError(t, err)
 }
 
-func createValidator(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, chain ibc.Chain, counterparty ibc.Chain) {
+func generateICSChannel(
+	t *testing.T,
+	ctx context.Context,
+	r ibc.Relayer,
+	eRep *testreporter.RelayerExecReporter,
+	icsPath string,
+	chainA ibc.Chain,
+	chainB ibc.Chain,
+) {
+
+	err := r.CreateChannel(ctx, eRep, icsPath, ibc.CreateChannelOptions{
+		SourcePortName: "consumer",
+		DestPortName:   "provider",
+		Order:          ibc.Ordered,
+		Version:        "1",
+	})
+	require.NoError(t, err)
+	err = testutil.WaitForBlocks(ctx, 2, chainA, chainB)
+	require.NoError(t, err, "failed to wait for blocks")
+}
+
+func createValidator(
+	t *testing.T,
+	ctx context.Context,
+	r ibc.Relayer,
+	eRep *testreporter.RelayerExecReporter,
+	chain ibc.Chain,
+	counterparty ibc.Chain,
+) {
 	cmd := getCreateValidatorCmd(chain)
 	_, _, err := chain.Exec(ctx, cmd, nil)
 	require.NoError(t, err)
@@ -27,21 +63,70 @@ func createValidator(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *tes
 	require.NoError(t, err, "failed to wait for blocks")
 }
 
-func linkPath(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, chainA ibc.Chain, chainB ibc.Chain, path string) {
+func linkPath(
+	t *testing.T,
+	ctx context.Context,
+	r ibc.Relayer,
+	eRep *testreporter.RelayerExecReporter,
+	chainA ibc.Chain,
+	chainB ibc.Chain,
+	path string,
+) {
 	err := r.LinkPath(ctx, eRep, path, ibc.DefaultChannelOpts(), ibc.DefaultClientOpts())
 	require.NoError(t, err)
 	err = testutil.WaitForBlocks(ctx, 2, chainA, chainB)
 	require.NoError(t, err, "failed to wait for blocks")
 }
 
-func generateClient(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, path string, chainA ibc.Chain, chainB ibc.Chain) {
+func generateClient(
+	t *testing.T,
+	ctx context.Context,
+	r ibc.Relayer,
+	eRep *testreporter.RelayerExecReporter,
+	path string,
+	chainA ibc.Chain,
+	chainB ibc.Chain,
+) (string, string) {
+	chainAClients, _ := r.GetClients(ctx, eRep, chainA.Config().ChainID)
+	chainBClients, _ := r.GetClients(ctx, eRep, chainB.Config().ChainID)
+
 	err := r.CreateClients(ctx, eRep, path, ibc.CreateClientOptions{TrustingPeriod: "330h"})
 	require.NoError(t, err)
 	err = testutil.WaitForBlocks(ctx, 2, chainA, chainB)
 	require.NoError(t, err, "failed to wait for blocks")
+
+	newChainAClients, _ := r.GetClients(ctx, eRep, chainA.Config().ChainID)
+	newChainBClients, _ := r.GetClients(ctx, eRep, chainB.Config().ChainID)
+	var newClientA, newClientB string
+
+	aClientDiff := clientDifference(chainAClients, newChainAClients)
+	bClientDiff := clientDifference(chainBClients, newChainBClients)
+
+	if len(aClientDiff) > 0 {
+		newClientA = aClientDiff[0]
+	} else {
+		newClientA = ""
+	}
+
+	if len(bClientDiff) > 0 {
+		newClientB = bClientDiff[0]
+	} else {
+		newClientB = ""
+	}
+
+	print("\n found client differences. new client A: ", newClientA, "b:")
+	return newClientA, newClientB
 }
 
-func generateConnections(t *testing.T, ctx context.Context, r ibc.Relayer, eRep *testreporter.RelayerExecReporter, path string, chainA ibc.Chain, chainB ibc.Chain) (string, string) {
+func generateConnections(
+	t *testing.T,
+	ctx context.Context,
+	r ibc.Relayer,
+	eRep *testreporter.RelayerExecReporter,
+	path string,
+	chainA ibc.Chain,
+	chainB ibc.Chain,
+) (string, string) {
 	chainAConns, _ := r.GetConnections(ctx, eRep, chainA.Config().ChainID)
 	chainBConns, _ := r.GetConnections(ctx, eRep, chainB.Config().ChainID)
 
@@ -62,7 +147,10 @@ func generateConnections(t *testing.T, ctx context.Context, r ibc.Relayer, eRep 
 	return newChainAConnection[0], newChainBConnection[0]
 }
 
-func connectionDifference(a []*ibc.ConnectionOutput, b []*ibc.ConnectionOutput) (diff []string) {
+func connectionDifference(
+	a []*ibc.ConnectionOutput,
+	b []*ibc.ConnectionOutput,
+) (diff []string) {
 
 	m := make(map[string]bool)
 
@@ -75,6 +163,23 @@ func connectionDifference(a []*ibc.ConnectionOutput, b []*ibc.ConnectionOutput) 
 	for _, item := range b {
 		if _, ok := m[item.ID]; !ok {
 			diff = append(diff, item.ID)
+		}
+	}
+	return
+}
+
+func clientDifference(a, b []*ibc.ClientOutput) (diff []string) {
+	m := make(map[string]bool)
+
+	// we first mark all existing clients
+	for _, item := range a {
+		m[item.ClientID] = true
+	}
+
+	// and append all new ones
+	for _, item := range b {
+		if _, ok := m[item.ClientID]; !ok {
+			diff = append(diff, item.ClientID)
 		}
 	}
 	return
@@ -109,7 +214,10 @@ func channelDifference(oldChannels, newChannels []ibc.ChannelOutput) (diff []str
 	return
 }
 
-func getPairwiseConnectionIds(aconns ibc.ConnectionOutputs, bconns ibc.ConnectionOutputs) ([]string, []string, error) {
+func getPairwiseConnectionIds(
+	aconns ibc.ConnectionOutputs,
+	bconns ibc.ConnectionOutputs,
+) ([]string, []string, error) {
 	abconnids := make([]string, 0)
 	baconnids := make([]string, 0)
 	found := false
@@ -133,7 +241,12 @@ func getPairwiseConnectionIds(aconns ibc.ConnectionOutputs, bconns ibc.Connectio
 }
 
 // returns transfer channel ids
-func getPairwiseTransferChannelIds(achans []ibc.ChannelOutput, bchans []ibc.ChannelOutput, aToBConnId string, bToAConnId string) (string, string, error) {
+func getPairwiseTransferChannelIds(
+	achans []ibc.ChannelOutput,
+	bchans []ibc.ChannelOutput,
+	aToBConnId string,
+	bToAConnId string,
+) (string, string, error) {
 
 	for _, a := range achans {
 		for _, b := range bchans {
@@ -155,7 +268,12 @@ func getPairwiseTransferChannelIds(achans []ibc.ChannelOutput, bchans []ibc.Chan
 }
 
 // returns ccv channel ids
-func getPairwiseCCVChannelIds(achans []ibc.ChannelOutput, bchans []ibc.ChannelOutput, aToBConnId string, bToAConnId string) (string, string, error) {
+func getPairwiseCCVChannelIds(
+	achans []ibc.ChannelOutput,
+	bchans []ibc.ChannelOutput,
+	aToBConnId string,
+	bToAConnId string,
+) (string, string, error) {
 	for _, a := range achans {
 		for _, b := range bchans {
 			if a.ChannelID == b.Counterparty.ChannelID &&
