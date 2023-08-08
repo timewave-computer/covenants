@@ -2,13 +2,13 @@ use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, ibc::applications::transfer:
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, Addr};
+use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, Addr, to_binary};
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::{NeutronResult, bindings::{msg::NeutronMsg, query::NeutronQuery, types::ProtobufAny}, interchain_txs::helpers::get_port_id, NeutronError,};
 use prost::Message;
 
-use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, RemoteChainInfo}, state::{CONTRACT_STATE, CLOCK_ADDRESS, INTERCHAIN_ACCOUNTS, IBC_FEE, ICA_TIMEOUT, IBC_TRANSFER_TIMEOUT, REMOTE_CHAIN_INFO, NEXT_CONTRACT}, error::ContractError};
+use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, RemoteChainInfo, QueryMsg}, state::{CONTRACT_STATE, CLOCK_ADDRESS, INTERCHAIN_ACCOUNTS, IBC_FEE, ICA_TIMEOUT, IBC_TRANSFER_TIMEOUT, REMOTE_CHAIN_INFO, NEXT_CONTRACT}, error::ContractError};
 
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ibc-forwarder";
@@ -96,8 +96,7 @@ fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neutr
     )
 }
 
-fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
-
+fn try_forward_funds(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
 
     // first we verify whether the next contract is ready for receiving the funds
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
@@ -179,4 +178,24 @@ fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
         type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
         value: Binary::from(buf),
     })
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
+    match msg {
+        // we expect to receive funds into our ICA account on the remote chain.
+        // if the ICA had not been opened yet, we return `None` so that the 
+        // contract querying this will be instructed to wait and retry.
+        QueryMsg::DepositAddress {} => {
+            let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
+
+            let ica = if let Some((addr, _)) = INTERCHAIN_ACCOUNTS.load(deps.storage, key)? {
+                Some(addr)
+            } else {
+                None
+            };
+
+            Ok(to_binary(&ica)?)
+        },
+    }
 }

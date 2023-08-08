@@ -23,6 +23,7 @@ library = []
 
 [dependencies]
 covenant-clock-derive = { workspace = true}
+covenant-depositor-derive = { workspace = true}
 covenant-ls = { workspace = true, features=["library"] }
 covenant-clock = { workspace = true, features=["library"]}
 cosmwasm-schema  = { workspace = true }
