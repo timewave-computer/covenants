@@ -43,6 +43,7 @@ base64           = { workspace = true }
 prost            = { workspace = true }
 prost-types      = { workspace = true }
 bech32           = { workspace = true }
+covenant-utils   = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
