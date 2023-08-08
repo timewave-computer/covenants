@@ -35,6 +35,7 @@ covenant-holder = { path = "contracts/holder" }
 clock-derive = { path = "packages/clock-derive" }
 cw-fifo = { path = "packages/cw-fifo" }
 covenant-clock-derive = { path = "packages/clock-derive" }
+covenant-depositor-derive = { path = "packages/covenant-depositor-derive" }
 
 # the sha2 version here is the same as the one used by
 # cosmwasm-std. when bumping cosmwasm-std, this should also be

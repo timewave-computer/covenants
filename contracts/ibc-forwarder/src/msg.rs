@@ -2,6 +2,7 @@ use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Uint64;
 use covenant_clock_derive::clocked;
+use covenant_depositor_derive::covenant_deposit_address;
 use neutron_sdk::bindings::msg::IbcFee;
 
 
@@ -62,12 +63,10 @@ impl RemoteChainInfo {
 #[cw_serde]
 pub enum ExecuteMsg {}
 
-#[cw_serde]
+#[covenant_deposit_address]
 #[derive(QueryResponses)]
-pub enum QueryMsg {
-    #[returns(Option<String>)]
-    DepositAddress {},
-}
+#[cw_serde]
+pub enum QueryMsg {}
 
 #[cw_serde]
 pub enum ContractState {
