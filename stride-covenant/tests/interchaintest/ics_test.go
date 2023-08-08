@@ -93,18 +93,18 @@ func TestICS(t *testing.T) {
 				Images: []ibc.DockerImage{
 					{
 						Repository: "stride",
-						Version:    "local",
+						Version:    "latestmain",
 						UidGid:     "1025:1025",
 					},
 				},
 				Bin:            "strided",
 				Bech32Prefix:   "stride",
 				Denom:          "ustrd",
-				GasPrices:      "0.00ustrd",
+				GasPrices:      "0.0ustrd,0.0uatom",
 				GasAdjustment:  1.3,
 				TrustingPeriod: "330h",
 				NoHostMount:    false,
-				ModifyGenesis: setupStrideGenesis([]string{
+				ModifyGenesis: setupStrideGenesis("0.05", []string{"ustrd"}, []string{"uatom"}, false, "70", []string{
 					"/cosmos.bank.v1beta1.MsgSend",
 					"/cosmos.bank.v1beta1.MsgMultiSend",
 					"/cosmos.staking.v1beta1.MsgDelegate",
@@ -144,6 +144,7 @@ func TestICS(t *testing.T) {
 	const gaiaNeutronIBCPath = "gn-ibc-path"
 	const gaiaStrideIBCPath = "gs-ibc-path"
 	const neutronStrideIBCPath = "ns-ibc-path"
+	const gaiaStrideICSPath = "gs-ics-path"
 
 	ic := ibctest.NewInterchain().
 		AddChain(cosmosAtom).
@@ -155,6 +156,12 @@ func TestICS(t *testing.T) {
 			Consumer: cosmosNeutron,
 			Relayer:  r,
 			Path:     gaiaNeutronICSPath,
+		}).
+		AddProviderConsumerLink(ibctest.ProviderConsumerLink{
+			Provider: cosmosAtom,
+			Consumer: cosmosStride,
+			Relayer:  r,
+			Path:     gaiaStrideICSPath,
 		}).
 		AddLink(ibctest.InterchainLink{
 			Chain1:  cosmosAtom,
@@ -200,11 +207,44 @@ func TestICS(t *testing.T) {
 	generatePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosStride.Config().ChainID, gaiaStrideIBCPath)
 	generatePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosStride.Config().ChainID, neutronStrideIBCPath)
 	generatePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosAtom.Config().ChainID, gaiaNeutronICSPath)
+	generatePath(t, ctx, r, eRep, cosmosStride.Config().ChainID, cosmosAtom.Config().ChainID, gaiaStrideICSPath)
 
-	// create clients
-	generateClient(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
+	generateClient(t, ctx, r, eRep, gaiaStrideICSPath, cosmosAtom, cosmosStride)
+
+	err = testutil.WaitForBlocks(ctx, 3, atom, neutron, stride)
+	require.NoError(t, err, "failed to wait for blocks")
+
 	neutronClients, _ := r.GetClients(ctx, eRep, cosmosNeutron.Config().ChainID)
 	atomClients, _ := r.GetClients(ctx, eRep, cosmosAtom.Config().ChainID)
+	strideClients, _ := r.GetClients(ctx, eRep, cosmosStride.Config().ChainID)
+	err = testutil.WaitForBlocks(ctx, 3, atom, neutron, stride)
+	require.NoError(t, err, "failed to wait for blocks")
+
+	printClients(neutronClients)
+	printClients(atomClients)
+	printClients(strideClients)
+	strideICSClient := strideClients[0]
+	atomICSClient := atomClients[0]
+
+	print("\n stride ics client id: ", strideICSClient.ClientID)
+	print("\n atom ics client id: ", atomICSClient.ClientID, "\n")
+
+	// create stride ICS stuff
+	err = r.UpdatePath(ctx, eRep, gaiaStrideICSPath, ibc.PathUpdateOptions{
+		SrcClientID: &strideICSClient.ClientID,
+		DstClientID: &atomClients[0].ClientID,
+	})
+	require.NoError(t, err)
+
+	atomStrideICSConnectionId, strideAtomICSConnectionId := generateConnections(t, ctx, r, eRep, gaiaStrideICSPath, cosmosAtom, cosmosStride)
+	print("\natomStrideICSConnectionId: ", atomStrideICSConnectionId, " , strideAtomICSConnectionId: ", strideAtomICSConnectionId, "\n")
+	generateICSChannel(t, ctx, r, eRep, gaiaStrideICSPath, cosmosAtom, cosmosStride)
+
+	err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
+	require.NoError(t, err, "failed to wait for blocks")
+
+	// create neutron ICS stuff
+	generateClient(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
 
 	err = r.UpdatePath(ctx, eRep, gaiaNeutronICSPath, ibc.PathUpdateOptions{
 		SrcClientID: &neutronClients[0].ClientID,
@@ -230,7 +270,7 @@ func TestICS(t *testing.T) {
 	linkPath(t, ctx, r, eRep, cosmosAtom, cosmosNeutron, gaiaNeutronIBCPath)
 
 	// Start the relayer and clean it up when the test ends.
-	err = r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaStrideIBCPath, neutronStrideIBCPath)
+	err = r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaStrideICSPath, gaiaStrideIBCPath, neutronStrideIBCPath)
 	require.NoError(t, err, "failed to start relayer with given paths")
 	t.Cleanup(func() {
 		err = r.StopRelayer(ctx, eRep)

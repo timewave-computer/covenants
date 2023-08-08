@@ -197,6 +197,12 @@ func printConnections(connections ibc.ConnectionOutputs) {
 	}
 }
 
+func printClients(clients []*ibc.ClientOutput) {
+	for _, client := range clients {
+		print("\nchain: ", client.ClientState.ChainID, " clientId is: ", client.ClientID, "\n")
+	}
+}
+
 func channelDifference(oldChannels, newChannels []ibc.ChannelOutput) (diff []string) {
 	m := make(map[string]bool)
 	// we first mark all existing channels
