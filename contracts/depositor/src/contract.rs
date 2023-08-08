@@ -10,14 +10,13 @@ use cosmwasm_std::{
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
-use neutron_sdk::interchain_queries::v045::new_register_transfers_query_msg;
 
 use prost::Message;
 
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg, ContractState, SudoPayload, AcknowledgementResult},
     state::{
-        IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT,
+        IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT, clear_sudo_payload,
     },
 };
 use neutron_sdk::{
@@ -43,7 +42,7 @@ type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
 const ATOM_DENOM: &str = "uatom";
-pub(crate) const INTERCHAIN_ACCOUNT_ID: &str = "ica";
+pub(crate) const INTERCHAIN_ACCOUNT_ID: &str = "gaia-ica";
 
 pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1;
 
@@ -133,17 +132,19 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
                 Ok((_, _)) => {
                     try_send_native_token(env, deps)
                 },
-                Err(_) => Ok(Response::default()
-                    .add_attribute("method", "try_tick")
-                    .add_attribute("ica_status", "not_created")
-                ),
+                Err(_) => {
+                    Ok(Response::default()
+                        .add_attribute("method", "try_tick")
+                        .add_attribute("ica_status", "not_created")
+                    )
+                },
             }
         }
         ContractState::VerifyNativeToken => try_verify_native_token(env, deps),
         ContractState::VerifyLp => try_verify_lp(env, deps),
         ContractState::Complete => {
             Ok(Response::default().add_attribute("status", "function_completed"))
-        }
+        },
     }
 }
 
@@ -227,10 +228,6 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                 },
             )?;
 
-            // we advance the state machine to validation phase where we will query the balances of
-            // LP module to confirm that funds have arrived
-            CONTRACT_STATE.save(deps.storage, &ContractState::VerifyNativeToken)?;
-
             Ok(Response::default()
                 .add_attribute("method", "try_send_native_token")
                 .add_submessage(submsg))
@@ -286,6 +283,18 @@ fn try_send_ls_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
                 .load(deps.storage)?
                 .replace("{st_ica}", &stride_ica_addr);
 
+            // we define the gaia->neutron timeout to be equal to:
+            // current block + ICA timeout + ibc transfer timeout.
+            // this assumes the worst possible time of delivery for the ICA message
+            // which wraps the underlying MsgTransfer.
+            let msg_transfer_timeout = env
+                .block
+                .time
+                // we take the wrapping ICA tx timeout into account and assume the worst
+                .plus_seconds(ica_timeout.u64())
+                // and then add the preset ibc transfer timeout
+                .plus_seconds(ibc_transfer_timeout.u64());
+
             // transfer message that will send funds from the ICA on gaia to our ICA on stride
             let stride_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
@@ -294,11 +303,7 @@ fn try_send_ls_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
                 sender: address,
                 receiver: autopilot_receiver,
                 timeout_height: None,
-                timeout_timestamp: env
-                    .block
-                    .time
-                    .plus_seconds(ibc_transfer_timeout.u64())
-                    .nanos(),
+                timeout_timestamp: msg_transfer_timeout.nanos(),
             };
 
             let stride_protobuf = to_proto_msg_transfer(stride_msg)?;
@@ -334,28 +339,35 @@ fn try_send_ls_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
 fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
     let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
     let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
-    let pending_transfer_timeout = PENDING_NATIVE_TRANSFER_TIMEOUT.load(deps.storage)?;
+    let pending_transfer_timeout = PENDING_NATIVE_TRANSFER_TIMEOUT.may_load(deps.storage)?;
 
     if lper_native_token_balance.amount >= receiver.amount {
-        // if funds have arrived on LP module, we advance the state and attempt to
-        // send the remaining funds to ICA on stride
+        // if funds have arrived on LP module, we advance the state
         CONTRACT_STATE.save(deps.storage, &ContractState::VerifyLp)?;
-        let ls_token_msg = try_send_ls_token(env, deps)?;
+        // nullifying any previous timeouts
+        PENDING_NATIVE_TRANSFER_TIMEOUT.remove(deps.storage);
 
         return Ok(Response::default()
-            .add_submessage(ls_token_msg)
             .add_attribute("method", "try_verify_native_token")
-            .add_attribute("receiver_balance", lper_native_token_balance.amount));
-    } else if env.block.time.nanos() >= pending_transfer_timeout.plus_minutes(5).nanos() {
-        // funds are still not on the LP module and the msgTransfer timeout is due
-        // we can safely retry sending the funds again by reverting the state
-        // to ICACreated
-        CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default()
-            .add_attribute("method", "try_verify_native_token")
-            .add_attribute("status", "pending_transfer_timeout_due")
-            .add_attribute("contract_state", "ica_created")
-        );
+            .add_attribute("contract_state", "verify_lp")
+            .add_attribute("receiver_balance", lper_native_token_balance.amount)
+        )
+    }
+    
+    // if there is an active timeout set we validate it
+    if let Some(active_timeout) = pending_transfer_timeout {
+        if env.block.time.nanos() >= active_timeout.plus_minutes(5).nanos() {
+            // funds are still not on the LP module and the msgTransfer timeout is due
+            // we can safely retry sending the funds again by reverting the state
+            // to ICACreated
+            CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+            PENDING_NATIVE_TRANSFER_TIMEOUT.remove(deps.storage);
+            return Ok(Response::default()
+                .add_attribute("method", "try_verify_native_token")
+                .add_attribute("status", "pending_transfer_timeout_due")
+                .add_attribute("contract_state", "ica_created")
+            )
+        }
     }
 
     // if tokens native tokens did not yet arrive to the LP module and the
@@ -420,18 +432,6 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
 ) -> StdResult<SubMsg<T>> {
     save_reply_payload(deps.storage, payload)?;
     Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
-}
-
-pub fn register_transfers_query(
-    connection_id: String,
-    recipient: String,
-    update_period: u64,
-    min_height: Option<u64>,
-) -> NeutronResult<Response<NeutronMsg>> {
-    let msg =
-        new_register_transfers_query_msg(connection_id, recipient, update_period, min_height)?;
-
-    Ok(Response::new().add_message(msg))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -678,191 +678,59 @@ fn sudo_open_ack(
 }
 
 fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response> {
-    let response = Response::default().add_attribute("method", "sudo_response");
     deps.api
         .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}").as_str());
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
+    // either of these errors will close the channel
     let seq_id = request
         .sequence
         .ok_or_else(|| StdError::generic_err("sequence not found"))?;
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
     let channel_id = request
         .source_channel
         .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
 
-    // NOTE: NO ERROR IS RETURNED HERE. THE CHANNEL LIVES ON.
-    // In this particular example, this is a matter of developer's choice. Not being able to read
-    // the payload here means that there was a problem with the contract while submitting an
-    // interchain transaction. You can decide that this is not worth killing the channel,
-    // write an error log and / or save the acknowledgement to an errors queue for later manual
-    // processing. The decision is based purely on your application logic.
     let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
-    if payload.is_none() {
-        let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
-        deps.api.debug(error_msg);
-        add_error_to_queue(deps.storage, error_msg.to_string());
-        return Ok(Response::default());
-    }
 
-    deps.api
-        .debug(format!("WASMDEBUG: sudo_response: sudo payload: {payload:?}").as_str());
-
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not being able to parse this data
-    // that a fatal error occurred on Neutron side, or that the remote chain sent us unexpected data.
-    // Both cases require immediate attention.
-    let parsed_data = decode_acknowledgement_response(data)?;
-
-    let mut item_types = vec![];
-    for item in parsed_data {
-        let item_type = item.msg_type.as_str();
-        item_types.push(item_type.to_string());
-        match item_type {
-            "/ibc.applications.transfer.v1.MsgTransfer" => {
-                deps.api
-                    .debug(format!("MsgTransfer response: {:?}", item.data).as_str());
-            }
-            _ => {
-                deps.api.debug(
-                    format!("This type of acknowledgement is not implemented: {payload:?}")
-                        .as_str(),
-                );
-            }
+    if let Some(payload) = payload {
+        if payload.message == "try_send_native_token".to_string() {
+            // we advance the state machine to validation phase where we will query the balances of
+            // LP module to confirm that funds have arrived
+            CONTRACT_STATE.save(deps.storage, &ContractState::VerifyNativeToken)?;
         }
     }
 
-    if let Some(payload) = payload {
-        // if payload.message == "try_send_funds" {
-        //     CONTRACT_STATE.save(deps.storage, &ContractState::FundsSent)?;
-        //     response = response.add_attribute("payload_message", "try_send_funds")
-        // } else if payload.message == "try_receive_atom_from_ica" {
-        //     CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-        //     response = response.add_attribute("payload_message", "try_receive_atom_from_ica")
-        // }
-
-        // update but also check that we don't update same seq_id twice
-        ACKNOWLEDGEMENT_RESULTS.update(
-            deps.storage,
-            (payload.port_id, seq_id),
-            |maybe_ack| -> StdResult<AcknowledgementResult> {
-                match maybe_ack {
-                    Some(_ack) => Err(StdError::generic_err("trying to update same seq_id")),
-                    None => Ok(AcknowledgementResult::Success(item_types)),
-                }
-            },
-        )?;
-    }
-
-    Ok(response)
+    Ok(Response::default()
+        .add_attribute("method", "sudo_response")
+    )
 }
 
 fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
-    let seq_id = request
-        .sequence
-        .ok_or_else(|| StdError::generic_err("sequence not found"))?;
+    // revert the state to Instantiated to force re-creation of ICA
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
-    let channel_id = request
-        .source_channel
-        .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
-
-    // update but also check that we don't update same seq_id twice
-    // NOTE: NO ERROR IS RETURNED HERE. THE CHANNEL LIVES ON.
-    // In this particular example, this is a matter of developer's choice. Not being able to read
-    // the payload here means that there was a problem with the contract while submitting an
-    // interchain transaction. You can decide that this is not worth killing the channel,
-    // write an error log and / or save the acknowledgement to an errors queue for later manual
-    // processing. The decision is based purely on your application logic.
-    // Please be careful because it may lead to an unexpected state changes because state might
-    // has been changed before this call and will not be reverted because of supressed error.
-    let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
-    if let Some(payload) = payload {
-        // update but also check that we don't update same seq_id twice
-        ACKNOWLEDGEMENT_RESULTS.update(
-            deps.storage,
-            (payload.port_id, seq_id),
-            |maybe_ack| -> StdResult<AcknowledgementResult> {
-                match maybe_ack {
-                    Some(_ack) => Err(StdError::generic_err("trying to update same seq_id")),
-                    None => Ok(AcknowledgementResult::Timeout(payload.message)),
-                }
-            },
-        )?;
-    } else {
-        let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
-        deps.api.debug(error_msg);
-        add_error_to_queue(deps.storage, error_msg.to_string());
-    }
-
-    Ok(Response::default().add_attribute("method", "sudo_timeout"))
+    // returning Ok as this is anticipated. channel is already closed.
+    Ok(Response::default())
 }
 
 fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> StdResult<Response> {
     deps.api
-        .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
+    .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
+
     deps.api
         .debug(format!("WASMDEBUG: request packet: {request:?}").as_str());
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
-    let seq_id = request
+    // either of these errors will close the channel
+    request
         .sequence
         .ok_or_else(|| StdError::generic_err("sequence not found"))?;
 
-    // WARNING: RETURNING THIS ERROR CLOSES THE CHANNEL.
-    // AN ALTERNATIVE IS TO MAINTAIN AN ERRORS QUEUE AND PUT THE FAILED REQUEST THERE
-    // FOR LATER INSPECTION.
-    // In this particular case, we return an error because not having the sequence id
-    // in the request value implies that a fatal error occurred on Neutron side.
-    let channel_id = request
+    request
         .source_channel
         .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
-    let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
-
-    if let Some(payload) = payload {
-        // update but also check that we don't update same seq_id twice
-        ACKNOWLEDGEMENT_RESULTS.update(
-            deps.storage,
-            (payload.port_id, seq_id),
-            |maybe_ack| -> StdResult<AcknowledgementResult> {
-                match maybe_ack {
-                    Some(_ack) => Err(StdError::generic_err("trying to update same seq_id")),
-                    None => Ok(AcknowledgementResult::Error((payload.message, details))),
-                }
-            },
-        )?;
-    } else {
-        let error_msg = "WASMDEBUG: Error: Unable to read sudo payload";
-        deps.api.debug(error_msg);
-        add_error_to_queue(deps.storage, error_msg.to_string());
-    }
 
     Ok(Response::default().add_attribute("method", "sudo_error"))
 }

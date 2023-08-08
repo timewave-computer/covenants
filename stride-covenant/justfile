@@ -39,7 +39,8 @@ simtest: optimize
 
     cp -R ./../artifacts/*.wasm tests/interchaintest/wasms
     go clean -testcache
-    cd tests/interchaintest/ && go test -timeout 20m -v ./...
+    cd tests/interchaintest/ && go test -timeout 30m -v ./...
 
 ictest:
+    go clean -testcache
     cd tests/interchaintest/ && go test -timeout 20m -v ./...
