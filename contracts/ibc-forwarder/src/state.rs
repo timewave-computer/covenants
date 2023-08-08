@@ -33,3 +33,6 @@ pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 
 /// interchain accounts storage in form of (port_id) -> (address, controller_connection_id)
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> = Map::new("interchain_accounts");
+
+pub const REPLY_ID_STORAGE: Item<Vec<u8>> = Item::new("reply_queue_id");
+pub const SUDO_PAYLOAD: Map<(String, u64), Vec<u8>> = Map::new("sudo_payload");

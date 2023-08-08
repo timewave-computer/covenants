@@ -1,19 +1,20 @@
-use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, ibc::applications::transfer::v1::MsgTransfer};
+use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-
-use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, Addr, to_binary};
+use covenant_utils::neutron_ica;
+use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, Addr, to_binary, StdResult, Storage, to_vec, CosmosMsg, SubMsg, Reply, from_binary};
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
-use neutron_sdk::{NeutronResult, bindings::{msg::NeutronMsg, query::NeutronQuery, types::ProtobufAny}, interchain_txs::helpers::get_port_id, NeutronError,};
+use neutron_sdk::{NeutronResult, bindings::{msg::{NeutronMsg, MsgSubmitTxResponse}, query::NeutronQuery, types::ProtobufAny}, interchain_txs::helpers::get_port_id, NeutronError, sudo::msg::{SudoMsg, RequestPacket},};
 use prost::Message;
 
-use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, RemoteChainInfo, QueryMsg}, state::{CONTRACT_STATE, CLOCK_ADDRESS, INTERCHAIN_ACCOUNTS, IBC_FEE, ICA_TIMEOUT, IBC_TRANSFER_TIMEOUT, REMOTE_CHAIN_INFO, NEXT_CONTRACT}, error::ContractError};
+use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, RemoteChainInfo, QueryMsg}, state::{CONTRACT_STATE, CLOCK_ADDRESS, INTERCHAIN_ACCOUNTS, IBC_FEE, ICA_TIMEOUT, IBC_TRANSFER_TIMEOUT, REMOTE_CHAIN_INFO, NEXT_CONTRACT, REPLY_ID_STORAGE, SUDO_PAYLOAD}};
 
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ibc-forwarder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const INTERCHAIN_ACCOUNT_ID: &str = "ica";
+pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1;
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
@@ -45,7 +46,8 @@ pub fn instantiate(
     
     Ok(Response::default()
         .add_attribute("method", "ibc_forwarder_instantiate")
-
+        .add_attribute("next_contract", next_contract)
+        .add_attribute("contract_state", "instantiated")
     )
 }
 
@@ -61,7 +63,6 @@ pub fn execute(
     }
 }
 
-
 /// attempts to advance the state machine. validates the caller to be the clock.
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
@@ -71,7 +72,9 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
     match current_state {
         ContractState::Instantiated => try_register_ica(deps, env),
         ContractState::ICACreated => try_forward_funds(env, deps),
-        ContractState::Complete => todo!(),
+        ContractState::Complete => Ok(Response::default()
+            .add_attribute("contract_state", "completed")
+        ),
     }
 }
 
@@ -96,7 +99,7 @@ fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neutr
     )
 }
 
-fn try_forward_funds(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
+fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
 
     // first we verify whether the next contract is ready for receiving the funds
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
@@ -155,14 +158,33 @@ fn try_forward_funds(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<Neut
             );
 
             // sudo callback msg
-            
-            Ok(Response::default())
+            let submsg = msg_with_sudo_callback(
+                deps.branch(),
+                submit_msg,
+                neutron_ica::SudoPayload {
+                    port_id,
+                    message: "try_forward_funds".to_string(),
+                },
+            )?;
+
+            Ok(Response::default()
+                .add_attribute("method", "try_forward_funds")
+                .add_submessage(submsg))
         },
         None => Ok(Response::default()
             .add_attribute("method", "try_forward_funds")
             .add_attribute("error", "no_ica_found")
         ),
     }
+}
+
+fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
+    deps: ExecuteDeps,
+    msg: C,
+    payload: neutron_ica::SudoPayload,
+) -> StdResult<SubMsg<T>> {
+    save_reply_payload(deps.storage, payload)?;
+    Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
 }
 
 /// helper that serializes a MsgTransfer to protobuf
@@ -181,7 +203,7 @@ fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
+pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
         // we expect to receive funds into our ICA account on the remote chain.
         // if the ICA had not been opened yet, we return `None` so that the 
@@ -198,4 +220,167 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             Ok(to_binary(&ica)?)
         },
     }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response> {
+    deps.api
+        .debug(format!("WASMDEBUG: sudo: received sudo msg: {msg:?}").as_str());
+
+    match msg {
+        // For handling successful (non-error) acknowledgements.
+        SudoMsg::Response { request, data } => sudo_response(deps, request, data),
+
+        // For handling error acknowledgements.
+        SudoMsg::Error { request, details } => sudo_error(deps, request, details),
+
+        // For handling error timeouts.
+        SudoMsg::Timeout { request } => sudo_timeout(deps, env, request),
+
+        // For handling successful registering of ICA
+        SudoMsg::OpenAck {
+            port_id,
+            channel_id,
+            counterparty_channel_id,
+            counterparty_version,
+        } => sudo_open_ack(
+            deps,
+            env,
+            port_id,
+            channel_id,
+            counterparty_channel_id,
+            counterparty_version,
+        ),
+        _ => Ok(Response::default()),
+    }
+}
+
+
+// handler
+fn sudo_open_ack(
+    deps: ExecuteDeps,
+    _env: Env,
+    port_id: String,
+    _channel_id: String,
+    _counterparty_channel_id: String,
+    counterparty_version: String,
+) -> StdResult<Response> {
+    // The version variable contains a JSON value with multiple fields,
+    // including the generated account address.
+    let parsed_version: Result<neutron_ica::OpenAckVersion, _> =
+        serde_json_wasm::from_str(counterparty_version.as_str());
+
+    // Update the storage record associated with the interchain account.
+    if let Ok(parsed_version) = parsed_version {
+        INTERCHAIN_ACCOUNTS.save(
+            deps.storage,
+            port_id,
+            &Some((
+                parsed_version.clone().address,
+                parsed_version.clone().controller_connection_id,
+            )),
+        )?;
+        CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+        return Ok(Response::default().add_attribute("method", "sudo_open_ack"));
+    }
+    Err(StdError::generic_err("Can't parse counterparty_version"))
+}
+
+fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response> {
+    deps.api
+        .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}").as_str());
+
+    // either of these errors will close the channel
+    let seq_id = request
+        .sequence
+        .ok_or_else(|| StdError::generic_err("sequence not found"))?;
+
+    let channel_id = request
+        .source_channel
+        .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
+
+    Ok(Response::default()
+        .add_attribute("method", "sudo_response")
+    )
+}
+
+fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response> {
+    deps.api
+        .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
+
+    // revert the state to Instantiated to force re-creation of ICA
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+
+    // returning Ok as this is anticipated. channel is already closed.
+    Ok(Response::default())
+}
+
+fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> StdResult<Response> {
+    deps.api
+    .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
+
+    deps.api
+        .debug(format!("WASMDEBUG: request packet: {request:?}").as_str());
+
+    // either of these errors will close the channel
+    request
+        .sequence
+        .ok_or_else(|| StdError::generic_err("sequence not found"))?;
+
+    request
+        .source_channel
+        .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
+
+    Ok(Response::default().add_attribute("method", "sudo_error"))
+}
+
+
+pub fn save_reply_payload(store: &mut dyn Storage, payload: neutron_ica::SudoPayload) -> StdResult<()> {
+    REPLY_ID_STORAGE.save(store, &to_vec(&payload)?)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
+    deps.api
+        .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
+    match msg.id {
+        SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
+        _ => Err(StdError::generic_err(format!(
+            "unsupported reply message id {}",
+            msg.id
+        ))),
+    }
+}
+
+fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResult<Response> {
+    let payload = read_reply_payload(deps.storage)?;
+    let resp: MsgSubmitTxResponse = serde_json_wasm::from_slice(
+        msg.result
+            .into_result()
+            .map_err(StdError::generic_err)?
+            .data
+            .ok_or_else(|| StdError::generic_err("no result"))?
+            .as_slice(),
+    )
+    .map_err(|e| StdError::generic_err(format!("failed to parse response: {e:?}")))?;
+    deps.api
+        .debug(format!("WASMDEBUG: reply msg: {resp:?}").as_str());
+    let seq_id = resp.sequence_id;
+    let channel_id = resp.channel;
+    save_sudo_payload(deps.branch().storage, channel_id, seq_id, payload)?;
+    Ok(Response::new())
+}
+
+pub fn read_reply_payload(store: &mut dyn Storage) -> StdResult<neutron_ica::SudoPayload> {
+    let data = REPLY_ID_STORAGE.load(store)?;
+    from_binary(&Binary(data))
+}
+
+pub fn save_sudo_payload(
+    store: &mut dyn Storage,
+    channel_id: String,
+    seq_id: u64,
+    payload: neutron_ica::SudoPayload,
+) -> StdResult<()> {
+    SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_vec(&payload)?)
 }

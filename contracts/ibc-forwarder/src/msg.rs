@@ -1,6 +1,6 @@
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Uint64;
+use cosmwasm_std::{Uint64, Attribute};
 use covenant_clock_derive::clocked;
 use covenant_depositor_derive::covenant_deposit_address;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -38,6 +38,20 @@ pub struct InstantiateMsg {
     /// channel closed. We can reopen the channel by reregistering
     /// the ICA with the same port id and connection id
     pub ica_timeout: Uint64,
+}
+
+impl InstantiateMsg {
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
+        vec![
+            Attribute::new("clock_address", &self.clock_address),
+            Attribute::new("remote_chain_connection_id", &self.remote_chain_connection_id),
+            Attribute::new("remote_chain_channel_id", &self.remote_chain_channel_id),
+            Attribute::new("remote_chain_denom", &self.denom),
+            Attribute::new("remote_chain_amount", &self.amount),
+            Attribute::new("ibc_transfer_timeout", self.ibc_transfer_timeout.to_string()),
+            Attribute::new("ica_timeout", self.ica_timeout.to_string()),
+        ]
+    }
 }
 
 #[cw_serde]
