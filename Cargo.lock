@@ -515,6 +515,7 @@ dependencies = [
  "cosmwasm-std",
  "covenant-clock",
  "covenant-clock-derive",
+ "covenant-depositor-derive",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.0",
  "neutron-sdk",
