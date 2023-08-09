@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Uint128, Uint64};
 use covenant_clock_derive::clocked;
+use covenant_depositor_derive::covenant_deposit_address;
 use neutron_sdk::bindings::msg::IbcFee;
 
 #[cw_serde]
@@ -38,6 +39,9 @@ pub struct InstantiateMsg {
     /// if the ICA times out, the destination chain receiving the funds
     /// will also receive the IBC packet with an expired timestamp.
     pub ibc_transfer_timeout: Uint64,
+    /// json formatted string meant to be used for one-click
+    /// liquid staking on stride
+    pub autopilot_format: String,
 }
 
 #[cw_serde]
@@ -47,6 +51,7 @@ pub struct PresetLsFields {
     pub ls_denom: String,
     pub stride_neutron_ibc_transfer_channel_id: String,
     pub neutron_stride_ibc_connection_id: String,
+    pub autopilot_format: String,
 }
 
 impl PresetLsFields {
@@ -67,6 +72,7 @@ impl PresetLsFields {
             ibc_fee,
             ica_timeout,
             ibc_transfer_timeout,
+            autopilot_format: self.autopilot_format,
         }
     }
 }
@@ -80,6 +86,7 @@ pub enum ExecuteMsg {
     Transfer { amount: Uint128 },
 }
 
+#[covenant_deposit_address]
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
