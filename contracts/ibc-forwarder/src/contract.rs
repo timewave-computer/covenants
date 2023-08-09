@@ -8,7 +8,7 @@ use cw2::set_contract_version;
 use neutron_sdk::{NeutronResult, bindings::{msg::{NeutronMsg, MsgSubmitTxResponse}, query::NeutronQuery, types::ProtobufAny}, interchain_txs::helpers::get_port_id, NeutronError, sudo::msg::{SudoMsg, RequestPacket},};
 use prost::Message;
 
-use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, RemoteChainInfo, QueryMsg}, state::{CONTRACT_STATE, CLOCK_ADDRESS, INTERCHAIN_ACCOUNTS, IBC_FEE, ICA_TIMEOUT, IBC_TRANSFER_TIMEOUT, REMOTE_CHAIN_INFO, NEXT_CONTRACT, REPLY_ID_STORAGE, SUDO_PAYLOAD}};
+use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, RemoteChainInfo, QueryMsg}, state::{CONTRACT_STATE, CLOCK_ADDRESS, INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO, NEXT_CONTRACT, REPLY_ID_STORAGE, SUDO_PAYLOAD}};
 
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ibc-forwarder";
@@ -30,10 +30,6 @@ pub fn instantiate(
 
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    // ibc fees and timeouts
-    IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
-    ICA_TIMEOUT.save(deps.storage, &msg.ica_timeout)?;
-    IBC_TRANSFER_TIMEOUT.save(deps.storage, &msg.ibc_transfer_timeout)?;
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
 
@@ -42,6 +38,9 @@ pub fn instantiate(
         channel_id: msg.remote_chain_channel_id,
         denom: msg.denom,
         amount: msg.amount,
+        ibc_fee: msg.ibc_fee,
+        ica_timeout: msg.ica_timeout,
+        ibc_transfer_timeout: msg.ibc_transfer_timeout,
     })?;
     
     Ok(Response::default()
@@ -125,9 +124,6 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
-            let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
-            let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
-            let fee = IBC_FEE.load(deps.storage)?;
             let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
 
             let coin = remote_chain_info.proto_coin();
@@ -140,8 +136,8 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                 receiver: deposit_address.to_string(),
                 timeout_height: None,
                 timeout_timestamp: env.block.time
-                    .plus_seconds(ica_timeout.u64())
-                    .plus_seconds(ibc_transfer_timeout.u64())
+                    .plus_seconds(remote_chain_info.ica_timeout.u64())
+                    .plus_seconds(remote_chain_info.ibc_transfer_timeout.u64())
                     .nanos(),
             };
 
@@ -153,8 +149,8 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                 INTERCHAIN_ACCOUNT_ID.to_string(),
                 vec![protobuf_msg],
                 "".to_string(),
-                ica_timeout.u64(),
-                fee,
+                remote_chain_info.ica_timeout.u64(),
+                remote_chain_info.ibc_fee,
             );
 
             // sudo callback msg
@@ -291,11 +287,11 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
         .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}").as_str());
 
     // either of these errors will close the channel
-    let seq_id = request
+    request
         .sequence
         .ok_or_else(|| StdError::generic_err("sequence not found"))?;
 
-    let channel_id = request
+    request
         .source_channel
         .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
 

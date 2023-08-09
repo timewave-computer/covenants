@@ -17,12 +17,12 @@ pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");
 /// information needed for an ibc transfer to the remote chain
 pub const REMOTE_CHAIN_INFO: Item<RemoteChainInfo> = Item::new("r_c_info");
 
-/// timeout in seconds for inner ibc MsgTransfer
-pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
-/// time in seconds for ICA SubmitTX messages from neutron
-pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
-/// neutron IbcFee for relayers
-pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
+// /// timeout in seconds for inner ibc MsgTransfer
+// pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
+// /// time in seconds for ICA SubmitTX messages from neutron
+// pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
+// /// neutron IbcFee for relayers
+// pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 
 
 /// id of the connection between neutron and remote chain on which we

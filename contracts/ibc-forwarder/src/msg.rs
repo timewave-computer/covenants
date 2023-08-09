@@ -62,6 +62,9 @@ pub struct RemoteChainInfo {
     pub channel_id: String,
     pub denom: String,
     pub amount: String,
+    pub ibc_transfer_timeout: Uint64,
+    pub ica_timeout: Uint64,
+    pub ibc_fee: IbcFee,
 }
 
 impl RemoteChainInfo {
