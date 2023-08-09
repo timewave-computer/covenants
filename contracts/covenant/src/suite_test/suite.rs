@@ -64,6 +64,7 @@ impl Default for SuiteBuilder {
                     ls_denom: "stuatom".to_string(),
                     stride_neutron_ibc_transfer_channel_id: TODO.to_string(),
                     neutron_stride_ibc_connection_id: TODO.to_string(),
+                    autopilot_format: "{{\"autopilot\": {{\"receiver\": \"{st_ica}\",\"stakeibc\": {{\"stride_address\": \"{st_ica}\",\"action\": \"LiquidStake\"}}}}}}".to_string(),
                 },
                 preset_depositor_fields: covenant_depositor::msg::PresetDepositorFields {
                     gaia_neutron_ibc_transfer_channel_id: TODO.to_string(),

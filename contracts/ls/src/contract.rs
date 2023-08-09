@@ -16,9 +16,10 @@ use crate::msg::{
     RemoteChainInfo, SudoPayload,
 };
 use crate::state::{
-    read_errors_from_queue, read_reply_payload, save_reply_payload, save_sudo_payload,
-    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, LP_ADDRESS,
-    REMOTE_CHAIN_INFO,
+    add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
+    save_reply_payload, save_sudo_payload, ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE,
+    IBC_FEE, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM,
+    NEUTRON_STRIDE_IBC_CONNECTION_ID, STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, AUTOPILOT_FORMAT,
 };
 use neutron_sdk::{
     bindings::{
@@ -224,6 +225,32 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             sequence_id,
         } => query_acknowledgement_result(deps, env, interchain_account_id, sequence_id),
         QueryMsg::ErrorsQueue {} => query_errors_queue(deps),
+        QueryMsg::DepositAddress {} => {
+            let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
+
+            // here we cover three cases:
+            let ica = match INTERCHAIN_ACCOUNTS.may_load(deps.storage, key)? {
+                Some(entry) => {
+                    // 1. ICA had been created -> fetch the autopilot string and return Some(autopilot)
+                    if let Some((addr, _)) = entry {
+                        let autopilot_receiver = AUTOPILOT_FORMAT
+                            .load(deps.storage)?
+                            .replace("{st_ica}", &addr);
+
+                        Some(autopilot_receiver)
+                    }
+                    // 2. ICA creation request had been submitted but did not receive
+                    //    the channel_open_ack yet -> None
+                    else {
+                        None
+                    }
+                },
+                // 3. ICA creation request hadn't been submitted yet -> None
+                None => None,
+            };
+            // up to the querying module to make sense of the response
+            Ok(to_binary(&ica)?)
+        },
     }
 }
 
