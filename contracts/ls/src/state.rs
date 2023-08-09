@@ -8,8 +8,8 @@ pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
 /// clock contract address to verify the sender of incoming ticks
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
-/// liquid pooler contract address to forward the liquid staked funds to
-pub const LP_ADDRESS: Item<Addr> = Item::new("lp_address");
+/// next contract address to forward the liquid staked funds to
+pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");
 
 /// information needed for an ibc transfer to the remote chain
 pub const REMOTE_CHAIN_INFO: Item<RemoteChainInfo> = Item::new("r_c_info");

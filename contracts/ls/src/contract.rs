@@ -12,14 +12,14 @@ use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 
 use crate::msg::{
-    ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg,
-    RemoteChainInfo, SudoPayload,
+    ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion,
+    QueryMsg, SudoPayload,
 };
 use crate::state::{
-    add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
+    read_errors_from_queue, read_reply_payload,
     save_reply_payload, save_sudo_payload, ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE,
-    IBC_FEE, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM,
-    NEUTRON_STRIDE_IBC_CONNECTION_ID, STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, AUTOPILOT_FORMAT,
+    IBC_FEE, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, INTERCHAIN_ACCOUNTS, LS_DENOM,
+    NEUTRON_STRIDE_IBC_CONNECTION_ID, STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID, AUTOPILOT_FORMAT, NEXT_CONTRACT,
 };
 use neutron_sdk::{
     bindings::{
@@ -53,9 +53,9 @@ pub fn instantiate(
 
     // validate and store other contract addresses
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-    let lp_address = deps.api.addr_validate(&msg.lp_address)?;
+    let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
-    LP_ADDRESS.save(deps.storage, &lp_address)?;
+    NEXT_CONTRACT.save(deps.storage, &next_contract)?;
 
     let remote_chain_info = RemoteChainInfo {
         connection_id: msg.neutron_stride_ibc_connection_id,
@@ -70,8 +70,18 @@ pub fn instantiate(
     Ok(Response::default()
         .add_attribute("method", "ls_instantiate")
         .add_attribute("clock_address", clock_addr)
-        .add_attribute("lp_address", lp_address)
-        .add_attributes(remote_chain_info.get_response_attributes()))
+        .add_attribute("next_contract", next_contract)
+        .add_attribute(
+            "stride_neutron_ibc_transfer_channel_id",
+            msg.stride_neutron_ibc_transfer_channel_id,
+        )
+        .add_attribute(
+            "neutron_stride_ibc_connection_id",
+            msg.neutron_stride_ibc_connection_id,
+        )
+        .add_attribute("ls_denom", msg.ls_denom)
+        .add_attribute("ibc_transfer_timeout", msg.ibc_transfer_timeout)
+        .add_attribute("ica_timeout", msg.ica_timeout))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -86,14 +96,17 @@ pub fn execute(
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Transfer { amount } => {
-            match get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID) {
-                Ok((address, controller_conn_id)) => {
-                    try_execute_transfer(deps, env, info, amount, address, controller_conn_id)
-                }
-                // if no ICA is available yet we keep waiting for ticks to create one
-                Err(_) => Ok(Response::default()
-                    .add_attribute("method", "try_permisionless_transfer")
-                    .add_attribute("ica_status", "not_created")),
+            let ica_address = get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID);
+            match ica_address {
+                Ok((_, _)) => {
+                    try_execute_transfer(deps, env, info, amount)
+                },
+                Err(_) => {
+                    Ok(Response::default()
+                        .add_attribute("method", "try_permisionless_transfer")
+                        .add_attribute("ica_status", "not_created")
+                    )
+                },
             }
         }
     }
@@ -139,6 +152,23 @@ fn try_execute_transfer(
     address: String,
     controller_conn_id: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
+
+    // first we verify whether the next contract is ready for receiving the funds
+    let next_contract = NEXT_CONTRACT.load(deps.storage)?;
+    let deposit_address_query: Option<Addr> = deps.querier.query_wasm_smart(
+        next_contract,
+        &crate::msg::QueryMsg::DepositAddress {},
+    )?;
+
+    // if query returns None, then we error and wait
+    let deposit_address = if let Some(addr) = deposit_address_query {
+        addr
+    } else {
+        return Err(NeutronError::Std(
+            StdError::not_found("Next contract is not ready for receiving the funds yet")
+        ))
+    };
+
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     let rc_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
     let lp_receiver = LP_ADDRESS.load(deps.storage)?;
@@ -147,28 +177,74 @@ fn try_execute_transfer(
         amount: amount.to_string(),
     };
 
-    // inner MsgTransfer that will be sent from stride to neutron.
-    // because of this message delivery depending on the ica wrapper below,
-    // timeout_timestamp = current block + ica timeout + ibc_transfer_timeout
-    let msg = MsgTransfer {
-        source_port: "transfer".to_string(),
-        source_channel: rc_info.channel_id,
-        token: Some(coin),
-        sender: address,
-        receiver: lp_receiver.to_string(),
-        timeout_height: None,
-        timeout_timestamp: env
-            .block
-            .time
-            .plus_seconds(rc_info.ica_timeout.u64())
-            .plus_seconds(rc_info.ibc_transfer_timeout.u64())
-            .nanos(),
-    };
+    match interchain_account {
+        Some((address, controller_conn_id)) => {
+            let fee = IBC_FEE.load(deps.storage)?;
+            let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+            let denom = LS_DENOM.load(deps.storage)?;
+            let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
+            let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
 
-    // Serialize the Transfer message
-    let mut buf = Vec::with_capacity(msg.encoded_len());
-    if let Err(e) = msg.encode(&mut buf) {
-        return Err(StdError::generic_err(format!("Encode error: {e}",)).into());
+            let coin = Coin {
+                denom,
+                amount: amount.to_string(),
+            };
+
+            // inner MsgTransfer that will be sent from stride to neutron.
+            // because of this message delivery depending on the ica wrapper below,
+            // timeout_timestamp = current block + ica timeout + ibc_transfer_timeout
+            let msg = MsgTransfer {
+                source_port: "transfer".to_string(),
+                source_channel,
+                token: Some(coin),
+                sender: address,
+                receiver: deposit_address.to_string(),
+                timeout_height: None,
+                timeout_timestamp: env
+                    .block
+                    .time
+                    .plus_seconds(ica_timeout.u64())
+                    .plus_seconds(ibc_transfer_timeout.u64())
+                    .nanos(),
+            };
+
+            // Serialize the Transfer message
+            let mut buf = Vec::new();
+            buf.reserve(msg.encoded_len());
+            if let Err(e) = msg.encode(&mut buf) {
+                return Err(StdError::generic_err(format!("Encode error: {e}",)).into());
+            }
+
+            let protobuf = ProtobufAny {
+                type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+                value: Binary::from(buf),
+            };
+
+            // wrap the protobuf of MsgTransfer into a message to be executed
+            // by our interchain account
+            let submit_msg = NeutronMsg::submit_tx(
+                controller_conn_id,
+                INTERCHAIN_ACCOUNT_ID.to_string(),
+                vec![protobuf],
+                "".to_string(),
+                ica_timeout.u64(),
+                fee,
+            );
+
+            let sudo_msg = msg_with_sudo_callback(
+                deps,
+                submit_msg,
+                SudoPayload {
+                    port_id,
+                    message: "permisionless_transfer".to_string(),
+                },
+            )?;
+            Ok(Response::default()
+                .add_submessage(sudo_msg)
+                .add_attribute("method", "try_execute_transfer")
+            )
+        }
+        None => Err(NeutronError::Std(StdError::not_found("no ica found"))),
     }
 
     let protobuf = ProtobufAny {
@@ -213,7 +289,6 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
-        QueryMsg::LpAddress {} => Ok(to_binary(&LP_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::StrideICA {} => Ok(to_binary(&Addr::unchecked(
             get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
@@ -468,8 +543,13 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
-            lp_address,
-            remote_chain_info,
+            stride_neutron_ibc_transfer_channel_id,
+            next_contract,
+            neutron_stride_ibc_connection_id,
+            ls_denom,
+            ibc_fee,
+            ibc_transfer_timeout,
+            ica_timeout,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
@@ -479,10 +559,15 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 resp = resp.add_attribute("clock_addr", addr.to_string());
             }
 
-            if let Some(addr) = lp_address {
+            if let Some(channel_id) = stride_neutron_ibc_transfer_channel_id {
+                STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &channel_id)?;
+                resp = resp.add_attribute("stride_neutron_ibc_transfer_channel_id", channel_id);
+            }
+
+            if let Some(addr) = next_contract {
                 let addr = deps.api.addr_validate(&addr)?;
-                resp = resp.add_attribute("lp_address", addr.to_string());
-                LP_ADDRESS.save(deps.storage, &addr)?;
+                resp = resp.add_attribute("next_contract", addr.to_string());
+                NEXT_CONTRACT.save(deps.storage, &addr)?;
             }
 
             if let Some(rci) = remote_chain_info {
