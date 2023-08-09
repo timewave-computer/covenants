@@ -9,8 +9,8 @@ pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
 /// clock module address to verify the sender of incoming ticks
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
-/// liquid pooler module address to forward the liquid staked funds to
-pub const LP_ADDRESS: Item<Addr> = Item::new("lp_address");
+/// next contract address to forward the liquid staked funds to
+pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");
 
 /// IBC transfer channel on stride for neutron
 pub const STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("sn_ibc_chann_id");

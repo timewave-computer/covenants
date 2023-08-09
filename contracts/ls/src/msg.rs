@@ -16,9 +16,8 @@ pub struct InstantiateMsg {
     /// IBC connection ID on Neutron for Stride
     /// We make an Interchain Account over this connection
     pub neutron_stride_ibc_connection_id: String,
-    /// Address for the covenant's LP contract.
-    /// We send the liquid staked amount to this address
-    pub lp_address: String,
+    /// Address of the next contract to query for the deposit address
+    pub next_contract: String,
     /// The liquid staked denom (e.g., stuatom). This is
     /// required because we only allow transfers of this denom
     /// out of the LSer
@@ -58,7 +57,7 @@ impl PresetLsFields {
     pub fn to_instantiate_msg(
         self,
         clock_address: String,
-        lp_address: String,
+        next_contract: String,
         ibc_fee: IbcFee,
         ica_timeout: Uint64,
         ibc_transfer_timeout: Uint64,
@@ -67,7 +66,7 @@ impl PresetLsFields {
             clock_address,
             stride_neutron_ibc_transfer_channel_id: self.stride_neutron_ibc_transfer_channel_id,
             neutron_stride_ibc_connection_id: self.neutron_stride_ibc_connection_id,
-            lp_address,
+            next_contract,
             ls_denom: self.ls_denom,
             ibc_fee,
             ica_timeout,
@@ -94,8 +93,6 @@ pub enum QueryMsg {
     ClockAddress {},
     #[returns(Addr)]
     StrideICA {},
-    #[returns(Addr)]
-    LpAddress {},
     #[returns(ContractState)]
     ContractState {},
     #[returns(String)]
@@ -126,7 +123,7 @@ pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
         stride_neutron_ibc_transfer_channel_id: Option<String>,
-        lp_address: Option<String>,
+        next_contract: Option<String>,
         neutron_stride_ibc_connection_id: Option<String>,
         ls_denom: Option<String>,
         ibc_fee: Option<IbcFee>,
