@@ -358,24 +358,26 @@ fn sudo_open_ack(
     // including the generated account address.
     let parsed_version: Result<OpenAckVersion, _> =
         serde_json_wasm::from_str(counterparty_version.as_str());
-
+    
+    // get the parsed OpenAckVersion or return an error if we fail
+    let Ok(parsed_version) = parsed_version else {
+        return Err(StdError::generic_err("Can't parse counterparty_version"))
+    };
+    
     // Update the storage record associated with the interchain account.
-    if let Ok(parsed_version) = parsed_version {
-        INTERCHAIN_ACCOUNTS.save(
-            deps.storage,
-            port_id,
-            &Some((
-                parsed_version.clone().address,
-                parsed_version.controller_connection_id,
-            )),
-        )?;
-        // we advance the state now that the channel is established
-        CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default()
-            .add_attribute("method", "sudo_open_ack")
-        )
-    }
-    Err(StdError::generic_err("Can't parse counterparty_version"))
+    INTERCHAIN_ACCOUNTS.save(
+        deps.storage,
+        port_id,
+        &Some((
+            parsed_version.clone().address,
+            parsed_version.clone().controller_connection_id,
+        )),
+    )?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+    
+    return Ok(Response::default()
+       .add_attribute("method", "sudo_open_ack")
+    )
 }
 
 fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResult<Response> {

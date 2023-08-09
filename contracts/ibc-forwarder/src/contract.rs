@@ -108,9 +108,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
     )?;
 
     // if query returns None, then we error and wait
-    let deposit_address = if let Some(addr) = deposit_address_query {
-        addr
-    } else {
+    let Some(deposit_address) = deposit_address_query else {
         return Err(NeutronError::Std(
             StdError::not_found("Next contract is not ready for receiving the funds yet")
         ))
@@ -167,10 +165,16 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                 .add_attribute("method", "try_forward_funds")
                 .add_submessage(submsg))
         },
-        None => Ok(Response::default()
-            .add_attribute("method", "try_forward_funds")
-            .add_attribute("error", "no_ica_found")
-        ),
+        None => {
+            // I can't think of a case of how we could end up here as `sudo_open_ack`
+            // callback advances the state to `ICACreated` and stores the ICA.
+            // just in case, we revert the state to `Instantiated` to restart the flow.
+            CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+            Ok(Response::default()
+                .add_attribute("method", "try_forward_funds")
+                .add_attribute("error", "no_ica_found")
+            )
+        },
     }
 }
 
@@ -206,11 +210,17 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
         // contract querying this will be instructed to wait and retry.
         QueryMsg::DepositAddress {} => {
             let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
-
-            let ica = if let Some((addr, _)) = INTERCHAIN_ACCOUNTS.load(deps.storage, key)? {
-                Some(addr)
-            } else {
-                None
+            // here we want to return None instead of any errors in case no ICA
+            // is registered yet
+            let ica = match INTERCHAIN_ACCOUNTS.may_load(deps.storage, key)? {
+                Some(entry) => {
+                    if let Some((addr, _)) = entry {
+                        Some(addr)
+                    } else {
+                        None
+                    }
+                },
+                None => None,
             };
 
             Ok(to_binary(&ica)?)
