@@ -35,6 +35,23 @@ fn merge_variants(metadata: TokenStream, left: TokenStream, right: TokenStream) 
 }
 
 #[proc_macro_attribute]
+pub fn clocked(metadata: TokenStream, input: TokenStream) -> TokenStream {
+    merge_variants(
+        metadata,
+        input,
+        quote!(
+            enum Clocked {
+                /// Wakes the state machine up. The caller should
+                /// check the sender of the tick is the clock if
+                /// they'd like to pause when the clock does.
+                Tick {},
+            }
+        )
+        .into(),
+    )
+}
+
+#[proc_macro_attribute]
 pub fn covenant_deposit_address(metadata: TokenStream, input: TokenStream) -> TokenStream {
     merge_variants(
         metadata,

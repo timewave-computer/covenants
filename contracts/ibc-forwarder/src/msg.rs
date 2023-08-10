@@ -1,8 +1,7 @@
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Uint64, Attribute};
-use covenant_clock_derive::clocked;
-use covenant_depositor_derive::covenant_deposit_address;
+use covenant_macros::{clocked, covenant_deposit_address};
 use neutron_sdk::bindings::msg::IbcFee;
 
 

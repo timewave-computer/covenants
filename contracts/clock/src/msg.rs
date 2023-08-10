@@ -3,7 +3,7 @@ use cosmwasm_std::Addr;
 
 use cosmwasm_std::Binary;
 use cosmwasm_std::Uint64;
-use covenant_clock_derive::clocked;
+use covenant_macros::clocked;
 
 #[cw_serde]
 pub struct InstantiateMsg {
