@@ -258,7 +258,7 @@ fn try_send_ls_token(
     let ls_address = LS_ADDRESS.load(deps.storage)?;
     let stride_ica_query: Option<String> = deps
         .querier
-        .query_wasm_smart(ls_address, &covenant_ls::msg::QueryMsg::StrideICA {})?;
+        .query_wasm_smart(ls_address, &covenant_utils::neutron_ica::QueryMsg::DepositAddress {})?;
     let stride_ica_addr = match stride_ica_query {
         Some(addr) => addr,
         None => return Err(NeutronError::Std(StdError::not_found("no LS ica found"))),

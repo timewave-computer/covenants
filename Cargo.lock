@@ -387,6 +387,7 @@ dependencies = [
  "covenant-clock",
  "covenant-ls",
  "covenant-macros",
+ "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.1",
@@ -496,6 +497,7 @@ dependencies = [
  "cosmwasm-std",
  "covenant-clock",
  "covenant-macros",
+ "covenant-utils",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.0",
  "neutron-sdk",
@@ -510,6 +512,7 @@ dependencies = [
 name = "covenant-macros"
 version = "0.0.1"
 dependencies = [
+ "covenant-utils",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -520,6 +523,8 @@ name = "covenant-utils"
 version = "0.0.1"
 dependencies = [
  "cosmwasm-schema",
+ "cosmwasm-std",
+ "neutron-sdk",
 ]
 
 [[package]]

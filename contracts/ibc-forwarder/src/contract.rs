@@ -28,8 +28,6 @@ pub fn instantiate(
 ) -> NeutronResult<Response<NeutronMsg>> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
-
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
 
@@ -42,6 +40,7 @@ pub fn instantiate(
         ica_timeout: msg.ica_timeout,
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
     })?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     
     Ok(Response::default()
         .add_attribute("method", "ibc_forwarder_instantiate")
@@ -104,7 +103,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
     let deposit_address_query: Option<Addr> = deps.querier.query_wasm_smart(
         next_contract,
-        &crate::msg::QueryMsg::DepositAddress {},
+        &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
     )?;
 
     // if query returns None, then we error and wait
@@ -205,6 +204,7 @@ fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
+        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         // we expect to receive funds into our ICA account on the remote chain.
         // if the ICA had not been opened yet, we return `None` so that the 
         // contract querying this will be instructed to wait and retry.
@@ -276,20 +276,25 @@ fn sudo_open_ack(
     let parsed_version: Result<neutron_ica::OpenAckVersion, _> =
         serde_json_wasm::from_str(counterparty_version.as_str());
 
+    // get the parsed OpenAckVersion or return an error if we fail
+    let Ok(parsed_version) = parsed_version else {
+        return Err(StdError::generic_err("Can't parse counterparty_version"))
+    };
+    
     // Update the storage record associated with the interchain account.
-    if let Ok(parsed_version) = parsed_version {
-        INTERCHAIN_ACCOUNTS.save(
-            deps.storage,
-            port_id,
-            &Some((
-                parsed_version.clone().address,
-                parsed_version.clone().controller_connection_id,
-            )),
-        )?;
-        CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default().add_attribute("method", "sudo_open_ack"));
-    }
-    Err(StdError::generic_err("Can't parse counterparty_version"))
+    INTERCHAIN_ACCOUNTS.save(
+        deps.storage,
+        port_id,
+        &Some((
+            parsed_version.clone().address,
+            parsed_version.clone().controller_connection_id,
+        )),
+    )?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+    
+    return Ok(Response::default()
+       .add_attribute("method", "sudo_open_ack")
+    )
 }
 
 fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response> {
