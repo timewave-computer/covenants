@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Uint128, Uint64};
-use covenant_clock_derive::clocked;
+use covenant_macros::clocked;
 use neutron_sdk::bindings::{msg::IbcFee, query::QueryInterchainAccountAddressResponse};
 
 #[cw_serde]

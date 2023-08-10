@@ -1,7 +1,7 @@
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, Binary, Decimal, Uint128};
-use covenant_clock_derive::clocked;
+use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
+use covenant_macros::clocked;
 
 #[cw_serde]
 pub struct InstantiateMsg {

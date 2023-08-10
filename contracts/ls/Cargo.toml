@@ -17,9 +17,8 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-covenant-clock-derive = { workspace = true }
+covenant-macros = { workspace = true }
 covenant-clock        = { workspace = true, features=["library"] }
-covenant-depositor-derive = { workspace = true}
 
 cosmwasm-schema  = { workspace = true }
 cosmwasm-std     = { workspace = true }

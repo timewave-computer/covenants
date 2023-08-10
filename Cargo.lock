@@ -321,8 +321,8 @@ dependencies = [
  "anyhow",
  "cosmwasm-schema",
  "cosmwasm-std",
- "covenant-clock-derive",
  "covenant-clock-tester",
+ "covenant-macros",
  "cw-fifo",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
@@ -330,15 +330,6 @@ dependencies = [
  "neutron-sdk",
  "serde",
  "thiserror",
-]
-
-[[package]]
-name = "covenant-clock-derive"
-version = "0.0.1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -394,8 +385,8 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
- "covenant-clock-derive",
  "covenant-ls",
+ "covenant-macros",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.1",
@@ -409,15 +400,6 @@ dependencies = [
  "serde-json-wasm 0.4.1",
  "sha2 0.10.7",
  "thiserror",
-]
-
-[[package]]
-name = "covenant-depositor-derive"
-version = "0.0.1"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -452,9 +434,8 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
- "covenant-clock-derive",
- "covenant-depositor-derive",
  "covenant-ls",
+ "covenant-macros",
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
@@ -487,8 +468,8 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
- "covenant-clock-derive",
  "covenant-holder",
+ "covenant-macros",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.1",
@@ -514,8 +495,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
- "covenant-clock-derive",
- "covenant-depositor-derive",
+ "covenant-macros",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.0",
  "neutron-sdk",
@@ -524,6 +504,15 @@ dependencies = [
  "serde",
  "serde-json-wasm 0.4.1",
  "thiserror",
+]
+
+[[package]]
+name = "covenant-macros"
+version = "0.0.1"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]

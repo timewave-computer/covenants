@@ -24,7 +24,7 @@ fn merge_variants(metadata: TokenStream, left: TokenStream, right: TokenStream) 
         }),
     ) = (&mut left.data, right.data)
     {
-        variants.extend(to_add.into_iter());
+        variants.extend(to_add);
 
         quote! { #left }.into()
     } else {
@@ -32,6 +32,23 @@ fn merge_variants(metadata: TokenStream, left: TokenStream, right: TokenStream) 
             .to_compile_error()
             .into()
     }
+}
+
+#[proc_macro_attribute]
+pub fn clocked(metadata: TokenStream, input: TokenStream) -> TokenStream {
+    merge_variants(
+        metadata,
+        input,
+        quote!(
+            enum Clocked {
+                /// Wakes the state machine up. The caller should
+                /// check the sender of the tick is the clock if
+                /// they'd like to pause when the clock does.
+                Tick {},
+            }
+        )
+        .into(),
+    )
 }
 
 #[proc_macro_attribute]

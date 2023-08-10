@@ -1,7 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, Binary, Coin, StdError, Uint128, Uint64};
-use covenant_clock_derive::clocked;
-use covenant_depositor_derive::covenant_deposit_address;
+use cosmwasm_std::{Addr, Binary, Uint128, Uint64};
+use covenant_macros::{covenant_deposit_address, clocked};
 use neutron_sdk::bindings::msg::IbcFee;
 
 #[cw_serde]
