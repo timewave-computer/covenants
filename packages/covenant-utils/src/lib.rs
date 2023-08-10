@@ -1,6 +1,8 @@
 
 pub mod neutron_ica {
-    use cosmwasm_schema::cw_serde;
+    use cosmwasm_schema::{cw_serde, QueryResponses};
+    use cosmwasm_std::{Uint64, Addr};
+    use neutron_sdk::bindings::msg::IbcFee;
 
     #[cw_serde]
     pub struct OpenAckVersion {
@@ -29,5 +31,25 @@ pub mod neutron_ica {
         Error((String, String)),
         /// Timeout - Got timeout acknowledgement in sudo with payload message in it
         Timeout(String),
+    }
+
+    #[cw_serde]
+    pub struct RemoteChainInfo {
+        /// connection id from neutron to the remote chain on which
+        /// we wish to open an ICA
+        pub connection_id: String,
+        pub channel_id: String,
+        pub denom: String,
+        pub ibc_transfer_timeout: Uint64,
+        pub ica_timeout: Uint64,
+        pub ibc_fee: IbcFee,
+    }
+
+    #[cw_serde]
+    #[derive(QueryResponses)]
+    pub enum QueryMsg {
+        /// Returns the associated remote chain information
+        #[returns(Option<Addr>)]
+        DepositAddress {},
     }
 }

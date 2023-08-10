@@ -22,7 +22,7 @@ fn merge_variants(metadata: TokenStream, left: TokenStream, right: TokenStream) 
         Enum(DataEnum {
             variants: to_add, ..
         }),
-    ) = (&mut left.data, right.data)
+    ) = (&mut left.data, right.data,)
     {
         variants.extend(to_add.into_iter());
 
@@ -56,11 +56,59 @@ pub fn covenant_deposit_address(metadata: TokenStream, input: TokenStream) -> To
     merge_variants(
         metadata,
         input,
-        quote!(
+        quote!( 
             enum Deposit {
                 /// Returns the address a contract expects to receive funds to
-                #[returns(Option<String>)]
+                #[returns(Option<Addr>)]
                 DepositAddress {},
+            }
+        )
+        .into(),
+    )
+}
+
+#[proc_macro_attribute]
+pub fn covenant_clock_address(metadata: TokenStream, input: TokenStream) -> TokenStream {
+    merge_variants(
+        metadata,
+        input,
+        quote!(
+            enum Clock {
+                /// Returns the associated clock address authorized to submit ticks
+                #[returns(Addr)]
+                ClockAddress {},
+            }
+        )
+        .into(),
+    )
+}
+
+#[proc_macro_attribute]
+pub fn covenant_remote_chain(metadata: TokenStream, input: TokenStream) -> TokenStream {
+    merge_variants(
+        metadata,
+        input,
+        quote!(
+            enum RemoteChain {
+                /// Returns the associated remote chain information
+                #[returns(RemoteChainInfo)]
+                RemoteChainInfo {},
+            }
+        )
+        .into(),
+    )
+}
+
+#[proc_macro_attribute]
+pub fn covenant_ica_address(metadata: TokenStream, input: TokenStream) -> TokenStream {
+    merge_variants(
+        metadata,
+        input,
+        quote!(
+            enum ICA {
+                /// Returns the associated remote chain information
+                #[returns(Option<Addr>)]
+                ICAAddress {},
             }
         )
         .into(),
