@@ -1,7 +1,9 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Uint128, Uint64};
-use covenant_macros::{covenant_deposit_address, clocked};
+use covenant_macros::{covenant_deposit_address, clocked, covenant_clock_address, covenant_remote_chain, covenant_ica_address};
+use covenant_utils::neutron_ica::AcknowledgementResult;
 use neutron_sdk::bindings::msg::IbcFee;
+use covenant_utils::neutron_ica::RemoteChainInfo;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -84,37 +86,15 @@ pub enum ExecuteMsg {
     Transfer { amount: Uint128 },
 }
 
+#[covenant_clock_address]
+#[covenant_remote_chain]
 #[covenant_deposit_address]
+#[covenant_ica_address]
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(Addr)]
-    ClockAddress {},
-    #[returns(Addr)]
-    StrideICA {},
     #[returns(ContractState)]
     ContractState {},
-    #[returns(String)]
-    StrideNeutronIbcTransferChannelId {},
-    #[returns(String)]
-    NeutronStrideIbcConnectionId {},
-    #[returns(IbcFee)]
-    IbcFee {},
-    #[returns(Uint64)]
-    IcaTimeout {},
-    #[returns(Uint64)]
-    IbcTransferTimeout {},
-    #[returns(String)]
-    LsDenom {},
-    // this query returns acknowledgement result after interchain transaction
-    #[returns(Option<AcknowledgementResult>)]
-    AcknowledgementResult {
-        interchain_account_id: String,
-        sequence_id: u64,
-    },
-    // this query returns non-critical errors list
-    #[returns(Vec<(Vec<u8>, String)>)]
-    ErrorsQueue {},
 }
 
 #[cw_serde]
@@ -135,36 +115,7 @@ pub enum MigrateMsg {
 }
 
 #[cw_serde]
-pub struct OpenAckVersion {
-    pub version: String,
-    pub controller_connection_id: String,
-    pub host_connection_id: String,
-    pub address: String,
-    pub encoding: String,
-    pub tx_type: String,
-}
-
-#[cw_serde]
 pub enum ContractState {
     Instantiated,
     ICACreated,
-}
-
-/// SudoPayload is a type that stores information about a transaction that we try to execute
-/// on the host chain. This is a type introduced for our convenience.
-#[cw_serde]
-pub struct SudoPayload {
-    pub message: String,
-    pub port_id: String,
-}
-
-/// Serves for storing acknowledgement calls for interchain transactions
-#[cw_serde]
-pub enum AcknowledgementResult {
-    /// Success - Got success acknowledgement in sudo with array of message item types in it
-    Success(Vec<String>),
-    /// Error - Got error acknowledgement in sudo with payload message in it and error details
-    Error((String, String)),
-    /// Timeout - Got timeout acknowledgement in sudo with payload message in it
-    Timeout(String),
 }
