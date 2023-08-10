@@ -1,0 +1,13 @@
+[package]
+name = "covenant-utils"
+version = "0.0.1"
+edition = "2021"
+authors = ["benskey bekauz@protonmail.com"]
+description = "A package for common utils for covenants"
+license = "BSD-3"
+
+
+[lib]
+
+[dependencies]
+cosmwasm-schema  = { workspace = true }
