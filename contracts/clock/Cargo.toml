@@ -19,7 +19,7 @@ library = []
 [dependencies]
 cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
-covenant-clock-derive = { workspace = true }
+covenant-macros = { workspace = true }
 covenant-clock-tester = { workspace = true, features=["library"] }
 cw-fifo = { workspace = true }
 cw-storage-plus = { workspace = true }

@@ -1,9 +1,9 @@
 [package]
-name = "covenant-depositor-derive"
+name = "covenant-macros"
 version = "0.0.1"
 edition = "2021"
-authors = ["benskey bekauz@protonmail.com"]
-description = "A package for deriving covenant deposit variants"
+authors = ["ekez <ekez@withoutdoing.com>, benskey bekauz@protonmail.com"]
+description = "A package for deriving the covenant interfaces."
 license = "BSD-3"
 
 
