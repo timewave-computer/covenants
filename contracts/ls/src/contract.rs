@@ -16,8 +16,8 @@ use crate::msg::{
     ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use crate::state::{
-    read_errors_from_queue, read_reply_payload,
-    save_reply_payload, save_sudo_payload, ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE,
+    read_reply_payload,
+    save_reply_payload, save_sudo_payload, CLOCK_ADDRESS, CONTRACT_STATE,
     INTERCHAIN_ACCOUNTS, AUTOPILOT_FORMAT, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
 };
 use neutron_sdk::{
@@ -47,12 +47,10 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // contract begins at Instantiated state
-    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
-
-    // validate and store other module addresses
+    // validate the addresses
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
+
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     REMOTE_CHAIN_INFO.save(deps.storage, &RemoteChainInfo {
@@ -63,13 +61,15 @@ pub fn instantiate(
         ica_timeout: msg.ica_timeout,
         ibc_fee: msg.ibc_fee,
     })?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     Ok(Response::default()
         .add_attribute("method", "ls_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attribute("next_contract", next_contract)
         .add_attribute("ibc_transfer_timeout", msg.ibc_transfer_timeout)
-        .add_attribute("ica_timeout", msg.ica_timeout))
+        .add_attribute("ica_timeout", msg.ica_timeout)
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
