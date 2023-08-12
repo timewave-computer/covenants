@@ -525,6 +525,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "neutron-sdk",
+ "prost 0.11.9",
 ]
 
 [[package]]
