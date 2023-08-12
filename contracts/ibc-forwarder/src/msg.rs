@@ -1,8 +1,8 @@
-use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Uint64, Attribute, Addr};
-use covenant_macros::{clocked, covenant_deposit_address, covenant_clock_address};
+use covenant_macros::{clocked, covenant_deposit_address, covenant_clock_address, covenant_remote_chain, covenant_ica_address};
 use neutron_sdk::bindings::msg::IbcFee;
+use covenant_utils::neutron_ica::RemoteChainInfo;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -52,34 +52,14 @@ impl InstantiateMsg {
     }
 }
 
-#[cw_serde]
-pub struct RemoteChainInfo {
-    /// connection id from neutron to the remote chain on which
-    /// we wish to open an ICA
-    pub connection_id: String,
-    pub channel_id: String,
-    pub denom: String,
-    pub amount: String,
-    pub ibc_transfer_timeout: Uint64,
-    pub ica_timeout: Uint64,
-    pub ibc_fee: IbcFee,
-}
-
-impl RemoteChainInfo {
-    pub fn proto_coin(&self) -> Coin {
-        Coin {
-            denom: self.denom.to_string(),
-            amount: self.amount.to_string(),
-        }
-    }
-}
-
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {}
 
 #[covenant_deposit_address]
+#[covenant_remote_chain]
 #[covenant_clock_address]
+#[covenant_ica_address]
 #[derive(QueryResponses)]
 #[cw_serde]
 pub enum QueryMsg {}

@@ -1,13 +1,15 @@
-use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
+use std::str::FromStr;
+
+use cosmos_sdk_proto::{ibc::applications::transfer::v1::MsgTransfer, cosmos::base::v1beta1::Coin};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use covenant_utils::neutron_ica;
-use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, Addr, to_binary, StdResult, Storage, to_vec, CosmosMsg, SubMsg, Reply, from_binary};
+use covenant_utils::neutron_ica::{self, RemoteChainInfo};
+use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, Addr, to_binary, StdResult, Storage, to_vec, CosmosMsg, SubMsg, Reply, from_binary, Uint128, CustomQuery};
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::{NeutronResult, bindings::{msg::{NeutronMsg, MsgSubmitTxResponse}, query::NeutronQuery, types::ProtobufAny}, interchain_txs::helpers::get_port_id, NeutronError, sudo::msg::{SudoMsg, RequestPacket},};
 
-use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, RemoteChainInfo, QueryMsg}, state::{CONTRACT_STATE, CLOCK_ADDRESS, INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO, NEXT_CONTRACT, REPLY_ID_STORAGE, SUDO_PAYLOAD}};
+use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, QueryMsg}, state::{CONTRACT_STATE, CLOCK_ADDRESS, INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO, NEXT_CONTRACT, REPLY_ID_STORAGE, SUDO_PAYLOAD, TRANSFER_AMOUNT}};
 
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ibc-forwarder";
@@ -29,12 +31,11 @@ pub fn instantiate(
 
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
-
+    TRANSFER_AMOUNT.save(deps.storage, &Uint128::from_str(msg.amount.as_str())?)?;
     REMOTE_CHAIN_INFO.save(deps.storage, &RemoteChainInfo {
         connection_id: msg.remote_chain_connection_id,
         channel_id: msg.remote_chain_channel_id,
         denom: msg.denom,
-        amount: msg.amount,
         ibc_fee: msg.ibc_fee,
         ica_timeout: msg.ica_timeout,
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
@@ -121,8 +122,11 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
     match interchain_account {
         Some((address, controller_conn_id)) => {
             let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-
-            let coin = remote_chain_info.proto_coin();
+            let amount = TRANSFER_AMOUNT.load(deps.storage)?;
+            let coin = Coin {
+                denom: remote_chain_info.denom,
+                amount: amount.to_string(),
+            };
 
             let transfer_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
@@ -209,8 +213,25 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
 
             Ok(to_binary(&ica)?)
         },
+        QueryMsg::ICAAddress {} => Ok(to_binary(&Addr::unchecked(
+            get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
+        ))?),
+        QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
     }
 }
+
+fn get_ica(
+    deps: Deps<impl CustomQuery>,
+    env: &Env,
+    interchain_account_id: &str,
+) -> Result<(String, String), StdError> {
+    let key = get_port_id(env.contract.address.as_str(), interchain_account_id);
+
+    INTERCHAIN_ACCOUNTS
+        .load(deps.storage, key)?
+        .ok_or_else(|| StdError::generic_err("Interchain account is not created yet"))
+}
+
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response> {
