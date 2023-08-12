@@ -6,7 +6,6 @@ use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, 
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::{NeutronResult, bindings::{msg::{NeutronMsg, MsgSubmitTxResponse}, query::NeutronQuery, types::ProtobufAny}, interchain_txs::helpers::get_port_id, NeutronError, sudo::msg::{SudoMsg, RequestPacket},};
-use prost::Message;
 
 use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, RemoteChainInfo, QueryMsg}, state::{CONTRACT_STATE, CLOCK_ADDRESS, INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO, NEXT_CONTRACT, REPLY_ID_STORAGE, SUDO_PAYLOAD}};
 
@@ -138,7 +137,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                     .nanos(),
             };
 
-            let protobuf_msg = to_proto_msg_transfer(transfer_msg)?;
+            let protobuf_msg = neutron_ica::to_proto_msg_transfer(transfer_msg)?;
 
             // tx to our ICA that wraps the transfer message defined above
             let submit_msg = NeutronMsg::submit_tx(
@@ -184,21 +183,6 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
 ) -> StdResult<SubMsg<T>> {
     save_reply_payload(deps.storage, payload)?;
     Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
-}
-
-/// helper that serializes a MsgTransfer to protobuf
-fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
-    // Serialize the Transfer message
-    let mut buf = Vec::new();
-    buf.reserve(msg.encoded_len());
-    if let Err(e) = msg.encode(&mut buf) {
-        return Err(StdError::generic_err(format!("Encode error: {e}")).into());
-    }
-
-    Ok(ProtobufAny {
-        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-        value: Binary::from(buf),
-    })
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

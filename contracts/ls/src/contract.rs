@@ -8,7 +8,7 @@ use cosmwasm_std::{
     Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
-use covenant_utils::neutron_ica::{SudoPayload, OpenAckVersion, RemoteChainInfo};
+use covenant_utils::neutron_ica::{SudoPayload, OpenAckVersion, RemoteChainInfo, self};
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 
@@ -145,9 +145,7 @@ fn try_execute_transfer(
     )?;
 
     // if query returns None, then we error and wait
-    let deposit_address = if let Some(addr) = deposit_address_query {
-        addr
-    } else {
+    let Some(deposit_address) = deposit_address_query else {
         return Err(NeutronError::Std(
             StdError::not_found("Next contract is not ready for receiving the funds yet")
         ))
@@ -183,17 +181,7 @@ fn try_execute_transfer(
                     .nanos(),
             };
 
-            // Serialize the Transfer message
-            let mut buf = Vec::new();
-            buf.reserve(msg.encoded_len());
-            if let Err(e) = msg.encode(&mut buf) {
-                return Err(StdError::generic_err(format!("Encode error: {e}",)).into());
-            }
-
-            let protobuf = ProtobufAny {
-                type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-                value: Binary::from(buf),
-            };
+            let protobuf = neutron_ica::to_proto_msg_transfer(msg)?;
 
             // wrap the protobuf of MsgTransfer into a message to be executed
             // by our interchain account
