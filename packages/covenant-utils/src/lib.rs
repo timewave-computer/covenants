@@ -1,8 +1,9 @@
 
 pub mod neutron_ica {
     use cosmwasm_schema::{cw_serde, QueryResponses};
-    use cosmwasm_std::{Uint64, Addr};
-    use neutron_sdk::bindings::msg::IbcFee;
+    use cosmwasm_std::{Uint64, Addr, Binary, StdError};
+    use neutron_sdk::{bindings::{msg::IbcFee, types::ProtobufAny}, NeutronResult};
+    use prost::Message;
 
     #[cw_serde]
     pub struct OpenAckVersion {
@@ -51,5 +52,20 @@ pub mod neutron_ica {
         /// Returns the associated remote chain information
         #[returns(Option<Addr>)]
         DepositAddress {},
+    }
+
+    /// helper that serializes a MsgTransfer to protobuf
+    pub fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
+        // Serialize the Transfer message
+        let mut buf = Vec::new();
+        buf.reserve(msg.encoded_len());
+        if let Err(e) = msg.encode(&mut buf) {
+            return Err(StdError::generic_err(format!("Encode error: {e}")).into());
+        }
+
+        Ok(ProtobufAny {
+            type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+            value: Binary::from(buf),
+        })
     }
 }

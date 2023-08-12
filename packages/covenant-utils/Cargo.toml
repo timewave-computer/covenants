@@ -13,3 +13,4 @@ license = "BSD-3"
 cosmwasm-schema  = { workspace = true }
 neutron-sdk      = { workspace = true }
 cosmwasm-std     = { workspace = true }
+prost            = { workspace = true }
