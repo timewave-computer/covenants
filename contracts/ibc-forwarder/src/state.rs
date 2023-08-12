@@ -1,8 +1,9 @@
-use cosmwasm_std::{Addr, Uint64};
+use cosmwasm_std::{Addr, Uint64, Uint128};
+use covenant_utils::neutron_ica::RemoteChainInfo;
 use cw_storage_plus::{Item, Map};
 use neutron_sdk::bindings::msg::IbcFee;
 
-use crate::msg::{ContractState, RemoteChainInfo};
+use crate::msg::{ContractState};
 
 
 
@@ -11,6 +12,7 @@ pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
 /// clock module address to verify the sender of incoming ticks
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
+pub const TRANSFER_AMOUNT: Item<Uint128> = Item::new("transfer_amount");
 
 pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");
 
