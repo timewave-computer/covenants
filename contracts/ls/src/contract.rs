@@ -51,22 +51,22 @@ pub fn instantiate(
 
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
-    REMOTE_CHAIN_INFO.save(deps.storage, &RemoteChainInfo {
+    let remote_chain_info = RemoteChainInfo {
         connection_id: msg.neutron_stride_ibc_connection_id,
         channel_id: msg.stride_neutron_ibc_transfer_channel_id,
         denom: msg.ls_denom,
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
         ica_timeout: msg.ica_timeout,
         ibc_fee: msg.ibc_fee,
-    })?;
+    };
+    REMOTE_CHAIN_INFO.save(deps.storage, &remote_chain_info)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     Ok(Response::default()
         .add_attribute("method", "ls_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attribute("next_contract", next_contract)
-        .add_attribute("ibc_transfer_timeout", msg.ibc_transfer_timeout)
-        .add_attribute("ica_timeout", msg.ica_timeout)
+        .add_attributes(remote_chain_info.get_response_attributes())
     )
 }
 
