@@ -126,7 +126,7 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 
     match current_state {
         ContractState::Instantiated => try_register_gaia_ica(deps, env),
-        ContractState::ICACreated => {
+        ContractState::IcaCreated => {
             let ica_address = get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID);
             match ica_address {
                 Ok((_, _)) => {
@@ -359,8 +359,8 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
         if env.block.time.nanos() >= active_timeout.plus_minutes(5).nanos() {
             // funds are still not on the LP module and the msgTransfer timeout is due
             // we can safely retry sending the funds again by reverting the state
-            // to ICACreated
-            CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+            // to IcaCreated
+            CONTRACT_STATE.save(deps.storage, &ContractState::IcaCreated)?;
             PENDING_NATIVE_TRANSFER_TIMEOUT.remove(deps.storage);
             return Ok(Response::default()
                 .add_attribute("method", "try_verify_native_token")
@@ -671,7 +671,7 @@ fn sudo_open_ack(
                 parsed_version.controller_connection_id,
             )),
         )?;
-        CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+        CONTRACT_STATE.save(deps.storage, &ContractState::IcaCreated)?;
         return Ok(Response::default().add_attribute("method", "sudo_open_ack"));
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))

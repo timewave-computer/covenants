@@ -43,7 +43,7 @@ fn test_tick_1() {
     let (mut deps, _) = do_instantiate();
 
     deps = do_tick_1(deps);
-    verify_state(&deps, ContractState::ICACreated);
+    verify_state(&deps, ContractState::IcaCreated);
 }
 
 // This test should send the native token to the lper and set state to VerifyNativeToken

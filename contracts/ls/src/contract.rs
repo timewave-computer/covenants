@@ -106,7 +106,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
         ContractState::Instantiated => try_register_stride_ica(deps, env),
-        ContractState::ICACreated => Ok(Response::default()),
+        ContractState::IcaCreated => Ok(Response::default()),
     }
 }
 
@@ -232,7 +232,7 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
 pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
-        QueryMsg::ICAAddress {} => Ok(to_binary(&Addr::unchecked(
+        QueryMsg::IcaAddress {} => Ok(to_binary(&Addr::unchecked(
             get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
         ))?),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
@@ -327,7 +327,7 @@ fn sudo_open_ack(
             parsed_version.controller_connection_id,
         )),
     )?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::IcaCreated)?;
     
     Ok(Response::default()
        .add_attribute("method", "sudo_open_ack")

@@ -69,7 +69,7 @@ pub enum ContractState {
     /// Contract was instantiated, ready create ica
     Instantiated,
     /// ICA was created, funds are ready to be forwarded
-    ICACreated,
+    IcaCreated,
     /// forwarder is complete
     Complete,
 }
