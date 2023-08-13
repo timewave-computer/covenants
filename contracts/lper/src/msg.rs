@@ -1,6 +1,6 @@
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
+use cosmwasm_std::{Addr, Binary, Decimal, Uint128, Attribute};
 use covenant_macros::{clocked, covenant_deposit_address, covenant_clock_address};
 
 #[cw_serde]
@@ -33,6 +33,35 @@ pub struct LpConfig {
     pub autostake: Option<bool>,
     /// slippage tolerance parameter for liquidity provisioning 
     pub slippage_tolerance: Option<Decimal>,
+}
+
+impl LpConfig {
+    pub fn to_response_attributes(self) -> Vec<Attribute> {
+        let autostake = match self.autostake {
+            Some(val) => val.to_string(),
+            None => "None".to_string(),
+        };
+        let slippage_tolerance = match self.slippage_tolerance {
+            Some(val) => val.to_string(),
+            None => "None".to_string(),
+        };
+        vec![
+            Attribute::new("expected_native_token_amount", self.expected_native_token_amount.to_string()),
+            Attribute::new("expected_ls_token_amount", self.expected_ls_token_amount.to_string()),
+            Attribute::new("allowed_return_delta", self.allowed_return_delta.to_string()),
+            Attribute::new("pool_address", self.pool_address.to_string()),
+            Attribute::new(
+                "single_side_lp_limit_native",
+                self.single_side_lp_limits.native_asset_limit.to_string()
+            ),
+            Attribute::new(
+                "single_side_lp_limit_ls",
+                self.single_side_lp_limits.ls_asset_limit.to_string()
+            ),
+            Attribute::new("autostake", autostake),
+            Attribute::new("slippage_tolerance", slippage_tolerance),
+        ]
+    }
 }
 
 /// holds the native and ls asset denoms relevant for providing liquidity.
