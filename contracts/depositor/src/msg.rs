@@ -188,7 +188,7 @@ pub enum ContractState {
     /// Contract was instantiated, create ica
     Instantiated,
     /// ICA was created, send native token to lper
-    ICACreated,
+    IcaCreated,
     /// Verify native token was sent to lper and send ls msg
     VerifyNativeToken,
     /// Verify the lper entered a position, if not try to resend ls msg again

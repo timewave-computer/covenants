@@ -108,7 +108,7 @@ pub fn covenant_ica_address(metadata: TokenStream, input: TokenStream) -> TokenS
             enum ICA {
                 /// Returns the associated remote chain information
                 #[returns(Option<Addr>)]
-                ICAAddress {},
+                IcaAddress {},
             }
         )
         .into(),
