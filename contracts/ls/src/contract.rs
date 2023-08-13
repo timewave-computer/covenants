@@ -1,6 +1,5 @@
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
-use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -10,7 +9,6 @@ use cosmwasm_std::{
 use covenant_clock::helpers::verify_clock;
 use covenant_utils::neutron_ica::{SudoPayload, OpenAckVersion, RemoteChainInfo, self};
 use cw2::set_contract_version;
-use neutron_sdk::bindings::types::ProtobufAny;
 
 use crate::msg::{
     ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
@@ -361,12 +359,12 @@ fn sudo_open_ack(
         port_id,
         &Some((
             parsed_version.clone().address,
-            parsed_version.clone().controller_connection_id,
+            parsed_version.controller_connection_id,
         )),
     )?;
     CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
 
-    return Ok(Response::default()
+    Ok(Response::default()
        .add_attribute("method", "sudo_open_ack")
     )
 }

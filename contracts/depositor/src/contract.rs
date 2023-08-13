@@ -14,9 +14,9 @@ use neutron_sdk::bindings::types::ProtobufAny;
 use prost::Message;
 
 use crate::{
-    msg::{
-        ContractState, ExecuteMsg, IbcConfig, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg,
-        SudoPayload,
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg, ContractState, SudoPayload},
+    state::{
+        IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT,
     },
     state::{IBC_CONFIG, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT},
 };
@@ -31,10 +31,12 @@ use neutron_sdk::{
 };
 
 use crate::state::{
-    read_errors_from_queue, read_reply_payload, read_sudo_payload, save_reply_payload,
-    save_sudo_payload, ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
-    GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, INTERCHAIN_ACCOUNTS,
-    LS_ADDRESS, NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER,
+    read_errors_from_queue, read_reply_payload, read_sudo_payload,
+    save_reply_payload, save_sudo_payload,
+    ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
+    GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
+    INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
+    NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
