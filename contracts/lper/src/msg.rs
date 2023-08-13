@@ -1,7 +1,7 @@
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
-use covenant_macros::clocked;
+use covenant_macros::{clocked, covenant_deposit_address, covenant_clock_address};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -15,6 +15,24 @@ pub struct InstantiateMsg {
     pub expected_ls_token_amount: Uint128,
     pub allowed_return_delta: Uint128,
     pub expected_native_token_amount: Uint128,
+}
+
+#[cw_serde]
+pub struct LpConfig {
+    /// the native token amount we expect to be funded with
+    pub expected_native_token_amount: Uint128,
+    /// stride redemption rate is variable so we set the expected ls token amount
+    pub expected_ls_token_amount: Uint128,
+    /// accepted return amount fluctuation that gets applied to EXPECTED_LS_TOKEN_AMOUNT
+    pub allowed_return_delta: Uint128,
+    /// address of the liquidity pool we plan to enter
+    pub pool_address: Addr,
+    /// amounts of native and ls tokens we consider ok to single-side lp
+    pub single_side_lp_limits: SingleSideLpLimits,
+    /// boolean flag for enabling autostaking of LP tokens upon liquidity provisioning
+    pub autostake: Option<bool>,
+    /// slippage tolerance parameter for liquidity provisioning
+    pub slippage_tolerance: Option<Decimal>,
 }
 
 /// holds the native and ls asset denoms relevant for providing liquidity.
@@ -107,11 +125,11 @@ impl PresetLpFields {
 #[cw_serde]
 pub enum ExecuteMsg {}
 
+#[covenant_clock_address]
+#[covenant_deposit_address]
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(Addr)]
-    ClockAddress {},
     #[returns(ContractState)]
     ContractState {},
     #[returns(Addr)]
@@ -128,7 +146,7 @@ pub enum MigrateMsg {
         clock_addr: Option<String>,
         holder_address: Option<String>,
         assets: Option<AssetData>,
-        lp_config: Box<Option<LpConfig>>,
+        lp_config: Option<LpConfig>,
     },
     UpdateCodeId {
         data: Option<Binary>,

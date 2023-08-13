@@ -15,9 +15,11 @@ use astroport::{
 
 use crate::{
     error::ContractError,
-    msg::{
-        ContractState, ExecuteMsg, InstantiateMsg, LpConfig, MigrateMsg, ProvidedLiquidityInfo,
-        QueryMsg,
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, ProvidedLiquidityInfo, ContractState, LpConfig},
+    state::{
+        ASSETS,
+        HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO,
+        LP_CONFIG,
     },
     state::{ASSETS, HOLDER_ADDRESS, LP_CONFIG, PROVIDED_LIQUIDITY_INFO},
 };
@@ -62,8 +64,18 @@ pub fn instantiate(
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
 
-    // store fields needed for liquidity provision
     ASSETS.save(deps.storage, &msg.assets)?;
+
+    let lp_config = LpConfig {
+        expected_native_token_amount: msg.expected_native_token_amount,
+        expected_ls_token_amount: msg.expected_ls_token_amount,
+        allowed_return_delta: msg.allowed_return_delta,
+        pool_address: pool_addr,
+        single_side_lp_limits: msg.single_side_lp_limits,
+        autostake: msg.autostake,
+        slippage_tolerance: msg.slippage_tolerance,
+    };
+    LP_CONFIG.save(deps.storage, &lp_config)?;
 
     let lp_config = LpConfig {
         expected_native_token_amount: msg.expected_native_token_amount,
@@ -90,7 +102,10 @@ pub fn instantiate(
         .add_attribute("holder_addr", holder_addr)
         .add_attribute("ls_asset_denom", msg.assets.ls_asset_denom)
         .add_attribute("native_asset_denom", msg.assets.native_asset_denom)
-        .add_attributes(lp_config.to_response_attributes()))
+        .add_attribute("expected_native_token_amount", msg.expected_native_token_amount)
+        .add_attribute("expected_ls_token_amount", msg.expected_ls_token_amount)
+        .add_attribute("allowed_return_delta", msg.allowed_return_delta)
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -285,9 +300,9 @@ fn try_get_single_side_lp_submsg(
     native_bal: Coin,
     ls_bal: Coin,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let lp_config = LP_CONFIG.load(deps.storage)?;
-    let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
     let asset_data = ASSETS.load(deps.storage)?;
+    let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
+    let lp_config = LP_CONFIG.load(deps.storage)?;
 
     let native_asset = Asset {
         info: asset_data.get_native_asset_info(),
@@ -307,9 +322,7 @@ fn try_get_single_side_lp_submsg(
     };
 
     // now we try to submit the message for either LS or native single side liquidity
-    if native_bal.amount.is_zero()
-        && ls_bal.amount <= lp_config.single_side_lp_limits.ls_asset_limit
-    {
+    if native_bal.amount.is_zero() && ls_bal.amount <= lp_config.single_side_lp_limits.ls_asset_limit {
         // if available ls token amount is within single side limits we build a single side msg
         let submsg = SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -419,13 +432,15 @@ fn get_pool_asset_amounts(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::Assets {} => Ok(to_binary(&ASSETS.may_load(deps.storage)?)?),
         QueryMsg::LpConfig {} => Ok(to_binary(&LP_CONFIG.may_load(deps.storage)?)?),
+        // the deposit address for LP module is the contract itself
+        QueryMsg::DepositAddress {} => Ok(to_binary(&env.contract.address)?),
     }
 }
 
@@ -458,10 +473,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 response = response.add_attribute("native_denom", denoms.native_asset_denom);
             }
 
-            if let Some(config) = *lp_config {
-                deps.api.addr_validate(config.pool_address.as_str())?;
+            if let Some(config) = lp_config {
                 LP_CONFIG.save(deps.storage, &config)?;
-                response = response.add_attributes(config.to_response_attributes());
+                // response
             }
 
             Ok(response)
