@@ -55,7 +55,7 @@ pub fn wasm_handler(wasm_query: &WasmQuery) -> SystemResult<ContractResult<cosmw
     match wasm_query {
         WasmQuery::Smart { contract_addr, msg } => match contract_addr.as_ref() {
             LS_ADDR => match from_binary::<covenant_ls::msg::QueryMsg>(msg).unwrap() {
-                covenant_ls::msg::QueryMsg::ICAAddress {} => SystemResult::Ok(ContractResult::Ok(
+                covenant_ls::msg::QueryMsg::IcaAddress {} => SystemResult::Ok(ContractResult::Ok(
                     to_binary(&Addr::unchecked("some_ica_addr")).unwrap(),
                 )),
                 _ => unimplemented!(),

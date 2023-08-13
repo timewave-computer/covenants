@@ -116,5 +116,5 @@ pub enum MigrateMsg {
 #[cw_serde]
 pub enum ContractState {
     Instantiated,
-    ICACreated,
+    IcaCreated,
 }

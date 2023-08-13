@@ -69,7 +69,7 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
         ContractState::Instantiated => try_register_ica(deps, env),
-        ContractState::ICACreated => try_forward_funds(env, deps),
+        ContractState::IcaCreated => try_forward_funds(env, deps),
         ContractState::Complete => Ok(Response::default()
             .add_attribute("contract_state", "completed")
         ),
@@ -213,7 +213,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
 
             Ok(to_binary(&ica)?)
         },
-        QueryMsg::ICAAddress {} => Ok(to_binary(&Addr::unchecked(
+        QueryMsg::IcaAddress {} => Ok(to_binary(&Addr::unchecked(
             get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
         ))?),
         QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
@@ -295,7 +295,7 @@ fn sudo_open_ack(
             parsed_version.controller_connection_id,
         )),
     )?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::IcaCreated)?;
     
     Ok(Response::default()
        .add_attribute("method", "sudo_open_ack")
