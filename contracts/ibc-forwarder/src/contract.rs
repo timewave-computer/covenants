@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use cosmos_sdk_proto::{ibc::applications::transfer::v1::MsgTransfer, cosmos::base::v1beta1::Coin};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -31,21 +29,23 @@ pub fn instantiate(
 
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
-    TRANSFER_AMOUNT.save(deps.storage, &Uint128::from_str(msg.amount.as_str())?)?;
-    REMOTE_CHAIN_INFO.save(deps.storage, &RemoteChainInfo {
+    TRANSFER_AMOUNT.save(deps.storage, &msg.amount)?;
+    let remote_chain_info = RemoteChainInfo {
         connection_id: msg.remote_chain_connection_id,
         channel_id: msg.remote_chain_channel_id,
         denom: msg.denom,
         ibc_fee: msg.ibc_fee,
         ica_timeout: msg.ica_timeout,
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
-    })?;
+    };
+    REMOTE_CHAIN_INFO.save(deps.storage, &remote_chain_info)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     
     Ok(Response::default()
         .add_attribute("method", "ibc_forwarder_instantiate")
         .add_attribute("next_contract", next_contract)
         .add_attribute("contract_state", "instantiated")
+        .add_attributes(remote_chain_info.get_response_attributes())
     )
 }
 

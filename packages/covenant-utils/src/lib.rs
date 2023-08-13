@@ -1,7 +1,7 @@
 
 pub mod neutron_ica {
     use cosmwasm_schema::{cw_serde, QueryResponses};
-    use cosmwasm_std::{Uint64, Addr, Binary, StdError};
+    use cosmwasm_std::{Uint64, Addr, Binary, StdError, Attribute, Coin};
     use neutron_sdk::{bindings::{msg::IbcFee, types::ProtobufAny}, NeutronResult};
     use prost::Message;
 
@@ -44,6 +44,37 @@ pub mod neutron_ica {
         pub ibc_transfer_timeout: Uint64,
         pub ica_timeout: Uint64,
         pub ibc_fee: IbcFee,
+    }
+
+    impl RemoteChainInfo {
+        pub fn get_response_attributes(&self) -> Vec<Attribute> {
+            let recv_fee = coin_vec_to_string(&self.ibc_fee.recv_fee);
+            let ack_fee = coin_vec_to_string(&self.ibc_fee.ack_fee);
+            let timeout_fee = coin_vec_to_string(&self.ibc_fee.timeout_fee);
+
+            vec![
+                Attribute::new("connection_id", &self.connection_id),
+                Attribute::new("channel_id", &self.channel_id),
+                Attribute::new("denom", &self.denom),
+                Attribute::new("ibc_transfer_timeout", &self.ibc_transfer_timeout.to_string()),
+                Attribute::new("ica_timeout", &self.ica_timeout.to_string()),
+                Attribute::new("ibc_recv_fee", recv_fee),
+                Attribute::new("ibc_ack_fee", ack_fee),
+                Attribute::new("ibc_timeout_fee", timeout_fee),
+            ]
+        }
+    }
+
+    fn coin_vec_to_string(coins: &Vec<Coin>) -> String {
+        let mut str = "".to_string();
+        if coins.len() == 0 {
+            str.push_str(&"[]".to_string());
+        } else {
+            for coin in coins {
+                str.push_str(&coin.to_string());
+            }
+        }
+        str.to_string()
     }
 
     #[cw_serde]
