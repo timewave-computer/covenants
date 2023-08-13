@@ -15,11 +15,11 @@ use astroport::{
 
 use crate::{
     error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, ProvidedLiquidityInfo, ContractState},
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, ProvidedLiquidityInfo, ContractState, LpConfig},
     state::{
-        ALLOWED_RETURN_DELTA, ASSETS, AUTOSTAKE, EXPECTED_LS_TOKEN_AMOUNT,
-        EXPECTED_NATIVE_TOKEN_AMOUNT, HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO,
-        SINGLE_SIDED_LP_LIMITS, SLIPPAGE_TOLERANCE, POOL_ADDRESS,
+        ASSETS,
+        HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO,
+        LP_CONFIG,
     },
 };
 
@@ -55,15 +55,20 @@ pub fn instantiate(
 
     // store the relevant module addresses
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
-    POOL_ADDRESS.save(deps.storage, &pool_addr)?;
     HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
 
-    // store fields needed for liquidity provision
     ASSETS.save(deps.storage, &msg.assets)?;
-    SINGLE_SIDED_LP_LIMITS.save(deps.storage, &msg.single_side_lp_limits)?;
-    ALLOWED_RETURN_DELTA.save(deps.storage, &msg.allowed_return_delta)?;
-    EXPECTED_LS_TOKEN_AMOUNT.save(deps.storage, &msg.expected_ls_token_amount)?;
-    EXPECTED_NATIVE_TOKEN_AMOUNT.save(deps.storage, &msg.expected_native_token_amount)?;
+
+    let lp_config = LpConfig {
+        expected_native_token_amount: msg.expected_native_token_amount,
+        expected_ls_token_amount: msg.expected_ls_token_amount,
+        allowed_return_delta: msg.allowed_return_delta,
+        pool_address: pool_addr,
+        single_side_lp_limits: msg.single_side_lp_limits,
+        autostake: msg.autostake,
+        slippage_tolerance: msg.slippage_tolerance,
+    };
+    LP_CONFIG.save(deps.storage, &lp_config)?;
 
     // we begin with no liquidity provided
     PROVIDED_LIQUIDITY_INFO.save(
@@ -77,15 +82,12 @@ pub fn instantiate(
     Ok(Response::default()
         .add_attribute("method", "lp_instantiate")
         .add_attribute("clock_addr", clock_addr)
-        .add_attribute("pool_addr", pool_addr)
         .add_attribute("holder_addr", holder_addr)
         .add_attribute("ls_asset_denom", msg.assets.ls_asset_denom)
         .add_attribute("native_asset_denom", msg.assets.native_asset_denom)
         .add_attribute("expected_native_token_amount", msg.expected_native_token_amount)
         .add_attribute("expected_ls_token_amount", msg.expected_ls_token_amount)
         .add_attribute("allowed_return_delta", msg.allowed_return_delta)
-        .add_attribute("single_side_ls_limit", msg.single_side_lp_limits.ls_asset_limit)
-        .add_attribute("single_side_native_limit", msg.single_side_lp_limits.native_asset_limit)
     )
 }
 
@@ -176,19 +178,14 @@ fn try_get_double_side_lp_submsg(
     native_bal: Coin,
     ls_bal: Coin,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let pool_address = POOL_ADDRESS.load(deps.storage)?;
-    let slippage_tolerance = SLIPPAGE_TOLERANCE.may_load(deps.storage)?;
-    let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
+    let lp_config = LP_CONFIG.load(deps.storage)?;
     let asset_data = ASSETS.load(deps.storage)?;
     let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
-    let expected_ls_token_amount = EXPECTED_LS_TOKEN_AMOUNT.load(deps.storage)?;
-    let expected_native_token_amount = EXPECTED_NATIVE_TOKEN_AMOUNT.load(deps.storage)?;
-    let allowed_return_delta = ALLOWED_RETURN_DELTA.load(deps.storage)?;
 
     // we now query the pool to know the balances
     let pool_response: PoolResponse = deps
         .querier
-        .query_wasm_smart(&pool_address, &astroport::pair::QueryMsg::Pool {})?;
+        .query_wasm_smart(&lp_config.pool_address, &astroport::pair::QueryMsg::Pool {})?;
     let (pool_native_bal, pool_ls_bal) = get_pool_asset_amounts(
         pool_response.assets,
         asset_data.clone().ls_asset_denom,
@@ -199,9 +196,9 @@ fn try_get_double_side_lp_submsg(
     validate_price_range(
         pool_native_bal,
         pool_ls_bal,
-        expected_native_token_amount,
-        expected_ls_token_amount,
-        allowed_return_delta,
+        lp_config.expected_native_token_amount,
+        lp_config.expected_ls_token_amount,
+        lp_config.allowed_return_delta,
     )?;
 
     // we derive the ratio of native to ls.
@@ -252,8 +249,8 @@ fn try_get_double_side_lp_submsg(
             native_asset_double_sided.clone(),
             ls_asset_double_sided.clone(),
         ],
-        slippage_tolerance,
-        auto_stake,
+        slippage_tolerance: lp_config.slippage_tolerance,
+        auto_stake: lp_config.autostake,
         receiver: Some(holder_address.to_string()),
     };
     let (native_coin, ls_coin) = (
@@ -277,7 +274,7 @@ fn try_get_double_side_lp_submsg(
 
     Ok(Some(SubMsg::reply_on_success(
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pool_address.to_string(),
+            contract_addr: lp_config.pool_address.to_string(),
             msg: to_binary(&double_sided_liq_msg)?,
             funds: vec![native_coin, ls_coin],
         }),
@@ -294,12 +291,9 @@ fn try_get_single_side_lp_submsg(
     native_bal: Coin,
     ls_bal: Coin,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let pool_address = POOL_ADDRESS.load(deps.storage)?;
-    let slippage_tolerance = SLIPPAGE_TOLERANCE.may_load(deps.storage)?;
-    let auto_stake = AUTOSTAKE.may_load(deps.storage)?;
     let asset_data = ASSETS.load(deps.storage)?;
-    let single_side_lp_limits = SINGLE_SIDED_LP_LIMITS.load(deps.storage)?;
     let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
+    let lp_config = LP_CONFIG.load(deps.storage)?;
 
     let native_asset = Asset {
         info: asset_data.get_native_asset_info(),
@@ -313,17 +307,17 @@ fn try_get_single_side_lp_submsg(
     // given one non-zero asset, we build the ProvideLiquidity message
     let single_sided_liq_msg = ProvideLiquidity {
         assets: vec![ls_asset, native_asset],
-        slippage_tolerance,
-        auto_stake,
+        slippage_tolerance: lp_config.slippage_tolerance,
+        auto_stake: lp_config.autostake,
         receiver: Some(holder_address.to_string()),
     };
 
     // now we try to submit the message for either LS or native single side liquidity
-    if native_bal.amount.is_zero() && ls_bal.amount <= single_side_lp_limits.ls_asset_limit {
+    if native_bal.amount.is_zero() && ls_bal.amount <= lp_config.single_side_lp_limits.ls_asset_limit {
         // if available ls token amount is within single side limits we build a single side msg
         let submsg = SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: pool_address.to_string(),
+                contract_addr: lp_config.pool_address.to_string(),
                 msg: to_binary(&single_sided_liq_msg)?,
                 funds: vec![ls_bal.clone()],
             }),
@@ -335,12 +329,12 @@ fn try_get_single_side_lp_submsg(
         })?;
         return Ok(Some(submsg));
     } else if ls_bal.amount.is_zero()
-        && native_bal.amount <= single_side_lp_limits.native_asset_limit
+        && native_bal.amount <= lp_config.single_side_lp_limits.native_asset_limit
     {
         // if available native token amount is within single side limits we build a single side msg
         let submsg = SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: pool_address.to_string(),
+                contract_addr: lp_config.pool_address.to_string(),
                 msg: to_binary(&single_sided_liq_msg)?,
                 funds: vec![native_bal.clone()],
             }),
@@ -430,22 +424,15 @@ fn get_pool_asset_amounts(
 
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
-        QueryMsg::PoolAddress {} => Ok(to_binary(&POOL_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::Assets {} => Ok(to_binary(&ASSETS.may_load(deps.storage)?)?),
-        QueryMsg::ExpectedLsTokenAmount {} => Ok(to_binary(
-            &EXPECTED_LS_TOKEN_AMOUNT.may_load(deps.storage)?,
-        )?),
-        QueryMsg::AllowedReturnDelta {} => {
-            Ok(to_binary(&ALLOWED_RETURN_DELTA.may_load(deps.storage)?)?)
-        }
-        QueryMsg::ExpectedNativeTokenAmount {} => Ok(to_binary(
-            &EXPECTED_NATIVE_TOKEN_AMOUNT.may_load(deps.storage)?,
-        )?),
+        QueryMsg::LpConfig {} => Ok(to_binary(&LP_CONFIG.may_load(deps.storage)?)?),
+        // the deposit address for LP module is the contract itself
+        QueryMsg::DepositAddress {} => Ok(to_binary(&env.contract.address)?),
     }
 }
 
@@ -456,15 +443,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
-            pool_address,
             holder_address,
-            expected_ls_token_amount,
-            allowed_return_delta,
-            single_side_lp_limits,
-            slippage_tolerance,
             assets,
-            expected_native_token_amount,
-            autostake,
+            lp_config,
         } => {
             let mut response = Response::default().add_attribute("method", "update_config");
 
@@ -473,35 +454,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 response = response.add_attribute("clock_addr", clock_addr);
             }
 
-            if let Some(addr) = pool_address {
-                POOL_ADDRESS.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
-                response = response.add_attribute("pool_address", addr);
-            }
-
             if let Some(holder_address) = holder_address {
                 HOLDER_ADDRESS.save(deps.storage, &deps.api.addr_validate(&holder_address)?)?;
                 response = response.add_attribute("holder_address", holder_address);
-            }
-
-            if let Some(return_amount) = expected_ls_token_amount {
-                EXPECTED_LS_TOKEN_AMOUNT.save(deps.storage, &return_amount)?;
-                response = response.add_attribute("expected_ls_token_amount", return_amount);
-            }
-
-            if let Some(return_delta) = allowed_return_delta {
-                ALLOWED_RETURN_DELTA.save(deps.storage, &return_delta)?;
-                response = response.add_attribute("allowed_return_delta", return_delta);
-            }
-
-            if let Some(limits) = single_side_lp_limits {
-                SINGLE_SIDED_LP_LIMITS.save(deps.storage, &limits)?;
-                response = response.add_attribute("ls_asset_limit", limits.ls_asset_limit);
-                response = response.add_attribute("native_asset_limit", limits.native_asset_limit);
-            }
-
-            if let Some(decimal) = slippage_tolerance {
-                SLIPPAGE_TOLERANCE.save(deps.storage, &decimal)?;
-                response = response.add_attribute("slippage_tolerance", decimal.to_string());
             }
 
             if let Some(denoms) = assets {
@@ -510,14 +465,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 response = response.add_attribute("native_denom", denoms.native_asset_denom.to_string());
             }
 
-            if let Some(amount) = expected_native_token_amount {
-                EXPECTED_NATIVE_TOKEN_AMOUNT.save(deps.storage, &amount)?;
-                response = response.add_attribute("expected_native_token_amount", amount);
-            }
-
-            if let Some(stake) = autostake {
-                AUTOSTAKE.save(deps.storage, &stake)?;
-                response = response.add_attribute("autostake", stake.to_string());
+            if let Some(config) = lp_config {
+                LP_CONFIG.save(deps.storage, &config)?;
+                // response
             }
 
             Ok(response)

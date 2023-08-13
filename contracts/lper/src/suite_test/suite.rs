@@ -15,7 +15,7 @@ use cw_multi_test::{
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use crate::msg::{AssetData, InstantiateMsg, QueryMsg, SingleSideLpLimits};
+use crate::msg::{AssetData, InstantiateMsg, QueryMsg, SingleSideLpLimits, LpConfig};
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
 use astroport::native_coin_registry::InstantiateMsg as NativeCoinRegistryInstantiateMsg;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
@@ -460,10 +460,11 @@ impl Suite {
     }
 
     pub fn query_lp_position(&self) -> String {
-        self.app
+        let lp_config: LpConfig = self.app
             .wrap()
-            .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::PoolAddress {})
-            .unwrap()
+            .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::LpConfig {})
+            .unwrap();
+        lp_config.pool_address.to_string()
     }
 
     pub fn query_contract_state(&self) -> String {
