@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Uint64, Attribute, Addr};
+use cosmwasm_std::{Uint64, Attribute, Addr, Uint128};
 use covenant_macros::{clocked, covenant_deposit_address, covenant_clock_address, covenant_remote_chain, covenant_ica_address};
 use neutron_sdk::bindings::msg::IbcFee;
 use covenant_utils::neutron_ica::RemoteChainInfo;
@@ -16,7 +16,7 @@ pub struct InstantiateMsg {
     pub remote_chain_connection_id: String,
     pub remote_chain_channel_id: String,
     pub denom: String,
-    pub amount: String,
+    pub amount: Uint128,
 
     // pub remote_chain_channel_id: String,
     // pub remote_chain_connection_id: String,
@@ -45,7 +45,7 @@ impl InstantiateMsg {
             Attribute::new("remote_chain_connection_id", &self.remote_chain_connection_id),
             Attribute::new("remote_chain_channel_id", &self.remote_chain_channel_id),
             Attribute::new("remote_chain_denom", &self.denom),
-            Attribute::new("remote_chain_amount", &self.amount),
+            Attribute::new("remote_chain_amount", &self.amount.to_string()),
             Attribute::new("ibc_transfer_timeout", self.ibc_transfer_timeout.to_string()),
             Attribute::new("ica_timeout", self.ica_timeout.to_string()),
         ]
