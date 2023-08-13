@@ -1,11 +1,8 @@
-use cosmwasm_std::{Addr, Uint64, Uint128};
+use cosmwasm_std::{Addr, Uint128};
 use covenant_utils::neutron_ica::RemoteChainInfo;
 use cw_storage_plus::{Item, Map};
-use neutron_sdk::bindings::msg::IbcFee;
 
-use crate::msg::{ContractState};
-
-
+use crate::msg::ContractState;
 
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
@@ -18,20 +15,6 @@ pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");
 
 /// information needed for an ibc transfer to the remote chain
 pub const REMOTE_CHAIN_INFO: Item<RemoteChainInfo> = Item::new("r_c_info");
-
-// /// timeout in seconds for inner ibc MsgTransfer
-// pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
-// /// time in seconds for ICA SubmitTX messages from neutron
-// pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
-// /// neutron IbcFee for relayers
-// pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
-
-
-/// id of the connection between neutron and remote chain on which we
-/// wish to open an ICA on
-// pub const REMOTE_CHAIN_CONNECTION_ID: Item<String> = Item::new("rc_conn_id");
-// pub const REMOTE_CHAIN_DENOM: Item<String> = Item::new("rc_denom");
-// pub const TRANSFER_CHANNEL_ID: Item<String> = Item::new("transfer_chann_id");
 
 /// interchain accounts storage in form of (port_id) -> (address, controller_connection_id)
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> = Map::new("interchain_accounts");

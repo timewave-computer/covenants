@@ -14,9 +14,9 @@ use neutron_sdk::bindings::types::ProtobufAny;
 use prost::Message;
 
 use crate::{
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg, ContractState, SudoPayload, AcknowledgementResult},
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg, ContractState, SudoPayload},
     state::{
-        IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT, clear_sudo_payload,
+        IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT,
     },
 };
 use neutron_sdk::{
@@ -24,13 +24,13 @@ use neutron_sdk::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
         query::{NeutronQuery, QueryInterchainAccountAddressResponse},
     },
-    interchain_txs::helpers::{decode_acknowledgement_response, get_port_id},
+    interchain_txs::helpers::get_port_id,
     sudo::msg::{RequestPacket, SudoMsg},
     NeutronError, NeutronResult,
 };
 
 use crate::state::{
-    add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
+    read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload,
     ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
@@ -668,7 +668,7 @@ fn sudo_open_ack(
             port_id,
             &Some((
                 parsed_version.clone().address,
-                parsed_version.clone().controller_connection_id,
+                parsed_version.controller_connection_id,
             )),
         )?;
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
@@ -693,7 +693,7 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
     let payload = read_sudo_payload(deps.storage, channel_id, seq_id).ok();
 
     if let Some(payload) = payload {
-        if payload.message == "try_send_native_token".to_string() {
+        if payload.message == *"try_send_native_token" {
             // we advance the state machine to validation phase where we will query the balances of
             // LP module to confirm that funds have arrived
             CONTRACT_STATE.save(deps.storage, &ContractState::VerifyNativeToken)?;
