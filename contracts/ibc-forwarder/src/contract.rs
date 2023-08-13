@@ -7,7 +7,7 @@ use covenant_utils::neutron_ica::{self, RemoteChainInfo};
 use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, Addr, to_binary, StdResult, Storage, to_vec, CosmosMsg, SubMsg, Reply, from_binary, Uint128, CustomQuery};
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
-use neutron_sdk::{NeutronResult, bindings::{msg::{NeutronMsg, MsgSubmitTxResponse}, query::NeutronQuery, types::ProtobufAny}, interchain_txs::helpers::get_port_id, NeutronError, sudo::msg::{SudoMsg, RequestPacket},};
+use neutron_sdk::{NeutronResult, bindings::{msg::{NeutronMsg, MsgSubmitTxResponse}, query::NeutronQuery}, interchain_txs::helpers::get_port_id, NeutronError, sudo::msg::{SudoMsg, RequestPacket},};
 
 use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, QueryMsg}, state::{CONTRACT_STATE, CLOCK_ADDRESS, INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO, NEXT_CONTRACT, REPLY_ID_STORAGE, SUDO_PAYLOAD, TRANSFER_AMOUNT}};
 
@@ -292,12 +292,12 @@ fn sudo_open_ack(
         port_id,
         &Some((
             parsed_version.clone().address,
-            parsed_version.clone().controller_connection_id,
+            parsed_version.controller_connection_id,
         )),
     )?;
     CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
     
-    return Ok(Response::default()
+    Ok(Response::default()
        .add_attribute("method", "sudo_open_ack")
     )
 }

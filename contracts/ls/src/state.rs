@@ -1,5 +1,5 @@
 use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint128};
-use covenant_utils::neutron_ica::{AcknowledgementResult, SudoPayload, RemoteChainInfo};
+use covenant_utils::neutron_ica::{SudoPayload, RemoteChainInfo};
 use cw_storage_plus::{Item, Map};
 
 use crate::msg::ContractState;
@@ -26,8 +26,8 @@ pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
 pub const AUTOPILOT_FORMAT: Item<String> = Item::new("autopilot_format");
 
 /// interchain transaction responses - ack/err/timeout state to query later
-pub const ACKNOWLEDGEMENT_RESULTS: Map<(String, u64), AcknowledgementResult> =
-    Map::new("acknowledgement_results");
+// pub const ACKNOWLEDGEMENT_RESULTS: Map<(String, u64), AcknowledgementResult> =
+//     Map::new("acknowledgement_results");
 pub const REPLY_ID_STORAGE: Item<Vec<u8>> = Item::new("reply_queue_id");
 pub const SUDO_PAYLOAD: Map<(String, u64), Vec<u8>> = Map::new("sudo_payload");
 pub const ERRORS_QUEUE: Map<u32, String> = Map::new("errors_queue");
