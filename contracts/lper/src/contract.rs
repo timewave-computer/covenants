@@ -102,9 +102,7 @@ pub fn instantiate(
         .add_attribute("holder_addr", holder_addr)
         .add_attribute("ls_asset_denom", msg.assets.ls_asset_denom)
         .add_attribute("native_asset_denom", msg.assets.native_asset_denom)
-        .add_attribute("expected_native_token_amount", msg.expected_native_token_amount)
-        .add_attribute("expected_ls_token_amount", msg.expected_ls_token_amount)
-        .add_attribute("allowed_return_delta", msg.allowed_return_delta)
+        .add_attributes(lp_config.to_response_attributes())
     )
 }
 
@@ -474,8 +472,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             }
 
             if let Some(config) = lp_config {
+                deps.api.addr_validate(config.pool_address.as_str())?;
                 LP_CONFIG.save(deps.storage, &config)?;
-                // response
+                response = response.add_attributes(config.to_response_attributes());
             }
 
             Ok(response)
