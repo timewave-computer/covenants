@@ -136,7 +136,7 @@ fn try_execute_transfer(
 
     // first we verify whether the next contract is ready for receiving the funds
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
-    let deposit_address_query: Option<String> = deps.querier.query_wasm_smart(
+    let deposit_address_query = deps.querier.query_wasm_smart(
         next_contract,
         &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
     )?;
@@ -229,32 +229,36 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
         QueryMsg::IcaAddress {} => Ok(to_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => {
-            let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
-            
-            // here we cover three cases:
-            let ica = match INTERCHAIN_ACCOUNTS.may_load(deps.storage, key)? {
-                Some(entry) => {
-                    // 1. ICA had been created -> fetch the autopilot string and return Some(autopilot)
-                    if let Some((addr, _)) = entry {
-                        let autopilot_receiver = AUTOPILOT_FORMAT
-                            .load(deps.storage)?
-                            .replace("{st_ica}", &addr);
-        
-                        Some(autopilot_receiver)
-                    }
-                    // 2. ICA creation request had been submitted but did not receive
-                    //    the channel_open_ack yet -> None
-                    else {
-                        None
-                    }
-                },
-                // 3. ICA creation request hadn't been submitted yet -> None
-                None => None,
-            };
+            let ica = query_deposit_address(deps, env)?;
             // up to the querying module to make sense of the response
             Ok(to_binary(&ica)?)
         },
         QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
+    }
+}
+
+fn query_deposit_address(deps: Deps<NeutronQuery>, env: Env) -> Result<Option<String>, StdError> {
+    let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
+            
+    // here we cover three cases:
+    match INTERCHAIN_ACCOUNTS.may_load(deps.storage, key)? {
+        Some(entry) => {
+            // 1. ICA had been created -> fetch the autopilot string and return Some(autopilot)
+            if let Some((addr, _)) = entry {
+                let autopilot_receiver = AUTOPILOT_FORMAT
+                    .load(deps.storage)?
+                    .replace("{st_ica}", &addr);
+
+                Ok(Some(autopilot_receiver))
+            }
+            // 2. ICA creation request had been submitted but did not receive
+            //    the channel_open_ack yet -> None
+            else {
+                Ok(None)
+            }
+        },
+        // 3. ICA creation request hadn't been submitted yet -> None
+        None => Ok(None)
     }
 }
 
