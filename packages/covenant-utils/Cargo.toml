@@ -14,3 +14,4 @@ cosmwasm-schema  = { workspace = true }
 neutron-sdk      = { workspace = true }
 cosmwasm-std     = { workspace = true }
 prost            = { workspace = true }
+cosmos-sdk-proto = { workspace = true }

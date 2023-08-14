@@ -1,8 +1,8 @@
-use cosmos_sdk_proto::{ibc::applications::transfer::v1::MsgTransfer, cosmos::base::v1beta1::Coin};
+use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use covenant_utils::neutron_ica::{self, RemoteChainInfo};
-use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, Addr, to_binary, StdResult, Storage, to_vec, CosmosMsg, SubMsg, Reply, from_binary, Uint128, CustomQuery};
+use covenant_utils::neutron_ica::{self, RemoteChainInfo, get_proto_coin};
+use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, Addr, to_binary, StdResult, Storage, to_vec, CosmosMsg, SubMsg, Reply, from_binary, CustomQuery};
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::{NeutronResult, bindings::{msg::{NeutronMsg, MsgSubmitTxResponse}, query::NeutronQuery}, interchain_txs::helpers::get_port_id, NeutronError, sudo::msg::{SudoMsg, RequestPacket},};
@@ -123,15 +123,11 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
         Some((address, controller_conn_id)) => {
             let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
             let amount = TRANSFER_AMOUNT.load(deps.storage)?;
-            let coin = Coin {
-                denom: remote_chain_info.denom,
-                amount: amount.to_string(),
-            };
 
             let transfer_msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: remote_chain_info.channel_id,
-                token: Some(coin),
+                token: Some(get_proto_coin(remote_chain_info.denom, amount)),
                 sender: address,
                 receiver: deposit_address.to_string(),
                 timeout_height: None,

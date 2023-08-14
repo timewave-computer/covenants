@@ -1,7 +1,7 @@
 
 pub mod neutron_ica {
     use cosmwasm_schema::{cw_serde, QueryResponses};
-    use cosmwasm_std::{Uint64, Addr, Binary, StdError, Attribute, Coin};
+    use cosmwasm_std::{Uint64, Addr, Binary, StdError, Attribute, Coin, Uint128};
     use neutron_sdk::{bindings::{msg::IbcFee, types::ProtobufAny}, NeutronResult};
     use prost::Message;
 
@@ -63,6 +63,16 @@ pub mod neutron_ica {
                 Attribute::new("ibc_timeout_fee", timeout_fee),
             ]
         }
+
+        pub fn validate(self) -> Result<RemoteChainInfo, StdError> {
+            if self.ibc_fee.ack_fee.is_empty() || self.ibc_fee.timeout_fee.is_empty() || !self.ibc_fee.recv_fee.is_empty() {
+                return Err(StdError::GenericErr {
+                    msg: "invalid IbcFee".to_string(),
+                })
+            }
+
+            Ok(self)
+        }
     }
 
     fn coin_vec_to_string(coins: &Vec<Coin>) -> String {
@@ -75,6 +85,13 @@ pub mod neutron_ica {
             }
         }
         str.to_string()
+    }
+
+    pub fn get_proto_coin(denom: String, amount: Uint128) -> cosmos_sdk_proto::cosmos::base::v1beta1::Coin {
+        cosmos_sdk_proto::cosmos::base::v1beta1::Coin {
+            denom,
+            amount: amount.to_string(),
+        }
     }
 
     #[cw_serde]
