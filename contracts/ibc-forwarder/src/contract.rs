@@ -2,7 +2,7 @@ use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use covenant_utils::neutron_ica::{self, RemoteChainInfo, get_proto_coin};
-use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, Addr, to_binary, StdResult, Storage, to_vec, CosmosMsg, SubMsg, Reply, from_binary, CustomQuery};
+use cosmwasm_std::{Env, MessageInfo, Response, Deps, DepsMut, StdError, Binary, to_binary, StdResult, Storage, to_vec, CosmosMsg, SubMsg, Reply, from_binary, CustomQuery};
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::{NeutronResult, bindings::{msg::{NeutronMsg, MsgSubmitTxResponse}, query::NeutronQuery}, interchain_txs::helpers::get_port_id, NeutronError, sudo::msg::{SudoMsg, RequestPacket},};
@@ -101,7 +101,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
 
     // first we verify whether the next contract is ready for receiving the funds
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
-    let deposit_address_query: Option<Addr> = deps.querier.query_wasm_smart(
+    let deposit_address_query: Option<String> = deps.querier.query_wasm_smart(
         next_contract,
         &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
     )?;
@@ -129,7 +129,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                 source_channel: remote_chain_info.channel_id,
                 token: Some(get_proto_coin(remote_chain_info.denom, amount)),
                 sender: address,
-                receiver: deposit_address.to_string(),
+                receiver: deposit_address,
                 timeout_height: None,
                 timeout_timestamp: env.block.time
                     .plus_seconds(remote_chain_info.ica_timeout.u64())
@@ -209,9 +209,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
 
             Ok(to_binary(&ica)?)
         },
-        QueryMsg::IcaAddress {} => Ok(to_binary(&Addr::unchecked(
-            get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
-        ))?),
+        QueryMsg::IcaAddress {} => Ok(to_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
         QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
     }
 }
