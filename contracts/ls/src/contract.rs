@@ -1,4 +1,3 @@
-use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -7,7 +6,7 @@ use cosmwasm_std::{
     Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
-use covenant_utils::neutron_ica::{SudoPayload, OpenAckVersion, RemoteChainInfo, self};
+use covenant_utils::neutron_ica::{SudoPayload, OpenAckVersion, RemoteChainInfo, self, get_proto_coin};
 use cw2::set_contract_version;
 
 use crate::msg::{
@@ -163,18 +162,13 @@ fn try_execute_transfer(
         Some((address, controller_conn_id)) => {
             let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
 
-            let coin = Coin {
-                denom: remote_chain_info.denom,
-                amount: amount.to_string(),
-            };
-
             // inner MsgTransfer that will be sent from stride to neutron.
             // because of this message delivery depending on the ica wrapper below,
             // timeout_timestamp = current block + ica timeout + ibc_transfer_timeout
             let msg = MsgTransfer {
                 source_port: "transfer".to_string(),
                 source_channel: remote_chain_info.channel_id,
-                token: Some(coin),
+                token: Some(get_proto_coin(remote_chain_info.denom, amount)),
                 sender: address,
                 receiver: deposit_address.to_string(),
                 timeout_height: None,
@@ -472,13 +466,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
-            stride_neutron_ibc_transfer_channel_id,
             next_contract,
-            neutron_stride_ibc_connection_id,
-            ls_denom,
-            ibc_fee,
-            ibc_transfer_timeout,
-            ica_timeout,
+            remote_chain_info,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
@@ -488,65 +477,16 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 resp = resp.add_attribute("clock_addr", addr.to_string());
             }
 
-            if let Some(channel_id) = stride_neutron_ibc_transfer_channel_id {
-                REMOTE_CHAIN_INFO.update(deps.storage, |mut info| -> StdResult<_>{
-                    info.channel_id = channel_id.to_string();
-                    Ok(info)
-                })?;
-                resp = resp.add_attribute("stride_neutron_ibc_transfer_channel_id", channel_id);
-            }
-
             if let Some(addr) = next_contract {
                 let addr = deps.api.addr_validate(&addr)?;
                 resp = resp.add_attribute("next_contract", addr.to_string());
                 NEXT_CONTRACT.save(deps.storage, &addr)?;
             }
 
-            if let Some(connection_id) = neutron_stride_ibc_connection_id {
-                REMOTE_CHAIN_INFO.update(deps.storage, |mut info| -> StdResult<_>{
-                    info.connection_id = connection_id.to_string();
-                    Ok(info)
-                })?;
-                resp = resp.add_attribute("neutron_stride_ibc_connection_id", connection_id);
-            }
-
-            if let Some(denom) = ls_denom {
-                REMOTE_CHAIN_INFO.update(deps.storage, |mut info| -> StdResult<_>{
-                    info.denom = denom.to_string();
-                    Ok(info)
-                })?;
-                resp = resp.add_attribute("ls_denom", denom);
-            }
-
-            if let Some(timeout) = ibc_transfer_timeout {
-                REMOTE_CHAIN_INFO.update(deps.storage, |mut info| -> StdResult<_>{
-                    info.ibc_transfer_timeout = timeout;
-                    Ok(info)
-                })?;
-                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
-            }
-
-            if let Some(timeout) = ica_timeout {
-                REMOTE_CHAIN_INFO.update(deps.storage, |mut info| -> StdResult<_>{
-                    info.ica_timeout = timeout;
-                    Ok(info)
-                })?;
-                resp = resp.add_attribute("ica_timeout", timeout);
-            }
-
-            if let Some(fee) = ibc_fee {
-                if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() || !fee.recv_fee.is_empty()
-                {
-                    return Err(StdError::GenericErr {
-                        msg: "invalid IbcFee".to_string(),
-                    });
-                }
-                REMOTE_CHAIN_INFO.update(deps.storage, |mut info| -> StdResult<_>{
-                    info.ibc_fee = fee.clone();
-                    Ok(info)
-                })?;
-                resp = resp.add_attribute("ibc_fee_ack", fee.ack_fee[0].to_string());
-                resp = resp.add_attribute("ibc_fee_timeout", fee.timeout_fee[0].to_string());
+            if let Some(rci) = remote_chain_info {
+                let validated_rci = rci.validate()?;
+                REMOTE_CHAIN_INFO.save(deps.storage, &validated_rci)?;
+                resp = resp.add_attributes(validated_rci.get_response_attributes());
             }
 
             Ok(resp)

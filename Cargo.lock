@@ -522,6 +522,7 @@ dependencies = [
 name = "covenant-utils"
 version = "0.0.1"
 dependencies = [
+ "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "neutron-sdk",
