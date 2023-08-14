@@ -1,7 +1,7 @@
 
 pub mod neutron_ica {
     use cosmwasm_schema::{cw_serde, QueryResponses};
-    use cosmwasm_std::{Uint64, Addr, Binary, StdError, Attribute, Coin, Uint128};
+    use cosmwasm_std::{Uint64, Binary, StdError, Attribute, Coin, Uint128};
     use neutron_sdk::{bindings::{msg::IbcFee, types::ProtobufAny}, NeutronResult};
     use prost::Message;
 
@@ -98,7 +98,7 @@ pub mod neutron_ica {
     #[derive(QueryResponses)]
     pub enum QueryMsg {
         /// Returns the associated remote chain information
-        #[returns(Option<Addr>)]
+        #[returns(Option<String>)]
         DepositAddress {},
     }
 
