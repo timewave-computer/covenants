@@ -1,5 +1,4 @@
 use proc_macro::TokenStream;
-
 use quote::quote;
 use syn::{parse_macro_input, AttributeArgs, DataEnum, DeriveInput};
 
@@ -56,16 +55,17 @@ pub fn covenant_deposit_address(metadata: TokenStream, input: TokenStream) -> To
     merge_variants(
         metadata,
         input,
-        quote!( 
+        quote!(
             enum Deposit {
                 /// Returns the address a contract expects to receive funds to
-                #[returns(Option<Addr>)]
+                #[returns(Option<String>)]
                 DepositAddress {},
             }
         )
         .into(),
     )
 }
+
 
 #[proc_macro_attribute]
 pub fn covenant_clock_address(metadata: TokenStream, input: TokenStream) -> TokenStream {

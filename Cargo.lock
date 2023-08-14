@@ -512,6 +512,7 @@ dependencies = [
 name = "covenant-macros"
 version = "0.0.1"
 dependencies = [
+ "cosmwasm-schema",
  "covenant-utils",
  "proc-macro2",
  "quote",
