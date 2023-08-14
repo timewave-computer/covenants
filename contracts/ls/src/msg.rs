@@ -100,13 +100,14 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
-        stride_neutron_ibc_transfer_channel_id: Option<String>,
+        // stride_neutron_ibc_transfer_channel_id: Option<String>,
         next_contract: Option<String>,
-        neutron_stride_ibc_connection_id: Option<String>,
-        ls_denom: Option<String>,
-        ibc_fee: Option<IbcFee>,
-        ibc_transfer_timeout: Option<Uint64>,
-        ica_timeout: Option<Uint64>,
+        // neutron_stride_ibc_connection_id: Option<String>,
+        // ls_denom: Option<String>,
+        // ibc_fee: Option<IbcFee>,
+        // ibc_transfer_timeout: Option<Uint64>,
+        // ica_timeout: Option<Uint64>,
+        remote_chain_info: Option<RemoteChainInfo>,
     },
     UpdateCodeId {
         data: Option<Binary>,
