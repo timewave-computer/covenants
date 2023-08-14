@@ -15,3 +15,4 @@ proc-macro2       = "1"
 quote             = "1"
 syn               = "1"
 covenant-utils = { workspace = true }
+cosmwasm-schema  = { workspace = true }

@@ -342,8 +342,8 @@ fn test_init() {
     )
     .unwrap();
     assert_eq!(
-        from_binary::<Addr>(&depositor_addr).unwrap().as_ref(),
-        "contract_depositor"
+        from_binary::<Option<String>>(&depositor_addr).unwrap(),
+        Some("contract_depositor".to_string())
     );
 
     let lp_addr = query(
