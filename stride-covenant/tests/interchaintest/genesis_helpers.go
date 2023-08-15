@@ -79,9 +79,10 @@ func setupGaiaGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 	}
 }
 
-func setupStrideGenesis(soft_opt_out_threshold string,
+func setupStrideGenesis(
 	reward_denoms []string,
-	provider_reward_denoms []string, tokenfactory_pause bool, blocks_per_distribution_transmission string, allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
+	allowed_messages []string,
+) func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
 		g := make(map[string]interface{})
 		if err := json.Unmarshal(genbz, &g); err != nil {
@@ -96,28 +97,56 @@ func setupStrideGenesis(soft_opt_out_threshold string,
 			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w", err)
 		}
 
-		if err := dyno.Set(g, blocks_per_distribution_transmission, "app_state", "ccvconsumer", "params", "blocks_per_distribution_transmission"); err != nil {
-			return nil, fmt.Errorf("failed to set blocks_per_distribution_transmission in genesis json: %w", err)
-		}
+		// "initial_val_set": [
+		// 	{
+		// 		"power": "100",
+		// 		"pub_key": {
+		// 			"ed25519": "iuqyAWJB8KIK454bqwrbzaNgZ2FjnixLN6w/DEAU8hU="
+		// 		}
+		// 	}
+		// ],
 
-		if err := dyno.Set(g, soft_opt_out_threshold, "app_state", "ccvconsumer", "params", "soft_opt_out_threshold"); err != nil {
-			return nil, fmt.Errorf("failed to set soft_opt_out_threshold in genesis json: %w", err)
-		}
+		// "host_genesis_state": {
+		// 	"active_channels": [
+		// 	],
+		// 	"interchain_accounts": [
+		// 	],
+		// 	"params": {
+		// 		"allow_messages": [
+		// 			"*"
+		// 		],
+		// 		"host_enabled": true
+		// 	},
+		// 	"port": "icahost"
+		// }
 
-		if err := dyno.Set(g, reward_denoms, "app_state", "ccvconsumer", "params", "reward_denoms"); err != nil {
-			return nil, fmt.Errorf("failed to set reward_denoms in genesis json: %w", err)
-		}
+		// "genutil": {
+		//     "gen_txs": [
+		//     ]
+		// },
 
-		if err := dyno.Set(g, provider_reward_denoms, "app_state", "ccvconsumer", "params", "provider_reward_denoms"); err != nil {
-			return nil, fmt.Errorf("failed to set provider_reward_denoms in genesis json: %w", err)
-		}
+		// if err := dyno.Set(g, blocks_per_distribution_transmission, "app_state", "ccvconsumer", "params", "blocks_per_distribution_transmission"); err != nil {
+		// 	return nil, fmt.Errorf("failed to set blocks_per_distribution_transmission in genesis json: %w", err)
+		// }
 
-		tokenfactoryEntry := map[string]interface{}{
-			"paused": tokenfactory_pause,
-		}
-		if err := dyno.Set(g, tokenfactoryEntry, "app_state", "tokenfactory"); err != nil {
-			return nil, fmt.Errorf("failed to set tokenfactory entry in genesis json: %w", err)
-		}
+		// if err := dyno.Set(g, soft_opt_out_threshold, "app_state", "ccvconsumer", "params", "soft_opt_out_threshold"); err != nil {
+		// 	return nil, fmt.Errorf("failed to set soft_opt_out_threshold in genesis json: %w", err)
+		// }
+
+		// if err := dyno.Set(g, reward_denoms, "app_state", "ccvconsumer", "params", "reward_denoms"); err != nil {
+		// 	return nil, fmt.Errorf("failed to set reward_denoms in genesis json: %w", err)
+		// }
+
+		// if err := dyno.Set(g, provider_reward_denoms, "app_state", "ccvconsumer", "params", "provider_reward_denoms"); err != nil {
+		// 	return nil, fmt.Errorf("failed to set provider_reward_denoms in genesis json: %w", err)
+		// }
+
+		// tokenfactoryEntry := map[string]interface{}{
+		// 	"paused": tokenfactory_pause,
+		// }
+		// if err := dyno.Set(g, tokenfactoryEntry, "app_state", "tokenfactory"); err != nil {
+		// 	return nil, fmt.Errorf("failed to set tokenfactory entry in genesis json: %w", err)
+		// }
 
 		out, err := json.Marshal(g)
 		print("\n\nstride gen: ", string(out), "\n\n")
