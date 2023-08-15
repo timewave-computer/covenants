@@ -83,15 +83,12 @@ pub fn execute(
         ExecuteMsg::Transfer { amount } => {
             let ica_address = get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID);
             match ica_address {
-                Ok((_, _)) => {
-                    try_execute_transfer(deps, env, info, amount)
-                },
-                Err(_) => {
-                    Ok(Response::default()
+                Ok(_) => try_execute_transfer(deps, env, info, amount),
+                Err(_) => Ok(
+                    Response::default()
                         .add_attribute("method", "try_permisionless_transfer")
                         .add_attribute("ica_status", "not_created")
-                    )
-                },
+                    ),
             }
         },
     }
