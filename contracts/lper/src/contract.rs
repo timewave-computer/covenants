@@ -118,13 +118,13 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 /// otherwise, single-sided liquidity provision is attempted.
 fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let asset_data = ASSETS.load(deps.storage)?;
-    let contract = env.contract.address;
+
     // first we query our own balances and filter out any unexpected denoms
-    let bal_coins = deps.querier.query_all_balances(contract.clone())?;
+    let bal_coins = deps.querier.query_all_balances(env.contract.address.to_string())?;
     let (native_bal, ls_bal) = get_relevant_balances(
         bal_coins,
-        asset_data.clone().ls_asset_denom,
-        asset_data.clone().native_asset_denom,
+        asset_data.ls_asset_denom,
+        asset_data.native_asset_denom,
     );
 
     // depending on available balances we attempt a different action:
@@ -186,17 +186,14 @@ fn try_get_double_side_lp_submsg(
         .query_wasm_smart(&lp_config.pool_address, &astroport::pair::QueryMsg::Pool {})?;
     let (pool_native_bal, pool_ls_bal) = get_pool_asset_amounts(
         pool_response.assets,
-        asset_data.clone().ls_asset_denom,
-        asset_data.clone().native_asset_denom,
+        asset_data.ls_asset_denom.as_str(),
+        asset_data.native_asset_denom.as_str(),
     )?;
 
     // we validate the pool to match our price expectations
-    validate_price_range(
+    lp_config.validate_price_range(
         pool_native_bal,
         pool_ls_bal,
-        lp_config.expected_native_token_amount,
-        lp_config.expected_ls_token_amount,
-        lp_config.allowed_return_delta,
     )?;
 
     // we derive the ratio of native to ls.
@@ -213,48 +210,49 @@ fn try_get_double_side_lp_submsg(
         if native_bal.amount >= required_native_amount {
             // if we are able to satisfy the required amount, we do that:
             // provide all statom tokens along with required amount of native tokens
-            let ls_asset_double_sided = Asset {
-                info: asset_data.get_ls_asset_info(),
-                amount: ls_bal.amount,
-            };
-            let native_asset_double_sided = Asset {
-                info: asset_data.get_native_asset_info(),
-                amount: required_native_amount,
-            };
-
-            (native_asset_double_sided, ls_asset_double_sided)
+            (
+                Asset {
+                    info: asset_data.get_native_asset_info(),
+                    amount: required_native_amount,
+                },
+                Asset {
+                    info: asset_data.get_ls_asset_info(),
+                    amount: ls_bal.amount,
+                }
+            )
         } else {
             // otherwise, our native token amount is insufficient to provide double
             // sided liquidity using all of our ls tokens.
             // this means that we should provide all of our available native tokens,
             // and as many ls tokens as needed to satisfy the existing ratio
-            let native_asset_double_sided = Asset {
-                info: asset_data.get_native_asset_info(),
-                amount: native_bal.amount,
-            };
-            let ls_asset_double_sided = Asset {
-                info: asset_data.get_ls_asset_info(),
-                amount: Decimal::from_ratio(pool_ls_bal, pool_native_bal)
-                    .checked_mul_uint128(native_bal.amount)?,
-            };
-
-            (native_asset_double_sided, ls_asset_double_sided)
+            (
+                Asset {
+                    info: asset_data.get_native_asset_info(),
+                    amount: native_bal.amount,
+                },
+                Asset {
+                    info: asset_data.get_ls_asset_info(),
+                    amount: Decimal::from_ratio(pool_ls_bal, pool_native_bal)
+                        .checked_mul_uint128(native_bal.amount)?,
+                },
+            )
         };
 
+    let (native_coin, ls_coin) = (
+        native_asset_double_sided.to_coin()?,
+        ls_asset_double_sided.to_coin()?,
+    );
+    
     // craft a ProvideLiquidity message with the determined assets
     let double_sided_liq_msg = ProvideLiquidity {
         assets: vec![
-            native_asset_double_sided.clone(),
-            ls_asset_double_sided.clone(),
+            native_asset_double_sided,
+            ls_asset_double_sided,
         ],
         slippage_tolerance: lp_config.slippage_tolerance,
         auto_stake: lp_config.autostake,
         receiver: Some(holder_address.to_string()),
     };
-    let (native_coin, ls_coin) = (
-        native_asset_double_sided.to_coin()?,
-        ls_asset_double_sided.to_coin()?,
-    );
 
     // update the provided amounts and leftover assets
     PROVIDED_LIQUIDITY_INFO.update(
@@ -262,10 +260,10 @@ fn try_get_double_side_lp_submsg(
         |mut info: ProvidedLiquidityInfo| -> StdResult<_> {
             info.provided_amount_ls = info
                 .provided_amount_ls
-                .checked_add(ls_coin.clone().amount)?;
+                .checked_add(ls_coin.amount)?;
             info.provided_amount_native = info
                 .provided_amount_native
-                .checked_add(native_coin.clone().amount)?;
+                .checked_add(native_coin.amount)?;
             Ok(info)
         },
     )?;
@@ -293,18 +291,11 @@ fn try_get_single_side_lp_submsg(
     let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
     let lp_config = LP_CONFIG.load(deps.storage)?;
 
-    let native_asset = Asset {
-        info: asset_data.get_native_asset_info(),
-        amount: native_bal.amount,
-    };
-    let ls_asset = Asset {
-        info: asset_data.get_ls_asset_info(),
-        amount: ls_bal.amount,
-    };
+    let assets = asset_data.to_asset_vec(native_bal.amount, ls_bal.amount);
 
     // given one non-zero asset, we build the ProvideLiquidity message
     let single_sided_liq_msg = ProvideLiquidity {
-        assets: vec![ls_asset, native_asset],
+        assets,
         slippage_tolerance: lp_config.slippage_tolerance,
         auto_stake: lp_config.autostake,
         receiver: Some(holder_address.to_string()),
@@ -312,37 +303,42 @@ fn try_get_single_side_lp_submsg(
 
     // now we try to submit the message for either LS or native single side liquidity
     if native_bal.amount.is_zero() && ls_bal.amount <= lp_config.single_side_lp_limits.ls_asset_limit {
+        // update the provided liquidity info
+        PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+            info.provided_amount_ls = info.provided_amount_ls.checked_add(ls_bal.amount)?;
+            Ok(info)
+        })?;
+
         // if available ls token amount is within single side limits we build a single side msg
         let submsg = SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: lp_config.pool_address.to_string(),
                 msg: to_binary(&single_sided_liq_msg)?,
-                funds: vec![ls_bal.clone()],
+                funds: vec![ls_bal],
             }),
             SINGLE_SIDED_REPLY_ID,
         );
-        PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
-            info.provided_amount_ls = info.provided_amount_ls.checked_add(ls_bal.amount)?;
-            Ok(info)
-        })?;
+
         return Ok(Some(submsg));
     } else if ls_bal.amount.is_zero()
-        && native_bal.amount <= lp_config.single_side_lp_limits.native_asset_limit
-    {
-        // if available native token amount is within single side limits we build a single side msg
-        let submsg = SubMsg::reply_on_success(
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: lp_config.pool_address.to_string(),
-                msg: to_binary(&single_sided_liq_msg)?,
-                funds: vec![native_bal.clone()],
-            }),
-            SINGLE_SIDED_REPLY_ID,
-        );
+        && native_bal.amount <= lp_config.single_side_lp_limits.native_asset_limit {
+        // update the provided liquidity info
         PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
             info.provided_amount_native =
                 info.provided_amount_native.checked_add(native_bal.amount)?;
             Ok(info)
         })?;
+
+        // if available native token amount is within single side limits we build a single side msg
+        let submsg = SubMsg::reply_on_success(
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: lp_config.pool_address.to_string(),
+                msg: to_binary(&single_sided_liq_msg)?,
+                funds: vec![native_bal],
+            }),
+            SINGLE_SIDED_REPLY_ID,
+        );
+
         return Ok(Some(submsg));
     }
 
@@ -366,48 +362,16 @@ fn get_relevant_balances(coins: Vec<Coin>, ls_denom: String, native_denom: Strin
     (native_bal, ls_bal)
 }
 
-/// validates the existing pool balances to match our initial expectations.
-/// if `PriceRangeError` is returned, it most likely means that the pool had a 
-/// significant shift in its balance ratio.
-fn validate_price_range(
-    pool_native_amount: Uint128,
-    pool_ls_amount: Uint128,
-    expected_native_token_amount: Uint128,
-    expected_ls_token_amount: Uint128,
-    allowed_return_delta: Uint128,
-) -> Result<(), ContractError> {
-    // find the min and max return amounts allowed by deviating away from expected return amount
-    // by allowed delta
-    let min_return_amount = expected_ls_token_amount.checked_sub(allowed_return_delta)?;
-    let max_return_amount = expected_ls_token_amount.checked_add(allowed_return_delta)?;
-
-    // derive allowed proportions
-    let min_accepted_ratio = Decimal::from_ratio(min_return_amount, expected_native_token_amount);
-    let max_accepted_ratio = Decimal::from_ratio(max_return_amount, expected_native_token_amount);
-
-    // we find the proportion of the price range being validated
-    let validation_ratio = Decimal::from_ratio(pool_ls_amount, pool_native_amount);
-
-    // if current return to offer amount ratio falls out of [min_accepted_ratio, max_return_amount],
-    // return price range error
-    if validation_ratio < min_accepted_ratio || validation_ratio > max_accepted_ratio {
-        return Err(ContractError::PriceRangeError {});
-    }
-
-    Ok(())
-}
-
 /// filters out irrelevant balances and returns ls and native amounts
 fn get_pool_asset_amounts(
     assets: Vec<Asset>,
-    ls_denom: String,
-    native_denom: String,
+    ls_denom: &str,
+    native_denom: &str,
 ) -> Result<(Uint128, Uint128), StdError> {
     let (mut native_bal, mut ls_bal) = (Uint128::zero(), Uint128::zero());
 
     for asset in assets {
         let coin = asset.to_coin()?;
-
         if coin.denom == ls_denom {
             // found ls balance
             ls_bal = coin.amount;
@@ -483,7 +447,6 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: reply");
-    println!("{:?}", msg.clone().result.unwrap());
     match msg.id {
         DOUBLE_SIDED_REPLY_ID => handle_double_sided_reply_id(deps, _env, msg),
         SINGLE_SIDED_REPLY_ID => handle_single_sided_reply_id(deps, _env, msg),
