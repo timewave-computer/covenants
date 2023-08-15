@@ -520,6 +520,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "covenant-native-splitter"
+version = "1.0.0"
+dependencies = [
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-clock",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.1.0",
+ "cw2 1.1.0",
+ "neutron-sdk",
+ "protobuf 3.2.0",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "thiserror",
+]
+
+[[package]]
 name = "covenant-utils"
 version = "0.0.1"
 dependencies = [
