@@ -3,6 +3,8 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Decimal, Uint128, Attribute};
 use covenant_macros::{clocked, covenant_deposit_address, covenant_clock_address};
 
+use crate::error::ContractError;
+
 #[cw_serde]
 pub struct InstantiateMsg {
     pub pool_address: String,
@@ -62,6 +64,31 @@ impl LpConfig {
             Attribute::new("slippage_tolerance", slippage_tolerance),
         ]
     }
+
+    /// validates the existing pool balances to match our initial expectations.
+    /// if `PriceRangeError` is returned, it most likely means that the pool had a 
+    /// significant shift in its balance ratio.
+    pub fn validate_price_range(&self, pool_native_bal: Uint128, pool_ls_bal: Uint128) -> Result<(), ContractError> {
+        // find the min and max return amounts allowed by deviating away from expected return amount
+        // by allowed delta
+        let min_return_amount = self.expected_ls_token_amount.checked_sub(self.allowed_return_delta)?;
+        let max_return_amount = self.expected_ls_token_amount.checked_add(self.allowed_return_delta)?;
+    
+        // derive allowed proportions
+        let min_accepted_ratio = Decimal::from_ratio(min_return_amount, self.expected_native_token_amount);
+        let max_accepted_ratio = Decimal::from_ratio(max_return_amount, self.expected_native_token_amount);
+    
+        // we find the proportion of the price range being validated
+        let validation_ratio = Decimal::from_ratio(pool_ls_bal, pool_native_bal);
+    
+        // if current return to offer amount ratio falls out of [min_accepted_ratio, max_return_amount],
+        // return price range error
+        if validation_ratio < min_accepted_ratio || validation_ratio > max_accepted_ratio {
+            return Err(ContractError::PriceRangeError {});
+        }
+    
+        Ok(())
+    }
 }
 
 /// holds the native and ls asset denoms relevant for providing liquidity.
@@ -84,6 +111,19 @@ impl AssetData {
         AssetInfo::NativeToken {
             denom: self.ls_asset_denom.to_string(),
         }
+    }
+
+    pub fn to_asset_vec(&self, native_bal: Uint128, ls_bal: Uint128) -> Vec<Asset> {
+        vec![
+            Asset {
+                info: self.get_native_asset_info(),
+                amount: native_bal,
+            },
+            Asset {
+                info: self.get_ls_asset_info(),
+                amount: ls_bal,
+            },
+        ]
     }
 }
 
