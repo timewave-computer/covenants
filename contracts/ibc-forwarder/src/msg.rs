@@ -18,8 +18,6 @@ pub struct InstantiateMsg {
     pub denom: String,
     pub amount: Uint128,
 
-    // pub remote_chain_channel_id: String,
-    // pub remote_chain_connection_id: String,
     /// neutron requires fees to be set to refund relayers for
     /// submission of ack and timeout messages.
     /// recv_fee and ack_fee paid in untrn from this contract
