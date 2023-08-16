@@ -1,5 +1,7 @@
+use std::{fmt};
+
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Uint64};
+use cosmwasm_std::{Addr, Uint128, Uint64, StdError, Attribute};
 use covenant_macros::{covenant_deposit_address, clocked, covenant_clock_address, covenant_remote_chain};
 use neutron_sdk::bindings::msg::IbcFee;
 use covenant_utils::neutron_ica::RemoteChainInfo;
@@ -15,7 +17,7 @@ pub struct InstantiateMsg {
     pub denom: String,
     pub amount: Uint128,
 
-    pub splits: Vec<SplitConfig>,
+    pub splits: Vec<DenomSplit>,
 
     /// Neutron requires fees to be set to refund relayers for
     /// submission of ack and timeout messages.
@@ -37,11 +39,33 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
-pub struct SplitConfig {
+pub struct DenomSplit {
     /// denom to be distributed
     pub denom: String,
     /// denom receivers and their respective shares
     pub receivers: Vec<SplitReceiver>,
+}
+
+impl DenomSplit {
+    pub fn validate(self) -> Result<DenomSplit, StdError> {
+        // here we validate that all receiver shares add up to 100 (%)
+        let sum: Uint64 = self.receivers.iter().map(|r| r.share).sum();
+
+        if sum != Uint64::new(100) {
+            Err(StdError::generic_err(format!("failed to validate split config for denom: {}", self.denom)))
+        } else {
+            Ok(self)
+        }
+    }
+
+    pub fn to_response_attribute(&self) -> Attribute {
+        let mut str = "".to_string();
+
+        for rec in &self.receivers {
+            str += rec.to_string().as_str();
+        }
+        Attribute::new(&self.denom, str)
+    }
 }
 
 #[cw_serde]
@@ -52,6 +76,17 @@ pub struct SplitReceiver {
     pub share: Uint64,
 }
 
+impl fmt::Display for SplitReceiver {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let mut str = "[";
+        fmt.write_str(str)?;
+        fmt.write_str(self.addr.as_str())?;
+        fmt.write_str(",")?;
+        fmt.write_str(self.share.to_string().as_str())?;
+        fmt.write_str("]")?;
+        Ok(())
+    }
+}
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {}
