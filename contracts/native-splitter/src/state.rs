@@ -2,7 +2,7 @@ use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage,
 use covenant_utils::neutron_ica::{SudoPayload, RemoteChainInfo};
 use cw_storage_plus::{Item, Map};
 
-use crate::msg::ContractState;
+use crate::msg::{ContractState, SplitReceiver};
 
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
@@ -12,7 +12,9 @@ pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 
 pub const TRANSFER_AMOUNT: Item<Uint128> = Item::new("transfer_amount");
 
-pub const SPLIT_DESTINATIONS: Item<Vec<(Addr, Uint128)>> = Item::new("split_destinations");
+
+// maps a denom string to a vec of SplitReceivers
+pub const SPLIT_CONFIG_MAP: Map<String, Vec<SplitReceiver>> = Map::new("split_config");
 
 /// information needed for an ibc transfer to the remote chain
 pub const REMOTE_CHAIN_INFO: Item<RemoteChainInfo> = Item::new("r_c_info");
