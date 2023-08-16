@@ -2,10 +2,10 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, SubMsg, 
+    Response, StdResult, SubMsg, Attribute,
 };
 use covenant_clock::helpers::verify_clock;
-use covenant_utils::neutron_ica::SudoPayload;
+use covenant_utils::neutron_ica::{SudoPayload, RemoteChainInfo};
 use cw2::set_contract_version;
 
 use crate::msg::{
@@ -13,7 +13,7 @@ use crate::msg::{
 };
 use crate::state::{
     save_reply_payload, CLOCK_ADDRESS, CONTRACT_STATE,
-    REMOTE_CHAIN_INFO,
+    REMOTE_CHAIN_INFO, SPLIT_CONFIG_MAP,
 };
 use neutron_sdk::{
     bindings::{
@@ -39,7 +39,34 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-   Ok(Response::default())
+    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
+    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+
+    let remote_chain_info = RemoteChainInfo {
+        connection_id: msg.remote_chain_connection_id,
+        channel_id: msg.remote_chain_channel_id,
+        denom: msg.denom,
+        ibc_transfer_timeout: msg.ibc_transfer_timeout,
+        ica_timeout: msg.ica_timeout,
+        ibc_fee: msg.ibc_fee,
+    };
+    REMOTE_CHAIN_INFO.save(deps.storage, &remote_chain_info)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+
+    // validate each split and store it in a map
+    let mut split_resp_attributes: Vec<Attribute> = Vec::new();
+    for split in msg.splits {
+        let validated_split = split.validate()?;
+        split_resp_attributes.push(validated_split.to_response_attribute());
+        SPLIT_CONFIG_MAP.save(deps.storage, validated_split.denom, &validated_split.receivers)?;
+    }
+
+    Ok(Response::default()
+        .add_attribute("method", "native_splitter_instantiate")
+        .add_attribute("clock_address", clock_addr)
+        .add_attributes(remote_chain_info.get_response_attributes())
+        .add_attributes(split_resp_attributes)
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
