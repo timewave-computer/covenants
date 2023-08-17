@@ -17,7 +17,7 @@ pub struct InstantiateMsg {
     pub denom: String,
     pub amount: Uint128,
 
-    pub splits: Vec<DenomSplit>,
+    pub splits: Vec<NativeDenomSplit>,
 
     /// Neutron requires fees to be set to refund relayers for
     /// submission of ack and timeout messages.
@@ -39,19 +39,19 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
-pub struct DenomSplit {
+pub struct NativeDenomSplit {
     /// denom to be distributed
     pub denom: String,
     /// denom receivers and their respective shares
     pub receivers: Vec<SplitReceiver>,
 }
 
-impl DenomSplit {
-    pub fn validate(self) -> Result<DenomSplit, StdError> {
+impl NativeDenomSplit {
+    pub fn validate(self) -> Result<NativeDenomSplit, StdError> {
         // here we validate that all receiver shares add up to 100 (%)
-        let sum: Uint64 = self.receivers.iter().map(|r| r.share).sum();
+        let sum: Uint128 = self.receivers.iter().map(|r| r.share).sum();
 
-        if sum != Uint64::new(100) {
+        if sum != Uint128::new(100) {
             Err(StdError::generic_err(format!("failed to validate split config for denom: {}", self.denom)))
         } else {
             Ok(self)
@@ -71,9 +71,9 @@ impl DenomSplit {
 #[cw_serde]
 pub struct SplitReceiver {
     /// address of the receiver on remote chain
-    pub addr: Addr,
+    pub addr: String,
     /// percentage share that the address is entitled to
-    pub share: Uint64,
+    pub share: Uint128,
 }
 
 impl fmt::Display for SplitReceiver {

@@ -116,4 +116,32 @@ pub mod neutron_ica {
             value: Binary::from(buf),
         })
     }
+
+    pub fn to_proto_msg_send(msg: impl Message) -> NeutronResult<ProtobufAny> {
+        // Serialize the Send message
+        let mut buf = Vec::new();
+        buf.reserve(msg.encoded_len());
+        if let Err(e) = msg.encode(&mut buf) {
+            return Err(StdError::generic_err(format!("Encode error: {e}")).into());
+        }
+
+        Ok(ProtobufAny {
+            type_url: "/cosmos.bank.v1beta1.MsgSend".to_string(),
+            value: Binary::from(buf),
+        })
+    }
+
+    pub fn to_proto_msg_multi_send(msg: impl Message) -> NeutronResult<ProtobufAny> {
+        // Serialize the Send message
+        let mut buf = Vec::new();
+        buf.reserve(msg.encoded_len());
+        if let Err(e) = msg.encode(&mut buf) {
+            return Err(StdError::generic_err(format!("Encode error: {e}")).into());
+        }
+
+        Ok(ProtobufAny {
+            type_url: "/cosmos.bank.v1beta1.MsgMultiSend".to_string(),
+            value: Binary::from(buf),
+        })
+    }
 }
