@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint128, Uint64, Attribute, StdError, Coin};
+use cosmwasm_std::{Addr, Attribute, Binary, Coin, StdError, Uint128, Uint64};
 use covenant_clock_derive::clocked;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -173,8 +173,11 @@ impl RemoteChainInfo {
             Attribute::new("connection_id", &self.connection_id),
             Attribute::new("channel_id", &self.channel_id),
             Attribute::new("denom", &self.denom),
-            Attribute::new("ibc_transfer_timeout", &self.ibc_transfer_timeout.to_string()),
-            Attribute::new("ica_timeout", &self.ica_timeout.to_string()),
+            Attribute::new(
+                "ibc_transfer_timeout",
+                self.ibc_transfer_timeout.to_string(),
+            ),
+            Attribute::new("ica_timeout", self.ica_timeout.to_string()),
             Attribute::new("ibc_recv_fee", recv_fee),
             Attribute::new("ibc_ack_fee", ack_fee),
             Attribute::new("ibc_timeout_fee", timeout_fee),
@@ -182,10 +185,13 @@ impl RemoteChainInfo {
     }
 
     pub fn validate(self) -> Result<RemoteChainInfo, StdError> {
-        if self.ibc_fee.ack_fee.is_empty() || self.ibc_fee.timeout_fee.is_empty() || !self.ibc_fee.recv_fee.is_empty() {
+        if self.ibc_fee.ack_fee.is_empty()
+            || self.ibc_fee.timeout_fee.is_empty()
+            || !self.ibc_fee.recv_fee.is_empty()
+        {
             return Err(StdError::GenericErr {
                 msg: "invalid IbcFee".to_string(),
-            })
+            });
         }
 
         Ok(self)
@@ -194,8 +200,8 @@ impl RemoteChainInfo {
 
 fn coin_vec_to_string(coins: &Vec<Coin>) -> String {
     let mut str = "".to_string();
-    if coins.len() == 0 {
-        str.push_str(&"[]".to_string());
+    if coins.is_empty() {
+        str.push_str("[]");
     } else {
         for coin in coins {
             str.push_str(&coin.to_string());

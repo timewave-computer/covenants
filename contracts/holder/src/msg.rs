@@ -37,9 +37,7 @@ pub enum ExecuteMsg {
     /// The withdraw can specify a quanity to be withdrawn. If no
     /// quantity is specified, the full balance is withdrawn
     /// into withdrawer account
-    Withdraw {
-        quantity: Option<Vec<Coin>>,
-    },
+    Withdraw { quantity: Option<Vec<Coin>> },
     /// The WithdrawLiqudity message can only be called by the withdrawer
     /// When it is called, the LP tokens are burned and the liquity is withdrawn
     /// from the pool and lands in the holder

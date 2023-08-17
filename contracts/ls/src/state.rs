@@ -1,7 +1,7 @@
 use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 
-use crate::msg::{AcknowledgementResult, ContractState, SudoPayload, RemoteChainInfo};
+use crate::msg::{AcknowledgementResult, ContractState, RemoteChainInfo, SudoPayload};
 
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
@@ -69,10 +69,6 @@ pub fn save_sudo_payload(
     SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_vec(&payload)?)
 }
 
-pub fn clear_sudo_payload(
-    store: &mut dyn Storage,
-    channel_id: String,
-    seq_id: u64,
-) {
+pub fn clear_sudo_payload(store: &mut dyn Storage, channel_id: String, seq_id: u64) {
     SUDO_PAYLOAD.remove(store, (channel_id, seq_id))
 }
