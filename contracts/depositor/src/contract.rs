@@ -133,6 +133,8 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
                     try_send_native_token(env, deps)
                 },
                 Err(_) => {
+                    // reverting state to instantiated to recreate the ICA
+                    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
                     Ok(Response::default()
                         .add_attribute("method", "try_tick")
                         .add_attribute("ica_status", "not_created")
@@ -232,9 +234,13 @@ fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Respo
                 .add_attribute("method", "try_send_native_token")
                 .add_submessage(submsg))
         }
-        None => Ok(Response::default()
-            .add_attribute("method", "try_send_native_token")
-            .add_attribute("error", "no_ica_found")),
+        None => {
+            // reverting state to instantiated to recreate the ICA
+            CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+            Ok(Response::default()
+                .add_attribute("method", "try_send_native_token")
+                .add_attribute("error", "no_ica_found"))
+        },
     }
 }
 

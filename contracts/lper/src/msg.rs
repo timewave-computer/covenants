@@ -1,6 +1,6 @@
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Decimal, Uint128};
+use cosmwasm_std::{Addr, Binary, Decimal, Uint128, Attribute};
 use covenant_clock_derive::clocked;
 
 #[cw_serde]
@@ -111,8 +111,6 @@ pub enum ExecuteMsg {}
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(Addr)]
-    PoolAddress {},
-    #[returns(Addr)]
     ClockAddress {},
     #[returns(ContractState)]
     ContractState {},
@@ -120,27 +118,17 @@ pub enum QueryMsg {
     HolderAddress {},
     #[returns(Vec<Asset>)]
     Assets {},
-    #[returns(Uint128)]
-    ExpectedLsTokenAmount {},
-    #[returns(Uint128)]
-    AllowedReturnDelta {},
-    #[returns(Uint128)]
-    ExpectedNativeTokenAmount {},
+    #[returns(LpConfig)]
+    LpConfig {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
-        pool_address: Option<String>,
         holder_address: Option<String>,
-        expected_ls_token_amount: Option<Uint128>,
-        allowed_return_delta: Option<Uint128>,
-        single_side_lp_limits: Option<SingleSideLpLimits>,
-        slippage_tolerance: Option<Decimal>,
         assets: Option<AssetData>,
-        expected_native_token_amount: Option<Uint128>,
-        autostake: Option<bool>,
+        lp_config: Option<LpConfig>,
     },
     UpdateCodeId {
         data: Option<Binary>,
@@ -158,4 +146,52 @@ pub struct ProvidedLiquidityInfo {
 #[cw_serde]
 pub enum ContractState {
     Instantiated,
+}
+
+#[cw_serde]
+pub struct LpConfig {
+    /// the native token amount we expect to be funded with
+    pub expected_native_token_amount: Uint128,
+    /// stride redemption rate is variable so we set the expected ls token amount 
+    pub expected_ls_token_amount: Uint128,
+    /// accepted return amount fluctuation that gets applied to EXPECTED_LS_TOKEN_AMOUNT
+    pub allowed_return_delta: Uint128,
+    /// address of the liquidity pool we plan to enter
+    pub pool_address: Addr,
+    /// amounts of native and ls tokens we consider ok to single-side lp
+    pub single_side_lp_limits: SingleSideLpLimits,
+    /// boolean flag for enabling autostaking of LP tokens upon liquidity provisioning
+    pub autostake: Option<bool>,
+    /// slippage tolerance parameter for liquidity provisioning 
+    pub slippage_tolerance: Option<Decimal>,
+}
+
+
+impl LpConfig {
+    pub fn to_response_attributes(self) -> Vec<Attribute> {
+        let autostake = match self.autostake {
+            Some(val) => val.to_string(),
+            None => "None".to_string(),
+        };
+        let slippage_tolerance = match self.slippage_tolerance {
+            Some(val) => val.to_string(),
+            None => "None".to_string(),
+        };
+        vec![
+            Attribute::new("expected_native_token_amount", self.expected_native_token_amount.to_string()),
+            Attribute::new("expected_ls_token_amount", self.expected_ls_token_amount.to_string()),
+            Attribute::new("allowed_return_delta", self.allowed_return_delta.to_string()),
+            Attribute::new("pool_address", self.pool_address.to_string()),
+            Attribute::new(
+                "single_side_lp_limit_native",
+                self.single_side_lp_limits.native_asset_limit.to_string()
+            ),
+            Attribute::new(
+                "single_side_lp_limit_ls",
+                self.single_side_lp_limits.ls_asset_limit.to_string()
+            ),
+            Attribute::new("autostake", autostake),
+            Attribute::new("slippage_tolerance", slippage_tolerance),
+        ]
+    }
 }
