@@ -1175,8 +1175,8 @@ func TestICS(t *testing.T) {
 			}
 			_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
-			// print("\n clock response: ", string(resp), "\n")
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
+
+			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			var response ContractStateQueryResponse
@@ -1246,8 +1246,6 @@ func TestICS(t *testing.T) {
 		})
 
 		t.Run("Query depositor ICA", func(t *testing.T) {
-			// Give atom some time before querying
-			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 			var response QueryResponse
 			err = cosmosNeutron.QueryContract(ctx, depositorContractAddress, DepositorICAAddressQuery{}, &response)
 			require.NoError(t, err, "failed to query ICA account address")
@@ -1314,8 +1312,6 @@ func TestICS(t *testing.T) {
 			for i := 1; i < maxTicks; i++ {
 				print("\n Ticking clock ", i, " of ", maxTicks)
 				tickClock()
-				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
-				require.NoError(t, err, "failed to wait for blocks")
 			}
 
 			// now we restart the relayer and try again
@@ -1329,9 +1325,6 @@ func TestICS(t *testing.T) {
 			for i := 1; i < maxTicks; i++ {
 				print("\n Ticking clock ", i, " of ", maxTicks)
 				tickClock()
-
-				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
-				require.NoError(t, err, "failed to wait for blocks")
 
 				strideICABal, err := stride.GetBalance(ctx, strideICAAddress, "stuatom")
 				require.NoError(t, err, "failed to query ICA balance")
@@ -1362,55 +1355,6 @@ func TestICS(t *testing.T) {
 			transferCmd := getLsPermisionlessTransferMsg(strideRedemptionRate * atomToLiquidStake)
 			cosmosNeutron.Exec(ctx, transferCmd, nil)
 
-			// switch off the relayer
-			// stopRelayer()
-			// trigger sudo_timeout which rolls back the state
-			// cosmosNeutron.Exec(ctx, transferCmd, nil)
-
-			// err = testutil.WaitForBlocks(ctx, 40, atom, neutron, stride)
-			// require.NoError(t, err, "failed to wait for blocks")
-
-			// maxTicks := 10
-			// // do some ticks with relayer switched off
-			// for i := 1; i < maxTicks; i++ {
-			// 	print("\n Ticking clock ", i, " of ", maxTicks)
-			// 	tickClock()
-			// 	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, stride)
-			// 	require.NoError(t, err, "failed to wait for blocks")
-			// }
-
-			// now we restart the relayer and go again
-			// startRelayer()
-
-			// err = testutil.WaitForBlocks(ctx, 30, atom, neutron, stride)
-			// require.NoError(t, err, "failed to wait for blocks")
-
-			// r.FlushPackets(ctx, eRep, neutronStrideIBCPath, strideNeutronChannelId)
-			// r.FlushPackets(ctx, eRep, neutronStrideIBCPath, neutronStrideChannelId)
-			// r.FlushAcknowledgements(ctx, eRep, neutronStrideIBCPath, strideNeutronChannelId)
-			// r.FlushAcknowledgements(ctx, eRep, neutronStrideIBCPath, neutronStrideChannelId)
-			// err = testutil.WaitForBlocks(ctx, 15, atom, neutron, stride)
-			// require.NoError(t, err, "failed to wait for blocks")
-
-			// _, lsState, _ := tickClock()
-			// // require.EqualValues(t, "instantiated", lsState, "ls did not rollback the state")
-
-			// maxTicks := 20
-			// for i := 1; i < maxTicks; i++ {
-			// 	_, lsState, _ = tickClock()
-			// 	err = testutil.WaitForBlocks(ctx, 5, atom, neutron, stride)
-			// 	require.NoError(t, err, "failed to wait for blocks")
-			// 	if lsState == "i_c_a_created" {
-			// 		break
-			// 	}
-			// }
-
-			// retry the transfer again
-			// print("\n attempting permisionless transfer\n")
-			// resp, _, err := cosmosNeutron.Exec(ctx, transferCmd, nil)
-			// require.NoError(t, err)
-			// print("\ntransfer response: ", string(resp), "\n")
-
 			err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
 			require.NoError(t, err)
 
@@ -1422,12 +1366,8 @@ func TestICS(t *testing.T) {
 			require.NoError(t, err, "failed to query ICA balance")
 			print("\n lp statom bal: ", lpStatomBalance, "\n")
 
-			// err = testutil.WaitForBlocks(ctx, 10, atom, neutron, stride)
-			// require.NoError(t, err)
-
 			require.Equal(t, int64(0), strideICABal)
 			require.Equal(t, int64(strideRedemptionRate*atomToLiquidStake), lpStatomBalance)
-
 		})
 
 		queryLpTokenBalance := func(token string, addr string) string {
@@ -1462,35 +1402,14 @@ func TestICS(t *testing.T) {
 				require.NoError(t, err, "failed to query ICA balance")
 				print("\n lp statom bal: ", lpStatomBalance, "\n")
 
-				// holderbalance, err := cosmosNeutron.GetBalance()
-
-				/*
-						let holder_balances = suite.query_cw20_bal(
-							pairinfo.liquidity_token.to_string(),
-							suite.holder_addr.to_string(),
-						);
-
-					    pub fn query_cw20_bal(&self, token: String, addr: String) -> cw20::BalanceResponse {
-							self.app
-								.wrap()
-								.query_wasm_smart(token, &cw20::Cw20QueryMsg::Balance { address: addr })
-								.unwrap()
-						}
-				*/
-				// cosmosNeutron.QueryContract(ctx, liquiditytokenaddr, Cw20QueryMsg)
 				if lpAtomBalance == int64(0) &&
 					lpStatomBalance == int64(0) {
 					break
 				}
-				err = testutil.WaitForBlocks(ctx, 5, neutron)
-				require.NoError(t, err, "failed to wait for blocks")
 				tick += 1
-				// queryAllLpHolders(liquidityTokenAddress)
 			}
 			// fail if we haven't transferred funds in under maxTicks
 			require.LessOrEqual(t, tick, maxTicks)
-			// TODO check if they are in holder
-
 		})
 
 		t.Run("holder can withdraw liquidity", func(t *testing.T) {

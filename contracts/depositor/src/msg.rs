@@ -165,9 +165,7 @@ pub enum MigrateMsg {
         gaia_stride_ibc_transfer_channel_id: Option<String>,
         ls_address: Option<String>,
         autopilot_format: Option<String>,
-        ibc_fee: Option<IbcFee>,
-        ibc_transfer_timeout: Option<Uint64>,
-        ica_timeout: Option<Uint64>,
+        ibc_config: Option<IbcConfig>,
     },
     UpdateCodeId {
         data: Option<Binary>,
@@ -243,4 +241,11 @@ pub struct LpConfig {
 pub struct SingleSideLpLimits {
     pub native_asset_limit: Uint128,
     pub ls_asset_limit: Uint128,
+}
+
+#[cw_serde]
+pub struct IbcConfig {
+    pub ibc_fee: IbcFee,
+    pub ibc_transfer_timeout: Uint64,
+    pub ica_timeout: Uint64,
 }
