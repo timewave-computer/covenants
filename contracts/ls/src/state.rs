@@ -1,8 +1,7 @@
-use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint64};
+use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
-use neutron_sdk::bindings::msg::IbcFee;
 
-use crate::msg::{AcknowledgementResult, ContractState, SudoPayload};
+use crate::msg::{AcknowledgementResult, ContractState, SudoPayload, RemoteChainInfo};
 
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
@@ -12,24 +11,12 @@ pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 /// liquid pooler module address to forward the liquid staked funds to
 pub const LP_ADDRESS: Item<Addr> = Item::new("lp_address");
 
-/// IBC transfer channel on stride for neutron
-pub const STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("sn_ibc_chann_id");
-/// IBC connection ID on neutron for stride
-pub const NEUTRON_STRIDE_IBC_CONNECTION_ID: Item<String> = Item::new("ns_ibc_conn_id");
-
-/// the denom that we will permit transfers of to the liquid pooler
-pub const LS_DENOM: Item<String> = Item::new("ls_denom");
+/// information needed for an ibc transfer to the remote chain
+pub const REMOTE_CHAIN_INFO: Item<RemoteChainInfo> = Item::new("r_c_info");
 
 /// interchain accounts storage in form of (port_id) -> (address, controller_connection_id)
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
-
-/// timeout in seconds for inner ibc MsgTransfer
-pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
-/// time in seconds for ICA SubmitTX messages from neutron
-pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
-/// neutron IbcFee for relayers
-pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 
 /// interchain transaction responses - ack/err/timeout state to query later
 pub const ACKNOWLEDGEMENT_RESULTS: Map<(String, u64), AcknowledgementResult> =

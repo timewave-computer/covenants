@@ -5,28 +5,28 @@ use cosmos_sdk_proto::traits::Message;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Addr, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128,
+    Response, StdError, StdResult, SubMsg, Uint128, Attribute,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 
 use crate::msg::{
-    AcknowledgementResult, ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion,
-    QueryMsg, SudoPayload,
+    ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion,
+    QueryMsg, SudoPayload, RemoteChainInfo,
 };
 use crate::state::{
-    add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
+    read_errors_from_queue, read_reply_payload,
     save_reply_payload, save_sudo_payload, ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE,
-    IBC_FEE, IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, INTERCHAIN_ACCOUNTS, LP_ADDRESS, LS_DENOM,
-    NEUTRON_STRIDE_IBC_CONNECTION_ID, STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID,
+    INTERCHAIN_ACCOUNTS, LP_ADDRESS,
+    REMOTE_CHAIN_INFO,
 };
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
         query::{NeutronQuery, QueryInterchainAccountAddressResponse},
     },
-    interchain_txs::helpers::{decode_acknowledgement_response, get_port_id},
+    interchain_txs::helpers::{get_port_id},
     sudo::msg::{RequestPacket, SudoMsg},
     NeutronError, NeutronResult,
 };
@@ -57,30 +57,22 @@ pub fn instantiate(
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     LP_ADDRESS.save(deps.storage, &lp_address)?;
 
-    // store all fields relevant to ICA operations
-    STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID
-        .save(deps.storage, &msg.stride_neutron_ibc_transfer_channel_id)?;
-    NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &msg.neutron_stride_ibc_connection_id)?;
-    LS_DENOM.save(deps.storage, &msg.ls_denom)?;
-    IBC_TRANSFER_TIMEOUT.save(deps.storage, &msg.ibc_transfer_timeout)?;
-    ICA_TIMEOUT.save(deps.storage, &msg.ica_timeout)?;
-    IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
-
+    let remote_chain_info = RemoteChainInfo {
+        connection_id: msg.neutron_stride_ibc_connection_id,
+        channel_id: msg.stride_neutron_ibc_transfer_channel_id,
+        denom: msg.ls_denom,
+        ibc_transfer_timeout: msg.ibc_transfer_timeout,
+        ica_timeout: msg.ica_timeout,
+        ibc_fee: msg.ibc_fee,
+    };
+    REMOTE_CHAIN_INFO.save(deps.storage, &remote_chain_info)?;
+    
     Ok(Response::default()
         .add_attribute("method", "ls_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attribute("lp_address", lp_address)
-        .add_attribute(
-            "stride_neutron_ibc_transfer_channel_id",
-            msg.stride_neutron_ibc_transfer_channel_id,
-        )
-        .add_attribute(
-            "neutron_stride_ibc_connection_id",
-            msg.neutron_stride_ibc_connection_id,
-        )
-        .add_attribute("ls_denom", msg.ls_denom)
-        .add_attribute("ibc_transfer_timeout", msg.ibc_transfer_timeout)
-        .add_attribute("ica_timeout", msg.ica_timeout))
+        .add_attributes(remote_chain_info.get_response_attributes()
+    ))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -95,25 +87,15 @@ pub fn execute(
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Transfer { amount } => {
-            // let state = CONTRACT_STATE.load(deps.storage)?;
-            // match state {
-            //     ContractState::Instantiated => Ok(Response::default()
-            //         .add_attribute("method", "permisionless_transfer")
-            //         .add_attribute("status", "no_ica")
-            //     ),
-            //     ContractState::ICACreated => try_execute_transfer(deps, env, info, amount),
-            // }
-            let ica_address = get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID);
-            match ica_address {
-                Ok((_, _)) => {
-                    try_execute_transfer(deps, env, info, amount)
-                },
-                Err(_) => {
-                    Ok(Response::default()
+            match get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID) {
+                Ok((address, controller_conn_id)) => 
+                    try_execute_transfer(deps, env, info, amount, address, controller_conn_id),
+                // if no ICA is available yet we keep waiting for ticks to create one
+                Err(_) => Ok(
+                    Response::default()
                         .add_attribute("method", "try_permisionless_transfer")
                         .add_attribute("ica_status", "not_created")
-                    )
-                },
+                ),
             }
         },
     }
@@ -133,9 +115,9 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 
 /// registers an interchain account on stride with port_id associated with `INTERCHAIN_ACCOUNT_ID`
 fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-    let connection_id = NEUTRON_STRIDE_IBC_CONNECTION_ID.load(deps.storage)?;
+    let rc_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
     let register =
-        NeutronMsg::register_interchain_account(connection_id, INTERCHAIN_ACCOUNT_ID.to_string());
+        NeutronMsg::register_interchain_account(rc_info.connection_id, INTERCHAIN_ACCOUNT_ID.to_string());
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
 
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
@@ -154,80 +136,70 @@ fn try_execute_transfer(
     env: Env,
     _info: MessageInfo,
     amount: Uint128,
+    address: String,
+    controller_conn_id: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
+    let rc_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
+    let lp_receiver = LP_ADDRESS.load(deps.storage)?;
+    let coin = Coin {
+        denom: rc_info.denom,
+        amount: amount.to_string(),
+    };
 
-    match interchain_account {
-        Some((address, controller_conn_id)) => {
-            let fee = IBC_FEE.load(deps.storage)?;
-            let source_channel = STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
-            let lp_receiver = LP_ADDRESS.load(deps.storage)?;
-            let denom = LS_DENOM.load(deps.storage)?;
-            let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
-            let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
+    // inner MsgTransfer that will be sent from stride to neutron.
+    // because of this message delivery depending on the ica wrapper below,
+    // timeout_timestamp = current block + ica timeout + ibc_transfer_timeout
+    let msg = MsgTransfer {
+        source_port: "transfer".to_string(),
+        source_channel: rc_info.channel_id,
+        token: Some(coin),
+        sender: address,
+        receiver: lp_receiver.to_string(),
+        timeout_height: None,
+        timeout_timestamp: env
+            .block
+            .time
+            .plus_seconds(rc_info.ica_timeout.u64())
+            .plus_seconds(rc_info.ibc_transfer_timeout.u64())
+            .nanos(),
+    };
 
-            let coin = Coin {
-                denom,
-                amount: amount.to_string(),
-            };
-
-            // inner MsgTransfer that will be sent from stride to neutron.
-            // because of this message delivery depending on the ica wrapper below,
-            // timeout_timestamp = current block + ica timeout + ibc_transfer_timeout
-            let msg = MsgTransfer {
-                source_port: "transfer".to_string(),
-                source_channel,
-                token: Some(coin),
-                sender: address,
-                receiver: lp_receiver.to_string(),
-                timeout_height: None,
-                timeout_timestamp: env
-                    .block
-                    .time
-                    .plus_seconds(ica_timeout.u64())
-                    .plus_seconds(ibc_transfer_timeout.u64())
-                    .nanos(),
-            };
-
-            // Serialize the Transfer message
-            let mut buf = Vec::new();
-            buf.reserve(msg.encoded_len());
-            if let Err(e) = msg.encode(&mut buf) {
-                return Err(StdError::generic_err(format!("Encode error: {e}",)).into());
-            }
-
-            let protobuf = ProtobufAny {
-                type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
-                value: Binary::from(buf),
-            };
-
-            // wrap the protobuf of MsgTransfer into a message to be executed
-            // by our interchain account
-            let submit_msg = NeutronMsg::submit_tx(
-                controller_conn_id,
-                INTERCHAIN_ACCOUNT_ID.to_string(),
-                vec![protobuf],
-                "".to_string(),
-                ica_timeout.u64(),
-                fee,
-            );
-
-            let sudo_msg = msg_with_sudo_callback(
-                deps,
-                submit_msg,
-                SudoPayload {
-                    port_id,
-                    message: "permisionless_transfer".to_string(),
-                },
-            )?;
-            Ok(Response::default()
-                .add_submessage(sudo_msg)
-                .add_attribute("method", "try_execute_transfer")
-            )
-        }
-        None => Err(NeutronError::Std(StdError::not_found("no ica found"))),
+    // Serialize the Transfer message
+    let mut buf = Vec::new();
+    buf.reserve(msg.encoded_len());
+    if let Err(e) = msg.encode(&mut buf) {
+        return Err(StdError::generic_err(format!("Encode error: {e}",)).into());
     }
+
+    let protobuf = ProtobufAny {
+        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+        value: Binary::from(buf),
+    };
+
+    // wrap the protobuf of MsgTransfer into a message to be executed
+    // by our interchain account
+    let submit_msg = NeutronMsg::submit_tx(
+        controller_conn_id,
+        INTERCHAIN_ACCOUNT_ID.to_string(),
+        vec![protobuf],
+        "".to_string(),
+        rc_info.ica_timeout.u64(),
+        rc_info.ibc_fee,
+    );
+
+    let sudo_msg = msg_with_sudo_callback(
+        deps,
+        submit_msg,
+        SudoPayload {
+            port_id,
+            message: "permisionless_transfer".to_string(),
+        },
+    )?;
+    Ok(Response::default()
+        .add_submessage(sudo_msg)
+        .add_attribute("method", "try_execute_transfer")
+    )
 }
 
 #[allow(unused)]
@@ -249,18 +221,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
         ))?),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
-        QueryMsg::StrideNeutronIbcTransferChannelId {} => Ok(to_binary(
-            &STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.may_load(deps.storage)?,
-        )?),
-        QueryMsg::NeutronStrideIbcConnectionId {} => Ok(to_binary(
-            &NEUTRON_STRIDE_IBC_CONNECTION_ID.may_load(deps.storage)?,
-        )?),
-        QueryMsg::IbcFee {} => Ok(to_binary(&IBC_FEE.may_load(deps.storage)?)?),
-        QueryMsg::IcaTimeout {} => Ok(to_binary(&ICA_TIMEOUT.may_load(deps.storage)?)?),
-        QueryMsg::IbcTransferTimeout {} => {
-            Ok(to_binary(&IBC_TRANSFER_TIMEOUT.may_load(deps.storage)?)?)
-        }
-        QueryMsg::LsDenom {} => Ok(to_binary(&LS_DENOM.may_load(deps.storage)?)?),
+        QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
         QueryMsg::AcknowledgementResult {
             interchain_account_id,
             sequence_id,
@@ -474,7 +435,6 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     }
 }
 
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
@@ -482,13 +442,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
-            stride_neutron_ibc_transfer_channel_id,
             lp_address,
-            neutron_stride_ibc_connection_id,
-            ls_denom,
-            ibc_fee,
-            ibc_transfer_timeout,
-            ica_timeout,
+            remote_chain_info,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
@@ -498,49 +453,16 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 resp = resp.add_attribute("clock_addr", addr.to_string());
             }
 
-            if let Some(channel_id) = stride_neutron_ibc_transfer_channel_id {
-                STRIDE_NEUTRON_IBC_TRANSFER_CHANNEL_ID.save(deps.storage, &channel_id)?;
-                resp = resp.add_attribute("stride_neutron_ibc_transfer_channel_id", channel_id);
-            }
-
             if let Some(addr) = lp_address {
                 let addr = deps.api.addr_validate(&addr)?;
                 resp = resp.add_attribute("lp_address", addr.to_string());
                 LP_ADDRESS.save(deps.storage, &addr)?;
             }
 
-            if let Some(connection_id) = neutron_stride_ibc_connection_id {
-                NEUTRON_STRIDE_IBC_CONNECTION_ID.save(deps.storage, &connection_id)?;
-                resp = resp.add_attribute("neutron_stride_ibc_connection_id", connection_id);
-            }
-
-            if let Some(denom) = ls_denom {
-                LS_DENOM.save(deps.storage, &denom)?;
-                resp = resp.add_attribute("ls_denom", denom);
-            }
-
-            if let Some(timeout) = ibc_transfer_timeout {
-                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
-                IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
-                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
-            }
-
-            if let Some(timeout) = ica_timeout {
-                resp = resp.add_attribute("ica_timeout", timeout);
-                ICA_TIMEOUT.save(deps.storage, &timeout)?;
-                resp = resp.add_attribute("ica_timeout", timeout);
-            }
-
-            if let Some(fee) = ibc_fee {
-                if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() || !fee.recv_fee.is_empty()
-                {
-                    return Err(StdError::GenericErr {
-                        msg: "invalid IbcFee".to_string(),
-                    });
-                }
-                IBC_FEE.save(deps.storage, &fee)?;
-                resp = resp.add_attribute("ibc_fee_ack", fee.ack_fee[0].to_string());
-                resp = resp.add_attribute("ibc_fee_timeout", fee.timeout_fee[0].to_string());
+            if let Some(rci) = remote_chain_info {
+                let validated_rci = rci.validate()?;
+                REMOTE_CHAIN_INFO.save(deps.storage, &validated_rci)?;
+                resp = resp.add_attributes(validated_rci.get_response_attributes());
             }
 
             Ok(resp)

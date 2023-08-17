@@ -14,9 +14,9 @@ use neutron_sdk::bindings::types::ProtobufAny;
 use prost::Message;
 
 use crate::{
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg, ContractState, SudoPayload, AcknowledgementResult},
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg, ContractState, SudoPayload, AcknowledgementResult, IbcConfig},
     state::{
-        IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT, clear_sudo_payload,
+        NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT, clear_sudo_payload, IBC_CONFIG,
     },
 };
 use neutron_sdk::{
@@ -33,7 +33,7 @@ use crate::state::{
     add_error_to_queue, read_errors_from_queue, read_reply_payload, read_sudo_payload,
     save_reply_payload, save_sudo_payload,
     ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
-    GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
+    GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID,
     INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
     NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER,
 };
@@ -84,9 +84,11 @@ pub fn instantiate(
     AUTOPILOT_FORMAT.save(deps.storage, &msg.autopilot_format)?;
     
     // ibc fees and timeouts
-    IBC_FEE.save(deps.storage, &msg.ibc_fee)?;
-    ICA_TIMEOUT.save(deps.storage, &msg.ica_timeout)?;
-    IBC_TRANSFER_TIMEOUT.save(deps.storage, &msg.ibc_transfer_timeout)?;
+    IBC_CONFIG.save(deps.storage, &IbcConfig {
+        ibc_fee: msg.ibc_fee,
+        ibc_transfer_timeout: msg.ibc_transfer_timeout,
+        ica_timeout: msg.ica_timeout,
+    })?;
 
     Ok(Response::default()
         .add_attribute("method", "depositor_instantiate")
@@ -129,9 +131,8 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
         ContractState::ICACreated => {
             let ica_address = get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID);
             match ica_address {
-                Ok((_, _)) => {
-                    try_send_native_token(env, deps)
-                },
+                Ok((address, controller_conn_id)) =>
+                    try_send_native_token(env, deps, address, controller_conn_id),
                 Err(_) => {
                     // reverting state to instantiated to recreate the ICA
                     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
@@ -141,7 +142,7 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
                     )
                 },
             }
-        }
+        },
         ContractState::VerifyNativeToken => try_verify_native_token(env, deps),
         ContractState::VerifyLp => try_verify_lp(env, deps),
         ContractState::Complete => {
@@ -166,82 +167,71 @@ fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
 }
 
 /// attempts to forward the funds to LP module
-fn try_send_native_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
+fn try_send_native_token(env: Env, mut deps: ExecuteDeps, address: String, controller_conn_id: String
+) -> NeutronResult<Response<NeutronMsg>> {
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
-    match interchain_account {
-        Some((address, controller_conn_id)) => {
-            let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
-            let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
-            let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
-            let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
-            let fee = IBC_FEE.load(deps.storage)?;
+    let ibc_config = IBC_CONFIG.load(deps.storage)?;
+    let source_channel = GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+    let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
 
-            let coin = Coin {
-                denom: ATOM_DENOM.to_string(),
-                amount: receiver.amount.to_string(),
-            };
+    let coin = Coin {
+        denom: ATOM_DENOM.to_string(),
+        amount: receiver.amount.to_string(),
+    };
 
-            // we define the gaia->neutron timeout to be equal to:
-            // current block + ICA timeout + ibc transfer timeout.
-            // this assumes the worst possible time of delivery for the ICA message
-            // which wraps the underlying MsgTransfer.
-            let msg_transfer_timeout = env
-                .block
-                .time
-                // we take the wrapping ICA tx timeout into account and assume the worst
-                .plus_seconds(ica_timeout.u64())
-                // and then add the preset ibc transfer timeout
-                .plus_seconds(ibc_transfer_timeout.u64());
+    // we define the gaia->neutron timeout to be equal to:
+    // current block + ICA timeout + ibc transfer timeout.
+    // this assumes the worst possible time of delivery for the ICA message
+    // which wraps the underlying MsgTransfer.
+    let msg_transfer_timeout = env
+        .block
+        .time
+        // we take the wrapping ICA tx timeout into account and assume the worst
+        .plus_seconds(ibc_config.ica_timeout.u64())
+        // and then add the preset ibc transfer timeout
+        .plus_seconds(ibc_config.ibc_transfer_timeout.u64());
 
-            // we store that timeout for later validation of pending transfers
-            PENDING_NATIVE_TRANSFER_TIMEOUT.save(deps.storage, &msg_transfer_timeout)?;
+    // we store that timeout for later validation of pending transfers
+    PENDING_NATIVE_TRANSFER_TIMEOUT.save(deps.storage, &msg_transfer_timeout)?;
 
-            // transfer message that will send funds from the ICA on gaia to our LP module
-            let lper_msg = MsgTransfer {
-                source_port: "transfer".to_string(),
-                source_channel,
-                token: Some(coin),
-                sender: address,
-                receiver: receiver.address,
-                timeout_height: None,
-                timeout_timestamp: msg_transfer_timeout.nanos(),
-            };
+    // transfer message that will send funds from the ICA on gaia to our LP module
+    let lper_msg = MsgTransfer {
+        source_port: "transfer".to_string(),
+        source_channel,
+        token: Some(coin),
+        sender: address,
+        receiver: receiver.address,
+        timeout_height: None,
+        timeout_timestamp: msg_transfer_timeout.nanos(),
+    };
 
-            let lp_protobuf = to_proto_msg_transfer(lper_msg)?;
+    let lp_protobuf = to_proto_msg_transfer(lper_msg)?;
 
-            // tx to our ICA that wraps the transfer message defined above
-            let submit_msg = NeutronMsg::submit_tx(
-                controller_conn_id,
-                INTERCHAIN_ACCOUNT_ID.to_string(),
-                vec![lp_protobuf],
-                "".to_string(),
-                ica_timeout.u64(),
-                fee,
-            );
+    // tx to our ICA that wraps the transfer message defined above
+    let submit_msg = NeutronMsg::submit_tx(
+        controller_conn_id,
+        INTERCHAIN_ACCOUNT_ID.to_string(),
+        vec![lp_protobuf],
+        "".to_string(),
+        ibc_config.ica_timeout.u64(),
+        ibc_config.ibc_fee,
+    );
 
-            let submsg = msg_with_sudo_callback(
-                deps.branch(),
-                submit_msg,
-                SudoPayload {
-                    port_id,
-                    message: "try_send_native_token".to_string(),
-                },
-            )?;
-
-            Ok(Response::default()
-                .add_attribute("method", "try_send_native_token")
-                .add_submessage(submsg))
-        }
-        None => {
-            // reverting state to instantiated to recreate the ICA
-            CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
-            Ok(Response::default()
-                .add_attribute("method", "try_send_native_token")
-                .add_attribute("error", "no_ica_found"))
+    let submsg = msg_with_sudo_callback(
+        deps.branch(),
+        submit_msg,
+        SudoPayload {
+            port_id,
+            message: "try_send_native_token".to_string(),
         },
-    }
+    )?;
+
+    Ok(Response::default()
+        .add_attribute("method", "try_send_native_token")
+        .add_submessage(submsg))
+
+
 }
 
 fn query_lper_balance(deps: QueryDeps, lper: &str) -> StdResult<cosmwasm_std::Coin> {
@@ -250,7 +240,8 @@ fn query_lper_balance(deps: QueryDeps, lper: &str) -> StdResult<cosmwasm_std::Co
 }
 
 /// we attempt to send funds to the ICA on stride
-fn try_send_ls_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<NeutronMsg>> {
+fn try_send_ls_token(env: Env, mut deps: ExecuteDeps, address: String, controller_conn_id: String
+) -> NeutronResult<SubMsg<NeutronMsg>> {
     // first we load the LS module address which is responsible for creating
     // an ICA on stride so that we can query for that ICA address
     let ls_address = LS_ADDRESS.load(deps.storage)?;
@@ -269,72 +260,62 @@ fn try_send_ls_token(env: Env, mut deps: ExecuteDeps) -> NeutronResult<SubMsg<Ne
     })?;
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
-    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
+    let gaia_stride_channel = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
+    let ibc_config = IBC_CONFIG.load(deps.storage)?;
+    let stride_coin = Coin {
+        denom: ATOM_DENOM.to_string(),
+        amount: stride_receiver.amount.to_string(),
+    };
 
-    match interchain_account {
-        Some((address, controller_conn_id)) => {
-            let gaia_stride_channel = GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID.load(deps.storage)?;
-            let ibc_transfer_timeout = IBC_TRANSFER_TIMEOUT.load(deps.storage)?;
-            let ica_timeout = ICA_TIMEOUT.load(deps.storage)?;
-            let fee = IBC_FEE.load(deps.storage)?;
+    // we load the stored format string of autopilot and replace the dynamic fields
+    // with our queried data
+    let autopilot_receiver = AUTOPILOT_FORMAT
+        .load(deps.storage)?
+        .replace("{st_ica}", &stride_ica_addr);
 
-            let stride_coin = Coin {
-                denom: ATOM_DENOM.to_string(),
-                amount: stride_receiver.amount.to_string(),
-            };
+    // we define the gaia->neutron timeout to be equal to:
+    // current block + ICA timeout + ibc transfer timeout.
+    // this assumes the worst possible time of delivery for the ICA message
+    // which wraps the underlying MsgTransfer.
+    let msg_transfer_timeout = env
+        .block
+        .time
+        // we take the wrapping ICA tx timeout into account and assume the worst
+        .plus_seconds(ibc_config.ica_timeout.u64())
+        // and then add the preset ibc transfer timeout
+        .plus_seconds(ibc_config.ibc_transfer_timeout.u64());
 
-            // we load the stored format string of autopilot and replace the dynamic fields
-            // with our queried data
-            let autopilot_receiver = AUTOPILOT_FORMAT
-                .load(deps.storage)?
-                .replace("{st_ica}", &stride_ica_addr);
+    // transfer message that will send funds from the ICA on gaia to our ICA on stride
+    let stride_msg = MsgTransfer {
+        source_port: "transfer".to_string(),
+        source_channel: gaia_stride_channel,
+        token: Some(stride_coin),
+        sender: address,
+        receiver: autopilot_receiver,
+        timeout_height: None,
+        timeout_timestamp: msg_transfer_timeout.nanos(),
+    };
 
-            // we define the gaia->neutron timeout to be equal to:
-            // current block + ICA timeout + ibc transfer timeout.
-            // this assumes the worst possible time of delivery for the ICA message
-            // which wraps the underlying MsgTransfer.
-            let msg_transfer_timeout = env
-                .block
-                .time
-                // we take the wrapping ICA tx timeout into account and assume the worst
-                .plus_seconds(ica_timeout.u64())
-                // and then add the preset ibc transfer timeout
-                .plus_seconds(ibc_transfer_timeout.u64());
+    let stride_protobuf = to_proto_msg_transfer(stride_msg)?;
 
-            // transfer message that will send funds from the ICA on gaia to our ICA on stride
-            let stride_msg = MsgTransfer {
-                source_port: "transfer".to_string(),
-                source_channel: gaia_stride_channel,
-                token: Some(stride_coin),
-                sender: address,
-                receiver: autopilot_receiver,
-                timeout_height: None,
-                timeout_timestamp: msg_transfer_timeout.nanos(),
-            };
+    // tx to our ICA that wraps the transfer message defined above
+    let submit_msg = NeutronMsg::submit_tx(
+        controller_conn_id,
+        INTERCHAIN_ACCOUNT_ID.to_string(),
+        vec![stride_protobuf],
+        "".to_string(),
+        ibc_config.ica_timeout.u64(),
+        ibc_config.ibc_fee,
+    );
 
-            let stride_protobuf = to_proto_msg_transfer(stride_msg)?;
-
-            // tx to our ICA that wraps the transfer message defined above
-            let submit_msg = NeutronMsg::submit_tx(
-                controller_conn_id,
-                INTERCHAIN_ACCOUNT_ID.to_string(),
-                vec![stride_protobuf],
-                "".to_string(),
-                ica_timeout.u64(),
-                fee,
-            );
-
-            Ok(msg_with_sudo_callback(
-                deps.branch(),
-                submit_msg,
-                SudoPayload {
-                    port_id,
-                    message: "try_send_st_token".to_string(),
-                },
-            )?)
-        }
-        None => Err(NeutronError::Std(StdError::not_found("no ica found"))),
-    }
+    Ok(msg_with_sudo_callback(
+        deps.branch(),
+        submit_msg,
+        SudoPayload {
+            port_id,
+            message: "try_send_st_token".to_string(),
+        },
+    )?)
 }
 
 /// attempts to advance the state machine past the sending native tokens to LP module phase.
@@ -406,7 +387,20 @@ fn try_verify_lp(env: Env, deps: ExecuteDeps) -> NeutronResult<Response<NeutronM
             .add_attribute("status", "completed"))
     } else {
         // Balance is still there, so retry to send st token
-        let ls_token_msg = try_send_ls_token(env, deps)?;
+
+        let ica_address = get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID);
+        let ls_token_msg = match ica_address {
+            Ok((address, controller_conn_id)) =>
+                try_send_ls_token(env, deps, address, controller_conn_id),
+            Err(_) => {
+                // reverting state to instantiated to recreate the ICA
+                CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+                return Ok(Response::default()
+                    .add_attribute("method", "try_verify_lp")
+                    .add_attribute("ica_status", "not_created")
+                )
+            },
+        }?;
 
         Ok(Response::default()
             .add_submessage(ls_token_msg)
@@ -572,9 +566,7 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             gaia_stride_ibc_transfer_channel_id,
             ls_address,
             autopilot_format,
-            ibc_fee,
-            ibc_transfer_timeout,
-            ica_timeout,
+            ibc_config,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
@@ -621,25 +613,19 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
                 resp = resp.add_attribute("autopilot_format", autopilot_f);
             }
 
-            if let Some(timeout) = ibc_transfer_timeout {
-                IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
-                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
-            }
-
-            if let Some(timeout) = ica_timeout {
-                ICA_TIMEOUT.save(deps.storage, &timeout)?;
-                resp = resp.add_attribute("ica_timeout", timeout);
-            }
-
-            if let Some(fee) = ibc_fee {
-                if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() || !fee.recv_fee.is_empty() {
+            if let Some(config) = ibc_config {
+                if config.ibc_fee.ack_fee.is_empty() 
+                || config.ibc_fee.timeout_fee.is_empty()
+                || !config.ibc_fee.recv_fee.is_empty() {
                     return Err(StdError::GenericErr {
                         msg: "invalid IbcFee".to_string(),
                     });
                 }
-                IBC_FEE.save(deps.storage, &fee)?;
-                resp = resp.add_attribute("ibc_fee_ack", fee.ack_fee[0].to_string());
-                resp = resp.add_attribute("ibc_fee_timeout", fee.timeout_fee[0].to_string());
+                IBC_CONFIG.save(deps.storage, &config)?;
+                resp = resp.add_attribute("ibc_transfer_timeout", config.ibc_transfer_timeout.to_string());
+                resp = resp.add_attribute("ica_timeout", config.ica_timeout.to_string());
+                resp = resp.add_attribute("ibc_fee_ack", config.ibc_fee.ack_fee[0].to_string());
+                resp = resp.add_attribute("ibc_fee_timeout", config.ibc_fee.timeout_fee[0].to_string());
             }
 
             Ok(resp)

@@ -3,7 +3,7 @@ use cosmwasm_std::{
 };
 use cw_storage_plus::{Item, Map};
 use neutron_sdk::bindings::msg::IbcFee;
-use crate::msg::{WeightedReceiver, AcknowledgementResult, SudoPayload, ContractState};
+use crate::msg::{WeightedReceiver, AcknowledgementResult, SudoPayload, ContractState, IbcConfig};
 
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
@@ -34,12 +34,8 @@ pub const GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID: Item<String> = Item::new("gs_ibc_
 /// connection id of gaia on neutron
 pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
 
-/// timeout in seconds for inner ibc MsgTransfer
-pub const IBC_TRANSFER_TIMEOUT: Item<Uint64> = Item::new("ibc_transfer_timeout");
-/// time in seconds for ICA SubmitTX messages from neutron
-pub const ICA_TIMEOUT: Item<Uint64> = Item::new("ica_timeout");
-/// neutron IbcFee for relayers
-pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
+/// config containing ibc fee, ica timeout, and ibc transfer
+pub const IBC_CONFIG: Item<IbcConfig> = Item::new("ibc_config");
 
 /// interchain accounts storage in form of (port_id) -> (address, controller_connection_id)
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> = Map::new("interchain_accounts");

@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint128, Uint64};
+use cosmwasm_std::{Addr, Binary, Uint128, Uint64, Attribute, StdError, Coin};
 use covenant_clock_derive::clocked;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -91,18 +91,6 @@ pub enum QueryMsg {
     LpAddress {},
     #[returns(ContractState)]
     ContractState {},
-    #[returns(String)]
-    StrideNeutronIbcTransferChannelId {},
-    #[returns(String)]
-    NeutronStrideIbcConnectionId {},
-    #[returns(IbcFee)]
-    IbcFee {},
-    #[returns(Uint64)]
-    IcaTimeout {},
-    #[returns(Uint64)]
-    IbcTransferTimeout {},
-    #[returns(String)]
-    LsDenom {},
     // this query returns acknowledgement result after interchain transaction
     #[returns(Option<AcknowledgementResult>)]
     AcknowledgementResult {
@@ -112,19 +100,16 @@ pub enum QueryMsg {
     // this query returns non-critical errors list
     #[returns(Vec<(Vec<u8>, String)>)]
     ErrorsQueue {},
+    #[returns(RemoteChainInfo)]
+    RemoteChainInfo {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
-        stride_neutron_ibc_transfer_channel_id: Option<String>,
         lp_address: Option<String>,
-        neutron_stride_ibc_connection_id: Option<String>,
-        ls_denom: Option<String>,
-        ibc_fee: Option<IbcFee>,
-        ibc_transfer_timeout: Option<Uint64>,
-        ica_timeout: Option<Uint64>,
+        remote_chain_info: Option<RemoteChainInfo>,
     },
     UpdateCodeId {
         data: Option<Binary>,
@@ -164,4 +149,57 @@ pub enum AcknowledgementResult {
     Error((String, String)),
     /// Timeout - Got timeout acknowledgement in sudo with payload message in it
     Timeout(String),
+}
+
+#[cw_serde]
+pub struct RemoteChainInfo {
+    /// connection id from neutron to the remote chain on which
+    /// we wish to open an ICA
+    pub connection_id: String,
+    pub channel_id: String,
+    pub denom: String,
+    pub ibc_transfer_timeout: Uint64,
+    pub ica_timeout: Uint64,
+    pub ibc_fee: IbcFee,
+}
+
+impl RemoteChainInfo {
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
+        let recv_fee = coin_vec_to_string(&self.ibc_fee.recv_fee);
+        let ack_fee = coin_vec_to_string(&self.ibc_fee.ack_fee);
+        let timeout_fee = coin_vec_to_string(&self.ibc_fee.timeout_fee);
+
+        vec![
+            Attribute::new("connection_id", &self.connection_id),
+            Attribute::new("channel_id", &self.channel_id),
+            Attribute::new("denom", &self.denom),
+            Attribute::new("ibc_transfer_timeout", &self.ibc_transfer_timeout.to_string()),
+            Attribute::new("ica_timeout", &self.ica_timeout.to_string()),
+            Attribute::new("ibc_recv_fee", recv_fee),
+            Attribute::new("ibc_ack_fee", ack_fee),
+            Attribute::new("ibc_timeout_fee", timeout_fee),
+        ]
+    }
+
+    pub fn validate(self) -> Result<RemoteChainInfo, StdError> {
+        if self.ibc_fee.ack_fee.is_empty() || self.ibc_fee.timeout_fee.is_empty() || !self.ibc_fee.recv_fee.is_empty() {
+            return Err(StdError::GenericErr {
+                msg: "invalid IbcFee".to_string(),
+            })
+        }
+
+        Ok(self)
+    }
+}
+
+fn coin_vec_to_string(coins: &Vec<Coin>) -> String {
+    let mut str = "".to_string();
+    if coins.len() == 0 {
+        str.push_str(&"[]".to_string());
+    } else {
+        for coin in coins {
+            str.push_str(&coin.to_string());
+        }
+    }
+    str.to_string()
 }
