@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Uint128, Uint64};
+use cosmwasm_std::{Addr, Binary, Uint128, Uint64, Decimal};
 use covenant_clock_derive::clocked;
 use neutron_sdk::bindings::{msg::IbcFee, query::QueryInterchainAccountAddressResponse};
 
@@ -216,4 +216,31 @@ pub enum AcknowledgementResult {
     Error((String, String)),
     /// Timeout - Got timeout acknowledgement in sudo with payload message in it
     Timeout(String),
+}
+
+#[cw_serde]
+pub struct LpConfig {
+    /// the native token amount we expect to be funded with
+    pub expected_native_token_amount: Uint128,
+    /// stride redemption rate is variable so we set the expected ls token amount 
+    pub expected_ls_token_amount: Uint128,
+    /// accepted return amount fluctuation that gets applied to EXPECTED_LS_TOKEN_AMOUNT
+    pub allowed_return_delta: Uint128,
+    /// address of the liquidity pool we plan to enter
+    pub pool_address: Addr,
+    /// amounts of native and ls tokens we consider ok to single-side lp
+    pub single_side_lp_limits: SingleSideLpLimits,
+    /// boolean flag for enabling autostaking of LP tokens upon liquidity provisioning
+    pub autostake: Option<bool>,
+    /// slippage tolerance parameter for liquidity provisioning 
+    pub slippage_tolerance: Option<Decimal>,
+}
+
+/// single side lp limits define the highest amount (in `Uint128`) that
+/// we consider acceptable to provide single-sided. 
+/// if asset balance exceeds these limits, double-sided liquidity should be provided.
+#[cw_serde]
+pub struct SingleSideLpLimits {
+    pub native_asset_limit: Uint128,
+    pub ls_asset_limit: Uint128,
 }
