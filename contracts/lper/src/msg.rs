@@ -1,6 +1,6 @@
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Decimal, Uint128, Attribute};
+use cosmwasm_std::{Addr, Attribute, Binary, Decimal, Uint128};
 use covenant_clock_derive::clocked;
 
 #[cw_serde]
@@ -41,7 +41,7 @@ impl AssetData {
 }
 
 /// single side lp limits define the highest amount (in `Uint128`) that
-/// we consider acceptable to provide single-sided. 
+/// we consider acceptable to provide single-sided.
 /// if asset balance exceeds these limits, double-sided liquidity should be provided.
 #[cw_serde]
 pub struct SingleSideLpLimits {
@@ -69,7 +69,7 @@ pub struct PresetLpFields {
     pub label: String,
     /// workaround for the current lack of stride redemption rate query.
     /// we set the expected amount of ls tokens we expect to receive for
-    /// the relevant half of the native tokens we have 
+    /// the relevant half of the native tokens we have
     pub expected_ls_token_amount: Uint128,
     /// difference (both ways) we tolerate with regards to the `expected_ls_token_amount`
     pub allowed_return_delta: Uint128,
@@ -122,6 +122,7 @@ pub enum QueryMsg {
     LpConfig {},
 }
 
+#[allow(clippy::large_enum_variant)]
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
@@ -152,7 +153,7 @@ pub enum ContractState {
 pub struct LpConfig {
     /// the native token amount we expect to be funded with
     pub expected_native_token_amount: Uint128,
-    /// stride redemption rate is variable so we set the expected ls token amount 
+    /// stride redemption rate is variable so we set the expected ls token amount
     pub expected_ls_token_amount: Uint128,
     /// accepted return amount fluctuation that gets applied to EXPECTED_LS_TOKEN_AMOUNT
     pub allowed_return_delta: Uint128,
@@ -162,10 +163,9 @@ pub struct LpConfig {
     pub single_side_lp_limits: SingleSideLpLimits,
     /// boolean flag for enabling autostaking of LP tokens upon liquidity provisioning
     pub autostake: Option<bool>,
-    /// slippage tolerance parameter for liquidity provisioning 
+    /// slippage tolerance parameter for liquidity provisioning
     pub slippage_tolerance: Option<Decimal>,
 }
-
 
 impl LpConfig {
     pub fn to_response_attributes(self) -> Vec<Attribute> {
@@ -178,17 +178,26 @@ impl LpConfig {
             None => "None".to_string(),
         };
         vec![
-            Attribute::new("expected_native_token_amount", self.expected_native_token_amount.to_string()),
-            Attribute::new("expected_ls_token_amount", self.expected_ls_token_amount.to_string()),
-            Attribute::new("allowed_return_delta", self.allowed_return_delta.to_string()),
+            Attribute::new(
+                "expected_native_token_amount",
+                self.expected_native_token_amount.to_string(),
+            ),
+            Attribute::new(
+                "expected_ls_token_amount",
+                self.expected_ls_token_amount.to_string(),
+            ),
+            Attribute::new(
+                "allowed_return_delta",
+                self.allowed_return_delta.to_string(),
+            ),
             Attribute::new("pool_address", self.pool_address.to_string()),
             Attribute::new(
                 "single_side_lp_limit_native",
-                self.single_side_lp_limits.native_asset_limit.to_string()
+                self.single_side_lp_limits.native_asset_limit.to_string(),
             ),
             Attribute::new(
                 "single_side_lp_limit_ls",
-                self.single_side_lp_limits.ls_asset_limit.to_string()
+                self.single_side_lp_limits.ls_asset_limit.to_string(),
             ),
             Attribute::new("autostake", autostake),
             Attribute::new("slippage_tolerance", slippage_tolerance),

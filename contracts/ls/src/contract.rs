@@ -5,20 +5,19 @@ use cosmos_sdk_proto::traits::Message;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Addr, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128, Attribute,
+    Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 
 use crate::msg::{
-    ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion,
-    QueryMsg, SudoPayload, RemoteChainInfo,
+    ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg,
+    RemoteChainInfo, SudoPayload,
 };
 use crate::state::{
-    read_errors_from_queue, read_reply_payload,
-    save_reply_payload, save_sudo_payload, ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE,
-    INTERCHAIN_ACCOUNTS, LP_ADDRESS,
+    read_errors_from_queue, read_reply_payload, save_reply_payload, save_sudo_payload,
+    ACKNOWLEDGEMENT_RESULTS, CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, LP_ADDRESS,
     REMOTE_CHAIN_INFO,
 };
 use neutron_sdk::{
@@ -26,9 +25,9 @@ use neutron_sdk::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
         query::{NeutronQuery, QueryInterchainAccountAddressResponse},
     },
-    interchain_txs::helpers::{get_port_id},
+    interchain_txs::helpers::get_port_id,
     sudo::msg::{RequestPacket, SudoMsg},
-    NeutronError, NeutronResult,
+    NeutronResult,
 };
 
 const INTERCHAIN_ACCOUNT_ID: &str = "stride-ica";
@@ -66,13 +65,12 @@ pub fn instantiate(
         ibc_fee: msg.ibc_fee,
     };
     REMOTE_CHAIN_INFO.save(deps.storage, &remote_chain_info)?;
-    
+
     Ok(Response::default()
         .add_attribute("method", "ls_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attribute("lp_address", lp_address)
-        .add_attributes(remote_chain_info.get_response_attributes()
-    ))
+        .add_attributes(remote_chain_info.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -88,16 +86,15 @@ pub fn execute(
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Transfer { amount } => {
             match get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID) {
-                Ok((address, controller_conn_id)) => 
-                    try_execute_transfer(deps, env, info, amount, address, controller_conn_id),
+                Ok((address, controller_conn_id)) => {
+                    try_execute_transfer(deps, env, info, amount, address, controller_conn_id)
+                }
                 // if no ICA is available yet we keep waiting for ticks to create one
-                Err(_) => Ok(
-                    Response::default()
-                        .add_attribute("method", "try_permisionless_transfer")
-                        .add_attribute("ica_status", "not_created")
-                ),
+                Err(_) => Ok(Response::default()
+                    .add_attribute("method", "try_permisionless_transfer")
+                    .add_attribute("ica_status", "not_created")),
             }
-        },
+        }
     }
 }
 
@@ -116,8 +113,10 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 /// registers an interchain account on stride with port_id associated with `INTERCHAIN_ACCOUNT_ID`
 fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let rc_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-    let register =
-        NeutronMsg::register_interchain_account(rc_info.connection_id, INTERCHAIN_ACCOUNT_ID.to_string());
+    let register = NeutronMsg::register_interchain_account(
+        rc_info.connection_id,
+        INTERCHAIN_ACCOUNT_ID.to_string(),
+    );
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
 
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
@@ -198,8 +197,7 @@ fn try_execute_transfer(
     )?;
     Ok(Response::default()
         .add_submessage(sudo_msg)
-        .add_attribute("method", "try_execute_transfer")
-    )
+        .add_attribute("method", "try_execute_transfer"))
 }
 
 #[allow(unused)]
@@ -332,9 +330,7 @@ fn sudo_open_ack(
         )?;
         // we advance the state now that the channel is established
         CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
-        return Ok(Response::default()
-            .add_attribute("method", "sudo_open_ack")
-        )
+        return Ok(Response::default().add_attribute("method", "sudo_open_ack"));
     }
     Err(StdError::generic_err("Can't parse counterparty_version"))
 }

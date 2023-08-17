@@ -44,7 +44,7 @@ pub fn instantiate(
     LS_CODE.save(deps.storage, &msg.preset_ls_fields.ls_code)?;
     HOLDER_CODE.save(deps.storage, &msg.preset_holder_fields.holder_code)?;
     CLOCK_CODE.save(deps.storage, &msg.preset_clock_fields.clock_code)?;
-    
+
     // validate and store the liquidity pool we wish to operate with
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
@@ -74,8 +74,7 @@ pub fn instantiate(
         .add_submessage(SubMsg::reply_on_success(
             clock_instantiate_tx,
             CLOCK_REPLY_ID,
-        ))
-    )
+        )))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -122,8 +121,7 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             Ok(Response::default()
                 .add_attribute("method", "handle_clock_reply")
                 .add_attribute("clock_address", clock_addr)
-                .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID))
-            )
+                .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "clock".to_string(),
@@ -168,8 +166,7 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             Ok(Response::default()
                 .add_attribute("method", "handle_holder_reply")
                 .add_attribute("holder_address", holder_addr)
-                .add_submessage(SubMsg::reply_always(lp_instantiate_tx, LP_REPLY_ID))
-            )
+                .add_submessage(SubMsg::reply_always(lp_instantiate_tx, LP_REPLY_ID)))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "holder".to_string(),
@@ -217,8 +214,7 @@ pub fn handle_lp_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             Ok(Response::default()
                 .add_attribute("method", "handle_lp_reply")
                 .add_attribute("lp_address", lp_addr)
-                .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID))
-            )
+                .add_submessage(SubMsg::reply_always(ls_instantiate_tx, LS_REPLY_ID)))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "lp".to_string(),
@@ -237,7 +233,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
         Ok(response) => {
             // validate and store the LS address
             let ls_addr = deps.api.addr_validate(&response.contract_address)?;
-            COVENANT_LS_ADDR.save(deps.storage,&ls_addr)?;
+            COVENANT_LS_ADDR.save(deps.storage, &ls_addr)?;
 
             // load the fields relevant to depositor instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
@@ -272,8 +268,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
                 .add_submessage(SubMsg::reply_always(
                     depositor_instantiate_tx,
                     DEPOSITOR_REPLY_ID,
-                ))
-            )
+                )))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "ls".to_string(),
@@ -322,8 +317,7 @@ pub fn handle_depositor_reply(
             Ok(Response::default()
                 .add_message(update_clock_whitelist_msg)
                 .add_attribute("depositor_address", depositor_addr)
-                .add_attribute("method", "handle_depositor_reply")
-            )
+                .add_attribute("method", "handle_depositor_reply"))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "depositor".to_string(),
