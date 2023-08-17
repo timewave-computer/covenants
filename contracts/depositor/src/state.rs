@@ -1,9 +1,6 @@
-use cosmwasm_std::{
-    from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Timestamp, Uint64,
-};
+use crate::msg::{AcknowledgementResult, ContractState, IbcConfig, SudoPayload, WeightedReceiver};
+use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Timestamp};
 use cw_storage_plus::{Item, Map};
-use neutron_sdk::bindings::msg::IbcFee;
-use crate::msg::{WeightedReceiver, AcknowledgementResult, SudoPayload, ContractState, IbcConfig};
 
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
@@ -16,7 +13,7 @@ pub const LS_ADDRESS: Item<Addr> = Item::new("ls_address");
 pub const LP_ADDRESS: Item<Addr> = Item::new("lp_address");
 
 /// formatting of stride autopilot message.
-/// we use string match & replace with relevant fields to obtain the valid message. 
+/// we use string match & replace with relevant fields to obtain the valid message.
 pub const AUTOPILOT_FORMAT: Item<String> = Item::new("autopilot_format");
 
 /// addr and amount of atom to liquid stake on stride
@@ -38,7 +35,8 @@ pub const NEUTRON_GAIA_CONNECTION_ID: Item<String> = Item::new("ng_conn_id");
 pub const IBC_CONFIG: Item<IbcConfig> = Item::new("ibc_config");
 
 /// interchain accounts storage in form of (port_id) -> (address, controller_connection_id)
-pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> = Map::new("interchain_accounts");
+pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
+    Map::new("interchain_accounts");
 
 // pending transaction timeout timestamp
 pub const PENDING_NATIVE_TRANSFER_TIMEOUT: Item<Timestamp> =
@@ -52,7 +50,6 @@ pub const ACKNOWLEDGEMENT_RESULTS: Map<(String, u64), AcknowledgementResult> =
     Map::new("acknowledgement_results");
 
 pub const ERRORS_QUEUE: Map<u32, String> = Map::new("errors_queue");
-
 
 pub fn save_reply_payload(store: &mut dyn Storage, payload: SudoPayload) -> StdResult<()> {
     REPLY_ID_STORAGE.save(store, &to_vec(&payload)?)
@@ -98,10 +95,6 @@ pub fn save_sudo_payload(
     SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_vec(&payload)?)
 }
 
-pub fn clear_sudo_payload(
-    store: &mut dyn Storage,
-    channel_id: String,
-    seq_id: u64,
-) {
+pub fn clear_sudo_payload(store: &mut dyn Storage, channel_id: String, seq_id: u64) {
     SUDO_PAYLOAD.remove(store, (channel_id, seq_id))
 }
