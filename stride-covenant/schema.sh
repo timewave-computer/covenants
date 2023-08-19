@@ -1,7 +1,5 @@
 #!/bin/bash
 
-
-
 START_DIR=$(pwd); \
 for f in ../contracts/*; do \
     echo "generating schema"; \
