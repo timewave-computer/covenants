@@ -398,30 +398,10 @@
                   "null"
                 ]
               },
-              "ibc_fee": {
+              "ibc_config": {
                 "anyOf": [
                   {
-                    "$ref": "#/definitions/IbcFee"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "ibc_transfer_timeout": {
-                "anyOf": [
-                  {
-                    "$ref": "#/definitions/Uint64"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "ica_timeout": {
-                "anyOf": [
-                  {
-                    "$ref": "#/definitions/Uint64"
+                    "$ref": "#/definitions/IbcConfig"
                   },
                   {
                     "type": "null"
@@ -501,6 +481,26 @@
             "type": "string"
           }
         }
+      },
+      "IbcConfig": {
+        "type": "object",
+        "required": [
+          "ibc_fee",
+          "ibc_transfer_timeout",
+          "ica_timeout"
+        ],
+        "properties": {
+          "ibc_fee": {
+            "$ref": "#/definitions/IbcFee"
+          },
+          "ibc_transfer_timeout": {
+            "$ref": "#/definitions/Uint64"
+          },
+          "ica_timeout": {
+            "$ref": "#/definitions/Uint64"
+          }
+        },
+        "additionalProperties": false
       },
       "IbcFee": {
         "description": "IbcFee defines struct for fees that refund the relayer for `SudoMsg` messages submission. Unused fee kind will be returned back to message sender. Please refer to these links for more information: IBC transaction structure - <https://docs.neutron.org/neutron/interchain-txs/messages/#msgsubmittx> General mechanics of fee payments - <https://docs.neutron.org/neutron/feerefunder/overview/#general-mechanics>",
