@@ -5,7 +5,7 @@ use cosmwasm_std::{
     from_binary,
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
     to_binary, Addr, ContractResult, DepsMut, MemoryStorage, MessageInfo, OwnedDeps, Response,
-    SystemResult, Uint128, Uint64, WasmQuery,
+    SystemResult, Uint128, Uint64, WasmQuery, Empty, StdError, Reply, StdResult,
 };
 use neutron_sdk::{
     bindings::{
@@ -19,7 +19,7 @@ use neutron_sdk::{
 use prost::Message;
 
 use crate::{
-    contract::{execute, instantiate, INTERCHAIN_ACCOUNT_ID},
+    contract::{execute, instantiate, INTERCHAIN_ACCOUNT_ID, sudo, reply},
     msg::{
         ContractState, ExecuteMsg, InstantiateMsg, OpenAckVersion, PresetDepositorFields,
         WeightedReceiverAmount,
@@ -166,4 +166,13 @@ pub fn do_tick(deps: DepsMut<NeutronQuery>) -> Result<Response<NeutronMsg>, Neut
 pub fn verify_state(deps: &Owned, contract_state: ContractState) {
     let state = CONTRACT_STATE.load(deps.as_ref().storage).unwrap();
     assert_eq!(state, contract_state)
+}
+
+pub fn sudo_execute(deps: DepsMut<NeutronQuery>, msg: SudoMsg) -> Result<Response<Empty>, StdError> {
+    // let info = mock_info(CLOCK_ADDR, &[]);
+    sudo(deps, mock_env(), msg)
+}
+
+pub fn reply_execute(deps: DepsMut<NeutronQuery>, msg: Reply) -> StdResult<Response> {
+    reply(deps, mock_env(), msg)
 }
