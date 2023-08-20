@@ -29,17 +29,6 @@ jobs:
         with:
           command: test
           args: --locked
-        env:
-          RUST_BACKTRACE: 1
-
-      - name: Compile WASM contract
-        uses: actions-rs/cargo@v1
-        with:
-          toolchain: stable
-          command: wasm
-          args: --locked
-        env:
-          RUSTFLAGS: "-C link-arg=-s"
 
   lints:
     name: Lints
