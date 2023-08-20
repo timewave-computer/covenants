@@ -28,7 +28,7 @@ pub fn instantiate(
 
     let tick_max_gas = if let Some(tick_max_gas) = msg.tick_max_gas {
         // at least MIN_MAX_GAS, at most the relayer limit
-        tick_max_gas.max(MIN_TICK_GAS_LIMIT).min(MAX_TICK_GAS_LIMIT)
+        tick_max_gas.clamp(MIN_TICK_GAS_LIMIT, MAX_TICK_GAS_LIMIT)
     } else {
         // todo: find some reasonable default value
         DEFAULT_TICK_MAX_GAS
@@ -182,7 +182,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
 
             TICK_MAX_GAS_LIMIT.save(
                 deps.storage,
-                &new_value.max(MIN_TICK_GAS_LIMIT).min(MAX_TICK_GAS_LIMIT),
+                &new_value.clamp(MIN_TICK_GAS_LIMIT, MAX_TICK_GAS_LIMIT),
             )?;
             Ok(Response::default()
                 .add_attribute("method", "migrate_update_tick_max_gas")
