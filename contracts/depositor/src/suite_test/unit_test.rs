@@ -1,12 +1,9 @@
 use cosmwasm_std::{
-    coins, from_binary,
-    testing::{mock_env, MockApi, MockQuerier},
-    to_binary, Binary, CosmosMsg, MemoryStorage, OwnedDeps, Reply, SubMsgResponse, WasmMsg,
+    coins, testing::mock_env, to_binary, Binary, CosmosMsg, Reply, SubMsgResponse, WasmMsg,
 };
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
-        query::NeutronQuery,
         types::ProtobufAny,
     },
     sudo::msg::{RequestPacket, SudoMsg},
