@@ -4,8 +4,8 @@ use cosmos_sdk_proto::{cosmos::base::v1beta1::Coin, ibc::applications::transfer:
 use cosmwasm_std::{
     from_binary,
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
-    to_binary, Addr, ContractResult, DepsMut, MemoryStorage, MessageInfo, OwnedDeps, Response,
-    SystemResult, Uint128, Uint64, WasmQuery, Empty, StdError, Reply, StdResult,
+    to_binary, Addr, ContractResult, DepsMut, Empty, MemoryStorage, MessageInfo, OwnedDeps, Reply,
+    Response, StdError, StdResult, SystemResult, Uint128, Uint64, WasmQuery,
 };
 use neutron_sdk::{
     bindings::{
@@ -19,7 +19,7 @@ use neutron_sdk::{
 use prost::Message;
 
 use crate::{
-    contract::{execute, instantiate, INTERCHAIN_ACCOUNT_ID, sudo, reply},
+    contract::{execute, instantiate, reply, sudo, INTERCHAIN_ACCOUNT_ID},
     msg::{
         ContractState, ExecuteMsg, InstantiateMsg, OpenAckVersion, PresetDepositorFields,
         WeightedReceiverAmount,
@@ -168,7 +168,10 @@ pub fn verify_state(deps: &Owned, contract_state: ContractState) {
     assert_eq!(state, contract_state)
 }
 
-pub fn sudo_execute(deps: DepsMut<NeutronQuery>, msg: SudoMsg) -> Result<Response<Empty>, StdError> {
+pub fn sudo_execute(
+    deps: DepsMut<NeutronQuery>,
+    msg: SudoMsg,
+) -> Result<Response<Empty>, StdError> {
     // let info = mock_info(CLOCK_ADDR, &[]);
     sudo(deps, mock_env(), msg)
 }

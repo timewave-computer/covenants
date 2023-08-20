@@ -1,12 +1,24 @@
-use cosmwasm_std::{coins, testing::{mock_env, MockApi, MockQuerier}, to_binary, Binary, CosmosMsg, WasmMsg, Reply, SubMsgResponse, from_binary, OwnedDeps, MemoryStorage};
-use neutron_sdk::{bindings::{msg::{NeutronMsg, MsgSubmitTxResponse}, types::ProtobufAny, query::NeutronQuery}, sudo::msg::{SudoMsg, RequestPacket}};
+use cosmwasm_std::{
+    coins, from_binary,
+    testing::{mock_env, MockApi, MockQuerier},
+    to_binary, Binary, CosmosMsg, MemoryStorage, OwnedDeps, Reply, SubMsgResponse, WasmMsg,
+};
+use neutron_sdk::{
+    bindings::{
+        msg::{MsgSubmitTxResponse, NeutronMsg},
+        query::NeutronQuery,
+        types::ProtobufAny,
+    },
+    sudo::msg::{RequestPacket, SudoMsg},
+};
 
 use crate::{
-    contract::{sudo, INTERCHAIN_ACCOUNT_ID, SUDO_PAYLOAD_REPLY_ID, to_proto_msg_transfer},
+    contract::{sudo, to_proto_msg_transfer, INTERCHAIN_ACCOUNT_ID, SUDO_PAYLOAD_REPLY_ID},
     msg::ContractState,
     suite_test::unit_helpers::{
         get_default_ibc_fee, get_default_init_msg, get_default_msg_transfer,
-        get_default_sudo_open_ack, to_proto, CLOCK_ADDR, LP_ADDR, NATIVE_ATOM_DENOM, sudo_execute, reply_execute,
+        get_default_sudo_open_ack, reply_execute, sudo_execute, to_proto, CLOCK_ADDR, LP_ADDR,
+        NATIVE_ATOM_DENOM,
     },
 };
 
@@ -63,29 +75,40 @@ fn test_tick_2() {
     lp_transfer_msg.receiver = LP_ADDR.to_string();
     // env.block.time + ibc transfer timeout (100sec)
     lp_transfer_msg.timeout_timestamp = 1571797619879305533;
-    reply_execute(deps.as_mut(), Reply {
-        id: SUDO_PAYLOAD_REPLY_ID,
-        result: cosmwasm_std::SubMsgResult::Ok(SubMsgResponse {
-            events: vec![],
-            data: Some(to_binary(&MsgSubmitTxResponse {
-                sequence_id: 1,
-                channel: "channel-0".to_string(),
-            }).unwrap()),
-        }),
-    }).unwrap();
-    sudo_execute(deps.as_mut(), SudoMsg::Response {
-        request: RequestPacket {
-            sequence: Some(1),
-            source_port: None,
-            source_channel: Some("channel-0".to_string()),
-            destination_port: None,
-            destination_channel: None,
-            data: None,
-            timeout_height: None,
-            timeout_timestamp: None,
+    reply_execute(
+        deps.as_mut(),
+        Reply {
+            id: SUDO_PAYLOAD_REPLY_ID,
+            result: cosmwasm_std::SubMsgResult::Ok(SubMsgResponse {
+                events: vec![],
+                data: Some(
+                    to_binary(&MsgSubmitTxResponse {
+                        sequence_id: 1,
+                        channel: "channel-0".to_string(),
+                    })
+                    .unwrap(),
+                ),
+            }),
         },
-        data: to_binary(&1).unwrap(),
-    }).unwrap();
+    )
+    .unwrap();
+    sudo_execute(
+        deps.as_mut(),
+        SudoMsg::Response {
+            request: RequestPacket {
+                sequence: Some(1),
+                source_port: None,
+                source_channel: Some("channel-0".to_string()),
+                destination_port: None,
+                destination_channel: None,
+                data: None,
+                timeout_height: None,
+                timeout_timestamp: None,
+            },
+            data: to_binary(&1).unwrap(),
+        },
+    )
+    .unwrap();
     verify_state(&deps, ContractState::VerifyNativeToken);
     assert_eq!(tick_res.messages.len(), 1);
     assert_eq!(
@@ -108,36 +131,46 @@ fn test_tick_2() {
 #[test]
 fn test_tick_3() {
     let (mut deps, _) = do_instantiate();
-    
+
     // tick 1
     deps = do_tick_1(deps);
     //tick 2
     do_tick(deps.as_mut()).unwrap();
-    reply_execute(deps.as_mut(), Reply {
-        id: SUDO_PAYLOAD_REPLY_ID,
-        result: cosmwasm_std::SubMsgResult::Ok(SubMsgResponse {
-            events: vec![],
-            data: Some(to_binary(&MsgSubmitTxResponse {
-                sequence_id: 1,
-                channel: "channel-0".to_string(),
-            }).unwrap()),
-        }),
-    }).unwrap();
-    sudo_execute(deps.as_mut(), SudoMsg::Response {
-        request: RequestPacket {
-            sequence: Some(1),
-            source_port: None,
-            source_channel: Some("channel-0".to_string()),
-            destination_port: None,
-            destination_channel: None,
-            data: None,
-            timeout_height: None,
-            timeout_timestamp: None,
+    reply_execute(
+        deps.as_mut(),
+        Reply {
+            id: SUDO_PAYLOAD_REPLY_ID,
+            result: cosmwasm_std::SubMsgResult::Ok(SubMsgResponse {
+                events: vec![],
+                data: Some(
+                    to_binary(&MsgSubmitTxResponse {
+                        sequence_id: 1,
+                        channel: "channel-0".to_string(),
+                    })
+                    .unwrap(),
+                ),
+            }),
         },
-        data: to_binary(&1).unwrap(),
-    }).unwrap();
+    )
+    .unwrap();
+    sudo_execute(
+        deps.as_mut(),
+        SudoMsg::Response {
+            request: RequestPacket {
+                sequence: Some(1),
+                source_port: None,
+                source_channel: Some("channel-0".to_string()),
+                destination_port: None,
+                destination_channel: None,
+                data: None,
+                timeout_height: None,
+                timeout_timestamp: None,
+            },
+            data: to_binary(&1).unwrap(),
+        },
+    )
+    .unwrap();
     verify_state(&deps, ContractState::VerifyNativeToken);
-
 
     // Increase balance of lper
     deps.querier
@@ -160,13 +193,10 @@ fn test_tick_3() {
         msgs: vec![proto_msg],
         memo: "".to_string(),
         timeout: 100,
-        fee: get_default_ibc_fee()
+        fee: get_default_ibc_fee(),
     });
     verify_state(&deps, ContractState::VerifyLp);
-    assert_eq!(
-        tick_res.messages[0].msg,
-        msg,
-    );
+    assert_eq!(tick_res.messages[0].msg, msg,);
 }
 
 // This tests the final tick, where the balance of the lper is reduced to 0
@@ -176,32 +206,43 @@ fn test_tick_4() {
 
     // tick 1
     deps = do_tick_1(deps);
- 
+
     //tick 2
     do_tick(deps.as_mut()).unwrap();
-    reply_execute(deps.as_mut(), Reply {
-        id: SUDO_PAYLOAD_REPLY_ID,
-        result: cosmwasm_std::SubMsgResult::Ok(SubMsgResponse {
-            events: vec![],
-            data: Some(to_binary(&MsgSubmitTxResponse {
-                sequence_id: 1,
-                channel: "channel-0".to_string(),
-            }).unwrap()),
-        }),
-    }).unwrap();
-    sudo_execute(deps.as_mut(), SudoMsg::Response {
-        request: RequestPacket {
-            sequence: Some(1),
-            source_port: None,
-            source_channel: Some("channel-0".to_string()),
-            destination_port: None,
-            destination_channel: None,
-            data: None,
-            timeout_height: None,
-            timeout_timestamp: None,
+    reply_execute(
+        deps.as_mut(),
+        Reply {
+            id: SUDO_PAYLOAD_REPLY_ID,
+            result: cosmwasm_std::SubMsgResult::Ok(SubMsgResponse {
+                events: vec![],
+                data: Some(
+                    to_binary(&MsgSubmitTxResponse {
+                        sequence_id: 1,
+                        channel: "channel-0".to_string(),
+                    })
+                    .unwrap(),
+                ),
+            }),
         },
-        data: to_binary(&1).unwrap(),
-    }).unwrap();
+    )
+    .unwrap();
+    sudo_execute(
+        deps.as_mut(),
+        SudoMsg::Response {
+            request: RequestPacket {
+                sequence: Some(1),
+                source_port: None,
+                source_channel: Some("channel-0".to_string()),
+                destination_port: None,
+                destination_channel: None,
+                data: None,
+                timeout_height: None,
+                timeout_timestamp: None,
+            },
+            data: to_binary(&1).unwrap(),
+        },
+    )
+    .unwrap();
     // Increase balance of lper
     deps.querier
         .update_balance(LP_ADDR, coins(1000, NATIVE_ATOM_DENOM));

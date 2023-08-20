@@ -339,7 +339,6 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
     let receiver = NATIVE_ATOM_RECEIVER.load(deps.storage)?;
     let lper_native_token_balance = query_lper_balance(deps.as_ref(), &receiver.address)?;
     let pending_transfer_timeout = PENDING_NATIVE_TRANSFER_TIMEOUT.may_load(deps.storage)?;
-    println!("\n\n verifying native token.. : {:?}", lper_native_token_balance);
     if lper_native_token_balance.amount >= receiver.amount {
         // if funds have arrived on LP contract, we advance the state
         CONTRACT_STATE.save(deps.storage, &ContractState::VerifyLp)?;
