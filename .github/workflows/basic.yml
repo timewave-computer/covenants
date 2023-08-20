@@ -56,3 +56,21 @@ jobs:
         with:
           command: clippy
           args: --all-targets -- -D warnings
+
+  schema:
+    name: Schema
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+  
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.66.0
+          override: true
+          components: rustfmt, clippy
+
+      - name: Gen schemas
+        run: ./scripts/schema.sh

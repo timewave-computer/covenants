@@ -4,7 +4,7 @@ build:
 gen: build gen-schema
 
 gen-schema:
-    ./schema.sh
+    ./../scripts/schema.sh
 
 test:
     cargo test
@@ -13,7 +13,7 @@ lint:
 	cargo +nightly clippy --all-targets -- -D warnings && cargo +nightly fmt --all --check
 
 optimize:
-    ./optimize.sh
+    ./../scripts/optimize.sh
 
 simtest: optimize
     if [[ $(uname -m) =~ "arm64" ]]; then \
