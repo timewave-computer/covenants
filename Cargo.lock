@@ -1405,6 +1405,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "single-party-pol-covenant"
+version = "1.0.0"
+dependencies = [
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-clock",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.1.0",
+ "cw2 1.1.0",
+ "neutron-sdk",
+ "protobuf 3.2.0",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "thiserror",
+]
+
+[[package]]
 name = "snafu"
 version = "0.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
