@@ -113,3 +113,19 @@ pub fn covenant_ica_address(metadata: TokenStream, input: TokenStream) -> TokenS
         .into(),
     )
 }
+
+#[proc_macro_attribute]
+pub fn covenant_next_contract(metadata: TokenStream, input: TokenStream) -> TokenStream {
+    merge_variants(
+        metadata,
+        input,
+        quote!(
+            enum NextContract {
+                /// Returns the associated remote chain information
+                #[returns(Option<String>)]
+                NextContract {},
+            }
+        )
+        .into(),
+    )
+}
