@@ -1,23 +1,21 @@
-use std::ops::Div;
-
-use cosmos_sdk_proto::cosmos::bank::v1beta1::{MsgSend, MsgMultiSend, Input, Output, MsgMultiSendResponse};
+use cosmos_sdk_proto::cosmos::bank::v1beta1::{MsgMultiSend, Input, Output, MsgMultiSendResponse};
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
-use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, SubMsg, Attribute, StdError, Reply, Uint128,
+    Response, StdResult, SubMsg, Attribute, StdError, Reply, CustomQuery, Fraction, Uint128, Decimal,
 };
 use covenant_clock::helpers::verify_clock;
 use covenant_utils::neutron_ica::{SudoPayload, RemoteChainInfo, OpenAckVersion, self};
 use cw2::set_contract_version;
+use neutron_sdk::NeutronError;
 use neutron_sdk::bindings::msg::MsgSubmitTxResponse;
 use neutron_sdk::interchain_txs::helpers::{get_port_id, decode_acknowledgement_response, decode_message_response};
 use neutron_sdk::sudo::msg::{SudoMsg, RequestPacket};
 
 use crate::msg::{
-    ContractState, ExecuteMsg, InstantiateMsg, QueryMsg,
+    ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, SplitReceiver,
 };
 use crate::state::{
     save_reply_payload, CLOCK_ADDRESS, CONTRACT_STATE,
@@ -100,7 +98,9 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
     match current_state {
         ContractState::Instantiated => try_register_ica(deps, env),
         ContractState::IcaCreated => try_split_funds(deps, env),
-        ContractState::Completed => Ok(Response::default()),
+        ContractState::Completed => Ok(Response::default()
+            .add_attribute("contract_state", "completed")
+        ),
     }
 }
 
@@ -132,16 +132,25 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
                 remote_chain_info.denom.to_string()
             )?;
 
-            // map the splits into multi send Outputs
-            let outputs = splits.iter()
-                .map(|s| Output {
-                    address: s.addr.to_string(),
-                    coins: vec![Coin {
-                        denom: remote_chain_info.denom.to_string(),
-                        amount: amount.div(s.share).to_string(), // make this safe
-                    }],
-                })
-                .collect();
+            let mut outputs: Vec<Output> = Vec::new();
+            for split_receiver in splits.iter() {
+                // get the fraction dedicated to this receiver
+                let amt = amount
+                    .checked_multiply_ratio(split_receiver.share, Uint128::new(100));
+                
+                match amt {
+                    Ok(amount) => outputs.push(Output {
+                        address: split_receiver.addr.to_string(),
+                        coins: vec![Coin {
+                            denom: remote_chain_info.denom.to_string(),
+                            amount: amount.to_string(),
+                        }],
+                    }),
+                    Err(e) => return Err(
+                        NeutronError::Std(StdError::GenericErr { msg: e.to_string() })
+                    ),
+                };
+            }
 
             // todo: make sure output amounts add up to the input amount here
             let multi_send_msg = MsgMultiSend {
@@ -174,7 +183,7 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
 
             let sudo_msg = msg_with_sudo_callback(
                 deps,
-                submit_msg,
+                submit_msg, 
                 SudoPayload {
                     port_id,
                     message: "split_funds_msg".to_string(),
@@ -209,15 +218,58 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps<NeutronQuery>, _env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
+pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => {
-            Ok(to_binary(&Some(1))?)
+            let ica = query_deposit_address(deps, env)?;
+            // up to the querying module to make sense of the response
+            Ok(to_binary(&ica)?)
         },
         QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
+        QueryMsg::SplitConfig {} => {
+            let mut vec: Vec<(String, Vec<SplitReceiver>)> = Vec::new();
+
+            for entry in SPLIT_CONFIG_MAP.range(
+                deps.storage, 
+                None, 
+                None, 
+                cosmwasm_std::Order::Ascending
+            ) { vec.push(entry?) }
+
+            Ok(to_binary(&vec)?)
+        },
+        QueryMsg::TransferAmount {} => Ok(to_binary(&TRANSFER_AMOUNT.may_load(deps.storage)?)?),
+        QueryMsg::IcaAddress {} => Ok(to_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
     }
+}
+
+fn query_deposit_address(deps: Deps<NeutronQuery>, env: Env) -> Result<Option<String>, StdError> {
+    let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
+    /*
+        here we cover three possible cases:
+        - 1. ICA had been created -> nice
+        - 2. ICA creation request had been submitted but did not receive
+            the channel_open_ack yet -> None
+        - 3. ICA creation request hadn't been submitted yet -> None
+     */
+    match INTERCHAIN_ACCOUNTS.may_load(deps.storage, key)? {
+        Some(Some((addr, _))) => Ok(Some(addr)), // case 1
+        _ => Ok(None), // cases 2 and 3
+    }
+}
+
+fn get_ica(
+    deps: Deps<impl CustomQuery>,
+    env: &Env,
+    interchain_account_id: &str,
+) -> Result<(String, String), StdError> {
+    let key = get_port_id(env.contract.address.as_str(), interchain_account_id);
+
+    INTERCHAIN_ACCOUNTS
+        .load(deps.storage, key)?
+        .ok_or_else(|| StdError::generic_err("Interchain account is not created yet"))
 }
 
 
