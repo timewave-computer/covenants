@@ -1,10 +1,12 @@
 use std::{fmt};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Uint64, StdError, Attribute};
-use covenant_macros::{covenant_deposit_address, clocked, covenant_clock_address, covenant_remote_chain};
+use cosmwasm_std::{Addr, Uint128, Uint64, StdError, Attribute, Fraction};
+use covenant_macros::{covenant_deposit_address, clocked, covenant_clock_address, covenant_remote_chain, covenant_ica_address};
+
 use neutron_sdk::bindings::msg::IbcFee;
 use covenant_utils::neutron_ica::RemoteChainInfo;
+use schemars::Map;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -73,12 +75,13 @@ pub struct SplitReceiver {
     /// address of the receiver on remote chain
     pub addr: String,
     /// percentage share that the address is entitled to
+    // TODO: convert to cw Fraction
     pub share: Uint128,
 }
 
 impl fmt::Display for SplitReceiver {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let mut str = "[";
+        let str = "[";
         fmt.write_str(str)?;
         fmt.write_str(self.addr.as_str())?;
         fmt.write_str(",")?;
@@ -91,14 +94,24 @@ impl fmt::Display for SplitReceiver {
 #[cw_serde]
 pub enum ExecuteMsg {}
 
+#[cw_serde]
+pub struct SplitConfigMap {
+    pub map: Map<String, Vec<SplitReceiver>>,
+}
+
 #[covenant_clock_address]
 #[covenant_remote_chain]
 #[covenant_deposit_address]
+#[covenant_ica_address]
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(ContractState)]
     ContractState {},
+    #[returns(Vec<(String, Vec<SplitReceiver>)>)]
+    SplitConfig {},
+    #[returns(Uint128)]
+    TransferAmount {},
 }
 
 #[cw_serde]
