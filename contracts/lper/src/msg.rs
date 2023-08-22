@@ -69,10 +69,12 @@ impl LpConfig {
     /// if `PriceRangeError` is returned, it most likely means that the pool had a 
     /// significant shift in its balance ratio.
     pub fn validate_price_range(&self, pool_native_bal: Uint128, pool_ls_bal: Uint128) -> Result<(), ContractError> {
-        // find the min and max return amounts allowed by deviating away from expected return amount
-        // by allowed delta
-        let min_return_amount = self.expected_ls_token_amount.checked_sub(self.allowed_return_delta)?;
-        let max_return_amount = self.expected_ls_token_amount.checked_add(self.allowed_return_delta)?;
+        // find the min return amount by subtracting the delta from expected amount
+        let min_return_amount = self.expected_ls_token_amount
+            .checked_sub(self.allowed_return_delta)?;
+        // find the max return amount by adding the delta to expected amount
+        let max_return_amount = self.expected_ls_token_amount
+            .checked_add(self.allowed_return_delta)?;
     
         // derive allowed proportions
         let min_accepted_ratio = Decimal::from_ratio(min_return_amount, self.expected_native_token_amount);
