@@ -31,3 +31,5 @@ serde            = { workspace = true }
 neutron-sdk      = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
 protobuf         = { workspace = true }
+astroport        = "2.8.0"
+cw20             = { version = "0.15" }
