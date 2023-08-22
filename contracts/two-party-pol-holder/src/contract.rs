@@ -29,10 +29,11 @@ pub fn instantiate(
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
-    LOCKUP_CONFIG.save(deps.storage, &lockup_config)?;
+    LOCKUP_CONFIG.save(deps.storage, lockup_config)?;
     RAGEQUIT_CONFIG.save(deps.storage, &msg.ragequit_config)?;
-    PARTIES_CONFIG.save(deps.storage, &parties_config)?;
+    PARTIES_CONFIG.save(deps.storage, parties_config)?;
 
-    // TODO: response atributes
-    Ok(Response::default())
+    Ok(Response::default()
+        .add_attributes(msg.get_response_attributes())
+    )
 }
