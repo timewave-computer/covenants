@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Timestamp, BlockInfo, Attribute};
-use covenant_macros::{clocked, covenant_deposit_address, covenant_clock_address, covenant_next_contract};
+use cosmwasm_std::{Addr, Decimal, Timestamp, BlockInfo, Attribute, OverflowError};
+use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract};
 
 use crate::error::ContractError;
 
@@ -58,7 +58,6 @@ pub enum ContractState {
     Complete,
 }
 
-#[covenant_deposit_address]
 #[covenant_clock_address]
 #[covenant_next_contract]
 #[cw_serde]
@@ -84,12 +83,43 @@ pub struct PartiesConfig {
 impl PartiesConfig {
     /// validates the decimal shares of parties involved
     /// that must add up to 1.0
-    pub fn validate(&self) -> Result<&PartiesConfig, ContractError> {
+    pub fn validate_config(&self) -> Result<&PartiesConfig, ContractError> {
         if self.party_a.share + self.party_b.share == Decimal::one() {
             Ok(self)
         } else {
             Err(ContractError::InvolvedPartiesConfigError {})
         }
+    }
+
+    /// validates the caller and returns an error if caller is unauthorized,
+    /// or the calling party if its authorized
+    pub fn validate_caller(&self, caller: Addr) -> Result<Party, ContractError> {
+        let a = self.clone().party_a;
+        let b = self.clone().party_b;
+        if a.addr == caller {
+            Ok(a)
+        } else if b.addr == caller {
+            Ok(b)
+        } else {
+            Err(ContractError::RagequitUnauthorized {})
+        }
+    }
+
+    /// subtracts the ragequit penalty to the ragequitting party
+    /// and adds it to the other party
+    pub fn apply_ragequit_penalty(
+        mut self,
+        rq_party: Party,
+        penalty: Decimal
+    ) -> Result<PartiesConfig, ContractError> {
+        if rq_party.addr == self.party_a.addr {
+            self.party_a.share -= penalty;
+            self.party_b.share += penalty;
+        } else {
+            self.party_a.share += penalty;
+            self.party_b.share -= penalty;
+        }
+        Ok(self)
     }
 }
 
