@@ -1,7 +1,5 @@
-use std::cmp::Ordering;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Timestamp, BlockInfo};
+use cosmwasm_std::{Addr, Decimal, Timestamp, BlockInfo, Attribute};
 use covenant_macros::{clocked, covenant_deposit_address, covenant_clock_address, covenant_next_contract};
 
 use crate::error::ContractError;
@@ -23,6 +21,20 @@ pub struct InstantiateMsg {
     pub ragequit_config: RagequitConfig,
     /// parties engaged in the POL.
     pub parties_config: PartiesConfig,
+}
+
+impl InstantiateMsg {
+    pub fn get_response_attributes(self) -> Vec<Attribute> {
+        let mut attrs = vec![
+            Attribute::new("clock_addr", self.clock_address),
+            Attribute::new("pool_address", self.pool_address),
+            Attribute::new("next_contract", self.next_contract),
+        ];
+        attrs.extend(self.parties_config.get_response_attributes());
+        attrs.extend(self.ragequit_config.get_response_attributes());
+        attrs.extend(self.lockup_config.get_response_attributes());
+        attrs
+    }
 }
 
 #[clocked]
@@ -68,15 +80,31 @@ pub struct PartiesConfig {
     pub party_b: Party,
 }
 
+
 impl PartiesConfig {
     /// validates the decimal shares of parties involved
     /// that must add up to 1.0
-    pub fn validate(self) -> Result<PartiesConfig, ContractError> {
+    pub fn validate(&self) -> Result<&PartiesConfig, ContractError> {
         if self.party_a.share + self.party_b.share == Decimal::one() {
             Ok(self)
         } else {
             Err(ContractError::InvolvedPartiesConfigError {})
         }
+    }
+}
+
+impl PartiesConfig {
+    pub fn get_response_attributes(self) -> Vec<Attribute> {
+        vec![
+            Attribute::new("party_a_address", self.party_a.addr),
+            Attribute::new("party_a_share", self.party_a.share.to_string()),
+            Attribute::new("party_a_provided_denom", self.party_a.provided_denom),
+            Attribute::new("party_a_active_position", self.party_a.active_position.to_string()),
+            Attribute::new("party_b_address", self.party_b.addr),
+            Attribute::new("party_b_share", self.party_b.share.to_string()),
+            Attribute::new("party_b_provided_denom", self.party_b.provided_denom),
+            Attribute::new("party_b_active_position", self.party_b.active_position.to_string()),
+        ]
     }
 }
 
@@ -98,6 +126,21 @@ pub enum RagequitConfig {
     Disabled,
     /// ragequit is enabled with `RagequitTerms`
     Enabled(RagequitTerms),
+}
+
+impl RagequitConfig {
+    pub fn get_response_attributes(self) -> Vec<Attribute> {
+        match self {
+            RagequitConfig::Disabled => vec![
+                Attribute::new("ragequit_config", "disabled"),
+            ],
+            RagequitConfig::Enabled(c) => vec![
+                Attribute::new("ragequit_config", "enabled"),
+                Attribute::new("ragequit_penalty", c.penalty.to_string()),
+                Attribute::new("ragequit_active", c.active.to_string()),
+            ],
+        }
+    }
 }
 
 #[cw_serde]
@@ -124,19 +167,33 @@ pub enum LockupConfig {
 }
 
 impl LockupConfig {
+    pub fn get_response_attributes(self) -> Vec<Attribute> {
+        match self {
+            LockupConfig::None => vec![
+                Attribute::new("lockup_config", "none"),
+            ],
+            LockupConfig::Block(h) => vec![
+                Attribute::new("lockup_config_expiry_block_height", h.to_string()),
+            ],
+            LockupConfig::Time(t) => vec![
+                Attribute::new("lockup_config_expiry_block_timestamp", t.to_string()),
+            ],
+        }
+    }
+
     /// validates that the lockup config being stored is not already expired.
-    pub fn validate(self, block_info: BlockInfo) -> Result<LockupConfig, ContractError> {
+    pub fn validate(&self, block_info: BlockInfo) -> Result<&LockupConfig, ContractError> {
         match self {
             LockupConfig::None => Ok(self),
             LockupConfig::Block(h) => {
-                if h > block_info.height {
+                if h > &block_info.height {
                     Ok(self)
                 } else {
                     Err(ContractError::LockupValidationError {})
                 }
             },
             LockupConfig::Time(t) => {
-                if t.cmp(&block_info.time) != Ordering::Less {
+                if t.nanos() > block_info.time.nanos() {
                     Ok(self)
                 } else {
                     Err(ContractError::LockupValidationError {})
@@ -150,8 +207,8 @@ impl LockupConfig {
     /// otherwise, returns true if the current block is past the stored info.
     pub fn is_due(self, block_info: BlockInfo) -> bool {
         match self {
-            LockupConfig::None => false, // or.. true?
-            LockupConfig::Block(b) => block_info.height >= b,
+            LockupConfig::None => false, // or.. true? should not be called
+            LockupConfig::Block(h) => h < block_info.height,
             LockupConfig::Time(t) => t.nanos() < block_info.time.nanos(),
         }
     }
