@@ -428,6 +428,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             }
 
             if let Some(config) = lp_config {
+                // validate the address before storing it
                 deps.api.addr_validate(config.pool_address.as_str())?;
                 LP_CONFIG.save(deps.storage, &config)?;
                 response = response.add_attributes(config.to_response_attributes());
