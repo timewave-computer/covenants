@@ -569,6 +569,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "covenant-swap-holder"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-clock",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-multi-test",
+ "cw-storage-plus 1.1.0",
+ "cw2 1.1.0",
+ "cw20 0.15.1",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "covenant-utils"
 version = "0.0.1"
 dependencies = [
