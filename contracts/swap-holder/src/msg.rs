@@ -1,6 +1,7 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Timestamp, Addr, Attribute, BlockInfo, Uint128};
+use cosmwasm_std::{Timestamp, Addr, Attribute, BlockInfo, Uint128, IbcMsg, Coin, IbcTimeout};
 use covenant_macros::clocked;
+use covenant_utils::neutron_ica::RemoteChainInfo;
 
 use crate::error::ContractError;
 
@@ -48,6 +49,24 @@ pub struct Party {
     pub provided_denom: String,
     /// amount of the denom above to be expected
     pub amount: Uint128,
+    /// remote chain info for refunds
+    pub remote_chain_info: RemoteChainInfo,
+}
+
+impl Party {
+    pub fn get_ibc_refund_msg(self, amount: Uint128, block: BlockInfo) -> IbcMsg {
+        IbcMsg::Transfer {
+            channel_id: self.remote_chain_info.channel_id,
+            to_address: self.addr.to_string(),
+            amount: Coin {
+                denom: self.provided_denom,
+                amount,
+            },
+            timeout: IbcTimeout::with_timestamp(
+                block.time.plus_seconds(self.remote_chain_info.ibc_transfer_timeout.u64())
+            ),
+        }
+    }
 }
 
 /// enum based configuration of the lockup period.
