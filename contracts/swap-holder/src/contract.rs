@@ -1,5 +1,5 @@
 
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Coin, Uint128, CosmosMsg, BankMsg, StdError};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Coin, Uint128, CosmosMsg, BankMsg, StdError, IbcMsg};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -70,6 +70,16 @@ fn try_forward(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
+    let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
+    // check if covenant is expired
+    if lockup_config.is_due(env.block) {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Expired)?;
+        return Ok(Response::default()
+            .add_attribute("method", "try_forward")
+            .add_attribute("result", "covenant_expired")
+        )
+    }
+
     let parties = PARTIES_CONFIG.load(deps.storage)?;
 
     let mut party_a_coin = Coin {
@@ -134,6 +144,65 @@ fn try_refund(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
+    let parties = PARTIES_CONFIG.load(deps.storage)?;
 
-    Ok(Response::default())
+    let mut party_a_coin = Coin {
+        denom: parties.clone().party_a.provided_denom,
+        amount: Uint128::zero(),
+    };
+    let mut party_b_coin = Coin {
+        denom: parties.clone().party_b.provided_denom,
+        amount: Uint128::zero(),
+    };
+
+    // query holder balances
+    let balances = deps.querier.query_all_balances(env.contract.address)?;
+    // find the existing balances of covenant coins
+    for coin in balances {
+        if coin.denom == party_a_coin.denom 
+        && coin.amount >= parties.party_a.amount {
+            party_a_coin.amount = coin.amount;
+        } else if coin.denom == party_a_coin.denom 
+        && coin.amount >= parties.party_b.amount {
+            party_b_coin.amount = coin.amount;
+        }
+    }
+
+    let messages = match (party_a_coin.amount.is_zero(), party_b_coin.amount.is_zero()) {
+        // if both balances are zero, neither party deposited.
+        // nothing to return, we complete.
+        (true, true) => {
+            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+            return Ok(Response::default()
+                .add_attribute("method", "try_refund")
+                .add_attribute("result", "nothing_to_refund")
+                .add_attribute("contract_state", "complete")
+            )
+        },
+        // party A failed to deposit. refund party B
+        (true, false) => {
+            let refund_msg: IbcMsg = parties.party_b.get_ibc_refund_msg(party_b_coin.amount, env.block);
+            vec![refund_msg]
+        },
+        // party B failed to deposit. refund party A
+        (false, true) => {
+            let refund_msg: IbcMsg = parties.party_a.get_ibc_refund_msg(party_a_coin.amount, env.block);
+            vec![refund_msg]
+
+        },
+        // not enough balances to perform the covenant swap.
+        // refund denoms to both parties.
+        (false, false) => {
+            let refund_b_msg: IbcMsg = parties.party_b.get_ibc_refund_msg(party_b_coin.amount, env.block.clone());
+            let refund_a_msg: IbcMsg = parties.party_a.get_ibc_refund_msg(party_a_coin.amount, env.block);
+            vec![refund_a_msg, refund_b_msg]
+        },
+    };
+
+    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+
+    Ok(Response::default()
+        .add_attribute("method", "try_refund")
+        .add_messages(messages)
+    )
 }
