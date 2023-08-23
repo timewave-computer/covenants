@@ -1,8 +1,10 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, BalanceResponse};
+use astroport::pair::Cw20HookMsg;
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, StdError, OverflowError, CosmosMsg, WasmMsg};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cw2::set_contract_version;
+use cw20::{Cw20ExecuteMsg, BalanceResponse};
 
 use crate::{msg::{InstantiateMsg, QueryMsg, ExecuteMsg, RagequitConfig}, state::{POOL_ADDRESS, NEXT_CONTRACT, CLOCK_ADDRESS, RAGEQUIT_CONFIG, LOCKUP_CONFIG, PARTIES_CONFIG, CONTRACT_STATE}, error::ContractError};
 
@@ -96,7 +98,7 @@ fn try_ragequit(
     )?;
 
     // if no lp tokens are available, no point to ragequit
-    if liquidity_token_balance.amount.amount.is_zero() {
+    if liquidity_token_balance.balance.is_zero() {
         return Err(ContractError::NoLpTokensAvailable {})
     }
     
@@ -104,11 +106,36 @@ fn try_ragequit(
     rq_terms.active = true;
 
     // apply the ragequit penalty
-    let parties = parties.apply_ragequit_penalty(rq_party, rq_terms.penalty)?;
+    let parties = parties.apply_ragequit_penalty(rq_party.clone(), rq_terms.penalty)?;
+    let rq_party = parties.get_party_by_addr(rq_party.addr)?;
+    
+    // generate the withdraw_liquidity hook for the ragequitting party
+    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
+    let withdraw_msg = &Cw20ExecuteMsg::Send {
+        contract: pool_address.to_string(),
+        // take the ragequitting party share of the position
+        amount: liquidity_token_balance.balance.checked_mul_floor(rq_party.share)
+            .map_err(|_| ContractError::FractionMulError {})?,
+        msg: to_binary(withdraw_liquidity_hook)?,
+    };
 
+    // update the state to reflect ragequit
+    CONTRACT_STATE.save(deps.storage, &crate::msg::ContractState::Ragequit)?;
 
-
-    Ok(Response::default())
+    // TODO: need some kind of state representation of pending withdrawals
+    // to distinguish allocations of ragequitting party from the non-rq party
+    
+    Ok(Response::default()
+        .add_attribute("method", "ragequit")
+        .add_attribute("caller", rq_party.addr)
+        .add_message(
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: pair_info.liquidity_token.to_string(),
+                msg: to_binary(withdraw_msg)?,
+                funds: vec![],
+            })
+        )
+    )
 }
 
 fn try_claim(
