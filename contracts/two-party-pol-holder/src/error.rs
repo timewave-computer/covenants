@@ -7,6 +7,9 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
+    #[error("failed to multiply amount by share")]
+    FractionMulError {},
+
     #[error("expiry block is already past")]
     InvalidExpiryBlockHeight {},
 
@@ -15,6 +18,9 @@ pub enum ContractError {
 
     #[error("shares of covenant parties must add up to 1.0")]
     InvolvedPartiesConfigError {},
+
+    #[error("unknown party")]
+    PartyNotFound {},
 
     #[error("ragequit is disabled")]
     RagequitDisabled {},

@@ -121,6 +121,16 @@ impl PartiesConfig {
         }
         Ok(self)
     }
+
+    pub fn get_party_by_addr(self, addr: Addr) -> Result<Party, ContractError> {
+        if self.party_a.addr == addr {
+            Ok(self.party_a)
+        } else if self.party_b.addr == addr {
+            Ok(self.party_b)
+        } else {
+            Err(ContractError::PartyNotFound {})
+        }
+    }
 }
 
 impl PartiesConfig {
