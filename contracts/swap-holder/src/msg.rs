@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Timestamp, Addr, Attribute, BlockInfo, Uint128, IbcMsg, Coin, IbcTimeout};
+use cosmwasm_std::{Timestamp, Addr, Attribute, BlockInfo, Uint128, IbcMsg, Coin, IbcTimeout, BankMsg, CosmosMsg};
 use covenant_macros::clocked;
 use covenant_utils::neutron_ica::RemoteChainInfo;
 
@@ -49,22 +49,41 @@ pub struct Party {
     pub provided_denom: String,
     /// amount of the denom above to be expected
     pub amount: Uint128,
-    /// remote chain info for refunds
-    pub remote_chain_info: RemoteChainInfo,
+    /// config for refunding funds in case covenant fails to complete
+    pub refund_config: RefundConfig,
+}
+
+#[cw_serde]
+pub enum RefundConfig {
+    /// party expects a refund on the same chain
+    Native(Addr),
+    /// party expects a refund on a remote chain
+    Ibc(RemoteChainInfo),
 }
 
 impl Party {
-    pub fn get_ibc_refund_msg(self, amount: Uint128, block: BlockInfo) -> IbcMsg {
-        IbcMsg::Transfer {
-            channel_id: self.remote_chain_info.channel_id,
-            to_address: self.addr.to_string(),
-            amount: Coin {
-                denom: self.provided_denom,
-                amount,
-            },
-            timeout: IbcTimeout::with_timestamp(
-                block.time.plus_seconds(self.remote_chain_info.ibc_transfer_timeout.u64())
-            ),
+    pub fn get_refund_msg(self, amount: Uint128, block: &BlockInfo) -> CosmosMsg  {
+        match self.refund_config {
+            RefundConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
+                to_address: addr.to_string(),
+                amount: vec![
+                    Coin {
+                        denom: self.provided_denom,
+                        amount,
+                    },
+                ],
+            }),
+            RefundConfig::Ibc(r_c_i) => CosmosMsg::Ibc(IbcMsg::Transfer {
+                channel_id: r_c_i.channel_id,
+                to_address: self.addr.to_string(),
+                amount: Coin {
+                    denom: self.provided_denom,
+                    amount,
+                },
+                timeout: IbcTimeout::with_timestamp(
+                    block.time.plus_seconds(r_c_i.ibc_transfer_timeout.u64())
+                ),
+            }),
         }
     }
 }
