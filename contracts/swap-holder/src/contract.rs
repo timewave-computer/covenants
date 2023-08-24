@@ -1,11 +1,11 @@
 
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Coin, Uint128, CosmosMsg, BankMsg, StdError, IbcMsg};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Coin, Uint128, CosmosMsg, BankMsg, StdError, IbcMsg, Deps, StdResult, Binary, to_binary};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cw2::set_contract_version;
 
-use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, LOCKUP_CONFIG, PARTIES_CONFIG, CONTRACT_STATE}, error::ContractError};
+use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, QueryMsg}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, LOCKUP_CONFIG, PARTIES_CONFIG, CONTRACT_STATE, COVENANT_TERMS}, error::ContractError};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -30,6 +30,7 @@ pub fn instantiate(
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     LOCKUP_CONFIG.save(deps.storage, lockup_config)?;
     PARTIES_CONFIG.save(deps.storage, &msg.parties_config)?;
+    COVENANT_TERMS.save(deps.storage, &msg.covenant_terms)?;
 
     Ok(Response::default()
     )
@@ -57,8 +58,8 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
-        ContractState::Instantiated => try_forward(deps, env, info),
-        ContractState::Expired => try_refund(deps, env, info),
+        ContractState::Instantiated => try_forward(deps, env),
+        ContractState::Expired => try_refund(deps, env),
         ContractState::Complete => Ok(Response::default()
             .add_attribute("contract_state", "completed")
         ),
@@ -68,7 +69,6 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 fn try_forward(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
     // check if covenant is expired
@@ -77,10 +77,12 @@ fn try_forward(
         return Ok(Response::default()
             .add_attribute("method", "try_forward")
             .add_attribute("result", "covenant_expired")
+            .add_attribute("contract_state", "expired")
         )
     }
 
     let parties = PARTIES_CONFIG.load(deps.storage)?;
+    let covenant_terms = COVENANT_TERMS.load(deps.storage)?;
 
     let mut party_a_coin = Coin {
         denom: parties.party_a.provided_denom,
@@ -95,11 +97,9 @@ fn try_forward(
     let balances = deps.querier.query_all_balances(env.contract.address)?;
     // find the existing balances of covenant coins
     for coin in balances {
-        if coin.denom == party_a_coin.denom 
-        && coin.amount >= parties.party_a.amount {
+        if coin.denom == party_a_coin.denom && coin.amount >= covenant_terms.party_a_amount {
             party_a_coin.amount = coin.amount;
-        } else if coin.denom == party_a_coin.denom 
-        && coin.amount >= parties.party_b.amount {
+        } else if coin.denom == party_a_coin.denom && coin.amount >= covenant_terms.party_b_amount {
             party_b_coin.amount = coin.amount;
         }
     }
@@ -142,7 +142,6 @@ fn try_forward(
 fn try_refund(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
 ) -> Result<Response, ContractError> {
     let parties = PARTIES_CONFIG.load(deps.storage)?;
 
@@ -159,11 +158,9 @@ fn try_refund(
     let balances = deps.querier.query_all_balances(env.contract.address)?;
     // find the existing balances of covenant coins
     for coin in balances {
-        if coin.denom == party_a_coin.denom 
-        && coin.amount >= parties.party_a.amount {
+        if coin.denom == party_a_coin.denom {
             party_a_coin.amount = coin.amount;
-        } else if coin.denom == party_a_coin.denom 
-        && coin.amount >= parties.party_b.amount {
+        } else if coin.denom == party_a_coin.denom {
             party_b_coin.amount = coin.amount;
         }
     }
@@ -205,4 +202,15 @@ fn try_refund(
         .add_attribute("method", "try_refund")
         .add_messages(messages)
     )
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::NextContract {} => Ok(to_binary(&NEXT_CONTRACT.may_load(deps.storage)?)?),
+        QueryMsg::LockupConfig {} => Ok(to_binary(&LOCKUP_CONFIG.may_load(deps.storage)?)?),
+        QueryMsg::CovenantParties {} => Ok(to_binary(&PARTIES_CONFIG.may_load(deps.storage)?)?),
+        QueryMsg::CovenantTerms {} => Ok(to_binary(&COVENANT_TERMS.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+    }
 }

@@ -1,6 +1,6 @@
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Timestamp, Addr, Attribute, BlockInfo, Uint128, IbcMsg, Coin, IbcTimeout, BankMsg, CosmosMsg};
-use covenant_macros::clocked;
+use covenant_macros::{clocked, covenant_clock_address};
 use covenant_utils::neutron_ica::RemoteChainInfo;
 
 use crate::error::ContractError;
@@ -18,13 +18,28 @@ pub struct InstantiateMsg {
     /// automatically upon reaching that height.
     pub lockup_config: LockupConfig,
     /// parties engaged in the POL.
-    pub parties_config: PartiesConfig,
+    pub parties_config: CovenantPartiesConfig,
+    /// terms of the covenant
+    pub covenant_terms: CovenantTerms,
 }
 
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {}
 
+#[covenant_clock_address]
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum QueryMsg {
+    #[returns(String)]
+    NextContract {},
+    #[returns(LockupConfig)]
+    LockupConfig {},
+    #[returns(CovenantPartiesConfig)]
+    CovenantParties {},
+    #[returns(CovenantTerms)]
+    CovenantTerms {},
+}
 
 #[cw_serde]
 pub enum ContractState {
@@ -36,19 +51,23 @@ pub enum ContractState {
 }
 
 #[cw_serde]
-pub struct PartiesConfig {
-    pub party_a: Party,
-    pub party_b: Party,
+pub struct CovenantTerms {
+    pub party_a_amount: Uint128,
+    pub party_b_amount: Uint128,
 }
 
 #[cw_serde]
-pub struct Party {
+pub struct CovenantPartiesConfig {
+    pub party_a: CovenantParty,
+    pub party_b: CovenantParty,
+}
+
+#[cw_serde]
+pub struct CovenantParty {
     /// authorized address of the party
     pub addr: Addr,
     /// denom provided by the party
     pub provided_denom: String,
-    /// amount of the denom above to be expected
-    pub amount: Uint128,
     /// config for refunding funds in case covenant fails to complete
     pub refund_config: RefundConfig,
 }
@@ -61,7 +80,7 @@ pub enum RefundConfig {
     Ibc(RemoteChainInfo),
 }
 
-impl Party {
+impl CovenantParty {
     pub fn get_refund_msg(self, amount: Uint128, block: &BlockInfo) -> CosmosMsg  {
         match self.refund_config {
             RefundConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
