@@ -39,6 +39,8 @@ pub enum QueryMsg {
     CovenantParties {},
     #[returns(CovenantTerms)]
     CovenantTerms {},
+    #[returns(ContractState)]
+    ContractState {},
 }
 
 #[cw_serde]
@@ -142,14 +144,18 @@ impl LockupConfig {
                 if h > &block_info.height {
                     Ok(self)
                 } else {
-                    Err(ContractError::Std(cosmwasm_std::StdError::GenericErr { msg: "invalid".to_string() }))
+                    Err(ContractError::Std(cosmwasm_std::StdError::GenericErr {
+                        msg: "invalid lockup config: block height must be in the future".to_string()
+                    }))                
                 }
             },
             LockupConfig::Time(t) => {
                 if t.nanos() > block_info.time.nanos() {
                     Ok(self)
                 } else {
-                    Err(ContractError::Std(cosmwasm_std::StdError::GenericErr { msg: "invalid".to_string() }))
+                    Err(ContractError::Std(cosmwasm_std::StdError::GenericErr {
+                        msg: "invalid lockup config: block time must be in the future".to_string()
+                    }))
                 }
             },
         }
@@ -158,11 +164,19 @@ impl LockupConfig {
     /// compares current block info with the stored lockup config.
     /// returns false if no lockup configuration is stored.
     /// otherwise, returns true if the current block is past the stored info.
-    pub fn is_due(self, block_info: BlockInfo) -> bool {
+    pub fn is_expired(self, block_info: BlockInfo) -> bool {
+        println!("current block: {:?}", block_info);
         match self {
             LockupConfig::None => false, // or.. true? should not be called
-            LockupConfig::Block(h) => h < block_info.height,
-            LockupConfig::Time(t) => t.nanos() < block_info.time.nanos(),
+            LockupConfig::Block(h) => {
+                println!("lockup config block: {:?}", h);
+                h <= block_info.height
+            },
+            LockupConfig::Time(t) => {
+                println!("lockup config time: {:?}", t);
+
+                t.nanos() <= block_info.time.nanos()
+            },
         }
     }
 }
