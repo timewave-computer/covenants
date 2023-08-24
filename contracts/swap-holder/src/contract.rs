@@ -181,20 +181,20 @@ fn try_refund(
         },
         // party A failed to deposit. refund party B
         (true, false) => {
-            let refund_msg: IbcMsg = parties.party_b.get_ibc_refund_msg(party_b_coin.amount, env.block);
+            let refund_msg: CosmosMsg = parties.party_b.get_refund_msg(party_b_coin.amount, &env.block);
             vec![refund_msg]
         },
         // party B failed to deposit. refund party A
         (false, true) => {
-            let refund_msg: IbcMsg = parties.party_a.get_ibc_refund_msg(party_a_coin.amount, env.block);
+            let refund_msg: CosmosMsg = parties.party_a.get_refund_msg(party_a_coin.amount, &env.block);
             vec![refund_msg]
 
         },
         // not enough balances to perform the covenant swap.
         // refund denoms to both parties.
         (false, false) => {
-            let refund_b_msg: IbcMsg = parties.party_b.get_ibc_refund_msg(party_b_coin.amount, env.block.clone());
-            let refund_a_msg: IbcMsg = parties.party_a.get_ibc_refund_msg(party_a_coin.amount, env.block);
+            let refund_b_msg: CosmosMsg = parties.party_b.get_refund_msg(party_b_coin.amount, &env.block);
+            let refund_a_msg: CosmosMsg = parties.party_a.get_refund_msg(party_a_coin.amount, &env.block);
             vec![refund_a_msg, refund_b_msg]
         },
     };
