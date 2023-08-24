@@ -31,3 +31,5 @@ covenant-utils = { workspace = true }
 [dev-dependencies]
 cw-multi-test = { workspace = true }
 anyhow = { workspace = true }
+covenant-native-splitter = { workspace = true }
+neutron-sdk      = { workspace = true }
