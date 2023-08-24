@@ -31,6 +31,7 @@ pub fn instantiate(
     LOCKUP_CONFIG.save(deps.storage, lockup_config)?;
     PARTIES_CONFIG.save(deps.storage, &msg.parties_config)?;
     COVENANT_TERMS.save(deps.storage, &msg.covenant_terms)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     Ok(Response::default()
     )
@@ -72,7 +73,7 @@ fn try_forward(
 ) -> Result<Response, ContractError> {
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
     // check if covenant is expired
-    if lockup_config.is_due(env.block) {
+    if lockup_config.is_expired(env.block) {
         CONTRACT_STATE.save(deps.storage, &ContractState::Expired)?;
         return Ok(Response::default()
             .add_attribute("method", "try_forward")
@@ -212,5 +213,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::CovenantParties {} => Ok(to_binary(&PARTIES_CONFIG.may_load(deps.storage)?)?),
         QueryMsg::CovenantTerms {} => Ok(to_binary(&COVENANT_TERMS.may_load(deps.storage)?)?),
         QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?)
     }
 }
