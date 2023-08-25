@@ -1,5 +1,4 @@
-
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Coin, Uint128, CosmosMsg, BankMsg, StdError, IbcMsg, Deps, StdResult, Binary, to_binary, SubMsg};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Coin, Uint128, CosmosMsg, BankMsg, StdError, Deps, StdResult, Binary, to_binary, SubMsg, Reply};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -7,8 +6,9 @@ use cw2::set_contract_version;
 
 use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, QueryMsg}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, LOCKUP_CONFIG, PARTIES_CONFIG, CONTRACT_STATE, COVENANT_TERMS}, error::ContractError};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol-holder";
+const CONTRACT_NAME: &str = "crates.io:covenant-swap-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const COMPLETION_REPLY_ID: u64 = 531;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -18,12 +18,11 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    deps.api.debug("WASMDEBUG: covenant-two-party-pol-holder instantiate");
+    deps.api.debug("WASMDEBUG: covenant-swap-holder instantiate");
 
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
-    // let parties_config = msg.parties_config.validate_config()?;
     let lockup_config = msg.lockup_config.validate(env.block)?;
 
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
@@ -131,18 +130,13 @@ fn try_forward(
         ))
     };
 
-    let multi_send_msg = BankMsg::Send { 
+    let multi_send_msg = CosmosMsg::Bank(BankMsg::Send { 
         to_address: deposit_address,
         amount,
-    };
-
-    // if bankMsg succeeds we can safely complete the holder
-    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+    });
 
     Ok(Response::default()
-        .add_submessage(
-            SubMsg::reply_on_error(CosmosMsg::Bank(multi_send_msg), 1)
-        )
+        .add_submessage(SubMsg::reply_on_success(multi_send_msg, COMPLETION_REPLY_ID))
     )
 }
 
@@ -173,8 +167,10 @@ fn try_refund(
     }
 
     let messages = match (party_a_coin.amount.is_zero(), party_b_coin.amount.is_zero()) {
-        // if both balances are zero, neither party deposited.
-        // nothing to return, we complete.
+        // both balances being zero means that either:
+        // 1. neither party deposited any funds in the first place
+        // 2. we have refunded both parties
+        // either way, this indicates completion
         (true, true) => {
             CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
             return Ok(Response::default()
@@ -184,26 +180,20 @@ fn try_refund(
             )
         },
         // party A failed to deposit. refund party B
-        (true, false) => {
-            let refund_msg: CosmosMsg = parties.party_b.get_refund_msg(party_b_coin.amount, &env.block);
-            vec![refund_msg]
-        },
+        (true, false) => vec![
+            parties.party_b.get_refund_msg(party_b_coin.amount, &env.block)
+        ],
         // party B failed to deposit. refund party A
-        (false, true) => {
-            let refund_msg: CosmosMsg = parties.party_a.get_refund_msg(party_a_coin.amount, &env.block);
-            vec![refund_msg]
-
-        },
+        (false, true) => vec![
+            parties.party_a.get_refund_msg(party_a_coin.amount, &env.block),
+        ],
         // not enough balances to perform the covenant swap.
         // refund denoms to both parties.
-        (false, false) => {
-            let refund_b_msg: CosmosMsg = parties.party_b.get_refund_msg(party_b_coin.amount, &env.block);
-            let refund_a_msg: CosmosMsg = parties.party_a.get_refund_msg(party_a_coin.amount, &env.block);
-            vec![refund_a_msg, refund_b_msg]
-        },
+        (false, false) => vec![
+            parties.party_a.get_refund_msg(party_a_coin.amount, &env.block),
+            parties.party_b.get_refund_msg(party_b_coin.amount, &env.block),
+        ],
     };
-
-    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
 
     Ok(Response::default()
         .add_attribute("method", "try_refund")
@@ -220,5 +210,17 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::CovenantTerms {} => Ok(to_binary(&COVENANT_TERMS.may_load(deps.storage)?)?),
         QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?)
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+    if msg.id == COMPLETION_REPLY_ID {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        Ok(Response::default()
+            .add_attribute("method", "reply_complete")
+            .add_attribute("contract_state", "complete"))
+    } else {
+        Err(ContractError::UnexpectedReplyId {})
     }
 }
