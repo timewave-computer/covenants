@@ -1,7 +1,8 @@
 use cosmwasm_std::Addr;
+use covenant_utils::{LockupConfig, CovenantTerms, CovenantPartiesConfig};
 use cw_storage_plus::Item;
 
-use crate::msg::{ContractState, CovenantPartiesConfig, LockupConfig, CovenantTerms};
+use crate::msg::ContractState;
 
 
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");

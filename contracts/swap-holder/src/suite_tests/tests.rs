@@ -1,6 +1,7 @@
 use cosmwasm_std::{Addr, Uint128, Timestamp, Coin};
+use covenant_utils::{LockupConfig, CovenantParty, RefundConfig, CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms};
 
-use crate::{msg::{LockupConfig, CovenantPartiesConfig, CovenantParty, RefundConfig, CovenantTerms, ContractState}, suite_tests::{suite::{PARTY_A_ADDR, DENOM_A, PARTY_B_ADDR, DENOM_B, CLOCK_ADDR, INITIAL_BLOCK_HEIGHT, INITIAL_BLOCK_NANOS}, QueryMsg}, error::ContractError};
+use crate::{msg::ContractState, suite_tests::suite::{PARTY_A_ADDR, DENOM_A, PARTY_B_ADDR, DENOM_B, CLOCK_ADDR, INITIAL_BLOCK_HEIGHT, INITIAL_BLOCK_NANOS}, error::ContractError};
 
 use super::suite::SuiteBuilder;
 
@@ -28,10 +29,10 @@ fn test_instantiate_happy_and_query_all() {
             refund_config: RefundConfig::Native(Addr::unchecked(PARTY_B_ADDR.to_string())),
         },
     });
-    assert_eq!(covenant_terms, CovenantTerms {
+    assert_eq!(covenant_terms, CovenantTerms::TokenSwap(SwapCovenantTerms {
         party_a_amount: Uint128::new(400),
         party_b_amount: Uint128::new(20),
-    });
+    }));
 }
 
 #[test]
