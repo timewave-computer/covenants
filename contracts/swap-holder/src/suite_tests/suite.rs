@@ -1,9 +1,12 @@
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ContractState};
-use cosmwasm_std::{Addr, Uint128, Coin};
-use covenant_utils::{CovenantParty, LockupConfig, RefundConfig, CovenantPartiesConfig, SwapCovenantTerms, CovenantTerms};
+use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg};
+use cosmwasm_std::{Addr, Coin, Uint128};
+use covenant_utils::{
+    CovenantPartiesConfig, CovenantParty, CovenantTerms, LockupConfig, RefundConfig,
+    SwapCovenantTerms,
+};
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
-use super::{swap_holder_contract, mock_deposit_contract};
+use super::{mock_deposit_contract, swap_holder_contract};
 
 pub const ADMIN: &str = "admin";
 
@@ -43,12 +46,16 @@ impl Default for SuiteBuilder {
                     party_a: CovenantParty {
                         addr: Addr::unchecked(PARTY_A_ADDR.to_string()),
                         provided_denom: DENOM_A.to_string(),
-                        refund_config: RefundConfig::Native(Addr::unchecked(PARTY_A_ADDR.to_string())),
+                        refund_config: RefundConfig::Native(Addr::unchecked(
+                            PARTY_A_ADDR.to_string(),
+                        )),
                     },
                     party_b: CovenantParty {
                         addr: Addr::unchecked(PARTY_B_ADDR.to_string()),
                         provided_denom: DENOM_B.to_string(),
-                        refund_config: RefundConfig::Native(Addr::unchecked(PARTY_B_ADDR.to_string())),
+                        refund_config: RefundConfig::Native(Addr::unchecked(
+                            PARTY_B_ADDR.to_string(),
+                        )),
                     },
                 },
                 covenant_terms: CovenantTerms::TokenSwap(SwapCovenantTerms {
@@ -109,13 +116,12 @@ impl SuiteBuilder {
 // actions
 impl Suite {
     pub fn tick(&mut self, caller: &str) -> Result<AppResponse, anyhow::Error> {
-        self.app
-            .execute_contract(
-                Addr::unchecked(caller),
-                self.holder.clone(),
-                &ExecuteMsg::Tick {},
-                &[],
-            )
+        self.app.execute_contract(
+            Addr::unchecked(caller),
+            self.holder.clone(),
+            &ExecuteMsg::Tick {},
+            &[],
+        )
     }
 }
 
@@ -171,10 +177,7 @@ impl Suite {
     }
 
     pub fn query_party_denom(&self, denom: String, party: String) -> Coin {
-        self.app
-            .wrap()
-            .query_balance(party, denom)
-            .unwrap()
+        self.app.wrap().query_balance(party, denom).unwrap()
     }
 }
 
@@ -185,17 +188,16 @@ impl Suite {
     }
 
     pub fn pass_minutes(&mut self, n: u64) {
-        self.app.update_block(|mut b| b.time = b.time.plus_minutes(n));
+        self.app
+            .update_block(|mut b| b.time = b.time.plus_minutes(n));
     }
 
     pub fn fund_coin(&mut self, coin: Coin) -> AppResponse {
         self.app
-            .sudo(SudoMsg::Bank(
-                cw_multi_test::BankSudo::Mint {
-                    to_address: self.holder.to_string(),
-                    amount: vec![coin],
-                },
-            ))
+            .sudo(SudoMsg::Bank(cw_multi_test::BankSudo::Mint {
+                to_address: self.holder.to_string(),
+                amount: vec![coin],
+            }))
             .unwrap()
     }
 }

@@ -1,12 +1,17 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{BlockInfo, Attribute, Timestamp, StdError, Addr, Uint128, CosmosMsg, BankMsg, Coin, IbcTimeout, IbcMsg};
+use cosmwasm_std::{
+    Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, IbcMsg, IbcTimeout, StdError, Timestamp,
+    Uint128,
+};
 use neutron_ica::RemoteChainInfo;
-
 
 pub mod neutron_ica {
     use cosmwasm_schema::{cw_serde, QueryResponses};
-    use cosmwasm_std::{Uint64, Binary, StdError, Attribute, Coin, Uint128};
-    use neutron_sdk::{bindings::{msg::IbcFee, types::ProtobufAny}, NeutronResult};
+    use cosmwasm_std::{Attribute, Binary, Coin, StdError, Uint128, Uint64};
+    use neutron_sdk::{
+        bindings::{msg::IbcFee, types::ProtobufAny},
+        NeutronResult,
+    };
     use prost::Message;
 
     #[cw_serde]
@@ -60,8 +65,11 @@ pub mod neutron_ica {
                 Attribute::new("connection_id", &self.connection_id),
                 Attribute::new("channel_id", &self.channel_id),
                 Attribute::new("denom", &self.denom),
-                Attribute::new("ibc_transfer_timeout", &self.ibc_transfer_timeout.to_string()),
-                Attribute::new("ica_timeout", &self.ica_timeout.to_string()),
+                Attribute::new(
+                    "ibc_transfer_timeout",
+                    self.ibc_transfer_timeout.to_string(),
+                ),
+                Attribute::new("ica_timeout", self.ica_timeout.to_string()),
                 Attribute::new("ibc_recv_fee", recv_fee),
                 Attribute::new("ibc_ack_fee", ack_fee),
                 Attribute::new("ibc_timeout_fee", timeout_fee),
@@ -69,10 +77,13 @@ pub mod neutron_ica {
         }
 
         pub fn validate(self) -> Result<RemoteChainInfo, StdError> {
-            if self.ibc_fee.ack_fee.is_empty() || self.ibc_fee.timeout_fee.is_empty() || !self.ibc_fee.recv_fee.is_empty() {
+            if self.ibc_fee.ack_fee.is_empty()
+                || self.ibc_fee.timeout_fee.is_empty()
+                || !self.ibc_fee.recv_fee.is_empty()
+            {
                 return Err(StdError::GenericErr {
                     msg: "invalid IbcFee".to_string(),
-                })
+                });
             }
 
             Ok(self)
@@ -81,8 +92,8 @@ pub mod neutron_ica {
 
     fn coin_vec_to_string(coins: &Vec<Coin>) -> String {
         let mut str = "".to_string();
-        if coins.len() == 0 {
-            str.push_str(&"[]".to_string());
+        if coins.is_empty() {
+            str.push_str("[]");
         } else {
             for coin in coins {
                 str.push_str(&coin.to_string());
@@ -91,7 +102,10 @@ pub mod neutron_ica {
         str.to_string()
     }
 
-    pub fn get_proto_coin(denom: String, amount: Uint128) -> cosmos_sdk_proto::cosmos::base::v1beta1::Coin {
+    pub fn get_proto_coin(
+        denom: String,
+        amount: Uint128,
+    ) -> cosmos_sdk_proto::cosmos::base::v1beta1::Coin {
         cosmos_sdk_proto::cosmos::base::v1beta1::Coin {
             denom,
             amount: amount.to_string(),
@@ -150,7 +164,6 @@ pub mod neutron_ica {
     }
 }
 
-
 /// enum based configuration of the lockup period.
 #[cw_serde]
 pub enum LockupConfig {
@@ -162,19 +175,18 @@ pub enum LockupConfig {
     Time(Timestamp),
 }
 
-
 impl LockupConfig {
     pub fn get_response_attributes(self) -> Vec<Attribute> {
         match self {
-            LockupConfig::None => vec![
-                Attribute::new("lockup_config", "none"),
-            ],
-            LockupConfig::Block(h) => vec![
-                Attribute::new("lockup_config_expiry_block_height", h.to_string()),
-            ],
-            LockupConfig::Time(t) => vec![
-                Attribute::new("lockup_config_expiry_block_timestamp", t.to_string()),
-            ],
+            LockupConfig::None => vec![Attribute::new("lockup_config", "none")],
+            LockupConfig::Block(h) => vec![Attribute::new(
+                "lockup_config_expiry_block_height",
+                h.to_string(),
+            )],
+            LockupConfig::Time(t) => vec![Attribute::new(
+                "lockup_config_expiry_block_timestamp",
+                t.to_string(),
+            )],
         }
     }
 
@@ -187,19 +199,20 @@ impl LockupConfig {
                     Ok(())
                 } else {
                     Err(StdError::GenericErr {
-                        msg: "invalid lockup config: block height must be in the future".to_string()
-                    })               
+                        msg: "invalid lockup config: block height must be in the future"
+                            .to_string(),
+                    })
                 }
-            },
+            }
             LockupConfig::Time(t) => {
                 if t.nanos() > block_info.time.nanos() {
                     Ok(())
                 } else {
                     Err(StdError::GenericErr {
-                        msg: "invalid lockup config: block time must be in the future".to_string()
+                        msg: "invalid lockup config: block time must be in the future".to_string(),
                     })
                 }
-            },
+            }
         }
     }
 
@@ -223,23 +236,18 @@ pub enum RefundConfig {
     Ibc(RemoteChainInfo),
 }
 
-
 impl RefundConfig {
-    pub fn get_response_attributes(self, party: String) -> Vec<Attribute>  {
+    pub fn get_response_attributes(self, party: String) -> Vec<Attribute> {
         match self {
-            RefundConfig::Native(addr) => vec![
-                Attribute::new("refund_config_native_addr", addr),
-            ],
-            RefundConfig::Ibc(r_c_i) => {
-                let attrs = r_c_i.get_response_attributes()
-                    .into_iter()
-                    .map(|mut a| {
-                        a.key = party.to_string() + &a.key;
-                        a
-                    })
-                    .collect();
-                attrs
-            },
+            RefundConfig::Native(addr) => vec![Attribute::new("refund_config_native_addr", addr)],
+            RefundConfig::Ibc(r_c_i) => r_c_i
+                .get_response_attributes()
+                .into_iter()
+                .map(|mut a| {
+                    a.key = party.to_string() + &a.key;
+                    a
+                })
+                .collect(),
         }
     }
 }
@@ -255,16 +263,14 @@ pub struct CovenantParty {
 }
 
 impl CovenantParty {
-    pub fn get_refund_msg(self, amount: Uint128, block: &BlockInfo) -> CosmosMsg  {
+    pub fn get_refund_msg(self, amount: Uint128, block: &BlockInfo) -> CosmosMsg {
         match self.refund_config {
             RefundConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
                 to_address: addr.to_string(),
-                amount: vec![
-                    Coin {
-                        denom: self.provided_denom,
-                        amount,
-                    },
-                ],
+                amount: vec![Coin {
+                    denom: self.provided_denom,
+                    amount,
+                }],
             }),
             RefundConfig::Ibc(r_c_i) => CosmosMsg::Ibc(IbcMsg::Transfer {
                 channel_id: r_c_i.channel_id,
@@ -274,13 +280,12 @@ impl CovenantParty {
                     amount,
                 },
                 timeout: IbcTimeout::with_timestamp(
-                    block.time.plus_seconds(r_c_i.ibc_transfer_timeout.u64())
+                    block.time.plus_seconds(r_c_i.ibc_transfer_timeout.u64()),
                 ),
             }),
         }
     }
 }
-
 
 #[cw_serde]
 pub struct CovenantPartiesConfig {
@@ -290,21 +295,29 @@ pub struct CovenantPartiesConfig {
 
 impl CovenantPartiesConfig {
     pub fn get_response_attributes(self) -> Vec<Attribute> {
-        let mut attrs =  vec![
+        let mut attrs = vec![
             Attribute::new("party_a_address", self.party_a.addr),
             Attribute::new("party_a_denom", self.party_a.provided_denom),
             Attribute::new("party_b_address", self.party_b.addr),
             Attribute::new("party_b_denom", self.party_b.provided_denom),
         ];
-        attrs.extend(self.party_a.refund_config.get_response_attributes("party_a_".to_string()));
-        attrs.extend(self.party_b.refund_config.get_response_attributes("party_b_".to_string()));
+        attrs.extend(
+            self.party_a
+                .refund_config
+                .get_response_attributes("party_a_".to_string()),
+        );
+        attrs.extend(
+            self.party_b
+                .refund_config
+                .get_response_attributes("party_b_".to_string()),
+        );
         attrs
     }
 }
 
 #[cw_serde]
 pub enum CovenantTerms {
-    TokenSwap(SwapCovenantTerms)
+    TokenSwap(SwapCovenantTerms),
 }
 
 #[cw_serde]
