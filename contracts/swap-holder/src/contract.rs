@@ -2,6 +2,7 @@ use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Coin, Uint128, CosmosMsg
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
+use covenant_utils::CovenantTerms;
 use cw2::set_contract_version;
 
 use crate::{msg::{InstantiateMsg, ExecuteMsg, ContractState, QueryMsg}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, LOCKUP_CONFIG, PARTIES_CONFIG, CONTRACT_STATE, COVENANT_TERMS}, error::ContractError};
@@ -23,16 +24,17 @@ pub fn instantiate(
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
-    let lockup_config = msg.lockup_config.validate(env.block)?;
+    msg.lockup_config.validate(env.block)?;
 
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
-    LOCKUP_CONFIG.save(deps.storage, lockup_config)?;
+    LOCKUP_CONFIG.save(deps.storage, &msg.lockup_config)?;
     PARTIES_CONFIG.save(deps.storage, &msg.parties_config)?;
     COVENANT_TERMS.save(deps.storage, &msg.covenant_terms)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     Ok(Response::default()
+        .add_attributes(msg.get_response_attributes())
     )
 }
 
@@ -82,7 +84,7 @@ fn try_forward(
     }
 
     let parties = PARTIES_CONFIG.load(deps.storage)?;
-    let covenant_terms = COVENANT_TERMS.load(deps.storage)?;
+    let CovenantTerms::TokenSwap(covenant_terms) = COVENANT_TERMS.load(deps.storage)?;
 
     let mut party_a_coin = Coin {
         denom: parties.party_a.provided_denom,
