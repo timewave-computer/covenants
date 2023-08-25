@@ -21,7 +21,7 @@ fn merge_variants(metadata: TokenStream, left: TokenStream, right: TokenStream) 
         Enum(DataEnum {
             variants: to_add, ..
         }),
-    ) = (&mut left.data, right.data,)
+    ) = (&mut left.data, right.data)
     {
         variants.extend(to_add.into_iter());
 
@@ -65,7 +65,6 @@ pub fn covenant_deposit_address(metadata: TokenStream, input: TokenStream) -> To
         .into(),
     )
 }
-
 
 #[proc_macro_attribute]
 pub fn covenant_clock_address(metadata: TokenStream, input: TokenStream) -> TokenStream {
