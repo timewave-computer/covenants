@@ -1,5 +1,6 @@
-use crate::msg::{ExecuteMsg, InstantiateMsg, LockupConfig, CovenantPartiesConfig, CovenantTerms, CovenantParty, RefundConfig, QueryMsg, ContractState};
+use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg, ContractState};
 use cosmwasm_std::{Addr, Uint128, Coin};
+use covenant_utils::{CovenantParty, LockupConfig, RefundConfig, CovenantPartiesConfig, SwapCovenantTerms, CovenantTerms};
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
 use super::{swap_holder_contract, mock_deposit_contract};
@@ -50,10 +51,10 @@ impl Default for SuiteBuilder {
                         refund_config: RefundConfig::Native(Addr::unchecked(PARTY_B_ADDR.to_string())),
                     },
                 },
-                covenant_terms: CovenantTerms {
+                covenant_terms: CovenantTerms::TokenSwap(SwapCovenantTerms {
                     party_a_amount: Uint128::new(400),
                     party_b_amount: Uint128::new(20),
-                },
+                }),
             },
             app: App::default(),
         }
