@@ -13,7 +13,7 @@ fn test_instantiate_happy_and_query_all() {
     let covenant_parties = suite.query_covenant_parties();
     let covenant_terms = suite.query_covenant_terms();
 
-    assert_eq!(next_contract, "next_contract");
+    assert_eq!(next_contract, "contract0");
     assert_eq!(clock_address, "clock_address");
     assert_eq!(lockup_config, LockupConfig::None);
     assert_eq!(covenant_parties, CovenantPartiesConfig {
@@ -113,21 +113,155 @@ fn test_forward_tick_insufficient_funds() {
 }
 
 #[test]
-#[should_panic(expected = "Insufficient funds to forward")]
 fn test_forward_tick() {
     let mut suite = SuiteBuilder::default().build();
-
-    suite.fund_coin(Coin {
+    let coin_a = Coin {
         denom: DENOM_A.to_string(),
-        amount: Uint128::new(10),
-    });
-    suite.fund_coin(Coin {
+        amount: Uint128::new(500),
+    };
+    let coin_b = Coin {
         denom: DENOM_B.to_string(),
-        amount: Uint128::new(10),
-    });
+        amount: Uint128::new(500),
+    };
+
+    suite.fund_coin(coin_a.clone());
+    suite.fund_coin(coin_b.clone());
 
     suite.tick(CLOCK_ADDR).unwrap();
+    suite.pass_blocks(10);
 
-    // TODO
+    let state = suite.query_contract_state();
+    assert_eq!(state, ContractState::Complete);
+    
+    let splitter_balances = suite.query_native_splitter_balances();
+    assert_eq!(2, splitter_balances.len());
+    assert_eq!(coin_a, splitter_balances[0]);
+    assert_eq!(coin_b, splitter_balances[1]);
+}
+
+#[test]
+fn test_refund_nothing_to_refund() {
+    let mut suite = SuiteBuilder::default()
+        .with_lockup_config(LockupConfig::Block(21345))
+        .build();
+
+    suite.pass_blocks(10000);
+
+    // first tick acknowledges the expiration
+    suite.tick(CLOCK_ADDR).unwrap();
+    let state = suite.query_contract_state();
+    assert_eq!(state, ContractState::Expired);
+    
+    // second tick completes
+    suite.tick(CLOCK_ADDR).unwrap();
+    let state = suite.query_contract_state();
+    assert_eq!(state, ContractState::Complete);
+
+    let party_a_bal = suite.query_party_denom(DENOM_A.to_string(), suite.party_a.addr.to_string());
+    let party_b_bal = suite.query_party_denom(DENOM_B.to_string(), suite.party_b.addr.to_string());
+
+    assert_eq!(Uint128::zero(), party_a_bal.amount);
+    assert_eq!(Uint128::zero(), party_b_bal.amount);
+}
+
+
+#[test]
+fn test_refund_party_a() {
+    let mut suite = SuiteBuilder::default()
+        .with_lockup_config(LockupConfig::Block(21345))
+        .build();
+    
+    let coin_a = Coin {
+        denom: DENOM_A.to_string(),
+        amount: Uint128::new(500),
+    };
+
+    suite.fund_coin(coin_a.clone());
+    suite.pass_blocks(10000);
+
+    // first tick acknowledges the expiration
+    suite.tick(CLOCK_ADDR).unwrap();
+    let state = suite.query_contract_state();
+    assert_eq!(state, ContractState::Expired);
+    
+    // second tick completes
+    suite.tick(CLOCK_ADDR).unwrap();
+    let state = suite.query_contract_state();
+    assert_eq!(state, ContractState::Complete);
+
+    let party_a_bal = suite.query_party_denom(DENOM_A.to_string(), suite.party_a.addr.to_string());
+    let party_b_bal = suite.query_party_denom(DENOM_B.to_string(), suite.party_b.addr.to_string());
+
+    assert_eq!(Uint128::new(500), party_a_bal.amount);
+    assert_eq!(Uint128::zero(), party_b_bal.amount);
+}
+
+
+#[test]
+fn test_refund_party_b() {
+    let mut suite = SuiteBuilder::default()
+        .with_lockup_config(LockupConfig::Block(21345))
+        .build();
+    
+    let coin_b = Coin {
+        denom: DENOM_B.to_string(),
+        amount: Uint128::new(500),
+    };
+    suite.fund_coin(coin_b.clone());
+    
+    suite.pass_blocks(10000);
+
+    // first tick acknowledges the expiration
+    suite.tick(CLOCK_ADDR).unwrap();
+    let state = suite.query_contract_state();
+    assert_eq!(state, ContractState::Expired);
+
+    // second tick completes
+    suite.tick(CLOCK_ADDR).unwrap();
+    let state = suite.query_contract_state();
+    assert_eq!(state, ContractState::Complete);
+
+    let party_a_bal = suite.query_party_denom(DENOM_A.to_string(), suite.party_a.addr.to_string());
+    let party_b_bal = suite.query_party_denom(DENOM_B.to_string(), suite.party_b.addr.to_string());
+
+    assert_eq!(Uint128::zero(), party_a_bal.amount);
+    assert_eq!(Uint128::new(500), party_b_bal.amount);
+}
+
+
+
+#[test]
+fn test_refund_both_parties() {
+    let mut suite = SuiteBuilder::default()
+        .with_lockup_config(LockupConfig::Block(21345))
+        .build();
+    let coin_a = Coin {
+        denom: DENOM_A.to_string(),
+        amount: Uint128::new(300),
+    };
+    suite.fund_coin(coin_a.clone());
+    let coin_b = Coin {
+        denom: DENOM_B.to_string(),
+        amount: Uint128::new(10),
+    };
+    suite.fund_coin(coin_b.clone());
+
+    suite.pass_blocks(10000);
+
+    // first tick acknowledges the expiration
+    suite.tick(CLOCK_ADDR).unwrap();
+    let state = suite.query_contract_state();
+    assert_eq!(state, ContractState::Expired);
+
+    // second tick completes
+    suite.tick(CLOCK_ADDR).unwrap();
+    let state = suite.query_contract_state();
+    assert_eq!(state, ContractState::Complete);
+
+    let party_a_bal = suite.query_party_denom(DENOM_A.to_string(), suite.party_a.addr.to_string());
+    let party_b_bal = suite.query_party_denom(DENOM_B.to_string(), suite.party_b.addr.to_string());
+
+    assert_eq!(Uint128::new(300), party_a_bal.amount);
+    assert_eq!(Uint128::new(10), party_b_bal.amount);
 }
 
