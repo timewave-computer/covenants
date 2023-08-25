@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Attribute};
 use covenant_macros::{clocked, covenant_clock_address};
-use covenant_utils::{LockupConfig, CovenantTerms, CovenantPartiesConfig};
+use covenant_utils::{CovenantPartiesConfig, CovenantTerms, LockupConfig};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -11,7 +11,7 @@ pub struct InstantiateMsg {
     /// address of the next contract to forward the funds to.
     /// usually expected tobe the splitter.
     pub next_contract: String,
-    /// block height of covenant expiration. Position is exited 
+    /// block height of covenant expiration. Position is exited
     /// automatically upon reaching that height.
     pub lockup_config: LockupConfig,
     /// parties engaged in the POL.
@@ -61,4 +61,3 @@ pub enum ContractState {
     /// underlying funds have been withdrawn.
     Complete,
 }
-
