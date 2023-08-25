@@ -1,8 +1,7 @@
-use cosmwasm_schema::{QueryResponses, cw_serde};
-use cosmwasm_std::{Empty, Binary, StdResult, Env, Deps, to_binary};
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{to_binary, Binary, Deps, Empty, Env, StdResult};
 use covenant_macros::covenant_deposit_address;
 use cw_multi_test::{Contract, ContractWrapper};
-
 
 mod suite;
 mod tests;
@@ -12,7 +11,8 @@ pub fn swap_holder_contract() -> Box<dyn Contract<Empty>> {
         crate::contract::execute,
         crate::contract::instantiate,
         crate::contract::query,
-    ).with_reply(crate::contract::reply);
+    )
+    .with_reply(crate::contract::reply);
     Box::new(contract)
 }
 
