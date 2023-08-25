@@ -1,8 +1,6 @@
 use crate::msg::{ExecuteMsg, InstantiateMsg, LockupConfig, CovenantPartiesConfig, CovenantTerms, CovenantParty, RefundConfig, QueryMsg, ContractState};
-use cosmwasm_std::{Addr, Uint128, Coin, Uint64};
-use covenant_native_splitter::msg::{NativeDenomSplit, SplitReceiver};
-use cw_multi_test::{App, AppResponse, Executor, SudoMsg, ContractWrapper, BasicAppBuilder};
-use neutron_sdk::bindings::{msg::{NeutronMsg, IbcFee}, query::NeutronQuery};
+use cosmwasm_std::{Addr, Uint128, Coin};
+use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
 use super::{swap_holder_contract, mock_deposit_contract};
 
@@ -68,16 +66,6 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn with_parties_config(mut self, config: CovenantPartiesConfig) -> Self {
-        self.instantiate.parties_config = config;
-        self
-    }
-
-    pub fn with_covenant_terms(mut self, terms: CovenantTerms) -> Self {
-        self.instantiate.covenant_terms = terms;
-        self
-    }
-
     pub fn build(mut self) -> Suite {
         let mut app = self.app;
         let holder_code = app.store_code(swap_holder_contract());
@@ -113,14 +101,6 @@ impl SuiteBuilder {
             mock_deposit,
             party_a: self.instantiate.parties_config.party_a,
             party_b: self.instantiate.parties_config.party_b,
-            
-            // admin: Addr::unchecked(ADMIN),
-            // pool_address: self.instantiate.pool_address,
-            // covenant_terms: todo!(),
-            // covenant_paries: todo!(),
-            // lockup_config: todo!(),
-            // clock_address: todo!(),
-            // next_contract: todo!(),
         }
     }
 }

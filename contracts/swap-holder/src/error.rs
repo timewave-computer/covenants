@@ -14,4 +14,7 @@ pub enum ContractError {
 
     #[error("Insufficient funds to forward")]
     InsufficientFunds {},
+
+    #[error("unexpected reply id")]
+    UnexpectedReplyId {},
 }

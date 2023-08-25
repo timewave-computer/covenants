@@ -1,6 +1,6 @@
 use cosmwasm_std::{Addr, Uint128, Timestamp, Coin};
 
-use crate::{msg::{LockupConfig, CovenantPartiesConfig, CovenantParty, RefundConfig, CovenantTerms, ContractState}, suite_tests::suite::{PARTY_A_ADDR, DENOM_A, PARTY_B_ADDR, DENOM_B, CLOCK_ADDR, INITIAL_BLOCK_HEIGHT, INITIAL_BLOCK_NANOS}, error::ContractError};
+use crate::{msg::{LockupConfig, CovenantPartiesConfig, CovenantParty, RefundConfig, CovenantTerms, ContractState}, suite_tests::{suite::{PARTY_A_ADDR, DENOM_A, PARTY_B_ADDR, DENOM_B, CLOCK_ADDR, INITIAL_BLOCK_HEIGHT, INITIAL_BLOCK_NANOS}, QueryMsg}, error::ContractError};
 
 use super::suite::SuiteBuilder;
 
@@ -113,6 +113,40 @@ fn test_forward_tick_insufficient_funds() {
 }
 
 #[test]
+fn test_covenant_query_endpoint() {
+    let mut suite = SuiteBuilder::default().build();
+    let coin_a = Coin {
+        denom: DENOM_A.to_string(),
+        amount: Uint128::new(500),
+    };
+    let coin_b = Coin {
+        denom: DENOM_B.to_string(),
+        amount: Uint128::new(500),
+    };
+    suite.fund_coin(coin_a.clone());
+    suite.fund_coin(coin_b.clone());
+
+    suite.tick(CLOCK_ADDR).unwrap();
+    suite.pass_blocks(10);
+
+    let state = suite.query_contract_state();
+    assert_eq!(state, ContractState::Complete);
+    
+    let splitter_balances = suite.query_native_splitter_balances();
+    assert_eq!(2, splitter_balances.len());
+    assert_eq!(coin_a, splitter_balances[0]);
+    assert_eq!(coin_b, splitter_balances[1]);
+
+    let resp: String = suite.app
+        .wrap()
+        .query_wasm_smart(suite.mock_deposit, &covenant_utils::neutron_ica::QueryMsg::DepositAddress {})
+        .unwrap();
+
+    println!("resp: {:?}", resp);
+}
+
+
+#[test]
 fn test_forward_tick() {
     let mut suite = SuiteBuilder::default().build();
     let coin_a = Coin {
@@ -184,7 +218,9 @@ fn test_refund_party_a() {
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Expired);
     
-    // second tick completes
+    // second tick refunds
+    suite.tick(CLOCK_ADDR).unwrap();
+    // third tick acknowledges the refund and completes
     suite.tick(CLOCK_ADDR).unwrap();
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Complete);
@@ -216,8 +252,11 @@ fn test_refund_party_b() {
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Expired);
 
-    // second tick completes
+    // second refunds
     suite.tick(CLOCK_ADDR).unwrap();
+    // third tick completes
+    suite.tick(CLOCK_ADDR).unwrap();
+
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Complete);
 
@@ -253,8 +292,11 @@ fn test_refund_both_parties() {
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Expired);
 
-    // second tick completes
+    // second tick refunds the parties
     suite.tick(CLOCK_ADDR).unwrap();
+    // third tick acknowledges the refund and completes
+    suite.tick(CLOCK_ADDR).unwrap();
+
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Complete);
 

@@ -27,9 +27,8 @@ cw20             = { version = "0.15" }
 covenant-macros = { workspace = true }
 covenant-clock        = { workspace = true, features=["library"] }
 covenant-utils = { workspace = true }
+cosmos-sdk-proto = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
 anyhow = { workspace = true }
-covenant-native-splitter = { workspace = true }
-neutron-sdk      = { workspace = true }
