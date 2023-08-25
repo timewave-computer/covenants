@@ -224,6 +224,26 @@ pub enum RefundConfig {
 }
 
 
+impl RefundConfig {
+    pub fn get_response_attributes(self, party: String) -> Vec<Attribute>  {
+        match self {
+            RefundConfig::Native(addr) => vec![
+                Attribute::new("refund_config_native_addr", addr),
+            ],
+            RefundConfig::Ibc(r_c_i) => {
+                let attrs = r_c_i.get_response_attributes()
+                    .into_iter()
+                    .map(|mut a| {
+                        a.key = party.to_string() + &a.key;
+                        a
+                    })
+                    .collect();
+                attrs
+            },
+        }
+    }
+}
+
 #[cw_serde]
 pub struct CovenantParty {
     /// authorized address of the party
@@ -268,6 +288,19 @@ pub struct CovenantPartiesConfig {
     pub party_b: CovenantParty,
 }
 
+impl CovenantPartiesConfig {
+    pub fn get_response_attributes(self) -> Vec<Attribute> {
+        let mut attrs =  vec![
+            Attribute::new("party_a_address", self.party_a.addr),
+            Attribute::new("party_a_denom", self.party_a.provided_denom),
+            Attribute::new("party_b_address", self.party_b.addr),
+            Attribute::new("party_b_denom", self.party_b.provided_denom),
+        ];
+        attrs.extend(self.party_a.refund_config.get_response_attributes("party_a_".to_string()));
+        attrs.extend(self.party_b.refund_config.get_response_attributes("party_b_".to_string()));
+        attrs
+    }
+}
 
 #[cw_serde]
 pub enum CovenantTerms {

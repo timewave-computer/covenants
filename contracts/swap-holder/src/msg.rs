@@ -26,8 +26,7 @@ impl InstantiateMsg {
             Attribute::new("clock_addr", self.clock_address),
             Attribute::new("next_contract", self.next_contract),
         ];
-        // TODO:
-        // attrs.extend(self.parties_config.get_response_attributes());
+        attrs.extend(self.parties_config.get_response_attributes());
         attrs.extend(self.covenant_terms.get_response_attributes());
         attrs.extend(self.lockup_config.get_response_attributes());
         attrs
