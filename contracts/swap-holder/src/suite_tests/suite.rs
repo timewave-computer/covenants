@@ -1,8 +1,10 @@
 use crate::msg::{ExecuteMsg, InstantiateMsg, LockupConfig, CovenantPartiesConfig, CovenantTerms, CovenantParty, RefundConfig, QueryMsg, ContractState};
-use cosmwasm_std::{Addr, Uint128, Coin};
-use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
+use cosmwasm_std::{Addr, Uint128, Coin, Uint64};
+use covenant_native_splitter::msg::{NativeDenomSplit, SplitReceiver};
+use cw_multi_test::{App, AppResponse, Executor, SudoMsg, ContractWrapper, BasicAppBuilder};
+use neutron_sdk::bindings::{msg::{NeutronMsg, IbcFee}, query::NeutronQuery};
 
-use super::swap_holder_contract;
+use super::{swap_holder_contract, mock_deposit_contract};
 
 pub const ADMIN: &str = "admin";
 
@@ -20,12 +22,10 @@ pub const INITIAL_BLOCK_NANOS: u64 = 1571797419879305533;
 
 pub struct Suite {
     pub app: App,
-    // pub covenant_terms: CovenantTerms,
-    // pub covenant_paries: CovenantPartiesConfig,
-    // pub lockup_config: LockupConfig,
-    // pub clock_address: String,
-    // pub next_contract: String,
     pub holder: Addr,
+    pub mock_deposit: Addr,
+    pub party_a: CovenantParty,
+    pub party_b: CovenantParty,
 }
 
 pub struct SuiteBuilder {
@@ -81,6 +81,20 @@ impl SuiteBuilder {
     pub fn build(mut self) -> Suite {
         let mut app = self.app;
         let holder_code = app.store_code(swap_holder_contract());
+        let mock_deposit_code = app.store_code(mock_deposit_contract());
+
+        let mock_deposit = app
+            .instantiate_contract(
+                mock_deposit_code,
+                Addr::unchecked(ADMIN),
+                &self.instantiate,
+                &[],
+                "holder",
+                Some(ADMIN.to_string()),
+            )
+            .unwrap();
+
+        self.instantiate.next_contract = mock_deposit.to_string();
 
         let holder = app
             .instantiate_contract(
@@ -96,6 +110,10 @@ impl SuiteBuilder {
         Suite {
             app,
             holder,
+            mock_deposit,
+            party_a: self.instantiate.parties_config.party_a,
+            party_b: self.instantiate.parties_config.party_b,
+            
             // admin: Addr::unchecked(ADMIN),
             // pool_address: self.instantiate.pool_address,
             // covenant_terms: todo!(),
@@ -161,6 +179,20 @@ impl Suite {
         self.app
             .wrap()
             .query_wasm_smart(&self.holder, &QueryMsg::ContractState {})
+            .unwrap()
+    }
+
+    pub fn query_native_splitter_balances(&self) -> Vec<Coin> {
+        self.app
+            .wrap()
+            .query_all_balances("native-splitter")
+            .unwrap()
+    }
+
+    pub fn query_party_denom(&self, denom: String, party: String) -> Coin {
+        self.app
+            .wrap()
+            .query_balance(party, denom)
             .unwrap()
     }
 }
