@@ -573,17 +573,16 @@ name = "covenant-swap-holder"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
  "covenant-macros",
- "covenant-native-splitter",
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.0",
  "cw20 0.15.1",
- "neutron-sdk",
  "serde",
  "thiserror",
 ]
