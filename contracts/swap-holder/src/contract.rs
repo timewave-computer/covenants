@@ -1,5 +1,5 @@
 
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Coin, Uint128, CosmosMsg, BankMsg, StdError, IbcMsg, Deps, StdResult, Binary, to_binary};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Coin, Uint128, CosmosMsg, BankMsg, StdError, IbcMsg, Deps, StdResult, Binary, to_binary, SubMsg};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -100,7 +100,7 @@ fn try_forward(
     for coin in balances {
         if coin.denom == party_a_coin.denom && coin.amount >= covenant_terms.party_a_amount {
             party_a_coin.amount = coin.amount;
-        } else if coin.denom == party_a_coin.denom && coin.amount >= covenant_terms.party_b_amount {
+        } else if coin.denom == party_b_coin.denom && coin.amount >= covenant_terms.party_b_amount {
             party_b_coin.amount = coin.amount;
         }
     }
@@ -112,6 +112,10 @@ fn try_forward(
     }
 
     // otherwise we are ready to forward the funds to the next module
+    let amount = vec![
+        party_a_coin,
+        party_b_coin,
+    ];
 
     // first we query the deposit address of next module
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
@@ -119,6 +123,7 @@ fn try_forward(
         next_contract,
         &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
     )?;
+
     // if query returns None, then we error and wait
     let Some(deposit_address) = deposit_address_query else {
         return Err(ContractError::Std(
@@ -128,16 +133,17 @@ fn try_forward(
 
     let multi_send_msg = BankMsg::Send { 
         to_address: deposit_address,
-        amount: vec![
-            party_a_coin,
-            party_b_coin,
-        ]
+        amount,
     };
 
     // if bankMsg succeeds we can safely complete the holder
     CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
 
-    Ok(Response::default().add_message(CosmosMsg::Bank(multi_send_msg)))
+    Ok(Response::default()
+        .add_submessage(
+            SubMsg::reply_on_error(CosmosMsg::Bank(multi_send_msg), 1)
+        )
+    )
 }
 
 fn try_refund(
@@ -161,7 +167,7 @@ fn try_refund(
     for coin in balances {
         if coin.denom == party_a_coin.denom {
             party_a_coin.amount = coin.amount;
-        } else if coin.denom == party_a_coin.denom {
+        } else if coin.denom == party_b_coin.denom {
             party_b_coin.amount = coin.amount;
         }
     }
