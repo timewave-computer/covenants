@@ -1,3 +1,7 @@
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{BlockInfo, Attribute, Timestamp, StdError, Addr, Uint128, CosmosMsg, BankMsg, Coin, IbcTimeout, IbcMsg};
+use neutron_ica::RemoteChainInfo;
+
 
 pub mod neutron_ica {
     use cosmwasm_schema::{cw_serde, QueryResponses};
@@ -143,5 +147,150 @@ pub mod neutron_ica {
             type_url: "/cosmos.bank.v1beta1.MsgMultiSend".to_string(),
             value: Binary::from(buf),
         })
+    }
+}
+
+
+/// enum based configuration of the lockup period.
+#[cw_serde]
+pub enum LockupConfig {
+    /// no lockup configured
+    None,
+    /// block height based lockup config
+    Block(u64),
+    /// timestamp based lockup config
+    Time(Timestamp),
+}
+
+
+impl LockupConfig {
+    pub fn get_response_attributes(self) -> Vec<Attribute> {
+        match self {
+            LockupConfig::None => vec![
+                Attribute::new("lockup_config", "none"),
+            ],
+            LockupConfig::Block(h) => vec![
+                Attribute::new("lockup_config_expiry_block_height", h.to_string()),
+            ],
+            LockupConfig::Time(t) => vec![
+                Attribute::new("lockup_config_expiry_block_timestamp", t.to_string()),
+            ],
+        }
+    }
+
+    /// validates that the lockup config being stored is not already expired.
+    pub fn validate(&self, block_info: BlockInfo) -> Result<(), StdError> {
+        match self {
+            LockupConfig::None => Ok(()),
+            LockupConfig::Block(h) => {
+                if h > &block_info.height {
+                    Ok(())
+                } else {
+                    Err(StdError::GenericErr {
+                        msg: "invalid lockup config: block height must be in the future".to_string()
+                    })               
+                }
+            },
+            LockupConfig::Time(t) => {
+                if t.nanos() > block_info.time.nanos() {
+                    Ok(())
+                } else {
+                    Err(StdError::GenericErr {
+                        msg: "invalid lockup config: block time must be in the future".to_string()
+                    })
+                }
+            },
+        }
+    }
+
+    /// compares current block info with the stored lockup config.
+    /// returns false if no lockup configuration is stored.
+    /// otherwise, returns true if the current block is past the stored info.
+    pub fn is_expired(self, block_info: BlockInfo) -> bool {
+        match self {
+            LockupConfig::None => false, // or.. true? should not be called tho
+            LockupConfig::Block(h) => h <= block_info.height,
+            LockupConfig::Time(t) => t.nanos() <= block_info.time.nanos(),
+        }
+    }
+}
+
+#[cw_serde]
+pub enum RefundConfig {
+    /// party expects a refund on the same chain
+    Native(Addr),
+    /// party expects a refund on a remote chain
+    Ibc(RemoteChainInfo),
+}
+
+
+#[cw_serde]
+pub struct CovenantParty {
+    /// authorized address of the party
+    pub addr: Addr,
+    /// denom provided by the party
+    pub provided_denom: String,
+    /// config for refunding funds in case covenant fails to complete
+    pub refund_config: RefundConfig,
+}
+
+impl CovenantParty {
+    pub fn get_refund_msg(self, amount: Uint128, block: &BlockInfo) -> CosmosMsg  {
+        match self.refund_config {
+            RefundConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
+                to_address: addr.to_string(),
+                amount: vec![
+                    Coin {
+                        denom: self.provided_denom,
+                        amount,
+                    },
+                ],
+            }),
+            RefundConfig::Ibc(r_c_i) => CosmosMsg::Ibc(IbcMsg::Transfer {
+                channel_id: r_c_i.channel_id,
+                to_address: self.addr.to_string(),
+                amount: Coin {
+                    denom: self.provided_denom,
+                    amount,
+                },
+                timeout: IbcTimeout::with_timestamp(
+                    block.time.plus_seconds(r_c_i.ibc_transfer_timeout.u64())
+                ),
+            }),
+        }
+    }
+}
+
+
+#[cw_serde]
+pub struct CovenantPartiesConfig {
+    pub party_a: CovenantParty,
+    pub party_b: CovenantParty,
+}
+
+
+#[cw_serde]
+pub enum CovenantTerms {
+    TokenSwap(SwapCovenantTerms)
+}
+
+#[cw_serde]
+pub struct SwapCovenantTerms {
+    pub party_a_amount: Uint128,
+    pub party_b_amount: Uint128,
+}
+
+impl CovenantTerms {
+    pub fn get_response_attributes(self) -> Vec<Attribute> {
+        match self {
+            CovenantTerms::TokenSwap(terms) => {
+                let attrs = vec![
+                    Attribute::new("covenant_terms", "token_swap"),
+                    Attribute::new("party_a_amount", terms.party_a_amount),
+                    Attribute::new("party_b_amount", terms.party_b_amount),
+                ];
+                attrs
+            }
+        }
     }
 }
