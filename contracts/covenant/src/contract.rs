@@ -49,7 +49,7 @@ pub fn instantiate(
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
 
-    // store all the preset fields for each module instantiation
+    // store all the preset fields for each contract instantiation
     PRESET_CLOCK_FIELDS.save(deps.storage, &msg.preset_clock_fields)?;
     PRESET_LP_FIELDS.save(deps.storage, &msg.preset_lp_fields)?;
     PRESET_LS_FIELDS.save(deps.storage, &msg.preset_ls_fields)?;
@@ -60,7 +60,7 @@ pub fn instantiate(
     TIMEOUTS.save(deps.storage, &msg.timeouts)?;
     IBC_FEE.save(deps.storage, &msg.preset_ibc_fee.to_ibc_fee())?;
 
-    // we start the module instantiation chain with the clock
+    // we start the contract instantiation chain with the clock
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
         code_id: msg.preset_clock_fields.clock_code,
@@ -279,7 +279,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
 
 /// depositor instantiation reply means our instantiation chain is complete.
 /// we store the depositor address and update the clock whitelist to include
-/// the LP, LS, and depositor modules.
+/// the LP, LS, and depositor contracts.
 pub fn handle_depositor_reply(
     deps: DepsMut,
     _env: Env,

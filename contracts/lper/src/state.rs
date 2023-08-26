@@ -8,9 +8,9 @@ pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 /// native and ls asset denom information
 pub const ASSETS: Item<AssetData> = Item::new("assets");
 
-/// clock module address to verify the incoming ticks sender
+/// clock contract address to verify the incoming ticks sender
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
-/// holder module address to verify withdrawal requests
+/// holder contract address to verify withdrawal requests
 pub const HOLDER_ADDRESS: Item<Addr> = Item::new("holder_address");
 
 /// keeps track of ls and native token amounts we provided to the pool

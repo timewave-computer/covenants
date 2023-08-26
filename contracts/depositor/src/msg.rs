@@ -23,7 +23,7 @@ pub struct InstantiateMsg {
     /// This is used to ibc transfer uatom on gaia
     /// to the ica on stride
     pub gaia_stride_ibc_transfer_channel_id: String,
-    /// address of the liquid staker module that will be used
+    /// address of the liquid staker contract that will be used
     /// to query for the ICA address on stride
     pub ls_address: String,
     /// json formatted string meant to be used for one-click
