@@ -2,7 +2,7 @@
 name = "covenant-covenant"
 edition = { workspace = true }
 authors = ["benskey bekauz@protonmail.com"]
-description = "Covenant module"
+description = "Covenant contract"
 license = { workspace = true }
 repository = { workspace = true }
 version = { workspace = true }

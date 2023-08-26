@@ -14,21 +14,21 @@ pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 pub struct InstantiateMsg {
     /// contract label for this specific covenant
     pub label: String,
-    /// instantiation fields relevant to clock module known in advance
+    /// instantiation fields relevant to clock contract known in advance
     pub preset_clock_fields: PresetClockFields,
-    /// instantiation fields relevant to ls module known in advance
+    /// instantiation fields relevant to ls contract known in advance
     pub preset_ls_fields: PresetLsFields,
-    /// instantiation fields relevant to depositor module known in advance
+    /// instantiation fields relevant to depositor contract known in advance
     pub preset_depositor_fields: PresetDepositorFields,
-    /// instantiation fields relevant to lp module known in advance
+    /// instantiation fields relevant to lp contract known in advance
     pub preset_lp_fields: PresetLpFields,
-    /// instantiation fields relevant to holder module known in advance
+    /// instantiation fields relevant to holder contract known in advance
     pub preset_holder_fields: PresetHolderFields,
     /// address of the liquidity pool we wish to interact with
     pub pool_address: String,
     /// neutron relayer fee structure
     pub preset_ibc_fee: PresetIbcFee,
-    /// ibc transfer and ica timeouts passed down to relevant modules
+    /// ibc transfer and ica timeouts passed down to relevant contracts
     pub timeouts: Timeouts,
 }
 

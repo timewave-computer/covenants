@@ -2,7 +2,7 @@
 name        = "covenant-depositor"
 edition     = { workspace = true }
 authors     = ["benskey bekauz@protonmail.com"]
-description = "Depositor module for stride covenant"
+description = "Depositor contract for stride covenant"
 license     = { workspace = true }
 repository  = { workspace = true }
 version     = { workspace = true }

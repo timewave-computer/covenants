@@ -50,7 +50,7 @@ pub fn instantiate(
     // contract begins at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    // validate and store other module addresses
+    // validate and store other contract addresses
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let lp_address = deps.api.addr_validate(&msg.lp_address)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
@@ -129,7 +129,7 @@ fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
 
 /// this is a permisionless transfer method. once liquid staked funds are in this
 /// contract, anyone can call this method by passing an amount (`Uint128`) to transfer
-/// the funds (with `ls_denom`) to the liquid pooler module.
+/// the funds (with `ls_denom`) to the liquid pooler contract.
 fn try_execute_transfer(
     deps: DepsMut,
     env: Env,

@@ -61,13 +61,13 @@ pub fn instantiate(
     // contract begins at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    // validate and store other module addresses
+    // validate and store other contract addresses
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let ls_addr = deps.api.addr_validate(&msg.ls_address)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     LS_ADDRESS.save(deps.storage, &ls_addr)?;
 
-    // store information needed to forward funds to next modules
+    // store information needed to forward funds to next contracts
     STRIDE_ATOM_RECEIVER.save(deps.storage, &msg.st_atom_receiver)?;
     NATIVE_ATOM_RECEIVER.save(deps.storage, &msg.atom_receiver)?;
     NEUTRON_ATOM_IBC_DENOM.save(deps.storage, &msg.neutron_atom_ibc_denom)?;
@@ -172,7 +172,7 @@ fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
     })
 }
 
-/// attempts to forward the funds to LP module
+/// attempts to forward the funds to LP contract
 fn try_send_native_token(
     env: Env,
     mut deps: ExecuteDeps,
@@ -205,7 +205,7 @@ fn try_send_native_token(
     // we store that timeout for later validation of pending transfers
     PENDING_NATIVE_TRANSFER_TIMEOUT.save(deps.storage, &msg_transfer_timeout)?;
 
-    // transfer message that will send funds from the ICA on gaia to our LP module
+    // transfer message that will send funds from the ICA on gaia to our LP contract
     let lper_msg = MsgTransfer {
         source_port: "transfer".to_string(),
         source_channel,
@@ -254,7 +254,7 @@ fn try_send_ls_token(
     address: String,
     controller_conn_id: String,
 ) -> NeutronResult<SubMsg<NeutronMsg>> {
-    // first we load the LS module address which is responsible for creating
+    // first we load the LS contract address which is responsible for creating
     // an ICA on stride so that we can query for that ICA address
     let ls_address = LS_ADDRESS.load(deps.storage)?;
     let stride_ica_query: Option<String> = deps
@@ -330,8 +330,8 @@ fn try_send_ls_token(
     )?)
 }
 
-/// attempts to advance the state machine past the sending native tokens to LP module phase.
-/// it queries the balances of the LP module and validates the amount there against our
+/// attempts to advance the state machine past the sending native tokens to LP contract phase.
+/// it queries the balances of the LP contract and validates the amount there against our
 /// expectations. if funds are not yet there, the timeout of previous transfer is validated,
 /// taking an extra 5 minutes buffer into account.
 /// if timeout is not yet due, and the funds did not arrive, we wait.
@@ -341,7 +341,7 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
     let pending_transfer_timeout = PENDING_NATIVE_TRANSFER_TIMEOUT.may_load(deps.storage)?;
 
     if lper_native_token_balance.amount >= receiver.amount {
-        // if funds have arrived on LP module, we advance the state
+        // if funds have arrived on LP contract, we advance the state
         CONTRACT_STATE.save(deps.storage, &ContractState::VerifyLp)?;
         // nullifying any previous timeouts
         PENDING_NATIVE_TRANSFER_TIMEOUT.remove(deps.storage);
@@ -355,7 +355,7 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
     // if there is an active timeout set we validate it
     if let Some(active_timeout) = pending_transfer_timeout {
         if env.block.time.nanos() >= active_timeout.plus_minutes(5).nanos() {
-            // funds are still not on the LP module and the msgTransfer timeout is due
+            // funds are still not on the LP contract and the msgTransfer timeout is due
             // we can safely retry sending the funds again by reverting the state
             // to ICACreated
             CONTRACT_STATE.save(deps.storage, &ContractState::ICACreated)?;
@@ -367,7 +367,7 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
         }
     }
 
-    // if tokens native tokens did not yet arrive to the LP module and the
+    // if tokens native tokens did not yet arrive to the LP contract and the
     // timeout is not yet expired, we wait
     Ok(Response::default()
         .add_attribute("method", "try_verify_native_token")
@@ -375,7 +375,7 @@ fn try_verify_native_token(env: Env, deps: ExecuteDeps) -> NeutronResult<Respons
 }
 
 /// attempts to advance the state machine to its completed phase.
-/// it does so by querying the LP module for its balance of the native tokens.
+/// it does so by querying the LP contract for its balance of the native tokens.
 /// the expectation is for all (LS and native) tokens to be liquid staked, resulting
 /// in zero balances of the tokens. we therefore expect the native token balance to be
 /// zero and complete. this works because in previous states we queried and asserted
@@ -702,7 +702,7 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
     if let Some(payload) = payload {
         if payload.message == *"try_send_native_token" {
             // we advance the state machine to validation phase where we will query the balances of
-            // LP module to confirm that funds have arrived
+            // LP contract to confirm that funds have arrived
             CONTRACT_STATE.save(deps.storage, &ContractState::VerifyNativeToken)?;
         }
     }

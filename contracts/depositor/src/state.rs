@@ -5,11 +5,11 @@ use cw_storage_plus::{Item, Map};
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
-/// clock module address to verify the sender of incoming ticks
+/// clock contract address to verify the sender of incoming ticks
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
-/// liquid staker module address to query the stride ICA address to autopilot to
+/// liquid staker contract address to query the stride ICA address to autopilot to
 pub const LS_ADDRESS: Item<Addr> = Item::new("ls_address");
-/// liquid pooler module address to forward the native tokens to
+/// liquid pooler contract address to forward the native tokens to
 pub const LP_ADDRESS: Item<Addr> = Item::new("lp_address");
 
 /// formatting of stride autopilot message.

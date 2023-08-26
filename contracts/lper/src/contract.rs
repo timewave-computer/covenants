@@ -58,7 +58,7 @@ pub fn instantiate(
     // contract starts at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    // store the relevant module addresses
+    // store the relevant contract addresses
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
 
