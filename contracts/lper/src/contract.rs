@@ -387,7 +387,7 @@ fn validate_price_range(
     // we find the proportion of the price range being validated
     let validation_ratio = Decimal::from_ratio(pool_ls_amount, pool_native_amount);
 
-    // if current return to offer amount ratio falls out of [min_accepted_ratio, max_return_amount],
+    // if current return to offer amount ratio falls out of [min_accepted_ratio, max_accepted_ratio],
     // return price range error
     if validation_ratio < min_accepted_ratio || validation_ratio > max_accepted_ratio {
         return Err(ContractError::PriceRangeError {});
@@ -458,8 +458,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 response = response.add_attribute("ls_denom", denoms.ls_asset_denom);
                 response = response.add_attribute("native_denom", denoms.native_asset_denom);
             }
-
-            if let Some(config) = lp_config {
+            
+            if let Some(config) = *lp_config {
                 deps.api.addr_validate(config.pool_address.as_str())?;
                 LP_CONFIG.save(deps.storage, &config)?;
                 response = response.add_attributes(config.to_response_attributes());

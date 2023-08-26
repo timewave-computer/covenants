@@ -188,7 +188,7 @@ fn test_whitelist() {
     assert_eq!(whitelist, vec![receiver]);
 }
 
-// only contract addresses can be enqueued.
+// only whitelisted contracts can be enqueued.
 #[test]
 fn test_enqueue_non_whitelisted() {
     let mut suite_builder = SuiteBuilder::default();

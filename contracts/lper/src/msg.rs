@@ -122,14 +122,13 @@ pub enum QueryMsg {
     LpConfig {},
 }
 
-#[allow(clippy::large_enum_variant)]
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
         holder_address: Option<String>,
         assets: Option<AssetData>,
-        lp_config: Option<LpConfig>,
+        lp_config: Box<Option<LpConfig>>,
     },
     UpdateCodeId {
         data: Option<Binary>,
