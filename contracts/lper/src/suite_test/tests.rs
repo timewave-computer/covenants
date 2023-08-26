@@ -71,6 +71,14 @@ fn test_instantiate_happy() {
     assert_ne!(Uint128::zero(), holder_native_balances[1].amount);
 }
 
+#[test]
+#[should_panic(expected = "zero expected native token amount can result in division by 0")]
+fn test_instantiate_with_zero_expected_native_token_amount() {
+    SuiteBuilder::default()
+        .with_expected_native_token_amount(Uint128::zero())
+        .build();
+}
+
 // tests todo:
 // 1. randomly funded contracts/wallets
 // 2. existing pool ratios (imbalanced, equal, extremely imbalanced, providing more liq than exists)

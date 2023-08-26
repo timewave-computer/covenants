@@ -49,6 +49,12 @@ pub fn instantiate(
     let pool_address = deps.api.addr_validate(&msg.pool_address)?;
     let holder_addr = deps.api.addr_validate(&msg.holder_address)?;
 
+    // zero expected native token amount would result in division
+    // by zero when validate_price_range is called
+    if msg.expected_native_token_amount.is_zero() {
+        return Err(ContractError::ZeroExpectedNativeTokenAmountError {})
+    }
+
     // contract starts at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
@@ -58,6 +64,7 @@ pub fn instantiate(
 
     // store fields needed for liquidity provision
     ASSETS.save(deps.storage, &msg.assets)?;
+
 
     let lp_config = LpConfig {
         expected_native_token_amount: msg.expected_native_token_amount,

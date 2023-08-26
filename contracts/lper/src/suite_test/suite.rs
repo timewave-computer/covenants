@@ -238,23 +238,28 @@ impl Default for SuiteBuilder {
 
 #[allow(unused)]
 impl SuiteBuilder {
-    fn with_slippage_tolerance(mut self, decimal: Decimal) -> Self {
+    pub fn with_slippage_tolerance(mut self, decimal: Decimal) -> Self {
         self.lp_instantiate.slippage_tolerance = Some(decimal);
         self
     }
 
-    fn with_autostake(mut self, autosake: Option<bool>) -> Self {
+    pub fn with_autostake(mut self, autosake: Option<bool>) -> Self {
         self.lp_instantiate.autostake = autosake;
         self
     }
 
-    fn with_assets(mut self, assets: AssetData) -> Self {
+    pub fn with_assets(mut self, assets: AssetData) -> Self {
         self.lp_instantiate.assets = assets;
         self
     }
 
-    fn with_token_instantiate_msg(mut self, msg: TokenInstantiateMsg) -> Self {
+    pub fn with_token_instantiate_msg(mut self, msg: TokenInstantiateMsg) -> Self {
         self.token_instantiate = msg;
+        self
+    }
+
+    pub fn with_expected_native_token_amount(mut self, amt: Uint128) -> Self {
+        self.lp_instantiate.expected_native_token_amount = amt;
         self
     }
 
