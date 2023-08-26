@@ -36,4 +36,7 @@ pub enum ContractError {
 
     #[error("Price range error")]
     PriceRangeError {},
+
+    #[error("zero expected native token amount can result in division by 0")]
+    ZeroExpectedNativeTokenAmountError {},
 }
