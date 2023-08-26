@@ -142,7 +142,7 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             let holder_addr = deps.api.addr_validate(&response.contract_address)?;
             COVENANT_HOLDER_ADDR.save(deps.storage, &holder_addr)?;
 
-            // load the fields relevant to holder instantiation
+            // load the fields relevant to LP instantiation
             let pool_address = POOL_ADDRESS.load(deps.storage)?;
             let code_id = LP_CODE.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
@@ -263,7 +263,7 @@ pub fn handle_ls_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, 
             });
 
             Ok(Response::default()
-                .add_attribute("method", "handle_holder_reply")
+                .add_attribute("method", "handle_ls_reply")
                 .add_attribute("ls_address", ls_addr)
                 .add_submessage(SubMsg::reply_always(
                     depositor_instantiate_tx,
