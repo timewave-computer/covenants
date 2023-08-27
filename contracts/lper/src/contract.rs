@@ -52,7 +52,7 @@ pub fn instantiate(
     // zero expected native token amount would result in division
     // by zero when validate_price_range is called
     if msg.expected_native_token_amount.is_zero() {
-        return Err(ContractError::ZeroExpectedNativeTokenAmountError {})
+        return Err(ContractError::ZeroExpectedNativeTokenAmountError {});
     }
 
     // contract starts at Instantiated state
@@ -64,7 +64,6 @@ pub fn instantiate(
 
     // store fields needed for liquidity provision
     ASSETS.save(deps.storage, &msg.assets)?;
-
 
     let lp_config = LpConfig {
         expected_native_token_amount: msg.expected_native_token_amount,
@@ -458,7 +457,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
                 response = response.add_attribute("ls_denom", denoms.ls_asset_denom);
                 response = response.add_attribute("native_denom", denoms.native_asset_denom);
             }
-            
+
             if let Some(config) = *lp_config {
                 deps.api.addr_validate(config.pool_address.as_str())?;
                 LP_CONFIG.save(deps.storage, &config)?;
