@@ -9,3 +9,5 @@ During instantiation, a vector of forwarder modules along with their respective 
 The forwarder modules are then queried for their deposit addresses, which are going to be their respective ICA addresses.
 
 A combined `BankSend` is then performed to the ICAs on the same remote chain. If it suceeds, native splitter completes.
+
+todo: should this be called remote-chain-splitter ~?
