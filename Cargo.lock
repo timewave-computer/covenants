@@ -43,7 +43,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus 0.15.1",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "cw20 0.15.1",
  "cw3",
  "itertools",
@@ -70,7 +70,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus 0.15.1",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "cw2 0.15.1",
  "itertools",
  "protobuf 2.28.0",
@@ -101,7 +101,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus 0.15.1",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "cw2 0.15.1",
  "cw20 0.15.1",
  "itertools",
@@ -203,9 +203,9 @@ checksum = "128a44527fc0d6abf05f9eda748b9027536e12dff93f5acc8449f51583309350"
 
 [[package]]
 name = "byteorder"
-version = "1.4.3"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
@@ -373,12 +373,12 @@ dependencies = [
  "covenant-ls",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "cw2 1.1.1",
  "neutron-sdk",
  "prost 0.11.9",
  "prost-types",
- "protobuf 3.2.0",
+ "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -402,12 +402,12 @@ dependencies = [
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "cw2 1.1.1",
  "neutron-sdk",
  "prost 0.11.9",
  "prost-types",
- "protobuf 3.2.0",
+ "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -452,12 +452,12 @@ dependencies = [
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "cw2 1.1.1",
  "neutron-sdk",
  "prost 0.11.9",
  "prost-types",
- "protobuf 3.2.0",
+ "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -481,12 +481,12 @@ dependencies = [
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "cw2 1.1.1",
  "neutron-sdk",
  "prost 0.11.9",
  "prost-types",
- "protobuf 3.2.0",
+ "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -509,7 +509,7 @@ dependencies = [
  "cw-storage-plus 1.1.0",
  "cw2 1.1.1",
  "neutron-sdk",
- "protobuf 3.2.0",
+ "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -536,14 +536,14 @@ dependencies = [
  "covenant-macros",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.1",
- "cw1-whitelist 1.1.0",
+ "cw-utils 1.0.2",
+ "cw1-whitelist 1.1.1",
  "cw2 1.1.1",
  "cw20 0.15.1",
  "neutron-sdk",
  "prost 0.11.9",
  "prost-types",
- "protobuf 3.2.0",
+ "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -564,7 +564,7 @@ dependencies = [
  "cw-storage-plus 1.1.0",
  "cw2 1.1.1",
  "neutron-sdk",
- "protobuf 3.2.0",
+ "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -595,7 +595,7 @@ dependencies = [
  "cw-storage-plus 1.1.0",
  "cw2 1.1.1",
  "neutron-sdk",
- "protobuf 3.2.0",
+ "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -713,7 +713,7 @@ dependencies = [
  "anyhow",
  "cosmwasm-std",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "derivative",
  "itertools",
  "k256 0.11.6",
@@ -762,9 +762,9 @@ dependencies = [
 
 [[package]]
 name = "cw-utils"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c80e93d1deccb8588db03945016a292c3c631e6325d349ebb35d2db6f4f946f7"
+checksum = "1b9f351a4e4d81ef7c890e44d903f8c0bdcdc00f094fd3a181eaf70c0eec7a3a"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -818,14 +818,14 @@ dependencies = [
 
 [[package]]
 name = "cw1-whitelist"
-version = "1.1.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce24b204a0769ae41f5664d18be910a1745571dbc89f8643a62edbbab0fb127f"
+checksum = "32c12f6e7859ad758c95e7bcd7ac59419d550b41e4e35bf8aac021070a686abc"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "cw1 1.1.1",
  "cw2 1.1.1",
  "schemars",
@@ -881,7 +881,7 @@ checksum = "786e9da5e937f473cecd2463e81384c1af65d0f6398bbd851be7655487c55492"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "schemars",
  "serde",
 ]
@@ -912,7 +912,7 @@ checksum = "1d056ec33ec146554aa1d16c9535763341db75589a47743c006c377e62b54034"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw-utils 1.0.1",
+ "cw-utils 1.0.2",
  "cw20 1.1.1",
  "schemars",
  "serde",
@@ -1003,7 +1003,7 @@ checksum = "a4b1e0c257a9e9f25f90ff76d7a68360ed497ee519c8e428d1825ef0000799d4"
 dependencies = [
  "der 0.7.8",
  "digest 0.10.7",
- "elliptic-curve 0.13.5",
+ "elliptic-curve 0.13.6",
  "rfc6979 0.4.0",
  "signature 2.1.0",
  "spki 0.7.2",
@@ -1052,9 +1052,9 @@ dependencies = [
 
 [[package]]
 name = "elliptic-curve"
-version = "0.13.5"
+version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "968405c8fdc9b3bf4df0a6638858cc0b52462836ab6b1c87377785dd09cf1c0b"
+checksum = "d97ca172ae9dc9f9b779a6e3a65d308f2af74e5b8c921299075bdb4a0370e914"
 dependencies = [
  "base16ct 0.2.0",
  "crypto-bigint 0.5.3",
@@ -1207,7 +1207,7 @@ checksum = "cadb76004ed8e97623117f3df85b17aaa6626ab0b0831e6573f104df16cd1bcc"
 dependencies = [
  "cfg-if",
  "ecdsa 0.16.8",
- "elliptic-curve 0.13.5",
+ "elliptic-curve 0.13.6",
  "once_cell",
  "sha2 0.10.8",
  "signature 2.1.0",
@@ -1215,14 +1215,14 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.148"
+version = "0.2.149"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cdc71e17332e86d2e1d38c1f99edcb6288ee11b815fb1a4b049eaa2114d369b"
+checksum = "a08173bc88b7955d1b3145aa561539096c421ac8debde8cbc3612ec635fee29b"
 
 [[package]]
 name = "neutron-sdk"
 version = "0.6.1"
-source = "git+https://github.com/neutron-org/neutron-sdk#31af063f06bb90d46081a944a7df085d8f2ab493"
+source = "git+https://github.com/neutron-org/neutron-sdk#74fea05e407e5ff7cdfc195c3a76d2cce6a47d20"
 dependencies = [
  "base64 0.21.4",
  "bech32",
@@ -1231,7 +1231,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 1.1.0",
  "prost 0.11.9",
- "protobuf 3.2.0",
+ "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.5.1",
@@ -1252,9 +1252,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.16"
+version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f30b0abd723be7e2ffca1272140fac1a2f084c77ec3e123c192b66af1ee9e6c2"
+checksum = "39e3200413f237f41ab11ad6d161bc7239c84dcb631773ccd7de3dfe4b5c267c"
 dependencies = [
  "autocfg",
 ]
@@ -1308,9 +1308,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.67"
+version = "1.0.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d433d9f1a3e8c1263d9456598b16fec66f4acc9a74dacffd35c7bb09b3a1328"
+checksum = "5b1106fec09662ec6dd98ccac0f81cef56984d0b49f75c92d8cbad76e20c005c"
 dependencies = [
  "unicode-ident",
 ]
@@ -1381,9 +1381,9 @@ dependencies = [
 
 [[package]]
 name = "protobuf"
-version = "3.2.0"
+version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b55bad9126f378a853655831eb7363b7b01b81d19f8cb1218861086ca4a1a61e"
+checksum = "b65f4a8ec18723a734e5dc09c173e0abf9690432da5340285d536edcb4dac190"
 dependencies = [
  "bytes",
  "once_cell",
@@ -1393,9 +1393,9 @@ dependencies = [
 
 [[package]]
 name = "protobuf-support"
-version = "3.2.0"
+version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5d4d7b8601c814cfb36bcebb79f0e61e45e1e93640cf778837833bbed05c372"
+checksum = "6872f4d4f4b98303239a2b5838f5bbbb77b01ffc892d627957f37a22d7cfe69c"
 dependencies = [
  "thiserror",
 ]
@@ -1553,7 +1553,7 @@ checksum = "4eca7ac642d82aa35b60049a6eccb4be6be75e599bd2e9adb5f875a737654af2"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.37",
+ "syn 2.0.38",
 ]
 
 [[package]]
@@ -1697,9 +1697,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.37"
+version = "2.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7303ef2c05cd654186cb250d29049a24840ca25d2747c25c0381c8d9e2f582e8"
+checksum = "e96b79aaa137db8f61e26363a0c9b47d8b4ec75da28b7d1d614c2303e232408b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1759,7 +1759,7 @@ checksum = "10712f02019e9288794769fba95cd6847df9874d49d871d062172f9dd41bc4cc"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.37",
+ "syn 2.0.38",
 ]
 
 [[package]]
