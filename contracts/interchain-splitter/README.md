@@ -4,6 +4,7 @@ Interchain Splitter is a contract meant to facilitate a pre-agreed upon way of d
 
 Splitter should remain agnostic to any price changes that may occur during the covenant lifecycle.
 It should accept the tokens and distribute them according to the initial agreement.
+<<<<<<< HEAD
 
 ## Split Configurations
 
@@ -26,3 +27,5 @@ Custom split configuration should always add up to 100 or else an error is retur
 For cases where denoms don't really matter, a wildcard split can be provided. Then any denoms that
 the splitter holds that do not fall under any of other configurations will be split according to this.
 
+=======
+>>>>>>> e2dab3f (init interchain splitter)
