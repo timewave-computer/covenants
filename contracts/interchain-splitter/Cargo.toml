@@ -31,3 +31,7 @@ serde            = { workspace = true }
 neutron-sdk      = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
 protobuf         = { workspace = true }
+
+[dev-dependencies]
+cw-multi-test = { workspace = true }
+anyhow = { workspace = true }
