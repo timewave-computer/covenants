@@ -145,3 +145,22 @@ pub enum MigrateMsg {
         data: Option<Binary>,
     },
 }
+
+#[covenant_clock_address]
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum QueryMsg {
+    #[returns(SplitConfig)]
+    DenomSplit { denom: String },
+    #[returns(Vec<(String, SplitConfig)>)]
+    Splits {},
+    #[returns(SplitConfig)]
+    FallbackSplit {},
+}
+
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum ProtocolGuildQueryMsg {
+    #[returns(SplitConfig)]
+    PublicGoodsSplit {},
+}
