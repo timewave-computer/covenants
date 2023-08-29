@@ -498,12 +498,14 @@ dependencies = [
 name = "covenant-interchain-splitter"
 version = "1.0.0"
 dependencies = [
+ "anyhow",
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
  "covenant-macros",
  "covenant-utils",
+ "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.1",
  "neutron-sdk",

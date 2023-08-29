@@ -1,19 +1,24 @@
-use cosmwasm_schema::cw_serde;
-use covenant_macros::clocked;
-use cosmwasm_std::{IbcTimeout, Uint128, CosmosMsg, BankMsg, IbcMsg, Coin};
+use cosmwasm_schema::{cw_serde, QueryResponses};
+use covenant_macros::{clocked, covenant_clock_address};
+use cosmwasm_std::{IbcTimeout, Uint128, CosmosMsg, BankMsg, IbcMsg, Coin, Addr};
 
 use crate::error::ContractError;
 
 #[cw_serde]
 pub struct InstantiateMsg {
+    /// address of the associated clock
+    pub clock_address: String,
+    /// list of (denom, split) configurations
     pub splits: Vec<(String, SplitType)>,
+    /// a split for all denoms that are not covered in the
+    /// regular `splits` list. If no fallback is provided,
+    /// we default to the timewave protocol guild split
+    pub fallback_split: Option<SplitType>,
 }
-
 
 #[clocked]
 #[cw_serde]
-pub enum ExecuteMsg {
-}
+pub enum ExecuteMsg {}
 
 // for every receiver we need a few things:
 #[cw_serde]
@@ -48,6 +53,7 @@ impl SplitType {
         match self {
             SplitType::Custom(c) => c.validate(),
             SplitType::TimewaveSplit => {
+                // TODO: query the timewave split contract here
                 Ok(SplitConfig {
                     receivers: vec![(
                         ReceiverType::Native(NativeReceiver { address: "todo".to_string() }),
@@ -78,30 +84,10 @@ impl SplitConfig {
         }
     }
 
-    /*
-                RefundConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
-                to_address: addr.to_string(),
-                amount: vec![Coin {
-                    denom: self.provided_denom,
-                    amount,
-                }],
-            }),
-            RefundConfig::Ibc(r_c_i) => CosmosMsg::Ibc(IbcMsg::Transfer {
-                channel_id: r_c_i.channel_id,
-                to_address: self.addr.to_string(),
-                amount: Coin {
-                    denom: self.provided_denom,
-                    amount,
-                },
-                timeout: IbcTimeout::with_timestamp(
-                    block.time.plus_seconds(r_c_i.ibc_transfer_timeout.u64()),
-                ),
-            }),
-     */
     pub fn get_transfer_messages(self, amount: Uint128, denom: String) -> Result<Vec<CosmosMsg>, ContractError> {
         let mut msgs: Vec<CosmosMsg> = vec![];
 
-        for (receiver_type, share) in self.receivers {
+        for (receiver_type, share) in self.receivers.into_iter() {
             let entitlement = amount.checked_multiply_ratio(
                 share,
                 Uint128::new(100),
@@ -116,10 +102,10 @@ impl SplitConfig {
                     channel_id: receiver.channel_id,
                     to_address: receiver.address,
                     amount,
-                    timeout: receiver.ibc_timeout,
+                    timeout: receiver.ibc_timeout.clone(),
                 }),
                 ReceiverType::Native(receiver) => CosmosMsg::Bank(BankMsg::Send {
-                    to_address: receiver.address,
+                    to_address: receiver.address.to_string(),
                     amount: vec![amount],
                 }),
             };
@@ -128,4 +114,23 @@ impl SplitConfig {
         
         Ok(msgs)
     }
+}
+
+#[covenant_clock_address]
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum QueryMsg {
+    #[returns(SplitConfig)]
+    DenomSplit { denom: String },
+    #[returns(Vec<(String, SplitConfig)>)]
+    Splits {},
+    #[returns(SplitConfig)]
+    FallbackSplit {},
+}
+
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum ProtocolGuildQueryMsg {
+    #[returns(SplitConfig)]
+    PublicGoodsSplit {},
 }
