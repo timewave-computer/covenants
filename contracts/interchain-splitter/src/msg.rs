@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use covenant_macros::{clocked, covenant_clock_address};
-use cosmwasm_std::{IbcTimeout, Uint128, CosmosMsg, BankMsg, IbcMsg, Coin, Addr};
+use cosmwasm_std::{IbcTimeout, Uint128, CosmosMsg, BankMsg, IbcMsg, Coin, Addr, Attribute};
 
 use crate::error::ContractError;
 
@@ -49,9 +49,9 @@ pub enum SplitType {
 }
 
 impl SplitType {
-    pub fn validate_to_split_config(self) -> Result<SplitConfig, ContractError> {
+    pub fn get_split_config(self) -> Result<SplitConfig, ContractError> {
         match self {
-            SplitType::Custom(c) => c.validate(),
+            SplitType::Custom(c) => Ok(c),
             SplitType::TimewaveSplit => {
                 // TODO: query the timewave split contract here
                 Ok(SplitConfig {
@@ -111,8 +111,24 @@ impl SplitConfig {
             };
             msgs.push(msg);
         }
-        
         Ok(msgs)
+    }
+
+    pub fn get_response_attribute(self, denom: String) -> Attribute {
+        let mut receivers = "[".to_string();
+        self.receivers.iter().for_each(|(ty, share)| {
+            receivers.push_str("(");
+            match ty {
+                ReceiverType::Interchain(i) => {
+                    receivers.push_str(&i.address)
+                },
+                ReceiverType::Native(n) => receivers.push_str(&n.address),
+            };
+            receivers.push_str(&share.to_string());
+            receivers.push_str("),");
+        });
+        receivers.push_str("]");
+        Attribute::new(denom, receivers)
     }
 }
 
