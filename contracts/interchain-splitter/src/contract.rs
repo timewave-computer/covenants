@@ -1,4 +1,3 @@
-use cosmwasm_schema::cw_serde;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -27,18 +26,19 @@ pub fn instantiate(
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
 
-    let fallback_split = if let Some(split) = msg.fallback_split {
-        split.validate_to_split_config()?
-    } else {
-        deps.querier.query_wasm_smart("contract0", &ProtocolGuildQueryMsg::PublicGoodsSplit {})?
-    };
-
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
-        let validated_split = split.validate_to_split_config()?;
+        let validated_split = split.get_split_config()?.validate()?;
         SPLIT_CONFIG_MAP.save(deps.storage, denom, &validated_split)?;
     }
 
+    // if a fallback split is provided we use that, otherwise we default
+    // to the timewave split
+    let fallback_split = if let Some(split) = msg.fallback_split {
+        split.get_split_config()?.validate()?
+    } else {
+        deps.querier.query_wasm_smart("contract0", &ProtocolGuildQueryMsg::PublicGoodsSplit {})?
+    };
     // store the fallback split under emtpy key to not match any denoms
     SPLIT_CONFIG_MAP.save(deps.storage, String::default(), &fallback_split)?;
 
