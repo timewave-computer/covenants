@@ -13,7 +13,8 @@ pub fn splitter_contract() -> Box<dyn Contract<Empty>> {
         crate::contract::execute,
         crate::contract::instantiate,
         crate::contract::query,
-    );
+    )
+    .with_migrate(crate::contract::migrate);
     Box::new(contract)
 }
 

@@ -7,8 +7,8 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, SplitConfig, ProtocolGuildQueryMsg};
-use crate::state::{SPLIT_CONFIG_MAP, CLOCK_ADDRESS};
+use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, SplitConfig, ProtocolGuildQueryMsg, MigrateMsg, SplitType};
+use crate::state::{SPLIT_CONFIG_MAP, CLOCK_ADDRESS, FALLBACK_SPLIT};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-interchain-splitter";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -39,8 +39,7 @@ pub fn instantiate(
     } else {
         deps.querier.query_wasm_smart("contract0", &ProtocolGuildQueryMsg::PublicGoodsSplit {})?
     };
-    // store the fallback split under emtpy key to not match any denoms
-    SPLIT_CONFIG_MAP.save(deps.storage, String::default(), &fallback_split)?;
+    FALLBACK_SPLIT.save(deps.storage, &fallback_split)?;
 
     Ok(Response::default()
         .add_attribute("method", "interchain_splitter_instantiate")
@@ -88,7 +87,7 @@ pub fn try_distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError
     // by now all explicitly defined denom splits have been removed from the
     // balances vector so we can take the remaining balances and distribute
     // them according to the fallback split
-    let fallback_config = SPLIT_CONFIG_MAP.load(deps.storage, String::default())?;
+    let fallback_config = FALLBACK_SPLIT.load(deps.storage)?;
     // get the distribution messages and add them to the list
     for leftover_bal in balances {
         let mut fallback_messages = fallback_config
@@ -109,7 +108,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ClockAddress{}=>Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::DenomSplit { denom } => Ok(to_binary(&query_split(deps, denom)?)?),
         QueryMsg::Splits {} => Ok(to_binary(&query_all_splits(deps)?)?),
-        QueryMsg::FallbackSplit {} => Ok(to_binary(&query_split(deps, String::default())?)?),
+        QueryMsg::FallbackSplit {} => Ok(to_binary(&FALLBACK_SPLIT.may_load(deps.storage)?)?),
     }
 }
 
@@ -137,4 +136,62 @@ pub fn query_split(deps: Deps, denom: String) -> Result<SplitConfig, StdError> {
     Ok(SplitConfig {
         receivers: vec![],
     })
+}
+
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: migrate");
+
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            splits,
+            fallback_split,
+        } => {
+            let mut resp = Response::default().add_attribute("method", "update_config");
+
+            if let Some(clock_addr) = clock_addr {
+                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
+                resp = resp.add_attribute("clock_addr", clock_addr);
+            }
+
+            if let Some(splits) = splits {
+                // clear all current split configs
+                SPLIT_CONFIG_MAP.clear(deps.storage);
+                for (denom, split_type) in splits {
+                    match split_type {
+                        SplitType::Custom(split) => {
+                            match split.validate() {
+                                Ok(split) => {
+                                    SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
+                                    resp = resp.add_attributes(vec![split.get_response_attribute(denom)]);
+                                },
+                                Err(_) => return Err(StdError::generic_err("invalid split".to_string())),
+                            }
+                        },
+                        SplitType::TimewaveSplit => todo!(),
+                    }
+                }
+            }
+
+            if let Some(split) = fallback_split {
+                match split.validate() {
+                    Ok(split) => {
+                        FALLBACK_SPLIT.save(deps.storage, &split)?;
+                        resp = resp.add_attributes(vec![split.get_response_attribute("fallback".to_string())]);
+                    },
+                    Err(_) => return Err(StdError::generic_err("invalid split".to_string())),
+                }
+            }
+
+            Ok(resp)
+        }
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
+        }
+    }
 }
