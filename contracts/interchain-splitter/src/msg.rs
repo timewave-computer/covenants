@@ -11,8 +11,7 @@ pub struct InstantiateMsg {
     /// list of (denom, split) configurations
     pub splits: Vec<(String, SplitType)>,
     /// a split for all denoms that are not covered in the
-    /// regular `splits` list. If no fallback is provided,
-    /// we default to the timewave protocol guild split
+    /// regular `splits` list
     pub fallback_split: Option<SplitType>,
 }
 
@@ -45,22 +44,13 @@ pub enum ReceiverType {
 #[cw_serde]
 pub enum SplitType {
     Custom(SplitConfig),
-    TimewaveSplit,
+    // predefined splits will go here
 }
 
 impl SplitType {
     pub fn get_split_config(self) -> Result<SplitConfig, ContractError> {
         match self {
             SplitType::Custom(c) => Ok(c),
-            SplitType::TimewaveSplit => {
-                // TODO: query the timewave split contract here
-                Ok(SplitConfig {
-                    receivers: vec![(
-                        ReceiverType::Native(NativeReceiver { address: "todo".to_string() }),
-                        Uint128::new(100)
-                    )],
-                })
-            },
         }
     }
 }
@@ -84,12 +74,12 @@ impl SplitConfig {
         }
     }
 
-    pub fn get_transfer_messages(self, amount: Uint128, denom: String) -> Result<Vec<CosmosMsg>, ContractError> {
+    pub fn get_transfer_messages(&self, amount: Uint128, denom: String) -> Result<Vec<CosmosMsg>, ContractError> {
         let mut msgs: Vec<CosmosMsg> = vec![];
 
-        for (receiver_type, share) in self.receivers.into_iter() {
+        for (receiver_type, share) in self.receivers.iter() {
             let entitlement = amount.checked_multiply_ratio(
-                share,
+                *share,
                 Uint128::new(100),
             ).map_err(|_| ContractError::SplitMisconfig {})?;
     
@@ -99,8 +89,8 @@ impl SplitConfig {
             };
             let msg = match receiver_type {
                 ReceiverType::Interchain(receiver) => CosmosMsg::Ibc(IbcMsg::Transfer {
-                    channel_id: receiver.channel_id,
-                    to_address: receiver.address,
+                    channel_id: receiver.channel_id.to_string(),
+                    to_address: receiver.address.to_string(),
                     amount,
                     timeout: receiver.ibc_timeout.clone(),
                 }),
@@ -142,13 +132,6 @@ pub enum QueryMsg {
     Splits {},
     #[returns(SplitConfig)]
     FallbackSplit {},
-}
-
-#[cw_serde]
-#[derive(QueryResponses)]
-pub enum ProtocolGuildQueryMsg {
-    #[returns(SplitConfig)]
-    PublicGoodsSplit {},
 }
 
 #[cw_serde]

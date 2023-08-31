@@ -11,13 +11,8 @@ In general, we support a per-denom configuration as follows:
 ```
 OSMO -> [(osmo12323, 40), (cosmos32121, 60)]
 ATOM -> [(osmo12323,  50), (cosmo32121, 50)]
-USDC -> [timewave_split]
 _ -> [(osmo12323, 30), (cosmo32121, 70)]
 ```
-
-### Timewave Split
-
-Timewave split provides a preconfigured list of addresses.
 
 ### Custom Split
 
