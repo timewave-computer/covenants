@@ -1,6 +1,6 @@
 use cosmwasm_std::{Uint128, Coin};
 
-use crate::{suite_test::suite::{get_equal_split_config, DENOM_B, CLOCK_ADDR, get_public_goods_split_config, ALT_DENOM}, msg::{SplitConfig, SplitType, NativeReceiver, ReceiverType, MigrateMsg}};
+use crate::{suite_test::suite::{get_equal_split_config, DENOM_B, CLOCK_ADDR, ALT_DENOM, get_fallback_split_config}, msg::{SplitConfig, SplitType, NativeReceiver, ReceiverType, MigrateMsg}};
 
 use super::suite::{SuiteBuilder, DENOM_A, PARTY_A_ADDR, PARTY_B_ADDR};
 
@@ -24,7 +24,7 @@ fn test_instantiate_happy_and_query_all() {
         ],
         splits,
     );
-    assert_eq!(get_public_goods_split_config(), fallback_split);
+    assert_eq!(None, fallback_split);
 }
 
 #[test]
@@ -147,7 +147,9 @@ fn test_distribute_token_swap() {
 
 #[test]
 fn test_distribute_fallback() {
-    let mut suite = SuiteBuilder::default().build();
+    let mut suite = SuiteBuilder::default()
+        .with_fallback_split(get_fallback_split_config())
+        .build();
 
     // fund the splitter with 100 of some random token not part of the config
     suite.fund_coin(Coin::new(100, ALT_DENOM.to_string()));
@@ -208,6 +210,6 @@ fn test_migrate_config() {
             ],
         },
     )], splits);
-    assert_eq!(new_fallback_split, fallback_split);
+    assert_eq!(Some(new_fallback_split), fallback_split);
     assert_eq!(new_clock, clock_addr);
 }

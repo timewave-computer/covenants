@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, SplitConfig, ProtocolGuildQueryMsg, MigrateMsg, SplitType};
+use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, SplitConfig, MigrateMsg, SplitType};
 use crate::state::{SPLIT_CONFIG_MAP, CLOCK_ADDRESS, FALLBACK_SPLIT};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-interchain-splitter";
@@ -32,14 +32,10 @@ pub fn instantiate(
         SPLIT_CONFIG_MAP.save(deps.storage, denom, &validated_split)?;
     }
 
-    // if a fallback split is provided we use that, otherwise we default
-    // to the timewave split
-    let fallback_split = if let Some(split) = msg.fallback_split {
-        split.get_split_config()?.validate()?
-    } else {
-        deps.querier.query_wasm_smart("contract0", &ProtocolGuildQueryMsg::PublicGoodsSplit {})?
-    };
-    FALLBACK_SPLIT.save(deps.storage, &fallback_split)?;
+    // if a fallback split is provided we validate and store it
+    if let Some(split) = msg.fallback_split {
+        FALLBACK_SPLIT.save(deps.storage, &split.get_split_config()?.validate()?)?;
+    }
 
     Ok(Response::default()
         .add_attribute("method", "interchain_splitter_instantiate")
@@ -86,16 +82,15 @@ pub fn try_distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError
 
     // by now all explicitly defined denom splits have been removed from the
     // balances vector so we can take the remaining balances and distribute
-    // them according to the fallback split
-    let fallback_config = FALLBACK_SPLIT.load(deps.storage)?;
-    // get the distribution messages and add them to the list
-    for leftover_bal in balances {
-        let mut fallback_messages = fallback_config
-            .clone()
-            .get_transfer_messages(leftover_bal.amount, leftover_bal.denom)?;
-        distribution_messages.append(&mut fallback_messages);
+    // them according to the fallback split (if provided)
+    if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
+        // get the distribution messages and add them to the list
+        for leftover_bal in balances {
+            let mut fallback_messages = split
+                .get_transfer_messages(leftover_bal.amount, leftover_bal.denom)?;
+            distribution_messages.append(&mut fallback_messages);
+        }
     }
-
 
     Ok(Response::default()
         .add_messages(distribution_messages)
@@ -170,7 +165,6 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                                 Err(_) => return Err(StdError::generic_err("invalid split".to_string())),
                             }
                         },
-                        SplitType::TimewaveSplit => todo!(),
                     }
                 }
             }
