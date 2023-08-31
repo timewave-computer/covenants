@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use covenant_macros::{clocked, covenant_clock_address};
-use cosmwasm_std::{IbcTimeout, Uint128, CosmosMsg, BankMsg, IbcMsg, Coin, Addr, Attribute};
+use cosmwasm_std::{IbcTimeout, Uint128, CosmosMsg, BankMsg, IbcMsg, Coin, Addr, Attribute, Binary};
 
 use crate::error::ContractError;
 
@@ -149,4 +149,16 @@ pub enum QueryMsg {
 pub enum ProtocolGuildQueryMsg {
     #[returns(SplitConfig)]
     PublicGoodsSplit {},
+}
+
+#[cw_serde]
+pub enum MigrateMsg {
+    UpdateConfig {
+        clock_addr: Option<String>,
+        fallback_split: Option<SplitConfig>,
+        splits: Option<Vec<(String, SplitType)>>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
+    },
 }
