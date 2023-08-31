@@ -3,7 +3,7 @@ use cw_multi_test::{App, Executor, AppResponse, SudoMsg};
 
 use crate::msg::{InstantiateMsg, SplitType, SplitConfig, ReceiverType, NativeReceiver, ExecuteMsg, QueryMsg, MigrateMsg};
 
-use super::{splitter_contract, mock_protocol_guild_contract};
+use super::splitter_contract;
 
 pub const ADMIN: &str = "admin";
 
@@ -36,7 +36,7 @@ pub fn get_equal_split_config() -> SplitConfig {
     }
 }
 
-pub fn get_public_goods_split_config() -> SplitConfig {
+pub fn get_fallback_split_config() -> SplitConfig {
     SplitConfig { receivers: vec![
         (
             ReceiverType::Native(NativeReceiver { address: "save_the_cats".to_string()}),
@@ -48,7 +48,6 @@ pub fn get_public_goods_split_config() -> SplitConfig {
 pub struct Suite {
     pub app: App,
     pub splitter: Addr,
-    pub protocol_guild: Addr,
 }
 
 pub struct SuiteBuilder {
@@ -84,20 +83,13 @@ impl SuiteBuilder {
         self
     }
 
+    pub fn with_fallback_split(mut self, split: SplitConfig) -> Self {
+        self.instantiate.fallback_split = Some(SplitType::Custom(split));
+        self
+    }
+
     pub fn build(mut self) -> Suite {
         let mut app = self.app;
-
-        let protocol_guild_code = app.store_code(mock_protocol_guild_contract());
-        let mock_protocol_guild = app
-            .instantiate_contract(
-                protocol_guild_code,
-                Addr::unchecked(ADMIN),
-                &self.instantiate,
-                &[],
-                "protocol_guild",
-                Some(ADMIN.to_string()),
-            )
-            .unwrap();
 
         let splitter_code: u64 = app.store_code(splitter_contract());
         let splitter = app
@@ -113,7 +105,6 @@ impl SuiteBuilder {
         Suite {
             app,
             splitter,
-            protocol_guild: mock_protocol_guild,
         }
     }
 }
@@ -162,7 +153,7 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_fallback_split(&self) -> SplitConfig {
+    pub fn query_fallback_split(&self) -> Option<SplitConfig> {
         self.app
             .wrap()
             .query_wasm_smart(&self.splitter, &QueryMsg::FallbackSplit {})
