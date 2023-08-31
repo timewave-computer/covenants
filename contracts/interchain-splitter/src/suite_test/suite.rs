@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Uint128, Coin};
 use cw_multi_test::{App, Executor, AppResponse, SudoMsg};
 
-use crate::{msg::{InstantiateMsg, SplitType, SplitConfig, ReceiverType, NativeReceiver, ExecuteMsg, QueryMsg}};
+use crate::msg::{InstantiateMsg, SplitType, SplitConfig, ReceiverType, NativeReceiver, ExecuteMsg, QueryMsg, MigrateMsg};
 
 use super::{splitter_contract, mock_protocol_guild_contract};
 
@@ -128,6 +128,15 @@ impl Suite {
             &[],
         )
     }
+
+    pub fn migrate(&mut self, msg: MigrateMsg) -> Result<AppResponse, anyhow::Error> {
+        self.app.migrate_contract(
+            Addr::unchecked(ADMIN),
+            self.splitter.clone(),
+            &msg,
+            2,
+        )
+    }
 }
 
 // queries
@@ -150,6 +159,13 @@ impl Suite {
         self.app
             .wrap()
             .query_wasm_smart(&self.splitter, &QueryMsg::Splits {})
+            .unwrap()
+    }
+
+    pub fn query_fallback_split(&self) -> SplitConfig {
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.splitter, &QueryMsg::FallbackSplit {})
             .unwrap()
     }
 }
