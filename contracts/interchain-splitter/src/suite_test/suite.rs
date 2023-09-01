@@ -1,7 +1,10 @@
-use cosmwasm_std::{Addr, Uint128, Coin};
-use cw_multi_test::{App, Executor, AppResponse, SudoMsg};
+use cosmwasm_std::{Addr, Coin, Uint128};
+use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
-use crate::msg::{InstantiateMsg, SplitType, SplitConfig, ReceiverType, NativeReceiver, ExecuteMsg, QueryMsg, MigrateMsg};
+use crate::msg::{
+    ExecuteMsg, InstantiateMsg, MigrateMsg, NativeReceiver, QueryMsg, ReceiverType, SplitConfig,
+    SplitType,
+};
 
 use super::splitter_contract;
 
@@ -16,9 +19,8 @@ pub const PARTY_B_ADDR: &str = "party_b";
 
 pub const CLOCK_ADDR: &str = "clock_addr";
 
-
 pub fn get_equal_split_config() -> SplitConfig {
-    SplitConfig { 
+    SplitConfig {
         receivers: vec![
             (
                 ReceiverType::Native(NativeReceiver {
@@ -37,12 +39,14 @@ pub fn get_equal_split_config() -> SplitConfig {
 }
 
 pub fn get_fallback_split_config() -> SplitConfig {
-    SplitConfig { receivers: vec![
-        (
-            ReceiverType::Native(NativeReceiver { address: "save_the_cats".to_string()}),
+    SplitConfig {
+        receivers: vec![(
+            ReceiverType::Native(NativeReceiver {
+                address: "save_the_cats".to_string(),
+            }),
             Uint128::new(100),
-        )
-    ]}
+        )],
+    }
 }
 
 pub struct Suite {
@@ -88,13 +92,13 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn build(mut self) -> Suite {
+    pub fn build(self) -> Suite {
         let mut app = self.app;
 
         let splitter_code: u64 = app.store_code(splitter_contract());
         let splitter = app
             .instantiate_contract(
-                splitter_code, 
+                splitter_code,
                 Addr::unchecked(ADMIN),
                 &self.instantiate,
                 &[],
@@ -102,10 +106,7 @@ impl SuiteBuilder {
                 Some(ADMIN.to_string()),
             )
             .unwrap();
-        Suite {
-            app,
-            splitter,
-        }
+        Suite { app, splitter }
     }
 }
 
@@ -121,12 +122,8 @@ impl Suite {
     }
 
     pub fn migrate(&mut self, msg: MigrateMsg) -> Result<AppResponse, anyhow::Error> {
-        self.app.migrate_contract(
-            Addr::unchecked(ADMIN),
-            self.splitter.clone(),
-            &msg,
-            2,
-        )
+        self.app
+            .migrate_contract(Addr::unchecked(ADMIN), self.splitter.clone(), &msg, 1)
     }
 }
 
