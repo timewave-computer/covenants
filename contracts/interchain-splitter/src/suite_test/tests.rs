@@ -1,6 +1,11 @@
-use cosmwasm_std::{Uint128, Coin};
+use cosmwasm_std::{Coin, Uint128};
 
-use crate::{suite_test::suite::{get_equal_split_config, DENOM_B, CLOCK_ADDR, ALT_DENOM, get_fallback_split_config}, msg::{SplitConfig, SplitType, NativeReceiver, ReceiverType, MigrateMsg}};
+use crate::{
+    msg::{MigrateMsg, NativeReceiver, ReceiverType, SplitConfig, SplitType},
+    suite_test::suite::{
+        get_equal_split_config, get_fallback_split_config, ALT_DENOM, CLOCK_ADDR, DENOM_B,
+    },
+};
 
 use super::suite::{SuiteBuilder, DENOM_A, PARTY_A_ADDR, PARTY_B_ADDR};
 
@@ -33,17 +38,21 @@ fn test_instantiate_split_misconfig() {
     SuiteBuilder::default()
         .with_custom_splits(vec![(
             DENOM_A.to_string(),
-            SplitType::Custom(SplitConfig { 
+            SplitType::Custom(SplitConfig {
                 receivers: vec![
                     (
-                        ReceiverType::Native(NativeReceiver { address: PARTY_A_ADDR.to_string() }),
+                        ReceiverType::Native(NativeReceiver {
+                            address: PARTY_A_ADDR.to_string(),
+                        }),
                         Uint128::new(50),
                     ),
                     (
-                        ReceiverType::Native(NativeReceiver { address: PARTY_B_ADDR.to_string() }),
+                        ReceiverType::Native(NativeReceiver {
+                            address: PARTY_B_ADDR.to_string(),
+                        }),
                         Uint128::new(60),
                     ),
-                ]
+                ],
             }),
         )])
         .build();
@@ -90,25 +99,25 @@ fn test_distribute_token_swap() {
         .with_custom_splits(vec![
             (
                 DENOM_A.to_string(),
-                SplitType::Custom(SplitConfig { 
-                    receivers: vec![
-                        (
-                            ReceiverType::Native(NativeReceiver { address: PARTY_B_ADDR.to_string() }),
-                            Uint128::new(100),
-                        ),
-                    ]
-                })
+                SplitType::Custom(SplitConfig {
+                    receivers: vec![(
+                        ReceiverType::Native(NativeReceiver {
+                            address: PARTY_B_ADDR.to_string(),
+                        }),
+                        Uint128::new(100),
+                    )],
+                }),
             ),
             (
                 DENOM_B.to_string(),
-                SplitType::Custom(SplitConfig { 
-                    receivers: vec![
-                        (
-                            ReceiverType::Native(NativeReceiver { address: PARTY_A_ADDR.to_string() }),
-                            Uint128::new(100),
-                        ),
-                    ]
-                })
+                SplitType::Custom(SplitConfig {
+                    receivers: vec![(
+                        ReceiverType::Native(NativeReceiver {
+                            address: PARTY_A_ADDR.to_string(),
+                        }),
+                        Uint128::new(100),
+                    )],
+                }),
             ),
         ])
         .build();
@@ -144,7 +153,6 @@ fn test_distribute_token_swap() {
     assert_eq!(Uint128::zero(), splitter_denom_b_bal);
 }
 
-
 #[test]
 fn test_distribute_fallback() {
     let mut suite = SuiteBuilder::default()
@@ -177,23 +185,29 @@ fn test_migrate_config() {
 
     let new_clock = "new_clock".to_string();
     let new_fallback_split = SplitConfig {
-        receivers: vec![
-            (ReceiverType::Native(NativeReceiver { address: "fallback_new".to_string() }), Uint128::new(100))
-        ],
+        receivers: vec![(
+            ReceiverType::Native(NativeReceiver {
+                address: "fallback_new".to_string(),
+            }),
+            Uint128::new(100),
+        )],
     };
     let new_splits = vec![(
         "new_denom".to_string(),
         SplitType::Custom(SplitConfig {
-            receivers: vec![
-                (ReceiverType::Native(NativeReceiver { address: "new_receiver".to_string() }), Uint128::new(100))
-            ],
-        })
+            receivers: vec![(
+                ReceiverType::Native(NativeReceiver {
+                    address: "new_receiver".to_string(),
+                }),
+                Uint128::new(100),
+            )],
+        }),
     )];
 
     let migrate_msg = MigrateMsg::UpdateConfig {
         clock_addr: Some(new_clock.clone()),
         fallback_split: Some(new_fallback_split.clone()),
-        splits: Some(new_splits.clone()),
+        splits: Some(new_splits),
     };
 
     suite.migrate(migrate_msg).unwrap();
@@ -202,14 +216,20 @@ fn test_migrate_config() {
     let clock_addr = suite.query_clock_address();
     let fallback_split = suite.query_fallback_split();
 
-    assert_eq!(vec![(
-        "new_denom".to_string(),
-        SplitConfig {
-            receivers: vec![
-                (ReceiverType::Native(NativeReceiver { address: "new_receiver".to_string() }), Uint128::new(100))
-            ],
-        },
-    )], splits);
+    assert_eq!(
+        vec![(
+            "new_denom".to_string(),
+            SplitConfig {
+                receivers: vec![(
+                    ReceiverType::Native(NativeReceiver {
+                        address: "new_receiver".to_string()
+                    }),
+                    Uint128::new(100)
+                )],
+            },
+        )],
+        splits
+    );
     assert_eq!(Some(new_fallback_split), fallback_split);
     assert_eq!(new_clock, clock_addr);
 }

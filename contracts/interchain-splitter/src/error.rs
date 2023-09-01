@@ -1,4 +1,3 @@
-
 use cosmwasm_std::StdError;
 use thiserror::Error;
 

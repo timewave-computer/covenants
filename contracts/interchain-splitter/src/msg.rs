@@ -1,6 +1,8 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::{
+    Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, IbcMsg, IbcTimeout, Uint128,
+};
 use covenant_macros::{clocked, covenant_clock_address};
-use cosmwasm_std::{IbcTimeout, Uint128, CosmosMsg, BankMsg, IbcMsg, Coin, Addr, Attribute, Binary};
 
 use crate::error::ContractError;
 
@@ -62,10 +64,7 @@ pub struct SplitConfig {
 
 impl SplitConfig {
     pub fn validate(self) -> Result<SplitConfig, ContractError> {
-        let total_share: Uint128 = self.receivers
-            .iter()
-            .map(|r| r.1)
-            .sum();
+        let total_share: Uint128 = self.receivers.iter().map(|r| r.1).sum();
 
         if total_share == Uint128::new(100) {
             Ok(self)
@@ -74,15 +73,18 @@ impl SplitConfig {
         }
     }
 
-    pub fn get_transfer_messages(&self, amount: Uint128, denom: String) -> Result<Vec<CosmosMsg>, ContractError> {
+    pub fn get_transfer_messages(
+        &self,
+        amount: Uint128,
+        denom: String,
+    ) -> Result<Vec<CosmosMsg>, ContractError> {
         let mut msgs: Vec<CosmosMsg> = vec![];
 
         for (receiver_type, share) in self.receivers.iter() {
-            let entitlement = amount.checked_multiply_ratio(
-                *share,
-                Uint128::new(100),
-            ).map_err(|_| ContractError::SplitMisconfig {})?;
-    
+            let entitlement = amount
+                .checked_multiply_ratio(*share, Uint128::new(100))
+                .map_err(|_| ContractError::SplitMisconfig {})?;
+
             let amount = Coin {
                 denom: denom.to_string(),
                 amount: entitlement,
@@ -107,17 +109,15 @@ impl SplitConfig {
     pub fn get_response_attribute(self, denom: String) -> Attribute {
         let mut receivers = "[".to_string();
         self.receivers.iter().for_each(|(ty, share)| {
-            receivers.push_str("(");
+            receivers.push('(');
             match ty {
-                ReceiverType::Interchain(i) => {
-                    receivers.push_str(&i.address)
-                },
+                ReceiverType::Interchain(i) => receivers.push_str(&i.address),
                 ReceiverType::Native(n) => receivers.push_str(&n.address),
             };
             receivers.push_str(&share.to_string());
             receivers.push_str("),");
         });
-        receivers.push_str("]");
+        receivers.push(']');
         Attribute::new(denom, receivers)
     }
 }
