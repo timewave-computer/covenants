@@ -1,14 +1,14 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    DepsMut, Env, MessageInfo,
-    Response, Order, CosmosMsg, Deps, StdResult, Binary, to_binary, StdError,
+    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
+    StdResult,
 };
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{InstantiateMsg, ExecuteMsg, QueryMsg, SplitConfig, MigrateMsg, SplitType};
-use crate::state::{SPLIT_CONFIG_MAP, CLOCK_ADDRESS, FALLBACK_SPLIT};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SplitConfig, SplitType};
+use crate::state::{CLOCK_ADDRESS, FALLBACK_SPLIT, SPLIT_CONFIG_MAP};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-interchain-splitter";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -23,23 +23,31 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
+    let mut resp = Response::default().add_attribute("method", "interchain_splitter_instantiate");
+
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+    resp = resp.add_attribute("clock_addr", clock_addr);
 
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
         let validated_split = split.get_split_config()?.validate()?;
-        SPLIT_CONFIG_MAP.save(deps.storage, denom, &validated_split)?;
+        SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &validated_split)?;
+        resp = resp.add_attributes(vec![validated_split.get_response_attribute(denom)]);
     }
 
     // if a fallback split is provided we validate and store it
     if let Some(split) = msg.fallback_split {
+        resp = resp.add_attributes(vec![split
+            .clone()
+            .get_split_config()?
+            .get_response_attribute("fallback".to_string())]);
         FALLBACK_SPLIT.save(deps.storage, &split.get_split_config()?.validate()?)?;
+    } else {
+        resp = resp.add_attribute("fallback", "None");
     }
 
-    Ok(Response::default()
-        .add_attribute("method", "interchain_splitter_instantiate")
-    )
+    Ok(resp)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -62,20 +70,16 @@ pub fn try_distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError
     let mut distribution_messages: Vec<CosmosMsg> = vec![];
 
     // then we iterate over our split config and try to match the entries to available balances
-    for entry in SPLIT_CONFIG_MAP
-        .range(deps.storage, None, None, Order::Ascending) {
+    for entry in SPLIT_CONFIG_MAP.range(deps.storage, None, None, Order::Ascending) {
         let (denom, config) = entry?;
-        // skip the fallback config for later
-        if denom == String::default() {
-            continue;
-        }
 
         // we try to find the index of matching coin in available balances
         let balances_index = balances.iter().position(|coin| coin.denom == denom);
         if let Some(index) = balances_index {
             // pop the relevant coin and build the transfer messages
             let coin = balances.remove(index);
-            let mut transfer_messages = config.get_transfer_messages(coin.amount, coin.denom.to_string())?;
+            let mut transfer_messages =
+                config.get_transfer_messages(coin.amount, coin.denom.to_string())?;
             distribution_messages.append(&mut transfer_messages);
         }
     }
@@ -86,13 +90,14 @@ pub fn try_distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError
     if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
         // get the distribution messages and add them to the list
         for leftover_bal in balances {
-            let mut fallback_messages = split
-                .get_transfer_messages(leftover_bal.amount, leftover_bal.denom)?;
+            let mut fallback_messages =
+                split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom)?;
             distribution_messages.append(&mut fallback_messages);
         }
     }
 
     Ok(Response::default()
+        .add_attribute("method", "try_distribute")
         .add_messages(distribution_messages)
     )
 }
@@ -100,7 +105,7 @@ pub fn try_distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress{}=>Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::DenomSplit { denom } => Ok(to_binary(&query_split(deps, denom)?)?),
         QueryMsg::Splits {} => Ok(to_binary(&query_all_splits(deps)?)?),
         QueryMsg::FallbackSplit {} => Ok(to_binary(&FALLBACK_SPLIT.may_load(deps.storage)?)?),
@@ -108,7 +113,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 pub fn query_all_splits(deps: Deps) -> Result<Vec<(String, SplitConfig)>, StdError> {
-
     let mut splits: Vec<(String, SplitConfig)> = vec![];
 
     for entry in SPLIT_CONFIG_MAP.range(deps.storage, None, None, Order::Ascending) {
@@ -120,19 +124,15 @@ pub fn query_all_splits(deps: Deps) -> Result<Vec<(String, SplitConfig)>, StdErr
 }
 
 pub fn query_split(deps: Deps, denom: String) -> Result<SplitConfig, StdError> {
-
     for entry in SPLIT_CONFIG_MAP.range(deps.storage, None, None, Order::Ascending) {
         let (entry_denom, config) = entry?;
         if entry_denom == denom {
-            return Ok(config)
+            return Ok(config);
         }
     }
 
-    Ok(SplitConfig {
-        receivers: vec![],
-    })
+    Ok(SplitConfig { receivers: vec![] })
 }
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
@@ -152,18 +152,18 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             if let Some(splits) = splits {
-                // clear all current split configs
+                // clear all current split configs before storing new values
                 SPLIT_CONFIG_MAP.clear(deps.storage);
                 for (denom, split_type) in splits {
                     match split_type {
-                        SplitType::Custom(split) => {
-                            match split.validate() {
-                                Ok(split) => {
-                                    SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
-                                    resp = resp.add_attributes(vec![split.get_response_attribute(denom)]);
-                                },
-                                Err(_) => return Err(StdError::generic_err("invalid split".to_string())),
+                        // we validate each split before storing it
+                        SplitType::Custom(split) => match split.validate() {
+                            Ok(split) => {
+                                SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
+                                resp =
+                                    resp.add_attributes(vec![split.get_response_attribute(denom)]);
                             }
+                            Err(_) => return Err(StdError::generic_err("invalid split".to_string()))
                         },
                     }
                 }
@@ -173,8 +173,10 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 match split.validate() {
                     Ok(split) => {
                         FALLBACK_SPLIT.save(deps.storage, &split)?;
-                        resp = resp.add_attributes(vec![split.get_response_attribute("fallback".to_string())]);
-                    },
+                        resp = resp.add_attributes(vec![
+                            split.get_response_attribute("fallback".to_string())
+                        ]);
+                    }
                     Err(_) => return Err(StdError::generic_err("invalid split".to_string())),
                 }
             }
