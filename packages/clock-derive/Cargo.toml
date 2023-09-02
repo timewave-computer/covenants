@@ -4,7 +4,7 @@ version = "0.0.1"
 edition = "2021"
 authors = ["ekez <ekez@withoutdoing.com>"]
 description = "A package for deriving the covenant-clock interface."
-license = "BSD-3"
+license = { workspace = true }
 
 
 [lib]

@@ -6,7 +6,7 @@ members = [
 
 [workspace.package]
 edition      = "2021"
-license      = "BSD-3"
+license      = "Apache-2.0"
 version      = "1.0.0"
 repository = "https://github.com/timewave-computer/covenants/stride-covenant"
 
