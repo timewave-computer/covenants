@@ -2,7 +2,7 @@
 
 The Stride LP Covenant is a trust minimized tool to allow ATOM holders to enter into an ATOM/stATOM liquidity pool with the passage of a single governance proposal on the Cosmos Hub. 
 
-The tool includes a state machine that performs the following actions sequentially
+The tool includes a state machine that performs the following actions sequentially:
 * Receive ATOM from Cosmos Hub community pool
 * Split received ATOM into two portions 
 * Liquid stake first portion of ATOM in return for stATOM
