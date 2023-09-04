@@ -166,6 +166,7 @@ pub enum MigrateMsg {
         ls_address: Option<String>,
         autopilot_format: Option<String>,
         ibc_config: Option<IbcConfig>,
+        neutron_atom_ibc_denom: Option<String>,
     },
     UpdateCodeId {
         data: Option<Binary>,

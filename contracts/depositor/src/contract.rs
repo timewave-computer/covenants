@@ -576,6 +576,7 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             ls_address,
             autopilot_format,
             ibc_config,
+            neutron_atom_ibc_denom,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
@@ -640,6 +641,11 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
                 resp = resp.add_attribute("ibc_fee_ack", config.ibc_fee.ack_fee[0].to_string());
                 resp = resp
                     .add_attribute("ibc_fee_timeout", config.ibc_fee.timeout_fee[0].to_string());
+            }
+
+            if let Some(denom) = neutron_atom_ibc_denom {
+                NEUTRON_ATOM_IBC_DENOM.save(deps.storage, &denom)?;
+                resp = resp.add_attribute("neutron_atom_ibc_denom", denom);
             }
 
             Ok(resp)
