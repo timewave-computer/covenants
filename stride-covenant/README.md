@@ -18,7 +18,7 @@ The tool includes mechanisms to:
 The Stride LP covenant uses the following contracts:
 
 1. [Stride Covenant](../contracts/covenant): Instantiates the modules and clock. Holds shared state between contracts.
-2. [Depositor](../contracts/depositor/): Creates an ICA account on Cosmos Hub and tries to withdraw ATOM. It then IBC transfers tokens to the subsequent modules (stride with autopilot memo and liquidity pooler contracts)
+2. [Depositor](../contracts/depositor/): Creates an ICA account on Cosmos Hub and tries to withdraw ATOM. It then IBC transfers tokens to the subsequent modules (stride with autopilot memo and liquidity pooler contracts).
 3. [Liquid Staker](../contracts/ls/): Creates an ICA account on Stride. It allows anyone to permissionlessly forward stATOM on the Stride ICA to be IBC transferred to the Liquidity Pooler.
 4. [Liquidity Pooler](../contracts/lper/): provides liquidity to the stATOM/ATOM pool on the Astroport DEX on Neutron. It sends the LP tokens to the Holder module.
 5. [Holder](../contracts/holder/): Holds LP tokens. A whitelisted withdrawer can redeem the LP tokens for funds. This whitelisted withdrawer can also withdraw the redeemed funds.
