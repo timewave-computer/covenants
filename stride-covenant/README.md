@@ -22,7 +22,7 @@ The Stride LP covenant uses the following contracts:
 3. [Liquid Staker](../contracts/ls/): Creates an ICA account on Stride. It allows anyone to permissionlessly forward stATOM on the Stride ICA to be IBC transferred to the Liquidity Pooler.
 4. [Liquidity Pooler](../contracts/lper/): provides liquidity to the stATOM/ATOM pool on the Astroport DEX on Neutron. It sends the LP tokens to the Holder module.
 5. [Holder](../contracts/holder/): Holds LP tokens. A whitelisted withdrawer can redeem the LP tokens for funds. This whitelisted withdrawer can also withdraw the redeemed funds.
-6. [Clock](../contracts/clock/): Send ticks periodically to any of the modules that have requested them to advance the state machine. The clock can itself be invoked by an off chain actor, such as a cron job
+6. [Clock](../contracts/clock/): Send ticks periodically to any of the modules that have requested them to advance the state machine. The clock can itself be invoked by an off chain actor, such as a cron job.
 
 ![](stride-contracts-overview.png)
 
