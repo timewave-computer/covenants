@@ -180,10 +180,10 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
                 return Err(ContractError::ZeroTickMaxGas {});
             }
 
-            TICK_MAX_GAS_LIMIT.save(
-                deps.storage,
-                &new_value.clamp(MIN_TICK_GAS_LIMIT, MAX_TICK_GAS_LIMIT),
-            )?;
+            // here we do not clamp the value to the inclusive range
+            // of min and max tick gas because we trust the admin
+            TICK_MAX_GAS_LIMIT.save(deps.storage, &new_value)?;
+
             Ok(Response::default()
                 .add_attribute("method", "migrate_update_tick_max_gas")
                 .add_attribute("tick_max_gas", new_value))
