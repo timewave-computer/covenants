@@ -14,7 +14,10 @@ use neutron_sdk::bindings::types::ProtobufAny;
 use prost::Message;
 
 use crate::{
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg, ContractState, SudoPayload},
+    msg::{
+        ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, OpenAckVersion, QueryMsg,
+        SudoPayload,
+    },
     state::{
         IBC_TRANSFER_TIMEOUT, ICA_TIMEOUT, NEUTRON_ATOM_IBC_DENOM, PENDING_NATIVE_TRANSFER_TIMEOUT,
     },
@@ -31,12 +34,11 @@ use neutron_sdk::{
 };
 
 use crate::state::{
-    read_errors_from_queue, read_reply_payload, read_sudo_payload,
-    save_reply_payload, save_sudo_payload,
-    ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
+    read_errors_from_queue, read_reply_payload, read_sudo_payload, save_reply_payload,
+    save_sudo_payload, ACKNOWLEDGEMENT_RESULTS, AUTOPILOT_FORMAT, CLOCK_ADDRESS, CONTRACT_STATE,
     GAIA_NEUTRON_IBC_TRANSFER_CHANNEL_ID, GAIA_STRIDE_IBC_TRANSFER_CHANNEL_ID, IBC_FEE,
-    INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER,
-    NEUTRON_GAIA_CONNECTION_ID, STRIDE_ATOM_RECEIVER,
+    INTERCHAIN_ACCOUNTS, LS_ADDRESS, NATIVE_ATOM_RECEIVER, NEUTRON_GAIA_CONNECTION_ID,
+    STRIDE_ATOM_RECEIVER,
 };
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
@@ -139,16 +141,10 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
         ContractState::IcaCreated => {
             let ica_address = get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID);
             match ica_address {
-                Ok((address, controller_conn_id)) => {
-                    try_send_native_token(env, deps, address, controller_conn_id)
-                }
-                Err(_) => {
-                    // reverting state to instantiated to recreate the ICA
-                    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
-                    Ok(Response::default()
-                        .add_attribute("method", "try_tick")
-                        .add_attribute("ica_status", "not_created"))
-                }
+                Ok((_, _)) => try_send_native_token(env, deps),
+                Err(_) => Ok(Response::default()
+                    .add_attribute("method", "try_tick")
+                    .add_attribute("ica_status", "not_created")),
             }
         }
         ContractState::VerifyNativeToken => try_verify_native_token(env, deps),
@@ -258,9 +254,10 @@ fn try_send_ls_token(
     // first we load the LS contract address which is responsible for creating
     // an ICA on stride so that we can query for that ICA address
     let ls_address = LS_ADDRESS.load(deps.storage)?;
-    let stride_ica_query: Option<String> = deps
-        .querier
-        .query_wasm_smart(ls_address, &covenant_utils::neutron_ica::QueryMsg::DepositAddress {})?;
+    let stride_ica_query: Option<String> = deps.querier.query_wasm_smart(
+        ls_address,
+        &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
+    )?;
     let stride_ica_addr = match stride_ica_query {
         Some(addr) => addr,
         None => return Err(NeutronError::Std(StdError::not_found("no LS ica found"))),
@@ -624,10 +621,18 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
                 resp = resp.add_attribute("autopilot_format", autopilot_f);
             }
 
-            if let Some(config) = ibc_config {
-                if config.ibc_fee.ack_fee.is_empty()
-                    || config.ibc_fee.timeout_fee.is_empty()
-                    || !config.ibc_fee.recv_fee.is_empty()
+            if let Some(timeout) = ibc_transfer_timeout {
+                IBC_TRANSFER_TIMEOUT.save(deps.storage, &timeout)?;
+                resp = resp.add_attribute("ibc_transfer_timeout", timeout);
+            }
+
+            if let Some(timeout) = ica_timeout {
+                ICA_TIMEOUT.save(deps.storage, &timeout)?;
+                resp = resp.add_attribute("ica_timeout", timeout);
+            }
+
+            if let Some(fee) = ibc_fee {
+                if fee.ack_fee.is_empty() || fee.timeout_fee.is_empty() || !fee.recv_fee.is_empty()
                 {
                     return Err(StdError::GenericErr {
                         msg: "invalid IbcFee".to_string(),

@@ -41,6 +41,7 @@ covenant-holder = { path = "contracts/holder" }
 covenant-ibc-forwarder = { path = "contracts/ibc-forwarder" }
 covenant-native-splitter = { path = "contracts/native-splitter" }
 covenant-interchain-splitter = { path = "contract/interchain-splitter" }
+covenant-swap-holder = { path = "contracts/swap-holder" }
 
 # packages 
 clock-derive = { path = "packages/clock-derive" }

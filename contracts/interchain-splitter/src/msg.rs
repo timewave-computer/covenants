@@ -17,6 +17,29 @@ pub struct InstantiateMsg {
     pub fallback_split: Option<SplitType>,
 }
 
+
+#[cw_serde]
+pub struct PresetInterchainSplitterFields {
+    /// list of (denom, split) configurations
+    pub splits: Vec<(String, SplitType)>,
+    /// a split for all denoms that are not covered in the
+    /// regular `splits` list
+    pub fallback_split: Option<SplitType>,
+}
+
+impl PresetInterchainSplitterFields {
+    pub fn to_instantiate_msg(
+        self,
+        clock_address: String,
+    ) -> InstantiateMsg {
+        InstantiateMsg {
+            clock_address,
+            splits: self.splits,
+            fallback_split: self.fallback_split,
+        }
+    }
+}
+
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {}

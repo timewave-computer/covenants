@@ -1,7 +1,7 @@
 use cosmwasm_std::Addr;
 use cw_storage_plus::Item;
 
-use crate::msg::{AssetData, ProvidedLiquidityInfo, ContractState, LpConfig};
+use crate::msg::{AssetData, ContractState, LpConfig, ProvidedLiquidityInfo};
 
 /// contract state tracks the state machine progress
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");

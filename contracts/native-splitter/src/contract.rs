@@ -5,29 +5,27 @@ use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, SubMsg, Attribute, StdError, Reply, CustomQuery, Uint128,
+    to_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
-use covenant_utils::neutron_ica::{SudoPayload, RemoteChainInfo, OpenAckVersion, self};
+use covenant_utils::neutron_ica::{self, OpenAckVersion, RemoteChainInfo, SudoPayload};
 use cw2::set_contract_version;
-use neutron_sdk::NeutronError;
 use neutron_sdk::bindings::msg::MsgSubmitTxResponse;
-use neutron_sdk::interchain_txs::helpers::{get_port_id, decode_acknowledgement_response, decode_message_response};
-use neutron_sdk::sudo::msg::{SudoMsg, RequestPacket};
-
-use crate::msg::{
-    ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, SplitReceiver,
+use neutron_sdk::interchain_txs::helpers::{
+    decode_acknowledgement_response, decode_message_response, get_port_id,
 };
+use neutron_sdk::sudo::msg::{RequestPacket, SudoMsg};
+use neutron_sdk::NeutronError;
+
+use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, SplitReceiver};
 use crate::state::{
-    save_reply_payload, CLOCK_ADDRESS, CONTRACT_STATE,
-    REMOTE_CHAIN_INFO, SPLIT_CONFIG_MAP, INTERCHAIN_ACCOUNTS, read_reply_payload, save_sudo_payload, TRANSFER_AMOUNT, add_error_to_queue, read_sudo_payload,
+    add_error_to_queue, read_reply_payload, read_sudo_payload, save_reply_payload,
+    save_sudo_payload, CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO,
+    SPLIT_CONFIG_MAP, TRANSFER_AMOUNT,
 };
 use neutron_sdk::{
-    bindings::{
-        msg::NeutronMsg,
-        query::NeutronQuery,
-    },
+    bindings::{msg::NeutronMsg, query::NeutronQuery},
     NeutronResult,
 };
 
@@ -82,8 +80,7 @@ pub fn instantiate(
         .add_attribute("method", "native_splitter_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attributes(remote_chain_info.get_response_attributes())
-        .add_attributes(split_resp_attributes)
-    )
+        .add_attributes(split_resp_attributes))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -109,16 +106,18 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
     match current_state {
         ContractState::Instantiated => try_register_ica(deps, env),
         ContractState::IcaCreated => try_split_funds(deps, env),
-        ContractState::Completed => Ok(Response::default()
-            .add_attribute("contract_state", "completed")
-        ),
+        ContractState::Completed => {
+            Ok(Response::default().add_attribute("contract_state", "completed"))
+        }
     }
 }
 
 fn try_register_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-    let register: NeutronMsg =
-        NeutronMsg::register_interchain_account(remote_chain_info.connection_id, INTERCHAIN_ACCOUNT_ID.to_string());
+    let register: NeutronMsg = NeutronMsg::register_interchain_account(
+        remote_chain_info.connection_id,
+        INTERCHAIN_ACCOUNT_ID.to_string(),
+    );
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
 
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
@@ -130,7 +129,6 @@ fn try_register_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMs
 }
 
 fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
 
@@ -138,10 +136,8 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
         Some((address, controller_conn_id)) => {
             let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
             let amount = TRANSFER_AMOUNT.load(deps.storage)?;
-            let splits = SPLIT_CONFIG_MAP.load(
-                deps.storage,
-                remote_chain_info.denom.to_string()
-            )?;
+            let splits =
+                SPLIT_CONFIG_MAP.load(deps.storage, remote_chain_info.denom.to_string())?;
 
             let mut outputs: Vec<Output> = Vec::new();
             for split_receiver in splits.iter() {
@@ -161,17 +157,13 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
 
             // todo: make sure output amounts add up to the input amount here
             let multi_send_msg = MsgMultiSend {
-                inputs: vec![
-                    Input {
-                        address,
-                        coins: vec![
-                            Coin {
-                                denom: remote_chain_info.denom,
-                                amount: amount.to_string(),
-                            },
-                        ]
-                    },
-                ],
+                inputs: vec![Input {
+                    address,
+                    coins: vec![Coin {
+                        denom: remote_chain_info.denom,
+                        amount: amount.to_string(),
+                    }],
+                }],
                 outputs,
             };
 
@@ -190,7 +182,7 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
 
             let sudo_msg = msg_with_sudo_callback(
                 deps,
-                submit_msg, 
+                submit_msg,
                 SudoPayload {
                     port_id,
                     message: "split_funds_msg".to_string(),
@@ -198,8 +190,7 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
             )?;
             Ok(Response::default()
                 .add_submessage(sudo_msg)
-                .add_attribute("method", "try_execute_split_funds")
-            )
+                .add_attribute("method", "try_execute_split_funds"))
         }
         None => {
             // I can't think of a case of how we could end up here as `sudo_open_ack`
@@ -208,9 +199,8 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
             CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
             Ok(Response::default()
                 .add_attribute("method", "try_execute_split_funds")
-                .add_attribute("error", "no_ica_found")
-            )
-        },
+                .add_attribute("error", "no_ica_found"))
+        }
     }
 }
 
@@ -233,20 +223,19 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             let ica = query_deposit_address(deps, env)?;
             // up to the querying module to make sense of the response
             Ok(to_binary(&ica)?)
-        },
+        }
         QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
         QueryMsg::SplitConfig {} => {
             let mut vec: Vec<(String, Vec<SplitReceiver>)> = Vec::new();
 
-            for entry in SPLIT_CONFIG_MAP.range(
-                deps.storage, 
-                None, 
-                None, 
-                cosmwasm_std::Order::Ascending
-            ) { vec.push(entry?) }
+            for entry in
+                SPLIT_CONFIG_MAP.range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+            {
+                vec.push(entry?)
+            }
 
             Ok(to_binary(&vec)?)
-        },
+        }
         QueryMsg::TransferAmount {} => Ok(to_binary(&TRANSFER_AMOUNT.may_load(deps.storage)?)?),
         QueryMsg::IcaAddress {} => Ok(to_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
     }
@@ -255,15 +244,15 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
 fn query_deposit_address(deps: Deps<NeutronQuery>, env: Env) -> Result<Option<String>, StdError> {
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     /*
-        here we cover three possible cases:
-        - 1. ICA had been created -> nice
-        - 2. ICA creation request had been submitted but did not receive
-            the channel_open_ack yet -> None
-        - 3. ICA creation request hadn't been submitted yet -> None
-     */
+       here we cover three possible cases:
+       - 1. ICA had been created -> nice
+       - 2. ICA creation request had been submitted but did not receive
+           the channel_open_ack yet -> None
+       - 3. ICA creation request hadn't been submitted yet -> None
+    */
     match INTERCHAIN_ACCOUNTS.may_load(deps.storage, key)? {
         Some(Some((addr, _))) => Ok(Some(addr)), // case 1
-        _ => Ok(None), // cases 2 and 3
+        _ => Ok(None),                           // cases 2 and 3
     }
 }
 
@@ -278,7 +267,6 @@ fn get_ica(
         .load(deps.storage, key)?
         .ok_or_else(|| StdError::generic_err("Interchain account is not created yet"))
 }
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
@@ -326,12 +314,12 @@ fn sudo_open_ack(
     // including the generated account address.
     let parsed_version: Result<OpenAckVersion, _> =
         serde_json_wasm::from_str(counterparty_version.as_str());
-    
+
     // get the parsed OpenAckVersion or return an error if we fail
     let Ok(parsed_version) = parsed_version else {
         return Err(StdError::generic_err("Can't parse counterparty_version"))
     };
-    
+
     // Update the storage record associated with the interchain account.
     INTERCHAIN_ACCOUNTS.save(
         deps.storage,
@@ -342,10 +330,8 @@ fn sudo_open_ack(
         )),
     )?;
     CONTRACT_STATE.save(deps.storage, &ContractState::IcaCreated)?;
-    
-    Ok(Response::default()
-       .add_attribute("method", "sudo_open_ack")
-    )
+
+    Ok(Response::default().add_attribute("method", "sudo_open_ack"))
 }
 
 fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResult<Response> {
@@ -355,7 +341,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
     let seq_id = request
         .sequence
         .ok_or_else(|| StdError::generic_err("sequence not found"))?;
-    
+
     let channel_id = request
         .source_channel
         .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
@@ -377,7 +363,6 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         item_types.push(item_type.to_string());
         match item_type {
             "/cosmos.bank.v1beta1.MsgMultiSend" => {
-             
                 let out: MsgMultiSendResponse = decode_message_response(&item.data)?;
                 // TODO: look into if this successful decoding is enough to assume multi
                 // send was successful

@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Attribute};
 use covenant_macros::{clocked, covenant_clock_address};
-use covenant_utils::{CovenantPartiesConfig, CovenantTerms, LockupConfig};
+use covenant_utils::{LockupConfig, CovenantPartiesConfig, CovenantTerms};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -30,6 +30,33 @@ impl InstantiateMsg {
         attrs.extend(self.covenant_terms.get_response_attributes());
         attrs.extend(self.lockup_config.get_response_attributes());
         attrs
+    }
+}
+
+#[cw_serde]
+pub struct PresetSwapHolderFields {
+    /// block height of covenant expiration. Position is exited
+    /// automatically upon reaching that height.
+    pub lockup_config: LockupConfig,
+    /// parties engaged in the POL.
+    pub parties_config: CovenantPartiesConfig,
+    /// terms of the covenant
+    pub covenant_terms: CovenantTerms,
+}
+
+impl PresetSwapHolderFields {
+    pub fn to_instantiate_msg(
+        self,
+        clock_address: String,
+        next_contract: String,
+    ) -> InstantiateMsg {
+        InstantiateMsg {
+            clock_address,
+            next_contract,
+            lockup_config: self.lockup_config,
+            parties_config: self.parties_config,
+            covenant_terms: self.covenant_terms,
+        }
     }
 }
 

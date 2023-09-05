@@ -24,15 +24,15 @@ pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
 /// contracts dealing with ICA
 pub const TIMEOUTS: Item<Timeouts> = Item::new("timeouts");
 
-/// fields related to the liquid staker contract known prior to covenant instatiation.
+/// fields related to the liquid staker module known prior to covenant instatiation.
 /// remaining fields are filled and converted to an InstantiateMsg during the
 /// instantiation chain.
 pub const PRESET_LS_FIELDS: Item<covenant_ls::msg::PresetLsFields> = Item::new("preset_ls_fields");
-/// fields related to the liquid pooler contract known prior to covenant instatiation.
+/// fields related to the liquid pooler module known prior to covenant instatiation.
 /// remaining fields are filled and converted to an InstantiateMsg during the
 /// instantiation chain.
 pub const PRESET_LP_FIELDS: Item<covenant_lp::msg::PresetLpFields> = Item::new("preset_lp_fields");
-/// fields related to the depositor contract known prior to covenant instatiation.
+/// fields related to the depositor module known prior to covenant instatiation.
 /// remaining fields are filled and converted to an InstantiateMsg during the
 /// instantiation chain.
 pub const PRESET_DEPOSITOR_FIELDS: Item<covenant_depositor::msg::PresetDepositorFields> =

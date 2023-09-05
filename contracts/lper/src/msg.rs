@@ -1,7 +1,7 @@
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Decimal, Uint128, Attribute};
-use covenant_macros::{clocked, covenant_deposit_address, covenant_clock_address};
+use cosmwasm_std::{Addr, Attribute, Binary, Decimal, Uint128};
+use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 
 use crate::error::ContractError;
 
@@ -48,17 +48,26 @@ impl LpConfig {
             None => "None".to_string(),
         };
         vec![
-            Attribute::new("expected_native_token_amount", self.expected_native_token_amount.to_string()),
-            Attribute::new("expected_ls_token_amount", self.expected_ls_token_amount.to_string()),
-            Attribute::new("allowed_return_delta", self.allowed_return_delta.to_string()),
+            Attribute::new(
+                "expected_native_token_amount",
+                self.expected_native_token_amount.to_string(),
+            ),
+            Attribute::new(
+                "expected_ls_token_amount",
+                self.expected_ls_token_amount.to_string(),
+            ),
+            Attribute::new(
+                "allowed_return_delta",
+                self.allowed_return_delta.to_string(),
+            ),
             Attribute::new("pool_address", self.pool_address.to_string()),
             Attribute::new(
                 "single_side_lp_limit_native",
-                self.single_side_lp_limits.native_asset_limit.to_string()
+                self.single_side_lp_limits.native_asset_limit.to_string(),
             ),
             Attribute::new(
                 "single_side_lp_limit_ls",
-                self.single_side_lp_limits.ls_asset_limit.to_string()
+                self.single_side_lp_limits.ls_asset_limit.to_string(),
             ),
             Attribute::new("autostake", autostake),
             Attribute::new("slippage_tolerance", slippage_tolerance),
@@ -66,29 +75,37 @@ impl LpConfig {
     }
 
     /// validates the existing pool balances to match our initial expectations.
-    /// if `PriceRangeError` is returned, it most likely means that the pool had a 
+    /// if `PriceRangeError` is returned, it most likely means that the pool had a
     /// significant shift in its balance ratio.
-    pub fn validate_price_range(&self, pool_native_bal: Uint128, pool_ls_bal: Uint128) -> Result<(), ContractError> {
+    pub fn validate_price_range(
+        &self,
+        pool_native_bal: Uint128,
+        pool_ls_bal: Uint128,
+    ) -> Result<(), ContractError> {
         // find the min return amount by subtracting the delta from expected amount
-        let min_return_amount = self.expected_ls_token_amount
+        let min_return_amount = self
+            .expected_ls_token_amount
             .checked_sub(self.allowed_return_delta)?;
         // find the max return amount by adding the delta to expected amount
-        let max_return_amount = self.expected_ls_token_amount
+        let max_return_amount = self
+            .expected_ls_token_amount
             .checked_add(self.allowed_return_delta)?;
-    
+
         // derive allowed proportions
-        let min_accepted_ratio = Decimal::from_ratio(min_return_amount, self.expected_native_token_amount);
-        let max_accepted_ratio = Decimal::from_ratio(max_return_amount, self.expected_native_token_amount);
-    
+        let min_accepted_ratio =
+            Decimal::from_ratio(min_return_amount, self.expected_native_token_amount);
+        let max_accepted_ratio =
+            Decimal::from_ratio(max_return_amount, self.expected_native_token_amount);
+
         // we find the proportion of the price range being validated
         let validation_ratio = Decimal::from_ratio(pool_ls_bal, pool_native_bal);
-    
+
         // if current return to offer amount ratio falls out of [min_accepted_ratio, max_return_amount],
         // return price range error
         if validation_ratio < min_accepted_ratio || validation_ratio > max_accepted_ratio {
             return Err(ContractError::PriceRangeError {});
         }
-    
+
         Ok(())
     }
 }

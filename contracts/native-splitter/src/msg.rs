@@ -1,11 +1,14 @@
 use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Uint64, StdError, Attribute};
-use covenant_macros::{covenant_deposit_address, clocked, covenant_clock_address, covenant_remote_chain, covenant_ica_address};
+use cosmwasm_std::{Addr, Attribute, Fraction, StdError, Uint128, Uint64};
+use covenant_macros::{
+    clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
+    covenant_remote_chain,
+};
 
-use neutron_sdk::bindings::msg::IbcFee;
 use covenant_utils::neutron_ica::RemoteChainInfo;
+use neutron_sdk::bindings::msg::IbcFee;
 use schemars::Map;
 
 #[cw_serde]
@@ -13,7 +16,7 @@ pub struct InstantiateMsg {
     /// Address for the clock. This contract verifies
     /// that only the clock can execute Ticks
     pub clock_address: String,
-    
+
     pub remote_chain_connection_id: String,
     pub remote_chain_channel_id: String,
     pub denom: String,
@@ -37,7 +40,6 @@ pub struct InstantiateMsg {
     /// if the ICA times out, the destination chain receiving the funds
     /// will also receive the IBC packet with an expired timestamp.
     pub ibc_transfer_timeout: Uint64,
-    
 }
 
 #[cw_serde]
@@ -54,7 +56,10 @@ impl NativeDenomSplit {
         let sum: Uint128 = self.receivers.iter().map(|r| r.share).sum();
 
         if sum != Uint128::new(100) {
-            Err(StdError::generic_err(format!("failed to validate split config for denom: {}", self.denom)))
+            Err(StdError::generic_err(format!(
+                "failed to validate split config for denom: {}",
+                self.denom
+            )))
         } else {
             Ok(self)
         }

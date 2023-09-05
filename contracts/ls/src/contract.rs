@@ -2,20 +2,19 @@ use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128,
+    to_binary, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
-use covenant_utils::neutron_ica::{SudoPayload, OpenAckVersion, RemoteChainInfo, self, get_proto_coin};
+use covenant_utils::neutron_ica::{
+    self, get_proto_coin, OpenAckVersion, RemoteChainInfo, SudoPayload,
+};
 use cw2::set_contract_version;
 
-use crate::msg::{
-    ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
-};
+use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{
-    read_reply_payload,
-    save_reply_payload, save_sudo_payload, CLOCK_ADDRESS, CONTRACT_STATE,
-    INTERCHAIN_ACCOUNTS, AUTOPILOT_FORMAT, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
+    read_reply_payload, save_reply_payload, save_sudo_payload, AUTOPILOT_FORMAT, CLOCK_ADDRESS,
+    CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
 };
 use neutron_sdk::{
     bindings::{
@@ -65,8 +64,7 @@ pub fn instantiate(
         .add_attribute("method", "ls_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attribute("next_contract", next_contract)
-        .add_attributes(remote_chain_info.get_response_attributes())
-    )
+        .add_attributes(remote_chain_info.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -84,11 +82,9 @@ pub fn execute(
             let ica_address = get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID);
             match ica_address {
                 Ok(_) => try_execute_transfer(deps, env, info, amount),
-                Err(_) => Ok(
-                    Response::default()
-                        .add_attribute("method", "try_permisionless_transfer")
-                        .add_attribute("ica_status", "not_created")
-                    ),
+                Err(_) => Ok(Response::default()
+                    .add_attribute("method", "try_permisionless_transfer")
+                    .add_attribute("ica_status", "not_created")),
             }
         }
     }
@@ -109,8 +105,10 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 /// registers an interchain account on stride with port_id associated with `INTERCHAIN_ACCOUNT_ID`
 fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-    let register: NeutronMsg =
-        NeutronMsg::register_interchain_account(remote_chain_info.connection_id, INTERCHAIN_ACCOUNT_ID.to_string());
+    let register: NeutronMsg = NeutronMsg::register_interchain_account(
+        remote_chain_info.connection_id,
+        INTERCHAIN_ACCOUNT_ID.to_string(),
+    );
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
 
     // we are saving empty data here because we handle response of registering ICA in sudo_open_ack method
@@ -132,7 +130,6 @@ fn try_execute_transfer(
     address: String,
     controller_conn_id: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
-
     // first we verify whether the next contract is ready for receiving the funds
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
     let deposit_address_query = deps.querier.query_wasm_smart(
@@ -200,8 +197,7 @@ fn try_execute_transfer(
             )?;
             Ok(Response::default()
                 .add_submessage(sudo_msg)
-                .add_attribute("method", "try_execute_transfer")
-            )
+                .add_attribute("method", "try_execute_transfer"))
         }
         None => {
             // I can't think of a case of how we could end up here as `sudo_open_ack`
@@ -210,9 +206,8 @@ fn try_execute_transfer(
             CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
             Ok(Response::default()
                 .add_attribute("method", "try_execute_transfer")
-                .add_attribute("error", "no_ica_found")
-            )
-        },
+                .add_attribute("error", "no_ica_found"))
+        }
     }
 
     let protobuf = ProtobufAny {
@@ -264,7 +259,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             let ica = query_deposit_address(deps, env)?;
             // up to the querying module to make sense of the response
             Ok(to_binary(&ica)?)
-        },
+        }
         QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
     }
 }
@@ -288,9 +283,9 @@ fn query_deposit_address(deps: Deps<NeutronQuery>, env: Env) -> Result<Option<St
             else {
                 Ok(None)
             }
-        },
+        }
         // 3. ICA creation request hadn't been submitted yet -> None
-        None => Ok(None)
+        None => Ok(None),
     }
 }
 
@@ -357,9 +352,7 @@ fn sudo_open_ack(
     )?;
     CONTRACT_STATE.save(deps.storage, &ContractState::IcaCreated)?;
 
-    Ok(Response::default()
-       .add_attribute("method", "sudo_open_ack")
-    )
+    Ok(Response::default().add_attribute("method", "sudo_open_ack"))
 }
 
 fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResult<Response> {

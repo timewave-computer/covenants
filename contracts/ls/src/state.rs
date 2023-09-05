@@ -1,5 +1,5 @@
 use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint128};
-use covenant_utils::neutron_ica::{SudoPayload, RemoteChainInfo};
+use covenant_utils::neutron_ica::{RemoteChainInfo, SudoPayload};
 use cw_storage_plus::{Item, Map};
 
 use crate::msg::ContractState;

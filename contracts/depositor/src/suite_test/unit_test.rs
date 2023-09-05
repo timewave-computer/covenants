@@ -10,12 +10,11 @@ use neutron_sdk::{
 };
 
 use crate::{
-    contract::{sudo, to_proto_msg_transfer, INTERCHAIN_ACCOUNT_ID, SUDO_PAYLOAD_REPLY_ID},
+    contract::{sudo, INTERCHAIN_ACCOUNT_ID},
     msg::ContractState,
     suite_test::unit_helpers::{
         get_default_ibc_fee, get_default_init_msg, get_default_msg_transfer,
-        get_default_sudo_open_ack, reply_execute, sudo_execute, to_proto, CLOCK_ADDR, LP_ADDR,
-        NATIVE_ATOM_DENOM,
+        get_default_sudo_open_ack, to_proto, CLOCK_ADDR, LP_ADDR, NATIVE_ATOM_DENOM,
     },
 };
 

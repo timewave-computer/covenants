@@ -1,6 +1,9 @@
-use crate::msg::{AcknowledgementResult, ContractState, IbcConfig, SudoPayload, WeightedReceiver};
-use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Timestamp};
+use crate::msg::{AcknowledgementResult, ContractState, SudoPayload, WeightedReceiver};
+use cosmwasm_std::{
+    from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Timestamp, Uint64,
+};
 use cw_storage_plus::{Item, Map};
+use neutron_sdk::bindings::msg::IbcFee;
 
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
