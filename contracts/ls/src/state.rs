@@ -1,5 +1,5 @@
 use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint128};
-use covenant_utils::neutron_ica::{SudoPayload, RemoteChainInfo};
+use covenant_utils::neutron_ica::{RemoteChainInfo, SudoPayload};
 use cw_storage_plus::{Item, Map};
 
 use crate::msg::ContractState;
@@ -22,7 +22,7 @@ pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
 
 /// formatting of stride autopilot message.
-/// we use string match & replace with relevant fields to obtain the valid message. 
+/// we use string match & replace with relevant fields to obtain the valid message.
 pub const AUTOPILOT_FORMAT: Item<String> = Item::new("autopilot_format");
 
 /// interchain transaction responses - ack/err/timeout state to query later
@@ -76,10 +76,6 @@ pub fn save_sudo_payload(
     SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_vec(&payload)?)
 }
 
-pub fn clear_sudo_payload(
-    store: &mut dyn Storage,
-    channel_id: String,
-    seq_id: u64,
-) {
+pub fn clear_sudo_payload(store: &mut dyn Storage, channel_id: String, seq_id: u64) {
     SUDO_PAYLOAD.remove(store, (channel_id, seq_id))
 }

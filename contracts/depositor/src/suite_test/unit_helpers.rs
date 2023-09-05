@@ -21,7 +21,8 @@ use prost::Message;
 use crate::{
     contract::{execute, instantiate, INTERCHAIN_ACCOUNT_ID},
     msg::{
-        ExecuteMsg, InstantiateMsg, OpenAckVersion, PresetDepositorFields, WeightedReceiverAmount, ContractState,
+        ContractState, ExecuteMsg, InstantiateMsg, OpenAckVersion, PresetDepositorFields,
+        WeightedReceiverAmount,
     },
     state::CONTRACT_STATE,
 };

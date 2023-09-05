@@ -198,7 +198,6 @@ pub enum ContractState {
     Complete,
 }
 
-
 /// SudoPayload is a type that stores information about a transaction that we try to execute
 /// on the host chain. This is a type introduced for our convenience.
 #[cw_serde]

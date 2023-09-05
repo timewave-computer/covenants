@@ -15,12 +15,11 @@ use astroport::{
 
 use crate::{
     error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, ProvidedLiquidityInfo, ContractState, LpConfig},
-    state::{
-        ASSETS,
-        HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO,
-        LP_CONFIG,
+    msg::{
+        ContractState, ExecuteMsg, InstantiateMsg, LpConfig, MigrateMsg, ProvidedLiquidityInfo,
+        QueryMsg,
     },
+    state::{ASSETS, HOLDER_ADDRESS, LP_CONFIG, PROVIDED_LIQUIDITY_INFO},
 };
 
 use neutron_sdk::NeutronResult;
@@ -44,7 +43,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: lp instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    
+
     // validate the contract addresses
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
@@ -85,8 +84,7 @@ pub fn instantiate(
         .add_attribute("holder_addr", holder_addr)
         .add_attribute("ls_asset_denom", msg.assets.ls_asset_denom)
         .add_attribute("native_asset_denom", msg.assets.native_asset_denom)
-        .add_attributes(lp_config.to_response_attributes())
-    )
+        .add_attributes(lp_config.to_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -114,13 +112,15 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 
 /// method which attempts to provision liquidity to the pool.
 /// if both desired asset balances are non-zero, double sided liquidity
-/// is provided. 
+/// is provided.
 /// otherwise, single-sided liquidity provision is attempted.
 fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let asset_data = ASSETS.load(deps.storage)?;
 
     // first we query our own balances and filter out any unexpected denoms
-    let bal_coins = deps.querier.query_all_balances(env.contract.address.to_string())?;
+    let bal_coins = deps
+        .querier
+        .query_all_balances(env.contract.address.to_string())?;
     let (native_bal, ls_bal) = get_relevant_balances(
         bal_coins,
         asset_data.ls_asset_denom,
@@ -131,31 +131,25 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     match (native_bal.amount.is_zero(), ls_bal.amount.is_zero()) {
         // one balance is non-zero, we attempt single-side
         (true, false) | (false, true) => {
-            let single_sided_submsg = try_get_single_side_lp_submsg(
-                deps.branch(), 
-                native_bal,
-                ls_bal,
-            )?;
+            let single_sided_submsg =
+                try_get_single_side_lp_submsg(deps.branch(), native_bal, ls_bal)?;
             if let Some(msg) = single_sided_submsg {
                 return Ok(Response::default()
                     .add_submessage(msg)
                     .add_attribute("method", "single_side_lp"));
             }
-        },
+        }
         // both balances are non-zero, we attempt double-side
         (false, false) => {
-            let double_sided_submsg = try_get_double_side_lp_submsg(
-                deps.branch(),
-                native_bal,
-                ls_bal,
-            )?;
-        
+            let double_sided_submsg =
+                try_get_double_side_lp_submsg(deps.branch(), native_bal, ls_bal)?;
+
             if let Some(msg) = double_sided_submsg {
                 return Ok(Response::default()
                     .add_submessage(msg)
                     .add_attribute("method", "double_side_lp"));
             }
-        },
+        }
         // both balances zero, no liquidity can be provisioned
         _ => (),
     }
@@ -163,8 +157,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     // if no message could be constructed, we keep waiting for funds
     Ok(Response::default()
         .add_attribute("method", "try_lp")
-        .add_attribute("status", "not enough funds")
-    )
+        .add_attribute("status", "not enough funds"))
 }
 
 /// attempts to get a double sided ProvideLiquidity submessage.
@@ -191,10 +184,7 @@ fn try_get_double_side_lp_submsg(
     )?;
 
     // we validate the pool to match our price expectations
-    lp_config.validate_price_range(
-        pool_native_bal,
-        pool_ls_bal,
-    )?;
+    lp_config.validate_price_range(pool_native_bal, pool_ls_bal)?;
 
     // we derive the ratio of native to ls.
     // using this ratio we know how many native tokens we should provide for every one ls token
@@ -218,7 +208,7 @@ fn try_get_double_side_lp_submsg(
                 Asset {
                     info: asset_data.get_ls_asset_info(),
                     amount: ls_bal.amount,
-                }
+                },
             )
         } else {
             // otherwise, our native token amount is insufficient to provide double
@@ -242,13 +232,10 @@ fn try_get_double_side_lp_submsg(
         native_asset_double_sided.to_coin()?,
         ls_asset_double_sided.to_coin()?,
     );
-    
+
     // craft a ProvideLiquidity message with the determined assets
     let double_sided_liq_msg = ProvideLiquidity {
-        assets: vec![
-            native_asset_double_sided,
-            ls_asset_double_sided,
-        ],
+        assets: vec![native_asset_double_sided, ls_asset_double_sided],
         slippage_tolerance: lp_config.slippage_tolerance,
         auto_stake: lp_config.autostake,
         receiver: Some(holder_address.to_string()),
@@ -258,9 +245,7 @@ fn try_get_double_side_lp_submsg(
     PROVIDED_LIQUIDITY_INFO.update(
         deps.storage,
         |mut info: ProvidedLiquidityInfo| -> StdResult<_> {
-            info.provided_amount_ls = info
-                .provided_amount_ls
-                .checked_add(ls_coin.amount)?;
+            info.provided_amount_ls = info.provided_amount_ls.checked_add(ls_coin.amount)?;
             info.provided_amount_native = info
                 .provided_amount_native
                 .checked_add(native_coin.amount)?;
@@ -302,7 +287,9 @@ fn try_get_single_side_lp_submsg(
     };
 
     // now we try to submit the message for either LS or native single side liquidity
-    if native_bal.amount.is_zero() && ls_bal.amount <= lp_config.single_side_lp_limits.ls_asset_limit {
+    if native_bal.amount.is_zero()
+        && ls_bal.amount <= lp_config.single_side_lp_limits.ls_asset_limit
+    {
         // update the provided liquidity info
         PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
             info.provided_amount_ls = info.provided_amount_ls.checked_add(ls_bal.amount)?;
@@ -321,7 +308,8 @@ fn try_get_single_side_lp_submsg(
 
         return Ok(Some(submsg));
     } else if ls_bal.amount.is_zero()
-        && native_bal.amount <= lp_config.single_side_lp_limits.native_asset_limit {
+        && native_bal.amount <= lp_config.single_side_lp_limits.native_asset_limit
+    {
         // update the provided liquidity info
         PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
             info.provided_amount_native =
@@ -384,7 +372,6 @@ fn get_pool_asset_amounts(
     Ok((native_bal, ls_bal))
 }
 
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
@@ -424,7 +411,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             if let Some(denoms) = assets {
                 ASSETS.save(deps.storage, &denoms)?;
                 response = response.add_attribute("ls_denom", denoms.ls_asset_denom.to_string());
-                response = response.add_attribute("native_denom", denoms.native_asset_denom.to_string());
+                response =
+                    response.add_attribute("native_denom", denoms.native_asset_denom.to_string());
             }
 
             if let Some(config) = lp_config {
