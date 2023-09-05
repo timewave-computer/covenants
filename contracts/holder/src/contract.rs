@@ -10,7 +10,7 @@ use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{WITHDRAWER, POOL_ADDRESS};
+use crate::state::{POOL_ADDRESS, WITHDRAWER};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -88,9 +88,10 @@ fn try_withdraw_liquidity(
     // We query the pool to get the contract for the pool info
     // The pool info is required to fetch the address of the
     // liquidity token contract. The liquidity tokens are CW20 tokens
-    let pair_info: astroport::asset::PairInfo = deps
-        .querier
-        .query_wasm_smart(pool_address.to_string(), &astroport::pair::QueryMsg::Pair {})?;
+    let pair_info: astroport::asset::PairInfo = deps.querier.query_wasm_smart(
+        pool_address.to_string(),
+        &astroport::pair::QueryMsg::Pair {},
+    )?;
 
     // We query our own liquidity token balance
     let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(

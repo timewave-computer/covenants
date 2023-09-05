@@ -1,5 +1,5 @@
 use cosmwasm_std::{from_binary, to_vec, Addr, Binary, Order, StdResult, Storage, Uint128};
-use covenant_utils::neutron_ica::{SudoPayload, RemoteChainInfo};
+use covenant_utils::neutron_ica::{RemoteChainInfo, SudoPayload};
 use cw_storage_plus::{Item, Map};
 
 use crate::msg::{ContractState, SplitReceiver};
@@ -11,7 +11,6 @@ pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 
 pub const TRANSFER_AMOUNT: Item<Uint128> = Item::new("transfer_amount");
-
 
 // maps a denom string to a vec of SplitReceivers
 pub const SPLIT_CONFIG_MAP: Map<String, Vec<SplitReceiver>> = Map::new("split_config");
@@ -71,10 +70,6 @@ pub fn save_sudo_payload(
     SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_vec(&payload)?)
 }
 
-pub fn clear_sudo_payload(
-    store: &mut dyn Storage,
-    channel_id: String,
-    seq_id: u64,
-) {
+pub fn clear_sudo_payload(store: &mut dyn Storage, channel_id: String, seq_id: u64) {
     SUDO_PAYLOAD.remove(store, (channel_id, seq_id))
 }
