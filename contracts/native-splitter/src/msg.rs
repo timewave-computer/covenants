@@ -1,7 +1,7 @@
-use std::{fmt};
+use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Uint64, StdError, Attribute, Fraction};
+use cosmwasm_std::{Addr, Uint128, Uint64, StdError, Attribute};
 use covenant_macros::{covenant_deposit_address, clocked, covenant_clock_address, covenant_remote_chain, covenant_ica_address};
 
 use neutron_sdk::bindings::msg::IbcFee;
@@ -96,6 +96,7 @@ pub enum ExecuteMsg {}
 
 #[cw_serde]
 pub struct SplitConfigMap {
+    /// maps denom to its associated receivers with their shares
     pub map: Map<String, Vec<SplitReceiver>>,
 }
 
