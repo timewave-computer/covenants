@@ -1,10 +1,12 @@
+use std::collections::HashSet;
+
 use cosmos_sdk_proto::cosmos::bank::v1beta1::{MsgMultiSend, Input, Output, MsgMultiSendResponse};
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, SubMsg, Attribute, StdError, Reply, CustomQuery, Fraction, Uint128, Decimal,
+    Response, StdResult, SubMsg, Attribute, StdError, Reply, CustomQuery, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
 use covenant_utils::neutron_ica::{SudoPayload, RemoteChainInfo, OpenAckVersion, self};
@@ -61,10 +63,19 @@ pub fn instantiate(
 
     // validate each split and store it in a map
     let mut split_resp_attributes: Vec<Attribute> = Vec::new();
+    let mut encountered_denoms: HashSet<String> = HashSet::new();
+    
     for split in msg.splits {
-        let validated_split = split.validate()?;
-        split_resp_attributes.push(validated_split.to_response_attribute());
-        SPLIT_CONFIG_MAP.save(deps.storage, validated_split.denom, &validated_split.receivers)?;
+        // if denom had not yet been encountered we proceed, otherwise error
+        if encountered_denoms.insert(split.denom.to_string()) {
+            let validated_split = split.validate()?;
+            split_resp_attributes.push(validated_split.to_response_attribute());
+            SPLIT_CONFIG_MAP.save(deps.storage, validated_split.denom, &validated_split.receivers)?;
+        } else {
+            return Err(NeutronError::Std(StdError::GenericErr { msg: 
+                format!("multiple {:?} entries", split.denom)
+            }))
+        }
     }
 
     Ok(Response::default()
@@ -136,20 +147,16 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
             for split_receiver in splits.iter() {
                 // get the fraction dedicated to this receiver
                 let amt = amount
-                    .checked_multiply_ratio(split_receiver.share, Uint128::new(100));
+                    .checked_multiply_ratio(split_receiver.share, Uint128::new(100))
+                    .map_err(|e| NeutronError::Std(StdError::GenericErr { msg: e.to_string() }))?;
                 
-                match amt {
-                    Ok(amount) => outputs.push(Output {
+                outputs.push(Output {
                         address: split_receiver.addr.to_string(),
                         coins: vec![Coin {
                             denom: remote_chain_info.denom.to_string(),
-                            amount: amount.to_string(),
+                            amount: amt.to_string(),
                         }],
-                    }),
-                    Err(e) => return Err(
-                        NeutronError::Std(StdError::GenericErr { msg: e.to_string() })
-                    ),
-                };
+                });
             }
 
             // todo: make sure output amounts add up to the input amount here
