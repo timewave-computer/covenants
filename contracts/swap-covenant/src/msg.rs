@@ -2,7 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128, Uint64};
 use covenant_clock::msg::PresetClockFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
-use covenant_utils::SwapCovenantTerms;
+use covenant_utils::{SwapCovenantTerms, CovenantParty, CovenantPartiesConfig};
 use neutron_sdk::bindings::msg::IbcFee;
 
 const NEUTRON_DENOM: &str = "untrn";
@@ -17,12 +17,15 @@ pub struct InstantiateMsg {
     /// ibc transfer and ica timeouts passed down to relevant modules
     pub timeouts: Timeouts,
 
+    pub ibc_forwarder_code: u64,
+    
     /// instantiation fields relevant to clock module known in advance
     pub preset_clock_fields: PresetClockFields,
 
     /// instantiation fields relevant to swap holder contract known in advance
     pub preset_holder_fields: PresetSwapHolderFields,
     pub covenant_terms: SwapCovenantTerms,
+    pub covenant_parties: CovenantPartiesConfig,
 }
 
 #[cw_serde]
