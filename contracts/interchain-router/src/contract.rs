@@ -1,14 +1,18 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{Env, MessageInfo, Response, DepsMut, Attribute, Deps, StdResult, Binary, to_binary};
+use cosmwasm_std::{
+    to_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+};
 use cw2::set_contract_version;
 
-use crate::{msg::{InstantiateMsg, ExecuteMsg, DestinationConfig, QueryMsg, MigrateMsg}, state::{CLOCK_ADDRESS, DESTINATION_CONFIG}, error::ContractError};
-
+use crate::{
+    error::ContractError,
+    msg::{DestinationConfig, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
+    state::{CLOCK_ADDRESS, DESTINATION_CONFIG},
+};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-interchain-router";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -35,8 +39,7 @@ pub fn instantiate(
     Ok(Response::default()
         .add_attribute("method", "interchain_router_instantiate")
         .add_attribute("clock_address", clock_addr)
-        .add_attributes(destination_config.get_response_attributes())
-    )
+        .add_attributes(destination_config.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -51,7 +54,7 @@ pub fn execute(
 
     // Verify caller is the clock
     if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
-        return Err(ContractError::Unauthorized {})
+        return Err(ContractError::Unauthorized {});
     }
 
     match msg {
@@ -68,35 +71,35 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
 
     // if there are no balances, we return early;
     // otherwise build up the response attributes
-    let balance_attributes: Vec<Attribute> = if balances.len() == 0 {
+    let balance_attributes: Vec<Attribute> = if balances.is_empty() {
         return Ok(Response::default()
             .add_attribute("method", "try_route_balances")
-            .add_attribute("balances", "[]")
-        )
+            .add_attribute("balances", "[]"));
     } else {
-        balances.iter()
+        balances
+            .iter()
             .map(|c| Attribute::new(c.denom.to_string(), c.amount))
             .collect()
     };
 
-    // get ibc transfer messages for each denom 
+    // get ibc transfer messages for each denom
     let messages = destination_config.get_ibc_transfer_messages_for_coins(balances, env.block.time);
 
     Ok(Response::default()
         .add_attribute("method", "try_route_balances")
         .add_attributes(balance_attributes)
-        .add_messages(messages)
-    )
+        .add_messages(messages))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::DestinationConfig {} => Ok(to_binary(&DESTINATION_CONFIG.may_load(deps.storage)?)?),
+        QueryMsg::DestinationConfig {} => {
+            Ok(to_binary(&DESTINATION_CONFIG.may_load(deps.storage)?)?)
+        }
         QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
     }
 }
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
@@ -107,7 +110,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
             clock_addr,
             destination_config,
         } => {
-            let mut response = Response::default().add_attribute("method", "update_interchain_router");
+            let mut response =
+                Response::default().add_attribute("method", "update_interchain_router");
 
             if let Some(addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
@@ -129,5 +133,3 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
         }
     }
 }
-
-
