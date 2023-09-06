@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Uint64, Attribute, Addr, Coin, CosmosMsg, IbcMsg, IbcTimeout, Timestamp, BlockInfo};
+use cosmwasm_std::{Uint64, Attribute, Addr, Coin, CosmosMsg, IbcMsg, IbcTimeout, Timestamp, Binary};
 use covenant_macros::{clocked, covenant_clock_address};
 
 #[cw_serde]
@@ -13,17 +13,6 @@ pub struct InstantiateMsg {
     pub destination_receiver_addr: String,
     /// timeout in seconds
     pub ibc_transfer_timeout: Uint64,
-}
-
-impl InstantiateMsg {
-    pub fn get_response_attributes(&self) -> Vec<Attribute> {
-        vec![
-            Attribute::new("clock_address", &self.clock_address),
-            Attribute::new("destination_chain_channel_id", &self.destination_chain_channel_id),
-            Attribute::new("destination_receiver_addr", &self.destination_receiver_addr),
-            Attribute::new("ibc_transfer_timeout", self.ibc_transfer_timeout.to_string()),
-        ]
-    }
 }
 
 #[cw_serde]
@@ -53,6 +42,14 @@ impl DestinationConfig {
 
         messages
     }
+
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
+        vec![
+            Attribute::new("destination_chain_channel_id", self.destination_chain_channel_id.to_string()),
+            Attribute::new("destination_receiver_addr", self.destination_receiver_addr.to_string()),
+            Attribute::new("ibc_transfer_timeout", self.ibc_transfer_timeout),
+        ]
+    }
 }
 
 #[clocked]
@@ -65,4 +62,16 @@ pub enum ExecuteMsg {}
 pub enum QueryMsg {
     #[returns(DestinationConfig)]
     DestinationConfig {},
+}
+
+
+#[cw_serde]
+pub enum MigrateMsg {
+    UpdateConfig {
+        clock_addr: Option<String>,
+        destination_config: Option<DestinationConfig>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
+    },
 }
