@@ -1,9 +1,9 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{Env, MessageInfo, Response, DepsMut, Attribute};
+use cosmwasm_std::{Env, MessageInfo, Response, DepsMut, Attribute, Deps, StdResult, Binary, to_binary};
 use cw2::set_contract_version;
 
-use crate::{msg::{InstantiateMsg, ExecuteMsg, DestinationConfig}, state::{CLOCK_ADDRESS, DESTINATION_CONFIG}, error::ContractError};
+use crate::{msg::{InstantiateMsg, ExecuteMsg, DestinationConfig, QueryMsg, MigrateMsg}, state::{CLOCK_ADDRESS, DESTINATION_CONFIG}, error::ContractError};
 
 
 const CONTRACT_NAME: &str = "crates.io:covenant-interchain-router";
@@ -24,15 +24,18 @@ pub fn instantiate(
     let destination_receiver_addr = deps.api.addr_validate(&msg.destination_receiver_addr)?;
 
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
-    DESTINATION_CONFIG.save(deps.storage, &DestinationConfig {
+    let destination_config = DestinationConfig {
         destination_chain_channel_id: msg.destination_chain_channel_id.to_string(),
         destination_receiver_addr,
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
-    })?;
+    };
+
+    DESTINATION_CONFIG.save(deps.storage, &destination_config)?;
 
     Ok(Response::default()
         .add_attribute("method", "interchain_router_instantiate")
-        .add_attributes(msg.get_response_attributes())
+        .add_attribute("clock_address", clock_addr)
+        .add_attributes(destination_config.get_response_attributes())
     )
 }
 
@@ -56,15 +59,27 @@ pub fn execute(
     }
 }
 
+/// method that attempts to transfer out all available balances to the receiver
 fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
-
-    let balances = deps.querier.query_all_balances(env.contract.address)?;
     let destination_config: DestinationConfig = DESTINATION_CONFIG.load(deps.storage)?;
 
-    let balance_attributes: Vec<Attribute> = balances.iter()
-        .map(|c| Attribute::new(c.denom.to_string(), c.amount))
-        .collect();
+    // first we query all balances of the router
+    let balances = deps.querier.query_all_balances(env.contract.address)?;
 
+    // if there are no balances, we return early;
+    // otherwise build up the response attributes
+    let balance_attributes: Vec<Attribute> = if balances.len() == 0 {
+        return Ok(Response::default()
+            .add_attribute("method", "try_route_balances")
+            .add_attribute("balances", "[]")
+        )
+    } else {
+        balances.iter()
+            .map(|c| Attribute::new(c.denom.to_string(), c.amount))
+            .collect()
+    };
+
+    // get ibc transfer messages for each denom 
     let messages = destination_config.get_ibc_transfer_messages_for_coins(balances, env.block.time);
 
     Ok(Response::default()
@@ -73,3 +88,46 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
         .add_messages(messages)
     )
 }
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::DestinationConfig {} => Ok(to_binary(&DESTINATION_CONFIG.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+    }
+}
+
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    deps.api.debug("WASMDEBUG: migrate");
+
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            destination_config,
+        } => {
+            let mut response = Response::default().add_attribute("method", "update_interchain_router");
+
+            if let Some(addr) = clock_addr {
+                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
+                response = response.add_attribute("clock_addr", addr);
+            }
+
+            if let Some(config) = destination_config {
+                DESTINATION_CONFIG.save(deps.storage, &config)?;
+                response = response.add_attributes(config.get_response_attributes());
+            }
+
+            Ok(response)
+        }
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default().add_attribute("method", "update_interchain_router"))
+        }
+    }
+}
+
+
