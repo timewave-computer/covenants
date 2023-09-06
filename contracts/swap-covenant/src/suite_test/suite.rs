@@ -37,6 +37,8 @@ impl Default for SuiteBuilder {
                 preset_clock_fields: todo!(),
                 preset_holder_fields: todo!(),
                 covenant_terms: todo!(),
+                ibc_forwarder_code: todo!(),
+                covenant_parties: todo!(),
             },
         }
     }
