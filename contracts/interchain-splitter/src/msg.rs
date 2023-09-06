@@ -25,6 +25,8 @@ pub struct PresetInterchainSplitterFields {
     /// a split for all denoms that are not covered in the
     /// regular `splits` list
     pub fallback_split: Option<SplitType>,
+    /// contract label
+    pub label: String,
 }
 
 impl PresetInterchainSplitterFields {

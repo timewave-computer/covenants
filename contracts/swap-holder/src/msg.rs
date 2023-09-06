@@ -42,6 +42,10 @@ pub struct PresetSwapHolderFields {
     pub parties_config: CovenantPartiesConfig,
     /// terms of the covenant
     pub covenant_terms: CovenantTerms,
+    /// code id for the contract
+    pub code_id: u64,
+    /// contract label
+    pub label: String,
 }
 
 impl PresetSwapHolderFields {

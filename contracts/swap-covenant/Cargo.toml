@@ -48,6 +48,8 @@ covenant-clock = { workspace = true, features=["library"]}
 covenant-holder = { workspace = true, features=["library"] }
 covenant-swap-holder = { workspace = true, features = ["library"] }
 covenant-utils = { workspace = true }
+covenant-interchain-splitter = { workspace = true, features = ["library"] }
+covenant-ibc-forwarder = { workspace = true, features = ["library"] }
 
 [dev-dependencies]
 cw-multi-test   = { workspace = true }
