@@ -617,6 +617,7 @@ dependencies = [
  "covenant-depositor",
  "covenant-holder",
  "covenant-ibc-forwarder",
+ "covenant-interchain-router",
  "covenant-interchain-splitter",
  "covenant-lp",
  "covenant-ls",

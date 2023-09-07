@@ -39,6 +39,7 @@ impl Default for SuiteBuilder {
                 covenant_terms: todo!(),
                 ibc_forwarder_code: todo!(),
                 covenant_parties: todo!(),
+                interchain_router_code: todo!(),
             },
         }
     }

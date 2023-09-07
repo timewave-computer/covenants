@@ -7,10 +7,11 @@ use cosmwasm_std::{
     IbcMsg, IbcTimeout, Never, Querier, QuerierResult, QuerierWrapper, Response, SubMsg,
     SystemError, SystemResult, Timestamp, Uint128, Uint64, WasmMsg, WasmQuery,
 };
+use covenant_utils::DestinationConfig;
 
 use crate::{
     contract::{execute, instantiate},
-    msg::{DestinationConfig, ExecuteMsg, InstantiateMsg, MigrateMsg},
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg},
     suite_tests::suite::{DEFAULT_CHANNEL, DEFAULT_RECEIVER},
 };
 
