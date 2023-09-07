@@ -41,15 +41,11 @@ fn test_instantiate_split_misconfig() {
             SplitType::Custom(SplitConfig {
                 receivers: vec![
                     (
-                        ReceiverType::Native(NativeReceiver {
-                            address: PARTY_A_ADDR.to_string(),
-                        }),
+                        PARTY_A_ADDR.to_string(),
                         Uint128::new(50),
                     ),
                     (
-                        ReceiverType::Native(NativeReceiver {
-                            address: PARTY_B_ADDR.to_string(),
-                        }),
+                        PARTY_B_ADDR.to_string(),
                         Uint128::new(60),
                     ),
                 ],
@@ -101,9 +97,7 @@ fn test_distribute_token_swap() {
                 DENOM_A.to_string(),
                 SplitType::Custom(SplitConfig {
                     receivers: vec![(
-                        ReceiverType::Native(NativeReceiver {
-                            address: PARTY_B_ADDR.to_string(),
-                        }),
+                        PARTY_B_ADDR.to_string(),
                         Uint128::new(100),
                     )],
                 }),
@@ -112,9 +106,7 @@ fn test_distribute_token_swap() {
                 DENOM_B.to_string(),
                 SplitType::Custom(SplitConfig {
                     receivers: vec![(
-                        ReceiverType::Native(NativeReceiver {
-                            address: PARTY_A_ADDR.to_string(),
-                        }),
+                        PARTY_A_ADDR.to_string(),
                         Uint128::new(100),
                     )],
                 }),
@@ -186,9 +178,7 @@ fn test_migrate_config() {
     let new_clock = "new_clock".to_string();
     let new_fallback_split = SplitConfig {
         receivers: vec![(
-            ReceiverType::Native(NativeReceiver {
-                address: "fallback_new".to_string(),
-            }),
+            "fallback_new".to_string(),
             Uint128::new(100),
         )],
     };
@@ -196,9 +186,7 @@ fn test_migrate_config() {
         "new_denom".to_string(),
         SplitType::Custom(SplitConfig {
             receivers: vec![(
-                ReceiverType::Native(NativeReceiver {
-                    address: "new_receiver".to_string(),
-                }),
+                "new_receiver".to_string(),
                 Uint128::new(100),
             )],
         }),
@@ -221,9 +209,7 @@ fn test_migrate_config() {
             "new_denom".to_string(),
             SplitConfig {
                 receivers: vec![(
-                    ReceiverType::Native(NativeReceiver {
-                        address: "new_receiver".to_string()
-                    }),
+                    "new_receiver".to_string(),
                     Uint128::new(100)
                 )],
             },

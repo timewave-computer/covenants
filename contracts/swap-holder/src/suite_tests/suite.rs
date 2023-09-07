@@ -1,8 +1,8 @@
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_std::{Addr, Coin, Uint128};
 use covenant_utils::{
-    CovenantPartiesConfig, CovenantParty, CovenantTerms, LockupConfig, RefundConfig,
-    SwapCovenantTerms,
+    CovenantPartiesConfig, CovenantParty, CovenantTerms, LockupConfig,
+    SwapCovenantTerms, ReceiverConfig,
 };
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
@@ -46,14 +46,14 @@ impl Default for SuiteBuilder {
                     party_a: CovenantParty {
                         addr: Addr::unchecked(PARTY_A_ADDR.to_string()),
                         provided_denom: DENOM_A.to_string(),
-                        refund_config: RefundConfig::Native(Addr::unchecked(
+                        receiver_config: ReceiverConfig::Native(Addr::unchecked(
                             PARTY_A_ADDR.to_string(),
                         )),
                     },
                     party_b: CovenantParty {
                         addr: Addr::unchecked(PARTY_B_ADDR.to_string()),
                         provided_denom: DENOM_B.to_string(),
-                        refund_config: RefundConfig::Native(Addr::unchecked(
+                        receiver_config: ReceiverConfig::Native(Addr::unchecked(
                             PARTY_B_ADDR.to_string(),
                         )),
                     },

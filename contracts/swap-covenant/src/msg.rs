@@ -18,14 +18,38 @@ pub struct InstantiateMsg {
     pub timeouts: Timeouts,
 
     pub ibc_forwarder_code: u64,
-    
+    pub interchain_router_code: u64,
+
     /// instantiation fields relevant to clock module known in advance
     pub preset_clock_fields: PresetClockFields,
 
     /// instantiation fields relevant to swap holder contract known in advance
     pub preset_holder_fields: PresetSwapHolderFields,
     pub covenant_terms: SwapCovenantTerms,
-    pub covenant_parties: CovenantPartiesConfig,
+    pub covenant_parties: SwapCovenantParties,
+}
+
+#[cw_serde]
+pub struct SwapCovenantParties {
+    pub party_a: SwapPartyConfig,
+    pub party_b: SwapPartyConfig,
+}
+
+#[cw_serde]
+pub struct SwapPartyConfig {
+    /// authorized address of the party
+    pub addr: Addr,
+    /// denom provided by the party
+    pub provided_denom: String,
+    /// channel id of the destination chain
+    pub party_chain_channel_id: String,
+    /// address of the receiver on destination chain
+    pub party_receiver_addr: Addr,
+    /// connection id to the party chain
+    pub party_chain_connection_id: String,
+    /// timeout in seconds
+    pub ibc_transfer_timeout: Uint64,
+
 }
 
 #[cw_serde]
