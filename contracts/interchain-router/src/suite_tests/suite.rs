@@ -1,11 +1,12 @@
 use crate::{
     contract::execute,
-    msg::{DestinationConfig, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
 };
 use cosmwasm_std::{
     testing::{MockApi, MockStorage},
     Addr, Coin, CosmosMsg, Empty, GovMsg, Uint64,
 };
+use covenant_utils::DestinationConfig;
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, DistributionKeeper,
     Executor, FailingModule, Ibc, IbcAcceptingModule, StakeKeeper, WasmKeeper,

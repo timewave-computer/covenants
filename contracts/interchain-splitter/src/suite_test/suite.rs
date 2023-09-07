@@ -2,7 +2,7 @@ use cosmwasm_std::{Addr, Coin, Uint128};
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
 use crate::msg::{
-    ExecuteMsg, InstantiateMsg, MigrateMsg, NativeReceiver, QueryMsg, ReceiverType, SplitConfig,
+    ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SplitConfig,
     SplitType,
 };
 
@@ -22,30 +22,15 @@ pub const CLOCK_ADDR: &str = "clock_addr";
 pub fn get_equal_split_config() -> SplitConfig {
     SplitConfig {
         receivers: vec![
-            (
-                ReceiverType::Native(NativeReceiver {
-                    address: PARTY_A_ADDR.to_string(),
-                }),
-                Uint128::new(50),
-            ),
-            (
-                ReceiverType::Native(NativeReceiver {
-                    address: PARTY_B_ADDR.to_string(),
-                }),
-                Uint128::new(50),
-            ),
+            (PARTY_A_ADDR.to_string(), Uint128::new(50)),
+            (PARTY_B_ADDR.to_string(), Uint128::new(50)),
         ],
     }
 }
 
 pub fn get_fallback_split_config() -> SplitConfig {
     SplitConfig {
-        receivers: vec![(
-            ReceiverType::Native(NativeReceiver {
-                address: "save_the_cats".to_string(),
-            }),
-            Uint128::new(100),
-        )],
+        receivers: vec![("save_the_cats".to_string(), Uint128::new(100))],
     }
 }
 

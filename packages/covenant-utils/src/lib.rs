@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, IbcMsg, IbcTimeout, StdError, Timestamp,
-    Uint128,
+    Uint128, Uint64,
 };
 use neutron_ica::RemoteChainInfo;
 
@@ -229,18 +229,18 @@ impl LockupConfig {
 }
 
 #[cw_serde]
-pub enum RefundConfig {
-    /// party expects a refund on the same chain
+pub enum ReceiverConfig {
+    /// party expects to receive funds on the same chain
     Native(Addr),
-    /// party expects a refund on a remote chain
-    Ibc(RemoteChainInfo),
+    /// party expects to receive funds on a remote chain
+    Ibc(DestinationConfig),
 }
 
-impl RefundConfig {
+impl ReceiverConfig {
     pub fn get_response_attributes(self, party: String) -> Vec<Attribute> {
         match self {
-            RefundConfig::Native(addr) => vec![Attribute::new("refund_config_native_addr", addr)],
-            RefundConfig::Ibc(r_c_i) => r_c_i
+            ReceiverConfig::Native(addr) => vec![Attribute::new("receiver_config_native_addr", addr)],
+            ReceiverConfig::Ibc(destination_config) => destination_config
                 .get_response_attributes()
                 .into_iter()
                 .map(|mut a| {
@@ -258,29 +258,29 @@ pub struct CovenantParty {
     pub addr: Addr,
     /// denom provided by the party
     pub provided_denom: String,
-    /// config for refunding funds in case covenant fails to complete
-    pub refund_config: RefundConfig,
+    /// information about receiver address
+    pub receiver_config: ReceiverConfig,
 }
 
 impl CovenantParty {
     pub fn get_refund_msg(self, amount: Uint128, block: &BlockInfo) -> CosmosMsg {
-        match self.refund_config {
-            RefundConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
+        match self.receiver_config {
+            ReceiverConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
                 to_address: addr.to_string(),
                 amount: vec![Coin {
                     denom: self.provided_denom,
                     amount,
                 }],
             }),
-            RefundConfig::Ibc(r_c_i) => CosmosMsg::Ibc(IbcMsg::Transfer {
-                channel_id: r_c_i.channel_id,
+            ReceiverConfig::Ibc(destination_config) => CosmosMsg::Ibc(IbcMsg::Transfer {
+                channel_id: destination_config.destination_chain_channel_id,
                 to_address: self.addr.to_string(),
                 amount: Coin {
                     denom: self.provided_denom,
                     amount,
                 },
                 timeout: IbcTimeout::with_timestamp(
-                    block.time.plus_seconds(r_c_i.ibc_transfer_timeout.u64()),
+                    block.time.plus_seconds(destination_config.ibc_transfer_timeout.u64()),
                 ),
             }),
         }
@@ -303,12 +303,12 @@ impl CovenantPartiesConfig {
         ];
         attrs.extend(
             self.party_a
-                .refund_config
+                .receiver_config
                 .get_response_attributes("party_a_".to_string()),
         );
         attrs.extend(
             self.party_b
-                .refund_config
+                .receiver_config
                 .get_response_attributes("party_b_".to_string()),
         );
         attrs
@@ -338,5 +338,54 @@ impl CovenantTerms {
                 attrs
             }
         }
+    }
+}
+
+#[cw_serde]
+pub struct DestinationConfig {
+    /// channel id of the destination chain
+    pub destination_chain_channel_id: String,
+    /// address of the receiver on destination chain
+    pub destination_receiver_addr: Addr,
+    /// timeout in seconds
+    pub ibc_transfer_timeout: Uint64,
+}
+
+impl DestinationConfig {
+    pub fn get_ibc_transfer_messages_for_coins(
+        &self,
+        coins: Vec<Coin>,
+        current_timestamp: Timestamp,
+    ) -> Vec<CosmosMsg> {
+        let mut messages: Vec<CosmosMsg> = vec![];
+
+        for coin in coins {
+            let msg: IbcMsg = IbcMsg::Transfer {
+                channel_id: self.destination_chain_channel_id.to_string(),
+                to_address: self.destination_receiver_addr.to_string(),
+                amount: coin,
+                timeout: IbcTimeout::with_timestamp(
+                    current_timestamp.plus_seconds(self.ibc_transfer_timeout.u64()),
+                ),
+            };
+
+            messages.push(CosmosMsg::Ibc(msg));
+        }
+
+        messages
+    }
+
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
+        vec![
+            Attribute::new(
+                "destination_chain_channel_id",
+                self.destination_chain_channel_id.to_string(),
+            ),
+            Attribute::new(
+                "destination_receiver_addr",
+                self.destination_receiver_addr.to_string(),
+            ),
+            Attribute::new("ibc_transfer_timeout", self.ibc_transfer_timeout),
+        ]
     }
 }

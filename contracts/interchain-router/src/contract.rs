@@ -3,11 +3,12 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
+use covenant_utils::DestinationConfig;
 use cw2::set_contract_version;
 
 use crate::{
     error::ContractError,
-    msg::{DestinationConfig, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{CLOCK_ADDRESS, DESTINATION_CONFIG},
 };
 
