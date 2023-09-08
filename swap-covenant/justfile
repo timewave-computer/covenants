@@ -1,0 +1,35 @@
+build:
+    cargo build
+
+gen: build gen-schema
+
+gen-schema:
+	START_DIR=$(pwd); \
+	for f in ./packages/*; do \
+		echo "generating schema"; \
+		cd "$f"; \
+		CMD="cargo run --example schema"; \
+		eval ${CMD} > /dev/null; \
+		rm -rf ./schema/raw; \
+		cd "$START_DIR"; \
+	done
+
+test:
+    cargo test
+
+lint:
+	cargo +nightly clippy --all-targets -- -D warnings && cargo +nightly fmt --all --check
+
+optimize:
+    ./optimize.sh
+
+simtest: optimize
+    mkdir -p tests/interchaintest/wasms
+
+    cp -R ./../artifacts/*.wasm tests/interchaintest/wasms
+    go clean -testcache
+    cd tests/interchaintest/ && go test -timeout 30m -v ./...
+
+ictest:
+    go clean -testcache
+    cd tests/interchaintest/ && go test -timeout 20m -v ./...
