@@ -18,6 +18,11 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+const gaiaNeutronICSPath = "gn-ics-path"
+const gaiaNeutronIBCPath = "gn-ibc-path"
+const gaiaOsmosisIBCPath = "go-ibc-path"
+const neutronOsmosisIBCPath = "no-ibc-path"
+
 // sets up and tests a tokenswap between hub and stargaze facilitated by neutron
 func TestTokenSwap(t *testing.T) {
 	if testing.Short() {
@@ -99,11 +104,6 @@ func TestTokenSwap(t *testing.T) {
 	).Build(t, client, network)
 
 	// Prep Interchain
-	const gaiaNeutronICSPath = "gn-ics-path"
-	const gaiaNeutronIBCPath = "gn-ibc-path"
-	const gaiaOsmosisIBCPath = "go-ibc-path"
-	const neutronOsmosisIBCPath = "no-ibc-path"
-
 	ic := ibctest.NewInterchain().
 		AddChain(cosmosAtom).
 		AddChain(cosmosNeutron).
@@ -154,6 +154,15 @@ func TestTokenSwap(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(500_000_000_000), osmoUserBalInitial)
 
+	testCtx := &TestContext{
+		OsmoClients:        []*ibc.ClientOutput{},
+		GaiaClients:        []*ibc.ClientOutput{},
+		NeutronClients:     []*ibc.ClientOutput{},
+		OsmoConnections:    []*ibc.ConnectionOutput{},
+		GaiaConnections:    []*ibc.ConnectionOutput{},
+		NeutronConnections: []*ibc.ConnectionOutput{},
+	}
+
 	// generate paths
 	generatePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosNeutron.Config().ChainID, gaiaNeutronIBCPath)
 	generatePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosOsmosis.Config().ChainID, gaiaOsmosisIBCPath)
@@ -161,9 +170,9 @@ func TestTokenSwap(t *testing.T) {
 	generatePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosAtom.Config().ChainID, gaiaNeutronICSPath)
 
 	// create clients
-	generateClient(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
-	neutronClients, _ := r.GetClients(ctx, eRep, cosmosNeutron.Config().ChainID)
-	atomClients, _ := r.GetClients(ctx, eRep, cosmosAtom.Config().ChainID)
+	generateClient(t, ctx, testCtx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
+	neutronClients := testCtx.getChainClients(cosmosNeutron.Config().Name)
+	atomClients := testCtx.getChainClients(cosmosAtom.Config().Name)
 
 	err = r.UpdatePath(ctx, eRep, gaiaNeutronICSPath, ibc.PathUpdateOptions{
 		SrcClientID: &neutronClients[0].ClientID,
@@ -171,26 +180,28 @@ func TestTokenSwap(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	atomNeutronICSConnectionId, neutronAtomICSConnectionId := generateConnections(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
+	atomNeutronICSConnectionId, neutronAtomICSConnectionId := generateConnections(t, ctx, testCtx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
 
 	generateICSChannel(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
 
 	// create connections and link everything up
-	generateClient(t, ctx, r, eRep, neutronOsmosisIBCPath, cosmosNeutron, cosmosOsmosis)
-	neutronOsmosisIBCConnId, osmosisNeutronIBCConnId := generateConnections(t, ctx, r, eRep, neutronOsmosisIBCPath, cosmosNeutron, cosmosOsmosis)
+	generateClient(t, ctx, testCtx, r, eRep, neutronOsmosisIBCPath, cosmosNeutron, cosmosOsmosis)
+	neutronOsmosisIBCConnId, osmosisNeutronIBCConnId := generateConnections(t, ctx, testCtx, r, eRep, neutronOsmosisIBCPath, cosmosNeutron, cosmosOsmosis)
 	linkPath(t, ctx, r, eRep, cosmosNeutron, cosmosOsmosis, neutronOsmosisIBCPath)
 
-	generateClient(t, ctx, r, eRep, gaiaOsmosisIBCPath, cosmosAtom, cosmosOsmosis)
-	gaiaOsmosisIBCConnId, osmosisGaiaIBCConnId := generateConnections(t, ctx, r, eRep, gaiaOsmosisIBCPath, cosmosAtom, cosmosOsmosis)
+	generateClient(t, ctx, testCtx, r, eRep, gaiaOsmosisIBCPath, cosmosAtom, cosmosOsmosis)
+	gaiaOsmosisIBCConnId, osmosisGaiaIBCConnId := generateConnections(t, ctx, testCtx, r, eRep, gaiaOsmosisIBCPath, cosmosAtom, cosmosOsmosis)
 	linkPath(t, ctx, r, eRep, cosmosAtom, cosmosOsmosis, gaiaOsmosisIBCPath)
 
-	generateClient(t, ctx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
-	atomNeutronIBCConnId, neutronAtomIBCConnId := generateConnections(t, ctx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
+	generateClient(t, ctx, testCtx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
+	atomNeutronIBCConnId, neutronAtomIBCConnId := generateConnections(t, ctx, testCtx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
 	linkPath(t, ctx, r, eRep, cosmosAtom, cosmosNeutron, gaiaNeutronIBCPath)
 
 	// Start the relayer and clean it up when the test ends.
-	err = r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaOsmosisIBCPath, neutronOsmosisIBCPath)
-	require.NoError(t, err, "failed to start relayer with given paths")
+	require.NoError(t,
+		r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaOsmosisIBCPath, neutronOsmosisIBCPath),
+		"failed to start relayer with given paths",
+	)
 	t.Cleanup(func() {
 		err = r.StopRelayer(ctx, eRep)
 		if err != nil {
@@ -219,64 +230,31 @@ func TestTokenSwap(t *testing.T) {
 	var neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
 	var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId string
 
-	connectionChannelsOk := false
-	const maxAttempts = 3
-	attempts := 1
-	for (connectionChannelsOk != true) && (attempts <= maxAttempts) {
-		print("\n Finding connections and channels, attempt ", attempts, " of ", maxAttempts)
-		neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
-		gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosAtom.Config().ChainID)
-		osmoChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosOsmosis.Config().ChainID)
+	neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
+	gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosAtom.Config().ChainID)
+	osmoChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosOsmosis.Config().ChainID)
 
-		connectionChannelsOk = true
+	// Find all pairwise channels
+	osmoNeutronChannelId, neutronOsmoChannelId = getPairwiseTransferChannelIds(osmoChannelInfo, neutronChannelInfo, osmosisNeutronIBCConnId, neutronOsmosisIBCConnId)
+	osmoGaiaChannelId, gaiaOsmoChannelId = getPairwiseTransferChannelIds(osmoChannelInfo, gaiaChannelInfo, osmosisGaiaIBCConnId, gaiaOsmosisIBCConnId)
+	gaiaNeutronTransferChannelId, neutronGaiaTransferChannelId = getPairwiseTransferChannelIds(gaiaChannelInfo, neutronChannelInfo, atomNeutronIBCConnId, neutronAtomIBCConnId)
+	gaiaNeutronICSChannelId, neutronGaiaICSChannelId = getPairwiseCCVChannelIds(gaiaChannelInfo, neutronChannelInfo, atomNeutronICSConnectionId, neutronAtomICSConnectionId)
 
-		// Find all pairwise channels
-		osmoNeutronChannelId, neutronOsmoChannelId, err = getPairwiseTransferChannelIds(osmoChannelInfo, neutronChannelInfo, osmosisNeutronIBCConnId, neutronOsmosisIBCConnId)
-		if err != nil {
-			connectionChannelsOk = false
-		}
-		osmoGaiaChannelId, gaiaOsmoChannelId, err = getPairwiseTransferChannelIds(osmoChannelInfo, gaiaChannelInfo, osmosisGaiaIBCConnId, gaiaOsmosisIBCConnId)
-		if err != nil {
-			connectionChannelsOk = false
-		}
-		gaiaNeutronTransferChannelId, neutronGaiaTransferChannelId, err = getPairwiseTransferChannelIds(gaiaChannelInfo, neutronChannelInfo, atomNeutronIBCConnId, neutronAtomIBCConnId)
-		if err != nil {
-			connectionChannelsOk = false
-		}
-		gaiaNeutronICSChannelId, neutronGaiaICSChannelId, err = getPairwiseCCVChannelIds(gaiaChannelInfo, neutronChannelInfo, atomNeutronICSConnectionId, neutronAtomICSConnectionId)
-		if err != nil {
-			connectionChannelsOk = false
-		}
+	// Print out connections and channels for debugging
+	print("\n osmoGaiaChannelId: ", osmoGaiaChannelId)
+	print("\n osmoNeutronChannelId: ", osmoNeutronChannelId)
+	print("\n gaiaOsmoChannelId: ", gaiaOsmoChannelId)
+	print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
+	print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
+	print("\n neutronOsmoChannelId: ", neutronOsmoChannelId)
+	print("\n neutronGaiaTransferChannelId: ", neutronGaiaTransferChannelId)
+	print("\n neutronGaiaICSChannelId: ", neutronGaiaICSChannelId)
 
-		// Print out connections and channels for debugging
-		print("\n osmoGaiaChannelId: ", osmoGaiaChannelId)
-		print("\n osmosisNeutronIBCConnId: ", osmosisNeutronIBCConnId)
-		print("\n neutronOsmosisIBCConnId: ", neutronOsmosisIBCConnId)
-		print("\n neutronGaiaTransferConnectionId: ", neutronAtomIBCConnId)
-		print("\n neutronGaiaICSConnectionId: ", neutronAtomICSConnectionId)
-		print("\n gaiaOsmosisIBCConnId: ", gaiaOsmosisIBCConnId)
-		print("\n gaiaNeutronTransferConnectionId: ", atomNeutronIBCConnId)
-		print("\n gaiaNeutronICSConnectionId: ", atomNeutronICSConnectionId)
-		print("\n osmoGaiaChannelId: ", osmoGaiaChannelId)
-		print("\n osmoNeutronChannelId: ", osmoNeutronChannelId)
-		print("\n neutronOsmoChannelId: ", neutronOsmoChannelId)
-		print("\n neutronGaiaTransferChannelId: ", neutronGaiaTransferChannelId)
-		print("\n neutronGaiaICSChannelId: ", neutronGaiaICSChannelId)
-		print("\n gaiaOsmoChannelId: ", gaiaOsmoChannelId)
-		print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
-		print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
-
-		if connectionChannelsOk {
-			print("\n Connections and channels found!")
-
-		} else {
-			if attempts == maxAttempts {
-				panic("Initial connections and channels did not build")
-			}
-			print("\n Connections and channels not found! Waiting some time...")
-			err = testutil.WaitForBlocks(ctx, 100, atom, neutron, osmosis)
-			require.NoError(t, err, "failed to wait for blocks")
-			attempts += 1
-		}
-	}
+	print("\n osmosisNeutronIBCConnId: ", osmosisNeutronIBCConnId)
+	print("\n neutronOsmosisIBCConnId: ", neutronOsmosisIBCConnId)
+	print("\n neutronGaiaTransferConnectionId: ", neutronAtomIBCConnId)
+	print("\n neutronGaiaICSConnectionId: ", neutronAtomICSConnectionId)
+	print("\n gaiaOsmosisIBCConnId: ", gaiaOsmosisIBCConnId)
+	print("\n gaiaNeutronTransferConnectionId: ", atomNeutronIBCConnId)
+	print("\n gaiaNeutronICSConnectionId: ", atomNeutronICSConnectionId)
 }
