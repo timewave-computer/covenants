@@ -12,6 +12,72 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type TestContext struct {
+	OsmoClients        []*ibc.ClientOutput
+	GaiaClients        []*ibc.ClientOutput
+	NeutronClients     []*ibc.ClientOutput
+	OsmoConnections    []*ibc.ConnectionOutput
+	GaiaConnections    []*ibc.ConnectionOutput
+	NeutronConnections []*ibc.ConnectionOutput
+}
+
+func (testCtx *TestContext) getChainClients(chain string) []*ibc.ClientOutput {
+	switch chain {
+	case "neutron-2":
+		return testCtx.NeutronClients
+	case "gaia-1":
+		return testCtx.GaiaClients
+	case "osmosis-3":
+		return testCtx.OsmoClients
+	default:
+		return ibc.ClientOutputs{}
+	}
+}
+
+func (testCtx *TestContext) updateChainClients(chain string, clients []*ibc.ClientOutput) {
+	println("updating chain clients for ", chain)
+	switch chain {
+	case "neutron-2":
+		testCtx.NeutronClients = clients
+	case "gaia-1":
+		testCtx.GaiaClients = clients
+	case "osmosis-3":
+		testCtx.OsmoClients = clients
+	default:
+	}
+}
+
+func (testCtx *TestContext) getChainConnections(chain string) []*ibc.ConnectionOutput {
+	switch chain {
+	case "neutron-2":
+		println("getting neutron connections")
+		return testCtx.NeutronConnections
+	case "gaia-1":
+		println("getting gaia connections")
+		return testCtx.GaiaConnections
+	case "osmosis-3":
+		println("getting osmosis connections")
+		return testCtx.OsmoConnections
+	default:
+		println("error finding connections for chain ", chain)
+		return []*ibc.ConnectionOutput{}
+	}
+}
+
+func (testCtx *TestContext) updateChainConnections(chain string, connections []*ibc.ConnectionOutput) {
+	println("updating chain connections for ", chain)
+	printConnections(connections)
+	switch chain {
+	case "neutron-2":
+		testCtx.NeutronConnections = connections
+	case "gaia-1":
+		testCtx.GaiaConnections = connections
+	case "osmosis-3":
+		testCtx.OsmoConnections = connections
+	default:
+	}
+}
+
 func generatePath(
 	t *testing.T,
 	ctx context.Context,
@@ -81,14 +147,15 @@ func linkPath(
 func generateClient(
 	t *testing.T,
 	ctx context.Context,
+	testCtx *TestContext,
 	r ibc.Relayer,
 	eRep *testreporter.RelayerExecReporter,
 	path string,
 	chainA ibc.Chain,
 	chainB ibc.Chain,
 ) (string, string) {
-	chainAClients, _ := r.GetClients(ctx, eRep, chainA.Config().ChainID)
-	chainBClients, _ := r.GetClients(ctx, eRep, chainB.Config().ChainID)
+	chainAClients := testCtx.getChainClients(chainA.Config().Name)
+	chainBClients := testCtx.getChainClients(chainB.Config().Name)
 
 	err := r.CreateClients(ctx, eRep, path, ibc.CreateClientOptions{TrustingPeriod: "330h"})
 	require.NoError(t, err)
@@ -114,21 +181,24 @@ func generateClient(
 		newClientB = ""
 	}
 
-	print("\n found client differences. new client A: ", newClientA, "b:")
+	testCtx.updateChainClients(chainA.Config().Name, newChainAClients)
+	testCtx.updateChainClients(chainB.Config().Name, newChainBClients)
+
 	return newClientA, newClientB
 }
 
 func generateConnections(
 	t *testing.T,
 	ctx context.Context,
+	testCtx *TestContext,
 	r ibc.Relayer,
 	eRep *testreporter.RelayerExecReporter,
 	path string,
 	chainA ibc.Chain,
 	chainB ibc.Chain,
 ) (string, string) {
-	chainAConns, _ := r.GetConnections(ctx, eRep, chainA.Config().ChainID)
-	chainBConns, _ := r.GetConnections(ctx, eRep, chainB.Config().ChainID)
+	chainAConns := testCtx.getChainConnections(chainA.Config().Name)
+	chainBConns := testCtx.getChainConnections(chainB.Config().Name)
 
 	err := r.CreateConnections(ctx, eRep, path)
 	require.NoError(t, err)
@@ -144,14 +214,13 @@ func generateConnections(
 	require.NotEqual(t, 0, len(newChainAConnection), "more than one connection generated", strings.Join(newChainAConnection, " "))
 	require.NotEqual(t, 0, len(newChainBConnection), "more than one connection generated", strings.Join(newChainBConnection, " "))
 
+	testCtx.updateChainConnections(chainA.Config().Name, newChainAConns)
+	testCtx.updateChainConnections(chainB.Config().Name, newChainBConns)
+
 	return newChainAConnection[0], newChainBConnection[0]
 }
 
-func connectionDifference(
-	a []*ibc.ConnectionOutput,
-	b []*ibc.ConnectionOutput,
-) (diff []string) {
-
+func connectionDifference(a, b []*ibc.ConnectionOutput) (diff []string) {
 	m := make(map[string]bool)
 
 	// we first mark all existing connections
@@ -246,7 +315,7 @@ func getPairwiseTransferChannelIds(
 	bchans []ibc.ChannelOutput,
 	aToBConnId string,
 	bToAConnId string,
-) (string, string, error) {
+) (string, string) {
 
 	for _, a := range achans {
 		for _, b := range bchans {
@@ -259,12 +328,11 @@ func getPairwiseTransferChannelIds(
 				a.ConnectionHops[0] == aToBConnId &&
 				b.ConnectionHops[0] == bToAConnId {
 
-				return a.ChannelID, b.ChannelID, nil
+				return a.ChannelID, b.ChannelID
 			}
 		}
 	}
-
-	return "", "", errors.New("no transfer channel found")
+	panic("failed to match pairwise transfer channels")
 }
 
 // returns ccv channel ids
@@ -273,7 +341,7 @@ func getPairwiseCCVChannelIds(
 	bchans []ibc.ChannelOutput,
 	aToBConnId string,
 	bToAConnId string,
-) (string, string, error) {
+) (string, string) {
 	for _, a := range achans {
 		for _, b := range bchans {
 			if a.ChannelID == b.Counterparty.ChannelID &&
@@ -284,9 +352,9 @@ func getPairwiseCCVChannelIds(
 				b.Ordering == "ORDER_ORDERED" &&
 				a.ConnectionHops[0] == aToBConnId &&
 				b.ConnectionHops[0] == bToAConnId {
-				return a.ChannelID, b.ChannelID, nil
+				return a.ChannelID, b.ChannelID
 			}
 		}
 	}
-	return "", "", errors.New("no ccv channel found")
+	panic("failed to match pairwise ICS channels")
 }
