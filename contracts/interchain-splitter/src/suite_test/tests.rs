@@ -1,7 +1,7 @@
 use cosmwasm_std::{Coin, Uint128};
 
 use crate::{
-    msg::{MigrateMsg, NativeReceiver, ReceiverType, SplitConfig, SplitType},
+    msg::{MigrateMsg, SplitConfig, SplitType},
     suite_test::suite::{
         get_equal_split_config, get_fallback_split_config, ALT_DENOM, CLOCK_ADDR, DENOM_B,
     },
