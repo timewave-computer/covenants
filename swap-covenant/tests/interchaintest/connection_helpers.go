@@ -13,12 +13,17 @@ import (
 )
 
 type TestContext struct {
-	OsmoClients        []*ibc.ClientOutput
-	GaiaClients        []*ibc.ClientOutput
-	NeutronClients     []*ibc.ClientOutput
-	OsmoConnections    []*ibc.ConnectionOutput
-	GaiaConnections    []*ibc.ConnectionOutput
-	NeutronConnections []*ibc.ConnectionOutput
+	OsmoClients               []*ibc.ClientOutput
+	GaiaClients               []*ibc.ClientOutput
+	NeutronClients            []*ibc.ClientOutput
+	OsmoConnections           []*ibc.ConnectionOutput
+	GaiaConnections           []*ibc.ConnectionOutput
+	NeutronConnections        []*ibc.ConnectionOutput
+	NeutronTransferChannelIds map[string]string
+	GaiaTransferChannelIds    map[string]string
+	OsmoTransferChannelIds    map[string]string
+	GaiaIcsChannelIds         map[string]string
+	NeutronIcsChannelIds      map[string]string
 }
 
 func (testCtx *TestContext) getChainClients(chain string) []*ibc.ClientOutput {
@@ -31,6 +36,28 @@ func (testCtx *TestContext) getChainClients(chain string) []*ibc.ClientOutput {
 		return testCtx.OsmoClients
 	default:
 		return ibc.ClientOutputs{}
+	}
+}
+
+func (testCtx *TestContext) setTransferChannelId(chain string, destChain string, channelId string) {
+	switch chain {
+	case "neutron-2":
+		testCtx.NeutronTransferChannelIds[destChain] = channelId
+	case "gaia-1":
+		testCtx.GaiaTransferChannelIds[destChain] = channelId
+	case "osmosis-3":
+		testCtx.OsmoTransferChannelIds[destChain] = channelId
+	default:
+	}
+}
+
+func (testCtx *TestContext) setIcsChannelId(chain string, destChain string, channelId string) {
+	switch chain {
+	case "neutron-2":
+		testCtx.NeutronIcsChannelIds[destChain] = channelId
+	case "gaia-1":
+		testCtx.GaiaIcsChannelIds[destChain] = channelId
+	default:
 	}
 }
 
@@ -311,10 +338,13 @@ func getPairwiseConnectionIds(
 
 // returns transfer channel ids
 func getPairwiseTransferChannelIds(
+	testCtx *TestContext,
 	achans []ibc.ChannelOutput,
 	bchans []ibc.ChannelOutput,
 	aToBConnId string,
 	bToAConnId string,
+	chainA string,
+	chainB string,
 ) (string, string) {
 
 	for _, a := range achans {
@@ -327,7 +357,8 @@ func getPairwiseTransferChannelIds(
 				b.Ordering == "ORDER_UNORDERED" &&
 				a.ConnectionHops[0] == aToBConnId &&
 				b.ConnectionHops[0] == bToAConnId {
-
+				testCtx.setTransferChannelId(chainA, chainB, a.ChannelID)
+				testCtx.setTransferChannelId(chainB, chainA, b.ChannelID)
 				return a.ChannelID, b.ChannelID
 			}
 		}
@@ -337,10 +368,13 @@ func getPairwiseTransferChannelIds(
 
 // returns ccv channel ids
 func getPairwiseCCVChannelIds(
+	testCtx *TestContext,
 	achans []ibc.ChannelOutput,
 	bchans []ibc.ChannelOutput,
 	aToBConnId string,
 	bToAConnId string,
+	chainA string,
+	chainB string,
 ) (string, string) {
 	for _, a := range achans {
 		for _, b := range bchans {
@@ -352,6 +386,8 @@ func getPairwiseCCVChannelIds(
 				b.Ordering == "ORDER_ORDERED" &&
 				a.ConnectionHops[0] == aToBConnId &&
 				b.ConnectionHops[0] == bToAConnId {
+				testCtx.setIcsChannelId(chainA, chainB, a.ChannelID)
+				testCtx.setIcsChannelId(chainB, chainA, b.ChannelID)
 				return a.ChannelID, b.ChannelID
 			}
 		}

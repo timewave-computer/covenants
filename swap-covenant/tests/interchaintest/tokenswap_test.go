@@ -155,12 +155,17 @@ func TestTokenSwap(t *testing.T) {
 	require.Equal(t, int64(500_000_000_000), osmoUserBalInitial)
 
 	testCtx := &TestContext{
-		OsmoClients:        []*ibc.ClientOutput{},
-		GaiaClients:        []*ibc.ClientOutput{},
-		NeutronClients:     []*ibc.ClientOutput{},
-		OsmoConnections:    []*ibc.ConnectionOutput{},
-		GaiaConnections:    []*ibc.ConnectionOutput{},
-		NeutronConnections: []*ibc.ConnectionOutput{},
+		OsmoClients:               []*ibc.ClientOutput{},
+		GaiaClients:               []*ibc.ClientOutput{},
+		NeutronClients:            []*ibc.ClientOutput{},
+		OsmoConnections:           []*ibc.ConnectionOutput{},
+		GaiaConnections:           []*ibc.ConnectionOutput{},
+		NeutronConnections:        []*ibc.ConnectionOutput{},
+		NeutronTransferChannelIds: make(map[string]string),
+		GaiaTransferChannelIds:    make(map[string]string),
+		OsmoTransferChannelIds:    make(map[string]string),
+		GaiaIcsChannelIds:         make(map[string]string),
+		NeutronIcsChannelIds:      make(map[string]string),
 	}
 
 	// generate paths
@@ -235,10 +240,10 @@ func TestTokenSwap(t *testing.T) {
 	osmoChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosOsmosis.Config().ChainID)
 
 	// Find all pairwise channels
-	osmoNeutronChannelId, neutronOsmoChannelId = getPairwiseTransferChannelIds(osmoChannelInfo, neutronChannelInfo, osmosisNeutronIBCConnId, neutronOsmosisIBCConnId)
-	osmoGaiaChannelId, gaiaOsmoChannelId = getPairwiseTransferChannelIds(osmoChannelInfo, gaiaChannelInfo, osmosisGaiaIBCConnId, gaiaOsmosisIBCConnId)
-	gaiaNeutronTransferChannelId, neutronGaiaTransferChannelId = getPairwiseTransferChannelIds(gaiaChannelInfo, neutronChannelInfo, atomNeutronIBCConnId, neutronAtomIBCConnId)
-	gaiaNeutronICSChannelId, neutronGaiaICSChannelId = getPairwiseCCVChannelIds(gaiaChannelInfo, neutronChannelInfo, atomNeutronICSConnectionId, neutronAtomICSConnectionId)
+	osmoNeutronChannelId, neutronOsmoChannelId = getPairwiseTransferChannelIds(testCtx, osmoChannelInfo, neutronChannelInfo, osmosisNeutronIBCConnId, neutronOsmosisIBCConnId, osmosis.Config().Name, neutron.Config().Name)
+	osmoGaiaChannelId, gaiaOsmoChannelId = getPairwiseTransferChannelIds(testCtx, osmoChannelInfo, gaiaChannelInfo, osmosisGaiaIBCConnId, gaiaOsmosisIBCConnId, osmosis.Config().Name, cosmosAtom.Config().Name)
+	gaiaNeutronTransferChannelId, neutronGaiaTransferChannelId = getPairwiseTransferChannelIds(testCtx, gaiaChannelInfo, neutronChannelInfo, atomNeutronIBCConnId, neutronAtomIBCConnId, cosmosAtom.Config().Name, neutron.Config().Name)
+	gaiaNeutronICSChannelId, neutronGaiaICSChannelId = getPairwiseCCVChannelIds(testCtx, gaiaChannelInfo, neutronChannelInfo, atomNeutronICSConnectionId, neutronAtomICSConnectionId, cosmosAtom.Config().Name, cosmosNeutron.Config().Name)
 
 	// Print out connections and channels for debugging
 	print("\n osmoGaiaChannelId: ", osmoGaiaChannelId)
@@ -257,4 +262,25 @@ func TestTokenSwap(t *testing.T) {
 	print("\n gaiaOsmosisIBCConnId: ", gaiaOsmosisIBCConnId)
 	print("\n gaiaNeutronTransferConnectionId: ", atomNeutronIBCConnId)
 	print("\n gaiaNeutronICSConnectionId: ", atomNeutronICSConnectionId)
+
+	print("\n neutron channels: ")
+	for key, value := range testCtx.NeutronTransferChannelIds {
+		fmt.Printf("Key: %s, Value: %s\n", key, value)
+	}
+	print("\n osmo channels: ")
+	for key, value := range testCtx.OsmoTransferChannelIds {
+		fmt.Printf("Key: %s, Value: %s\n", key, value)
+	}
+	print("\n gaia channels: ")
+	for key, value := range testCtx.GaiaTransferChannelIds {
+		fmt.Printf("Key: %s, Value: %s\n", key, value)
+	}
+	print("\n gaia ics channels: ")
+	for key, value := range testCtx.GaiaIcsChannelIds {
+		fmt.Printf("Key: %s, Value: %s\n", key, value)
+	}
+	print("\n neutron ics channels: ")
+	for key, value := range testCtx.NeutronIcsChannelIds {
+		fmt.Printf("Key: %s, Value: %s\n", key, value)
+	}
 }
