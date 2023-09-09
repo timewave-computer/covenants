@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
 	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
 	"github.com/strangelove-ventures/interchaintest/v4/testutil"
@@ -24,6 +25,12 @@ type TestContext struct {
 	OsmoTransferChannelIds    map[string]string
 	GaiaIcsChannelIds         map[string]string
 	NeutronIcsChannelIds      map[string]string
+}
+
+func (testCtx *TestContext) getIbcDenom(channelId string, denom string) string {
+	prefixedDenom := transfertypes.GetPrefixedDenom("transfer", channelId, denom)
+	srcDenomTrace := transfertypes.ParseDenomTrace(prefixedDenom)
+	return srcDenomTrace.IBCDenom()
 }
 
 func (testCtx *TestContext) getChainClients(chain string) []*ibc.ClientOutput {

@@ -3,6 +3,7 @@ package ibc_test
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -230,40 +231,17 @@ func TestTokenSwap(t *testing.T) {
 	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
 	require.NoError(t, err, "failed to wait for blocks")
 
-	var osmoNeutronChannelId, neutronOsmoChannelId string
-	var osmoGaiaChannelId, gaiaOsmoChannelId string
-	var neutronGaiaICSChannelId, gaiaNeutronICSChannelId string
-	var neutronGaiaTransferChannelId, gaiaNeutronTransferChannelId string
-
 	neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
 	gaiaChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosAtom.Config().ChainID)
 	osmoChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosOsmosis.Config().ChainID)
 
 	// Find all pairwise channels
-	osmoNeutronChannelId, neutronOsmoChannelId = getPairwiseTransferChannelIds(testCtx, osmoChannelInfo, neutronChannelInfo, osmosisNeutronIBCConnId, neutronOsmosisIBCConnId, osmosis.Config().Name, neutron.Config().Name)
-	osmoGaiaChannelId, gaiaOsmoChannelId = getPairwiseTransferChannelIds(testCtx, osmoChannelInfo, gaiaChannelInfo, osmosisGaiaIBCConnId, gaiaOsmosisIBCConnId, osmosis.Config().Name, cosmosAtom.Config().Name)
-	gaiaNeutronTransferChannelId, neutronGaiaTransferChannelId = getPairwiseTransferChannelIds(testCtx, gaiaChannelInfo, neutronChannelInfo, atomNeutronIBCConnId, neutronAtomIBCConnId, cosmosAtom.Config().Name, neutron.Config().Name)
-	gaiaNeutronICSChannelId, neutronGaiaICSChannelId = getPairwiseCCVChannelIds(testCtx, gaiaChannelInfo, neutronChannelInfo, atomNeutronICSConnectionId, neutronAtomICSConnectionId, cosmosAtom.Config().Name, cosmosNeutron.Config().Name)
+	getPairwiseTransferChannelIds(testCtx, osmoChannelInfo, neutronChannelInfo, osmosisNeutronIBCConnId, neutronOsmosisIBCConnId, osmosis.Config().Name, neutron.Config().Name)
+	getPairwiseTransferChannelIds(testCtx, osmoChannelInfo, gaiaChannelInfo, osmosisGaiaIBCConnId, gaiaOsmosisIBCConnId, osmosis.Config().Name, cosmosAtom.Config().Name)
+	getPairwiseTransferChannelIds(testCtx, gaiaChannelInfo, neutronChannelInfo, atomNeutronIBCConnId, neutronAtomIBCConnId, cosmosAtom.Config().Name, neutron.Config().Name)
+	getPairwiseCCVChannelIds(testCtx, gaiaChannelInfo, neutronChannelInfo, atomNeutronICSConnectionId, neutronAtomICSConnectionId, cosmosAtom.Config().Name, cosmosNeutron.Config().Name)
 
-	// Print out connections and channels for debugging
-	print("\n osmoGaiaChannelId: ", osmoGaiaChannelId)
-	print("\n osmoNeutronChannelId: ", osmoNeutronChannelId)
-	print("\n gaiaOsmoChannelId: ", gaiaOsmoChannelId)
-	print("\n gaiaNeutronTransferChannelId: ", gaiaNeutronTransferChannelId)
-	print("\n gaiaNeutronICSChannelId: ", gaiaNeutronICSChannelId)
-	print("\n neutronOsmoChannelId: ", neutronOsmoChannelId)
-	print("\n neutronGaiaTransferChannelId: ", neutronGaiaTransferChannelId)
-	print("\n neutronGaiaICSChannelId: ", neutronGaiaICSChannelId)
-
-	print("\n osmosisNeutronIBCConnId: ", osmosisNeutronIBCConnId)
-	print("\n neutronOsmosisIBCConnId: ", neutronOsmosisIBCConnId)
-	print("\n neutronGaiaTransferConnectionId: ", neutronAtomIBCConnId)
-	print("\n neutronGaiaICSConnectionId: ", neutronAtomICSConnectionId)
-	print("\n gaiaOsmosisIBCConnId: ", gaiaOsmosisIBCConnId)
-	print("\n gaiaNeutronTransferConnectionId: ", atomNeutronIBCConnId)
-	print("\n gaiaNeutronICSConnectionId: ", atomNeutronICSConnectionId)
-
-	print("\n neutron channels: ")
+	println("neutron channels:")
 	for key, value := range testCtx.NeutronTransferChannelIds {
 		fmt.Printf("Key: %s, Value: %s\n", key, value)
 	}
@@ -271,16 +249,94 @@ func TestTokenSwap(t *testing.T) {
 	for key, value := range testCtx.OsmoTransferChannelIds {
 		fmt.Printf("Key: %s, Value: %s\n", key, value)
 	}
-	print("\n gaia channels: ")
+	println("gaia channels:")
 	for key, value := range testCtx.GaiaTransferChannelIds {
 		fmt.Printf("Key: %s, Value: %s\n", key, value)
 	}
-	print("\n gaia ics channels: ")
+	println("gaia ics channels:")
 	for key, value := range testCtx.GaiaIcsChannelIds {
 		fmt.Printf("Key: %s, Value: %s\n", key, value)
 	}
-	print("\n neutron ics channels: ")
+	println("neutron ics channels:")
 	for key, value := range testCtx.NeutronIcsChannelIds {
 		fmt.Printf("Key: %s, Value: %s\n", key, value)
 	}
+
+	// We can determine the ibc denoms of:
+	// 1. ATOM on Neutron
+	neutronAtomIbcDenom := testCtx.getIbcDenom(testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name], cosmosAtom.Config().Denom)
+	// 2. Osmo on neutron
+	neutronOsmoIbcDenom := testCtx.getIbcDenom(testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name], cosmosOsmosis.Config().Denom)
+
+	print("\nneutronAtomIbcDenom: ", neutronAtomIbcDenom)
+	print("\nneutronOsmoIbcDenom: ", neutronOsmoIbcDenom)
+
+	t.Run("tokenswap setup", func(t *testing.T) {
+		//----------------------------------------------//
+		// Testing parameters
+		//----------------------------------------------//
+		const osmoContributionAmount uint64 = 100_000_000_000 // in uosmo
+		const atomContributionAmount uint64 = 5_000_000_000   // in uatom
+
+		//----------------------------------------------//
+		// Wasm code that we need to store on Neutron
+		const covenantContractPath = "wasms/covenant_swap.wasm"
+		const clockContractPath = "wasms/covenant_clock.wasm"
+		const routerContractPath = "wasms/covenant_interchain_router.wasm"
+		const splitterContractPath = "wasms/covenant_interchain_splitter.wasm"
+		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
+		const swapHolderContractPath = "wasms/covenant_swap_holder.wasm"
+
+		// After storing on Neutron, we will receive a code id
+		// We parse all the subcontracts into uint64
+		// The will be required when we instantiate the covenant.
+		var clockCodeId uint64
+		var routerCodeId uint64
+		var splitterCodeId uint64
+		var ibcForwarderCodeId uint64
+		var swapHolderCodeId uint64
+		var covenantCodeId uint64
+
+		t.Run("deploy covenant contracts", func(t *testing.T) {
+			// store covenant and get code id
+			covenantCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, covenantContractPath)
+			require.NoError(t, err, "failed to store stride covenant contract")
+			covenantCodeId, err = strconv.ParseUint(covenantCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			// store clock and get code id
+			clockCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, clockContractPath)
+			require.NoError(t, err, "failed to store clock contract")
+			clockCodeId, err = strconv.ParseUint(clockCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			// store router and get code id
+			routerCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, routerContractPath)
+			require.NoError(t, err, "failed to store router contract")
+			routerCodeId, err = strconv.ParseUint(routerCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			// store clock and get code id
+			splitterCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, splitterContractPath)
+			require.NoError(t, err, "failed to store splitter contract")
+			splitterCodeId, err = strconv.ParseUint(splitterCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			// store clock and get code id
+			ibcForwarderCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, ibcForwarderContractPath)
+			require.NoError(t, err, "failed to store ibc forwarder contract")
+			ibcForwarderCodeId, err = strconv.ParseUint(ibcForwarderCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			// store clock and get code id
+			swapHolderCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, swapHolderContractPath)
+			require.NoError(t, err, "failed to store swap holder contract")
+			swapHolderCodeId, err = strconv.ParseUint(swapHolderCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+		})
+		println(clockCodeId, routerCodeId, splitterCodeId, ibcForwarderCodeId, swapHolderCodeId, covenantCodeId)
+		t.Run("instantiate covenant", func(t *testing.T) {
+			// todo
+		})
+	})
 }
