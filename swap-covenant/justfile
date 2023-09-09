@@ -24,9 +24,19 @@ optimize:
     ./optimize.sh
 
 simtest: optimize
+    if [[ $(uname -m) =~ "arm64" ]]; then \
+        mv ./../artifacts/covenant_interchain_splitter-aarch64.wasm ./../artifacts/covenant_interchain_splitter.wasm && \
+        mv ./../artifacts/covenant_ibc_forwarder-aarch64.wasm ./../artifacts/covenant_ibc_forwarder.wasm && \
+        mv ./../artifacts/covenant_interchain_router-aarch64.wasm ./../artifacts/covenant_interchain_router.wasm && \
+        mv ./../artifacts/covenant_clock-aarch64.wasm ./../artifacts/covenant_clock.wasm && \
+        mv ./../artifacts/covenant_swap_holder-aarch64.wasm ./../artifacts/covenant_swap_holder.wasm && \
+        mv ./../artifacts/covenant_swap-aarch64.wasm ./../artifacts/covenant_swap.wasm \
+    ;fi
+
     mkdir -p tests/interchaintest/wasms
 
     cp -R ./../artifacts/*.wasm tests/interchaintest/wasms
+
     go clean -testcache
     cd tests/interchaintest/ && go test -timeout 30m -v ./...
 
