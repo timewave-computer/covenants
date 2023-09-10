@@ -2,7 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128, Uint64};
 use covenant_clock::msg::PresetClockFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
-use covenant_utils::{SwapCovenantTerms, CovenantParty, CovenantPartiesConfig};
+use covenant_utils::SwapCovenantTerms;
 use neutron_sdk::bindings::msg::IbcFee;
 
 const NEUTRON_DENOM: &str = "untrn";
