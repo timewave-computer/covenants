@@ -2,11 +2,13 @@ package ibc_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	ibctest "github.com/strangelove-ventures/interchaintest/v4"
 	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
@@ -275,8 +277,12 @@ func TestTokenSwap(t *testing.T) {
 		//----------------------------------------------//
 		// Testing parameters
 		//----------------------------------------------//
+
+		// PARTY_A
 		const osmoContributionAmount uint64 = 100_000_000_000 // in uosmo
-		const atomContributionAmount uint64 = 5_000_000_000   // in uatom
+
+		// PARTY_B
+		const atomContributionAmount uint64 = 5_000_000_000 // in uatom
 
 		//----------------------------------------------//
 		// Wasm code that we need to store on Neutron
@@ -295,11 +301,13 @@ func TestTokenSwap(t *testing.T) {
 		var splitterCodeId uint64
 		var ibcForwarderCodeId uint64
 		var swapHolderCodeId uint64
+		var covenantCodeIdStr string
 		var covenantCodeId uint64
+		_ = covenantCodeId
 
 		t.Run("deploy covenant contracts", func(t *testing.T) {
 			// store covenant and get code id
-			covenantCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, covenantContractPath)
+			covenantCodeIdStr, err = cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, covenantContractPath)
 			require.NoError(t, err, "failed to store stride covenant contract")
 			covenantCodeId, err = strconv.ParseUint(covenantCodeIdStr, 10, 64)
 			require.NoError(t, err, "failed to parse codeId into uint64")
@@ -334,9 +342,151 @@ func TestTokenSwap(t *testing.T) {
 			swapHolderCodeId, err = strconv.ParseUint(swapHolderCodeIdStr, 10, 64)
 			require.NoError(t, err, "failed to parse codeId into uint64")
 		})
-		println(clockCodeId, routerCodeId, splitterCodeId, ibcForwarderCodeId, swapHolderCodeId, covenantCodeId)
+		println(clockCodeId, routerCodeId, splitterCodeId, ibcForwarderCodeId, swapHolderCodeId, covenantCodeIdStr)
 		t.Run("instantiate covenant", func(t *testing.T) {
-			// todo
+
+			// Clock instantiation message
+			clockMsg := PresetClockFields{
+				ClockCode: clockCodeId,
+				Label:     "covenant-clock",
+				Whitelist: []string{},
+			}
+
+			presetIbcFee := PresetIbcFee{
+				AckFee:     "1000",
+				TimeoutFee: "1000",
+			}
+
+			timeouts := Timeouts{
+				IcaTimeout:         "10", // sec
+				IbcTransferTimeout: "5",  // sec
+			}
+
+			swapCovenantTerms := SwapCovenantTerms{
+				PartyAAmount: strconv.FormatUint(atomContributionAmount, 10),
+				PartyBAmount: strconv.FormatUint(osmoContributionAmount, 10),
+			}
+
+			covenantPartiesConfig := CovenantPartiesConfig{
+				PartyA: CovenantParty{
+					Addr:          gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+					ProvidedDenom: "uatom",
+					ReceiverConfig: ReceiverConfig{
+						Native: gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+					},
+				},
+				PartyB: CovenantParty{
+					Addr:          neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+					ProvidedDenom: "untrn",
+					ReceiverConfig: ReceiverConfig{
+						Native: neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+					},
+				},
+			}
+			timestamp := Timestamp("1000000")
+
+			lockupConfig := LockupConfig{
+				Time: &timestamp,
+			}
+
+			presetSwapHolder := PresetSwapHolderFields{
+				LockupConfig:          lockupConfig,
+				CovenantPartiesConfig: covenantPartiesConfig,
+				CovenantTerms: CovenantTerms{
+					TokenSwap: swapCovenantTerms,
+				},
+				CodeId: clockCodeId,
+				Label:  "swap-holder",
+			}
+
+			swapCovenantParties := SwapCovenantParties{
+				PartyA: SwapPartyConfig{
+					Addr:                   gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+					ProvidedDenom:          "uatom",
+					PartyChainChannelId:    testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
+					PartyReceiverAddr:      gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+					PartyChainConnectionId: neutronAtomIBCConnId,
+					IbcTransferTimeout:     timeouts.IbcTransferTimeout,
+				},
+				PartyB: SwapPartyConfig{
+					Addr:                   osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+					ProvidedDenom:          "uosmo",
+					PartyChainChannelId:    testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
+					PartyReceiverAddr:      osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+					PartyChainConnectionId: neutronOsmosisIBCConnId,
+					IbcTransferTimeout:     timeouts.IbcTransferTimeout,
+				},
+			}
+			covenantMsg := CovenantInstantiateMsg{
+				Label:                "swap-covenant",
+				PresetIbcFee:         presetIbcFee,
+				Timeouts:             timeouts,
+				IbcForwarderCode:     ibcForwarderCodeId,
+				InterchainRouterCode: routerCodeId,
+				PresetClock:          clockMsg,
+				PresetSwapHolder:     presetSwapHolder,
+				SwapCovenantTerms:    swapCovenantTerms,
+				SwapCovenantParties:  swapCovenantParties,
+			}
+
+			str, err := json.Marshal(covenantMsg)
+			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
+			println("covenant instantiation msg: ", string(str))
+
+			cmd := []string{"neutrond", "tx", "wasm", "instantiate", covenantCodeIdStr,
+				string(str),
+				"--label", "swap-covenant",
+				"--no-admin",
+				"--from", neutronUser.KeyName,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--chain-id", neutron.Config().ChainID,
+				"--gas", "900000",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+
+			resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err, err)
+
+			println("raw resp: ", string(resp))
+			println("raw err: ", err)
+
+			require.NoError(t, testutil.WaitForBlocks(ctx, 150, cosmosNeutron))
+
+			jsonResp, _ := json.Marshal(resp)
+			jsonError, _ := json.Marshal(err)
+			println("instantiate response: ", string(jsonResp), "\n")
+			println("instantiate error: ", string(jsonError), "\n")
+
+			queryCmd := []string{"neutrond", "query", "wasm", "list-contract-by-code", covenantCodeIdStr}
+
+			queryResp, _, _ := cosmosNeutron.Exec(ctx, queryCmd, nil)
+
+			type QueryContractResponse struct {
+				Contracts []string `json:"contracts"`
+			}
+
+			println("query response: ", queryResp)
+			println("query response: ", string(queryResp))
+
+			contactsRes := QueryContractResponse{}
+			require.NoError(t, json.Unmarshal(queryResp, &contactsRes))
+
+			contractAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
+
+			println("covenant address: ", contractAddress)
+			// covenantContractAddress, err := cosmosNeutron.InstantiateContract(
+			// 	ctx,
+			// 	neutronUser.KeyName,
+			// 	covenantCodeIdStr,
+			// 	string(str),
+			// 	true,
+			// )
+
+			// require.NoError(t, err, "failed to instantiate contract: ", err)
+			// println("\n covenant address: ", covenantContractAddress)
 		})
 	})
 }
