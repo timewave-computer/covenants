@@ -5,25 +5,16 @@ package ibc_test
 //////////////////////////////////////////////
 
 // ----- Covenant Instantiation ------
-
-type PresetLsFields struct {
-	LsCode                            uint64 `json:"ls_code"`
-	Label                             string `json:"label"`
-	LsDenom                           string `json:"ls_denom"`
-	StrideNeutronIBCTransferChannelId string `json:"stride_neutron_ibc_transfer_channel_id"`
-	NeutronStrideIBCConnectionId      string `json:"neutron_stride_ibc_connection_id"`
-}
-
 type CovenantInstantiateMsg struct {
-	Label           string                `json:"label"`
-	PresetClock     PresetClockFields     `json:"preset_clock_fields"`
-	PresetLs        PresetLsFields        `json:"preset_ls_fields"`
-	PresetDepositor PresetDepositorFields `json:"preset_depositor_fields"`
-	PresetLp        PresetLpFields        `json:"preset_lp_fields"`
-	PresetHolder    PresetHolderFields    `json:"preset_holder_fields"`
-	PoolAddress     string                `json:"pool_address"`
-	PresetIbcFee    PresetIbcFee          `json:"preset_ibc_fee"`
-	Timeouts        Timeouts              `json:"timeouts"`
+	Label                string                 `json:"label"`
+	PresetIbcFee         PresetIbcFee           `json:"preset_ibc_fee"`
+	Timeouts             Timeouts               `json:"timeouts"`
+	IbcForwarderCode     uint64                 `json:"ibc_forwarder_code"`
+	InterchainRouterCode uint64                 `json:"interchain_router_code"`
+	PresetClock          PresetClockFields      `json:"preset_clock_fields"`
+	PresetSwapHolder     PresetSwapHolderFields `json:"preset_holder_fields"`
+	SwapCovenantTerms    SwapCovenantTerms      `json:"covenant_terms"`
+	SwapCovenantParties  SwapCovenantParties    `json:"covenant_parties"`
 }
 
 type Timeouts struct {
@@ -43,75 +34,65 @@ type PresetClockFields struct {
 	Whitelist  []string `json:"whitelist"`
 }
 
-type PresetHolderFields struct {
-	Withdrawer string `json:"withdrawer,omitempty"`
-	HolderCode uint64 `json:"holder_code"`
-	Label      string `json:"label"`
+type PresetSwapHolderFields struct {
+	LockupConfig          LockupConfig          `json:"lockup_config"`
+	CovenantPartiesConfig CovenantPartiesConfig `json:"parties_config"`
+	CovenantTerms         CovenantTerms         `json:"covenant_terms"`
+	CodeId                uint64                `json:"code_id"`
+	Label                 string                `json:"label"`
 }
 
-type PresetDepositorFields struct {
-	GaiaNeutronIBCTransferChannelId string                 `json:"gaia_neutron_ibc_transfer_channel_id"`
-	NeutronGaiaConnectionId         string                 `json:"neutron_gaia_connection_id"`
-	GaiaStrideIBCTransferChannelId  string                 `json:"gaia_stride_ibc_transfer_channel_id"`
-	DepositorCode                   uint64                 `json:"depositor_code"`
-	Label                           string                 `json:"label"`
-	StAtomReceiverAmount            WeightedReceiverAmount `json:"st_atom_receiver_amount"`
-	AtomReceiverAmount              WeightedReceiverAmount `json:"atom_receiver_amount"`
-	AutopilotFormat                 string                 `json:"autopilot_format"`
-	NeutronAtomIbcDenom             string                 `json:"neutron_atom_ibc_denom"`
+type Timestamp string
+
+type LockupConfig struct {
+	None  bool       `json:"none,omitempty"`
+	Block *uint64    `json:"block,omitempty"`
+	Time  *Timestamp `json:"time,omitempty"`
 }
 
-type PresetLpFields struct {
-	SlippageTolerance         string             `json:"slippage_tolerance,omitempty"`
-	Autostake                 bool               `json:"autostake,omitempty"`
-	Assets                    AssetData          `json:"assets"`
-	LpCode                    uint64             `json:"lp_code"`
-	Label                     string             `json:"label"`
-	SingleSideLpLimits        SingleSideLpLimits `json:"single_side_lp_limits"`
-	ExpectedLsTokenAmount     string             `json:"expected_ls_token_amount"`
-	AllowedReturnDelta        string             `json:"allowed_return_delta"`
-	ExpectedNativeTokenAmount string             `json:"expected_native_token_amount"`
+type CovenantPartiesConfig struct {
+	PartyA CovenantParty `json:"party_a"`
+	PartyB CovenantParty `json:"party_b"`
 }
 
-type SingleSideLpLimits struct {
-	NativeAssetLimit string `json:"native_asset_limit"`
-	LsAssetLimit     string `json:"ls_asset_limit"`
+type SwapCovenantParties struct {
+	PartyA SwapPartyConfig `json:"party_a"`
+	PartyB SwapPartyConfig `json:"party_b"`
 }
 
-type AssetData struct {
-	NativeAssetDenom string `json:"native_asset_denom"`
-	LsAssetDenom     string `json:"ls_asset_denom"`
+type CovenantParty struct {
+	Addr           string         `json:"addr"`
+	ProvidedDenom  string         `json:"provided_denom"`
+	ReceiverConfig ReceiverConfig `json:"receiver_config"`
+}
+
+type SwapPartyConfig struct {
+	Addr                   string `json:"addr"`
+	ProvidedDenom          string `json:"provided_denom"`
+	PartyChainChannelId    string `json:"party_chain_channel_id"`
+	PartyReceiverAddr      string `json:"party_receiver_addr"`
+	PartyChainConnectionId string `json:"party_chain_connection_id"`
+	IbcTransferTimeout     string `json:"ibc_transfer_timeout"`
+}
+
+type ReceiverConfig struct {
+	Native string `json:"native"`
+}
+
+type SwapCovenantTerms struct {
+	PartyAAmount string `json:"party_a_amount"`
+	PartyBAmount string `json:"party_b_amount"`
+}
+
+type CovenantTerms struct {
+	TokenSwap SwapCovenantTerms `json:"token_swap,omitempty"`
 }
 
 // ----- Covenant Queries ------
 
-type DepositorAddress struct{}
-type DepositorAddressQuery struct {
-	DepositorAddress DepositorAddress `json:"depositor_address"`
-}
-
 type ClockAddress struct{}
 type ClockAddressQuery struct {
 	ClockAddress ClockAddress `json:"clock_address"`
-}
-
-type HolderAddress struct{}
-type HolderAddressQuery struct {
-	HolderAddress HolderAddress `json:"holder_address"`
-}
-
-type LsAddress struct{}
-type LsAddressQuery struct {
-	LsAddress LsAddress `json:"ls_address"`
-}
-
-type LpAddress struct{}
-type LpAddressQuery struct {
-	LpAddress LpAddress `json:"lp_address"`
-}
-
-type CovenantAddressQueryResponse struct {
-	Data string `json:"data"`
 }
 
 type ContractState struct{}
