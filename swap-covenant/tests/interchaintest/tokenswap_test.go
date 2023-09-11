@@ -47,7 +47,7 @@ func TestTokenSwap(t *testing.T) {
 	// Chain Factory
 	cf := ibctest.NewBuiltinChainFactory(zaptest.NewLogger(t, zaptest.Level(zap.WarnLevel)), []*ibctest.ChainSpec{
 		{Name: "gaia", Version: "v9.1.0", ChainConfig: ibc.ChainConfig{
-			GasAdjustment: 1.5,
+			GasAdjustment: 1.3,
 			GasPrices:     "0.0atom",
 			ModifyGenesis: setupGaiaGenesis([]string{
 				"/cosmos.bank.v1beta1.MsgSend",
@@ -86,8 +86,28 @@ func TestTokenSwap(t *testing.T) {
 				ConfigFileOverrides: configFileOverrides,
 			},
 		},
-
-		{Name: "osmosis", Version: "v11.0.0"},
+		{
+			Name:    "osmosis",
+			Version: "v11.0.0",
+			ChainConfig: ibc.ChainConfig{
+				Type:          "cosmos",
+				Bin:           "osmosisd",
+				Bech32Prefix:  "osmo",
+				Denom:         "uosmo",
+				GasPrices:     "0.0uosmo",
+				GasAdjustment: 1.3,
+				Images: []ibc.DockerImage{
+					{
+						Repository: "ghcr.io/strangelove-ventures/heighliner/osmosis",
+						Version:    "v11.0.0",
+						UidGid:     "1025:1025",
+					},
+				},
+				TrustingPeriod:      "336h",
+				NoHostMount:         false,
+				ConfigFileOverrides: configFileOverrides,
+			},
+		},
 	})
 
 	chains, err := cf.Chains(t.Name())
@@ -103,7 +123,7 @@ func TestTokenSwap(t *testing.T) {
 		ibc.CosmosRly,
 		zaptest.NewLogger(t),
 		relayer.CustomDockerImage("ghcr.io/cosmos/relayer", "v2.3.1", rly.RlyDefaultUidGid),
-		relayer.RelayerOptionExtraStartFlags{Flags: []string{"-d", "--log-format", "console"}},
+		relayer.RelayerOptionExtraStartFlags{Flags: []string{"-p", "events", "-b", "100", "-d", "--log-format", "console"}},
 	).Build(t, client, network)
 
 	// Prep Interchain
@@ -129,6 +149,12 @@ func TestTokenSwap(t *testing.T) {
 			Chain2:  cosmosOsmosis,
 			Relayer: r,
 			Path:    neutronOsmosisIBCPath,
+		}).
+		AddLink(ibctest.InterchainLink{
+			Chain1:  cosmosAtom,
+			Chain2:  cosmosOsmosis,
+			Relayer: r,
+			Path:    gaiaOsmosisIBCPath,
 		})
 
 	// Log location
@@ -150,12 +176,6 @@ func TestTokenSwap(t *testing.T) {
 
 	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
 	require.NoError(t, err, "failed to wait for blocks")
-
-	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), osmosis)
-	osmoUser := users[0]
-	osmoUserBalInitial, err := osmosis.GetBalance(ctx, osmoUser.Bech32Address(osmosis.Config().Bech32Prefix), osmosis.Config().Denom)
-	require.NoError(t, err)
-	require.Equal(t, int64(500_000_000_000), osmoUserBalInitial)
 
 	testCtx := &TestContext{
 		OsmoClients:               []*ibc.ClientOutput{},
@@ -206,10 +226,8 @@ func TestTokenSwap(t *testing.T) {
 	linkPath(t, ctx, r, eRep, cosmosAtom, cosmosNeutron, gaiaNeutronIBCPath)
 
 	// Start the relayer and clean it up when the test ends.
-	require.NoError(t,
-		r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaOsmosisIBCPath, neutronOsmosisIBCPath),
-		"failed to start relayer with given paths",
-	)
+	err = r.StartRelayer(ctx, eRep, gaiaNeutronICSPath, gaiaNeutronIBCPath, gaiaOsmosisIBCPath, neutronOsmosisIBCPath)
+	require.NoError(t, err, "failed to start relayer with given paths")
 	t.Cleanup(func() {
 		err = r.StopRelayer(ctx, eRep)
 		if err != nil {
@@ -221,14 +239,16 @@ func TestTokenSwap(t *testing.T) {
 	require.NoError(t, err, "failed to wait for blocks")
 
 	createValidator(t, ctx, r, eRep, atom, neutron)
+	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
+	require.NoError(t, err, "failed to wait for blocks")
 
 	// Once the VSC packet has been relayed, x/bank transfers are
 	// enabled on Neutron and we can fund its account.
 	// The funds for this are sent from a "faucet" account created
 	// by interchaintest in the genesis file.
-	users = ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), atom, neutron)
-	gaiaUser, neutronUser := users[0], users[1]
-	_, _ = gaiaUser, neutronUser
+	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), atom, neutron, osmosis)
+	gaiaUser, neutronUser, osmoUser := users[0], users[1], users[2]
+	_, _, _ = gaiaUser, neutronUser, osmoUser
 
 	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
 	require.NoError(t, err, "failed to wait for blocks")
@@ -341,8 +361,11 @@ func TestTokenSwap(t *testing.T) {
 			require.NoError(t, err, "failed to store swap holder contract")
 			swapHolderCodeId, err = strconv.ParseUint(swapHolderCodeIdStr, 10, 64)
 			require.NoError(t, err, "failed to parse codeId into uint64")
+
 		})
-		println(clockCodeId, routerCodeId, splitterCodeId, ibcForwarderCodeId, swapHolderCodeId, covenantCodeIdStr)
+		println(covenantCodeIdStr, clockCodeId, routerCodeId, splitterCodeId, ibcForwarderCodeId, swapHolderCodeId)
+		require.NoError(t, testutil.WaitForBlocks(ctx, 10, cosmosNeutron, cosmosAtom, cosmosOsmosis))
+
 		t.Run("instantiate covenant", func(t *testing.T) {
 
 			// Clock instantiation message
@@ -388,15 +411,16 @@ func TestTokenSwap(t *testing.T) {
 			lockupConfig := LockupConfig{
 				Time: &timestamp,
 			}
+			covenantTerms := CovenantTerms{
+				TokenSwap: swapCovenantTerms,
+			}
 
 			presetSwapHolder := PresetSwapHolderFields{
 				LockupConfig:          lockupConfig,
 				CovenantPartiesConfig: covenantPartiesConfig,
-				CovenantTerms: CovenantTerms{
-					TokenSwap: swapCovenantTerms,
-				},
-				CodeId: clockCodeId,
-				Label:  "swap-holder",
+				CovenantTerms:         covenantTerms,
+				CodeId:                swapHolderCodeId,
+				Label:                 "swap-holder",
 			}
 
 			swapCovenantParties := SwapCovenantParties{
@@ -418,23 +442,38 @@ func TestTokenSwap(t *testing.T) {
 				},
 			}
 			covenantMsg := CovenantInstantiateMsg{
-				Label:                "swap-covenant",
-				PresetIbcFee:         presetIbcFee,
-				Timeouts:             timeouts,
-				IbcForwarderCode:     ibcForwarderCodeId,
-				InterchainRouterCode: routerCodeId,
-				PresetClock:          clockMsg,
-				PresetSwapHolder:     presetSwapHolder,
-				SwapCovenantTerms:    swapCovenantTerms,
-				SwapCovenantParties:  swapCovenantParties,
+				Label:                  "swap-covenant",
+				PresetIbcFee:           presetIbcFee,
+				Timeouts:               timeouts,
+				IbcForwarderCode:       ibcForwarderCodeId,
+				InterchainRouterCode:   routerCodeId,
+				InterchainSplitterCode: splitterCodeId,
+				PresetClock:            clockMsg,
+				PresetSwapHolder:       presetSwapHolder,
+				SwapCovenantParties:    swapCovenantParties,
 			}
 
 			str, err := json.Marshal(covenantMsg)
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
 			println("covenant instantiation msg: ", string(str))
+			instantiateMsg := string(str)
+
+			// covenantContractAddress, err := cosmosNeutron.InstantiateContract(
+			// 	ctx,
+			// 	neutronUser.KeyName,
+			// 	covenantCodeIdStr,
+			// 	instantiateCmd,
+			// 	true,
+			// )
+			// if err != nil {
+			// 	println("error: ", err)
+			// } else {
+			// 	println("no error: ", covenantContractAddress)
+			// }
+			// require.NoError(t, testutil.WaitForBlocks(ctx, 100, atom, neutron, osmosis))
 
 			cmd := []string{"neutrond", "tx", "wasm", "instantiate", covenantCodeIdStr,
-				string(str),
+				instantiateMsg,
 				"--label", "swap-covenant",
 				"--no-admin",
 				"--from", neutronUser.KeyName,
@@ -442,51 +481,42 @@ func TestTokenSwap(t *testing.T) {
 				"--home", "/var/cosmos-chain/neutron-2",
 				"--node", neutron.GetRPCAddress(),
 				"--chain-id", neutron.Config().ChainID,
-				"--gas", "900000",
+				"--gas", "9000000",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
 
-			resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
-			require.NoError(t, err, err)
+			resp, _, err := neutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+			println("instantiated, skipping 10 blocks...")
+			require.NoError(t, testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis))
 
-			println("raw resp: ", string(resp))
-			println("raw err: ", err)
+			println("instantiate response: ", string(resp), "\n")
 
-			require.NoError(t, testutil.WaitForBlocks(ctx, 150, cosmosNeutron))
-
-			jsonResp, _ := json.Marshal(resp)
-			jsonError, _ := json.Marshal(err)
-			println("instantiate response: ", string(jsonResp), "\n")
-			println("instantiate error: ", string(jsonError), "\n")
-
-			queryCmd := []string{"neutrond", "query", "wasm", "list-contract-by-code", covenantCodeIdStr}
-
-			queryResp, _, _ := cosmosNeutron.Exec(ctx, queryCmd, nil)
-
-			type QueryContractResponse struct {
-				Contracts []string `json:"contracts"`
+			queryCmd := []string{"neutrond", "query", "wasm",
+				"list-contract-by-code", covenantCodeIdStr,
+				"--output", "json",
+				"--home", neutron.HomeDir(),
+				"--node", neutron.GetRPCAddress(),
+				"--chain-id", neutron.Config().ChainID,
 			}
 
-			println("query response: ", queryResp)
+			queryResp, _, err := neutron.Exec(ctx, queryCmd, nil)
+			require.NoError(t, err, "failed to query")
+
 			println("query response: ", string(queryResp))
+			type QueryContractResponse struct {
+				Contracts  []string `json:"contracts"`
+				Pagination any      `json:"pagination"`
+			}
 
 			contactsRes := QueryContractResponse{}
-			require.NoError(t, json.Unmarshal(queryResp, &contactsRes))
+			require.NoError(t, json.Unmarshal(queryResp, &contactsRes), "failed to unmarshal contract response")
 
 			contractAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
 
 			println("covenant address: ", contractAddress)
-			// covenantContractAddress, err := cosmosNeutron.InstantiateContract(
-			// 	ctx,
-			// 	neutronUser.KeyName,
-			// 	covenantCodeIdStr,
-			// 	string(str),
-			// 	true,
-			// )
 
-			// require.NoError(t, err, "failed to instantiate contract: ", err)
-			// println("\n covenant address: ", covenantContractAddress)
 		})
 	})
 }
