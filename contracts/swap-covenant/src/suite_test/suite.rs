@@ -36,10 +36,10 @@ impl Default for SuiteBuilder {
                 timeouts: todo!(),
                 preset_clock_fields: todo!(),
                 preset_holder_fields: todo!(),
-                covenant_terms: todo!(),
                 ibc_forwarder_code: todo!(),
                 covenant_parties: todo!(),
                 interchain_router_code: todo!(),
+                splitter_code: todo!(),
             },
         }
     }

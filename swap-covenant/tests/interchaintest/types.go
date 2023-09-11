@@ -6,15 +6,16 @@ package ibc_test
 
 // ----- Covenant Instantiation ------
 type CovenantInstantiateMsg struct {
-	Label                string                 `json:"label"`
-	PresetIbcFee         PresetIbcFee           `json:"preset_ibc_fee"`
-	Timeouts             Timeouts               `json:"timeouts"`
-	IbcForwarderCode     uint64                 `json:"ibc_forwarder_code"`
-	InterchainRouterCode uint64                 `json:"interchain_router_code"`
-	PresetClock          PresetClockFields      `json:"preset_clock_fields"`
-	PresetSwapHolder     PresetSwapHolderFields `json:"preset_holder_fields"`
-	SwapCovenantTerms    SwapCovenantTerms      `json:"covenant_terms"`
-	SwapCovenantParties  SwapCovenantParties    `json:"covenant_parties"`
+	Label                  string                 `json:"label"`
+	PresetIbcFee           PresetIbcFee           `json:"preset_ibc_fee"`
+	Timeouts               Timeouts               `json:"timeouts"`
+	IbcForwarderCode       uint64                 `json:"ibc_forwarder_code"`
+	InterchainRouterCode   uint64                 `json:"interchain_router_code"`
+	InterchainSplitterCode uint64                 `json:"splitter_code"`
+	PresetClock            PresetClockFields      `json:"preset_clock_fields"`
+	PresetSwapHolder       PresetSwapHolderFields `json:"preset_holder_fields"`
+	// SwapCovenantTerms      SwapCovenantTerms      `json:"covenant_terms"`
+	SwapCovenantParties SwapCovenantParties `json:"covenant_parties"`
 }
 
 type Timeouts struct {
