@@ -8,6 +8,7 @@ use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::msg::{Timeouts, SwapCovenantParties};
 
+// TODO: get rid of the code storage as they can stay on the preset fields items
 /// contract code for the ibc forwarder
 pub const IBC_FORWARDER_CODE: Item<u64> = Item::new("ibc_forwarder_code");
 /// contract code for the interchain splitter

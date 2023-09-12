@@ -25,22 +25,23 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-    let destination_receiver_addr = deps.api.addr_validate(&msg.destination_receiver_addr)?;
+    let clock_addr  = deps.api.addr_validate(&msg.clock_address)?;
 
-    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     let destination_config = DestinationConfig {
         destination_chain_channel_id: msg.destination_chain_channel_id.to_string(),
-        destination_receiver_addr,
+        destination_receiver_addr: msg.destination_receiver_addr.to_string(),
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
     };
 
+    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     DESTINATION_CONFIG.save(deps.storage, &destination_config)?;
 
     Ok(Response::default()
         .add_attribute("method", "interchain_router_instantiate")
         .add_attribute("clock_address", clock_addr)
-        .add_attributes(destination_config.get_response_attributes()))
+        .add_attribute("destination_receiver_addr", msg.destination_receiver_addr)
+        .add_attributes(destination_config.get_response_attributes())
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

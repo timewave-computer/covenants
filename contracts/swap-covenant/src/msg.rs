@@ -11,8 +11,7 @@ pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 pub struct InstantiateMsg {
     /// contract label for this specific covenant
     pub label: String,
-    /// neutron relayer fee structure
-    pub preset_ibc_fee: PresetIbcFee,
+
     /// ibc transfer and ica timeouts passed down to relevant modules
     pub timeouts: Timeouts,
 
