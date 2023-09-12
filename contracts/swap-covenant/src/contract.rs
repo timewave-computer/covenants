@@ -19,12 +19,12 @@ const CONTRACT_NAME: &str = "crates.io:swap-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const CLOCK_REPLY_ID: u64 = 1u64;
-pub const SPLITTER_REPLY_ID: u64 = 2u64;
-pub const SWAP_HOLDER_REPLY_ID: u64 = 3u64;
-pub const PARTY_A_FORWARDER_REPLY_ID: u64 = 4u64;
-pub const PARTY_B_FORWARDER_REPLY_ID: u64 = 5u64;
-pub const PARTY_A_INTERCHAIN_ROUTER_REPLY_ID: u64 = 6u64;
-pub const PARTY_B_INTERCHAIN_ROUTER_REPLY_ID: u64 = 7u64;
+pub const PARTY_A_INTERCHAIN_ROUTER_REPLY_ID: u64 = 2u64;
+pub const PARTY_B_INTERCHAIN_ROUTER_REPLY_ID: u64 = 3u64;
+pub const SPLITTER_REPLY_ID: u64 = 4u64;
+pub const SWAP_HOLDER_REPLY_ID: u64 = 5u64;
+pub const PARTY_A_FORWARDER_REPLY_ID: u64 = 6u64;
+pub const PARTY_B_FORWARDER_REPLY_ID: u64 = 7u64;
 
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -38,29 +38,31 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // store all the codes for covenant configuration
-    // CLOCK_CODE.save(deps.storage, &msg.preset_clock_fields.clock_code)?;
-    // SWAP_HOLDER_CODE.save(deps.storage, &msg.preset_holder_fields.code_id)?;
-    // IBC_FORWARDER_CODE.save(deps.storage, &msg.ibc_forwarder_code)?;
-    // PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
-    // COVENANT_PARTIES.save(deps.storage, &msg.covenant_parties)?;
-    // TIMEOUTS.save(deps.storage, &msg.timeouts)?;
-    // INTERCHAIN_SPLITTER_CODE.save(deps.storage, &msg.splitter_code)?;
-    
+    CLOCK_CODE.save(deps.storage, &msg.preset_clock_fields.clock_code)?;
+    INTERCHAIN_SPLITTER_CODE.save(deps.storage, &msg.splitter_code)?;
+    INTERCHAIN_ROUTER_CODE.save(deps.storage, &msg.interchain_router_code)?;
+    IBC_FORWARDER_CODE.save(deps.storage, &msg.ibc_forwarder_code)?;
+    SWAP_HOLDER_CODE.save(deps.storage, &msg.preset_holder_fields.code_id)?;
+
+    PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
+    COVENANT_PARTIES.save(deps.storage, &msg.covenant_parties)?;
+    TIMEOUTS.save(deps.storage, &msg.timeouts)?;
+
     // we start the module instantiation chain with the clock
-    // let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
-    //     admin: Some(env.contract.address.to_string()),
-    //     code_id: msg.preset_clock_fields.clock_code,
-    //     msg: to_binary(&msg.preset_clock_fields.clone().to_instantiate_msg())?,
-    //     funds: vec![],
-    //     label: msg.preset_clock_fields.label,
-    // });
+    let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
+        admin: Some(env.contract.address.to_string()),
+        code_id: msg.preset_clock_fields.clock_code,
+        msg: to_binary(&msg.preset_clock_fields.clone().to_instantiate_msg())?,
+        funds: vec![],
+        label: msg.preset_clock_fields.label,
+    });
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
-        // .add_submessage(SubMsg::reply_on_success(
-        //     clock_instantiate_tx,
-        //     CLOCK_REPLY_ID,
-        // ))
+        .add_submessage(SubMsg::reply_on_success(
+            clock_instantiate_tx,
+            CLOCK_REPLY_ID,
+        ))
     )
 }
 
@@ -68,12 +70,12 @@ pub fn instantiate(
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         CLOCK_REPLY_ID => handle_clock_reply(deps, env, msg),
-        // SPLITTER_REPLY_ID => handle_splitter_reply(deps, env, msg),
-        // SWAP_HOLDER_REPLY_ID => handle_swap_holder_reply(deps, env, msg),
-        // PARTY_A_FORWARDER_REPLY_ID => handle_party_a_ibc_forwarder_reply(deps, env, msg),
-        // PARTY_B_FORWARDER_REPLY_ID => handle_party_b_ibc_forwarder_reply(deps, env, msg),
-        // PARTY_A_INTERCHAIN_ROUTER_REPLY_ID => handle_party_a_interchain_router_reply(deps, env, msg),
-        // PARTY_B_INTERCHAIN_ROUTER_REPLY_ID => handle_party_b_interchain_router_reply(deps, env, msg),
+        PARTY_A_INTERCHAIN_ROUTER_REPLY_ID => handle_party_a_interchain_router_reply(deps, env, msg),
+        PARTY_B_INTERCHAIN_ROUTER_REPLY_ID => handle_party_b_interchain_router_reply(deps, env, msg),
+        SPLITTER_REPLY_ID => handle_splitter_reply(deps, env, msg),
+        SWAP_HOLDER_REPLY_ID => handle_swap_holder_reply(deps, env, msg),
+        PARTY_A_FORWARDER_REPLY_ID => handle_party_a_ibc_forwarder_reply(deps, env, msg),
+        PARTY_B_FORWARDER_REPLY_ID => handle_party_b_ibc_forwarder_reply(deps, env, msg),
         _ => Err(ContractError::UnknownReplyId {}),
     }
 }
@@ -91,27 +93,32 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             COVENANT_CLOCK_ADDR.save(deps.storage, &clock_addr)?;
 
             let code_id = INTERCHAIN_ROUTER_CODE.load(deps.storage)?;
-            let party_config = COVENANT_PARTIES.load(deps.storage)?.party_a;
-
-            // let party_a_router_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
-            //     admin: Some(env.contract.address.to_string()),
-            //     code_id,
-            //     msg: to_binary(
-            //         &covenant_interchain_router::msg::InstantiateMsg {
-            //             clock_address: clock_addr.to_string(),
-            //             destination_chain_channel_id: party_config.party_chain_channel_id,
-            //             destination_receiver_addr: party_config.addr.to_string(),
-            //             ibc_transfer_timeout: party_config.ibc_transfer_timeout,
-            //         },
-            //     )?,
-            //     funds: vec![],
-            //     label: "party a router".to_string(),
-            // });
+            let party_config = COVENANT_PARTIES.load(deps.storage)?;
+            
+            let router_instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
+                clock_address: clock_addr.to_string(),
+                destination_chain_channel_id: party_config.party_a.party_chain_channel_id,
+                destination_receiver_addr: party_config.party_a.party_receiver_addr.to_string(),
+                ibc_transfer_timeout: party_config.party_a.ibc_transfer_timeout,
+            };
+            let party_a_router_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
+                admin: Some(env.contract.address.to_string()),
+                code_id,
+                msg: to_binary(&router_instantiate_msg)?,
+                funds: vec![],
+                label: "party_a_router".to_string(),
+            });
 
             Ok(Response::default()
                 .add_attribute("method", "handle_clock_reply")
-                .add_attribute("clock_addr", clock_addr))
-                // .add_submessage(SubMsg::reply_always(party_a_router_instantiate_tx, PARTY_A_INTERCHAIN_ROUTER_REPLY_ID)))
+                .add_attribute("clock_addr", clock_addr)
+                .add_attribute("router_code_id", code_id.to_string())
+                .add_attribute("party_a_addr", party_config.party_a.addr)
+                .add_attribute("router instantiate binary: ", to_binary(&router_instantiate_msg)?.to_base64())
+                .add_submessage(
+                    SubMsg::reply_always(party_a_router_instantiate_tx, PARTY_A_INTERCHAIN_ROUTER_REPLY_ID)
+                )
+            )
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "clock".to_string(),
@@ -136,17 +143,17 @@ pub fn handle_party_a_interchain_router_reply(deps: DepsMut, env: Env, msg: Repl
             // load the fields relevant to router instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let code_id = INTERCHAIN_ROUTER_CODE.load(deps.storage)?;
-            let party_config = COVENANT_PARTIES.load(deps.storage)?.party_b;
+            let party_config = COVENANT_PARTIES.load(deps.storage)?;
 
-            let party_b_router_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
+            let party_b_router_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id,
                 msg: to_binary(
                     &covenant_interchain_router::msg::InstantiateMsg {
                         clock_address: clock_addr.to_string(),
-                        destination_chain_channel_id: party_config.party_chain_channel_id,
-                        destination_receiver_addr: party_config.addr.to_string(),
-                        ibc_transfer_timeout: party_config.ibc_transfer_timeout,
+                        destination_chain_channel_id: party_config.party_b.party_chain_channel_id,
+                        destination_receiver_addr: party_config.party_b.addr.to_string(),
+                        ibc_transfer_timeout: party_config.party_b.ibc_transfer_timeout,
                     },
                 )?,
                 funds: vec![],
@@ -156,7 +163,10 @@ pub fn handle_party_a_interchain_router_reply(deps: DepsMut, env: Env, msg: Repl
             Ok(Response::default()
                 .add_attribute("method", "handle_party_a_interchain_router_reply")
                 .add_attribute("party_a_interchain_router_addr", router_addr)
-                .add_submessage(SubMsg::reply_always(party_b_router_instantiate_tx, PARTY_B_INTERCHAIN_ROUTER_REPLY_ID)))
+                .add_submessage(
+                    SubMsg::reply_always(party_b_router_instantiate_tx, PARTY_B_INTERCHAIN_ROUTER_REPLY_ID)
+                )
+            )
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "party a router".to_string(),
@@ -379,41 +389,42 @@ pub fn handle_party_b_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -
             let party_b_ibc_forwarder_addr = deps.api.addr_validate(&response.contract_address)?;
             PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_ibc_forwarder_addr)?;
 
-            // load the fields relevant to ibc forwarder instantiation
-            let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
-            let clock_code_id = CLOCK_CODE.load(deps.storage)?;
+            // // load the fields relevant to ibc forwarder instantiation
+            // let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
+            // let clock_code_id = CLOCK_CODE.load(deps.storage)?;
             
-            let swap_holder = COVENANT_SWAP_HOLDER_ADDR.load(deps.storage)?;
-            let party_a_forwarder = PARTY_A_IBC_FORWARDER_ADDR.load(deps.storage)?;
+            // let swap_holder = COVENANT_SWAP_HOLDER_ADDR.load(deps.storage)?;
+            // let party_a_forwarder = PARTY_A_IBC_FORWARDER_ADDR.load(deps.storage)?;
 
-            let interchain_splitter = COVENANT_INTERCHAIN_SPLITTER_ADDR.load(deps.storage)?;
-            let party_a_router = PARTY_A_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
-            let party_b_router = PARTY_B_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
+            // let interchain_splitter = COVENANT_INTERCHAIN_SPLITTER_ADDR.load(deps.storage)?;
+            // let party_a_router = PARTY_A_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
+            // let party_b_router = PARTY_B_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
 
 
-            let update_clock_whitelist_msg = WasmMsg::Migrate {
-                contract_addr: clock_addr.to_string(),
-                new_code_id: clock_code_id,
-                msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
-                    add: Some(vec![
-                        party_a_forwarder.to_string(),
-                        party_b_ibc_forwarder_addr.to_string(),
-                        swap_holder.to_string(),
-                        interchain_splitter.to_string(),
-                        party_a_router.to_string(),
-                        party_b_router.to_string(),
-                    ]),
-                    remove: None,
-                })?,
-            };
+            // let update_clock_whitelist_msg = WasmMsg::Migrate {
+            //     contract_addr: clock_addr.to_string(),
+            //     new_code_id: clock_code_id,
+            //     msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
+            //         add: Some(vec![
+            //             party_a_forwarder.to_string(),
+            //             party_b_ibc_forwarder_addr.to_string(),
+            //             swap_holder.to_string(),
+            //             interchain_splitter.to_string(),
+            //             party_a_router.to_string(),
+            //             party_b_router.to_string(),
+            //         ]),
+            //         remove: None,
+            //     })?,
+            // };
 
             Ok(Response::default()
-                .add_attribute("method", "handle_party_a_ibc_forwader")
+                .add_attribute("method", "handle_party_b_ibc_forwarder_reply")
                 .add_attribute("party_b_ibc_forwarder_addr", party_b_ibc_forwarder_addr)
-                .add_message(update_clock_whitelist_msg))
+                // .add_message(update_clock_whitelist_msg))
+        )
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
-            contract: "swap holder".to_string(),
+            contract: "party_b ibc forwarder".to_string(),
             err,
         }),
     }

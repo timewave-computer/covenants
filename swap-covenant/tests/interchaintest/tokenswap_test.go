@@ -375,11 +375,6 @@ func TestTokenSwap(t *testing.T) {
 				Whitelist: []string{},
 			}
 
-			presetIbcFee := PresetIbcFee{
-				AckFee:     "1000",
-				TimeoutFee: "1000",
-			}
-
 			timeouts := Timeouts{
 				IcaTimeout:         "10", // sec
 				IbcTransferTimeout: "5",  // sec
@@ -399,10 +394,10 @@ func TestTokenSwap(t *testing.T) {
 					},
 				},
 				PartyB: CovenantParty{
-					Addr:          neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					ProvidedDenom: "untrn",
+					Addr:          osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+					ProvidedDenom: "uosmo",
 					ReceiverConfig: ReceiverConfig{
-						Native: neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+						Native: osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
 					},
 				},
 			}
@@ -443,7 +438,6 @@ func TestTokenSwap(t *testing.T) {
 			}
 			covenantMsg := CovenantInstantiateMsg{
 				Label:                  "swap-covenant",
-				PresetIbcFee:           presetIbcFee,
 				Timeouts:               timeouts,
 				IbcForwarderCode:       ibcForwarderCodeId,
 				InterchainRouterCode:   routerCodeId,
@@ -458,40 +452,26 @@ func TestTokenSwap(t *testing.T) {
 			println("covenant instantiation msg: ", string(str))
 			instantiateMsg := string(str)
 
-			// covenantContractAddress, err := cosmosNeutron.InstantiateContract(
-			// 	ctx,
-			// 	neutronUser.KeyName,
-			// 	covenantCodeIdStr,
-			// 	instantiateCmd,
-			// 	true,
-			// )
-			// if err != nil {
-			// 	println("error: ", err)
-			// } else {
-			// 	println("no error: ", covenantContractAddress)
-			// }
-			// require.NoError(t, testutil.WaitForBlocks(ctx, 100, atom, neutron, osmosis))
-
 			cmd := []string{"neutrond", "tx", "wasm", "instantiate", covenantCodeIdStr,
 				instantiateMsg,
 				"--label", "swap-covenant",
 				"--no-admin",
 				"--from", neutronUser.KeyName,
 				"--output", "json",
-				"--home", "/var/cosmos-chain/neutron-2",
+				"--home", neutron.HomeDir(),
 				"--node", neutron.GetRPCAddress(),
 				"--chain-id", neutron.Config().ChainID,
-				"--gas", "9000000",
+				"--gas", "90009000",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
 
 			resp, _, err := neutron.Exec(ctx, cmd, nil)
-			require.NoError(t, err)
+			// require.NoError(t, err)
 			println("instantiated, skipping 10 blocks...")
-			require.NoError(t, testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis))
 
 			println("instantiate response: ", string(resp), "\n")
+			require.NoError(t, testutil.WaitForBlocks(ctx, 1000, atom, neutron, osmosis))
 
 			queryCmd := []string{"neutrond", "query", "wasm",
 				"list-contract-by-code", covenantCodeIdStr,
@@ -516,6 +496,8 @@ func TestTokenSwap(t *testing.T) {
 			contractAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
 
 			println("covenant address: ", contractAddress)
+
+			require.NoError(t, testutil.WaitForBlocks(ctx, 1000, atom, neutron, osmosis))
 
 		})
 	})

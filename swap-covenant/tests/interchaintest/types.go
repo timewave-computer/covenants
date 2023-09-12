@@ -7,7 +7,6 @@ package ibc_test
 // ----- Covenant Instantiation ------
 type CovenantInstantiateMsg struct {
 	Label                  string                 `json:"label"`
-	PresetIbcFee           PresetIbcFee           `json:"preset_ibc_fee"`
 	Timeouts               Timeouts               `json:"timeouts"`
 	IbcForwarderCode       uint64                 `json:"ibc_forwarder_code"`
 	InterchainRouterCode   uint64                 `json:"interchain_router_code"`

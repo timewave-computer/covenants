@@ -346,7 +346,7 @@ pub struct DestinationConfig {
     /// channel id of the destination chain
     pub destination_chain_channel_id: String,
     /// address of the receiver on destination chain
-    pub destination_receiver_addr: Addr,
+    pub destination_receiver_addr: String,
     /// timeout in seconds
     pub ibc_transfer_timeout: Uint64,
 }
