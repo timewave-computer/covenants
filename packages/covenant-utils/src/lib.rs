@@ -222,8 +222,8 @@ impl LockupConfig {
     pub fn is_expired(self, block_info: BlockInfo) -> bool {
         match self {
             LockupConfig::None => false, // or.. true? should not be called tho
-            LockupConfig::Block(h) => h <= block_info.height,
-            LockupConfig::Time(t) => t.nanos() <= block_info.time.nanos(),
+            LockupConfig::Block(h) => h > block_info.height,
+            LockupConfig::Time(t) => t.nanos() > block_info.time.nanos(),
         }
     }
 }

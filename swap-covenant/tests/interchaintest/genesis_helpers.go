@@ -79,6 +79,46 @@ func setupGaiaGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 	}
 }
 
+func setupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
+	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
+		g := make(map[string]interface{})
+		if err := json.Unmarshal(genbz, &g); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal genesis file: %w", err)
+		}
+
+		missingFields := map[string]interface{}{
+			"active_channels":     []interface{}{},
+			"interchain_accounts": []interface{}{},
+			"port":                "icahost",
+			"params": map[string]interface{}{
+				"host_enabled":   true,
+				"allow_messages": []interface{}{},
+			},
+		}
+		if g["app_state"].(map[string]interface{})["interchainaccounts"] == nil {
+			g["app_state"].(map[string]interface{})["interchainaccounts"] = make(map[string]interface{})
+		}
+
+		if g["app_state"].(map[string]interface{})["interchainaccounts"].(map[string]interface{})["host_genesis_state"] == nil {
+			g["app_state"].(map[string]interface{})["interchainaccounts"].(map[string]interface{})["host_genesis_state"] = make(map[string]interface{})
+		}
+
+		if err := dyno.Set(g, missingFields, "app_state", "interchainaccounts", "host_genesis_state"); err != nil {
+			return nil, fmt.Errorf("failed to set interchainaccounts for app_state in genesis json: %w. \ngenesis json: %s", err, g)
+		}
+
+		if err := dyno.Set(g, allowed_messages, "app_state", "interchainaccounts", "host_genesis_state", "params", "allow_messages"); err != nil {
+			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w. \ngenesis json: %s", err, g)
+		}
+
+		out, err := json.Marshal(g)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
+		}
+		return out, nil
+	}
+}
+
 func getCreateValidatorCmd(chain ibc.Chain) []string {
 	// Before receiving a validator set change (VSC) packet,
 	// consumer chains disallow bank transfers. To trigger a VSC
