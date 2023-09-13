@@ -371,7 +371,7 @@ pub fn handle_party_a_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -
                 .add_submessage(SubMsg::reply_always(party_b_forwarder_instantiate_tx, PARTY_B_FORWARDER_REPLY_ID)))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
-            contract: "swap holder".to_string(),
+            contract: "party_a_forwarder".to_string(),
             err,
         }),
     }
@@ -389,13 +389,13 @@ pub fn handle_party_b_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -
             // validate and store the party b ibc forwarder address
             let party_b_ibc_forwarder_addr = deps.api.addr_validate(&response.contract_address)?;
             PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_ibc_forwarder_addr)?;
+            let party_a_forwarder = PARTY_A_IBC_FORWARDER_ADDR.load(deps.storage)?;
 
             // load the fields relevant to ibc forwarder instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let clock_code_id = CLOCK_CODE.load(deps.storage)?;
             
             let swap_holder = COVENANT_SWAP_HOLDER_ADDR.load(deps.storage)?;
-            let party_a_forwarder = PARTY_A_IBC_FORWARDER_ADDR.load(deps.storage)?;
 
             let interchain_splitter = COVENANT_INTERCHAIN_SPLITTER_ADDR.load(deps.storage)?;
             let party_a_router = PARTY_A_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
@@ -439,18 +439,22 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::SplitterAddress {} =>  Ok(to_binary(&COVENANT_INTERCHAIN_SPLITTER_ADDR.may_load(deps.storage)?)?),
         QueryMsg::CovenantParties {} =>  Ok(to_binary(&COVENANT_PARTIES.may_load(deps.storage)?)?),
         QueryMsg::InterchainRouterAddress { party } => {
-            let resp = match party.as_str() {
-                "party_a" => PARTY_A_INTERCHAIN_ROUTER_ADDR.may_load(deps.storage)?,
-                "party_b" => PARTY_A_INTERCHAIN_ROUTER_ADDR.may_load(deps.storage)?,
-                _ => Some(Addr::unchecked("not found")),
+            let resp = if party == "party_a" {
+                PARTY_A_INTERCHAIN_ROUTER_ADDR.may_load(deps.storage)?
+            } else if party == "party_b" {
+                PARTY_B_INTERCHAIN_ROUTER_ADDR.may_load(deps.storage)?
+            } else {
+                Some(Addr::unchecked("not found"))
             };
             Ok(to_binary(&resp)?)
         },
         QueryMsg::IbcForwarderAddress { party } => {
-            let resp = match party.as_str() {
-                "party_a" => PARTY_A_IBC_FORWARDER_ADDR.may_load(deps.storage)?,
-                "party_b" => PARTY_B_IBC_FORWARDER_ADDR.may_load(deps.storage)?,
-                _ => Some(Addr::unchecked("not found")),
+            let resp = if party == "party_a" {
+                PARTY_A_IBC_FORWARDER_ADDR.may_load(deps.storage)?
+            } else if party == "party_b" {
+                PARTY_B_IBC_FORWARDER_ADDR.may_load(deps.storage)?
+            } else {
+                Some(Addr::unchecked("not found"))
             };
             Ok(to_binary(&resp)?)
         }

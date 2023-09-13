@@ -137,16 +137,18 @@ impl SplitConfig {
     pub fn remap_receivers_to_routers(self, receiver_a: String, router_a: String, receiver_b: String, router_b: String) -> Result<SplitType, ContractError> {
         let receivers = self.receivers.into_iter()
             .map(|receiver| {
-                match receiver.addr {
-                    receiver_a => Receiver {
+                if receiver.addr == receiver_a {
+                    Receiver {
                         addr: router_a.to_string(),
                         share: receiver.share,
-                    },
-                    receiver_b => Receiver {
+                    }
+                } else if receiver.addr == receiver_b {
+                    Receiver {
                         addr: router_b.to_string(),
                         share: receiver.share,
-                    },
-                    _ => receiver
+                    }
+                } else {
+                    receiver
                 }
             })
             .collect();
