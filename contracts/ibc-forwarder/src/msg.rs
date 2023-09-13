@@ -100,7 +100,10 @@ pub enum ExecuteMsg {}
 #[covenant_ica_address]
 #[derive(QueryResponses)]
 #[cw_serde]
-pub enum QueryMsg {}
+pub enum QueryMsg {
+    #[returns(ContractState)]
+    ContractState {},
+}
 
 #[cw_serde]
 pub enum ContractState {

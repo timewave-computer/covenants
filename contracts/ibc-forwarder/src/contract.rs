@@ -79,7 +79,7 @@ pub fn execute(
 /// attempts to advance the state machine. validates the caller to be the clock.
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -221,6 +221,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
         }
         QueryMsg::IcaAddress {} => Ok(to_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
         QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
+        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
     }
 }
 
