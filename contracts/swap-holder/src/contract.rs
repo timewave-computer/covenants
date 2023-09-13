@@ -30,11 +30,11 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     deps.api
         .debug("WASMDEBUG: covenant-swap-holder instantiate");
-
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
-    msg.lockup_config.validate(env.block)?;
+    // TODO: debug what goes wrong in validation here
+    // msg.lockup_config.validate(env.block)?;
 
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
@@ -43,7 +43,10 @@ pub fn instantiate(
     COVENANT_TERMS.save(deps.storage, &msg.covenant_terms)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    Ok(Response::default().add_attributes(msg.get_response_attributes()))
+    Ok(Response::default()
+        .add_attribute("method", "swap_holder_instantiate")
+        // .add_attributes(msg.get_response_attributes())
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

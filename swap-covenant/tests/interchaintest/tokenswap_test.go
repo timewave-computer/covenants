@@ -293,6 +293,15 @@ func TestTokenSwap(t *testing.T) {
 	print("\nneutronAtomIbcDenom: ", neutronAtomIbcDenom)
 	print("\nneutronOsmoIbcDenom: ", neutronOsmoIbcDenom)
 
+	var covenantAddress string
+	var clockAddress string
+	var splitterAddress string
+	var partyARouterAddress string
+	var partyBRouterAddress string
+	var partyAIbcForwarderAddress string
+	var partyBIbcForwarderAddress string
+	var holderAddress string
+
 	t.Run("tokenswap setup", func(t *testing.T) {
 		//----------------------------------------------//
 		// Testing parameters
@@ -401,13 +410,17 @@ func TestTokenSwap(t *testing.T) {
 					},
 				},
 			}
-			timestamp := Timestamp("1000000")
+			timestamp := Timestamp("1981539923")
 
 			lockupConfig := LockupConfig{
 				Time: &timestamp,
 			}
 			covenantTerms := CovenantTerms{
 				TokenSwap: swapCovenantTerms,
+			}
+			presetIbcFee := PresetIbcFee{
+				AckFee:     "100000",
+				TimeoutFee: "100000",
 			}
 
 			presetSwapHolder := PresetSwapHolderFields{
@@ -436,15 +449,51 @@ func TestTokenSwap(t *testing.T) {
 					IbcTransferTimeout:     timeouts.IbcTransferTimeout,
 				},
 			}
+
+			presetSplitterFields := PresetSplitterFields{
+				Splits: []DenomSplit{
+					{
+						Denom: neutronOsmoIbcDenom,
+						Type: SplitType{
+							Custom: SplitConfig{
+								Receivers: []Receiver{
+									Receiver{
+										Address: gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+										Share:   "100",
+									},
+								},
+							},
+						},
+					},
+					{
+						Denom: neutronAtomIbcDenom,
+						Type: SplitType{
+							Custom: SplitConfig{
+								Receivers: []Receiver{
+									Receiver{
+										Address: osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+										Share:   "100",
+									},
+								},
+							},
+						},
+					},
+				},
+				FallbackSplit: nil,
+				Label:         "interchain-splitter",
+			}
+
 			covenantMsg := CovenantInstantiateMsg{
 				Label:                  "swap-covenant",
 				Timeouts:               timeouts,
+				PresetIbcFee:           presetIbcFee,
 				IbcForwarderCode:       ibcForwarderCodeId,
 				InterchainRouterCode:   routerCodeId,
 				InterchainSplitterCode: splitterCodeId,
 				PresetClock:            clockMsg,
 				PresetSwapHolder:       presetSwapHolder,
 				SwapCovenantParties:    swapCovenantParties,
+				PresetSplitterFields:   presetSplitterFields,
 			}
 
 			str, err := json.Marshal(covenantMsg)
@@ -467,11 +516,11 @@ func TestTokenSwap(t *testing.T) {
 			}
 
 			resp, _, err := neutron.Exec(ctx, cmd, nil)
-			// require.NoError(t, err)
+			require.NoError(t, err)
 			println("instantiated, skipping 10 blocks...")
 
 			println("instantiate response: ", string(resp), "\n")
-			require.NoError(t, testutil.WaitForBlocks(ctx, 1000, atom, neutron, osmosis))
+			require.NoError(t, testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis))
 
 			queryCmd := []string{"neutrond", "query", "wasm",
 				"list-contract-by-code", covenantCodeIdStr,
@@ -493,12 +542,68 @@ func TestTokenSwap(t *testing.T) {
 			contactsRes := QueryContractResponse{}
 			require.NoError(t, json.Unmarshal(queryResp, &contactsRes), "failed to unmarshal contract response")
 
-			contractAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
+			covenantAddress = contactsRes.Contracts[len(contactsRes.Contracts)-1]
 
-			println("covenant address: ", contractAddress)
+			println("covenant address: ", covenantAddress)
+		})
 
-			require.NoError(t, testutil.WaitForBlocks(ctx, 1000, atom, neutron, osmosis))
+		t.Run("query covenant contracts", func(t *testing.T) {
+			routerQueryPartyA := InterchainRouterQuery{
+				Party: Party{
+					Party: "party_a",
+				},
+			}
+			routerQueryPartyB := InterchainRouterQuery{
+				Party: Party{
+					Party: "party_b",
+				},
+			}
+			forwarderQueryPartyA := IbcForwarderQuery{
+				Party: Party{
+					Party: "party_a",
+				},
+			}
+			forwarderQueryPartyB := IbcForwarderQuery{
+				Party: Party{
+					Party: "party_b",
+				},
+			}
+			var response CovenantAddressQueryResponse
 
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, ClockAddressQuery{}, &response)
+			require.NoError(t, err, "failed to query instantiated clock address")
+			clockAddress = response.Data
+			println("clock addr: ", clockAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, HolderAddressQuery{}, &response)
+			require.NoError(t, err, "failed to query instantiated holder address")
+			holderAddress = response.Data
+			println("holder addr: ", holderAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, SplitterAddressQuery{}, &response)
+			require.NoError(t, err, "failed to query instantiated splitter address")
+			splitterAddress = response.Data
+			println("splitter addr: ", splitterAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, routerQueryPartyA, &response)
+			require.NoError(t, err, "failed to query instantiated party a router address")
+			partyARouterAddress = response.Data
+			println("partyARouterAddress: ", partyARouterAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, routerQueryPartyB, &response)
+			require.NoError(t, err, "failed to query instantiated party b router address")
+			partyBRouterAddress = response.Data
+			println("partyBRouterAddress: ", partyBRouterAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, forwarderQueryPartyA, &response)
+			require.NoError(t, err, "failed to query instantiated party a forwarder address")
+			partyAIbcForwarderAddress = response.Data
+			println("partyAIbcForwarderAddress: ", partyAIbcForwarderAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, forwarderQueryPartyB, &response)
+			require.NoError(t, err, "failed to query instantiated party b forwarder address")
+			partyBIbcForwarderAddress = response.Data
+			println("partyBIbcForwarderAddress: ", partyBIbcForwarderAddress)
 		})
 	})
 }
