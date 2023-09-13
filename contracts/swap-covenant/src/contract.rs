@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response,
-    SubMsg, WasmMsg, Reply,
+    SubMsg, WasmMsg, Reply, Deps, StdResult, Binary, Addr,
 };
 
 use cw2::set_contract_version;
@@ -12,7 +12,7 @@ use crate::{
     error::ContractError,
     state::{
         CLOCK_CODE, TIMEOUTS, COVENANT_CLOCK_ADDR, SWAP_HOLDER_CODE, PRESET_HOLDER_FIELDS, COVENANT_INTERCHAIN_SPLITTER_ADDR, PRESET_SPLITTER_FIELDS, COVENANT_SWAP_HOLDER_ADDR, IBC_FORWARDER_CODE, IBC_FEE, COVENANT_PARTIES, PARTY_A_IBC_FORWARDER_ADDR, PARTY_B_IBC_FORWARDER_ADDR, PARTY_A_INTERCHAIN_ROUTER_ADDR, INTERCHAIN_ROUTER_CODE, PARTY_B_INTERCHAIN_ROUTER_ADDR, INTERCHAIN_SPLITTER_CODE,
-    }, msg::InstantiateMsg,
+    }, msg::{InstantiateMsg, QueryMsg},
 };
 
 const CONTRACT_NAME: &str = "crates.io:swap-covenant";
@@ -43,10 +43,11 @@ pub fn instantiate(
     INTERCHAIN_ROUTER_CODE.save(deps.storage, &msg.interchain_router_code)?;
     IBC_FORWARDER_CODE.save(deps.storage, &msg.ibc_forwarder_code)?;
     SWAP_HOLDER_CODE.save(deps.storage, &msg.preset_holder_fields.code_id)?;
-
+    PRESET_SPLITTER_FIELDS.save(deps.storage, &msg.preset_splitter_fields)?;
     PRESET_HOLDER_FIELDS.save(deps.storage, &msg.preset_holder_fields)?;
     COVENANT_PARTIES.save(deps.storage, &msg.covenant_parties)?;
     TIMEOUTS.save(deps.storage, &msg.timeouts)?;
+    IBC_FEE.save(deps.storage, &msg.preset_ibc_fee.to_ibc_fee())?;
 
     // we start the module instantiation chain with the clock
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -389,43 +390,71 @@ pub fn handle_party_b_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -
             let party_b_ibc_forwarder_addr = deps.api.addr_validate(&response.contract_address)?;
             PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_ibc_forwarder_addr)?;
 
-            // // load the fields relevant to ibc forwarder instantiation
-            // let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
-            // let clock_code_id = CLOCK_CODE.load(deps.storage)?;
+            // load the fields relevant to ibc forwarder instantiation
+            let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
+            let clock_code_id = CLOCK_CODE.load(deps.storage)?;
             
-            // let swap_holder = COVENANT_SWAP_HOLDER_ADDR.load(deps.storage)?;
-            // let party_a_forwarder = PARTY_A_IBC_FORWARDER_ADDR.load(deps.storage)?;
+            let swap_holder = COVENANT_SWAP_HOLDER_ADDR.load(deps.storage)?;
+            let party_a_forwarder = PARTY_A_IBC_FORWARDER_ADDR.load(deps.storage)?;
 
-            // let interchain_splitter = COVENANT_INTERCHAIN_SPLITTER_ADDR.load(deps.storage)?;
-            // let party_a_router = PARTY_A_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
-            // let party_b_router = PARTY_B_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
+            let interchain_splitter = COVENANT_INTERCHAIN_SPLITTER_ADDR.load(deps.storage)?;
+            let party_a_router = PARTY_A_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
+            let party_b_router = PARTY_B_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
 
 
-            // let update_clock_whitelist_msg = WasmMsg::Migrate {
-            //     contract_addr: clock_addr.to_string(),
-            //     new_code_id: clock_code_id,
-            //     msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
-            //         add: Some(vec![
-            //             party_a_forwarder.to_string(),
-            //             party_b_ibc_forwarder_addr.to_string(),
-            //             swap_holder.to_string(),
-            //             interchain_splitter.to_string(),
-            //             party_a_router.to_string(),
-            //             party_b_router.to_string(),
-            //         ]),
-            //         remove: None,
-            //     })?,
-            // };
+            let update_clock_whitelist_msg = WasmMsg::Migrate {
+                contract_addr: clock_addr.to_string(),
+                new_code_id: clock_code_id,
+                msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
+                    add: Some(vec![
+                        party_a_forwarder.to_string(),
+                        party_b_ibc_forwarder_addr.to_string(),
+                        swap_holder.to_string(),
+                        interchain_splitter.to_string(),
+                        party_a_router.to_string(),
+                        party_b_router.to_string(),
+                    ]),
+                    remove: None,
+                })?,
+            };
 
             Ok(Response::default()
                 .add_attribute("method", "handle_party_b_ibc_forwarder_reply")
                 .add_attribute("party_b_ibc_forwarder_addr", party_b_ibc_forwarder_addr)
-                // .add_message(update_clock_whitelist_msg))
+                .add_message(update_clock_whitelist_msg)
         )
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "party_b ibc forwarder".to_string(),
             err,
         }),
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::ClockAddress{} => Ok(to_binary(&COVENANT_CLOCK_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::HolderAddress {} => Ok(to_binary(&COVENANT_SWAP_HOLDER_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::SplitterAddress {} =>  Ok(to_binary(&COVENANT_INTERCHAIN_SPLITTER_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::CovenantParties {} =>  Ok(to_binary(&COVENANT_PARTIES.may_load(deps.storage)?)?),
+        QueryMsg::InterchainRouterAddress { party } => {
+            let resp = match party.as_str() {
+                "party_a" => PARTY_A_INTERCHAIN_ROUTER_ADDR.may_load(deps.storage)?,
+                "party_b" => PARTY_A_INTERCHAIN_ROUTER_ADDR.may_load(deps.storage)?,
+                _ => Some(Addr::unchecked("not found")),
+            };
+            Ok(to_binary(&resp)?)
+        },
+        QueryMsg::IbcForwarderAddress { party } => {
+            let resp = match party.as_str() {
+                "party_a" => PARTY_A_IBC_FORWARDER_ADDR.may_load(deps.storage)?,
+                "party_b" => PARTY_B_IBC_FORWARDER_ADDR.may_load(deps.storage)?,
+                _ => Some(Addr::unchecked("not found")),
+            };
+            Ok(to_binary(&resp)?)
+        }
+        QueryMsg::IbcFee {} => Ok(to_binary(&IBC_FEE.may_load(deps.storage)?)?),
+        QueryMsg::Timeouts {} => Ok(to_binary(&TIMEOUTS.may_load(deps.storage)?)?),
     }
 }

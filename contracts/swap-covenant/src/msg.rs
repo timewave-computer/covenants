@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128, Uint64};
 use covenant_clock::msg::PresetClockFields;
+use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -14,6 +15,7 @@ pub struct InstantiateMsg {
 
     /// ibc transfer and ica timeouts passed down to relevant modules
     pub timeouts: Timeouts,
+    pub preset_ibc_fee: PresetIbcFee,
 
     pub ibc_forwarder_code: u64,
     pub interchain_router_code: u64,
@@ -25,6 +27,7 @@ pub struct InstantiateMsg {
     /// instantiation fields relevant to swap holder contract known in advance
     pub preset_holder_fields: PresetSwapHolderFields,
     pub covenant_parties: SwapCovenantParties,
+    pub preset_splitter_fields: PresetInterchainSplitterFields,
 }
 
 #[cw_serde]
@@ -100,6 +103,18 @@ pub enum QueryMsg {
     ClockAddress {},
     #[returns(Addr)]
     HolderAddress {},
+    #[returns(Addr)]
+    SplitterAddress {},
+    #[returns(SwapCovenantParties)]
+    CovenantParties {},
+    #[returns(Addr)]
+    InterchainRouterAddress { party: String },
+    #[returns(Addr)]
+    IbcForwarderAddress { party: String },
+    #[returns(IbcFee)]
+    IbcFee {},
+    #[returns(Timeouts)]
+    Timeouts {},
 }
 
 #[cw_serde]
