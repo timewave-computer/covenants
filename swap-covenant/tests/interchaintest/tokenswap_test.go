@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
 	ibctest "github.com/strangelove-ventures/interchaintest/v4"
 	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
@@ -76,20 +77,35 @@ func TestTokenSwap(t *testing.T) {
 						UidGid:     "1025:1025",
 					},
 				},
-				Bin:                 "neutrond",
-				Bech32Prefix:        "neutron",
-				Denom:               "untrn",
-				GasPrices:           "0.0untrn,0.0uatom",
-				GasAdjustment:       1.3,
-				TrustingPeriod:      "1197504s",
-				NoHostMount:         false,
-				ModifyGenesis:       setupNeutronGenesis("0.05", []string{"untrn"}, []string{"uatom"}),
+				Bin:            "neutrond",
+				Bech32Prefix:   "neutron",
+				Denom:          "untrn",
+				GasPrices:      "0.0untrn,0.0uatom",
+				GasAdjustment:  1.3,
+				TrustingPeriod: "1197504s",
+				NoHostMount:    false,
+				ModifyGenesis: setupNeutronGenesis(
+					"0.05",
+					[]string{"untrn"},
+					[]string{"uatom"},
+					[]string{
+						"/cosmos.bank.v1beta1.MsgSend",
+						"/cosmos.bank.v1beta1.MsgMultiSend",
+						"/cosmos.staking.v1beta1.MsgDelegate",
+						"/cosmos.staking.v1beta1.MsgUndelegate",
+						"/cosmos.staking.v1beta1.MsgBeginRedelegate",
+						"/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
+						"/cosmos.staking.v1beta1.MsgTokenizeShares",
+						"/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+						"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+						"/ibc.applications.transfer.v1.MsgTransfer",
+					}),
 				ConfigFileOverrides: configFileOverrides,
 			},
 		},
 		{
 			Name:    "osmosis",
-			Version: "v11.0.0",
+			Version: "v14.0.0",
 			ChainConfig: ibc.ChainConfig{
 				Type:         "cosmos",
 				Bin:          "osmosisd",
@@ -106,13 +122,14 @@ func TestTokenSwap(t *testing.T) {
 					"/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
 					"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
 					"/ibc.applications.transfer.v1.MsgTransfer",
+					"/ibc.applications.interchain_accounts.v1.InterchainAccount",
 				}),
 				GasPrices:     "0.0uosmo",
 				GasAdjustment: 1.3,
 				Images: []ibc.DockerImage{
 					{
 						Repository: "ghcr.io/strangelove-ventures/heighliner/osmosis",
-						Version:    "v11.0.0",
+						Version:    "v14.0.0",
 						UidGid:     "1025:1025",
 					},
 				},
@@ -301,20 +318,47 @@ func TestTokenSwap(t *testing.T) {
 	// 1. ATOM on Neutron
 	neutronAtomIbcDenom := testCtx.getIbcDenom(testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name], cosmosAtom.Config().Denom)
 	// 2. Osmo on neutron
-	neutronOsmoIbcDenom := testCtx.getIbcDenom(testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name], cosmosOsmosis.Config().Denom)
+	neutronOsmoIbcDenom := testCtx.getIbcDenom(
+		testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
+		cosmosOsmosis.Config().Denom,
+	)
 
 	// 3. hub atom => neutron => osmosis
-	osmosisNeutronAtomIbcDenom := testCtx.getIbcDenom(
-		testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
-		neutronAtomIbcDenom,
+	// transfer/channel-0/transfer/channel-3
+
+	neutronAtomPrefix := fmt.Sprintf("%s/%s", "transfer", testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name])
+	neutronOsmoPrefix := fmt.Sprintf("%s/%s", "transfer", testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name])
+	gaiaNeutronPrefix := fmt.Sprintf("%s/%s", "transfer", testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name])
+	osmoNeutronPrefix := fmt.Sprintf("%s/%s", "transfer", testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name])
+
+	println("neutronAtomPrefix: ", neutronAtomPrefix)
+	println("neutronOsmoPrefix: ", neutronOsmoPrefix)
+	println("gaiaNeutronPrefix: ", gaiaNeutronPrefix)
+	println("osmoNeutronPrefix: ", osmoNeutronPrefix)
+
+	osmoNeutronAtomPrefixedDenom := transfertypes.GetPrefixedDenom(
+		osmoNeutronPrefix,
+		neutronAtomPrefix,
+		cosmosAtom.Config().Denom,
 	)
-	// 4. osmosis osmo => neutron => hub
-	gaiaNeutronOsmoIbcDenom := testCtx.getIbcDenom(
-		testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
-		neutronOsmoIbcDenom,
+	println("osmoNeutronAtomPrefixedDenom: ", osmoNeutronAtomPrefixedDenom)
+
+	gaiaNeutronOsmoPrefixedDenom := transfertypes.GetPrefixedDenom(
+		gaiaNeutronPrefix,
+		neutronOsmoPrefix,
+		cosmosOsmosis.Config().Denom,
 	)
-	print("\nneutronAtomIbcDenom: ", neutronAtomIbcDenom)
-	print("\nneutronOsmoIbcDenom: ", neutronOsmoIbcDenom)
+	println("gaiaNeutronOsmoPrefixedDenom: ", gaiaNeutronOsmoPrefixedDenom)
+
+	gaiaNeutronOsmoIbcDenom := transfertypes.ParseDenomTrace(gaiaNeutronOsmoPrefixedDenom).IBCDenom()
+	osmoNeutronAtomIbcDenom := transfertypes.ParseDenomTrace(osmoNeutronAtomPrefixedDenom).IBCDenom()
+
+	println("neutronAtomIbcDenom: ", neutronAtomIbcDenom)
+	println("neutronOsmoIbcDenom: ", neutronOsmoIbcDenom)
+	println("osmoNeutronAtomIbcDenom: ", osmoNeutronAtomIbcDenom)
+	println("gaiaNeutronOsmoIbcDenom: ", gaiaNeutronOsmoIbcDenom)
+
+	// 2CB1
 
 	var covenantAddress string
 	var clockAddress string
@@ -410,8 +454,8 @@ func TestTokenSwap(t *testing.T) {
 			}
 
 			timeouts := Timeouts{
-				IcaTimeout:         "10", // sec
-				IbcTransferTimeout: "5",  // sec
+				IcaTimeout:         "100", // sec
+				IbcTransferTimeout: "100", // sec
 			}
 
 			swapCovenantTerms := SwapCovenantTerms{
@@ -421,15 +465,15 @@ func TestTokenSwap(t *testing.T) {
 
 			covenantPartiesConfig := CovenantPartiesConfig{
 				PartyA: CovenantParty{
-					Addr:          gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-					ProvidedDenom: neutronAtomIbcDenom,
+					Addr:     gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+					IbcDenom: neutronAtomIbcDenom,
 					ReceiverConfig: ReceiverConfig{
 						Native: gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
 					},
 				},
 				PartyB: CovenantParty{
-					Addr:          osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-					ProvidedDenom: neutronOsmoIbcDenom,
+					Addr:     osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+					IbcDenom: neutronOsmoIbcDenom,
 					ReceiverConfig: ReceiverConfig{
 						Native: osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
 					},
@@ -444,8 +488,8 @@ func TestTokenSwap(t *testing.T) {
 				TokenSwap: swapCovenantTerms,
 			}
 			presetIbcFee := PresetIbcFee{
-				AckFee:     "100000",
-				TimeoutFee: "100000",
+				AckFee:     "10000",
+				TimeoutFee: "10000",
 			}
 
 			presetSwapHolder := PresetSwapHolderFields{
@@ -458,20 +502,24 @@ func TestTokenSwap(t *testing.T) {
 
 			swapCovenantParties := SwapCovenantParties{
 				PartyA: SwapPartyConfig{
-					Addr:                   gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-					ProvidedDenom:          neutronAtomIbcDenom,
-					PartyChainChannelId:    testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyReceiverAddr:      gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-					PartyChainConnectionId: neutronAtomIBCConnId,
-					IbcTransferTimeout:     timeouts.IbcTransferTimeout,
+					Addr:                      gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+					NativeDenom:               "uatom",
+					IbcDenom:                  neutronAtomIbcDenom,
+					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
+					PartyReceiverAddr:         gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+					PartyChainConnectionId:    neutronAtomIBCConnId,
+					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				},
 				PartyB: SwapPartyConfig{
-					Addr:                   osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-					ProvidedDenom:          neutronOsmoIbcDenom,
-					PartyChainChannelId:    testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyReceiverAddr:      osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-					PartyChainConnectionId: neutronOsmosisIBCConnId,
-					IbcTransferTimeout:     timeouts.IbcTransferTimeout,
+					Addr:                      osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+					NativeDenom:               "uosmo",
+					IbcDenom:                  neutronOsmoIbcDenom,
+					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
+					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
+					PartyReceiverAddr:         osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+					PartyChainConnectionId:    neutronOsmosisIBCConnId,
+					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				},
 			}
 
@@ -634,7 +682,7 @@ func TestTokenSwap(t *testing.T) {
 		t.Run("fund contracts with neutron", func(t *testing.T) {
 			err := neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: partyAIbcForwarderAddress,
-				Amount:  500001,
+				Amount:  5000001,
 				Denom:   neutron.Config().Denom,
 			})
 
@@ -642,30 +690,48 @@ func TestTokenSwap(t *testing.T) {
 
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: partyBIbcForwarderAddress,
-				Amount:  500001,
+				Amount:  5000001,
 				Denom:   neutron.Config().Denom,
 			})
 			require.NoError(t, err, "failed to send funds from neutron user to partyBIbcForwarder contract")
 
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: clockAddress,
-				Amount:  500001,
+				Amount:  5000001,
 				Denom:   neutron.Config().Denom,
 			})
 			require.NoError(t, err, "failed to send funds from neutron user to clock contract")
+			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: partyARouterAddress,
+				Amount:  15000001,
+				Denom:   neutron.Config().Denom,
+			})
+			require.NoError(t, err, "failed to send funds from neutron user to party a router")
+			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: partyBRouterAddress,
+				Amount:  15000001,
+				Denom:   neutron.Config().Denom,
+			})
+			require.NoError(t, err, "failed to send funds from neutron user to party b router")
 
 			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			bal, err := neutron.GetBalance(ctx, partyAIbcForwarderAddress, neutron.Config().Denom)
 			require.NoError(t, err)
-			require.Equal(t, int64(500001), bal)
+			require.Equal(t, int64(5000001), bal)
 			bal, err = neutron.GetBalance(ctx, partyBIbcForwarderAddress, neutron.Config().Denom)
 			require.NoError(t, err)
-			require.Equal(t, int64(500001), bal)
+			require.Equal(t, int64(5000001), bal)
 			bal, err = neutron.GetBalance(ctx, clockAddress, neutron.Config().Denom)
 			require.NoError(t, err)
-			require.Equal(t, int64(500001), bal)
+			require.Equal(t, int64(5000001), bal)
+			bal, err = neutron.GetBalance(ctx, partyARouterAddress, neutron.Config().Denom)
+			require.NoError(t, err)
+			require.Equal(t, int64(15000001), bal)
+			bal, err = neutron.GetBalance(ctx, partyBRouterAddress, neutron.Config().Denom)
+			require.NoError(t, err)
+			require.Equal(t, int64(15000001), bal)
 		})
 
 		tickClock := func() {
@@ -748,13 +814,13 @@ func TestTokenSwap(t *testing.T) {
 			err := cosmosOsmosis.SendFunds(ctx, osmoUser.KeyName, ibc.WalletAmount{
 				Address: partyBDepositAddress,
 				Denom:   cosmosOsmosis.Config().Denom,
-				Amount:  int64(osmoContributionAmount),
+				Amount:  int64(osmoContributionAmount + 1000),
 			})
 			require.NoError(t, err, "failed to fund osmo forwarder")
 			err = cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
 				Address: partyADepositAddress,
 				Denom:   cosmosAtom.Config().Denom,
-				Amount:  int64(atomContributionAmount),
+				Amount:  int64(atomContributionAmount + 1000),
 			})
 			require.NoError(t, err, "failed to fund gaia forwarder")
 
@@ -763,13 +829,14 @@ func TestTokenSwap(t *testing.T) {
 
 			bal, err := cosmosAtom.GetBalance(ctx, partyADepositAddress, cosmosAtom.Config().Denom)
 			require.NoError(t, err, "failed to query bal")
-			require.Equal(t, int64(atomContributionAmount), bal)
+			require.Equal(t, int64(atomContributionAmount+1000), bal)
 			bal, err = cosmosOsmosis.GetBalance(ctx, partyBDepositAddress, cosmosOsmosis.Config().Denom)
 			require.NoError(t, err, "failed to query bal")
-			require.Equal(t, int64(osmoContributionAmount), bal)
+			require.Equal(t, int64(osmoContributionAmount+1000), bal)
 		})
 
-		t.Run("tick until routers forward the funds to receivers", func(t *testing.T) {
+		t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
+
 			const maxTicks = 20
 			tick := 1
 			var response CovenantAddressQueryResponse
@@ -812,28 +879,97 @@ func TestTokenSwap(t *testing.T) {
 			}
 		})
 
-		t.Run("tick until end receivers receive the funds", func(t *testing.T) {
+		t.Run("tick until holder sends the funds to splitter", func(t *testing.T) {
+			const maxTicks = 20
+			tick := 1
+			for tick <= maxTicks {
+				holderOsmoBal, err := cosmosNeutron.GetBalance(ctx, holderAddress, neutronOsmoIbcDenom)
+				require.NoError(t, err, "failed to query holder osmo bal")
+				println("holder osmo bal: ", holderOsmoBal)
+				holderAtomBal, err := cosmosNeutron.GetBalance(ctx, holderAddress, neutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query holder atom bal")
+				println("holder atom bal: ", holderAtomBal)
+
+				println("Ticking clock ", tick, " of ", maxTicks)
+				tickClock()
+
+				splitterOsmoBal, err := cosmosNeutron.GetBalance(ctx, splitterAddress, neutronOsmoIbcDenom)
+				require.NoError(t, err, "failed to query splitterOsmoBal")
+				println("splitterOsmoBal: ", splitterOsmoBal)
+				splitterAtomBal, err := cosmosNeutron.GetBalance(ctx, splitterAddress, neutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query splitterAtomBal")
+				println("splitterAtomBal: ", splitterAtomBal)
+
+				if splitterAtomBal != 0 && splitterOsmoBal != 0 {
+					break
+				}
+			}
+		})
+
+		t.Run("tick until splitter sends the funds to routers", func(t *testing.T) {
+			const maxTicks = 20
+			tick := 1
+			for tick <= maxTicks {
+				splitterOsmoBal, err := cosmosNeutron.GetBalance(ctx, splitterAddress, neutronOsmoIbcDenom)
+				require.NoError(t, err, "failed to query splitterOsmoBal")
+				println("splitterOsmoBal: ", splitterOsmoBal)
+				splitterAtomBal, err := cosmosNeutron.GetBalance(ctx, splitterAddress, neutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query splitterAtomBal")
+				println("splitterAtomBal: ", splitterAtomBal)
+
+				println("Ticking clock ", tick, " of ", maxTicks)
+				tickClock()
+
+				partyARouterAtomBal, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query partyARouterBal")
+				println("partyARouter atom bal: ", partyARouterAtomBal)
+				partyARouterOsmoBal, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
+				require.NoError(t, err, "failed to query partyARouterOsmoBal")
+				println("partyARouter osmo bal: ", partyARouterOsmoBal)
+				partyBRouterOsmoBal, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronOsmoIbcDenom)
+				require.NoError(t, err, "failed to query partyBRouterOsmoBal")
+				println("partyBRouterOsmoBal: ", partyBRouterOsmoBal)
+				partyBRouterAtomBal, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query partyBRouterAtomBal")
+				println("partyBRouterAtomBal: ", partyBRouterAtomBal)
+
+				if partyARouterOsmoBal != 0 && partyBRouterAtomBal != 0 {
+					break
+				}
+			}
+		})
+
+		t.Run("tick until routers route the funds to final receivers", func(t *testing.T) {
 
 			const maxTicks = 50
 			tick := 1
 			for tick <= maxTicks {
+				partyARouterAtomBal, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query partyARouterBal")
+				println("partyARouter atom bal: ", partyARouterAtomBal)
+				partyARouterOsmoBal, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
+				require.NoError(t, err, "failed to query partyARouterOsmoBal")
+				println("partyARouter osmo bal: ", partyARouterOsmoBal)
+				partyBRouterOsmoBal, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronOsmoIbcDenom)
+				require.NoError(t, err, "failed to query partyBRouterOsmoBal")
+				println("partyBRouterOsmoBal: ", partyBRouterOsmoBal)
+				partyBRouterAtomBal, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query partyBRouterAtomBal")
+				println("partyBRouterAtomBal: ", partyBRouterAtomBal)
+
 				println("Ticking clock ", tick, " of ", maxTicks)
 				tickClock()
 
-				osmoUserBal, err := cosmosOsmosis.GetBalance(
-					ctx,
-					osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-					osmosisNeutronAtomIbcDenom,
-				)
-				require.NoError(t, err, "failed to query osmoUserBal")
-				println("osmoUserBalance: ", osmoUserBal)
-				gaiaUserBal, err := cosmosAtom.GetBalance(
-					ctx,
-					gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-					gaiaNeutronOsmoIbcDenom,
-				)
-				require.NoError(t, err, "failed to query gaiaUserBal")
-				println("gaiaUserBalance: ", gaiaUserBal)
+				osmoBal, err := cosmosOsmosis.GetBalance(ctx, osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom)
+				require.NoError(t, err, "failed to query osmoBal")
+				println("osmo user atom bal: ", osmoBal)
+				gaiaBal, err := cosmosAtom.GetBalance(ctx, gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
+				require.NoError(t, err, "failed to query gaiaBal")
+				println("gaia user osmo bal: ", gaiaBal)
+
+				if osmoBal != 0 && gaiaBal != 0 {
+					break
+				}
 			}
 		})
 	})

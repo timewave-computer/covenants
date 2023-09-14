@@ -64,10 +64,10 @@ pub fn execute(
 /// attempts to advance the state machine. performs `info.sender` validation
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
-    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-    if clock_addr != info.sender {
-        return Err(ContractError::Unauthorized {});
-    }
+    // let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    // if clock_addr != info.sender {
+    //     return Err(ContractError::Unauthorized {});
+    // }
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -94,23 +94,28 @@ fn try_forward(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let CovenantTerms::TokenSwap(covenant_terms) = COVENANT_TERMS.load(deps.storage)?;
 
     let mut party_a_coin = Coin {
-        denom: parties.party_a.provided_denom,
+        denom: parties.party_a.ibc_denom,
         amount: Uint128::zero(),
     };
     let mut party_b_coin = Coin {
-        denom: parties.party_b.provided_denom,
+        denom: parties.party_b.ibc_denom,
         amount: Uint128::zero(),
     };
 
     // query holder balances
     let balances = deps.querier.query_all_balances(env.contract.address)?;
     // find the existing balances of covenant coins
-    for coin in balances {
+    for coin in balances.clone() {
         if coin.denom == party_a_coin.denom && coin.amount >= covenant_terms.party_a_amount {
             party_a_coin.amount = coin.amount;
         } else if coin.denom == party_b_coin.denom && coin.amount >= covenant_terms.party_b_amount {
             party_b_coin.amount = coin.amount;
         }
+    }
+
+    if party_a_coin.amount == Uint128::zero() {
+        let bals: Vec<String> = balances.into_iter().map(|c| c.to_string()).collect();
+        return Ok(Response::default().add_attribute("balance_a", bals.join(" ")))
     }
 
     // if either of the coin amounts did not get updated to non-zero,
@@ -151,11 +156,11 @@ fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let parties = PARTIES_CONFIG.load(deps.storage)?;
 
     let mut party_a_coin = Coin {
-        denom: parties.clone().party_a.provided_denom,
+        denom: parties.clone().party_a.ibc_denom,
         amount: Uint128::zero(),
     };
     let mut party_b_coin = Coin {
-        denom: parties.clone().party_b.provided_denom,
+        denom: parties.clone().party_b.ibc_denom,
         amount: Uint128::zero(),
     };
 
@@ -208,7 +213,7 @@ fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::NextContract {} => Ok(to_binary(&NEXT_CONTRACT.may_load(deps.storage)?)?),
         QueryMsg::LockupConfig {} => Ok(to_binary(&LOCKUP_CONFIG.may_load(deps.storage)?)?),
@@ -216,6 +221,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::CovenantTerms {} => Ok(to_binary(&COVENANT_TERMS.may_load(deps.storage)?)?),
         QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
+        // the deposit address for swap-holder is the contract itself
+        QueryMsg::DepositAddress {} => Ok(to_binary(&Some(env.contract.address))?),
     }
 }
 

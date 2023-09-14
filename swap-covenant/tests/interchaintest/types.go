@@ -87,17 +87,19 @@ type SwapCovenantParties struct {
 
 type CovenantParty struct {
 	Addr           string         `json:"addr"`
-	ProvidedDenom  string         `json:"provided_denom"`
+	IbcDenom       string         `json:"ibc_denom"`
 	ReceiverConfig ReceiverConfig `json:"receiver_config"`
 }
 
 type SwapPartyConfig struct {
-	Addr                   string `json:"addr"`
-	ProvidedDenom          string `json:"provided_denom"`
-	PartyChainChannelId    string `json:"party_chain_channel_id"`
-	PartyReceiverAddr      string `json:"party_receiver_addr"`
-	PartyChainConnectionId string `json:"party_chain_connection_id"`
-	IbcTransferTimeout     string `json:"ibc_transfer_timeout"`
+	Addr                      string `json:"addr"`
+	NativeDenom               string `json:"native_denom"`
+	IbcDenom                  string `json:"ibc_denom"`
+	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
+	HostToPartyChainChannelId string `json:"host_to_party_chain_channel_id"`
+	PartyReceiverAddr         string `json:"party_receiver_addr"`
+	PartyChainConnectionId    string `json:"party_chain_connection_id"`
+	IbcTransferTimeout        string `json:"ibc_transfer_timeout"`
 }
 
 type ReceiverConfig struct {

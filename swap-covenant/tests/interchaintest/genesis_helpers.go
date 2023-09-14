@@ -29,7 +29,8 @@ import (
 func setupNeutronGenesis(
 	soft_opt_out_threshold string,
 	reward_denoms []string,
-	provider_reward_denoms []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
+	provider_reward_denoms []string,
+	allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
 		g := make(map[string]interface{})
 		if err := json.Unmarshal(genbz, &g); err != nil {
@@ -46,6 +47,10 @@ func setupNeutronGenesis(
 
 		if err := dyno.Set(g, provider_reward_denoms, "app_state", "ccvconsumer", "params", "provider_reward_denoms"); err != nil {
 			return nil, fmt.Errorf("failed to set provider_reward_denoms in genesis json: %w", err)
+		}
+
+		if err := dyno.Set(g, allowed_messages, "app_state", "interchainaccounts", "host_genesis_state", "params", "allow_messages"); err != nil {
+			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w", err)
 		}
 
 		out, err := json.Marshal(g)
