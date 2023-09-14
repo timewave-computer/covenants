@@ -4,6 +4,7 @@ use cosmwasm_std::{
     Uint128, Uint64,
 };
 use neutron_ica::RemoteChainInfo;
+use neutron_sdk::{bindings::msg::{NeutronMsg, IbcFee}, sudo::msg::RequestPacketTimeoutHeight};
 
 pub mod neutron_ica {
     use cosmwasm_schema::{cw_serde, QueryResponses};
@@ -257,7 +258,7 @@ pub struct CovenantParty {
     /// authorized address of the party
     pub addr: Addr,
     /// denom provided by the party
-    pub provided_denom: String,
+    pub ibc_denom: String,
     /// information about receiver address
     pub receiver_config: ReceiverConfig,
 }
@@ -268,7 +269,7 @@ impl CovenantParty {
             ReceiverConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
                 to_address: addr.to_string(),
                 amount: vec![Coin {
-                    denom: self.provided_denom,
+                    denom: self.ibc_denom,
                     amount,
                 }],
             }),
@@ -276,7 +277,7 @@ impl CovenantParty {
                 channel_id: destination_config.destination_chain_channel_id,
                 to_address: self.addr.to_string(),
                 amount: Coin {
-                    denom: self.provided_denom,
+                    denom: self.ibc_denom,
                     amount,
                 },
                 timeout: IbcTimeout::with_timestamp(
@@ -297,9 +298,9 @@ impl CovenantPartiesConfig {
     pub fn get_response_attributes(self) -> Vec<Attribute> {
         let mut attrs = vec![
             Attribute::new("party_a_address", self.party_a.addr),
-            Attribute::new("party_a_denom", self.party_a.provided_denom),
+            Attribute::new("party_a_ibc_denom", self.party_a.ibc_denom),
             Attribute::new("party_b_address", self.party_b.addr),
-            Attribute::new("party_b_denom", self.party_b.provided_denom),
+            Attribute::new("party_b_ibc_denom", self.party_b.ibc_denom),
         ];
         attrs.extend(
             self.party_a
@@ -356,20 +357,46 @@ impl DestinationConfig {
         &self,
         coins: Vec<Coin>,
         current_timestamp: Timestamp,
-    ) -> Vec<CosmosMsg> {
-        let mut messages: Vec<CosmosMsg> = vec![];
+        address: String,
+    ) -> Vec<CosmosMsg<NeutronMsg>> {
+        let mut messages: Vec<CosmosMsg<NeutronMsg>> = vec![];
 
         for coin in coins {
-            let msg: IbcMsg = IbcMsg::Transfer {
-                channel_id: self.destination_chain_channel_id.to_string(),
-                to_address: self.destination_receiver_addr.to_string(),
-                amount: coin,
-                timeout: IbcTimeout::with_timestamp(
-                    current_timestamp.plus_seconds(self.ibc_transfer_timeout.u64()),
-                ),
-            };
-
-            messages.push(CosmosMsg::Ibc(msg));
+            // let msg: IbcMsg = IbcMsg::Transfer {
+            //     channel_id: self.destination_chain_channel_id.to_string(),
+            //     to_address: self.destination_receiver_addr.to_string(),
+            //     amount: coin,
+                // timeout: IbcTimeout::with_timestamp(
+                //     current_timestamp.plus_seconds(self.ibc_transfer_timeout.u64()),
+                // ),
+            // };
+            if coin.denom != "untrn" {
+                messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer { 
+                    source_port: "transfer".to_string(),
+                    source_channel: self.destination_chain_channel_id.to_string(),
+                    token: coin,
+                    sender: address.to_string(),
+                    receiver: self.destination_receiver_addr.to_string(),
+                    timeout_height: RequestPacketTimeoutHeight {
+                        revision_number: None,
+                        revision_height: None,
+                    },
+                    timeout_timestamp: current_timestamp.plus_seconds(self.ibc_transfer_timeout.u64()).nanos(),
+                    memo: "hi".to_string(),
+                    fee: IbcFee {
+                        // must be empty
+                        recv_fee: vec![],
+                        ack_fee: vec![cosmwasm_std::Coin {
+                            denom: "untrn".to_string(),
+                            amount: Uint128::new(1000),
+                        }],
+                        timeout_fee: vec![cosmwasm_std::Coin {
+                            denom: "untrn".to_string(),
+                            amount: Uint128::new(1000),
+                        }],
+                    },
+                }));
+            }
         }
 
         messages
