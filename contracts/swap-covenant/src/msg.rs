@@ -40,10 +40,14 @@ pub struct SwapCovenantParties {
 pub struct SwapPartyConfig {
     /// authorized address of the party
     pub addr: Addr,
-    /// denom provided by the party
-    pub provided_denom: String,
-    /// channel id of the destination chain
-    pub party_chain_channel_id: String,
+    /// denom provided by the party on its native chain 
+    pub native_denom: String,
+    /// ibc denom provided by the party on neutron
+    pub ibc_denom: String,
+    /// channel id from party to host chain
+    pub party_to_host_chain_channel_id: String,
+    /// channel id from host chain to the party chain
+    pub host_to_party_chain_channel_id: String,
     /// address of the receiver on destination chain
     pub party_receiver_addr: Addr,
     /// connection id to the party chain

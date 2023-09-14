@@ -5,6 +5,7 @@ use cosmwasm_std::{
 };
 use covenant_utils::DestinationConfig;
 use cw2::set_contract_version;
+use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
 
 use crate::{
     error::ContractError,
@@ -50,14 +51,15 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response<NeutronMsg>, ContractError> {
+
     deps.api
         .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
 
     // Verify caller is the clock
-    if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
-        return Err(ContractError::Unauthorized {});
-    }
+    // if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
+    //     return Err(ContractError::Unauthorized {});
+    // }
 
     match msg {
         ExecuteMsg::Tick {} => try_route_balances(deps, env),
@@ -65,11 +67,12 @@ pub fn execute(
 }
 
 /// method that attempts to transfer out all available balances to the receiver
-fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response<NeutronMsg>, ContractError> {
+
     let destination_config: DestinationConfig = DESTINATION_CONFIG.load(deps.storage)?;
 
     // first we query all balances of the router
-    let balances = deps.querier.query_all_balances(env.contract.address)?;
+    let balances = deps.querier.query_all_balances(env.clone().contract.address)?;
 
     // if there are no balances, we return early;
     // otherwise build up the response attributes
@@ -85,8 +88,12 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
     };
 
     // get ibc transfer messages for each denom
-    let messages = destination_config.get_ibc_transfer_messages_for_coins(balances, env.block.time);
-
+    let messages = destination_config.get_ibc_transfer_messages_for_coins(
+        balances,
+        env.clone().block.time,
+        env.contract.address.to_string(),
+    );
+    
     Ok(Response::default()
         .add_attribute("method", "try_route_balances")
         .add_attributes(balance_attributes)

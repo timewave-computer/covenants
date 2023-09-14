@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Attribute};
-use covenant_macros::{clocked, covenant_clock_address};
+use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::{LockupConfig, CovenantPartiesConfig, CovenantTerms};
 
 #[cw_serde]
@@ -69,6 +69,7 @@ impl PresetSwapHolderFields {
 pub enum ExecuteMsg {}
 
 #[covenant_clock_address]
+#[covenant_deposit_address]
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {

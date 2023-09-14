@@ -98,7 +98,7 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             
             let router_instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
                 clock_address: clock_addr.to_string(),
-                destination_chain_channel_id: party_config.party_a.party_chain_channel_id,
+                destination_chain_channel_id: party_config.party_a.host_to_party_chain_channel_id,
                 destination_receiver_addr: party_config.party_a.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: party_config.party_a.ibc_transfer_timeout,
             };
@@ -152,7 +152,7 @@ pub fn handle_party_a_interchain_router_reply(deps: DepsMut, env: Env, msg: Repl
                 msg: to_binary(
                     &covenant_interchain_router::msg::InstantiateMsg {
                         clock_address: clock_addr.to_string(),
-                        destination_chain_channel_id: party_config.party_b.party_chain_channel_id,
+                        destination_chain_channel_id: party_config.party_b.host_to_party_chain_channel_id,
                         destination_receiver_addr: party_config.party_b.addr.to_string(),
                         ibc_transfer_timeout: party_config.party_b.ibc_transfer_timeout,
                     },
@@ -294,8 +294,8 @@ pub fn handle_swap_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<R
                 clock_address: clock_addr.to_string(),
                 next_contract: swap_holder_addr.to_string(),
                 remote_chain_connection_id: covenant_party.party_chain_connection_id,
-                remote_chain_channel_id: covenant_party.party_chain_channel_id,
-                denom: covenant_party.provided_denom,
+                remote_chain_channel_id: covenant_party.party_to_host_chain_channel_id,
+                denom: covenant_party.native_denom,
                 amount: covenant_terms.party_a_amount,
                 ibc_fee,
                 ibc_transfer_timeout: timeouts.ibc_transfer_timeout,
@@ -349,8 +349,8 @@ pub fn handle_party_a_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -
                 clock_address: clock_addr.to_string(),
                 next_contract: swap_holder.to_string(),
                 remote_chain_connection_id: covenant_party.party_chain_connection_id,
-                remote_chain_channel_id: covenant_party.party_chain_channel_id,
-                denom: covenant_party.provided_denom,
+                remote_chain_channel_id: covenant_party.party_to_host_chain_channel_id,
+                denom: covenant_party.native_denom,
                 amount: covenant_terms.party_b_amount,
                 ibc_fee,
                 ibc_transfer_timeout: timeouts.ibc_transfer_timeout,

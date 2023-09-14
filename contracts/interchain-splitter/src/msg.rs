@@ -2,7 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, IbcTimeout, Uint128,
 };
-use covenant_macros::{clocked, covenant_clock_address};
+use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 
 use crate::error::ContractError;
 
@@ -208,6 +208,7 @@ impl SplitConfig {
 }
 
 #[covenant_clock_address]
+#[covenant_deposit_address]
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
