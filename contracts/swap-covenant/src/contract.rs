@@ -1,3 +1,4 @@
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -186,14 +187,8 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             Ok(Response::default()
                 .add_attribute("method", "handle_clock_reply")
                 .add_attribute("clock_addr", clock_addr)
-                .add_attribute(
-                    "router_code_id",
-                    party_a_router_preset_fields.code_id.to_string(),
-                )
-                .add_attribute(
-                    "party_a_addr",
-                    party_a_router_preset_fields.destination_receiver_addr,
-                )
+                .add_attribute("router_code_id", party_a_router_preset_fields.code_id.to_string())
+                .add_attribute("party_a_addr", party_a_router_preset_fields.destination_receiver_addr)
                 .add_submessage(SubMsg::reply_always(
                     party_a_router_instantiate_tx,
                     PARTY_A_INTERCHAIN_ROUTER_REPLY_ID,
@@ -270,16 +265,14 @@ pub fn handle_party_b_interchain_router_reply(
             let preset_splitter_fields = PRESET_SPLITTER_FIELDS.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let party_a_router = PARTY_A_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
-            let splitter_instantiate_msg = preset_splitter_fields
-                .to_instantiate_msg(
-                    clock_addr.to_string(),
-                    party_a_router.to_string(),
-                    router_addr.to_string(),
-                )
-                .map_err(|e| ContractError::ContractInstantiationError {
-                    contract: "splitter".to_string(),
-                    err: ParseReplyError::ParseFailure(e.to_string()),
-                })?;
+            let splitter_instantiate_msg = preset_splitter_fields.to_instantiate_msg(
+                clock_addr.to_string(),
+                party_a_router.to_string(),
+                router_addr.to_string()
+            ).map_err(|e| ContractError::ContractInstantiationError {
+                contract: "splitter".to_string(),
+                err: ParseReplyError::ParseFailure(e.to_string()),
+            })?;
 
             let splitter_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
