@@ -45,11 +45,13 @@ pub struct PresetIbcForwarderFields {
     pub remote_chain_channel_id: String,
     pub denom: String,
     pub amount: Uint128,
+    pub label: String,
+    pub code_id: u64,
 }
 
 impl PresetIbcForwarderFields {
     pub fn to_instantiate_msg(
-        self,
+        &self,
         clock_address: String,
         next_contract: String,
         ibc_fee: IbcFee,
@@ -59,9 +61,9 @@ impl PresetIbcForwarderFields {
         InstantiateMsg {
             clock_address,
             next_contract,
-            remote_chain_connection_id: self.remote_chain_connection_id,
-            remote_chain_channel_id: self.remote_chain_channel_id,
-            denom: self.denom,
+            remote_chain_connection_id: self.remote_chain_connection_id.to_string(),
+            remote_chain_channel_id: self.remote_chain_channel_id.to_string(),
+            denom: self.denom.to_string(),
             amount: self.amount,
             ibc_fee,
             ibc_transfer_timeout,

@@ -5,7 +5,7 @@ use cosmwasm_std::{
 };
 use covenant_utils::DestinationConfig;
 use cw2::set_contract_version;
-use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
+use neutron_sdk::bindings::msg::NeutronMsg;
 
 use crate::{
     error::ContractError,

@@ -26,12 +26,12 @@ pub struct InstantiateMsg {
 pub struct PresetClockFields {
     pub tick_max_gas: Option<Uint64>,
     pub whitelist: Vec<String>,
-    pub clock_code: u64,
+    pub code_id: u64,
     pub label: String,
 }
 
 impl PresetClockFields {
-    pub fn to_instantiate_msg(self) -> InstantiateMsg {
+    pub fn to_instantiate_msg(&self) -> InstantiateMsg {
         let tick_max_gas = if let Some(tmg) = self.tick_max_gas {
             // double the 100k minimum seems fair
             tmg.min(Uint64::new(200000))
@@ -42,7 +42,7 @@ impl PresetClockFields {
 
         InstantiateMsg {
             tick_max_gas: Some(tick_max_gas),
-            whitelist: self.whitelist,
+            whitelist: self.clone().whitelist,
         }
     }
 }
