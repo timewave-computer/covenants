@@ -3,6 +3,7 @@ package ibc_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -31,6 +32,23 @@ func (testCtx *TestContext) getIbcDenom(channelId string, denom string) string {
 	prefixedDenom := transfertypes.GetPrefixedDenom("transfer", channelId, denom)
 	srcDenomTrace := transfertypes.ParseDenomTrace(prefixedDenom)
 	return srcDenomTrace.IBCDenom()
+}
+
+// channel trace should be an ordered list of the path denom would take,
+// starting from the source chain, and ending on the destination chain.
+// assumes "transfer" ports.
+func (testCtx *TestContext) getMultihopIbcDenom(channelTrace []string, denom string) string {
+	var portChannelTrace []string
+
+	for _, channel := range channelTrace {
+		portChannelTrace = append(portChannelTrace, fmt.Sprintf("%s/%s", "transfer", channel))
+	}
+
+	prefixedDenom := fmt.Sprintf("%s/%s", strings.Join(portChannelTrace, "/"), denom)
+
+	denomTrace := transfertypes.ParseDenomTrace(prefixedDenom)
+	return denomTrace.IBCDenom()
+
 }
 
 func (testCtx *TestContext) getChainClients(chain string) []*ibc.ClientOutput {
@@ -69,7 +87,6 @@ func (testCtx *TestContext) setIcsChannelId(chain string, destChain string, chan
 }
 
 func (testCtx *TestContext) updateChainClients(chain string, clients []*ibc.ClientOutput) {
-	println("updating chain clients for ", chain)
 	switch chain {
 	case "neutron-2":
 		testCtx.NeutronClients = clients
@@ -84,13 +101,10 @@ func (testCtx *TestContext) updateChainClients(chain string, clients []*ibc.Clie
 func (testCtx *TestContext) getChainConnections(chain string) []*ibc.ConnectionOutput {
 	switch chain {
 	case "neutron-2":
-		println("getting neutron connections")
 		return testCtx.NeutronConnections
 	case "gaia-1":
-		println("getting gaia connections")
 		return testCtx.GaiaConnections
 	case "osmosis-3":
-		println("getting osmosis connections")
 		return testCtx.OsmoConnections
 	default:
 		println("error finding connections for chain ", chain)
@@ -99,8 +113,6 @@ func (testCtx *TestContext) getChainConnections(chain string) []*ibc.ConnectionO
 }
 
 func (testCtx *TestContext) updateChainConnections(chain string, connections []*ibc.ConnectionOutput) {
-	println("updating chain connections for ", chain)
-	printConnections(connections)
 	switch chain {
 	case "neutron-2":
 		testCtx.NeutronConnections = connections
