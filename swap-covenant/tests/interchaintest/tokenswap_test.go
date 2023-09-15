@@ -140,7 +140,11 @@ func TestTokenSwap(t *testing.T) {
 	client, network := ibctest.DockerSetup(t)
 	r := ibctest.NewBuiltinRelayerFactory(
 		ibc.CosmosRly,
+<<<<<<< HEAD
 		zaptest.NewLogger(t, zaptest.Level(zap.InfoLevel)),
+=======
+		zaptest.NewLogger(t, zaptest.Level(zap.WarnLevel)),
+>>>>>>> 2afc023 (wip: rework covenant instantiation structure)
 		relayer.CustomDockerImage("ghcr.io/cosmos/relayer", "v2.3.1", rly.RlyDefaultUidGid),
 		relayer.RelayerOptionExtraStartFlags{Flags: []string{"-p", "events", "-b", "100", "-d", "--log-format", "console"}},
 	).Build(t, client, network)
@@ -391,11 +395,18 @@ func TestTokenSwap(t *testing.T) {
 				PartyBAmount: strconv.FormatUint(osmoContributionAmount, 10),
 			}
 
+<<<<<<< HEAD
 			// timestamp := Timestamp("1981539923")
 			block := Block(500)
 
 			lockupConfig := LockupConfig{
 				BlockHeight: &block,
+=======
+			timestamp := Timestamp("1981539923")
+
+			lockupConfig := LockupConfig{
+				Time: &timestamp,
+>>>>>>> 2afc023 (wip: rework covenant instantiation structure)
 			}
 			presetIbcFee := PresetIbcFee{
 				AckFee:     "10000",
@@ -479,6 +490,7 @@ func TestTokenSwap(t *testing.T) {
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
 			instantiateMsg := string(str)
 
+			println("instantiation message: ", instantiateMsg)
 			cmd := []string{"neutrond", "tx", "wasm", "instantiate", covenantCodeIdStr,
 				instantiateMsg,
 				"--label", "swap-covenant",
