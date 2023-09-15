@@ -31,13 +31,13 @@ fn test_instantiate_happy_and_query_all() {
         covenant_parties,
         CovenantPartiesConfig {
             party_a: CovenantParty {
-                addr: Addr::unchecked(PARTY_A_ADDR.to_string()),
-                provided_denom: DENOM_A.to_string(),
+                addr: PARTY_A_ADDR.to_string(),
+                ibc_denom: DENOM_A.to_string(),
                 receiver_config: ReceiverConfig::Native(Addr::unchecked(PARTY_A_ADDR.to_string())),
             },
             party_b: CovenantParty {
-                addr: Addr::unchecked(PARTY_B_ADDR.to_string()),
-                provided_denom: DENOM_B.to_string(),
+                ibc_denom: DENOM_B.to_string(),
+                addr: PARTY_B_ADDR.to_string(),
                 receiver_config: ReceiverConfig::Native(Addr::unchecked(PARTY_B_ADDR.to_string())),
             },
         }

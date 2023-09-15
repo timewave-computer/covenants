@@ -3,7 +3,6 @@ use cosmwasm_std::{
     Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, IbcMsg, IbcTimeout, StdError, Timestamp,
     Uint128, Uint64,
 };
-use neutron_ica::RemoteChainInfo;
 use neutron_sdk::{bindings::msg::{NeutronMsg, IbcFee}, sudo::msg::RequestPacketTimeoutHeight};
 
 pub mod neutron_ica {
@@ -256,7 +255,7 @@ impl ReceiverConfig {
 #[cw_serde]
 pub struct CovenantParty {
     /// authorized address of the party
-    pub addr: Addr,
+    pub addr: String,
     /// denom provided by the party
     pub ibc_denom: String,
     /// information about receiver address
