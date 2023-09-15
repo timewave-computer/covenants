@@ -26,6 +26,9 @@ pub struct PresetInterchainSplitterFields {
     pub fallback_split: Option<SplitType>,
     /// contract label
     pub label: String,
+    pub code_id: u64,
+    pub party_a_addr: String,
+    pub party_b_addr: String,
 }
 
 #[cw_serde]
@@ -39,35 +42,33 @@ impl PresetInterchainSplitterFields {
     /// - replaces real receiver addresses with their routers
     /// - adds clock address
     pub fn to_instantiate_msg(
-        self,
+        &self,
         clock_address: String,
         party_a_router: String,
-        party_a_addr: String,
         party_b_router: String,
-        party_b_addr: String,
     ) -> Result<InstantiateMsg, ContractError> {
         let mut remapped_splits: Vec<(String, SplitType)> = vec![];
 
-        for denom_split in self.splits {
-            match denom_split.split {
+        for denom_split in &self.splits {
+            match &denom_split.split {
                 SplitType::Custom(config) => {
                     let remapped_split = config.remap_receivers_to_routers(
-                        party_a_addr.to_string(),
+                        self.party_a_addr.to_string(),
                         party_a_router.to_string(),
-                        party_b_addr.to_string(),
+                        self.party_b_addr.to_string(),
                         party_b_router.to_string(),
                     )?;
-                    remapped_splits.push((denom_split.denom, remapped_split));
+                    remapped_splits.push((denom_split.denom.to_string(), remapped_split));
                 },
             }
         }
 
-        let remapped_fallback = match self.fallback_split {
+        let remapped_fallback = match &self.fallback_split {
             Some(split_type) => match split_type {
                 SplitType::Custom(config) => Some(config.remap_receivers_to_routers(
-                    party_a_addr.to_string(),
+                    self.party_a_addr.to_string(),
                     party_a_router.to_string(),
-                    party_b_addr.to_string(),
+                    self.party_b_addr.to_string(),
                     party_b_router.to_string(),
                 )?)
             },
@@ -134,8 +135,8 @@ pub struct Receiver {
 }
 
 impl SplitConfig {
-    pub fn remap_receivers_to_routers(self, receiver_a: String, router_a: String, receiver_b: String, router_b: String) -> Result<SplitType, ContractError> {
-        let receivers = self.receivers.into_iter()
+    pub fn remap_receivers_to_routers(&self, receiver_a: String, router_a: String, receiver_b: String, router_b: String) -> Result<SplitType, ContractError> {
+        let receivers = self.receivers.clone().into_iter()
             .map(|receiver| {
                 if receiver.addr == receiver_a {
                     Receiver {
@@ -230,23 +231,4 @@ pub enum MigrateMsg {
     UpdateCodeId {
         data: Option<Binary>,
     },
-}
-
-#[covenant_clock_address]
-#[cw_serde]
-#[derive(QueryResponses)]
-pub enum QueryMsg {
-    #[returns(SplitConfig)]
-    DenomSplit { denom: String },
-    #[returns(Vec<(String, SplitConfig)>)]
-    Splits {},
-    #[returns(SplitConfig)]
-    FallbackSplit {},
-}
-
-#[cw_serde]
-#[derive(QueryResponses)]
-pub enum ProtocolGuildQueryMsg {
-    #[returns(SplitConfig)]
-    PublicGoodsSplit {},
 }

@@ -18,6 +18,29 @@ pub struct InstantiateMsg {
     pub ibc_transfer_timeout: Uint64,
 }
 
+#[cw_serde]
+pub struct PresetInterchainRouterFields {
+    /// channel id of the destination chain
+    pub destination_chain_channel_id: String,
+    /// address of the receiver on destination chain
+    pub destination_receiver_addr: String,
+    /// timeout in seconds
+    pub ibc_transfer_timeout: Uint64,
+    pub label: String,
+    pub code_id: u64,
+}
+
+impl PresetInterchainRouterFields {
+    pub fn to_instantiate_msg(&self, clock_address: String) -> InstantiateMsg {
+        InstantiateMsg {
+            clock_address,
+            destination_chain_channel_id: self.destination_chain_channel_id.to_string(),
+            destination_receiver_addr: self.destination_receiver_addr.to_string(),
+            ibc_transfer_timeout: self.ibc_transfer_timeout,
+        }
+    }
+}
+
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {}

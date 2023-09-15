@@ -140,7 +140,7 @@ func TestTokenSwap(t *testing.T) {
 	client, network := ibctest.DockerSetup(t)
 	r := ibctest.NewBuiltinRelayerFactory(
 		ibc.CosmosRly,
-		zaptest.NewLogger(t, zaptest.Level(zap.ErrorLevel)),
+		zaptest.NewLogger(t, zaptest.Level(zap.WarnLevel)),
 		relayer.CustomDockerImage("ghcr.io/cosmos/relayer", "v2.3.1", rly.RlyDefaultUidGid),
 		relayer.RelayerOptionExtraStartFlags{Flags: []string{"-p", "events", "-b", "100", "-d", "--log-format", "console"}},
 	).Build(t, client, network)
@@ -381,14 +381,6 @@ func TestTokenSwap(t *testing.T) {
 		})
 
 		t.Run("instantiate covenant", func(t *testing.T) {
-
-			// Clock instantiation message
-			clockMsg := PresetClockFields{
-				ClockCode: clockCodeId,
-				Label:     "covenant-clock",
-				Whitelist: []string{},
-			}
-
 			timeouts := Timeouts{
 				IcaTimeout:         "100", // sec
 				IbcTransferTimeout: "100", // sec
@@ -399,64 +391,14 @@ func TestTokenSwap(t *testing.T) {
 				PartyBAmount: strconv.FormatUint(osmoContributionAmount, 10),
 			}
 
-			covenantPartiesConfig := CovenantPartiesConfig{
-				PartyA: CovenantParty{
-					Addr:     gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-					IbcDenom: neutronAtomIbcDenom,
-					ReceiverConfig: ReceiverConfig{
-						Native: gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-					},
-				},
-				PartyB: CovenantParty{
-					Addr:     osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-					IbcDenom: neutronOsmoIbcDenom,
-					ReceiverConfig: ReceiverConfig{
-						Native: osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-					},
-				},
-			}
 			timestamp := Timestamp("1981539923")
 
 			lockupConfig := LockupConfig{
 				Time: &timestamp,
 			}
-			covenantTerms := CovenantTerms{
-				TokenSwap: swapCovenantTerms,
-			}
 			presetIbcFee := PresetIbcFee{
 				AckFee:     "10000",
 				TimeoutFee: "10000",
-			}
-
-			presetSwapHolder := PresetSwapHolderFields{
-				LockupConfig:          lockupConfig,
-				CovenantPartiesConfig: covenantPartiesConfig,
-				CovenantTerms:         covenantTerms,
-				CodeId:                swapHolderCodeId,
-				Label:                 "swap-holder",
-			}
-
-			swapCovenantParties := SwapCovenantParties{
-				PartyA: SwapPartyConfig{
-					Addr:                      gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-					NativeDenom:               nativeAtomDenom,
-					IbcDenom:                  neutronAtomIbcDenom,
-					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
-					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyReceiverAddr:         gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-					PartyChainConnectionId:    neutronAtomIBCConnId,
-					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-				},
-				PartyB: SwapPartyConfig{
-					Addr:                      osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-					NativeDenom:               nativeOsmoDenom,
-					IbcDenom:                  neutronOsmoIbcDenom,
-					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
-					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyReceiverAddr:         osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-					PartyChainConnectionId:    neutronOsmosisIBCConnId,
-					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-				},
 			}
 
 			presetSplitterFields := PresetSplitterFields{
@@ -492,23 +434,51 @@ func TestTokenSwap(t *testing.T) {
 				Label:         "interchain-splitter",
 			}
 
-			covenantMsg := CovenantInstantiateMsg{
-				Label:                  "swap-covenant",
-				Timeouts:               timeouts,
-				PresetIbcFee:           presetIbcFee,
+			partyAConfig := SwapPartyConfig{
+				Addr:                      gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				NativeDenom:               nativeAtomDenom,
+				IbcDenom:                  neutronAtomIbcDenom,
+				PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+				HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
+				PartyReceiverAddr:         gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				PartyChainConnectionId:    neutronAtomIBCConnId,
+				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+			}
+			partyBConfig := SwapPartyConfig{
+				Addr:                      osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+				NativeDenom:               nativeOsmoDenom,
+				IbcDenom:                  neutronOsmoIbcDenom,
+				PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
+				HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
+				PartyReceiverAddr:         osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+				PartyChainConnectionId:    neutronOsmosisIBCConnId,
+				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+			}
+			codeIds := SwapCovenantContractCodeIds{
 				IbcForwarderCode:       ibcForwarderCodeId,
 				InterchainRouterCode:   routerCodeId,
 				InterchainSplitterCode: splitterCodeId,
-				PresetClock:            clockMsg,
-				PresetSwapHolder:       presetSwapHolder,
-				SwapCovenantParties:    swapCovenantParties,
-				PresetSplitterFields:   presetSplitterFields,
+				ClockCode:              clockCodeId,
+				HolderCode:             swapHolderCodeId,
 			}
 
+			covenantMsg := CovenantInstantiateMsg{
+				Label:                       "swap-covenant",
+				Timeouts:                    timeouts,
+				PresetIbcFee:                presetIbcFee,
+				SwapCovenantContractCodeIds: codeIds,
+				LockupConfig:                lockupConfig,
+				SwapCovenantTerms:           swapCovenantTerms,
+				PartyAConfig:                partyAConfig,
+				PartyBConfig:                partyBConfig,
+				Splits:                      presetSplitterFields.Splits,
+				FallbackSplit:               presetSplitterFields.FallbackSplit,
+			}
 			str, err := json.Marshal(covenantMsg)
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
 			instantiateMsg := string(str)
 
+			println("instantiation message: ", instantiateMsg)
 			cmd := []string{"neutrond", "tx", "wasm", "instantiate", covenantCodeIdStr,
 				instantiateMsg,
 				"--label", "swap-covenant",

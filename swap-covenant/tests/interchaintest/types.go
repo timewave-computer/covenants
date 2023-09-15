@@ -6,16 +6,25 @@ package ibc_test
 
 // ----- Covenant Instantiation ------
 type CovenantInstantiateMsg struct {
-	Label                  string                 `json:"label"`
-	Timeouts               Timeouts               `json:"timeouts"`
-	PresetIbcFee           PresetIbcFee           `json:"preset_ibc_fee"`
-	IbcForwarderCode       uint64                 `json:"ibc_forwarder_code"`
-	InterchainRouterCode   uint64                 `json:"interchain_router_code"`
-	InterchainSplitterCode uint64                 `json:"splitter_code"`
-	PresetClock            PresetClockFields      `json:"preset_clock_fields"`
-	PresetSwapHolder       PresetSwapHolderFields `json:"preset_holder_fields"`
-	SwapCovenantParties    SwapCovenantParties    `json:"covenant_parties"`
-	PresetSplitterFields   PresetSplitterFields   `json:"preset_splitter_fields"`
+	Label                       string                      `json:"label"`
+	Timeouts                    Timeouts                    `json:"timeouts"`
+	PresetIbcFee                PresetIbcFee                `json:"preset_ibc_fee"`
+	SwapCovenantContractCodeIds SwapCovenantContractCodeIds `json:"contract_codes"`
+	TickMaxGas                  string                      `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig                LockupConfig                `json:"lockup_config"`
+	SwapCovenantTerms           SwapCovenantTerms           `json:"covenant_terms"`
+	PartyAConfig                SwapPartyConfig             `json:"party_a_config"`
+	PartyBConfig                SwapPartyConfig             `json:"party_b_config"`
+	Splits                      []DenomSplit                `json:"splits"`
+	FallbackSplit               *SplitType                  `json:"fallback_split,omitempty"`
+}
+
+type SwapCovenantContractCodeIds struct {
+	IbcForwarderCode       uint64 `json:"ibc_forwarder_code"`
+	InterchainRouterCode   uint64 `json:"interchain_router_code"`
+	InterchainSplitterCode uint64 `json:"splitter_code"`
+	ClockCode              uint64 `json:"clock_code"`
+	HolderCode             uint64 `json:"holder_code"`
 }
 
 type Receiver struct {

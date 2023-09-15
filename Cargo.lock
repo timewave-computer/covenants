@@ -356,37 +356,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "covenant-covenant"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "astroport 2.8.0",
- "base64 0.13.1",
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-depositor",
- "covenant-holder",
- "covenant-lp",
- "covenant-ls",
- "cw-multi-test",
- "cw-storage-plus 1.1.0",
- "cw-utils 1.0.2",
- "cw2 1.1.1",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types",
- "protobuf 3.3.0",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "sha2 0.10.8",
- "thiserror",
-]
-
-[[package]]
 name = "covenant-depositor"
 version = "1.0.0"
 dependencies = [
@@ -625,16 +594,16 @@ dependencies = [
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.1",
- "cw2 1.1.0",
+ "cw-utils 1.0.2",
+ "cw2 1.1.1",
  "neutron-sdk",
  "prost 0.11.9",
  "prost-types",
- "protobuf 3.2.0",
+ "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "thiserror",
 ]
 
