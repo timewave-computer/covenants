@@ -84,6 +84,21 @@ func setupGaiaGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 	}
 }
 
+func getDefaultInterchainGenesisMessages() []string {
+	return []string{
+		"/cosmos.bank.v1beta1.MsgSend",
+		"/cosmos.bank.v1beta1.MsgMultiSend",
+		"/cosmos.staking.v1beta1.MsgDelegate",
+		"/cosmos.staking.v1beta1.MsgUndelegate",
+		"/cosmos.staking.v1beta1.MsgBeginRedelegate",
+		"/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
+		"/cosmos.staking.v1beta1.MsgTokenizeShares",
+		"/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+		"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+		"/ibc.applications.transfer.v1.MsgTransfer",
+	}
+}
+
 func setupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
 		g := make(map[string]interface{})
