@@ -140,7 +140,7 @@ func TestTokenSwap(t *testing.T) {
 	client, network := ibctest.DockerSetup(t)
 	r := ibctest.NewBuiltinRelayerFactory(
 		ibc.CosmosRly,
-		zaptest.NewLogger(t, zaptest.Level(zap.WarnLevel)),
+		zaptest.NewLogger(t, zaptest.Level(zap.InfoLevel)),
 		relayer.CustomDockerImage("ghcr.io/cosmos/relayer", "v2.3.1", rly.RlyDefaultUidGid),
 		relayer.RelayerOptionExtraStartFlags{Flags: []string{"-p", "events", "-b", "100", "-d", "--log-format", "console"}},
 	).Build(t, client, network)

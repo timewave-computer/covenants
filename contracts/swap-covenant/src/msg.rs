@@ -103,7 +103,7 @@ pub struct PresetIbcFee {
 }
 
 impl PresetIbcFee {
-    pub fn to_ibc_fee(self) -> IbcFee {
+    pub fn to_ibc_fee(&self) -> IbcFee {
         IbcFee {
             // must be empty
             recv_fee: vec![],
@@ -137,10 +137,6 @@ pub enum QueryMsg {
     InterchainRouterAddress { party: String },
     #[returns(Addr)]
     IbcForwarderAddress { party: String },
-    #[returns(IbcFee)]
-    IbcFee {},
-    #[returns(Timeouts)]
-    Timeouts {},
 }
 
 #[cw_serde]

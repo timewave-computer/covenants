@@ -18,7 +18,7 @@ use cw_utils::{parse_reply_instantiate_data, ParseReplyError};
 use crate::{
     error::ContractError,
     state::{
-        TIMEOUTS, COVENANT_CLOCK_ADDR, PRESET_HOLDER_FIELDS, COVENANT_INTERCHAIN_SPLITTER_ADDR, PRESET_SPLITTER_FIELDS, COVENANT_SWAP_HOLDER_ADDR, IBC_FEE, PARTY_A_IBC_FORWARDER_ADDR, PARTY_B_IBC_FORWARDER_ADDR, PARTY_A_INTERCHAIN_ROUTER_ADDR, PARTY_B_INTERCHAIN_ROUTER_ADDR, PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PRESET_CLOCK_FIELDS,
+        COVENANT_CLOCK_ADDR, PRESET_HOLDER_FIELDS, COVENANT_INTERCHAIN_SPLITTER_ADDR, PRESET_SPLITTER_FIELDS, COVENANT_SWAP_HOLDER_ADDR, PARTY_A_IBC_FORWARDER_ADDR, PARTY_B_IBC_FORWARDER_ADDR, PARTY_A_INTERCHAIN_ROUTER_ADDR, PARTY_B_INTERCHAIN_ROUTER_ADDR, PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PRESET_CLOCK_FIELDS,
     }, msg::{InstantiateMsg, QueryMsg},
 };
 
@@ -51,6 +51,9 @@ pub fn instantiate(
         amount: msg.covenant_terms.party_a_amount,
         label: format!("{}_party_a_ibc_forwarder", msg.label),
         code_id: msg.contract_codes.ibc_forwarder_code,
+        ica_timeout: msg.timeouts.ica_timeout,
+        ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
     };
     let preset_party_b_forwarder_fields = PresetIbcForwarderFields {
         remote_chain_connection_id: msg.party_b_config.party_chain_connection_id,
@@ -59,6 +62,9 @@ pub fn instantiate(
         amount: msg.covenant_terms.party_b_amount,
         label: format!("{}_party_b_ibc_forwarder", msg.label),
         code_id: msg.contract_codes.ibc_forwarder_code,
+        ica_timeout: msg.timeouts.ica_timeout,
+        ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
     };
     let preset_party_a_router_fields = PresetInterchainRouterFields {
         destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
@@ -114,9 +120,6 @@ pub fn instantiate(
     PRESET_PARTY_A_ROUTER_FIELDS.save(deps.storage, &preset_party_a_router_fields)?;
     PRESET_PARTY_B_ROUTER_FIELDS.save(deps.storage, &preset_party_b_router_fields)?;
     PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
-
-    TIMEOUTS.save(deps.storage, &msg.timeouts)?;
-    IBC_FEE.save(deps.storage, &msg.preset_ibc_fee.to_ibc_fee())?;
 
     // we start the module instantiation chain with the clock
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -327,16 +330,11 @@ pub fn handle_swap_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<R
 
             // load the fields relevant to ibc forwarder instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
-            let timeouts = TIMEOUTS.load(deps.storage)?;
-            let ibc_fee = IBC_FEE.load(deps.storage)?;
             let preset_party_a_forwarder_fields = PRESET_PARTY_A_FORWARDER_FIELDS.load(deps.storage)?;
 
             let instantiate_msg = preset_party_a_forwarder_fields.to_instantiate_msg(
                 clock_addr.to_string(),
                 swap_holder_addr.to_string(),
-                ibc_fee,
-                timeouts.ibc_transfer_timeout,
-                timeouts.ica_timeout
             );
             let party_a_forwarder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -372,17 +370,12 @@ pub fn handle_party_a_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -
 
             // load the fields relevant to ibc forwarder instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
-            let timeouts = TIMEOUTS.load(deps.storage)?;
-            let ibc_fee = IBC_FEE.load(deps.storage)?;
             let preset_party_b_forwarder_fields = PRESET_PARTY_B_FORWARDER_FIELDS.load(deps.storage)?;
             let swap_holder = COVENANT_SWAP_HOLDER_ADDR.load(deps.storage)?;
 
             let instantiate_msg = preset_party_b_forwarder_fields.to_instantiate_msg(
                 clock_addr.to_string(),
                 swap_holder.to_string(),
-                ibc_fee,
-                timeouts.ibc_transfer_timeout,
-                timeouts.ica_timeout,
             );
 
             let party_b_forwarder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -482,7 +475,5 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             };
             Ok(to_binary(&resp)?)
         }
-        QueryMsg::IbcFee {} => Ok(to_binary(&IBC_FEE.may_load(deps.storage)?)?),
-        QueryMsg::Timeouts {} => Ok(to_binary(&TIMEOUTS.may_load(deps.storage)?)?),
     }
 }

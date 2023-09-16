@@ -6,17 +6,8 @@ use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
 
 use cw_storage_plus::Item;
-use neutron_sdk::bindings::msg::IbcFee;
 
-use crate::msg::Timeouts;
-
-/// ibc fee for the relayers
-pub const IBC_FEE: Item<IbcFee> = Item::new("ibc_fee");
-/// ibc transfer and ica timeouts that will be passed down to
-/// modules dealing with ICA
-pub const TIMEOUTS: Item<Timeouts> = Item::new("timeouts");
-
-// /// fields related to the contracts known prior to their.
+// fields related to the contracts known prior to their.
 pub const PRESET_CLOCK_FIELDS: Item<PresetClockFields> = Item::new("preset_clock_fields");
 pub const PRESET_HOLDER_FIELDS: Item<PresetSwapHolderFields> = Item::new("preset_holder_fields");
 pub const PRESET_SPLITTER_FIELDS: Item<PresetInterchainSplitterFields> = Item::new("preset_splitter_fields");
