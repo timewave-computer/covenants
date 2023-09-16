@@ -639,7 +639,7 @@ func TestTokenSwap(t *testing.T) {
 
 	t.Run("tokenswap run", func(t *testing.T) {
 		tickClock := func() {
-			println("tick")
+			println("\ntick")
 			cmd := []string{"neutrond", "tx", "wasm", "execute", clockAddress,
 				`{"tick":{}}`,
 				"--from", neutronUser.KeyName,
@@ -660,6 +660,32 @@ func TestTokenSwap(t *testing.T) {
 			require.NoError(t, err)
 			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
 			require.NoError(t, err, "failed to wait for blocks")
+			var response CovenantAddressQueryResponse
+			type ContractState struct{}
+			type ContractStateQuery struct {
+				ContractState ContractState `json:"contract_state"`
+			}
+			contractStateQuery := ContractStateQuery{
+				ContractState: ContractState{},
+			}
+
+			require.NoError(t,
+				cosmosNeutron.QueryContract(ctx, partyAIbcForwarderAddress, contractStateQuery, &response),
+				"failed to query forwarder A state")
+			partyAForwarderState := response.Data
+			require.NoError(t,
+				cosmosNeutron.QueryContract(ctx, partyBIbcForwarderAddress, contractStateQuery, &response),
+				"failed to query forwarder A state")
+			partyBForwarderState := response.Data
+			require.NoError(t,
+				cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
+				"failed to query forwarder A state")
+			holderState := response.Data
+
+			println("partyAForwarderState: ", partyAForwarderState)
+			println("partyBForwarderState: ", partyBForwarderState)
+			println("holderState: ", holderState)
+
 		}
 
 		t.Run("tick until forwarders create ICA", func(t *testing.T) {
@@ -740,7 +766,21 @@ func TestTokenSwap(t *testing.T) {
 				holderAtomBal, err := cosmosNeutron.GetBalance(ctx, holderAddress, neutronAtomIbcDenom)
 				require.NoError(t, err, "failed to query holder atom bal")
 
-				if holderAtomBal != 0 && holderOsmoBal != 0 {
+				var response CovenantAddressQueryResponse
+				type ContractState struct{}
+				type ContractStateQuery struct {
+					ContractState ContractState `json:"contract_state"`
+				}
+				contractStateQuery := ContractStateQuery{
+					ContractState: ContractState{},
+				}
+
+				require.NoError(t,
+					cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
+					"failed to query forwarder A state")
+				holderState := response.Data
+
+				if holderAtomBal != 0 && holderOsmoBal != 0 || holderState == "completed" {
 					println("holder atom bal: ", holderAtomBal)
 					println("holder osmo bal: ", holderOsmoBal)
 					break
