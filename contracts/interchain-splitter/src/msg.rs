@@ -1,7 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Uint128,
-};
+use cosmwasm_std::{Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Uint128};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 
 use crate::error::ContractError;
@@ -62,7 +60,7 @@ impl PresetInterchainSplitterFields {
                         party_b_router.to_string(),
                     )?;
                     remapped_splits.push((denom_split.denom.to_string(), remapped_split));
-                },
+                }
             }
         }
 
@@ -73,7 +71,7 @@ impl PresetInterchainSplitterFields {
                     party_a_router,
                     self.party_b_addr.to_string(),
                     party_b_router,
-                )?)
+                )?),
             },
             None => None,
         };
@@ -116,8 +114,17 @@ pub struct Receiver {
 }
 
 impl SplitConfig {
-    pub fn remap_receivers_to_routers(&self, receiver_a: String, router_a: String, receiver_b: String, router_b: String) -> Result<SplitType, ContractError> {
-        let receivers = self.receivers.clone().into_iter()
+    pub fn remap_receivers_to_routers(
+        &self,
+        receiver_a: String,
+        router_a: String,
+        receiver_b: String,
+        router_b: String,
+    ) -> Result<SplitType, ContractError> {
+        let receivers = self
+            .receivers
+            .clone()
+            .into_iter()
             .map(|receiver| {
                 if receiver.addr == receiver_a {
                     Receiver {
@@ -135,9 +142,7 @@ impl SplitConfig {
             })
             .collect();
 
-        Ok(SplitType::Custom(SplitConfig {
-            receivers,
-        }))
+        Ok(SplitType::Custom(SplitConfig { receivers }))
     }
 
     pub fn validate(self) -> Result<SplitConfig, ContractError> {

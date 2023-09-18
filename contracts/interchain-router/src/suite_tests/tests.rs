@@ -2,16 +2,14 @@ use std::marker::PhantomData;
 
 use cosmwasm_std::{
     coins,
-    testing::{
-        mock_env, mock_info, MockQuerier, MockStorage, MockApi,
-    }, Attribute, Coin, CosmosMsg, Empty,
-    IbcMsg, IbcTimeout, SubMsg, Uint64, OwnedDeps,
+    testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
+    Attribute, Coin, CosmosMsg, Empty, IbcMsg, IbcTimeout, OwnedDeps, SubMsg, Uint64,
 };
 use covenant_utils::DestinationConfig;
 
 use crate::{
     contract::{execute, instantiate},
-    msg::{MigrateMsg},
+    msg::MigrateMsg,
     suite_tests::suite::{DEFAULT_CHANNEL, DEFAULT_RECEIVER},
 };
 
@@ -73,8 +71,7 @@ fn test_unauthorized_tick() {
 
 #[test]
 fn test_tick() {
-    let querier: MockQuerier<Empty> =
-        MockQuerier::new(&[("cosmos2contract", &coins(100, "usdc"))]);
+    let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins(100, "usdc"))]);
 
     let mut deps = OwnedDeps {
         storage: MockStorage::default(),

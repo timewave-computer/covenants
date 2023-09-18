@@ -3,7 +3,10 @@ use cosmwasm_std::{
     Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, IbcMsg, IbcTimeout, StdError, Timestamp,
     Uint128, Uint64,
 };
-use neutron_sdk::{bindings::msg::{NeutronMsg, IbcFee}, sudo::msg::RequestPacketTimeoutHeight};
+use neutron_sdk::{
+    bindings::msg::{IbcFee, NeutronMsg},
+    sudo::msg::RequestPacketTimeoutHeight,
+};
 
 pub mod neutron_ica {
     use cosmwasm_schema::{cw_serde, QueryResponses};
@@ -244,7 +247,9 @@ pub enum ReceiverConfig {
 impl ReceiverConfig {
     pub fn get_response_attributes(self, party: String) -> Vec<Attribute> {
         match self {
-            ReceiverConfig::Native(addr) => vec![Attribute::new("receiver_config_native_addr", addr)],
+            ReceiverConfig::Native(addr) => {
+                vec![Attribute::new("receiver_config_native_addr", addr)]
+            }
             ReceiverConfig::Ibc(destination_config) => destination_config
                 .get_response_attributes()
                 .into_iter()
@@ -285,7 +290,9 @@ impl CovenantParty {
                     amount,
                 },
                 timeout: IbcTimeout::with_timestamp(
-                    block.time.plus_seconds(destination_config.ibc_transfer_timeout.u64()),
+                    block
+                        .time
+                        .plus_seconds(destination_config.ibc_transfer_timeout.u64()),
                 ),
             }),
         }
@@ -366,16 +373,8 @@ impl DestinationConfig {
         let mut messages: Vec<CosmosMsg<NeutronMsg>> = vec![];
 
         for coin in coins {
-            // let msg: IbcMsg = IbcMsg::Transfer {
-            //     channel_id: self.destination_chain_channel_id.to_string(),
-            //     to_address: self.destination_receiver_addr.to_string(),
-            //     amount: coin,
-                // timeout: IbcTimeout::with_timestamp(
-                //     current_timestamp.plus_seconds(self.ibc_transfer_timeout.u64()),
-                // ),
-            // };
             if coin.denom != "untrn" {
-                messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer { 
+                messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
                     source_port: "transfer".to_string(),
                     source_channel: self.destination_chain_channel_id.to_string(),
                     token: coin,
@@ -385,7 +384,9 @@ impl DestinationConfig {
                         revision_number: None,
                         revision_height: None,
                     },
-                    timeout_timestamp: current_timestamp.plus_seconds(self.ibc_transfer_timeout.u64()).nanos(),
+                    timeout_timestamp: current_timestamp
+                        .plus_seconds(self.ibc_transfer_timeout.u64())
+                        .nanos(),
                     memo: "hi".to_string(),
                     fee: IbcFee {
                         // must be empty

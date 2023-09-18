@@ -67,6 +67,4 @@ impl SuiteBuilder {
 impl Suite {}
 
 // queries
-impl Suite {
-  
-}
+impl Suite {}
