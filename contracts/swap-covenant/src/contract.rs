@@ -401,7 +401,7 @@ pub fn handle_party_a_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -
 
 /// party B ibc forwarder reply means that we instantiated all the contracts.
 /// we store the party B ibc forwarder address and whitelist the contracts on our clock.
-pub fn handle_party_b_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn handle_party_b_ibc_forwarder_reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: party B ibc forwader reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);

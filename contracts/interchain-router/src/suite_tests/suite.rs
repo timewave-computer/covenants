@@ -1,31 +1,29 @@
-use crate::{
-    contract::execute,
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use cosmwasm_std::{
     testing::{MockApi, MockStorage},
-    Addr, Coin, CosmosMsg, Empty, GovMsg, Uint64,
+    Addr, Coin, Empty, GovMsg, Uint64,
 };
 use covenant_utils::DestinationConfig;
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, DistributionKeeper,
-    Executor, FailingModule, Ibc, IbcAcceptingModule, StakeKeeper, WasmKeeper,
+    Executor, FailingModule, IbcAcceptingModule, StakeKeeper, WasmKeeper,
 };
+use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
 pub const ADMIN: &str = "admin";
 pub const DEFAULT_RECEIVER: &str = "receiver";
 pub const CLOCK_ADDR: &str = "clock";
 pub const DEFAULT_CHANNEL: &str = "channel-1";
 
-fn router_contract() -> Box<dyn Contract<Empty>> {
-    Box::new(
-        ContractWrapper::new(
-            crate::contract::execute,
-            crate::contract::instantiate,
-            crate::contract::query,
-        )
-        .with_migrate(crate::contract::migrate),
+fn router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
+    let contract = ContractWrapper::new(
+        crate::contract::execute,
+        crate::contract::instantiate,
+        crate::contract::query,
     )
+    .with_migrate(crate::contract::migrate);
+
+    Box::new(contract)
 }
 
 pub struct Suite {
@@ -33,8 +31,8 @@ pub struct Suite {
         BankKeeper,
         MockApi,
         MockStorage,
-        FailingModule<Empty, Empty, Empty>,
-        WasmKeeper<Empty, Empty>,
+        FailingModule<NeutronMsg, NeutronQuery, Empty>,
+        WasmKeeper<NeutronMsg, NeutronQuery>,
         StakeKeeper,
         DistributionKeeper,
         IbcAcceptingModule,
@@ -64,7 +62,7 @@ impl Default for SuiteBuilder {
 
 impl SuiteBuilder {
     pub fn build(self) -> Suite {
-        let mut app = BasicAppBuilder::default()
+        let mut app = BasicAppBuilder::<NeutronMsg, NeutronQuery>::new_custom()
             .with_ibc(IbcAcceptingModule)
             .build(|_, _, _| ());
 

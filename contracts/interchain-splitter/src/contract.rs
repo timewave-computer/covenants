@@ -55,11 +55,16 @@ pub fn instantiate(
 pub fn execute(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     deps.api
         .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
+    // Verify caller is the clock
+    if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
+        return Err(ContractError::Unauthorized {});
+    }
+
     match msg {
         ExecuteMsg::Tick {} => try_distribute(deps, env),
     }

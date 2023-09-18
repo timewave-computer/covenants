@@ -33,8 +33,7 @@ pub fn instantiate(
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
-    // TODO: debug what goes wrong in validation here
-    // msg.lockup_config.validate(env.block)?;
+    msg.lockup_config.validate(env.block)?;
 
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
@@ -64,10 +63,9 @@ pub fn execute(
 /// attempts to advance the state machine. performs `info.sender` validation
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
-    // let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-    // if clock_addr != info.sender {
-    //     return Err(ContractError::Unauthorized {});
-    // }
+    if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
+        return Err(ContractError::Unauthorized {});
+    }
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -111,11 +109,6 @@ fn try_forward(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         } else if coin.denom == party_b_coin.denom && coin.amount >= covenant_terms.party_b_amount {
             party_b_coin.amount = coin.amount;
         }
-    }
-
-    if party_a_coin.amount == Uint128::zero() {
-        let bals: Vec<String> = balances.into_iter().map(|c| c.to_string()).collect();
-        return Ok(Response::default().add_attribute("balance_a", bals.join(" ")))
     }
 
     // if either of the coin amounts did not get updated to non-zero,

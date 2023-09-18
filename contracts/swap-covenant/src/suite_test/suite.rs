@@ -1,7 +1,7 @@
-use cosmwasm_std::{Addr, Empty};
-use cw_multi_test::{App, Contract, ContractWrapper, Executor};
+use cosmwasm_std::{Addr, Empty, Uint128, Uint64};
+use cw_multi_test::{App, Contract, ContractWrapper};
 
-use crate::msg::{InstantiateMsg, QueryMsg};
+use crate::msg::{InstantiateMsg, PresetIbcFee, Timeouts};
 
 pub const CREATOR_ADDR: &str = "admin";
 pub const TODO: &str = "replace";
@@ -31,9 +31,15 @@ impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
             instantiate: InstantiateMsg {
-                label: todo!(),
-                preset_ibc_fee: todo!(),
-                timeouts: todo!(),
+                label: "swap-covenant".to_string(),
+                preset_ibc_fee: PresetIbcFee {
+                    ack_fee: Uint128::new(1000),
+                    timeout_fee: Uint128::new(1000),
+                },
+                timeouts: Timeouts {
+                    ica_timeout: Uint64::new(50),
+                    ibc_transfer_timeout: Uint64::new(50),
+                },
                 contract_codes: todo!(),
                 clock_tick_max_gas: todo!(),
                 lockup_config: todo!(),
