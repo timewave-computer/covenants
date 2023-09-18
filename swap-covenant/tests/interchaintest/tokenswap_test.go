@@ -391,10 +391,11 @@ func TestTokenSwap(t *testing.T) {
 				PartyBAmount: strconv.FormatUint(osmoContributionAmount, 10),
 			}
 
-			timestamp := Timestamp("1981539923")
+			// timestamp := Timestamp("1981539923")
+			block := Block(500)
 
 			lockupConfig := LockupConfig{
-				Time: &timestamp,
+				BlockHeight: &block,
 			}
 			presetIbcFee := PresetIbcFee{
 				AckFee:     "10000",
@@ -478,7 +479,6 @@ func TestTokenSwap(t *testing.T) {
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
 			instantiateMsg := string(str)
 
-			println("instantiation message: ", instantiateMsg)
 			cmd := []string{"neutrond", "tx", "wasm", "instantiate", covenantCodeIdStr,
 				instantiateMsg,
 				"--label", "swap-covenant",
@@ -495,7 +495,6 @@ func TestTokenSwap(t *testing.T) {
 
 			_, _, err = neutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
-
 			require.NoError(t, testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis))
 
 			queryCmd := []string{"neutrond", "query", "wasm",
@@ -760,7 +759,6 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
 			for {
-				tickClock()
 				holderOsmoBal, err := cosmosNeutron.GetBalance(ctx, holderAddress, neutronOsmoIbcDenom)
 				require.NoError(t, err, "failed to query holder osmo bal")
 				holderAtomBal, err := cosmosNeutron.GetBalance(ctx, holderAddress, neutronAtomIbcDenom)
@@ -780,18 +778,18 @@ func TestTokenSwap(t *testing.T) {
 					"failed to query forwarder A state")
 				holderState := response.Data
 
-				if holderAtomBal != 0 && holderOsmoBal != 0 || holderState == "completed" {
+				if holderAtomBal != 0 && holderOsmoBal != 0 || holderState == "complete" {
 					println("holder atom bal: ", holderAtomBal)
 					println("holder osmo bal: ", holderOsmoBal)
 					break
+				} else {
+					tickClock()
 				}
 			}
 		})
 
 		t.Run("tick until holder sends the funds to splitter", func(t *testing.T) {
 			for {
-				tickClock()
-
 				splitterOsmoBal, err := cosmosNeutron.GetBalance(ctx, splitterAddress, neutronOsmoIbcDenom)
 				require.NoError(t, err, "failed to query splitterOsmoBal")
 				splitterAtomBal, err := cosmosNeutron.GetBalance(ctx, splitterAddress, neutronAtomIbcDenom)
@@ -801,14 +799,14 @@ func TestTokenSwap(t *testing.T) {
 					println("splitterOsmoBal: ", splitterOsmoBal)
 					println("splitterAtomBal: ", splitterAtomBal)
 					break
+				} else {
+					tickClock()
 				}
 			}
 		})
 
 		t.Run("tick until splitter sends the funds to routers", func(t *testing.T) {
 			for {
-				tickClock()
-
 				partyARouterOsmoBal, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
 				require.NoError(t, err, "failed to query partyARouterOsmoBal")
 
@@ -819,14 +817,14 @@ func TestTokenSwap(t *testing.T) {
 					println("partyARouter osmo bal: ", partyARouterOsmoBal)
 					println("partyBRouterAtomBal: ", partyBRouterAtomBal)
 					break
+				} else {
+					tickClock()
 				}
 			}
 		})
 
 		t.Run("tick until routers route the funds to final receivers", func(t *testing.T) {
 			for {
-				tickClock()
-
 				osmoBal, err := cosmosOsmosis.GetBalance(ctx, osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom)
 				require.NoError(t, err, "failed to query osmoBal")
 				gaiaBal, err := cosmosAtom.GetBalance(ctx, gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
@@ -836,6 +834,8 @@ func TestTokenSwap(t *testing.T) {
 					println("gaia user osmo bal: ", gaiaBal)
 					println("osmo user atom bal: ", osmoBal)
 					break
+				} else {
+					tickClock()
 				}
 			}
 		})
