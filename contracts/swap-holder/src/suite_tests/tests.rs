@@ -225,7 +225,7 @@ fn test_refund_party_a() {
         amount: Uint128::new(500),
     };
 
-    suite.fund_coin(coin_a.clone());
+    suite.fund_coin(coin_a);
     suite.pass_blocks(10000);
 
     // first tick acknowledges the expiration
@@ -257,7 +257,7 @@ fn test_refund_party_b() {
         denom: DENOM_B.to_string(),
         amount: Uint128::new(500),
     };
-    suite.fund_coin(coin_b.clone());
+    suite.fund_coin(coin_b);
 
     suite.pass_blocks(10000);
 
@@ -290,7 +290,7 @@ fn test_refund_both_parties() {
         denom: DENOM_A.to_string(),
         amount: Uint128::new(300),
     };
-    suite.fund_coin(coin_a.clone());
+    suite.fund_coin(coin_a);
     let coin_b = Coin {
         denom: DENOM_B.to_string(),
         amount: Uint128::new(10),
