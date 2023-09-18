@@ -3,26 +3,29 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
+use covenant_clock::helpers::verify_clock;
 use covenant_utils::DestinationConfig;
 use cw2::set_contract_version;
-use neutron_sdk::bindings::msg::NeutronMsg;
+use neutron_sdk::{bindings::{msg::NeutronMsg, query::NeutronQuery}, NeutronResult};
 
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{CLOCK_ADDRESS, DESTINATION_CONFIG},
 };
+type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
+type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 
 const CONTRACT_NAME: &str = "crates.io:covenant-interchain-router";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
+) -> NeutronResult<Response<NeutronMsg>> {
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
@@ -47,19 +50,16 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response<NeutronMsg>, ContractError> {
-
+) -> NeutronResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
 
     // Verify caller is the clock
-    // if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
-    //     return Err(ContractError::Unauthorized {});
-    // }
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     match msg {
         ExecuteMsg::Tick {} => try_route_balances(deps, env),
@@ -67,7 +67,7 @@ pub fn execute(
 }
 
 /// method that attempts to transfer out all available balances to the receiver
-fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response<NeutronMsg>, ContractError> {
+fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
 
     let destination_config: DestinationConfig = DESTINATION_CONFIG.load(deps.storage)?;
 
@@ -101,7 +101,7 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response<NeutronMsg>, C
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: QueryDeps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::DestinationConfig {} => {
             Ok(to_binary(&DESTINATION_CONFIG.may_load(deps.storage)?)?)
@@ -111,7 +111,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> NeutronResult<Response<NeutronMsg>> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {

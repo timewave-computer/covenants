@@ -8,4 +8,7 @@ pub enum ContractError {
 
     #[error("misconfigured split")]
     SplitMisconfig {},
+
+    #[error("unauthorized caller")]
+    Unauthorized {},
 }

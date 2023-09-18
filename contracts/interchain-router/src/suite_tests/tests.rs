@@ -1,11 +1,13 @@
+use std::marker::PhantomData;
+
 use cosmwasm_std::{
     coins,
     testing::{
-        mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info, MockQuerier,
+        mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info, MockQuerier, MockStorage, MockApi,
     },
     to_binary, Addr, Attribute, Coin, ContractInfo, ContractResult, CosmosMsg, DepsMut, Empty, Env,
     IbcMsg, IbcTimeout, Never, Querier, QuerierResult, QuerierWrapper, Response, SubMsg,
-    SystemError, SystemResult, Timestamp, Uint128, Uint64, WasmMsg, WasmQuery,
+    SystemError, SystemResult, Timestamp, Uint128, Uint64, WasmMsg, WasmQuery, OwnedDeps,
 };
 use covenant_utils::DestinationConfig;
 
@@ -28,7 +30,7 @@ fn test_instantiate_and_query_all() {
     assert_eq!(
         DestinationConfig {
             destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
-            destination_receiver_addr: Addr::unchecked(DEFAULT_RECEIVER.to_string()),
+            destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
             ibc_transfer_timeout: Uint64::new(10),
         },
         config
@@ -43,7 +45,7 @@ fn test_migrate_config() {
         clock_addr: Some("working_clock".to_string()),
         destination_config: Some(DestinationConfig {
             destination_chain_channel_id: "new_channel".to_string(),
-            destination_receiver_addr: Addr::unchecked("new_receiver".to_string()),
+            destination_receiver_addr: "new_receiver".to_string(),
             ibc_transfer_timeout: Uint64::new(100),
         }),
     };
@@ -57,7 +59,7 @@ fn test_migrate_config() {
     assert_eq!(
         DestinationConfig {
             destination_chain_channel_id: "new_channel".to_string(),
-            destination_receiver_addr: Addr::unchecked("new_receiver".to_string()),
+            destination_receiver_addr: "new_receiver".to_string(),
             ibc_transfer_timeout: Uint64::new(100),
         },
         config
@@ -76,7 +78,12 @@ fn test_tick() {
     let querier: MockQuerier<Empty> =
         MockQuerier::new(&[(&"cosmos2contract".to_string(), &coins(100, "usdc"))]);
 
-    let mut deps = mock_dependencies();
+    let mut deps = OwnedDeps {
+        storage: MockStorage::default(),
+        api: MockApi::default(),
+        querier: MockQuerier::new(&[]),
+        custom_query_type: PhantomData,
+    };
     // set the custom querier on our mock deps
     deps.querier = querier;
 
