@@ -6,7 +6,10 @@ use cosmwasm_std::{
 use covenant_clock::helpers::verify_clock;
 use covenant_utils::DestinationConfig;
 use cw2::set_contract_version;
-use neutron_sdk::{bindings::{msg::NeutronMsg, query::NeutronQuery}, NeutronResult};
+use neutron_sdk::{
+    bindings::{msg::NeutronMsg, query::NeutronQuery},
+    NeutronResult,
+};
 
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
@@ -28,7 +31,7 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let clock_addr  = deps.api.addr_validate(&msg.clock_address)?;
+    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
     let destination_config = DestinationConfig {
         destination_chain_channel_id: msg.destination_chain_channel_id.to_string(),
@@ -43,8 +46,7 @@ pub fn instantiate(
         .add_attribute("method", "interchain_router_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attribute("destination_receiver_addr", msg.destination_receiver_addr)
-        .add_attributes(destination_config.get_response_attributes())
-    )
+        .add_attributes(destination_config.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -67,11 +69,12 @@ pub fn execute(
 
 /// method that attempts to transfer out all available balances to the receiver
 fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-
     let destination_config: DestinationConfig = DESTINATION_CONFIG.load(deps.storage)?;
 
     // first we query all balances of the router
-    let balances = deps.querier.query_all_balances(env.clone().contract.address)?;
+    let balances = deps
+        .querier
+        .query_all_balances(env.clone().contract.address)?;
 
     // if there are no balances, we return early;
     // otherwise build up the response attributes
@@ -92,7 +95,7 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
         env.block.time,
         env.contract.address.to_string(),
     );
-    
+
     Ok(Response::default()
         .add_attribute("method", "try_route_balances")
         .add_attributes(balance_attributes)
@@ -110,7 +113,11 @@ pub fn query(deps: QueryDeps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> NeutronResult<Response<NeutronMsg>> {
+pub fn migrate(
+    deps: ExecuteDeps,
+    _env: Env,
+    msg: MigrateMsg,
+) -> NeutronResult<Response<NeutronMsg>> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {

@@ -1,7 +1,7 @@
 use cosmwasm_std::{Coin, Uint128};
 
 use crate::{
-    msg::{MigrateMsg, SplitConfig, SplitType, Receiver},
+    msg::{MigrateMsg, Receiver, SplitConfig, SplitType},
     suite_test::suite::{
         get_equal_split_config, get_fallback_split_config, ALT_DENOM, CLOCK_ADDR, DENOM_B,
     },
@@ -40,8 +40,14 @@ fn test_instantiate_split_misconfig() {
             DENOM_A.to_string(),
             SplitType::Custom(SplitConfig {
                 receivers: vec![
-                    Receiver { addr: PARTY_A_ADDR.to_string(), share: Uint128::new(50) },
-                    Receiver { addr: PARTY_B_ADDR.to_string(), share: Uint128::new(50) },
+                    Receiver {
+                        addr: PARTY_A_ADDR.to_string(),
+                        share: Uint128::new(50),
+                    },
+                    Receiver {
+                        addr: PARTY_B_ADDR.to_string(),
+                        share: Uint128::new(50),
+                    },
                 ],
             }),
         )])
@@ -90,25 +96,19 @@ fn test_distribute_token_swap() {
             (
                 DENOM_A.to_string(),
                 SplitType::Custom(SplitConfig {
-                    receivers: vec![
-<<<<<<< HEAD
-                        Receiver { addr: PARTY_B_ADDR.to_string(), share: Uint128::new(100) }],
-=======
-                        Receiver { addr: PARTY_B_ADDR.to_string(), share: Uint128::new(100) },
-                    ],
->>>>>>> c306039 (unit tests fix; enabling clock sender validation)
+                    receivers: vec![Receiver {
+                        addr: PARTY_B_ADDR.to_string(),
+                        share: Uint128::new(100),
+                    }],
                 }),
             ),
             (
                 DENOM_B.to_string(),
                 SplitType::Custom(SplitConfig {
-                    receivers: vec![
-<<<<<<< HEAD
-                        Receiver { addr: PARTY_A_ADDR.to_string(), share: Uint128::new(100) }],
-=======
-                        Receiver { addr: PARTY_A_ADDR.to_string(), share: Uint128::new(100) },
-                    ],
->>>>>>> c306039 (unit tests fix; enabling clock sender validation)
+                    receivers: vec![Receiver {
+                        addr: PARTY_A_ADDR.to_string(),
+                        share: Uint128::new(100),
+                    }],
                 }),
             ),
         ])
@@ -177,20 +177,18 @@ fn test_migrate_config() {
 
     let new_clock = "new_clock".to_string();
     let new_fallback_split = SplitConfig {
-        receivers: vec![
-            Receiver { addr: "fallback_new".to_string(), share: Uint128::new(100) },
-        ],
+        receivers: vec![Receiver {
+            addr: "fallback_new".to_string(),
+            share: Uint128::new(100),
+        }],
     };
     let new_splits = vec![(
         "new_denom".to_string(),
         SplitType::Custom(SplitConfig {
-<<<<<<< HEAD
-            receivers: vec![Receiver { addr: "new_receiver".to_string(), share: Uint128::new(100) }],
-=======
-            receivers: vec![
-                Receiver { addr: "new_receiver".to_string(), share: Uint128::new(100) },
-            ],
->>>>>>> c306039 (unit tests fix; enabling clock sender validation)
+            receivers: vec![Receiver {
+                addr: "new_receiver".to_string(),
+                share: Uint128::new(100),
+            }],
         }),
     )];
 
@@ -210,13 +208,10 @@ fn test_migrate_config() {
         vec![(
             "new_denom".to_string(),
             SplitConfig {
-                receivers: vec![
-<<<<<<< HEAD
-                    Receiver { addr: "new_receiver".to_string(), share: Uint128::new(100) }],
-=======
-                    Receiver { addr: "new_receiver".to_string(), share: Uint128::new(100) },
-                ],
->>>>>>> c306039 (unit tests fix; enabling clock sender validation)
+                receivers: vec![Receiver {
+                    addr: "new_receiver".to_string(),
+                    share: Uint128::new(100)
+                },],
             },
         )],
         splits

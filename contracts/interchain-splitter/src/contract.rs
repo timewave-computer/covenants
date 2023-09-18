@@ -104,8 +104,7 @@ pub fn try_distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError
 
     Ok(Response::default()
         .add_attribute("method", "try_distribute")
-        .add_messages(distribution_messages)
-    )
+        .add_messages(distribution_messages))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -170,7 +169,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                                 resp =
                                     resp.add_attributes(vec![split.get_response_attribute(denom)]);
                             }
-                            Err(_) => return Err(StdError::generic_err("invalid split".to_string()))
+                            Err(_) => {
+                                return Err(StdError::generic_err("invalid split".to_string()))
+                            }
                         },
                     }
                 }
