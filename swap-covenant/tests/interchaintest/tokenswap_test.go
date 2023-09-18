@@ -818,7 +818,6 @@ func TestTokenSwap(t *testing.T) {
 				if partyARouterOsmoBal != 0 && partyBRouterAtomBal != 0 {
 					println("partyARouter osmo bal: ", partyARouterOsmoBal)
 					println("partyBRouterAtomBal: ", partyBRouterAtomBal)
-
 					break
 				}
 			}

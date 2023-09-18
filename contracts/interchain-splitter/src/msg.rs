@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, IbcTimeout, Uint128,
+    Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Uint128,
 };
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 
@@ -26,8 +26,11 @@ pub struct PresetInterchainSplitterFields {
     pub fallback_split: Option<SplitType>,
     /// contract label
     pub label: String,
+    /// code id for the interchain splitter contract
     pub code_id: u64,
+    /// receiver address of party A
     pub party_a_addr: String,
+    /// receiver address of party B
     pub party_b_addr: String,
 }
 
@@ -86,28 +89,6 @@ impl PresetInterchainSplitterFields {
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {}
-
-// for every receiver we need a few things:
-#[cw_serde]
-pub struct InterchainReceiver {
-    // 1. remote chain channel id
-    pub channel_id: String,
-    // 2. receiver address
-    pub address: String,
-    // 3. timeout info
-    pub ibc_timeout: IbcTimeout,
-}
-
-#[cw_serde]
-pub struct NativeReceiver {
-    pub address: String,
-}
-
-#[cw_serde]
-pub enum ReceiverType {
-    Interchain(InterchainReceiver),
-    Native(NativeReceiver),
-}
 
 #[cw_serde]
 pub enum SplitType {

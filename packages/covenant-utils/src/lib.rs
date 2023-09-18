@@ -221,9 +221,14 @@ impl LockupConfig {
     /// otherwise, returns true if the current block is past the stored info.
     pub fn is_expired(self, block_info: BlockInfo) -> bool {
         match self {
-            LockupConfig::None => false, // or.. true? should not be called tho
-            LockupConfig::Block(h) => h > block_info.height,
-            LockupConfig::Time(t) => t.nanos() > block_info.time.nanos(),
+            // no expiration date
+            LockupConfig::None => false,
+            // if stored expiration block height is less than or equal to the current block,
+            // expired
+            LockupConfig::Block(h) => h <= block_info.height,
+            // if stored expiration timestamp is more than or equal to the current timestamp,
+            // expired
+            LockupConfig::Time(t) => t.nanos() <= block_info.time.nanos(),
         }
     }
 }

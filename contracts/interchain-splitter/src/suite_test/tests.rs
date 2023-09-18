@@ -91,14 +91,24 @@ fn test_distribute_token_swap() {
                 DENOM_A.to_string(),
                 SplitType::Custom(SplitConfig {
                     receivers: vec![
+<<<<<<< HEAD
                         Receiver { addr: PARTY_B_ADDR.to_string(), share: Uint128::new(100) }],
+=======
+                        Receiver { addr: PARTY_B_ADDR.to_string(), share: Uint128::new(100) },
+                    ],
+>>>>>>> c306039 (unit tests fix; enabling clock sender validation)
                 }),
             ),
             (
                 DENOM_B.to_string(),
                 SplitType::Custom(SplitConfig {
                     receivers: vec![
+<<<<<<< HEAD
                         Receiver { addr: PARTY_A_ADDR.to_string(), share: Uint128::new(100) }],
+=======
+                        Receiver { addr: PARTY_A_ADDR.to_string(), share: Uint128::new(100) },
+                    ],
+>>>>>>> c306039 (unit tests fix; enabling clock sender validation)
                 }),
             ),
         ])
@@ -174,7 +184,13 @@ fn test_migrate_config() {
     let new_splits = vec![(
         "new_denom".to_string(),
         SplitType::Custom(SplitConfig {
+<<<<<<< HEAD
             receivers: vec![Receiver { addr: "new_receiver".to_string(), share: Uint128::new(100) }],
+=======
+            receivers: vec![
+                Receiver { addr: "new_receiver".to_string(), share: Uint128::new(100) },
+            ],
+>>>>>>> c306039 (unit tests fix; enabling clock sender validation)
         }),
     )];
 
@@ -195,7 +211,12 @@ fn test_migrate_config() {
             "new_denom".to_string(),
             SplitConfig {
                 receivers: vec![
+<<<<<<< HEAD
                     Receiver { addr: "new_receiver".to_string(), share: Uint128::new(100) }],
+=======
+                    Receiver { addr: "new_receiver".to_string(), share: Uint128::new(100) },
+                ],
+>>>>>>> c306039 (unit tests fix; enabling clock sender validation)
             },
         )],
         splits
