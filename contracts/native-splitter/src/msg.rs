@@ -1,7 +1,7 @@
 use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, Fraction, StdError, Uint128, Uint64};
+use cosmwasm_std::{Addr, Attribute, StdError, Uint128, Uint64};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,

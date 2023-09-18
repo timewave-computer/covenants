@@ -9,7 +9,6 @@ use cw2::set_contract_version;
 use neutron_sdk::{bindings::{msg::NeutronMsg, query::NeutronQuery}, NeutronResult};
 
 use crate::{
-    error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{CLOCK_ADDRESS, DESTINATION_CONFIG},
 };
@@ -90,7 +89,7 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
     // get ibc transfer messages for each denom
     let messages = destination_config.get_ibc_transfer_messages_for_coins(
         balances,
-        env.clone().block.time,
+        env.block.time,
         env.contract.address.to_string(),
     );
     

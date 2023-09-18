@@ -70,9 +70,9 @@ impl PresetInterchainSplitterFields {
             Some(split_type) => match split_type {
                 SplitType::Custom(config) => Some(config.remap_receivers_to_routers(
                     self.party_a_addr.to_string(),
-                    party_a_router.to_string(),
+                    party_a_router,
                     self.party_b_addr.to_string(),
-                    party_b_router.to_string(),
+                    party_b_router,
                 )?)
             },
             None => None,

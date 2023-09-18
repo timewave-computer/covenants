@@ -82,7 +82,7 @@ impl InstantiateMsg {
             ),
             Attribute::new("remote_chain_channel_id", &self.remote_chain_channel_id),
             Attribute::new("remote_chain_denom", &self.denom),
-            Attribute::new("remote_chain_amount", &self.amount.to_string()),
+            Attribute::new("remote_chain_amount", self.amount.to_string()),
             Attribute::new(
                 "ibc_transfer_timeout",
                 self.ibc_transfer_timeout.to_string(),

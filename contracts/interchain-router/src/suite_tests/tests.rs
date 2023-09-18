@@ -3,17 +3,15 @@ use std::marker::PhantomData;
 use cosmwasm_std::{
     coins,
     testing::{
-        mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info, MockQuerier, MockStorage, MockApi,
-    },
-    to_binary, Addr, Attribute, Coin, ContractInfo, ContractResult, CosmosMsg, DepsMut, Empty, Env,
-    IbcMsg, IbcTimeout, Never, Querier, QuerierResult, QuerierWrapper, Response, SubMsg,
-    SystemError, SystemResult, Timestamp, Uint128, Uint64, WasmMsg, WasmQuery, OwnedDeps,
+        mock_env, mock_info, MockQuerier, MockStorage, MockApi,
+    }, Attribute, Coin, CosmosMsg, Empty,
+    IbcMsg, IbcTimeout, SubMsg, Uint64, OwnedDeps,
 };
 use covenant_utils::DestinationConfig;
 
 use crate::{
     contract::{execute, instantiate},
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg},
+    msg::{MigrateMsg},
     suite_tests::suite::{DEFAULT_CHANNEL, DEFAULT_RECEIVER},
 };
 
@@ -76,7 +74,7 @@ fn test_unauthorized_tick() {
 #[test]
 fn test_tick() {
     let querier: MockQuerier<Empty> =
-        MockQuerier::new(&[(&"cosmos2contract".to_string(), &coins(100, "usdc"))]);
+        MockQuerier::new(&[("cosmos2contract", &coins(100, "usdc"))]);
 
     let mut deps = OwnedDeps {
         storage: MockStorage::default(),
@@ -93,7 +91,7 @@ fn test_tick() {
     instantiate(
         deps.as_mut(),
         mock_env(),
-        info.clone(),
+        info,
         SuiteBuilder::default().instantiate,
     )
     .unwrap();
@@ -101,7 +99,7 @@ fn test_tick() {
     let resp = execute(
         deps.as_mut(),
         mock_env(),
-        mock_info(CLOCK_ADDR, &vec![]),
+        mock_info(CLOCK_ADDR, &[]),
         crate::msg::ExecuteMsg::Tick {},
     )
     .unwrap();

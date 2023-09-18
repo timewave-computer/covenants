@@ -363,7 +363,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         item_types.push(item_type.to_string());
         match item_type {
             "/cosmos.bank.v1beta1.MsgMultiSend" => {
-                let out: MsgMultiSendResponse = decode_message_response(&item.data)?;
+                let _out: MsgMultiSendResponse = decode_message_response(&item.data)?;
                 // TODO: look into if this successful decoding is enough to assume multi
                 // send was successful
                 CONTRACT_STATE.save(deps.storage, &ContractState::Completed)?;
