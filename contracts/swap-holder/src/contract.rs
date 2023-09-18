@@ -103,7 +103,7 @@ fn try_forward(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     // query holder balances
     let balances = deps.querier.query_all_balances(env.contract.address)?;
     // find the existing balances of covenant coins
-    for coin in balances.clone() {
+    for coin in balances {
         if coin.denom == party_a_coin.denom && coin.amount >= covenant_terms.party_a_amount {
             party_a_coin.amount = coin.amount;
         } else if coin.denom == party_b_coin.denom && coin.amount >= covenant_terms.party_b_amount {

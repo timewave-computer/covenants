@@ -54,8 +54,8 @@ impl Default for SuiteBuilder {
 }
 
 impl SuiteBuilder {
-    pub fn build(mut self) -> Suite {
-        let mut app = App::default();
+    pub fn build(self) -> Suite {
+        let app = App::default();
         Suite {
             app,
             covenant_address: todo!(),
