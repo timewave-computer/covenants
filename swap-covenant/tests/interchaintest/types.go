@@ -77,11 +77,12 @@ type PresetSwapHolderFields struct {
 }
 
 type Timestamp string
+type Block uint64
 
 type LockupConfig struct {
-	None  bool       `json:"none,omitempty"`
-	Block *uint64    `json:"block,omitempty"`
-	Time  *Timestamp `json:"time,omitempty"`
+	None        bool       `json:"none,omitempty"`
+	BlockHeight *Block     `json:"block,omitempty"`
+	Time        *Timestamp `json:"time,omitempty"`
 }
 
 type CovenantPartiesConfig struct {

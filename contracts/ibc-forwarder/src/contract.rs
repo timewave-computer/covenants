@@ -44,6 +44,8 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
+    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
+    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     TRANSFER_AMOUNT.save(deps.storage, &msg.amount)?;
     let remote_chain_info = RemoteChainInfo {
