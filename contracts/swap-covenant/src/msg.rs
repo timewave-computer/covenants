@@ -26,7 +26,7 @@ pub struct InstantiateMsg {
 pub struct CovenantPartyConfig {
     /// authorized address of the party
     pub addr: String,
-    /// denom provided by the party on its native chain 
+    /// denom provided by the party on its native chain
     pub native_denom: String,
     /// ibc denom provided by the party on neutron
     pub ibc_denom: String,
@@ -40,7 +40,6 @@ pub struct CovenantPartyConfig {
     pub party_chain_connection_id: String,
     /// timeout in seconds
     pub ibc_transfer_timeout: Uint64,
-    
 }
 
 #[cw_serde]
@@ -62,7 +61,7 @@ pub struct SwapCovenantParties {
 pub struct SwapPartyConfig {
     /// authorized address of the party
     pub addr: Addr,
-    /// denom provided by the party on its native chain 
+    /// denom provided by the party on its native chain
     pub native_denom: String,
     /// ibc denom provided by the party on neutron
     pub ibc_denom: String,
@@ -76,7 +75,6 @@ pub struct SwapPartyConfig {
     pub party_chain_connection_id: String,
     /// timeout in seconds
     pub ibc_transfer_timeout: Uint64,
-
 }
 
 #[cw_serde]

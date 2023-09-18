@@ -1,8 +1,8 @@
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_std::{Addr, Coin, Uint128};
 use covenant_utils::{
-    CovenantPartiesConfig, CovenantParty, CovenantTerms, LockupConfig,
-    SwapCovenantTerms, ReceiverConfig,
+    CovenantPartiesConfig, CovenantParty, CovenantTerms, LockupConfig, ReceiverConfig,
+    SwapCovenantTerms,
 };
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 

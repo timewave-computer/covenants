@@ -1,9 +1,8 @@
-
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response,
-    SubMsg, WasmMsg, Reply, Deps, StdResult, Binary, Addr,
+    to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdResult, SubMsg, WasmMsg,
 };
 
 use covenant_clock::msg::PresetClockFields;
@@ -11,15 +10,20 @@ use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
-use covenant_utils::{CovenantPartiesConfig, CovenantParty, ReceiverConfig, CovenantTerms};
+use covenant_utils::{CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig};
 use cw2::set_contract_version;
 use cw_utils::{parse_reply_instantiate_data, ParseReplyError};
 
 use crate::{
     error::ContractError,
+    msg::{InstantiateMsg, QueryMsg},
     state::{
-        COVENANT_CLOCK_ADDR, PRESET_HOLDER_FIELDS, COVENANT_INTERCHAIN_SPLITTER_ADDR, PRESET_SPLITTER_FIELDS, COVENANT_SWAP_HOLDER_ADDR, PARTY_A_IBC_FORWARDER_ADDR, PARTY_B_IBC_FORWARDER_ADDR, PARTY_A_INTERCHAIN_ROUTER_ADDR, PARTY_B_INTERCHAIN_ROUTER_ADDR, PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PRESET_CLOCK_FIELDS,
-    }, msg::{InstantiateMsg, QueryMsg},
+        COVENANT_CLOCK_ADDR, COVENANT_INTERCHAIN_SPLITTER_ADDR, COVENANT_SWAP_HOLDER_ADDR,
+        PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_INTERCHAIN_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
+        PARTY_B_INTERCHAIN_ROUTER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
+        PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS,
+        PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PRESET_SPLITTER_FIELDS,
+    },
 };
 
 const CONTRACT_NAME: &str = "crates.io:swap-covenant";
@@ -32,7 +36,6 @@ pub const SPLITTER_REPLY_ID: u64 = 4u64;
 pub const SWAP_HOLDER_REPLY_ID: u64 = 5u64;
 pub const PARTY_A_FORWARDER_REPLY_ID: u64 = 6u64;
 pub const PARTY_B_FORWARDER_REPLY_ID: u64 = 7u64;
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -135,16 +138,19 @@ pub fn instantiate(
         .add_submessage(SubMsg::reply_on_success(
             clock_instantiate_tx,
             CLOCK_REPLY_ID,
-        ))
-    )
+        )))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         CLOCK_REPLY_ID => handle_clock_reply(deps, env, msg),
-        PARTY_A_INTERCHAIN_ROUTER_REPLY_ID => handle_party_a_interchain_router_reply(deps, env, msg),
-        PARTY_B_INTERCHAIN_ROUTER_REPLY_ID => handle_party_b_interchain_router_reply(deps, env, msg),
+        PARTY_A_INTERCHAIN_ROUTER_REPLY_ID => {
+            handle_party_a_interchain_router_reply(deps, env, msg)
+        }
+        PARTY_B_INTERCHAIN_ROUTER_REPLY_ID => {
+            handle_party_b_interchain_router_reply(deps, env, msg)
+        }
         SPLITTER_REPLY_ID => handle_splitter_reply(deps, env, msg),
         SWAP_HOLDER_REPLY_ID => handle_swap_holder_reply(deps, env, msg),
         PARTY_A_FORWARDER_REPLY_ID => handle_party_a_ibc_forwarder_reply(deps, env, msg),
@@ -170,7 +176,9 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             let party_a_router_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: party_a_router_preset_fields.code_id,
-                msg: to_binary(&party_a_router_preset_fields.to_instantiate_msg(clock_addr.to_string()))?,
+                msg: to_binary(
+                    &party_a_router_preset_fields.to_instantiate_msg(clock_addr.to_string()),
+                )?,
                 funds: vec![],
                 label: party_a_router_preset_fields.label,
             });
@@ -178,12 +186,18 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             Ok(Response::default()
                 .add_attribute("method", "handle_clock_reply")
                 .add_attribute("clock_addr", clock_addr)
-                .add_attribute("router_code_id", party_a_router_preset_fields.code_id.to_string())
-                .add_attribute("party_a_addr", party_a_router_preset_fields.destination_receiver_addr)
-                .add_submessage(
-                    SubMsg::reply_always(party_a_router_instantiate_tx, PARTY_A_INTERCHAIN_ROUTER_REPLY_ID)
+                .add_attribute(
+                    "router_code_id",
+                    party_a_router_preset_fields.code_id.to_string(),
                 )
-            )
+                .add_attribute(
+                    "party_a_addr",
+                    party_a_router_preset_fields.destination_receiver_addr,
+                )
+                .add_submessage(SubMsg::reply_always(
+                    party_a_router_instantiate_tx,
+                    PARTY_A_INTERCHAIN_ROUTER_REPLY_ID,
+                )))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "clock".to_string(),
@@ -192,10 +206,13 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
     }
 }
 
-
 /// party A interchain router instantiation reply means we can proceed with the instantiation chain.
 /// we store the instantiated router address and submit the party B router instantiation tx.
-pub fn handle_party_a_interchain_router_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn handle_party_a_interchain_router_reply(
+    deps: DepsMut,
+    env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: party A interchain router reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
@@ -212,7 +229,9 @@ pub fn handle_party_a_interchain_router_reply(deps: DepsMut, env: Env, msg: Repl
             let party_b_router_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: party_b_router_preset_fields.code_id,
-                msg: to_binary(&party_b_router_preset_fields.to_instantiate_msg(clock_addr.to_string()))?,
+                msg: to_binary(
+                    &party_b_router_preset_fields.to_instantiate_msg(clock_addr.to_string()),
+                )?,
                 funds: vec![],
                 label: party_b_router_preset_fields.label,
             });
@@ -220,10 +239,10 @@ pub fn handle_party_a_interchain_router_reply(deps: DepsMut, env: Env, msg: Repl
             Ok(Response::default()
                 .add_attribute("method", "handle_party_a_interchain_router_reply")
                 .add_attribute("party_a_interchain_router_addr", router_addr)
-                .add_submessage(
-                    SubMsg::reply_always(party_b_router_instantiate_tx, PARTY_B_INTERCHAIN_ROUTER_REPLY_ID)
-                )
-            )
+                .add_submessage(SubMsg::reply_always(
+                    party_b_router_instantiate_tx,
+                    PARTY_B_INTERCHAIN_ROUTER_REPLY_ID,
+                )))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "party a router".to_string(),
@@ -234,7 +253,11 @@ pub fn handle_party_a_interchain_router_reply(deps: DepsMut, env: Env, msg: Repl
 
 /// party B interchain router instantiation reply means we can proceed with the instantiation chain.
 /// we store the instantiated router address and submit the interchain splitter instantiation tx.
-pub fn handle_party_b_interchain_router_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn handle_party_b_interchain_router_reply(
+    deps: DepsMut,
+    env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: party B interchain router reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
@@ -247,14 +270,16 @@ pub fn handle_party_b_interchain_router_reply(deps: DepsMut, env: Env, msg: Repl
             let preset_splitter_fields = PRESET_SPLITTER_FIELDS.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let party_a_router = PARTY_A_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
-            let splitter_instantiate_msg = preset_splitter_fields.to_instantiate_msg(
-                clock_addr.to_string(),
-                party_a_router.to_string(),
-                router_addr.to_string()
-            ).map_err(|e| ContractError::ContractInstantiationError {
-                contract: "splitter".to_string(),
-                err: ParseReplyError::ParseFailure(e.to_string()),
-            })?;
+            let splitter_instantiate_msg = preset_splitter_fields
+                .to_instantiate_msg(
+                    clock_addr.to_string(),
+                    party_a_router.to_string(),
+                    router_addr.to_string(),
+                )
+                .map_err(|e| ContractError::ContractInstantiationError {
+                    contract: "splitter".to_string(),
+                    err: ParseReplyError::ParseFailure(e.to_string()),
+                })?;
 
             let splitter_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -267,7 +292,10 @@ pub fn handle_party_b_interchain_router_reply(deps: DepsMut, env: Env, msg: Repl
             Ok(Response::default()
                 .add_attribute("method", "handle_party_b_interchain_router_reply")
                 .add_attribute("party_b_interchain_router_addr", router_addr)
-                .add_submessage(SubMsg::reply_always(splitter_instantiate_tx, SPLITTER_REPLY_ID)))
+                .add_submessage(SubMsg::reply_always(
+                    splitter_instantiate_tx,
+                    SPLITTER_REPLY_ID,
+                )))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "party b router".to_string(),
@@ -278,7 +306,11 @@ pub fn handle_party_b_interchain_router_reply(deps: DepsMut, env: Env, msg: Repl
 
 /// splitter instantiation reply means we can proceed with the instantiation chain.
 /// we store the splitter address and submit the swap holder instantiate tx.
-pub fn handle_splitter_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn handle_splitter_reply(
+    deps: DepsMut,
+    env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: splitter reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
@@ -307,7 +339,10 @@ pub fn handle_splitter_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Resp
             Ok(Response::default()
                 .add_attribute("method", "handle_splitter_reply")
                 .add_attribute("splitter_addr", splitter_addr)
-                .add_submessage(SubMsg::reply_always(holder_instantiate_tx, SWAP_HOLDER_REPLY_ID)))
+                .add_submessage(SubMsg::reply_always(
+                    holder_instantiate_tx,
+                    SWAP_HOLDER_REPLY_ID,
+                )))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "splitter".to_string(),
@@ -318,7 +353,11 @@ pub fn handle_splitter_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Resp
 
 /// swap instantiation reply means we can proceed with the instantiation chain.
 /// we store the swap holder address and submit the party A ibc forwarder instantiate tx.
-pub fn handle_swap_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn handle_swap_holder_reply(
+    deps: DepsMut,
+    env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: swap holder reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
@@ -330,12 +369,11 @@ pub fn handle_swap_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<R
 
             // load the fields relevant to ibc forwarder instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
-            let preset_party_a_forwarder_fields = PRESET_PARTY_A_FORWARDER_FIELDS.load(deps.storage)?;
+            let preset_party_a_forwarder_fields =
+                PRESET_PARTY_A_FORWARDER_FIELDS.load(deps.storage)?;
 
-            let instantiate_msg = preset_party_a_forwarder_fields.to_instantiate_msg(
-                clock_addr.to_string(),
-                swap_holder_addr.to_string(),
-            );
+            let instantiate_msg = preset_party_a_forwarder_fields
+                .to_instantiate_msg(clock_addr.to_string(), swap_holder_addr.to_string());
             let party_a_forwarder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_party_a_forwarder_fields.code_id,
@@ -347,7 +385,10 @@ pub fn handle_swap_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<R
             Ok(Response::default()
                 .add_attribute("method", "handle_swap_holder_reply")
                 .add_attribute("swap_holder_addr", swap_holder_addr)
-                .add_submessage(SubMsg::reply_always(party_a_forwarder_instantiate_tx, PARTY_A_FORWARDER_REPLY_ID)))
+                .add_submessage(SubMsg::reply_always(
+                    party_a_forwarder_instantiate_tx,
+                    PARTY_A_FORWARDER_REPLY_ID,
+                )))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "swap holder".to_string(),
@@ -358,7 +399,11 @@ pub fn handle_swap_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<R
 
 /// party A ibc forwarder reply means we can proceed with the instantiation chain.
 /// we store the party A ibc forwarder address and submit the party B ibc forwarder instantiate tx.
-pub fn handle_party_a_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn handle_party_a_ibc_forwarder_reply(
+    deps: DepsMut,
+    env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: party A ibc forwader reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
@@ -370,13 +415,12 @@ pub fn handle_party_a_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -
 
             // load the fields relevant to ibc forwarder instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
-            let preset_party_b_forwarder_fields = PRESET_PARTY_B_FORWARDER_FIELDS.load(deps.storage)?;
+            let preset_party_b_forwarder_fields =
+                PRESET_PARTY_B_FORWARDER_FIELDS.load(deps.storage)?;
             let swap_holder = COVENANT_SWAP_HOLDER_ADDR.load(deps.storage)?;
 
-            let instantiate_msg = preset_party_b_forwarder_fields.to_instantiate_msg(
-                clock_addr.to_string(),
-                swap_holder.to_string(),
-            );
+            let instantiate_msg = preset_party_b_forwarder_fields
+                .to_instantiate_msg(clock_addr.to_string(), swap_holder.to_string());
 
             let party_b_forwarder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -389,7 +433,10 @@ pub fn handle_party_a_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -
             Ok(Response::default()
                 .add_attribute("method", "handle_party_a_ibc_forwader")
                 .add_attribute("party_a_ibc_forwarder_addr", party_a_ibc_forwarder_addr)
-                .add_submessage(SubMsg::reply_always(party_b_forwarder_instantiate_tx, PARTY_B_FORWARDER_REPLY_ID)))
+                .add_submessage(SubMsg::reply_always(
+                    party_b_forwarder_instantiate_tx,
+                    PARTY_B_FORWARDER_REPLY_ID,
+                )))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "party_a_forwarder".to_string(),
@@ -398,10 +445,13 @@ pub fn handle_party_a_ibc_forwarder_reply(deps: DepsMut, env: Env, msg: Reply) -
     }
 }
 
-
 /// party B ibc forwarder reply means that we instantiated all the contracts.
 /// we store the party B ibc forwarder address and whitelist the contracts on our clock.
-pub fn handle_party_b_ibc_forwarder_reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn handle_party_b_ibc_forwarder_reply(
+    deps: DepsMut,
+    _env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: party B ibc forwader reply");
 
     let parsed_data = parse_reply_instantiate_data(msg);
@@ -418,7 +468,6 @@ pub fn handle_party_b_ibc_forwarder_reply(deps: DepsMut, _env: Env, msg: Reply) 
             let interchain_splitter = COVENANT_INTERCHAIN_SPLITTER_ADDR.load(deps.storage)?;
             let party_a_router = PARTY_A_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
             let party_b_router = PARTY_B_INTERCHAIN_ROUTER_ADDR.load(deps.storage)?;
-
 
             let update_clock_whitelist_msg = WasmMsg::Migrate {
                 contract_addr: clock_addr.to_string(),
@@ -439,8 +488,7 @@ pub fn handle_party_b_ibc_forwarder_reply(deps: DepsMut, _env: Env, msg: Reply) 
             Ok(Response::default()
                 .add_attribute("method", "handle_party_b_ibc_forwarder_reply")
                 .add_attribute("party_b_ibc_forwarder_addr", party_b_ibc_forwarder_addr)
-                .add_message(update_clock_whitelist_msg)
-        )
+                .add_message(update_clock_whitelist_msg))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "party_b ibc forwarder".to_string(),
@@ -452,9 +500,13 @@ pub fn handle_party_b_ibc_forwarder_reply(deps: DepsMut, _env: Env, msg: Reply) 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress{} => Ok(to_binary(&COVENANT_CLOCK_ADDR.may_load(deps.storage)?)?),
-        QueryMsg::HolderAddress {} => Ok(to_binary(&COVENANT_SWAP_HOLDER_ADDR.may_load(deps.storage)?)?),
-        QueryMsg::SplitterAddress {} =>  Ok(to_binary(&COVENANT_INTERCHAIN_SPLITTER_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_binary(&COVENANT_CLOCK_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::HolderAddress {} => Ok(to_binary(
+            &COVENANT_SWAP_HOLDER_ADDR.may_load(deps.storage)?,
+        )?),
+        QueryMsg::SplitterAddress {} => Ok(to_binary(
+            &COVENANT_INTERCHAIN_SPLITTER_ADDR.may_load(deps.storage)?,
+        )?),
         QueryMsg::InterchainRouterAddress { party } => {
             let resp = if party == "party_a" {
                 PARTY_A_INTERCHAIN_ROUTER_ADDR.may_load(deps.storage)?
@@ -464,7 +516,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 Some(Addr::unchecked("not found"))
             };
             Ok(to_binary(&resp)?)
-        },
+        }
         QueryMsg::IbcForwarderAddress { party } => {
             let resp = if party == "party_a" {
                 PARTY_A_IBC_FORWARDER_ADDR.may_load(deps.storage)?

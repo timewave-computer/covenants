@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Attribute};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
-use covenant_utils::{LockupConfig, CovenantPartiesConfig, CovenantTerms};
+use covenant_utils::{CovenantPartiesConfig, CovenantTerms, LockupConfig};
 
 #[cw_serde]
 pub struct InstantiateMsg {

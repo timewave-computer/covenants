@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
 use covenant_utils::{
-    CovenantPartiesConfig, CovenantParty, CovenantTerms, LockupConfig,
-    SwapCovenantTerms, ReceiverConfig,
+    CovenantPartiesConfig, CovenantParty, CovenantTerms, LockupConfig, ReceiverConfig,
+    SwapCovenantTerms,
 };
 
 use crate::{

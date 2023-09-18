@@ -44,8 +44,7 @@ pub fn instantiate(
 
     Ok(Response::default()
         .add_attribute("method", "swap_holder_instantiate")
-        .add_attributes(msg.get_response_attributes())
-    )
+        .add_attributes(msg.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -85,7 +84,7 @@ fn try_forward(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         return Ok(Response::default()
             .add_attribute("method", "try_forward")
             .add_attribute("result", "covenant_expired")
-            .add_attribute("contract_state", "expired"))
+            .add_attribute("contract_state", "expired"));
     }
 
     let parties = PARTIES_CONFIG.load(deps.storage)?;

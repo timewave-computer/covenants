@@ -1,7 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    Addr, Binary, Uint64,
-};
+use cosmwasm_std::{Addr, Binary, Uint64};
 use covenant_macros::{clocked, covenant_clock_address};
 use covenant_utils::DestinationConfig;
 
