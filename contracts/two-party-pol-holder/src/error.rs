@@ -7,6 +7,9 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
+    #[error("both parties have not deposited")]
+    InsufficientDeposits {},
+
     #[error("failed to multiply amount by share")]
     FractionMulError {},
 
