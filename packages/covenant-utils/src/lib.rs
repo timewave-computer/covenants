@@ -338,6 +338,12 @@ pub struct SwapCovenantTerms {
     pub party_b_amount: Uint128,
 }
 
+#[cw_serde]
+pub struct PolCovenantTerms {
+    pub party_a_amount: Uint128,
+    pub party_b_amount: Uint128,
+}
+
 impl CovenantTerms {
     pub fn get_response_attributes(self) -> Vec<Attribute> {
         match self {
@@ -348,7 +354,7 @@ impl CovenantTerms {
                     Attribute::new("party_b_amount", terms.party_b_amount),
                 ];
                 attrs
-            }
+            },
         }
     }
 }

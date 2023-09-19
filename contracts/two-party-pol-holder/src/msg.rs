@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Timestamp, BlockInfo, Attribute, OverflowError};
+use cosmwasm_std::{Addr, Decimal, Timestamp, BlockInfo, Attribute};
 use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract};
+use covenant_utils::PolCovenantTerms;
 
 use crate::error::ContractError;
 
@@ -21,6 +22,11 @@ pub struct InstantiateMsg {
     pub ragequit_config: RagequitConfig,
     /// parties engaged in the POL.
     pub parties_config: PartiesConfig,
+    /// deadline for both parties to deposit the funds
+    /// TODO: rename LockupConfig to something more generic
+    /// to represent block/time based expiration
+    pub deposit_deadline: Option<LockupConfig>,
+    pub covenant_terms: PolCovenantTerms,
 }
 
 impl InstantiateMsg {
@@ -48,12 +54,18 @@ pub enum ExecuteMsg {
 
 #[cw_serde]
 pub enum ContractState {
+    /// contract is instantiated and awaiting for deposits from
+    /// both parties involved
     Instantiated,
+    /// funds have been forwarded to the LP module. from the perspective
+    /// of this contract that indicates an active LP position.
+    /// TODO: think about whether this is a fair assumption to make.
+    Active,
     /// one of the parties have initiated ragequit.
     /// party with an active position is free to exit at any time.
     Ragequit,
     /// covenant has reached its expiration date.
-    ExpirationReached,
+    Expired,
     /// underlying funds have been withdrawn.
     Complete,
 }
@@ -222,7 +234,7 @@ impl LockupConfig {
     }
 
     /// validates that the lockup config being stored is not already expired.
-    pub fn validate(&self, block_info: BlockInfo) -> Result<&LockupConfig, ContractError> {
+    pub fn validate(&self, block_info: &BlockInfo) -> Result<&LockupConfig, ContractError> {
         match self {
             LockupConfig::None => Ok(self),
             LockupConfig::Block(h) => {
