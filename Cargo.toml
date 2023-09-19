@@ -37,7 +37,6 @@ covenant-lp = { path = "contracts/lper" }
 covenant-clock = { path = "contracts/clock" }
 covenant-clock-tester = { path = "contracts/clock-tester" }
 covenant-ls = { path = "contracts/ls" }
-# covenant-covenant = { path = "contracts/covenant" }
 covenant-holder = { path = "contracts/holder" }
 covenant-ibc-forwarder = { path = "contracts/ibc-forwarder" }
 covenant-native-splitter = { path = "contracts/native-splitter" }
@@ -45,6 +44,7 @@ covenant-interchain-splitter = { path = "contracts/interchain-splitter" }
 covenant-swap-holder = { path = "contracts/swap-holder" }
 swap-covenant = { path = "contracts/swap-covenant" }
 covenant-interchain-router = { path = "contracts/interchain-router" }
+covenant-two-party-pol-holder = { path = "contracts/two-party-pol-holder" }
 
 # packages 
 clock-derive = { path = "packages/clock-derive" }
