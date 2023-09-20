@@ -194,7 +194,7 @@ impl LockupConfig {
     }
 
     /// validates that the lockup config being stored is not already expired.
-    pub fn validate(&self, block_info: BlockInfo) -> Result<(), StdError> {
+    pub fn validate(&self, block_info: &BlockInfo) -> Result<(), StdError> {
         match self {
             LockupConfig::None => Ok(()),
             LockupConfig::Block(h) => {
@@ -324,6 +324,18 @@ impl CovenantPartiesConfig {
                 .get_response_attributes("party_b_".to_string()),
         );
         attrs
+    }
+
+    pub fn match_caller_party(&self, caller: String) -> Result<CovenantParty, StdError> {
+        let a = self.clone().party_a;
+        let b = self.clone().party_b;
+        if a.addr == caller {
+            Ok(a)
+        } else if b.addr == caller {
+            Ok(b)
+        } else {
+            Err(StdError::generic_err("unauthorized"))
+        }
     }
 }
 

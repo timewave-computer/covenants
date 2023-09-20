@@ -33,3 +33,8 @@ cosmos-sdk-proto = { workspace = true }
 protobuf         = { workspace = true }
 astroport        = "2.8.0"
 cw20             = { version = "0.15" }
+
+
+[dev-dependencies]
+cw-multi-test = { workspace = true }
+anyhow = { workspace = true }
