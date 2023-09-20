@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Timestamp, BlockInfo, Attribute};
+use cosmwasm_std::{Addr, Decimal, Attribute};
 use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract};
-use covenant_utils::PolCovenantTerms;
+use covenant_utils::{PolCovenantTerms, CovenantPartiesConfig, LockupConfig};
 
 use crate::error::ContractError;
 
@@ -21,7 +21,7 @@ pub struct InstantiateMsg {
     /// configuration for ragequit
     pub ragequit_config: RagequitConfig,
     /// parties engaged in the POL.
-    pub parties_config: PartiesConfig,
+    pub parties_config: CovenantPartiesConfig,
     /// deadline for both parties to deposit the funds
     /// TODO: rename LockupConfig to something more generic
     /// to represent block/time based expiration
@@ -207,61 +207,61 @@ pub struct RagequitTerms {
     pub active: bool,
 }
 
-/// enum based configuration of the lockup period.
-#[cw_serde]
-pub enum LockupConfig {
-    /// no lockup configured
-    None,
-    /// block height based lockup config
-    Block(u64),
-    /// timestamp based lockup config
-    Time(Timestamp),
-}
+// / enum based configuration of the lockup period.
+// #[cw_serde]
+// pub enum LockupConfig {
+//     /// no lockup configured
+//     None,
+//     /// block height based lockup config
+//     Block(u64),
+//     /// timestamp based lockup config
+//     Time(Timestamp),
+// }
 
-impl LockupConfig {
-    pub fn get_response_attributes(self) -> Vec<Attribute> {
-        match self {
-            LockupConfig::None => vec![
-                Attribute::new("lockup_config", "none"),
-            ],
-            LockupConfig::Block(h) => vec![
-                Attribute::new("lockup_config_expiry_block_height", h.to_string()),
-            ],
-            LockupConfig::Time(t) => vec![
-                Attribute::new("lockup_config_expiry_block_timestamp", t.to_string()),
-            ],
-        }
-    }
+// impl LockupConfig {
+//     pub fn get_response_attributes(self) -> Vec<Attribute> {
+//         match self {
+//             LockupConfig::None => vec![
+//                 Attribute::new("lockup_config", "none"),
+//             ],
+//             LockupConfig::Block(h) => vec![
+//                 Attribute::new("lockup_config_expiry_block_height", h.to_string()),
+//             ],
+//             LockupConfig::Time(t) => vec![
+//                 Attribute::new("lockup_config_expiry_block_timestamp", t.to_string()),
+//             ],
+//         }
+//     }
 
-    /// validates that the lockup config being stored is not already expired.
-    pub fn validate(&self, block_info: &BlockInfo) -> Result<&LockupConfig, ContractError> {
-        match self {
-            LockupConfig::None => Ok(self),
-            LockupConfig::Block(h) => {
-                if h > &block_info.height {
-                    Ok(self)
-                } else {
-                    Err(ContractError::LockupValidationError {})
-                }
-            },
-            LockupConfig::Time(t) => {
-                if t.nanos() > block_info.time.nanos() {
-                    Ok(self)
-                } else {
-                    Err(ContractError::LockupValidationError {})
-                }
-            },
-        }
-    }
+//     /// validates that the lockup config being stored is not already expired.
+//     pub fn validate(&self, block_info: &BlockInfo) -> Result<&LockupConfig, ContractError> {
+//         match self {
+//             LockupConfig::None => Ok(self),
+//             LockupConfig::Block(h) => {
+//                 if h > &block_info.height {
+//                     Ok(self)
+//                 } else {
+//                     Err(ContractError::LockupValidationError {})
+//                 }
+//             },
+//             LockupConfig::Time(t) => {
+//                 if t.nanos() > block_info.time.nanos() {
+//                     Ok(self)
+//                 } else {
+//                     Err(ContractError::LockupValidationError {})
+//                 }
+//             },
+//         }
+//     }
 
-    /// compares current block info with the stored lockup config.
-    /// returns false if no lockup configuration is stored.
-    /// otherwise, returns true if the current block is past the stored info.
-    pub fn is_due(self, block_info: BlockInfo) -> bool {
-        match self {
-            LockupConfig::None => false, // or.. true? should not be called
-            LockupConfig::Block(h) => h < block_info.height,
-            LockupConfig::Time(t) => t.nanos() < block_info.time.nanos(),
-        }
-    }
-}
+//     /// compares current block info with the stored lockup config.
+//     /// returns false if no lockup configuration is stored.
+//     /// otherwise, returns true if the current block is past the stored info.
+//     pub fn is_due(self, block_info: BlockInfo) -> bool {
+//         match self {
+//             LockupConfig::None => false, // or.. true? should not be called
+//             LockupConfig::Block(h) => h < block_info.height,
+//             LockupConfig::Time(t) => t.nanos() < block_info.time.nanos(),
+//         }
+//     }
+// }

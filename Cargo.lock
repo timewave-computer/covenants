@@ -630,6 +630,7 @@ dependencies = [
 name = "covenant-two-party-pol-holder"
 version = "1.0.0"
 dependencies = [
+ "anyhow",
  "astroport 2.8.0",
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
@@ -637,6 +638,7 @@ dependencies = [
  "covenant-clock",
  "covenant-macros",
  "covenant-utils",
+ "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.1",
  "cw20 0.15.1",
