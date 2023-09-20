@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Attribute};
+use cosmwasm_std::{Addr, Decimal, Attribute, Uint128, Coin};
 use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract};
 use covenant_utils::LockupConfig;
 
@@ -13,6 +13,7 @@ pub struct InstantiateMsg {
     pub deposit_deadline: Option<LockupConfig>,
     pub party_a_router: String,
     pub party_b_router: String,
+    pub covenant_config: TwoPartyPolCovenantConfig,
 }
 
 impl InstantiateMsg {
@@ -27,6 +28,12 @@ impl InstantiateMsg {
         attrs.extend(self.lockup_config.get_response_attributes());
         attrs
     }
+}
+
+#[cw_serde]
+pub struct TwoPartyPolCovenantConfig {
+    pub party_a_contribution: Coin,
+    pub party_b_contribution: Coin,
 }
 
 #[clocked]

@@ -1,8 +1,7 @@
-use astroport::router;
 use cosmwasm_std::{Timestamp, Uint128};
 use covenant_utils::LockupConfig;
 
-use crate::{suite_tests::suite::{CLOCK_ADDR, POOL, NEXT_CONTRACT, PARTY_A_ROUTER, PARTY_B_ROUTER, Suite, get_default_block_info}, msg::ContractState};
+use crate::{suite_tests::suite::{CLOCK_ADDR, POOL, NEXT_CONTRACT, PARTY_A_ROUTER, PARTY_B_ROUTER, get_default_block_info}, msg::ContractState, error::ContractError};
 
 use super::suite::SuiteBuilder;
 
@@ -61,6 +60,7 @@ fn test_single_party_deposit_refund_block_based() {
     // time passes, clock ticks..
     suite.pass_blocks(250);
     suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(CLOCK_ADDR).unwrap();
 
     let holder_balance = suite.get_denom_a_balance(suite.holder.to_string());
     let router_a_balance = suite.get_denom_a_balance(
@@ -86,6 +86,7 @@ fn test_single_party_deposit_refund_time_based() {
     // time passes, clock ticks..
     suite.pass_minutes(250);
     suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(CLOCK_ADDR).unwrap();
 
     let holder_balance = suite.get_denom_a_balance(suite.holder.to_string());
     let router_a_balance = suite.get_denom_a_balance(
@@ -108,7 +109,9 @@ fn test_single_party_deposit_refund_no_deposit_deadline() {
 
     // time passes, clock ticks..
     suite.pass_minutes(25000000);
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(CLOCK_ADDR);
+    suite.tick(CLOCK_ADDR);
+    let resp: ContractError = suite.tick(CLOCK_ADDR).unwrap_err().downcast().unwrap();
 
     // we assert that holder still holds the tokens and did not advance the state
     let holder_balance = suite.get_denom_a_balance(suite.holder.to_string());
@@ -116,4 +119,5 @@ fn test_single_party_deposit_refund_no_deposit_deadline() {
 
     assert_eq!(ContractState::Instantiated, holder_state);
     assert_eq!(Uint128::new(500), holder_balance);
+    assert_eq!(ContractError::InsufficientDeposits {}, resp);
 }

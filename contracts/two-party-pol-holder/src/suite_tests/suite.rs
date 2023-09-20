@@ -1,4 +1,4 @@
-use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig};
+use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, TwoPartyPolCovenantConfig};
 use cosmos_sdk_proto::tendermint::types::Block;
 use cosmwasm_std::{Addr, Coin, Uint128, BlockInfo, Uint64, Timestamp};
 use covenant_utils::{
@@ -50,6 +50,16 @@ impl Default for SuiteBuilder {
                 lockup_config: LockupConfig::None,
                 party_a_router: PARTY_A_ROUTER.to_string(),
                 party_b_router: PARTY_B_ROUTER.to_string(),
+                covenant_config: TwoPartyPolCovenantConfig {
+                    party_a_contribution: Coin {
+                        denom: DENOM_A.to_string(),
+                        amount: Uint128::new(200),
+                    },
+                    party_b_contribution: Coin {
+                        denom: DENOM_B.to_string(),
+                        amount: Uint128::new(100),
+                    },
+                },
             },
             app: App::default(),
         }
