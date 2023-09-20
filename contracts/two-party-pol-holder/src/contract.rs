@@ -1,11 +1,11 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, BankMsg, CosmosMsg};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use covenant_utils::LockupConfig;
 use cw2::set_contract_version;
 
-use crate::{msg::{InstantiateMsg, QueryMsg, ExecuteMsg}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, RAGEQUIT_CONFIG, LOCKUP_CONFIG, CONTRACT_STATE, DEPOSIT_DEADLINE, POOL_ADDRESS, PARTY_A_ROUTER, PARTY_B_ROUTER}, error::ContractError};
+use crate::{msg::{InstantiateMsg, QueryMsg, ExecuteMsg, ContractState}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, RAGEQUIT_CONFIG, LOCKUP_CONFIG, CONTRACT_STATE, DEPOSIT_DEADLINE, POOL_ADDRESS, PARTY_A_ROUTER, PARTY_B_ROUTER, COVENANT_CONFIG}, error::ContractError};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -33,6 +33,8 @@ pub fn instantiate(
     RAGEQUIT_CONFIG.save(deps.storage, &msg.ragequit_config)?;
     PARTY_A_ROUTER.save(deps.storage, &party_a_router)?;
     PARTY_B_ROUTER.save(deps.storage, &party_b_router)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+    COVENANT_CONFIG.save(deps.storage, &msg.covenant_config)?;
 
     match &msg.deposit_deadline {
         Some(deadline) => {
@@ -57,61 +59,155 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    // match msg {
+    match msg {
     //     ExecuteMsg::Ragequit {} => try_ragequit(deps, env, info),
     //     ExecuteMsg::Claim {} => try_claim(deps, env, info),
-    //     ExecuteMsg::Tick {} => try_tick(deps, env, info),
-    // }
-    Ok(Response::default())
+        ExecuteMsg::Tick {} => try_tick(deps, env, info),
+        _ => Ok(Response::default()),
+    }
 }
 
-// fn try_tick(
-//     deps: DepsMut,
-//     env: Env,
-//     info: MessageInfo,
-// ) -> Result<Response, ContractError> {
-//     let state = CONTRACT_STATE.load(deps.storage)?;
-//     match state {
-//         ContractState::Instantiated => try_deposit(deps, env, info),
-//         ContractState::Active => check_expiration(deps, env, info),
-//         ContractState::Ragequit => todo!(),
-//         ContractState::Expired => todo!(),
-//         ContractState::Complete => Ok(Response::default().add_attribute("contract_state", "complete")),
-//     }
-// }
+fn try_tick(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let state = CONTRACT_STATE.load(deps.storage)?;
+    match state {
+        ContractState::Instantiated => try_deposit(deps, env, info),
+        _ => Ok(Response::default()),
+        // ContractState::Active => check_expiration(deps, env, info),
+        // ContractState::Ragequit => todo!(),
+        // ContractState::Expired => todo!(),
+        // ContractState::Complete => Ok(Response::default().add_attribute("contract_state", "complete")),
+    }
+}
 
-// fn try_deposit(
-//     deps: DepsMut,
-//     env: Env,
-//     info: MessageInfo,
-// ) -> Result<Response, ContractError> {
+fn try_deposit(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    let config = COVENANT_CONFIG.load(deps.storage)?;
 
-//     let parties = PARTIES_CONFIG.load(deps.storage)?;
-//     let terms = COVENANT_TERMS.load(deps.storage)?;
+    // assert the balances
+    let party_a_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        config.party_a_contribution.denom)?;
+    let party_b_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        config.party_b_contribution.denom)?;
 
-//     // assert the balances
-//     let party_a_bal = deps.querier.query_balance(env.contract.address.to_string(), parties.party_a.ibc_denom)?;
-//     let party_b_bal = deps.querier.query_balance(env.contract.address.to_string(), parties.party_b.ibc_denom)?;
+    let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
+    let party_a_fulfilled = config.party_a_contribution.amount < party_a_bal.amount;
+    let party_b_fulfilled = config.party_b_contribution.amount < party_b_bal.amount;
 
-//     if terms.party_a_amount < party_a_bal.amount || terms.party_b_amount < party_b_bal.amount {
-//         return Err(ContractError::InsufficientDeposits {})
-//     }
+    // note: even if both parties deposit their funds in time,
+    // it is important to trigger this method before the expiry block
+    // if deposit deadline is due we complete and refund
+    if deposit_deadline.is_expired(env.block.clone()) {
+        let a_router = PARTY_A_ROUTER.load(deps.storage)?;
+        let b_router = PARTY_B_ROUTER.load(deps.storage)?;
+
+        let refund_messages: Vec<CosmosMsg> = match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
+            // both balances empty, we complete
+            (true, true) => {
+                CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+                return Ok(Response::default()
+                    .add_attribute("method", "try_deposit")
+                    .add_attribute("state", "complete"))
+            },
+            // refund party B
+            (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
+                to_address: b_router.to_string(),
+                amount: vec![party_b_bal],
+            })],
+            // refund party A
+            (false, true) => vec![CosmosMsg::Bank(BankMsg::Send {
+                to_address: a_router.to_string(),
+                amount: vec![party_a_bal],
+            })],
+            // refund both
+            (false, false) => vec![
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: a_router.to_string(),
+                    amount: vec![party_a_bal],
+                }),
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: b_router.to_string(),
+                    amount: vec![party_b_bal],
+                }),
+            ],
+        };
+        return Ok(Response::default()
+            .add_attribute("method", "try_deposit")
+            .add_attribute("action", "refund")
+            .add_messages(refund_messages)
+        )
+    } else if !party_a_fulfilled || !party_b_fulfilled {
+        // if deposit deadline is not yet due and both parties did not fulfill we error
+        return Err(ContractError::InsufficientDeposits {})
+    }
+
+    // match (
+    //     config.party_a_contribution.amount < party_a_bal.amount,
+    //     config.party_b_contribution.amount < party_b_bal.amount,
+    //     deposit_deadline.is_expired(env.block.clone()),
+    // ) {
+    //     // if deposit deadline is not yet due, we wait
+    //     (_, _, false) => {
+    //         return Err(ContractError::InsufficientDeposits {})
+    //     },
+    //     // neither party contributed enough, 
+    //     (true, true, true) => {
+
+    //     },
+    //     (true, false, true) => {
+
+    //     },
+    //     (false, true, true) => {
+
+    //     },
+    //     (false, true, true) => {
+
+    //     },
+    // }
+    // if config.party_a_contribution.amount < party_a_bal.amount || config.party_b_contribution.amount < party_b_bal.amount {
+    //     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
+    //     if deposit_deadline.is_expired(env.block.clone()) {
+    //         // if deposit deadline is due and some party did not deposit,
+    //         // we refund the counterparty
+
+
+    //     } else {
+    //         return Err(ContractError::InsufficientDeposits {})
+    //     }
+    // }
     
-//     // LiquidPooler is the next contract
-//     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
-//     let msg = BankMsg::Send {
-//         to_address: next_contract.to_string(),
-//         amount: vec![party_a_bal, party_b_bal],
-//     };
+    // LiquidPooler is the next contract
+    let next_contract = NEXT_CONTRACT.load(deps.storage)?;
+    let msg = BankMsg::Send {
+        to_address: next_contract.to_string(),
+        amount: vec![party_a_bal, party_b_bal],
+    };
 
-//     // advance the state to Active
-//     CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
+    // advance the state to Active
+    CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
 
-//     Ok(Response::default()
-//         .add_attribute("method", "deposit_to_next_contract")
-//         .add_message(msg)
-//     )
-// }
+    Ok(Response::default()
+        .add_attribute("method", "deposit_to_next_contract")
+        .add_message(msg)
+    )
+}
+
+fn try_refund(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+
+    Ok(Response::default())
+}
 
 // fn check_expiration(
 //     deps: DepsMut,
