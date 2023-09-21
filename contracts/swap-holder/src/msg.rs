@@ -14,7 +14,7 @@ pub struct InstantiateMsg {
     /// block height of covenant expiration. Position is exited
     /// automatically upon reaching that height.
     pub lockup_config: LockupConfig,
-    /// parties engaged in the POL.
+    /// parties engaged in the swap.
     pub parties_config: CovenantPartiesConfig,
     /// terms of the covenant
     pub covenant_terms: CovenantTerms,
