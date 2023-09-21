@@ -36,6 +36,7 @@ pub struct TwoPartyPolCovenantConfig {
     pub party_b_contribution: Coin,
 }
 
+
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {
@@ -58,7 +59,7 @@ pub enum ContractState {
     // /// party with an active position is free to exit at any time.
     // Ragequit,
     // /// covenant has reached its expiration date.
-    // Expired,
+    Expired,
     // /// underlying funds have been withdrawn.
     Complete,
 }
