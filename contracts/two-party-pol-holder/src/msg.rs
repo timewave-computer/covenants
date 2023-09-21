@@ -55,12 +55,12 @@ pub enum ContractState {
     /// of this contract that indicates an active LP position.
     /// TODO: think about whether this is a fair assumption to make.
     Active,
-    // /// one of the parties have initiated ragequit.
-    // /// party with an active position is free to exit at any time.
-    // Ragequit,
-    // /// covenant has reached its expiration date.
+    /// one of the parties have initiated ragequit.
+    /// party with an active position is free to exit at any time.
+    Ragequit,
+    /// covenant has reached its expiration date.
     Expired,
-    // /// underlying funds have been withdrawn.
+    /// underlying funds have been withdrawn.
     Complete,
 }
 

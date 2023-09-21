@@ -124,6 +124,15 @@ impl Suite {
             &[],
         )
     }
+
+    pub fn rq(&mut self, caller: &str) -> Result<AppResponse, anyhow::Error> {
+        self.app.execute_contract(
+            Addr::unchecked(caller),
+            self.holder.clone(),
+            &ExecuteMsg::Ragequit {},
+            &[],
+        )
+    }
 }
 
 // queries
