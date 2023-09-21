@@ -10,6 +10,9 @@ pub enum ContractError {
     #[error("unauthorized")]
     Unauthorized {},
 
+    #[error("covenant is not in active state")]
+    NotActive {},
+
     #[error("both parties have not deposited")]
     InsufficientDeposits {},
 
