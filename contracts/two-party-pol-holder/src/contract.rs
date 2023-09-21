@@ -1,9 +1,11 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, BankMsg, CosmosMsg};
+use astroport::pair::Cw20HookMsg;
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, BankMsg, CosmosMsg, WasmMsg};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use covenant_utils::LockupConfig;
 use cw2::set_contract_version;
+use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
 use crate::{msg::{InstantiateMsg, QueryMsg, ExecuteMsg, ContractState}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, RAGEQUIT_CONFIG, LOCKUP_CONFIG, CONTRACT_STATE, DEPOSIT_DEADLINE, POOL_ADDRESS, PARTY_A_ROUTER, PARTY_B_ROUTER, COVENANT_CONFIG}, error::ContractError};
 
@@ -75,11 +77,11 @@ fn try_tick(
     let state = CONTRACT_STATE.load(deps.storage)?;
     match state {
         ContractState::Instantiated => try_deposit(deps, env, info),
-        _ => Ok(Response::default()),
-        // ContractState::Active => check_expiration(deps, env, info),
+        ContractState::Active => check_expiration(deps, env),
         // ContractState::Ragequit => todo!(),
         // ContractState::Expired => todo!(),
-        // ContractState::Complete => Ok(Response::default().add_attribute("contract_state", "complete")),
+        ContractState::Complete => Ok(Response::default().add_attribute("contract_state", "complete")),
+        _ => Ok(Response::default()),
     }
 }
 
@@ -148,41 +150,6 @@ fn try_deposit(
         // if deposit deadline is not yet due and both parties did not fulfill we error
         return Err(ContractError::InsufficientDeposits {})
     }
-
-    // match (
-    //     config.party_a_contribution.amount < party_a_bal.amount,
-    //     config.party_b_contribution.amount < party_b_bal.amount,
-    //     deposit_deadline.is_expired(env.block.clone()),
-    // ) {
-    //     // if deposit deadline is not yet due, we wait
-    //     (_, _, false) => {
-    //         return Err(ContractError::InsufficientDeposits {})
-    //     },
-    //     // neither party contributed enough, 
-    //     (true, true, true) => {
-
-    //     },
-    //     (true, false, true) => {
-
-    //     },
-    //     (false, true, true) => {
-
-    //     },
-    //     (false, true, true) => {
-
-    //     },
-    // }
-    // if config.party_a_contribution.amount < party_a_bal.amount || config.party_b_contribution.amount < party_b_bal.amount {
-    //     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
-    //     if deposit_deadline.is_expired(env.block.clone()) {
-    //         // if deposit deadline is due and some party did not deposit,
-    //         // we refund the counterparty
-
-
-    //     } else {
-    //         return Err(ContractError::InsufficientDeposits {})
-    //     }
-    // }
     
     // LiquidPooler is the next contract
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
@@ -200,73 +167,28 @@ fn try_deposit(
     )
 }
 
-fn try_refund(
+
+fn check_expiration(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
 ) -> Result<Response, ContractError> {
+    let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
 
-    Ok(Response::default())
+    if !lockup_config.is_expired(env.block) {
+        return Ok(Response::default()
+            .add_attribute("method", "check_expiration")
+            .add_attribute("result", "not_due")
+        )
+    }
+
+    // advance state to Expired to enable claims
+    CONTRACT_STATE.save(deps.storage, &ContractState::Expired)?;
+
+    Ok(Response::default()
+        .add_attribute("method", "check_expiration")
+        .add_attribute("contract_state", "expired")
+    )
 }
-
-// fn check_expiration(
-//     deps: DepsMut,
-//     env: Env,
-//     info: MessageInfo,
-// ) -> Result<Response, ContractError> {
-
-//     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
-
-//     if !lockup_config.is_expired(env.block) {
-//         return Ok(Response::default()
-//             .add_attribute("method", "check_expiration")
-//             .add_attribute("result", "not_due")
-//         )
-//     }
-
-//     let pool_address = POOL_ADDRESS.load(deps.storage)?;
-
-//     // We query the pool to get the contract for the pool info
-//     // The pool info is required to fetch the address of the
-//     // liquidity token contract. The liquidity tokens are CW20 tokens
-//     let pair_info: astroport::asset::PairInfo = deps.querier.query_wasm_smart(
-//         pool_address.to_string(),
-//         &astroport::pair::QueryMsg::Pair {},
-//     )?;
-
-//     // We query our own liquidity token balance
-//     let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
-//         pair_info.clone().liquidity_token,
-//         &cw20::Cw20QueryMsg::Balance {
-//             address: env.contract.address.to_string(),
-//         },
-//     )?;
-
-//     // We withdraw our liquidity constructing a CW20 send message
-//     // The message contains our liquidity token balance
-//     // The pool address and a message to call the withdraw liquidity hook of the pool contract
-//     let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
-//     let withdraw_msg = &Cw20ExecuteMsg::Send {
-//         contract: pool_address.to_string(),
-//         amount: liquidity_token_balance.balance,
-//         msg: to_binary(withdraw_liquidity_hook)?,
-//     };
-
-//     // advance state to Expired
-//     CONTRACT_STATE.save(deps.storage, &ContractState::Expired)?;
-
-//     // We execute the message on the liquidity token contract
-//     // This will burn the LP tokens and withdraw liquidity into the holder
-//     Ok(Response::default()
-//         .add_attribute("method", "check_expiration")
-//         .add_attribute("result", "expired")
-//         .add_attribute("lp_token_amount", liquidity_token_balance.balance)
-//         .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-//             contract_addr: pair_info.liquidity_token.to_string(),
-//             msg: to_binary(withdraw_msg)?,
-//             funds: vec![],
-//         })))
-// }
 
 // fn try_ragequit(
 //     deps: DepsMut,
