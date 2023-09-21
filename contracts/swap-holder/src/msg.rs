@@ -9,10 +9,9 @@ pub struct InstantiateMsg {
     /// that only the clock can execute Ticks
     pub clock_address: String,
     /// address of the next contract to forward the funds to.
-    /// usually expected tobe the splitter.
+    /// usually expected to be the splitter.
     pub next_contract: String,
-    /// block height of covenant expiration. Position is exited
-    /// automatically upon reaching that height.
+    /// block height or timestamp of covenant expiration
     pub lockup_config: LockupConfig,
     /// parties engaged in the swap.
     pub parties_config: CovenantPartiesConfig,
