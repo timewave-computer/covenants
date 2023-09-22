@@ -1,7 +1,7 @@
-use cosmwasm_std::{Timestamp, Uint128, Event, Attribute};
+use cosmwasm_std::{Timestamp, Uint128, Event, Attribute, Decimal256, Decimal};
 use covenant_utils::LockupConfig;
 
-use crate::{suite_tests::suite::{CLOCK_ADDR, POOL, NEXT_CONTRACT, PARTY_A_ROUTER, PARTY_B_ROUTER, get_default_block_info}, msg::ContractState, error::ContractError};
+use crate::{suite_tests::suite::{CLOCK_ADDR, POOL, NEXT_CONTRACT, PARTY_A_ROUTER, PARTY_B_ROUTER, get_default_block_info}, msg::{ContractState, RagequitConfig, RagequitTerms}, error::ContractError};
 
 use super::suite::{SuiteBuilder, PARTY_A_ADDR};
 
@@ -199,6 +199,63 @@ fn test_holder_active_expired_tick_advances_state() {
 }
 
 #[test]
+fn test_holder_ragequit_disabled() {
+    let mut suite = SuiteBuilder::default()
+        .with_ragequit_config(RagequitConfig::Disabled)
+        .build();
+    
+    // both parties fulfill their parts of the covenant
+    let coin_a = suite.get_party_a_coin(Uint128::new(500));
+    let coin_b = suite.get_party_b_coin(Uint128::new(500));
+    suite.fund_coin(coin_a);
+    suite.fund_coin(coin_b);
+
+    // we tick the holder to deposit the funds and activate
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    suite.pass_minutes(300);
+
+    // advance the state to expired
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    let err: ContractError = suite.rq(PARTY_A_ADDR).unwrap_err().downcast().unwrap();
+    let state = suite.query_contract_state();
+
+    assert_eq!(ContractState::Active {}, state);
+    assert_eq!(ContractError::NotActive {}, err);
+}
+
+#[test]
+fn test_holder_ragequit_unauthorized() {
+    let mut suite = SuiteBuilder::default()
+        .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
+            penalty: Decimal::from_ratio(Uint128::one(), Uint128::new(10)),
+            state: None,
+        }))
+        .build();
+    
+    // both parties fulfill their parts of the covenant
+    let coin_a = suite.get_party_a_coin(Uint128::new(500));
+    let coin_b = suite.get_party_b_coin(Uint128::new(500));
+    suite.fund_coin(coin_a);
+    suite.fund_coin(coin_b);
+
+    // we tick the holder to deposit the funds and activate
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    suite.pass_minutes(50);
+
+    // advance the state to expired
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    let err: ContractError = suite.rq("random_user").unwrap_err().downcast().unwrap();
+    let state = suite.query_contract_state();
+
+    assert_eq!(ContractState::Active {}, state);
+    assert_eq!(ContractError::Unauthorized {}, err);
+}
+
+#[test]
 fn test_holder_ragequit_not_in_active_state() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
@@ -223,7 +280,7 @@ fn test_holder_ragequit_not_in_active_state() {
     let state = suite.query_contract_state();
 
     assert_eq!(ContractState::Expired {}, state);
-    assert_eq!(ContractError::NotActive {}, err);
+    assert_eq!(ContractError::RagequitDisabled {}, err);
 }
 
 #[test]
@@ -247,5 +304,5 @@ fn test_holder_ragequit_active_but_expired() {
 
     let err: ContractError = suite.rq(PARTY_A_ADDR).unwrap_err().downcast().unwrap();
 
-    assert_eq!(ContractError::NotActive {}, err);
+    assert_eq!(ContractError::Expired {}, err);
 }

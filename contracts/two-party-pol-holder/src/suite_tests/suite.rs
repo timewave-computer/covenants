@@ -1,6 +1,6 @@
-use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, TwoPartyPolCovenantConfig};
+use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, TwoPartyPolCovenantConfig, TwoPartyPolCovenantParty};
 use cosmos_sdk_proto::tendermint::types::Block;
-use cosmwasm_std::{Addr, Coin, Uint128, BlockInfo, Uint64, Timestamp};
+use cosmwasm_std::{Addr, Coin, Uint128, BlockInfo, Uint64, Timestamp, Decimal};
 use covenant_utils::{
     CovenantPartiesConfig, CovenantParty, LockupConfig, PolCovenantTerms,
 };
@@ -51,13 +51,21 @@ impl Default for SuiteBuilder {
                 party_a_router: PARTY_A_ROUTER.to_string(),
                 party_b_router: PARTY_B_ROUTER.to_string(),
                 covenant_config: TwoPartyPolCovenantConfig {
-                    party_a_contribution: Coin {
-                        denom: DENOM_A.to_string(),
-                        amount: Uint128::new(200),
+                    party_a: TwoPartyPolCovenantParty {
+                        party_contibution: Coin {
+                            denom: DENOM_A.to_string(),
+                            amount: Uint128::new(200),
+                        },
+                        party_addr: PARTY_A_ADDR.to_string(),
+                        allocation: Decimal::from_ratio(Uint128::one(), Uint128::new(2)),
                     },
-                    party_b_contribution: Coin {
-                        denom: DENOM_B.to_string(),
-                        amount: Uint128::new(100),
+                    party_b: TwoPartyPolCovenantParty {
+                        party_contibution: Coin {
+                            denom: DENOM_A.to_string(),
+                            amount: Uint128::new(100),
+                        },
+                        party_addr: PARTY_B_ADDR.to_string(),
+                        allocation: Decimal::from_ratio(Uint128::one(), Uint128::new(2)),
                     },
                 },
             },
@@ -69,6 +77,11 @@ impl Default for SuiteBuilder {
 impl SuiteBuilder {
     pub fn with_lockup_config(mut self, config: LockupConfig) -> Self {
         self.instantiate.lockup_config = config;
+        self
+    }
+
+    pub fn with_ragequit_config(mut self, config: RagequitConfig) -> Self {
+        self.instantiate.ragequit_config = config;
         self
     }
 

@@ -13,6 +13,9 @@ pub enum ContractError {
     #[error("covenant is not in active state")]
     NotActive {},
 
+    #[error("covenant is active but expired; tick to proceed")]
+    Expired {},
+
     #[error("both parties have not deposited")]
     InsufficientDeposits {},
 
@@ -41,7 +44,7 @@ pub enum ContractError {
     RagequitWithLockupPassed {},
 
     #[error("ragequit already active")]
-    RagequitAlreadyActive {},
+    RagequitInProgress {},
 
     #[error("no lp tokens available")]
     NoLpTokensAvailable {},
