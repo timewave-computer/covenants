@@ -1,7 +1,12 @@
+use std::ops::Deref;
+
+use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Attribute, Uint128, Coin};
+use cosmwasm_std::{Addr, Decimal, Attribute, Uint128, Coin, StdError};
 use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract};
 use covenant_utils::LockupConfig;
+
+use crate::error::ContractError;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -32,10 +37,44 @@ impl InstantiateMsg {
 
 #[cw_serde]
 pub struct TwoPartyPolCovenantConfig {
-    pub party_a_contribution: Coin,
-    pub party_b_contribution: Coin,
+    pub party_a: TwoPartyPolCovenantParty,
+    pub party_b: TwoPartyPolCovenantParty,
 }
 
+impl TwoPartyPolCovenantConfig {
+    pub fn update_parties(&mut self, p1: TwoPartyPolCovenantParty, p2: TwoPartyPolCovenantParty) {
+        if self.party_a.party_addr == p1.party_addr {
+            self.party_a = p1;
+            self.party_b = p2;
+        } else {
+            self.party_a = p2;
+            self.party_b = p1;
+        }
+    } 
+}
+
+#[cw_serde]
+pub struct TwoPartyPolCovenantParty {
+    pub party_contibution: Coin,
+    pub party_addr: String,
+    pub allocation: Decimal,
+    // TODO: consider adding a boxed counterparty for convenience?
+}
+
+impl TwoPartyPolCovenantConfig {
+    /// if authorized, returns (party, counterparty). otherwise errors
+    pub fn authorize_sender(&self, sender: Addr) -> Result<(TwoPartyPolCovenantParty, TwoPartyPolCovenantParty), ContractError> {
+        let party_a = self.party_a.clone();
+        let party_b = self.party_b.clone();
+        if party_a.party_addr == sender {
+            Ok((party_a, party_b))
+        } else if party_b.party_addr == sender {
+            Ok((party_b, party_a))
+        } else {
+            Err(ContractError::Unauthorized {})
+        }
+    }
+}
 
 #[clocked]
 #[cw_serde]
@@ -189,7 +228,6 @@ impl RagequitConfig {
             RagequitConfig::Enabled(c) => vec![
                 Attribute::new("ragequit_config", "enabled"),
                 Attribute::new("ragequit_penalty", c.penalty.to_string()),
-                Attribute::new("ragequit_active", c.active.to_string()),
             ],
         }
     }
@@ -202,9 +240,30 @@ pub struct RagequitTerms {
     /// added to the counterparty that did not initiate
     /// the ragequit
     pub penalty: Decimal,
-    /// bool flag to indicate whether ragequit had been
-    /// initiated
-    pub active: bool,
+    /// optional rq state. none indicates no ragequit.
+    /// some holds the ragequit related config
+    pub state: Option<RagequitState>,
+}
+
+#[cw_serde]
+pub struct RagequitState {
+    pub coins: Vec<Coin>,
+    pub rq_party: TwoPartyPolCovenantParty,
+}
+
+impl RagequitState {
+    pub fn from_share_response(assets: Vec<Asset>, rq_party: TwoPartyPolCovenantParty) -> Result<RagequitState, StdError>  {
+        let mut rq_coins: Vec<Coin> = vec![];
+        for asset in assets {
+            let coin = asset.to_coin()?;
+
+        }
+        
+        Ok(RagequitState {
+            coins: rq_coins,
+            rq_party,
+        })
+    }
 }
 
 // / enum based configuration of the lockup period.
