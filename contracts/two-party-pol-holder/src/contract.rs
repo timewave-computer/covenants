@@ -1,5 +1,7 @@
-use astroport::pair::Cw20HookMsg;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, BankMsg, CosmosMsg, WasmMsg};
+use std::ops::Mul;
+
+use astroport::{pair::Cw20HookMsg, DecimalCheckedOps, asset::Asset};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, BankMsg, CosmosMsg, WasmMsg, Coin};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -7,7 +9,7 @@ use covenant_utils::LockupConfig;
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
-use crate::{msg::{InstantiateMsg, QueryMsg, ExecuteMsg, ContractState}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, RAGEQUIT_CONFIG, LOCKUP_CONFIG, CONTRACT_STATE, DEPOSIT_DEADLINE, POOL_ADDRESS, PARTY_A_ROUTER, PARTY_B_ROUTER, COVENANT_CONFIG}, error::ContractError};
+use crate::{msg::{InstantiateMsg, QueryMsg, ExecuteMsg, ContractState, RagequitConfig, RagequitState, TwoPartyPolCovenantConfig}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, RAGEQUIT_CONFIG, LOCKUP_CONFIG, CONTRACT_STATE, DEPOSIT_DEADLINE, POOL_ADDRESS, PARTY_A_ROUTER, PARTY_B_ROUTER, COVENANT_CONFIG}, error::ContractError};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -95,14 +97,14 @@ fn try_deposit(
     // assert the balances
     let party_a_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        config.party_a_contribution.denom)?;
+        config.party_a.party_contibution.denom)?;
     let party_b_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        config.party_b_contribution.denom)?;
+        config.party_b.party_contibution.denom)?;
 
     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
-    let party_a_fulfilled = config.party_a_contribution.amount < party_a_bal.amount;
-    let party_b_fulfilled = config.party_b_contribution.amount < party_b_bal.amount;
+    let party_a_fulfilled = config.party_a.party_contibution.amount < party_a_bal.amount;
+    let party_b_fulfilled = config.party_b.party_contibution.amount < party_b_bal.amount;
 
     // note: even if both parties deposit their funds in time,
     // it is important to trigger this method before the expiry block
@@ -195,49 +197,44 @@ fn try_ragequit(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-
+    // first we error out if ragequit is disabled
+    let mut rq_config = match RAGEQUIT_CONFIG.load(deps.storage)? {
+        RagequitConfig::Disabled => return Err(ContractError::RagequitDisabled {}),
+        RagequitConfig::Enabled(terms) => terms,
+    };
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
+    let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
+    let pool = POOL_ADDRESS.load(deps.storage)?;
 
     // ragequit is only possible when contract is in Active state.
-    // we also validate an edge case where it did expire but
-    // did not receive a tick yet 
-    if current_state != ContractState::Active || lockup_config.is_expired(env.block) {
+    if current_state != ContractState::Active {
         return Err(ContractError::NotActive {})
     }
-
-    Ok(Response::default())
-
-    /*
-    // if lockup period had passed, just claim the tokens instead of ragequitting
-    let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
+    // we also validate an edge case where it did expire but
+    // did not receive a tick yet. tick is then required to advance.
     if lockup_config.is_expired(env.block) {
-        return Err(ContractError::RagequitWithLockupPassed {})
-    } 
+        return Err(ContractError::Expired {})
+    }
+
+    // authorize the message sender
+    let (mut rq_party, mut counterparty) = covenant_config.authorize_sender(info.sender)?;
+
+    // after all validations we are ready to perform the ragequit
+    // 3. withdrawing the ragequitting party allocation
+    // 4. advancing the contract state to ragequit
     
-    // only the involved parties can initiate the ragequit
-    let parties = PARTIES_CONFIG.load(deps.storage)?;
-    let rq_party = parties.match_caller_party(info.sender.to_string())?;
-
-    let mut rq_terms = match RAGEQUIT_CONFIG.load(deps.storage)? {
-        // if ragequit is not enabled for this covenant we error
-        RagequitConfig::Disabled => return Err(ContractError::RagequitDisabled {}),
-        RagequitConfig::Enabled(terms) => {
-            if terms.active {
-                return Err(ContractError::RagequitAlreadyActive {})
-            }
-            terms
-        },
-    };
-
-    let pool_address = POOL_ADDRESS.load(deps.storage)?;
+    // first we apply the ragequit penalty on both parties allocations
+    rq_party.allocation -= rq_config.penalty;
+    counterparty.allocation += rq_config.penalty;
+    covenant_config.update_parties(rq_party.clone(), counterparty.clone());
 
     // We query the pool to get the contract for the pool info
     // The pool info is required to fetch the address of the
     // liquidity token contract. The liquidity tokens are CW20 tokens
     let pair_info: astroport::asset::PairInfo = deps
         .querier
-        .query_wasm_smart(pool_address.to_string(), &astroport::pair::QueryMsg::Pair {})?;
+        .query_wasm_smart(pool.to_string(), &astroport::pair::QueryMsg::Pair {})?;
 
     // We query our own liquidity token balance
     let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
@@ -252,42 +249,41 @@ fn try_ragequit(
         return Err(ContractError::NoLpTokensAvailable {})
     }
     
-    // activate the ragequit in terms
-    rq_terms.active = true;
-
-    // apply the ragequit penalty
-    // TODO: let parties = parties.apply_ragequit_penalty(rq_party.clone(), rq_terms.penalty)?;
-    // let rq_party = parties.get_party_by_addr(rq_party.addr)?;
+    // we figure out the amounts of underlying tokens that rq party would receive
+    let rq_party_lp_token_amount = liquidity_token_balance.balance
+        .checked_mul_floor(rq_party.allocation)
+        .map_err(|_| ContractError::FractionMulError {})?;
+    let rq_entitled_assets: Vec<Asset> = deps.querier
+        .query_wasm_smart(
+            pool.to_string(), 
+            &astroport::pair::QueryMsg::Share { amount: rq_party_lp_token_amount },
+        )?;
     
+    // reflect the ragequit in ragequit config
+    rq_config.state = Some(RagequitState::from_share_response(rq_entitled_assets, rq_party.clone())?);
+
     // generate the withdraw_liquidity hook for the ragequitting party
-    // let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
-    // let withdraw_msg = &Cw20ExecuteMsg::Send {
-    //     contract: pool_address.to_string(),
-    //     // take the ragequitting party share of the position
-    //     amount: liquidity_token_balance.balance.checked_mul_floor(rq_party.share)
-    //         .map_err(|_| ContractError::FractionMulError {})?,
-    //     msg: to_binary(withdraw_liquidity_hook)?,
-    // };
+    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
+    let withdraw_msg = &Cw20ExecuteMsg::Send {
+        contract: pool.to_string(),
+        amount: rq_party_lp_token_amount,
+        msg: to_binary(withdraw_liquidity_hook)?,
+    };
 
-    // // update the state to reflect ragequit
-    // CONTRACT_STATE.save(deps.storage, &crate::msg::ContractState::Ragequit)?;
+    // update the states
+    RAGEQUIT_CONFIG.save(deps.storage, &RagequitConfig::Enabled(rq_config))?;
+    COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Ragequit)?;
 
-    // TODO: need some kind of state representation of pending withdrawals
-    // to distinguish allocations of ragequitting party from the non-rq party
-    
     Ok(Response::default()
         .add_attribute("method", "ragequit")
-        .add_attribute("caller", rq_party.addr)
-        // .add_message(
-        //     CosmosMsg::Wasm(WasmMsg::Execute {
-        //         contract_addr: pair_info.liquidity_token.to_string(),
-        //         msg: to_binary(withdraw_msg)?,
-        //         funds: vec![],
-        //     })
-        // )
-    )
-         */
-
+        .add_attribute("caller", rq_party.party_addr)
+        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: pair_info.liquidity_token.to_string(),
+            msg: to_binary(withdraw_msg)?,
+            funds: vec![],
+        })
+    ))
 }
 
 
