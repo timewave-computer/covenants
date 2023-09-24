@@ -152,7 +152,7 @@ fn try_deposit(
         // if deposit deadline is not yet due and both parties did not fulfill we error
         return Err(ContractError::InsufficientDeposits {})
     }
-    
+
     // LiquidPooler is the next contract
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
     let msg = BankMsg::Send {
@@ -219,11 +219,7 @@ fn try_ragequit(
 
     // authorize the message sender
     let (mut rq_party, mut counterparty) = covenant_config.authorize_sender(info.sender)?;
-
-    // after all validations we are ready to perform the ragequit
-    // 3. withdrawing the ragequitting party allocation
-    // 4. advancing the contract state to ragequit
-    
+    // after all validations we are ready to perform the ragequit.
     // first we apply the ragequit penalty on both parties allocations
     rq_party.allocation -= rq_config.penalty;
     counterparty.allocation += rq_config.penalty;
@@ -235,6 +231,7 @@ fn try_ragequit(
     let pair_info: astroport::asset::PairInfo = deps
         .querier
         .query_wasm_smart(pool.to_string(), &astroport::pair::QueryMsg::Pair {})?;
+    println!("pair info: {:?}", pair_info);
 
     // We query our own liquidity token balance
     let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
@@ -243,6 +240,7 @@ fn try_ragequit(
             address: env.contract.address.to_string(),
         },
     )?;
+    println!("liquidity_token_balance: {:?}", liquidity_token_balance);
 
     // if no lp tokens are available, no point to ragequit
     if liquidity_token_balance.balance.is_zero() {
@@ -258,7 +256,7 @@ fn try_ragequit(
             pool.to_string(), 
             &astroport::pair::QueryMsg::Share { amount: rq_party_lp_token_amount },
         )?;
-    
+    println!("entitled assets: {:?}", rq_entitled_assets);
     // reflect the ragequit in ragequit config
     rq_config.state = Some(RagequitState::from_share_response(rq_entitled_assets, rq_party.clone())?);
 

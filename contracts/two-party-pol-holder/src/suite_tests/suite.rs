@@ -6,7 +6,7 @@ use covenant_utils::{
 };
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
-use super::{mock_deposit_contract, two_party_pol_holder_contract};
+use super::{mock_deposit_contract, two_party_pol_holder_contract, mock_astro_pool_contract, mock_astro_lp_token_contract};
 
 pub const ADMIN: &str = "admin";
 
@@ -61,7 +61,7 @@ impl Default for SuiteBuilder {
                     },
                     party_b: TwoPartyPolCovenantParty {
                         party_contibution: Coin {
-                            denom: DENOM_A.to_string(),
+                            denom: DENOM_B.to_string(),
                             amount: Uint128::new(100),
                         },
                         party_addr: PARTY_B_ADDR.to_string(),
@@ -94,6 +94,46 @@ impl SuiteBuilder {
         let mut app = self.app;
         let holder_code = app.store_code(two_party_pol_holder_contract());
         let mock_deposit_code = app.store_code(mock_deposit_contract());
+        let astro_pool_mock_code = app.store_code(mock_astro_pool_contract());
+        let astro_lp_token_mock_code = app.store_code(mock_astro_lp_token_contract());
+        let astro_lp = app.instantiate_contract(
+            astro_lp_token_mock_code,
+            Addr::unchecked(ADMIN),
+            &self.instantiate,
+            &[],
+            "astro_mock_lp_code",
+            Some(ADMIN.to_string()),
+        )
+        .unwrap();
+        
+        let denom_b = Coin {
+            denom: DENOM_B.to_string(),
+            amount: Uint128::new(200),
+        };        
+        let denom_a = Coin {
+            denom: DENOM_A.to_string(),
+            amount: Uint128::new(200),
+        };
+        app
+            .sudo(SudoMsg::Bank(cw_multi_test::BankSudo::Mint {
+                to_address: astro_lp.to_string(),
+                amount: vec![denom_a, denom_b],
+            }))
+            .unwrap();
+
+        println!("lp token: {:?}", astro_lp);
+
+        let astro_mock = app.instantiate_contract(
+            astro_pool_mock_code,
+            Addr::unchecked(ADMIN),
+            &self.instantiate,
+            &[],
+            "astro_mock",
+            Some(ADMIN.to_string()),
+        )
+        .unwrap();
+
+        self.instantiate.pool_address = astro_mock.to_string();
 
         let mock_deposit = app
             .instantiate_contract(
