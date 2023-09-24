@@ -306,3 +306,52 @@ fn test_holder_ragequit_active_but_expired() {
 
     assert_eq!(ContractError::Expired {}, err);
 }
+
+#[test]
+fn test_ragequit_happy_flow() {
+
+}
+
+#[test]
+fn test_ragequit_double_claim_fails() {
+    let current_timestamp = get_default_block_info();
+    let mut suite = SuiteBuilder::default()
+        .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
+            penalty: Decimal::from_ratio(Uint128::one(), Uint128::new(10)),
+            state: None,
+        }))
+        .with_lockup_config(LockupConfig::Time(current_timestamp.time.plus_minutes(200)))
+        .build();
+    
+    // both parties fulfill their parts of the covenant
+    let coin_a = suite.get_party_a_coin(Uint128::new(500));
+    let coin_b = suite.get_party_b_coin(Uint128::new(500));
+    suite.fund_coin(coin_a);
+    suite.fund_coin(coin_b);
+
+    // we tick the holder to deposit the funds and activate
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    suite.pass_minutes(50);
+
+    // advance the state to expired
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    let holder_a_balance = suite.get_denom_a_balance(suite.holder.to_string());
+    let holder_b_balance = suite.get_denom_a_balance(suite.holder.to_string());
+    println!("holder_a_balance: {:?}", holder_a_balance);
+    println!("holder_b_balance: {:?}", holder_b_balance);
+
+    suite.rq(PARTY_A_ADDR).unwrap();
+
+    let holder_a_balance = suite.get_denom_a_balance(suite.holder.to_string());
+    let holder_b_balance = suite.get_denom_a_balance(suite.holder.to_string());
+    println!("holder_a_balance: {:?}", holder_a_balance);
+    println!("holder_b_balance: {:?}", holder_b_balance);
+
+    let state = suite.query_contract_state();
+
+    assert_eq!(ContractState::Ragequit {}, state);
+
+}
+
