@@ -10,6 +10,9 @@ pub enum ContractError {
     #[error("unauthorized")]
     Unauthorized {},
 
+    #[error("contract needs to be in ragequit or expired state in order to claim")]
+    ClaimError {},
+
     #[error("covenant is not in active state")]
     NotActive {},
 

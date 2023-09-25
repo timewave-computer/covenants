@@ -20,12 +20,12 @@ pub const PARTY_A_ROUTER: &str = "party_a_router";
 pub const PARTY_B_ROUTER: &str = "party_b_router";
 
 pub const CLOCK_ADDR: &str = "clock_address";
-pub const NEXT_CONTRACT: &str = "contract0";
+pub const NEXT_CONTRACT: &str = "contract2";
 
 pub const INITIAL_BLOCK_HEIGHT: u64 = 12345;
 pub const INITIAL_BLOCK_NANOS: u64 = 1571797419879305533;
 
-pub const POOL: &str = "some_pool";
+pub const POOL: &str = "contract1";
 
 pub struct Suite {
     pub app: App,
@@ -48,23 +48,23 @@ impl Default for SuiteBuilder {
                 clock_address: CLOCK_ADDR.to_string(),
                 next_contract: NEXT_CONTRACT.to_string(),
                 lockup_config: LockupConfig::None,
-                party_a_router: PARTY_A_ROUTER.to_string(),
-                party_b_router: PARTY_B_ROUTER.to_string(),
                 covenant_config: TwoPartyPolCovenantConfig {
                     party_a: TwoPartyPolCovenantParty {
-                        party_contibution: Coin {
+                        router: PARTY_A_ROUTER.to_string(),
+                        contribution: Coin {
                             denom: DENOM_A.to_string(),
                             amount: Uint128::new(200),
                         },
-                        party_addr: PARTY_A_ADDR.to_string(),
+                        addr: PARTY_A_ADDR.to_string(),
                         allocation: Decimal::from_ratio(Uint128::one(), Uint128::new(2)),
                     },
                     party_b: TwoPartyPolCovenantParty {
-                        party_contibution: Coin {
+                        router: PARTY_B_ROUTER.to_string(),
+                        contribution: Coin {
                             denom: DENOM_B.to_string(),
                             amount: Uint128::new(100),
                         },
-                        party_addr: PARTY_B_ADDR.to_string(),
+                        addr: PARTY_B_ADDR.to_string(),
                         allocation: Decimal::from_ratio(Uint128::one(), Uint128::new(2)),
                     },
                 },
@@ -108,11 +108,11 @@ impl SuiteBuilder {
         
         let denom_b = Coin {
             denom: DENOM_B.to_string(),
-            amount: Uint128::new(200),
+            amount: Uint128::new(500),
         };        
         let denom_a = Coin {
             denom: DENOM_A.to_string(),
-            amount: Uint128::new(200),
+            amount: Uint128::new(500),
         };
         app
             .sudo(SudoMsg::Bank(cw_multi_test::BankSudo::Mint {
@@ -186,6 +186,15 @@ impl Suite {
             &[],
         )
     }
+
+    pub fn claim(&mut self, caller: &str) -> Result<AppResponse, anyhow::Error> {
+        self.app.execute_contract(
+            Addr::unchecked(caller),
+            self.holder.clone(),
+            &ExecuteMsg::Claim {},
+            &[],
+        )
+    }
 }
 
 // queries
@@ -197,6 +206,13 @@ impl Suite {
             .unwrap()
     }
 
+    pub fn query_covenant_config(&self) -> TwoPartyPolCovenantConfig {
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.holder, &QueryMsg::Config {})
+            .unwrap()
+    }
+
     pub fn query_pool(&self) -> Addr {
         self.app
             .wrap()
@@ -204,17 +220,17 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_router_party_a(&self) -> Addr {
+    pub fn query_party_a(&self) -> TwoPartyPolCovenantParty {
         self.app
             .wrap()
-            .query_wasm_smart(&self.holder, &QueryMsg::RouterPartyA {})
+            .query_wasm_smart(&self.holder, &QueryMsg::ConfigPartyA {})
             .unwrap()
     }
 
-    pub fn query_router_party_b(&self) -> Addr {
+    pub fn query_party_b(&self) -> TwoPartyPolCovenantParty {
         self.app
             .wrap()
-            .query_wasm_smart(&self.holder, &QueryMsg::RouterPartyB {})
+            .query_wasm_smart(&self.holder, &QueryMsg::ConfigPartyB {})
             .unwrap()
     }
 

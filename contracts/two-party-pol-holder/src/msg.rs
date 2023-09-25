@@ -1,8 +1,9 @@
-use std::ops::Deref;
+
+use std::fmt;
 
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Attribute, Uint128, Coin, StdError};
+use cosmwasm_std::{Addr, Decimal, Attribute, Coin, StdError};
 use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract};
 use covenant_utils::LockupConfig;
 
@@ -16,8 +17,6 @@ pub struct InstantiateMsg {
     pub lockup_config: LockupConfig,
     pub ragequit_config: RagequitConfig,
     pub deposit_deadline: Option<LockupConfig>,
-    pub party_a_router: String,
-    pub party_b_router: String,
     pub covenant_config: TwoPartyPolCovenantConfig,
 }
 
@@ -43,7 +42,7 @@ pub struct TwoPartyPolCovenantConfig {
 
 impl TwoPartyPolCovenantConfig {
     pub fn update_parties(&mut self, p1: TwoPartyPolCovenantParty, p2: TwoPartyPolCovenantParty) {
-        if self.party_a.party_addr == p1.party_addr {
+        if self.party_a.addr == p1.addr {
             self.party_a = p1;
             self.party_b = p2;
         } else {
@@ -55,9 +54,10 @@ impl TwoPartyPolCovenantConfig {
 
 #[cw_serde]
 pub struct TwoPartyPolCovenantParty {
-    pub party_contibution: Coin,
-    pub party_addr: String,
+    pub contribution: Coin,
+    pub addr: String,
     pub allocation: Decimal,
+    pub router: String,
     // TODO: consider adding a boxed counterparty for convenience?
 }
 
@@ -66,9 +66,9 @@ impl TwoPartyPolCovenantConfig {
     pub fn authorize_sender(&self, sender: Addr) -> Result<(TwoPartyPolCovenantParty, TwoPartyPolCovenantParty), ContractError> {
         let party_a = self.party_a.clone();
         let party_b = self.party_b.clone();
-        if party_a.party_addr == sender {
+        if party_a.addr == sender {
             Ok((party_a, party_b))
-        } else if party_b.party_addr == sender {
+        } else if party_b.addr == sender {
             Ok((party_b, party_a))
         } else {
             Err(ContractError::Unauthorized {})
@@ -103,6 +103,19 @@ pub enum ContractState {
     Complete,
 }
 
+
+impl fmt::Display for ContractState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ContractState::Instantiated => write!(f, "instantiated"),
+            ContractState::Active => write!(f, "active"),
+            ContractState::Ragequit => write!(f, "ragequit"),
+            ContractState::Expired => write!(f, "expired"),
+            ContractState::Complete => write!(f, "complete"),
+        }
+    }
+}
+
 #[covenant_clock_address]
 #[covenant_next_contract]
 #[cw_serde]
@@ -116,12 +129,14 @@ pub enum QueryMsg {
     LockupConfig {},
     #[returns(Addr)]
     PoolAddress {},
-    #[returns(Addr)]
-    RouterPartyA {},
-    #[returns(Addr)]
-    RouterPartyB {},
+    #[returns(TwoPartyPolCovenantParty)]
+    ConfigPartyA {},
+    #[returns(TwoPartyPolCovenantParty)]
+    ConfigPartyB {},
     #[returns(LockupConfig)]
     DepositDeadline {},
+    #[returns(TwoPartyPolCovenantConfig)]
+    Config {},
 }
 
 // #[cw_serde]
@@ -256,7 +271,7 @@ impl RagequitState {
         let mut rq_coins: Vec<Coin> = vec![];
         for asset in assets {
             let coin = asset.to_coin()?;
-
+            rq_coins.push(coin);
         }
         
         Ok(RagequitState {
