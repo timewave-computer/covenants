@@ -22,6 +22,12 @@ Ragequitting party is subject to a percentage based penalty agreed upon instanti
 Holder then withdraws the allocation of the ragequitting party (minus the penalty) and forwards the funds to the party.
 Counterparty remains in an active position.
 
+Ragequit breaks the regular covenant flow in the following way:
+
+- covenant is no longer subject to expiration
+- splitter module no longer gets instantiated, meaning that any pre-agreed upon token distribution split is void
+  - both parties receive a 50/50 split of the underlying denoms
+
 ### Updates
 
 Both parties are free to update their respective whitelisted addresses and do not need counterparty permission to do so.
