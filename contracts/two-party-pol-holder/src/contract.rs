@@ -86,7 +86,85 @@ fn try_claim_expired(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    Ok(Response::default())
+    let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
+    let pool: cosmwasm_std::Addr = POOL_ADDRESS.load(deps.storage)?;
+
+    let (mut claim_party, counterparty) = covenant_config.authorize_sender(info.sender)?;
+
+    if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        return Ok(Response::default()
+            .add_attribute("method", "try_claim_expired")
+            .add_attribute("contract_state", "complete"))
+    }
+
+    // We query the pool to get the contract for the pool info
+    // The pool info is required to fetch the address of the
+    // liquidity token contract. The liquidity tokens are CW20 tokens
+    let pair_info: astroport::asset::PairInfo = deps
+        .querier
+        .query_wasm_smart(pool.to_string(), &astroport::pair::QueryMsg::Pair {})?;
+
+    // We query our own liquidity token balance
+    let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
+        pair_info.clone().liquidity_token,
+        &cw20::Cw20QueryMsg::Balance {
+            address: env.contract.address.to_string(),
+        },
+    )?;
+
+    // if no lp tokens are available, no point to ragequit
+    if liquidity_token_balance.balance.is_zero() {
+        return Err(ContractError::NoLpTokensAvailable {})
+    }
+    
+    // we figure out the amounts of underlying tokens that claiming party could receive
+    let claim_party_lp_token_amount = liquidity_token_balance.balance
+        .checked_mul_floor(claim_party.allocation)
+        .map_err(|_| ContractError::FractionMulError {})?;
+    let claim_party_entitled_assets: Vec<Asset> = deps.querier
+        .query_wasm_smart(
+            pool.to_string(), 
+            &astroport::pair::QueryMsg::Share { amount: claim_party_lp_token_amount },
+        )?;
+
+    // generate the withdraw_liquidity hook for the claim party
+    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
+    let withdraw_msg = &Cw20ExecuteMsg::Send {
+        contract: pool.to_string(),
+        amount: claim_party_lp_token_amount,
+        msg: to_binary(withdraw_liquidity_hook)?,
+    };
+
+    let withdraw_liquidity_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: pair_info.liquidity_token.to_string(),
+        msg: to_binary(withdraw_msg)?,
+        funds: vec![],
+    });
+    let mut withdraw_coins: Vec<Coin> = vec![];
+    for asset in claim_party_entitled_assets {
+        let coin = asset.to_coin()?;
+        withdraw_coins.push(coin);
+    }
+
+    let transfer_withdrawn_funds_msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: claim_party.clone().router,
+        amount: withdraw_coins,
+    });
+
+    // after building the messages we can finalize the config updates
+    claim_party.allocation = Decimal::zero();
+    covenant_config.update_parties(claim_party.clone(), counterparty.clone());
+    
+    COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
+
+    Ok(Response::default()
+        .add_attribute("method", "try_claim_expired")
+        .add_messages(vec![
+            withdraw_liquidity_msg,
+            transfer_withdrawn_funds_msg,
+        ])
+    )
 }
 
 
@@ -179,6 +257,16 @@ fn try_tick(
     match state {
         ContractState::Instantiated => try_deposit(deps, env, info),
         ContractState::Active => check_expiration(deps, env),
+        ContractState::Expired => {
+            let config = COVENANT_CONFIG.load(deps.storage)?;
+            if config.party_a.allocation.is_zero() && config.party_b.allocation.is_zero() {
+                CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+            }
+            Ok(Response::default()
+                .add_attribute("method", "tick")
+                .add_attribute("contract_state", state.to_string())
+            )
+        },
         _ => Ok(Response::default()
             .add_attribute("method", "tick")
             .add_attribute("contract_state", state.to_string())

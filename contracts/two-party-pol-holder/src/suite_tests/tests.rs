@@ -396,3 +396,54 @@ fn test_ragequit_happy_flow_to_completion() {
     assert_eq!(ContractState::Complete {}, state);
 }
 
+
+#[test]
+fn test_expiry_happy_flow_to_completion() {
+    let current_timestamp = get_default_block_info();
+    let mut suite = SuiteBuilder::default()
+        .with_lockup_config(LockupConfig::Time(current_timestamp.time.plus_minutes(200)))
+        .build();
+    
+    // both parties fulfill their parts of the covenant
+    let coin_a = suite.get_party_a_coin(Uint128::new(500));
+    let coin_b = suite.get_party_b_coin(Uint128::new(500));
+    suite.fund_coin(coin_a);
+    suite.fund_coin(coin_b);
+
+    // we tick the holder to deposit the funds and activate
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    suite.pass_minutes(250);
+
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    assert_eq!(ContractState::Expired {}, suite.query_contract_state());
+    assert_eq!(Uint128::new(0), suite.get_denom_a_balance(PARTY_A_ROUTER.to_string()));
+    assert_eq!(Uint128::new(0), suite.get_denom_b_balance(PARTY_A_ROUTER.to_string()));
+    assert_eq!(Uint128::new(0), suite.get_denom_a_balance(PARTY_B_ROUTER.to_string()));
+    assert_eq!(Uint128::new(0), suite.get_denom_b_balance(PARTY_B_ROUTER.to_string()));
+
+    // party B claims
+    suite.claim(PARTY_B_ADDR).unwrap();
+
+    assert_eq!(Uint128::new(0), suite.get_denom_a_balance(PARTY_A_ROUTER.to_string()));
+    assert_eq!(Uint128::new(0), suite.get_denom_b_balance(PARTY_A_ROUTER.to_string()));
+    assert_eq!(Uint128::new(200), suite.get_denom_a_balance(PARTY_B_ROUTER.to_string()));
+    assert_eq!(Uint128::new(200), suite.get_denom_b_balance(PARTY_B_ROUTER.to_string()));
+
+    suite.pass_minutes(5);
+
+    // party A claims
+    suite.claim(PARTY_A_ADDR).unwrap();
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    let config = suite.query_covenant_config();
+    assert_eq!(Decimal::zero(), config.party_b.allocation);
+    assert_eq!(Decimal::zero(), config.party_a.allocation);
+    assert_eq!(Uint128::new(200), suite.get_denom_a_balance(PARTY_A_ROUTER.to_string()));
+    assert_eq!(Uint128::new(200), suite.get_denom_b_balance(PARTY_A_ROUTER.to_string()));
+    assert_eq!(Uint128::new(200), suite.get_denom_a_balance(PARTY_B_ROUTER.to_string()));
+    assert_eq!(Uint128::new(200), suite.get_denom_b_balance(PARTY_B_ROUTER.to_string()));
+    assert_eq!(ContractState::Complete {}, suite.query_contract_state());
+}
+
