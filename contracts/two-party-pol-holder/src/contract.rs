@@ -1,6 +1,6 @@
 
 use astroport::{pair::Cw20HookMsg, asset::Asset};
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, BankMsg, CosmosMsg, WasmMsg, Decimal, Coin};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, BankMsg, CosmosMsg, WasmMsg, Decimal, Coin, Addr, Uint128};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -8,7 +8,7 @@ use covenant_utils::LockupConfig;
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
-use crate::{msg::{InstantiateMsg, QueryMsg, ExecuteMsg, ContractState, RagequitConfig, RagequitState}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, RAGEQUIT_CONFIG, LOCKUP_CONFIG, CONTRACT_STATE, DEPOSIT_DEADLINE, POOL_ADDRESS, COVENANT_CONFIG}, error::ContractError};
+use crate::{msg::{InstantiateMsg, QueryMsg, ExecuteMsg, ContractState, RagequitConfig, RagequitState, TwoPartyPolCovenantParty, TwoPartyPolCovenantConfig}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, RAGEQUIT_CONFIG, LOCKUP_CONFIG, CONTRACT_STATE, DEPOSIT_DEADLINE, POOL_ADDRESS, COVENANT_CONFIG, LP_TOKEN}, error::ContractError};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -26,8 +26,9 @@ pub fn instantiate(
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-    let party_a_router = deps.api.addr_validate(&msg.covenant_config.party_a.router)?;
-    let party_b_router = deps.api.addr_validate(&msg.covenant_config.party_b.router)?;
+    deps.api.addr_validate(&msg.covenant_config.party_a.router)?;
+    deps.api.addr_validate(&msg.covenant_config.party_b.router)?;
+    
 
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
@@ -72,42 +73,23 @@ fn try_claim(
     env: Env,
     info: MessageInfo,
 ) -> Result<Response, ContractError> {
-    let contract_state = CONTRACT_STATE.load(deps.storage)?;
-    // claiming funds is only possible in Ragequit or Expired state
-    match contract_state {
-        ContractState::Ragequit => try_claim_ragequit(deps, env, info),
-        ContractState::Expired => try_claim_expired(deps, env, info),
-        _ => Err(ContractError::ClaimError {}),
-    }
-}
-
-fn try_claim_expired(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-) -> Result<Response, ContractError> {
     let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
-    let pool: cosmwasm_std::Addr = POOL_ADDRESS.load(deps.storage)?;
+    let (mut claim_party, mut counterparty) = covenant_config.authorize_sender(&info.sender)?;
+    let pool = POOL_ADDRESS.load(deps.storage)?;
+    let lp_token = LP_TOKEN.load(deps.storage)?;
+    let contract_state = CONTRACT_STATE.load(deps.storage)?;
 
-    let (mut claim_party, counterparty) = covenant_config.authorize_sender(info.sender)?;
-
+    // if both parties already claimed everything we complete
     if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
         CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
         return Ok(Response::default()
-            .add_attribute("method", "try_claim_expired")
+            .add_attribute("method", "try_claim")
             .add_attribute("contract_state", "complete"))
     }
 
-    // We query the pool to get the contract for the pool info
-    // The pool info is required to fetch the address of the
-    // liquidity token contract. The liquidity tokens are CW20 tokens
-    let pair_info: astroport::asset::PairInfo = deps
-        .querier
-        .query_wasm_smart(pool.to_string(), &astroport::pair::QueryMsg::Pair {})?;
-
     // We query our own liquidity token balance
     let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
-        pair_info.clone().liquidity_token,
+        lp_token.to_string(),
         &cw20::Cw20QueryMsg::Balance {
             address: env.contract.address.to_string(),
         },
@@ -122,91 +104,15 @@ fn try_claim_expired(
     let claim_party_lp_token_amount = liquidity_token_balance.balance
         .checked_mul_floor(claim_party.allocation)
         .map_err(|_| ContractError::FractionMulError {})?;
-    let claim_party_entitled_assets: Vec<Asset> = deps.querier
-        .query_wasm_smart(
-            pool.to_string(), 
-            &astroport::pair::QueryMsg::Share { amount: claim_party_lp_token_amount },
-        )?;
-
-    // generate the withdraw_liquidity hook for the claim party
-    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
-    let withdraw_msg = &Cw20ExecuteMsg::Send {
-        contract: pool.to_string(),
-        amount: claim_party_lp_token_amount,
-        msg: to_binary(withdraw_liquidity_hook)?,
-    };
-
-    let withdraw_liquidity_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: pair_info.liquidity_token.to_string(),
-        msg: to_binary(withdraw_msg)?,
-        funds: vec![],
-    });
-    let mut withdraw_coins: Vec<Coin> = vec![];
-    for asset in claim_party_entitled_assets {
-        let coin = asset.to_coin()?;
-        withdraw_coins.push(coin);
-    }
-
-    let transfer_withdrawn_funds_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: claim_party.clone().router,
-        amount: withdraw_coins,
-    });
-
-    // after building the messages we can finalize the config updates
-    claim_party.allocation = Decimal::zero();
-    covenant_config.update_parties(claim_party.clone(), counterparty.clone());
-    
-    COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-
-    Ok(Response::default()
-        .add_attribute("method", "try_claim_expired")
-        .add_messages(vec![
-            withdraw_liquidity_msg,
-            transfer_withdrawn_funds_msg,
-        ])
-    )
-}
-
-
-fn try_claim_ragequit(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-) -> Result<Response, ContractError> {
-    let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
-    let pool: cosmwasm_std::Addr = POOL_ADDRESS.load(deps.storage)?;
-
-    let (mut claim_party, counterparty) = covenant_config.authorize_sender(info.sender)?;
-
-    // We query the pool to get the contract for the pool info
-    // The pool info is required to fetch the address of the
-    // liquidity token contract. The liquidity tokens are CW20 tokens
-    let pair_info: astroport::asset::PairInfo = deps
-        .querier
-        .query_wasm_smart(pool.to_string(), &astroport::pair::QueryMsg::Pair {})?;
-
-    // We query our own liquidity token balance
-    let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
-        pair_info.clone().liquidity_token,
-        &cw20::Cw20QueryMsg::Balance {
-            address: env.contract.address.to_string(),
-        },
+    let claim_party_entitled_assets: Vec<Asset> = deps.querier.query_wasm_smart(
+        pool.to_string(), 
+        &astroport::pair::QueryMsg::Share { amount: claim_party_lp_token_amount },
     )?;
-
-    // if no lp tokens are available, no point to ragequit
-    if liquidity_token_balance.balance.is_zero() {
-        return Err(ContractError::NoLpTokensAvailable {})
+    // convert astro assets to coins
+    let mut withdraw_coins: Vec<Coin> = vec![];
+    for asset in claim_party_entitled_assets {
+        withdraw_coins.push(asset.to_coin()?);
     }
-    
-    // we figure out the amounts of underlying tokens that claiming party could receive
-    let claim_party_lp_token_amount = liquidity_token_balance.balance
-        .checked_mul_floor(claim_party.allocation)
-        .map_err(|_| ContractError::FractionMulError {})?;
-    let claim_party_entitled_assets: Vec<Asset> = deps.querier
-        .query_wasm_smart(
-            pool.to_string(), 
-            &astroport::pair::QueryMsg::Share { amount: claim_party_lp_token_amount },
-        )?;
 
     // generate the withdraw_liquidity hook for the claim party
     let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
@@ -215,38 +121,46 @@ fn try_claim_ragequit(
         amount: claim_party_lp_token_amount,
         msg: to_binary(withdraw_liquidity_hook)?,
     };
+    
+    let withdraw_and_forward_msgs = vec![
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: lp_token.to_string(),
+            msg: to_binary(withdraw_msg)?,
+            funds: vec![],
+        }),
+        CosmosMsg::Bank(BankMsg::Send {
+            to_address: claim_party.clone().router,
+            amount: withdraw_coins,
+        }),
+    ];
 
-    let withdraw_liquidity_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: pair_info.liquidity_token.to_string(),
-        msg: to_binary(withdraw_msg)?,
-        funds: vec![],
-    });
-    let mut withdraw_coins: Vec<Coin> = vec![];
-    for asset in claim_party_entitled_assets {
-        let coin = asset.to_coin()?;
-        withdraw_coins.push(coin);
+    claim_party.allocation = Decimal::zero();
+
+    // if other party had not claimed yet, we assign full position to it
+    if !counterparty.allocation.is_zero() {
+        counterparty.allocation = Decimal::one();
+    } else {
+        // otherwise both parties claimed everything and we can complete
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
     }
 
-    let transfer_withdrawn_funds_msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: claim_party.clone().router,
-        amount: withdraw_coins,
-    });
-
-    // after building the messages we can finalize the config updates
-    claim_party.allocation = Decimal::zero();
     covenant_config.update_parties(claim_party.clone(), counterparty.clone());
     
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
 
-    Ok(Response::default()
-        .add_attribute("method", "try_claim_ragequit")
-        .add_messages(vec![
-            withdraw_liquidity_msg,
-            transfer_withdrawn_funds_msg,
-        ]))
+    // claiming funds is only possible in Ragequit or Expired state
+    match contract_state {
+        ContractState::Ragequit => Ok(Response::default()
+            .add_attribute("method", "try_claim_ragequit")
+            .add_messages(withdraw_and_forward_msgs)
+        ),
+        ContractState::Expired => Ok(Response::default()
+            .add_attribute("method", "try_claim_expired")
+            .add_messages(withdraw_and_forward_msgs)
+        ),
+        _ => Err(ContractError::ClaimError {}),
+    }
 }
-
 
 fn try_tick(
     deps: DepsMut,
@@ -346,6 +260,14 @@ fn try_deposit(
 
     // advance the state to Active
     CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
+    // We query the pool to get the contract for the pool info
+    // The pool info is required to fetch the address of the
+    // liquidity token contract. The liquidity tokens are CW20 tokens
+    let pool_addr = POOL_ADDRESS.load(deps.storage)?;
+    let pair_info: astroport::asset::PairInfo = deps
+        .querier
+        .query_wasm_smart(pool_addr.to_string(), &astroport::pair::QueryMsg::Pair {})?;
+    LP_TOKEN.save(deps.storage, &pair_info.liquidity_token)?;
 
     Ok(Response::default()
         .add_attribute("method", "deposit_to_next_contract")
@@ -402,22 +324,17 @@ fn try_ragequit(
     }
 
     // authorize the message sender
-    let (mut rq_party, mut counterparty) = covenant_config.authorize_sender(info.sender)?;
+    let (mut rq_party, mut counterparty) = covenant_config.authorize_sender(&info.sender)?;
     // after all validations we are ready to perform the ragequit.
     // first we apply the ragequit penalty on both parties allocations
     rq_party.allocation -= rq_config.penalty;
     counterparty.allocation += rq_config.penalty;
 
-    // We query the pool to get the contract for the pool info
-    // The pool info is required to fetch the address of the
-    // liquidity token contract. The liquidity tokens are CW20 tokens
-    let pair_info: astroport::asset::PairInfo = deps
-        .querier
-        .query_wasm_smart(pool.to_string(), &astroport::pair::QueryMsg::Pair {})?;
+    let lp_token = LP_TOKEN.load(deps.storage)?;
 
     // We query our own liquidity token balance
     let liquidity_token_balance: BalanceResponse = deps.querier.query_wasm_smart(
-        pair_info.clone().liquidity_token,
+        lp_token.to_string(),
         &cw20::Cw20QueryMsg::Balance {
             address: env.contract.address.to_string(),
         },
@@ -451,7 +368,7 @@ fn try_ragequit(
     };
 
     let withdraw_liquidity_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: pair_info.liquidity_token.to_string(),
+        contract_addr: lp_token.to_string(),
         msg: to_binary(withdraw_msg)?,
         funds: vec![],
     });

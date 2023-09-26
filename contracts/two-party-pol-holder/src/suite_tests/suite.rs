@@ -1,9 +1,6 @@
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, TwoPartyPolCovenantConfig, TwoPartyPolCovenantParty};
-use cosmos_sdk_proto::tendermint::types::Block;
-use cosmwasm_std::{Addr, Coin, Uint128, BlockInfo, Uint64, Timestamp, Decimal};
-use covenant_utils::{
-    CovenantPartiesConfig, CovenantParty, LockupConfig, PolCovenantTerms,
-};
+use cosmwasm_std::{Addr, Coin, Uint128, BlockInfo, Timestamp, Decimal};
+use covenant_utils::LockupConfig;
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
 use super::{mock_deposit_contract, two_party_pol_holder_contract, mock_astro_pool_contract, mock_astro_lp_token_contract};
@@ -21,9 +18,6 @@ pub const PARTY_B_ROUTER: &str = "party_b_router";
 
 pub const CLOCK_ADDR: &str = "clock_address";
 pub const NEXT_CONTRACT: &str = "contract2";
-
-pub const INITIAL_BLOCK_HEIGHT: u64 = 12345;
-pub const INITIAL_BLOCK_NANOS: u64 = 1571797419879305533;
 
 pub const POOL: &str = "contract1";
 

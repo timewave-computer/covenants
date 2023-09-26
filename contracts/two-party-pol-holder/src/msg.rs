@@ -63,12 +63,12 @@ pub struct TwoPartyPolCovenantParty {
 
 impl TwoPartyPolCovenantConfig {
     /// if authorized, returns (party, counterparty). otherwise errors
-    pub fn authorize_sender(&self, sender: Addr) -> Result<(TwoPartyPolCovenantParty, TwoPartyPolCovenantParty), ContractError> {
+    pub fn authorize_sender(&self, sender: &Addr) -> Result<(TwoPartyPolCovenantParty, TwoPartyPolCovenantParty), ContractError> {
         let party_a = self.party_a.clone();
         let party_b = self.party_b.clone();
-        if party_a.addr == sender {
+        if party_a.addr == sender.to_string() {
             Ok((party_a, party_b))
-        } else if party_b.addr == sender {
+        } else if party_b.addr == sender.to_string() {
             Ok((party_b, party_a))
         } else {
             Err(ContractError::Unauthorized {})
