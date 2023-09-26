@@ -1,5 +1,5 @@
 use cosmwasm_std::{Timestamp, Uint128, Decimal};
-use covenant_utils::LockupConfig;
+use covenant_utils::ExpiryConfig;
 
 use crate::{suite_tests::suite::{CLOCK_ADDR, POOL, NEXT_CONTRACT, PARTY_A_ROUTER, PARTY_B_ROUTER, get_default_block_info, PARTY_B_ADDR}, msg::{ContractState, RagequitConfig, RagequitTerms}, error::ContractError};
 
@@ -22,14 +22,22 @@ fn test_instantiate_happy_and_query_all() {
     assert_eq!(NEXT_CONTRACT, next_contract.to_string());
     assert_eq!(PARTY_A_ROUTER, config_party_a.router.to_string());
     assert_eq!(PARTY_B_ROUTER, config_party_b.router.to_string());
-    assert_eq!(LockupConfig::None, deposit_deadline);
+    assert_eq!(ExpiryConfig::None, deposit_deadline);
 }
 
 #[test]
 #[should_panic(expected = "block height must be in the future")]
 fn test_instantiate_invalid_deposit_deadline_block_based() {
     SuiteBuilder::default()
-        .with_deposit_deadline(LockupConfig::Block(1))
+        .with_deposit_deadline(ExpiryConfig::Block(1))
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "party allocations must add up to 1.0")]
+fn test_instantiate_invalid_allocations() {
+    SuiteBuilder::default()
+        .with_allocations(Decimal::percent(4), Decimal::percent(20))
         .build();
 }
 
@@ -37,7 +45,7 @@ fn test_instantiate_invalid_deposit_deadline_block_based() {
 #[should_panic(expected = "block time must be in the future")]
 fn test_instantiate_invalid_deposit_deadline_time_based() {
     SuiteBuilder::default()
-        .with_deposit_deadline(LockupConfig::Time(Timestamp::from_nanos(1)))
+        .with_deposit_deadline(ExpiryConfig::Time(Timestamp::from_nanos(1)))
         .build();
 }
 
@@ -50,7 +58,7 @@ fn test_instantiate_invalid_lockup_config() {
 #[test]
 fn test_single_party_deposit_refund_block_based() {
     let mut suite = SuiteBuilder::default()
-        .with_deposit_deadline(LockupConfig::Block(12545))
+        .with_deposit_deadline(ExpiryConfig::Block(12545))
         .build();
     
     // party A fulfills their part of covenant but B fails to
@@ -76,7 +84,7 @@ fn test_single_party_deposit_refund_block_based() {
 fn test_single_party_deposit_refund_time_based() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
-        .with_deposit_deadline(LockupConfig::Time(current_timestamp.time.plus_minutes(200)))
+        .with_deposit_deadline(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
     
     // party A fulfills their part of covenant but B fails to
@@ -131,7 +139,7 @@ fn test_holder_active_does_not_allow_claims() {
 fn test_holder_active_not_expired_ticks() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
-        .with_deposit_deadline(LockupConfig::Time(current_timestamp.time.plus_minutes(200)))
+        .with_deposit_deadline(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
     
     // both parties fulfill their parts of the covenant
@@ -169,7 +177,7 @@ fn test_holder_active_not_expired_ticks() {
 fn test_holder_active_expired_tick_advances_state() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
-        .with_lockup_config(LockupConfig::Time(current_timestamp.time.plus_minutes(200)))
+        .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
     
     // both parties fulfill their parts of the covenant
@@ -259,7 +267,7 @@ fn test_holder_ragequit_unauthorized() {
 fn test_holder_ragequit_not_in_active_state() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
-        .with_lockup_config(LockupConfig::Time(current_timestamp.time.plus_minutes(200)))
+        .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
     
     // both parties fulfill their parts of the covenant
@@ -288,7 +296,7 @@ fn test_holder_ragequit_active_but_expired() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
         .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms { penalty: Decimal::bps(10), state: None }))
-        .with_lockup_config(LockupConfig::Time(current_timestamp.time.plus_minutes(200)))
+        .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
     
     // both parties fulfill their parts of the covenant
@@ -316,7 +324,7 @@ fn test_ragequit_double_claim_fails() {
             penalty: Decimal::from_ratio(Uint128::one(), Uint128::new(10)),
             state: None,
         }))
-        .with_lockup_config(LockupConfig::Time(current_timestamp.time.plus_minutes(200)))
+        .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
     
     // both parties fulfill their parts of the covenant
@@ -355,7 +363,7 @@ fn test_ragequit_happy_flow_to_completion() {
             penalty: Decimal::from_ratio(Uint128::one(), Uint128::new(10)),
             state: None,
         }))
-        .with_lockup_config(LockupConfig::Time(current_timestamp.time.plus_minutes(200)))
+        .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
     
     // both parties fulfill their parts of the covenant
@@ -401,7 +409,7 @@ fn test_ragequit_happy_flow_to_completion() {
 fn test_expiry_happy_flow_to_completion() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
-        .with_lockup_config(LockupConfig::Time(current_timestamp.time.plus_minutes(200)))
+        .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
     
     // both parties fulfill their parts of the covenant
