@@ -1,7 +1,7 @@
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_std::{Addr, Coin, Uint128};
 use covenant_utils::{
-    CovenantPartiesConfig, CovenantParty, CovenantTerms, LockupConfig, ReceiverConfig,
+    CovenantPartiesConfig, CovenantParty, CovenantTerms, ExpiryConfig, ReceiverConfig,
     SwapCovenantTerms,
 };
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
@@ -41,7 +41,7 @@ impl Default for SuiteBuilder {
             instantiate: InstantiateMsg {
                 clock_address: CLOCK_ADDR.to_string(),
                 next_contract: NEXT_CONTRACT.to_string(),
-                lockup_config: LockupConfig::None,
+                lockup_config: ExpiryConfig::None,
                 parties_config: CovenantPartiesConfig {
                     party_a: CovenantParty {
                         addr: PARTY_A_ADDR.to_string(),
@@ -69,7 +69,7 @@ impl Default for SuiteBuilder {
 }
 
 impl SuiteBuilder {
-    pub fn with_lockup_config(mut self, config: LockupConfig) -> Self {
+    pub fn with_lockup_config(mut self, config: ExpiryConfig) -> Self {
         self.instantiate.lockup_config = config;
         self
     }
@@ -134,7 +134,7 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_lockup_config(&self) -> LockupConfig {
+    pub fn query_lockup_config(&self) -> ExpiryConfig {
         self.app
             .wrap()
             .query_wasm_smart(&self.holder, &QueryMsg::LockupConfig {})

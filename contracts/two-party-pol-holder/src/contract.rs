@@ -1,14 +1,14 @@
 
 use astroport::{pair::Cw20HookMsg, asset::Asset};
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, BankMsg, CosmosMsg, WasmMsg, Decimal, Coin, Addr, Uint128};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Deps, StdResult, Binary, to_binary, BankMsg, CosmosMsg, WasmMsg, Decimal, Coin};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use covenant_utils::LockupConfig;
+use covenant_utils::ExpiryConfig;
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
-use crate::{msg::{InstantiateMsg, QueryMsg, ExecuteMsg, ContractState, RagequitConfig, RagequitState, TwoPartyPolCovenantParty, TwoPartyPolCovenantConfig}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, RAGEQUIT_CONFIG, LOCKUP_CONFIG, CONTRACT_STATE, DEPOSIT_DEADLINE, POOL_ADDRESS, COVENANT_CONFIG, LP_TOKEN}, error::ContractError};
+use crate::{msg::{InstantiateMsg, QueryMsg, ExecuteMsg, ContractState, RagequitConfig, RagequitState}, state::{NEXT_CONTRACT, CLOCK_ADDRESS, RAGEQUIT_CONFIG, LOCKUP_CONFIG, CONTRACT_STATE, DEPOSIT_DEADLINE, POOL_ADDRESS, COVENANT_CONFIG, LP_TOKEN}, error::ContractError};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -26,9 +26,7 @@ pub fn instantiate(
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-    deps.api.addr_validate(&msg.covenant_config.party_a.router)?;
-    deps.api.addr_validate(&msg.covenant_config.party_b.router)?;
-    
+    msg.covenant_config.validate(deps.api)?;
 
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
@@ -44,7 +42,7 @@ pub fn instantiate(
             DEPOSIT_DEADLINE.save(deps.storage, deadline)?;
         },
         None => {
-            DEPOSIT_DEADLINE.save(deps.storage, &LockupConfig::None)?;
+            DEPOSIT_DEADLINE.save(deps.storage, &ExpiryConfig::None)?;
         }
     }
 
@@ -325,10 +323,10 @@ fn try_ragequit(
 
     // authorize the message sender
     let (mut rq_party, mut counterparty) = covenant_config.authorize_sender(&info.sender)?;
-    // after all validations we are ready to perform the ragequit.
-    // first we apply the ragequit penalty on both parties allocations
+
+    // after all validations we are ready to perform the ragequit.    
+    // first we apply the ragequit penalty
     rq_party.allocation -= rq_config.penalty;
-    counterparty.allocation += rq_config.penalty;
 
     let lp_token = LP_TOKEN.load(deps.storage)?;
 

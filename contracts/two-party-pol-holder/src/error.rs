@@ -6,6 +6,9 @@ use thiserror::Error;
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
+    
+    #[error("party allocations must add up to 1.0")]
+    AllocationValidationError {},
 
     #[error("unauthorized")]
     Unauthorized {},
