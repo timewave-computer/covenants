@@ -1,6 +1,6 @@
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, TwoPartyPolCovenantConfig, TwoPartyPolCovenantParty};
 use cosmwasm_std::{Addr, Coin, Uint128, BlockInfo, Timestamp, Decimal};
-use covenant_utils::LockupConfig;
+use covenant_utils::ExpiryConfig;
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
 use super::{mock_deposit_contract, two_party_pol_holder_contract, mock_astro_pool_contract, mock_astro_lp_token_contract};
@@ -41,7 +41,7 @@ impl Default for SuiteBuilder {
                 deposit_deadline: None,
                 clock_address: CLOCK_ADDR.to_string(),
                 next_contract: NEXT_CONTRACT.to_string(),
-                lockup_config: LockupConfig::None,
+                lockup_config: ExpiryConfig::None,
                 covenant_config: TwoPartyPolCovenantConfig {
                     party_a: TwoPartyPolCovenantParty {
                         router: PARTY_A_ROUTER.to_string(),
@@ -69,7 +69,7 @@ impl Default for SuiteBuilder {
 }
 
 impl SuiteBuilder {
-    pub fn with_lockup_config(mut self, config: LockupConfig) -> Self {
+    pub fn with_lockup_config(mut self, config: ExpiryConfig) -> Self {
         self.instantiate.lockup_config = config;
         self
     }
@@ -79,8 +79,14 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn with_deposit_deadline(mut self, config: LockupConfig) -> Self {
+    pub fn with_deposit_deadline(mut self, config: ExpiryConfig) -> Self {
         self.instantiate.deposit_deadline = Some(config);
+        self
+    }
+
+    pub fn with_allocations(mut self, a_allocation: Decimal, b_allocation: Decimal) -> Self {
+        self.instantiate.covenant_config.party_a.allocation = a_allocation;
+        self.instantiate.covenant_config.party_b.allocation = b_allocation;
         self
     }
 
@@ -228,14 +234,14 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_deposit_deadline(&self) -> LockupConfig {
+    pub fn query_deposit_deadline(&self) -> ExpiryConfig {
         self.app
             .wrap()
             .query_wasm_smart(&self.holder, &QueryMsg::DepositDeadline {})
             .unwrap()
     }
 
-    pub fn query_lockup_config(&self) -> LockupConfig {
+    pub fn query_lockup_config(&self) -> ExpiryConfig {
         self.app
             .wrap()
             .query_wasm_smart(&self.holder, &QueryMsg::LockupConfig {})

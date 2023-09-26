@@ -167,27 +167,28 @@ pub mod neutron_ica {
     }
 }
 
-/// enum based configuration of the lockup period.
+/// enum based configuration for asserting expiration.
+/// works by asserting the current block against enum variants.
 #[cw_serde]
-pub enum LockupConfig {
-    /// no lockup configured
+pub enum ExpiryConfig {
+    /// no expiration configured
     None,
-    /// block height based lockup config
+    /// block height based expiry config
     Block(u64),
-    /// timestamp based lockup config
+    /// timestamp based expiry config
     Time(Timestamp),
 }
 
-impl LockupConfig {
+impl ExpiryConfig {
     pub fn get_response_attributes(self) -> Vec<Attribute> {
         match self {
-            LockupConfig::None => vec![Attribute::new("lockup_config", "none")],
-            LockupConfig::Block(h) => vec![Attribute::new(
-                "lockup_config_expiry_block_height",
+            ExpiryConfig::None => vec![Attribute::new("expiry_config", "none")],
+            ExpiryConfig::Block(h) => vec![Attribute::new(
+                "expiry_config_expiry_block_height",
                 h.to_string(),
             )],
-            LockupConfig::Time(t) => vec![Attribute::new(
-                "lockup_config_expiry_block_timestamp",
+            ExpiryConfig::Time(t) => vec![Attribute::new(
+                "expiry_config_expiry_block_timestamp",
                 t.to_string(),
             )],
         }
@@ -196,42 +197,42 @@ impl LockupConfig {
     /// validates that the lockup config being stored is not already expired.
     pub fn validate(&self, block_info: &BlockInfo) -> Result<(), StdError> {
         match self {
-            LockupConfig::None => Ok(()),
-            LockupConfig::Block(h) => {
+            ExpiryConfig::None => Ok(()),
+            ExpiryConfig::Block(h) => {
                 if h > &block_info.height {
                     Ok(())
                 } else {
                     Err(StdError::GenericErr {
-                        msg: "invalid lockup config: block height must be in the future"
+                        msg: "invalid expiry config: block height must be in the future"
                             .to_string(),
                     })
                 }
             }
-            LockupConfig::Time(t) => {
+            ExpiryConfig::Time(t) => {
                 if t.nanos() > block_info.time.nanos() {
                     Ok(())
                 } else {
                     Err(StdError::GenericErr {
-                        msg: "invalid lockup config: block time must be in the future".to_string(),
+                        msg: "invalid expiry config: block time must be in the future".to_string(),
                     })
                 }
             }
         }
     }
 
-    /// compares current block info with the stored lockup config.
-    /// returns false if no lockup configuration is stored.
+    /// compares current block info with the stored expiry config.
+    /// returns false if no expiry configuration is stored.
     /// otherwise, returns true if the current block is past the stored info.
     pub fn is_expired(self, block_info: BlockInfo) -> bool {
         match self {
             // no expiration date
-            LockupConfig::None => false,
+            ExpiryConfig::None => false,
             // if stored expiration block height is less than or equal to the current block,
             // expired
-            LockupConfig::Block(h) => h <= block_info.height,
+            ExpiryConfig::Block(h) => h <= block_info.height,
             // if stored expiration timestamp is more than or equal to the current timestamp,
             // expired
-            LockupConfig::Time(t) => t.nanos() <= block_info.time.nanos(),
+            ExpiryConfig::Time(t) => t.nanos() <= block_info.time.nanos(),
         }
     }
 }
