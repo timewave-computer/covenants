@@ -17,7 +17,6 @@ pub const POOL_ADDRESS: Item<Addr> = Item::new("pool_address");
 
 pub const DEPOSIT_DEADLINE: Item<LockupConfig> = Item::new("deposit_deadline");
 
-// pub const PARTY_A_ROUTER: Item<Addr> = Item::new("party_a_router");
-// pub const PARTY_B_ROUTER: Item<Addr> = Item::new("party_b_router");
+pub const LP_TOKEN: Item<Addr> = Item::new("lp_token");
 
 pub const COVENANT_CONFIG: Item<TwoPartyPolCovenantConfig> = Item::new("covenant_config");
