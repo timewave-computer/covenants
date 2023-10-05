@@ -21,6 +21,9 @@ pub const NEXT_CONTRACT: &str = "contract2";
 
 pub const POOL: &str = "contract1";
 
+pub const INITIAL_BLOCK_HEIGHT: u64 = 12345;
+pub const INITIAL_BLOCK_NANOS: u64 = 1571797419879305533;
+
 pub struct Suite {
     pub app: App,
     pub holder: Addr,
