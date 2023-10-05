@@ -1,5 +1,5 @@
 
-use std::fmt;
+use std::{fmt, ops::Range};
 
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
@@ -173,12 +173,32 @@ impl RagequitConfig {
             ],
         }
     }
+
+    pub fn validate(&self, a_allocation: Decimal, b_allocation: Decimal) -> Result<(), ContractError> {
+        match self {
+            RagequitConfig::Disabled => Ok(()),
+            RagequitConfig::Enabled(terms) => {
+                // first we validate the range: [0.00, 1.00)
+                if terms.penalty >= Decimal::one() || terms.penalty < Decimal::zero() {
+                    return Err(ContractError::RagequitPenaltyRangeError {  })
+                }
+                // then validate that rq penalty does not exceed either party allocations
+                if terms.penalty > a_allocation || terms.penalty > b_allocation {
+                    println!("huh");
+                    return Err(ContractError::RagequitPenaltyExceedsPartyAllocationError {  })
+                }
+
+                Ok(())
+            },
+        }
+    }
 }
 
 #[cw_serde]
 pub struct RagequitTerms {
     /// decimal based penalty to be applied on a party
-    /// for initiating ragequit.
+    /// for initiating ragequit. Must be in the range of (0.00, 1.00).
+    /// Also must not exceed either party allocations in raw values.
     pub penalty: Decimal,
     /// optional rq state. none indicates no ragequit.
     /// some holds the ragequit related config

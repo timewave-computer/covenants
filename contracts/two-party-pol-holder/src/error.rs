@@ -10,6 +10,12 @@ pub enum ContractError {
     #[error("party allocations must add up to 1.0")]
     AllocationValidationError {},
 
+    #[error("Ragequit penalty must be in range of [0.0, 1.0)")]
+    RagequitPenaltyRangeError {},
+
+    #[error("Ragequit penalty exceeds party allocation")]
+    RagequitPenaltyExceedsPartyAllocationError {},
+
     #[error("unauthorized")]
     Unauthorized {},
 
