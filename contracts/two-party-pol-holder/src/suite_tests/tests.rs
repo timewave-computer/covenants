@@ -3,18 +3,19 @@ use covenant_utils::ExpiryConfig;
 
 use crate::{suite_tests::suite::{CLOCK_ADDR, POOL, NEXT_CONTRACT, PARTY_A_ROUTER, PARTY_B_ROUTER, get_default_block_info, PARTY_B_ADDR}, msg::{ContractState, RagequitConfig, RagequitTerms}, error::ContractError};
 
-use super::suite::{SuiteBuilder, PARTY_A_ADDR};
+use super::suite::{SuiteBuilder, PARTY_A_ADDR, INITIAL_BLOCK_NANOS, INITIAL_BLOCK_HEIGHT};
 
 #[test]
 fn test_instantiate_happy_and_query_all() {
     let suite = SuiteBuilder::default().build();
     let clock = suite.query_clock_address();
-    let pool: cosmwasm_std::Addr = suite.query_pool();
+    let pool = suite.query_pool();
     let next_contract = suite.query_next_contract();
     let config_party_a = suite.query_party_a();
     let config_party_b = suite.query_party_b();
     let deposit_deadline = suite.query_deposit_deadline();
     let contract_state = suite.query_contract_state();
+    let lockup_config = suite.query_lockup_config();
 
     assert_eq!(ContractState::Instantiated, contract_state);
     assert_eq!(CLOCK_ADDR, clock);
@@ -23,13 +24,26 @@ fn test_instantiate_happy_and_query_all() {
     assert_eq!(PARTY_A_ROUTER, config_party_a.router.to_string());
     assert_eq!(PARTY_B_ROUTER, config_party_b.router.to_string());
     assert_eq!(ExpiryConfig::None, deposit_deadline);
+    assert_eq!(ExpiryConfig::None, lockup_config);
 }
 
 #[test]
-#[should_panic(expected = "block height must be in the future")]
-fn test_instantiate_invalid_deposit_deadline_block_based() {
+#[should_panic(expected = "Ragequit penalty must be in range of [0.0, 1.0)")]
+fn test_invalid_ragequit_penalty() {
     SuiteBuilder::default()
-        .with_deposit_deadline(ExpiryConfig::Block(1))
+        .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
+            penalty: Decimal::one(), state: None,
+        }))
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "Ragequit penalty exceeds party allocation")]
+fn test_ragequit_penalty_exceeds_either_party_allocation() {
+    SuiteBuilder::default()
+        .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
+            penalty: Decimal::percent(51), state: None,
+        }))
         .build();
 }
 
@@ -42,6 +56,14 @@ fn test_instantiate_invalid_allocations() {
 }
 
 #[test]
+#[should_panic(expected = "block height must be in the future")]
+fn test_instantiate_invalid_deposit_deadline_block_based() {
+    SuiteBuilder::default()
+        .with_deposit_deadline(ExpiryConfig::Block(1))
+        .build();
+}
+
+#[test]
 #[should_panic(expected = "block time must be in the future")]
 fn test_instantiate_invalid_deposit_deadline_time_based() {
     SuiteBuilder::default()
@@ -50,9 +72,19 @@ fn test_instantiate_invalid_deposit_deadline_time_based() {
 }
 
 #[test]
-fn test_instantiate_invalid_lockup_config() {
-    let suite = SuiteBuilder::default().build();
-   
+#[should_panic(expected = "invalid expiry config: block time must be in the future")]
+fn test_instantiate_invalid_lockup_config_time_based() {
+    SuiteBuilder::default()
+        .with_lockup_config(ExpiryConfig::Time(Timestamp::from_nanos(INITIAL_BLOCK_NANOS - 1)))
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "invalid expiry config: block height must be in the future")]
+fn test_instantiate_invalid_lockup_config_height_based() {
+    SuiteBuilder::default()
+        .with_lockup_config(ExpiryConfig::Block(INITIAL_BLOCK_HEIGHT - 1))
+        .build();
 }
 
 #[test]

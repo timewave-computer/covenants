@@ -26,8 +26,11 @@ pub fn instantiate(
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-    msg.covenant_config.validate(deps.api)?;
 
+    msg.covenant_config.validate(deps.api)?;
+    msg.lockup_config.validate(&env.block)?;
+    msg.ragequit_config.validate(msg.covenant_config.party_a.allocation, msg.covenant_config.party_b.allocation)?;
+    
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
