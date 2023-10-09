@@ -1,9 +1,15 @@
-use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, TwoPartyPolCovenantConfig, TwoPartyPolCovenantParty};
-use cosmwasm_std::{Addr, Coin, Uint128, BlockInfo, Timestamp, Decimal};
+use crate::msg::{
+    ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, TwoPartyPolCovenantConfig,
+    TwoPartyPolCovenantParty,
+};
+use cosmwasm_std::{Addr, BlockInfo, Coin, Decimal, Timestamp, Uint128};
 use covenant_utils::ExpiryConfig;
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
-use super::{mock_deposit_contract, two_party_pol_holder_contract, mock_astro_pool_contract, mock_astro_lp_token_contract};
+use super::{
+    mock_astro_lp_token_contract, mock_astro_pool_contract, mock_deposit_contract,
+    two_party_pol_holder_contract,
+};
 
 pub const ADMIN: &str = "admin";
 
@@ -99,42 +105,43 @@ impl SuiteBuilder {
         let mock_deposit_code = app.store_code(mock_deposit_contract());
         let astro_pool_mock_code = app.store_code(mock_astro_pool_contract());
         let astro_lp_token_mock_code = app.store_code(mock_astro_lp_token_contract());
-        let astro_lp = app.instantiate_contract(
-            astro_lp_token_mock_code,
-            Addr::unchecked(ADMIN),
-            &self.instantiate,
-            &[],
-            "astro_mock_lp_code",
-            Some(ADMIN.to_string()),
-        )
-        .unwrap();
-        
+        let astro_lp = app
+            .instantiate_contract(
+                astro_lp_token_mock_code,
+                Addr::unchecked(ADMIN),
+                &self.instantiate,
+                &[],
+                "astro_mock_lp_code",
+                Some(ADMIN.to_string()),
+            )
+            .unwrap();
+
         let denom_b = Coin {
             denom: DENOM_B.to_string(),
             amount: Uint128::new(500),
-        };        
+        };
         let denom_a = Coin {
             denom: DENOM_A.to_string(),
             amount: Uint128::new(500),
         };
-        app
-            .sudo(SudoMsg::Bank(cw_multi_test::BankSudo::Mint {
-                to_address: astro_lp.to_string(),
-                amount: vec![denom_a, denom_b],
-            }))
-            .unwrap();
+        app.sudo(SudoMsg::Bank(cw_multi_test::BankSudo::Mint {
+            to_address: astro_lp.to_string(),
+            amount: vec![denom_a, denom_b],
+        }))
+        .unwrap();
 
         println!("lp token: {:?}", astro_lp);
 
-        let astro_mock = app.instantiate_contract(
-            astro_pool_mock_code,
-            Addr::unchecked(ADMIN),
-            &self.instantiate,
-            &[],
-            "astro_mock",
-            Some(ADMIN.to_string()),
-        )
-        .unwrap();
+        let astro_mock = app
+            .instantiate_contract(
+                astro_pool_mock_code,
+                Addr::unchecked(ADMIN),
+                &self.instantiate,
+                &[],
+                "astro_mock",
+                Some(ADMIN.to_string()),
+            )
+            .unwrap();
 
         self.instantiate.pool_address = astro_mock.to_string();
 
@@ -311,14 +318,12 @@ impl Suite {
             amount,
         }
     }
-
-
 }
 
 pub fn get_default_block_info() -> BlockInfo {
     BlockInfo {
         height: 12345,
         time: Timestamp::from_nanos(1571797419879305533),
-        chain_id: "cosmos-testnet-14002".to_string(), 
+        chain_id: "cosmos-testnet-14002".to_string(),
     }
 }

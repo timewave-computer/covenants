@@ -1,9 +1,16 @@
-use cosmwasm_std::{Timestamp, Uint128, Decimal};
+use cosmwasm_std::{Decimal, Timestamp, Uint128};
 use covenant_utils::ExpiryConfig;
 
-use crate::{suite_tests::suite::{CLOCK_ADDR, POOL, NEXT_CONTRACT, PARTY_A_ROUTER, PARTY_B_ROUTER, get_default_block_info, PARTY_B_ADDR}, msg::{ContractState, RagequitConfig, RagequitTerms}, error::ContractError};
+use crate::{
+    error::ContractError,
+    msg::{ContractState, RagequitConfig, RagequitTerms},
+    suite_tests::suite::{
+        get_default_block_info, CLOCK_ADDR, NEXT_CONTRACT, PARTY_A_ROUTER, PARTY_B_ADDR,
+        PARTY_B_ROUTER, POOL,
+    },
+};
 
-use super::suite::{SuiteBuilder, PARTY_A_ADDR, INITIAL_BLOCK_NANOS, INITIAL_BLOCK_HEIGHT};
+use super::suite::{SuiteBuilder, INITIAL_BLOCK_HEIGHT, INITIAL_BLOCK_NANOS, PARTY_A_ADDR};
 
 #[test]
 fn test_instantiate_happy_and_query_all() {
@@ -21,8 +28,8 @@ fn test_instantiate_happy_and_query_all() {
     assert_eq!(CLOCK_ADDR, clock);
     assert_eq!(POOL, pool);
     assert_eq!(NEXT_CONTRACT, next_contract.to_string());
-    assert_eq!(PARTY_A_ROUTER, config_party_a.router.to_string());
-    assert_eq!(PARTY_B_ROUTER, config_party_b.router.to_string());
+    assert_eq!(PARTY_A_ROUTER, config_party_a.router);
+    assert_eq!(PARTY_B_ROUTER, config_party_b.router);
     assert_eq!(ExpiryConfig::None, deposit_deadline);
     assert_eq!(ExpiryConfig::None, lockup_config);
 }
@@ -32,7 +39,8 @@ fn test_instantiate_happy_and_query_all() {
 fn test_invalid_ragequit_penalty() {
     SuiteBuilder::default()
         .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
-            penalty: Decimal::one(), state: None,
+            penalty: Decimal::one(),
+            state: None,
         }))
         .build();
 }
@@ -42,7 +50,8 @@ fn test_invalid_ragequit_penalty() {
 fn test_ragequit_penalty_exceeds_either_party_allocation() {
     SuiteBuilder::default()
         .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
-            penalty: Decimal::percent(51), state: None,
+            penalty: Decimal::percent(51),
+            state: None,
         }))
         .build();
 }
@@ -75,7 +84,9 @@ fn test_instantiate_invalid_deposit_deadline_time_based() {
 #[should_panic(expected = "invalid expiry config: block time must be in the future")]
 fn test_instantiate_invalid_lockup_config_time_based() {
     SuiteBuilder::default()
-        .with_lockup_config(ExpiryConfig::Time(Timestamp::from_nanos(INITIAL_BLOCK_NANOS - 1)))
+        .with_lockup_config(ExpiryConfig::Time(Timestamp::from_nanos(
+            INITIAL_BLOCK_NANOS - 1,
+        )))
         .build();
 }
 
@@ -92,7 +103,7 @@ fn test_single_party_deposit_refund_block_based() {
     let mut suite = SuiteBuilder::default()
         .with_deposit_deadline(ExpiryConfig::Block(12545))
         .build();
-    
+
     // party A fulfills their part of covenant but B fails to
     let coin = suite.get_party_a_coin(Uint128::new(500));
     suite.fund_coin(coin);
@@ -103,8 +114,7 @@ fn test_single_party_deposit_refund_block_based() {
     suite.tick(CLOCK_ADDR).unwrap();
 
     let holder_balance = suite.get_denom_a_balance(suite.holder.to_string());
-    let router_a_balance = suite.get_denom_a_balance(
-        suite.query_party_a().router.to_string());
+    let router_a_balance = suite.get_denom_a_balance(suite.query_party_a().router);
     let holder_state = suite.query_contract_state();
 
     assert_eq!(ContractState::Complete, holder_state);
@@ -118,7 +128,7 @@ fn test_single_party_deposit_refund_time_based() {
     let mut suite = SuiteBuilder::default()
         .with_deposit_deadline(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
-    
+
     // party A fulfills their part of covenant but B fails to
     let coin = suite.get_party_a_coin(Uint128::new(500));
     suite.fund_coin(coin);
@@ -129,8 +139,7 @@ fn test_single_party_deposit_refund_time_based() {
     suite.tick(CLOCK_ADDR).unwrap();
 
     let holder_balance = suite.get_denom_a_balance(suite.holder.to_string());
-    let router_a_balance = suite.get_denom_a_balance(
-        suite.query_party_a().router.to_string());
+    let router_a_balance = suite.get_denom_a_balance(suite.query_party_a().router);
     let holder_state = suite.query_contract_state();
 
     assert_eq!(ContractState::Complete, holder_state);
@@ -138,11 +147,10 @@ fn test_single_party_deposit_refund_time_based() {
     assert_eq!(Uint128::new(500), router_a_balance);
 }
 
-
 #[test]
 fn test_single_party_deposit_refund_no_deposit_deadline() {
     let mut suite = SuiteBuilder::default().build();
-    
+
     // party A fulfills their part of covenant but B fails to
     let coin = suite.get_party_a_coin(Uint128::new(500));
     suite.fund_coin(coin);
@@ -173,7 +181,7 @@ fn test_holder_active_not_expired_ticks() {
     let mut suite = SuiteBuilder::default()
         .with_deposit_deadline(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
-    
+
     // both parties fulfill their parts of the covenant
     let coin_a = suite.get_party_a_coin(Uint128::new(500));
     let coin_b = suite.get_party_b_coin(Uint128::new(500));
@@ -186,10 +194,11 @@ fn test_holder_active_not_expired_ticks() {
     // time passes, clock ticks..
     suite.pass_minutes(50);
     let resp = suite.tick(CLOCK_ADDR).unwrap();
-    
-    let has_not_due_attribute = resp.events.into_iter()
-        .flat_map(|e| e.attributes)
+
+    let has_not_due_attribute = resp
+        .events
         .into_iter()
+        .flat_map(|e| e.attributes)
         .any(|attr| attr.value == "not_due");
     let holder_balance_a = suite.get_denom_a_balance(suite.holder.to_string());
     let holder_balance_b = suite.get_denom_b_balance(suite.holder.to_string());
@@ -211,7 +220,7 @@ fn test_holder_active_expired_tick_advances_state() {
     let mut suite = SuiteBuilder::default()
         .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
-    
+
     // both parties fulfill their parts of the covenant
     let coin_a = suite.get_party_a_coin(Uint128::new(500));
     let coin_b = suite.get_party_b_coin(Uint128::new(500));
@@ -224,7 +233,7 @@ fn test_holder_active_expired_tick_advances_state() {
     // time passes, clock ticks..
     suite.pass_minutes(250);
     suite.tick(CLOCK_ADDR).unwrap();
-    
+
     let holder_balance_a = suite.get_denom_a_balance(suite.holder.to_string());
     let holder_balance_b = suite.get_denom_b_balance(suite.holder.to_string());
     let splitter_balance_a = suite.get_denom_a_balance(suite.mock_deposit.to_string());
@@ -243,7 +252,7 @@ fn test_holder_ragequit_disabled() {
     let mut suite = SuiteBuilder::default()
         .with_ragequit_config(RagequitConfig::Disabled)
         .build();
-    
+
     // both parties fulfill their parts of the covenant
     let coin_a = suite.get_party_a_coin(Uint128::new(500));
     let coin_b = suite.get_party_b_coin(Uint128::new(500));
@@ -273,7 +282,7 @@ fn test_holder_ragequit_unauthorized() {
             state: None,
         }))
         .build();
-    
+
     // both parties fulfill their parts of the covenant
     let coin_a = suite.get_party_a_coin(Uint128::new(500));
     let coin_b = suite.get_party_b_coin(Uint128::new(500));
@@ -301,7 +310,7 @@ fn test_holder_ragequit_not_in_active_state() {
     let mut suite = SuiteBuilder::default()
         .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
-    
+
     // both parties fulfill their parts of the covenant
     let coin_a = suite.get_party_a_coin(Uint128::new(500));
     let coin_b = suite.get_party_b_coin(Uint128::new(500));
@@ -327,10 +336,13 @@ fn test_holder_ragequit_not_in_active_state() {
 fn test_holder_ragequit_active_but_expired() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
-        .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms { penalty: Decimal::bps(10), state: None }))
+        .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
+            penalty: Decimal::bps(10),
+            state: None,
+        }))
         .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
-    
+
     // both parties fulfill their parts of the covenant
     let coin_a = suite.get_party_a_coin(Uint128::new(500));
     let coin_b = suite.get_party_b_coin(Uint128::new(500));
@@ -358,7 +370,7 @@ fn test_ragequit_double_claim_fails() {
         }))
         .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
-    
+
     // both parties fulfill their parts of the covenant
     let coin_a = suite.get_party_a_coin(Uint128::new(500));
     let coin_b = suite.get_party_b_coin(Uint128::new(500));
@@ -386,7 +398,6 @@ fn test_ragequit_double_claim_fails() {
     suite.rq(PARTY_A_ADDR).unwrap();
 }
 
-
 #[test]
 fn test_ragequit_happy_flow_to_completion() {
     let current_timestamp = get_default_block_info();
@@ -397,7 +408,7 @@ fn test_ragequit_happy_flow_to_completion() {
         }))
         .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
-    
+
     // both parties fulfill their parts of the covenant
     let coin_a = suite.get_party_a_coin(Uint128::new(500));
     let coin_b = suite.get_party_b_coin(Uint128::new(500));
@@ -436,14 +447,13 @@ fn test_ragequit_happy_flow_to_completion() {
     assert_eq!(ContractState::Complete {}, state);
 }
 
-
 #[test]
 fn test_expiry_happy_flow_to_completion() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
         .with_lockup_config(ExpiryConfig::Time(current_timestamp.time.plus_minutes(200)))
         .build();
-    
+
     // both parties fulfill their parts of the covenant
     let coin_a = suite.get_party_a_coin(Uint128::new(500));
     let coin_b = suite.get_party_b_coin(Uint128::new(500));
@@ -458,18 +468,42 @@ fn test_expiry_happy_flow_to_completion() {
     suite.tick(CLOCK_ADDR).unwrap();
 
     assert_eq!(ContractState::Expired {}, suite.query_contract_state());
-    assert_eq!(Uint128::new(0), suite.get_denom_a_balance(PARTY_A_ROUTER.to_string()));
-    assert_eq!(Uint128::new(0), suite.get_denom_b_balance(PARTY_A_ROUTER.to_string()));
-    assert_eq!(Uint128::new(0), suite.get_denom_a_balance(PARTY_B_ROUTER.to_string()));
-    assert_eq!(Uint128::new(0), suite.get_denom_b_balance(PARTY_B_ROUTER.to_string()));
+    assert_eq!(
+        Uint128::new(0),
+        suite.get_denom_a_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(0),
+        suite.get_denom_b_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(0),
+        suite.get_denom_a_balance(PARTY_B_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(0),
+        suite.get_denom_b_balance(PARTY_B_ROUTER.to_string())
+    );
 
     // party B claims
     suite.claim(PARTY_B_ADDR).unwrap();
 
-    assert_eq!(Uint128::new(0), suite.get_denom_a_balance(PARTY_A_ROUTER.to_string()));
-    assert_eq!(Uint128::new(0), suite.get_denom_b_balance(PARTY_A_ROUTER.to_string()));
-    assert_eq!(Uint128::new(200), suite.get_denom_a_balance(PARTY_B_ROUTER.to_string()));
-    assert_eq!(Uint128::new(200), suite.get_denom_b_balance(PARTY_B_ROUTER.to_string()));
+    assert_eq!(
+        Uint128::new(0),
+        suite.get_denom_a_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(0),
+        suite.get_denom_b_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(200),
+        suite.get_denom_a_balance(PARTY_B_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(200),
+        suite.get_denom_b_balance(PARTY_B_ROUTER.to_string())
+    );
 
     suite.pass_minutes(5);
 
@@ -480,10 +514,21 @@ fn test_expiry_happy_flow_to_completion() {
     let config = suite.query_covenant_config();
     assert_eq!(Decimal::zero(), config.party_b.allocation);
     assert_eq!(Decimal::zero(), config.party_a.allocation);
-    assert_eq!(Uint128::new(200), suite.get_denom_a_balance(PARTY_A_ROUTER.to_string()));
-    assert_eq!(Uint128::new(200), suite.get_denom_b_balance(PARTY_A_ROUTER.to_string()));
-    assert_eq!(Uint128::new(200), suite.get_denom_a_balance(PARTY_B_ROUTER.to_string()));
-    assert_eq!(Uint128::new(200), suite.get_denom_b_balance(PARTY_B_ROUTER.to_string()));
+    assert_eq!(
+        Uint128::new(200),
+        suite.get_denom_a_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(200),
+        suite.get_denom_b_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(200),
+        suite.get_denom_a_balance(PARTY_B_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(200),
+        suite.get_denom_b_balance(PARTY_B_ROUTER.to_string())
+    );
     assert_eq!(ContractState::Complete {}, suite.query_contract_state());
 }
-

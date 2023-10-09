@@ -367,7 +367,7 @@ impl CovenantTerms {
                     Attribute::new("party_b_amount", terms.party_b_amount),
                 ];
                 attrs
-            },
+            }
         }
     }
 }
