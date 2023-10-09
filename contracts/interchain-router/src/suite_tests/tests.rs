@@ -3,9 +3,10 @@ use std::marker::PhantomData;
 use cosmwasm_std::{
     coins,
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
-    Attribute, Coin, CosmosMsg, Empty, IbcMsg, IbcTimeout, OwnedDeps, SubMsg, Uint64,
+    Attribute, CosmosMsg, Empty, OwnedDeps, SubMsg, Uint64, Uint128, coin,
 };
 use covenant_utils::DestinationConfig;
+use neutron_sdk::{bindings::msg::{NeutronMsg, IbcFee}, sudo::msg::RequestPacketTimeoutHeight};
 
 use crate::{
     contract::{execute, instantiate},
@@ -63,7 +64,7 @@ fn test_migrate_config() {
 }
 
 #[test]
-#[should_panic(expected = "Unauthorized")]
+#[should_panic(expected = "Caller is not the clock, only clock can tick contracts")]
 fn test_unauthorized_tick() {
     let mut suite = SuiteBuilder::default().build();
     suite.tick("not_the_clock");
@@ -101,19 +102,36 @@ fn test_tick() {
     )
     .unwrap();
     let mock_env = mock_env();
+    let msg_exp = CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+        source_port: "transfer".to_string(),
+        source_channel: "channel-1".to_string(),
+        token: coin(100, "usdc"),
+        sender: "cosmos2contract".to_string(),
+        receiver: "receiver".to_string(),
+        timeout_height: RequestPacketTimeoutHeight {
+            revision_number: None,
+            revision_height: None,
+        },
+        timeout_timestamp: mock_env.block.time
+            .plus_seconds(Uint64::new(10).u64())
+            .nanos(),
+        memo: "hi".to_string(),
+        fee: IbcFee {
+            // must be empty
+            recv_fee: vec![],
+            ack_fee: vec![cosmwasm_std::Coin {
+                denom: "untrn".to_string(),
+                amount: Uint128::new(1000),
+            }],
+            timeout_fee: vec![cosmwasm_std::Coin {
+                denom: "untrn".to_string(),
+                amount: Uint128::new(1000),
+            }],
+        },
+    });
     let expected_messages = vec![SubMsg {
         id: 0,
-        msg: CosmosMsg::Ibc(IbcMsg::Transfer {
-            amount: Coin::new(100, "usdc"),
-            channel_id: DEFAULT_CHANNEL.to_string(),
-            to_address: DEFAULT_RECEIVER.to_string(),
-            timeout: IbcTimeout::with_timestamp(
-                mock_env
-                    .block
-                    .time
-                    .plus_seconds(init_msg.ibc_transfer_timeout.u64()),
-            ),
-        }),
+        msg: msg_exp,
         gas_limit: None,
         reply_on: cosmwasm_std::ReplyOn::Never,
     }];

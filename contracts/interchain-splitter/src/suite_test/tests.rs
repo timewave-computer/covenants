@@ -46,7 +46,7 @@ fn test_instantiate_split_misconfig() {
                     },
                     Receiver {
                         addr: PARTY_B_ADDR.to_string(),
-                        share: Uint128::new(50),
+                        share: Uint128::new(49),
                     },
                 ],
             }),
