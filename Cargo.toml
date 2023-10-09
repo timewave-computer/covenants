@@ -32,7 +32,7 @@ panic            = 'abort'
 rpath            = false
 
 [workspace.dependencies]
-covenant-depositor       = { path = "contracts/depositor" }
+# covenant-depositor       = { path = "contracts/depositor" }
 covenant-lp = { path = "contracts/lper" }
 covenant-clock = { path = "contracts/clock" }
 covenant-clock-tester = { path = "contracts/clock-tester" }
