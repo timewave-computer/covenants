@@ -1,9 +1,8 @@
-
-use std::{fmt, ops::Range};
+use std::fmt;
 
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Attribute, Coin, StdError, Api};
+use cosmwasm_std::{Addr, Api, Attribute, Coin, Decimal, StdError};
 use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract};
 use covenant_utils::ExpiryConfig;
 
@@ -54,7 +53,7 @@ impl TwoPartyPolCovenantConfig {
         api.addr_validate(&self.party_a.router)?;
         api.addr_validate(&self.party_b.router)?;
         if self.party_a.allocation + self.party_b.allocation != Decimal::one() {
-            return Err(ContractError::AllocationValidationError {  })
+            return Err(ContractError::AllocationValidationError {});
         }
         Ok(())
     }
@@ -77,12 +76,15 @@ pub struct TwoPartyPolCovenantParty {
 
 impl TwoPartyPolCovenantConfig {
     /// if authorized, returns (party, counterparty). otherwise errors
-    pub fn authorize_sender(&self, sender: &Addr) -> Result<(TwoPartyPolCovenantParty, TwoPartyPolCovenantParty), ContractError> {
+    pub fn authorize_sender(
+        &self,
+        sender: &Addr,
+    ) -> Result<(TwoPartyPolCovenantParty, TwoPartyPolCovenantParty), ContractError> {
         let party_a = self.party_a.clone();
         let party_b = self.party_b.clone();
-        if party_a.addr == sender.to_string() {
+        if party_a.addr == *sender {
             Ok((party_a, party_b))
-        } else if party_b.addr == sender.to_string() {
+        } else if party_b.addr == *sender {
             Ok((party_b, party_a))
         } else {
             Err(ContractError::Unauthorized {})
@@ -116,7 +118,6 @@ pub enum ContractState {
     /// underlying funds have been withdrawn.
     Complete,
 }
-
 
 impl fmt::Display for ContractState {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -164,9 +165,7 @@ pub enum RagequitConfig {
 impl RagequitConfig {
     pub fn get_response_attributes(self) -> Vec<Attribute> {
         match self {
-            RagequitConfig::Disabled => vec![
-                Attribute::new("ragequit_config", "disabled"),
-            ],
+            RagequitConfig::Disabled => vec![Attribute::new("ragequit_config", "disabled")],
             RagequitConfig::Enabled(c) => vec![
                 Attribute::new("ragequit_config", "enabled"),
                 Attribute::new("ragequit_penalty", c.penalty.to_string()),
@@ -174,22 +173,26 @@ impl RagequitConfig {
         }
     }
 
-    pub fn validate(&self, a_allocation: Decimal, b_allocation: Decimal) -> Result<(), ContractError> {
+    pub fn validate(
+        &self,
+        a_allocation: Decimal,
+        b_allocation: Decimal,
+    ) -> Result<(), ContractError> {
         match self {
             RagequitConfig::Disabled => Ok(()),
             RagequitConfig::Enabled(terms) => {
                 // first we validate the range: [0.00, 1.00)
                 if terms.penalty >= Decimal::one() || terms.penalty < Decimal::zero() {
-                    return Err(ContractError::RagequitPenaltyRangeError {  })
+                    return Err(ContractError::RagequitPenaltyRangeError {});
                 }
                 // then validate that rq penalty does not exceed either party allocations
                 if terms.penalty > a_allocation || terms.penalty > b_allocation {
                     println!("huh");
-                    return Err(ContractError::RagequitPenaltyExceedsPartyAllocationError {  })
+                    return Err(ContractError::RagequitPenaltyExceedsPartyAllocationError {});
                 }
 
                 Ok(())
-            },
+            }
         }
     }
 }
@@ -212,13 +215,16 @@ pub struct RagequitState {
 }
 
 impl RagequitState {
-    pub fn from_share_response(assets: Vec<Asset>, rq_party: TwoPartyPolCovenantParty) -> Result<RagequitState, StdError>  {
+    pub fn from_share_response(
+        assets: Vec<Asset>,
+        rq_party: TwoPartyPolCovenantParty,
+    ) -> Result<RagequitState, StdError> {
         let mut rq_coins: Vec<Coin> = vec![];
         for asset in assets {
             let coin = asset.to_coin()?;
             rq_coins.push(coin);
         }
-        
+
         Ok(RagequitState {
             coins: rq_coins,
             rq_party,

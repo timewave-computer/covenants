@@ -4,7 +4,6 @@ use cw_storage_plus::Item;
 
 use crate::msg::{ContractState, RagequitConfig, TwoPartyPolCovenantConfig};
 
-
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
 /// authorized clock contract
