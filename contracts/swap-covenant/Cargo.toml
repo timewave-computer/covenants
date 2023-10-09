@@ -42,7 +42,6 @@ prost = { workspace = true }
 prost-types = { workspace = true }
 bech32 ={ workspace = true }
 covenant-ls = { workspace = true, features=["library"] }
-covenant-depositor = { workspace = true, features=["library"] }
 covenant-lp = { workspace = true, features=["library"] }
 covenant-clock = { workspace = true, features=["library"]}
 covenant-holder = { workspace = true, features=["library"] }

@@ -583,7 +583,6 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
- "covenant-depositor",
  "covenant-holder",
  "covenant-ibc-forwarder",
  "covenant-interchain-router",

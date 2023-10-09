@@ -15,7 +15,7 @@ use crate::{
 
 use super::suite::SuiteBuilder;
 
-#[test]
+#[test] 
 fn test_instantiate_happy_and_query_all() {
     let suite = SuiteBuilder::default().build();
     let next_contract = suite.query_next_contract();
@@ -52,7 +52,7 @@ fn test_instantiate_happy_and_query_all() {
 }
 
 #[test]
-#[should_panic(expected = "invalid lockup config: block height must be in the future")]
+#[should_panic(expected = "invalid expiry config: block height must be in the future")]
 fn test_instantiate_past_lockup_block_height() {
     SuiteBuilder::default()
         .with_lockup_config(ExpiryConfig::Block(1))
@@ -60,7 +60,7 @@ fn test_instantiate_past_lockup_block_height() {
 }
 
 #[test]
-#[should_panic(expected = "invalid lockup config: block time must be in the future")]
+#[should_panic(expected = "invalid expiry config: block time must be in the future")]
 fn test_instantiate_past_lockup_block_time() {
     SuiteBuilder::default()
         .with_lockup_config(ExpiryConfig::Time(Timestamp::from_seconds(1)))
