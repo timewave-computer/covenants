@@ -38,7 +38,16 @@ pub struct PresetTwoPartyPolHolderFields {
     pub lockup_config: ExpiryConfig,
     pub ragequit_config: RagequitConfig,
     pub deposit_deadline: Option<ExpiryConfig>,
-    pub covenant_config: TwoPartyPolCovenantConfig,
+    pub party_a: PresetPolParty,
+    pub party_b: PresetPolParty,
+    pub code_id: u64,
+}
+
+#[cw_serde]
+pub struct PresetPolParty {
+    pub contribution: Coin,
+    pub addr: String,
+    pub allocation: Decimal,
 }
 
 impl PresetTwoPartyPolHolderFields {
@@ -46,6 +55,8 @@ impl PresetTwoPartyPolHolderFields {
         self,
         clock_address: String,
         next_contract: String,
+        party_a_router: String,
+        party_b_router: String,
     ) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
@@ -54,7 +65,20 @@ impl PresetTwoPartyPolHolderFields {
             lockup_config: self.lockup_config,
             ragequit_config: self.ragequit_config,
             deposit_deadline: self.deposit_deadline,
-            covenant_config: self.covenant_config,
+            covenant_config: TwoPartyPolCovenantConfig {
+                party_a: TwoPartyPolCovenantParty { 
+                    contribution: self.party_a.contribution,
+                    addr: self.party_a.addr,
+                    allocation: self.party_a.allocation,
+                    router: party_a_router,
+                },
+                party_b: TwoPartyPolCovenantParty { 
+                    contribution: self.party_b.contribution,
+                    addr: self.party_b.addr,
+                    allocation: self.party_b.allocation,
+                    router: party_b_router,
+                },
+            },
         }
     }
 }
