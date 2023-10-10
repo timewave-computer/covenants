@@ -33,6 +33,33 @@ impl InstantiateMsg {
 }
 
 #[cw_serde]
+pub struct PresetTwoPartyPolHolderFields {
+    pub pool_address: String,
+    pub lockup_config: ExpiryConfig,
+    pub ragequit_config: RagequitConfig,
+    pub deposit_deadline: Option<ExpiryConfig>,
+    pub covenant_config: TwoPartyPolCovenantConfig,
+}
+
+impl PresetTwoPartyPolHolderFields {
+    pub fn to_instantiate_msg(
+        self,
+        clock_address: String,
+        next_contract: String,
+    ) -> InstantiateMsg {
+        InstantiateMsg {
+            clock_address,
+            pool_address: self.pool_address,
+            next_contract,
+            lockup_config: self.lockup_config,
+            ragequit_config: self.ragequit_config,
+            deposit_deadline: self.deposit_deadline,
+            covenant_config: self.covenant_config,
+        }
+    }
+}
+
+#[cw_serde]
 pub struct TwoPartyPolCovenantConfig {
     pub party_a: TwoPartyPolCovenantParty,
     pub party_b: TwoPartyPolCovenantParty,
