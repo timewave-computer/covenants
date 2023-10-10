@@ -38,6 +38,7 @@ covenant-swap-holder = { path = "contracts/swap-holder" }
 swap-covenant = { path = "contracts/swap-covenant" }
 covenant-interchain-router = { path = "contracts/interchain-router" }
 covenant-two-party-pol-holder = { path = "contracts/two-party-pol-holder" }
+covenant-two-party-pol = { path = "contracts/two-party-pol-covenant" }
 
 # packages 
 clock-derive = { path = "packages/clock-derive" }
