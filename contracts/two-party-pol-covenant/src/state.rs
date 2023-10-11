@@ -2,6 +2,7 @@ use cosmwasm_std::Addr;
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 
+use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_two_party_pol_holder::msg::PresetTwoPartyPolHolderFields;
 use cw_storage_plus::Item;
 
@@ -12,6 +13,10 @@ pub const PRESET_PARTY_A_FORWARDER_FIELDS: Item<PresetIbcForwarderFields> =
     Item::new("preset_party_a_forwarder_fields");
 pub const PRESET_PARTY_B_FORWARDER_FIELDS: Item<PresetIbcForwarderFields> =
     Item::new("preset_party_b_forwarder_fields");
+pub const PRESET_PARTY_A_ROUTER_FIELDS: Item<PresetInterchainRouterFields> =
+    Item::new("preset_party_a_router_fields");
+pub const PRESET_PARTY_B_ROUTER_FIELDS: Item<PresetInterchainRouterFields> =
+    Item::new("preset_party_b_router_fields");
 
 pub const COVENANT_CLOCK_ADDR: Item<Addr> = Item::new("covenant_clock_addr");
 pub const COVENANT_POL_HOLDER_ADDR: Item<Addr> = Item::new("covenant_two_party_pol_holder_addr");
