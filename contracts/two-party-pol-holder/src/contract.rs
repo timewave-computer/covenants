@@ -258,7 +258,7 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
     let msg = BankMsg::Send {
         to_address: next_contract.to_string(),
         amount: vec![party_a_bal, party_b_bal],
-    };
+    };  
 
     // advance the state to Active
     CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;

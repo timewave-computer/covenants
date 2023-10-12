@@ -22,6 +22,7 @@ pub struct InstantiateMsg {
     pub deposit_deadline: Option<ExpiryConfig>,
     pub party_a_share: Uint64,
     pub party_b_share: Uint64,
+    // TODO: lper instantiation fields
 }
 
 #[cw_serde]
@@ -104,6 +105,8 @@ pub enum QueryMsg {
     HolderAddress {},
     #[returns(Addr)]
     IbcForwarderAddress { party: String },
+    #[returns(Addr)]
+    RouterAddress { party: String }, 
 }
 
 #[cw_serde]

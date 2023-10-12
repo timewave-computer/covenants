@@ -41,6 +41,7 @@ pub struct PresetTwoPartyPolHolderFields {
     pub party_a: PresetPolParty,
     pub party_b: PresetPolParty,
     pub code_id: u64,
+    pub label: String,
 }
 
 #[cw_serde]
@@ -60,7 +61,7 @@ impl PresetTwoPartyPolHolderFields {
     ) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
-            pool_address: self.pool_address,
+            pool_address: next_contract.to_string(), // todo: replace with actual pool
             next_contract,
             lockup_config: self.lockup_config,
             ragequit_config: self.ragequit_config,
