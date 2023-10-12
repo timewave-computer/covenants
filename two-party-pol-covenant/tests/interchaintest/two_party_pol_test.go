@@ -382,9 +382,9 @@ func TestTwoPartyPol(t *testing.T) {
 			lockupConfig := ExpiryConfig{
 				BlockHeight: &block,
 			}
-			// depositDeadline := ExpiryConfig{
-			// 	BlockHeight: &block,
-			// }
+			depositDeadline := ExpiryConfig{
+				BlockHeight: &block,
+			}
 			presetIbcFee := PresetIbcFee{
 				AckFee:     "10000",
 				TimeoutFee: "10000",
@@ -393,36 +393,36 @@ func TestTwoPartyPol(t *testing.T) {
 			tickMaxGas := "2000"
 			poolAddress := "todo"
 
-			// atomCoin := Coin{
-			// 	Denom:  "uatom",
-			// 	Amount: "10000",
-			// }
+			atomCoin := Coin{
+				Denom:  "uatom",
+				Amount: "10000",
+			}
 
-			// osmoCoin := Coin{
-			// 	Denom:  "uosmo",
-			// 	Amount: "100000",
-			// }
+			osmoCoin := Coin{
+				Denom:  "uosmo",
+				Amount: "100000",
+			}
 
-			// partyAConfig := CovenantPartyConfig{
-			// 	Addr:                      gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-			// 	Contribution:              atomCoin,
-			// 	IbcDenom:                  neutronAtomIbcDenom,
-			// 	PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
-			// 	HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-			// 	PartyReceiverAddr:         gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-			// 	PartyChainConnectionId:    neutronAtomIBCConnId,
-			// 	IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-			// }
-			// partyBConfig := CovenantPartyConfig{
-			// 	Addr:                      osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-			// 	Contribution:              osmoCoin,
-			// 	IbcDenom:                  neutronOsmoIbcDenom,
-			// 	PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
-			// 	HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-			// 	PartyReceiverAddr:         osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-			// 	PartyChainConnectionId:    neutronOsmosisIBCConnId,
-			// 	IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-			// }
+			partyAConfig := CovenantPartyConfig{
+				Addr:                      gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				Contribution:              atomCoin,
+				IbcDenom:                  neutronAtomIbcDenom,
+				PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+				HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
+				PartyReceiverAddr:         gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				PartyChainConnectionId:    neutronAtomIBCConnId,
+				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+			}
+			partyBConfig := CovenantPartyConfig{
+				Addr:                      osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+				Contribution:              osmoCoin,
+				IbcDenom:                  neutronOsmoIbcDenom,
+				PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
+				HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
+				PartyReceiverAddr:         osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+				PartyChainConnectionId:    neutronOsmosisIBCConnId,
+				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+			}
 			codeIds := ContractCodeIds{
 				IbcForwarderCode:     ibcForwarderCodeId,
 				InterchainRouterCode: routerCodeId,
@@ -430,13 +430,13 @@ func TestTwoPartyPol(t *testing.T) {
 				HolderCode:           holderCodeId,
 			}
 
-			// ragequitTerms := RagequitTerms{
-			// 	Penalty: "0.1",
-			// }
+			ragequitTerms := RagequitTerms{
+				Penalty: "0.1",
+			}
 
-			// ragequitConfig := RagequitConfig{
-			// 	Enabled: &ragequitTerms,
-			// }
+			ragequitConfig := RagequitConfig{
+				Enabled: &ragequitTerms,
+			}
 
 			covenantMsg := CovenantInstantiateMsg{
 				Label:           "two-party-pol-covenant",
@@ -445,13 +445,13 @@ func TestTwoPartyPol(t *testing.T) {
 				ContractCodeIds: codeIds,
 				TickMaxGas:      &tickMaxGas,
 				LockupConfig:    lockupConfig,
-				// PartyAConfig:    partyAConfig,
-				// PartyBConfig:    partyBConfig,
-				PoolAddress: poolAddress,
-				// RagequitConfig:  &ragequitConfig,
-				// DepositDeadline: &depositDeadline,
-				PartyAShare: "50",
-				PartyBShare: "50",
+				PartyAConfig:    partyAConfig,
+				PartyBConfig:    partyBConfig,
+				PoolAddress:     poolAddress,
+				RagequitConfig:  &ragequitConfig,
+				DepositDeadline: &depositDeadline,
+				PartyAShare:     "50",
+				PartyBShare:     "50",
 			}
 			str, err := json.Marshal(covenantMsg)
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")

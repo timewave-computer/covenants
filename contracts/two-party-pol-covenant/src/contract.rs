@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Decimal, Uint128, CosmosMsg, WasmMsg, SubMsg, Reply,
+    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Decimal, Uint128, CosmosMsg, WasmMsg, SubMsg, Reply, coin,
 };
 
 use covenant_clock::msg::PresetClockFields;
@@ -41,94 +41,93 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    let preset_clock_fields = PresetClockFields {
+        tick_max_gas: msg.clock_tick_max_gas,
+        whitelist: vec![],
+        code_id: msg.contract_codes.clock_code,
+        label: format!("{}-clock", msg.label),
+    };
+    PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
 
-    // let preset_clock_fields = PresetClockFields {
-    //     tick_max_gas: msg.clock_tick_max_gas,
-    //     whitelist: vec![],
-    //     code_id: msg.contract_codes.clock_code,
-    //     label: format!("{}-clock", msg.label),
-    // };
-    // PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
-
-    // let preset_holder_fields = PresetTwoPartyPolHolderFields {
-    //     lockup_config:msg.lockup_config,
-    //     pool_address: msg.pool_address,
-    //     ragequit_config: msg.ragequit_config.unwrap_or(RagequitConfig::Disabled),
-    //     deposit_deadline: msg.deposit_deadline,
-    //     party_a: PresetPolParty {
-    //         contribution: msg.party_a_config.contribution.clone(),
-    //         addr: msg.party_a_config.addr,
-    //         allocation: Decimal::from_ratio(msg.party_a_share, Uint128::new(100)),
-    //     },
-    //     party_b: PresetPolParty {
-    //         contribution: msg.party_b_config.contribution.clone(),
-    //         addr: msg.party_b_config.addr,
-    //         allocation: Decimal::from_ratio(msg.party_b_share, Uint128::new(100)),
-    //     },
-    //     code_id: msg.contract_codes.holder_code,
-    // };
-    // PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
+    let preset_holder_fields = PresetTwoPartyPolHolderFields {
+        lockup_config:msg.lockup_config,
+        pool_address: msg.pool_address,
+        ragequit_config: msg.ragequit_config.unwrap_or(RagequitConfig::Disabled),
+        deposit_deadline: msg.deposit_deadline,
+        party_a: PresetPolParty {
+            contribution: msg.party_a_config.contribution.clone(),
+            addr: msg.party_a_config.addr,
+            allocation: Decimal::from_ratio(msg.party_a_share, Uint128::new(100)),
+        },
+        party_b: PresetPolParty {
+            contribution: msg.party_b_config.contribution.clone(),
+            addr: msg.party_b_config.addr,
+            allocation: Decimal::from_ratio(msg.party_b_share, Uint128::new(100)),
+        },
+        code_id: msg.contract_codes.holder_code,
+    };
+    PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
 
 
-    // let preset_party_a_forwarder_fields = PresetIbcForwarderFields {
-    //     remote_chain_connection_id: msg.party_a_config.party_chain_connection_id,
-    //     remote_chain_channel_id: msg.party_a_config.party_to_host_chain_channel_id,
-    //     denom: msg.party_a_config.contribution.denom.to_string(),
-    //     amount: msg.party_a_config.contribution.amount,
-    //     label: format!("{}_party_a_ibc_forwarder", msg.label),
-    //     code_id: msg.contract_codes.ibc_forwarder_code,
-    //     ica_timeout: msg.timeouts.ica_timeout,
-    //     ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-    //     ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-    // };
-    // let preset_party_b_forwarder_fields = PresetIbcForwarderFields {
-    //     remote_chain_connection_id: msg.party_b_config.party_chain_connection_id,
-    //     remote_chain_channel_id: msg.party_b_config.party_to_host_chain_channel_id,
-    //     denom: msg.party_b_config.contribution.denom.to_string(),
-    //     amount: msg.party_b_config.contribution.amount,
-    //     label: format!("{}_party_b_ibc_forwarder", msg.label),
-    //     code_id: msg.contract_codes.ibc_forwarder_code,
-    //     ica_timeout: msg.timeouts.ica_timeout,
-    //     ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-    //     ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-    // };
+    let preset_party_a_forwarder_fields = PresetIbcForwarderFields {
+        remote_chain_connection_id: msg.party_a_config.party_chain_connection_id,
+        remote_chain_channel_id: msg.party_a_config.party_to_host_chain_channel_id,
+        denom: msg.party_a_config.contribution.denom.to_string(),
+        amount: msg.party_a_config.contribution.amount,
+        label: format!("{}_party_a_ibc_forwarder", msg.label),
+        code_id: msg.contract_codes.ibc_forwarder_code,
+        ica_timeout: msg.timeouts.ica_timeout,
+        ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+    };
+    let preset_party_b_forwarder_fields = PresetIbcForwarderFields {
+        remote_chain_connection_id: msg.party_b_config.party_chain_connection_id,
+        remote_chain_channel_id: msg.party_b_config.party_to_host_chain_channel_id,
+        denom: msg.party_b_config.contribution.denom.to_string(),
+        amount: msg.party_b_config.contribution.amount,
+        label: format!("{}_party_b_ibc_forwarder", msg.label),
+        code_id: msg.contract_codes.ibc_forwarder_code,
+        ica_timeout: msg.timeouts.ica_timeout,
+        ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+    };
    
-    // PRESET_PARTY_A_FORWARDER_FIELDS.save(deps.storage, &preset_party_a_forwarder_fields)?;
-    // PRESET_PARTY_B_FORWARDER_FIELDS.save(deps.storage, &preset_party_b_forwarder_fields)?;
+    PRESET_PARTY_A_FORWARDER_FIELDS.save(deps.storage, &preset_party_a_forwarder_fields)?;
+    PRESET_PARTY_B_FORWARDER_FIELDS.save(deps.storage, &preset_party_b_forwarder_fields)?;
 
-    // let preset_party_a_router_fields = PresetInterchainRouterFields {
-    //     destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
-    //     destination_receiver_addr: msg.party_a_config.party_receiver_addr,
-    //     ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
-    //     label: format!("{}_party_a_interchain_router", msg.label),
-    //     code_id: msg.contract_codes.router_code,
-    // };
-    // let preset_party_b_router_fields = PresetInterchainRouterFields {
-    //     destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
-    //     destination_receiver_addr: msg.party_b_config.party_receiver_addr,
-    //     ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
-    //     label: format!("{}_party_b_interchain_router", msg.label),
-    //     code_id: msg.contract_codes.router_code,
-    // };
+    let preset_party_a_router_fields = PresetInterchainRouterFields {
+        destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
+        destination_receiver_addr: msg.party_a_config.party_receiver_addr,
+        ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
+        label: format!("{}_party_a_interchain_router", msg.label),
+        code_id: msg.contract_codes.router_code,
+    };
+    let preset_party_b_router_fields = PresetInterchainRouterFields {
+        destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
+        destination_receiver_addr: msg.party_b_config.party_receiver_addr,
+        ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
+        label: format!("{}_party_b_interchain_router", msg.label),
+        code_id: msg.contract_codes.router_code,
+    };
 
-    // PRESET_PARTY_A_ROUTER_FIELDS.save(deps.storage, &preset_party_a_router_fields)?;
-    // PRESET_PARTY_B_ROUTER_FIELDS.save(deps.storage, &preset_party_b_router_fields)?;
+    PRESET_PARTY_A_ROUTER_FIELDS.save(deps.storage, &preset_party_a_router_fields)?;
+    PRESET_PARTY_B_ROUTER_FIELDS.save(deps.storage, &preset_party_b_router_fields)?;
 
     // we start the module instantiation chain with the clock
-    // let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
-    //     admin: Some(env.contract.address.to_string()),
-    //     code_id: preset_clock_fields.code_id,
-    //     msg: to_binary(&preset_clock_fields.to_instantiate_msg())?,
-    //     funds: vec![],
-    //     label: preset_clock_fields.label,
-    // });
+    let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
+        admin: Some(env.contract.address.to_string()),
+        code_id: preset_clock_fields.code_id,
+        msg: to_binary(&preset_clock_fields.to_instantiate_msg())?,
+        funds: vec![],
+        label: preset_clock_fields.label,
+    });
 
     Ok(Response::default()
-        .add_attribute("method", "instantiate"))
-        // .add_submessage(SubMsg::reply_on_success(
-        //     clock_instantiate_tx,
-        //     CLOCK_REPLY_ID,
-        // )))
+        .add_attribute("method", "instantiate")
+        .add_submessage(SubMsg::reply_on_success(
+            clock_instantiate_tx,
+            CLOCK_REPLY_ID,
+        )))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
