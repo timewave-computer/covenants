@@ -12,7 +12,7 @@ use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
 use crate::{
     error::ContractError,
-    msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, RagequitState},
+    msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, RagequitState, MigrateMsg},
     state::{
         CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_CONFIG, DEPOSIT_DEADLINE, LOCKUP_CONFIG, LP_TOKEN,
         NEXT_CONTRACT, POOL_ADDRESS, RAGEQUIT_CONFIG,
@@ -401,4 +401,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::DepositDeadline {} => Ok(to_binary(&DEPOSIT_DEADLINE.load(deps.storage)?)?),
         QueryMsg::Config {} => Ok(to_binary(&COVENANT_CONFIG.load(deps.storage)?)?),
     }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: migrate");
+    unimplemented!();
 }
