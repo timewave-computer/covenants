@@ -288,13 +288,13 @@ pub fn handle_holder_reply(
 
             // load the fields relevant to router instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
-            let preset_party_a_ibc_forwarder = PRESET_PARTY_A_ROUTER_FIELDS.load(deps.storage)?;
+            let preset_party_a_ibc_forwarder = PRESET_PARTY_A_FORWARDER_FIELDS.load(deps.storage)?;
 
             let party_a_ibc_forwarder_inst_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_party_a_ibc_forwarder.code_id,
                 msg: to_binary(
-                    &preset_party_a_ibc_forwarder.to_instantiate_msg(clock_addr.to_string()),
+                    &preset_party_a_ibc_forwarder.to_instantiate_msg(clock_addr.to_string(), holder_addr.to_string()),
                 )?,
                 funds: vec![],
                 label: preset_party_a_ibc_forwarder.label,
@@ -327,16 +327,17 @@ pub fn handle_party_a_ibc_forwarder_reply(
             // validate and store the instantiated forwarder address
             let forwarder_addr = deps.api.addr_validate(&response.contract_address)?;
             PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &forwarder_addr)?;
+            let holder = COVENANT_POL_HOLDER_ADDR.load(deps.storage)?;
 
             // load the fields relevant to router instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
-            let preset_party_b_ibc_forwarder = PRESET_PARTY_B_ROUTER_FIELDS.load(deps.storage)?;
+            let preset_party_b_ibc_forwarder = PRESET_PARTY_B_FORWARDER_FIELDS.load(deps.storage)?;
 
             let party_b_ibc_forwarder_inst_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_party_b_ibc_forwarder.code_id,
                 msg: to_binary(
-                    &preset_party_b_ibc_forwarder.to_instantiate_msg(clock_addr.to_string()),
+                    &preset_party_b_ibc_forwarder.to_instantiate_msg(clock_addr.to_string(), holder.to_string()),
                 )?,
                 funds: vec![],
                 label: preset_party_b_ibc_forwarder.label,
