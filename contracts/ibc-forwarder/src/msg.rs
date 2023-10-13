@@ -96,6 +96,9 @@ impl InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {}
 
+#[cw_serde]
+pub enum MigrateMsg {}
+
 #[covenant_deposit_address]
 #[covenant_remote_chain]
 #[covenant_clock_address]

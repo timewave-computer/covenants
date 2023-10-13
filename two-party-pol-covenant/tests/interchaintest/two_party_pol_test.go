@@ -500,5 +500,58 @@ func TestTwoPartyPol(t *testing.T) {
 			println("covenant address: ", covenantAddress)
 		})
 
+		t.Run("query covenant contracts", func(t *testing.T) {
+			routerQueryPartyA := InterchainRouterQuery{
+				Party: Party{
+					Party: "party_a",
+				},
+			}
+			routerQueryPartyB := InterchainRouterQuery{
+				Party: Party{
+					Party: "party_b",
+				},
+			}
+			forwarderQueryPartyA := IbcForwarderQuery{
+				Party: Party{
+					Party: "party_a",
+				},
+			}
+			forwarderQueryPartyB := IbcForwarderQuery{
+				Party: Party{
+					Party: "party_b",
+				},
+			}
+			var response CovenantAddressQueryResponse
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, ClockAddressQuery{}, &response)
+			require.NoError(t, err, "failed to query instantiated clock address")
+			clockAddress = response.Data
+			println("clock addr: ", clockAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, HolderAddressQuery{}, &response)
+			require.NoError(t, err, "failed to query instantiated holder address")
+			holderAddress = response.Data
+			println("holder addr: ", holderAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, routerQueryPartyA, &response)
+			require.NoError(t, err, "failed to query instantiated party a router address")
+			partyARouterAddress = response.Data
+			println("partyARouterAddress: ", partyARouterAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, routerQueryPartyB, &response)
+			require.NoError(t, err, "failed to query instantiated party b router address")
+			partyBRouterAddress = response.Data
+			println("partyBRouterAddress: ", partyBRouterAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, forwarderQueryPartyA, &response)
+			require.NoError(t, err, "failed to query instantiated party a forwarder address")
+			partyAIbcForwarderAddress = response.Data
+			println("partyAIbcForwarderAddress: ", partyAIbcForwarderAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, forwarderQueryPartyB, &response)
+			require.NoError(t, err, "failed to query instantiated party b forwarder address")
+			partyBIbcForwarderAddress = response.Data
+			println("partyBIbcForwarderAddress: ", partyBIbcForwarderAddress)
+		})
 	})
 }

@@ -154,6 +154,11 @@ pub enum ExecuteMsg {
 }
 
 #[cw_serde]
+pub enum MigrateMsg {
+}
+
+
+#[cw_serde]
 pub enum ContractState {
     /// contract is instantiated and awaiting for deposits from
     /// both parties involved
