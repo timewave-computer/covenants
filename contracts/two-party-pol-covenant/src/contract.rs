@@ -7,14 +7,13 @@ use cosmwasm_std::{
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
-use covenant_lp::state::HOLDER_ADDRESS;
-use covenant_two_party_pol_holder::{msg::{PresetTwoPartyPolHolderFields, RagequitConfig, PresetPolParty}, state::POOL_ADDRESS};
+use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig, PresetPolParty};
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 
 use crate::{
     error::ContractError,
-    msg::{InstantiateMsg, QueryMsg},
+    msg::{InstantiateMsg, QueryMsg, MigrateMsg},
     state::{
         COVENANT_CLOCK_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
@@ -43,14 +42,13 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     let preset_clock_fields = PresetClockFields {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: vec![],
         code_id: msg.contract_codes.clock_code,
         label: format!("{}-clock", msg.label),
     };
-    PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
-
     let preset_holder_fields = PresetTwoPartyPolHolderFields {
         lockup_config:msg.lockup_config,
         pool_address: msg.pool_address,
@@ -69,9 +67,6 @@ pub fn instantiate(
         code_id: msg.contract_codes.holder_code,
         label: format!("{}-holder", msg.label),
     };
-    PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
-
-
     let preset_party_a_forwarder_fields = PresetIbcForwarderFields {
         remote_chain_connection_id: msg.party_a_config.party_chain_connection_id,
         remote_chain_channel_id: msg.party_a_config.party_to_host_chain_channel_id,
@@ -94,9 +89,6 @@ pub fn instantiate(
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
     };
-   
-    PRESET_PARTY_A_FORWARDER_FIELDS.save(deps.storage, &preset_party_a_forwarder_fields)?;
-    PRESET_PARTY_B_FORWARDER_FIELDS.save(deps.storage, &preset_party_b_forwarder_fields)?;
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
         destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
@@ -113,6 +105,10 @@ pub fn instantiate(
         code_id: msg.contract_codes.router_code,
     };
 
+    PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
+    PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;   
+    PRESET_PARTY_A_FORWARDER_FIELDS.save(deps.storage, &preset_party_a_forwarder_fields)?;
+    PRESET_PARTY_B_FORWARDER_FIELDS.save(deps.storage, &preset_party_b_forwarder_fields)?;
     PRESET_PARTY_A_ROUTER_FIELDS.save(deps.storage, &preset_party_a_router_fields)?;
     PRESET_PARTY_B_ROUTER_FIELDS.save(deps.storage, &preset_party_b_router_fields)?;
 
@@ -144,7 +140,6 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
         PARTY_A_FORWARDER_REPLY_ID => handle_party_a_ibc_forwarder_reply(deps, env, msg),
         PARTY_B_FORWARDER_REPLY_ID => handle_party_b_ibc_forwarder_reply(deps, env, msg),
         _ => Err(ContractError::UnknownReplyId {}),
-        // _ => Ok(Response::default())
     }
 }
 
@@ -289,7 +284,7 @@ pub fn handle_holder_reply(
         Ok(response) => {
             // validate and store the instantiated holder address
             let holder_addr = deps.api.addr_validate(&response.contract_address)?;
-            HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
+            COVENANT_POL_HOLDER_ADDR.save(deps.storage, &holder_addr)?;
 
             // load the fields relevant to router instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
@@ -377,7 +372,7 @@ pub fn handle_party_b_ibc_forwarder_reply(
             let party_a_forwarder = PARTY_A_IBC_FORWARDER_ADDR.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let preset_clock_fields = PRESET_CLOCK_FIELDS.load(deps.storage)?;
-            let holder = HOLDER_ADDRESS.load(deps.storage)?;
+            let holder = COVENANT_POL_HOLDER_ADDR.load(deps.storage)?;
             let party_a_router = PARTY_A_ROUTER_ADDR.load(deps.storage)?;
             let party_b_router = PARTY_B_ROUTER_ADDR.load(deps.storage)?;
 
@@ -424,7 +419,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             };
             Ok(to_binary(&resp)?)
         },
-        QueryMsg::RouterAddress { party } => {
+        QueryMsg::InterchainRouterAddress { party } => {
             let resp = if party == "party_a" {
                 PARTY_A_ROUTER_ADDR.may_load(deps.storage)?
             } else if party == "party_b" {
@@ -437,3 +432,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: migrate");
+    unimplemented!();
+}

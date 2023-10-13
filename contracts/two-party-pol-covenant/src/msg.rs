@@ -106,7 +106,7 @@ pub enum QueryMsg {
     #[returns(Addr)]
     IbcForwarderAddress { party: String },
     #[returns(Addr)]
-    RouterAddress { party: String }, 
+    InterchainRouterAddress { party: String }, 
 }
 
 #[cw_serde]
