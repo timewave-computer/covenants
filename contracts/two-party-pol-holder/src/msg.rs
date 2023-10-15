@@ -2,7 +2,7 @@ use std::fmt;
 
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Api, Attribute, Coin, Decimal, StdError};
+use cosmwasm_std::{Addr, Api, Attribute, Coin, Decimal, StdError, Binary};
 use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract};
 use covenant_utils::ExpiryConfig;
 
@@ -155,6 +155,19 @@ pub enum ExecuteMsg {
 
 #[cw_serde]
 pub enum MigrateMsg {
+    UpdateConfig {
+        clock_addr: Option<String>,
+        next_contract: Option<String>,
+        lockup_config: Option<ExpiryConfig>,
+        deposit_deadline: Option<ExpiryConfig>,
+        pool_address: Option<String>,
+        ragequit_config: Option<RagequitConfig>,
+        lp_token: Option<String>,
+        covenant_config: Option<TwoPartyPolCovenantConfig>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
+    },
 }
 
 
