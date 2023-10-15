@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, Uint128, Uint64};
+use cosmwasm_std::{Addr, Attribute, Uint128, Uint64, Binary};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
@@ -97,7 +97,16 @@ impl InstantiateMsg {
 pub enum ExecuteMsg {}
 
 #[cw_serde]
-pub enum MigrateMsg {}
+pub enum MigrateMsg {
+    UpdateConfig {
+        clock_addr: Option<String>,
+        next_contract: Option<String>,
+        remote_chain_info: Option<RemoteChainInfo>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
+    },
+}
 
 #[covenant_deposit_address]
 #[covenant_remote_chain]

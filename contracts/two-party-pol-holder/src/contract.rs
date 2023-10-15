@@ -404,7 +404,69 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
-    unimplemented!();
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            next_contract,
+            lockup_config,
+            deposit_deadline,
+            pool_address,
+            ragequit_config,
+            lp_token,
+            covenant_config,
+        } => {
+            let mut resp = Response::default().add_attribute("method", "update_config");
+
+            if let Some(addr) = clock_addr {
+                let clock_address = deps.api.addr_validate(&addr)?;
+                CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
+                resp = resp.add_attribute("clock_addr", addr);
+            }
+
+            if let Some(addr) = next_contract {
+                let next_contract_addr = deps.api.addr_validate(&addr)?;
+                NEXT_CONTRACT.save(deps.storage, &next_contract_addr)?;
+                resp = resp.add_attribute("next_contract", addr);
+            }
+
+            if let Some(expiry_config) = lockup_config {
+                expiry_config.validate(&env.block)?;
+                LOCKUP_CONFIG.save(deps.storage, &expiry_config)?;
+                resp = resp.add_attributes(expiry_config.get_response_attributes());
+            }
+
+            if let Some(expiry_config) = deposit_deadline {
+                expiry_config.validate(&env.block)?;
+                DEPOSIT_DEADLINE.save(deps.storage, &expiry_config)?;
+                resp = resp.add_attributes(expiry_config.get_response_attributes());
+            }
+
+            if let Some(addr) = pool_address {
+                let pool_addr = deps.api.addr_validate(&addr)?;
+                POOL_ADDRESS.save(deps.storage, &pool_addr)?;
+                resp = resp.add_attribute("pool_addr", pool_addr);
+            }
+
+            if let Some(addr) = lp_token {
+                let lp_addr = deps.api.addr_validate(&addr)?;
+                LP_TOKEN.save(deps.storage, &lp_addr)?;
+                resp = resp.add_attribute("lp_token", lp_addr);
+            }
+
+            if let Some(config) = ragequit_config {
+                RAGEQUIT_CONFIG.save(deps.storage, &config)?;
+                resp = resp.add_attributes(config.get_response_attributes());
+            }
+
+            if let Some(config) = covenant_config {
+                COVENANT_CONFIG.save(deps.storage, &config)?;
+                resp = resp.add_attribute("todo", "todo");
+            }
+
+            Ok(resp)
+        },
+        MigrateMsg::UpdateCodeId { data } => todo!(),
+    }
 }

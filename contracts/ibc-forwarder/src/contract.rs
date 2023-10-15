@@ -408,5 +408,36 @@ pub fn save_sudo_payload(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
-    unimplemented!();
+    match msg {
+        MigrateMsg::UpdateConfig { 
+            clock_addr,
+            next_contract,
+            remote_chain_info,
+        } => {
+            let mut resp = Response::default().add_attribute("method", "update_config");
+
+            if let Some(addr) = clock_addr {
+                let clock_address = deps.api.addr_validate(&addr)?;
+                CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
+                resp = resp.add_attribute("clock_addr", addr);
+            }
+
+            if let Some(addr) = next_contract {
+                let next_contract_addr = deps.api.addr_validate(&addr)?;
+                NEXT_CONTRACT.save(deps.storage, &next_contract_addr)?;
+                resp = resp.add_attribute("next_contract", addr);
+            }
+
+            if let Some(rci) = remote_chain_info {
+                let validated_rci = rci.validate()?;
+                REMOTE_CHAIN_INFO.save(deps.storage, &validated_rci)?;
+                resp = resp.add_attributes(validated_rci.get_response_attributes());
+            }
+
+            Ok(resp)
+        },
+        MigrateMsg::UpdateCodeId { data } => {
+            unimplemented!()
+        },
+    }
 }
