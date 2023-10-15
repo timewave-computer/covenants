@@ -113,5 +113,10 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     MigrateContracts {
         clock: Option<covenant_clock::msg::MigrateMsg>,
+        holder: Option<covenant_two_party_pol_holder::msg::MigrateMsg>,
+        party_a_router: Option<covenant_interchain_router::msg::MigrateMsg>,
+        party_b_router: Option<covenant_interchain_router::msg::MigrateMsg>,
+        party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
+        party_b_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
     },
 }

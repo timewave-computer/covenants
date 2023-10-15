@@ -180,7 +180,7 @@ pub enum ExpiryConfig {
 }
 
 impl ExpiryConfig {
-    pub fn get_response_attributes(self) -> Vec<Attribute> {
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
         match self {
             ExpiryConfig::None => vec![Attribute::new("expiry_config", "none")],
             ExpiryConfig::Block(h) => vec![Attribute::new(
