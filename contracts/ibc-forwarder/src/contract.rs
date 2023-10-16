@@ -96,7 +96,6 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 /// tries to register an ICA on the remote chain
 fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-
     let register_msg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
         INTERCHAIN_ACCOUNT_ID.to_string(),
