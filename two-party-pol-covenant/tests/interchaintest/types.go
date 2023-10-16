@@ -10,7 +10,7 @@ type CovenantInstantiateMsg struct {
 	Timeouts        Timeouts            `json:"timeouts"`
 	PresetIbcFee    PresetIbcFee        `json:"preset_ibc_fee"`
 	ContractCodeIds ContractCodeIds     `json:"contract_codes"`
-	TickMaxGas      *string             `json:"clock_tick_max_gas,omitempty"`
+	TickMaxGas      string              `json:"clock_tick_max_gas,omitempty"`
 	LockupConfig    ExpiryConfig        `json:"lockup_config"`
 	PartyAConfig    CovenantPartyConfig `json:"party_a_config"`
 	PartyBConfig    CovenantPartyConfig `json:"party_b_config"`

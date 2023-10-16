@@ -390,17 +390,17 @@ func TestTwoPartyPol(t *testing.T) {
 				TimeoutFee: "10000",
 			}
 
-			tickMaxGas := "2000"
+			// tickMaxGas := "2000"
 			poolAddress := "todo"
 
 			atomCoin := Coin{
 				Denom:  "uatom",
-				Amount: "10000",
+				Amount: "5000000000",
 			}
 
 			osmoCoin := Coin{
 				Denom:  "uosmo",
-				Amount: "100000",
+				Amount: "100000000000",
 			}
 
 			partyAConfig := CovenantPartyConfig{
@@ -443,7 +443,6 @@ func TestTwoPartyPol(t *testing.T) {
 				Timeouts:        timeouts,
 				PresetIbcFee:    presetIbcFee,
 				ContractCodeIds: codeIds,
-				TickMaxGas:      &tickMaxGas,
 				LockupConfig:    lockupConfig,
 				PartyAConfig:    partyAConfig,
 				PartyBConfig:    partyBConfig,
@@ -467,7 +466,7 @@ func TestTwoPartyPol(t *testing.T) {
 				"--home", neutron.HomeDir(),
 				"--node", neutron.GetRPCAddress(),
 				"--chain-id", neutron.Config().ChainID,
-				"--gas", "90009000",
+				"--gas", "9000900",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
@@ -557,7 +556,7 @@ func TestTwoPartyPol(t *testing.T) {
 		t.Run("fund contracts with neutron", func(t *testing.T) {
 			err := neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: partyAIbcForwarderAddress,
-				Amount:  5000001,
+				Amount:  50000001,
 				Denom:   nativeNtrnDenom,
 			})
 
@@ -565,48 +564,48 @@ func TestTwoPartyPol(t *testing.T) {
 
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: partyBIbcForwarderAddress,
-				Amount:  5000001,
+				Amount:  50000001,
 				Denom:   nativeNtrnDenom,
 			})
 			require.NoError(t, err, "failed to send funds from neutron user to partyBIbcForwarder contract")
 
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: clockAddress,
-				Amount:  5000001,
+				Amount:  50000001,
 				Denom:   nativeNtrnDenom,
 			})
 			require.NoError(t, err, "failed to send funds from neutron user to clock contract")
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: partyARouterAddress,
-				Amount:  15000001,
+				Amount:  150000001,
 				Denom:   nativeNtrnDenom,
 			})
 			require.NoError(t, err, "failed to send funds from neutron user to party a router")
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: partyBRouterAddress,
-				Amount:  15000001,
+				Amount:  150000001,
 				Denom:   nativeNtrnDenom,
 			})
 			require.NoError(t, err, "failed to send funds from neutron user to party b router")
 
-			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
+			err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			bal, err := neutron.GetBalance(ctx, partyAIbcForwarderAddress, nativeNtrnDenom)
 			require.NoError(t, err)
-			require.Equal(t, int64(5000001), bal)
+			require.Equal(t, int64(50000001), bal)
 			bal, err = neutron.GetBalance(ctx, partyBIbcForwarderAddress, nativeNtrnDenom)
 			require.NoError(t, err)
-			require.Equal(t, int64(5000001), bal)
+			require.Equal(t, int64(50000001), bal)
 			bal, err = neutron.GetBalance(ctx, clockAddress, nativeNtrnDenom)
 			require.NoError(t, err)
-			require.Equal(t, int64(5000001), bal)
+			require.Equal(t, int64(50000001), bal)
 			bal, err = neutron.GetBalance(ctx, partyARouterAddress, nativeNtrnDenom)
 			require.NoError(t, err)
-			require.Equal(t, int64(15000001), bal)
+			require.Equal(t, int64(150000001), bal)
 			bal, err = neutron.GetBalance(ctx, partyBRouterAddress, nativeNtrnDenom)
 			require.NoError(t, err)
-			require.Equal(t, int64(15000001), bal)
+			require.Equal(t, int64(150000001), bal)
 		})
 
 		t.Run("two party POL", func(t *testing.T) {
@@ -636,6 +635,7 @@ func TestTwoPartyPol(t *testing.T) {
 			}
 
 			t.Run("tick until forwarders create ICA", func(t *testing.T) {
+				require.NoError(t, testutil.WaitForBlocks(ctx, 15, atom, neutron, osmosis), "failed to wait for blocks")
 				for {
 					tickClock()
 					var response CovenantAddressQueryResponse
@@ -655,10 +655,13 @@ func TestTwoPartyPol(t *testing.T) {
 					require.NoError(t,
 						cosmosNeutron.QueryContract(ctx, partyBIbcForwarderAddress, contractStateQuery, &response),
 						"failed to query forwarder B state")
-
 					forwarderBState := response.Data
 
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
+						require.NoError(t, testutil.WaitForBlocks(ctx, 15, atom, neutron, osmosis), "failed to wait for blocks")
+
+						var depositAddressResponse CovenantAddressQueryResponse
+
 						type DepositAddress struct{}
 						type DepositAddressQuery struct {
 							DepositAddress DepositAddress `json:"deposit_address"`
@@ -667,20 +670,21 @@ func TestTwoPartyPol(t *testing.T) {
 							DepositAddress: DepositAddress{},
 						}
 
-						err := cosmosNeutron.QueryContract(ctx, partyAIbcForwarderAddress, depositAddressQuery, &response)
+						err := cosmosNeutron.QueryContract(ctx, partyAIbcForwarderAddress, depositAddressQuery, &depositAddressResponse)
 						require.NoError(t, err, "failed to query party a forwarder deposit address")
-						partyADepositAddress = response.Data
+						partyADepositAddress = depositAddressResponse.Data
 
-						err = cosmosNeutron.QueryContract(ctx, partyBIbcForwarderAddress, depositAddressQuery, &response)
+						err = cosmosNeutron.QueryContract(ctx, partyBIbcForwarderAddress, depositAddressQuery, &depositAddressResponse)
 						require.NoError(t, err, "failed to query party b forwarder deposit address")
-						partyBDepositAddress = response.Data
-						println("both parties icas created")
+						partyBDepositAddress = depositAddressResponse.Data
+						println("both parties icas created: ", partyADepositAddress, " , ", partyBDepositAddress)
 						break
 					}
 				}
 			})
 
 			t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
+
 				err := cosmosOsmosis.SendFunds(ctx, osmoUser.KeyName, ibc.WalletAmount{
 					Address: partyBDepositAddress,
 					Denom:   nativeOsmoDenom,
