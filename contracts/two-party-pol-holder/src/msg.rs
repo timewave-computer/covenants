@@ -3,7 +3,7 @@ use std::fmt;
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Api, Attribute, Coin, Decimal, StdError, Binary};
-use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract};
+use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract, covenant_deposit_address};
 use covenant_utils::ExpiryConfig;
 
 use crate::error::ContractError;
@@ -203,6 +203,7 @@ impl fmt::Display for ContractState {
 
 #[covenant_clock_address]
 #[covenant_next_contract]
+#[covenant_deposit_address]
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {

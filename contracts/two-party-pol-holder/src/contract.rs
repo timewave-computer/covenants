@@ -388,7 +388,7 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.load(deps.storage)?)?),
         QueryMsg::RagequitConfig {} => Ok(to_binary(&RAGEQUIT_CONFIG.load(deps.storage)?)?),
@@ -400,6 +400,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ConfigPartyB {} => Ok(to_binary(&COVENANT_CONFIG.load(deps.storage)?.party_b)?),
         QueryMsg::DepositDeadline {} => Ok(to_binary(&DEPOSIT_DEADLINE.load(deps.storage)?)?),
         QueryMsg::Config {} => Ok(to_binary(&COVENANT_CONFIG.load(deps.storage)?)?),
+        QueryMsg::DepositAddress {} => Ok(to_binary(&env.contract.address)?),
     }
 }
 
