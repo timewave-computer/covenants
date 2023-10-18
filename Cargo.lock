@@ -327,6 +327,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "covenant-astroport-liquid-pooler"
+version = "1.0.0"
+dependencies = [
+ "astroport 2.8.0",
+ "astroport-factory",
+ "astroport-native-coin-registry",
+ "astroport-pair-stable",
+ "astroport-token",
+ "astroport-whitelist",
+ "base64 0.13.1",
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-clock",
+ "covenant-macros",
+ "cw-multi-test",
+ "cw-storage-plus 1.1.0",
+ "cw-utils 1.0.2",
+ "cw1-whitelist 1.1.1",
+ "cw2 1.1.1",
+ "cw20 0.15.1",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types",
+ "protobuf 3.3.0",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "sha2 0.10.8",
+ "thiserror",
+]
+
+[[package]]
 name = "covenant-clock"
 version = "1.0.0"
 dependencies = [
