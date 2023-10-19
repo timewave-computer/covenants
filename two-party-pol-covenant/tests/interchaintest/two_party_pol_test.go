@@ -32,6 +32,7 @@ const nativeNtrnDenom = "untrn"
 var covenantAddress string
 var clockAddress string
 var partyARouterAddress, partyBRouterAddress string
+var liquidPoolerAddress string
 var partyAIbcForwarderAddress, partyBIbcForwarderAddress string
 var partyADepositAddress, partyBDepositAddress string
 var holderAddress string
@@ -325,6 +326,7 @@ func TestTwoPartyPol(t *testing.T) {
 		const routerContractPath = "wasms/covenant_interchain_router.wasm"
 		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
 		const holderContractPath = "wasms/covenant_two_party_pol_holder.wasm"
+		const liquidPoolerPath = "wasms/covenant_liquid_pooler.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64
@@ -333,6 +335,7 @@ func TestTwoPartyPol(t *testing.T) {
 		var routerCodeId uint64
 		var ibcForwarderCodeId uint64
 		var holderCodeId uint64
+		var lperCodeId uint64
 		var covenantCodeIdStr string
 		var covenantCodeId uint64
 		_ = covenantCodeId
@@ -360,6 +363,12 @@ func TestTwoPartyPol(t *testing.T) {
 			ibcForwarderCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, ibcForwarderContractPath)
 			require.NoError(t, err, "failed to store ibc forwarder contract")
 			ibcForwarderCodeId, err = strconv.ParseUint(ibcForwarderCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			// store lper, get code
+			lperCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, liquidPoolerPath)
+			require.NoError(t, err, "failed to store liquid pooler contract")
+			lperCodeId, err = strconv.ParseUint(lperCodeIdStr, 10, 64)
 			require.NoError(t, err, "failed to parse codeId into uint64")
 
 			// store clock and get code id
@@ -390,8 +399,8 @@ func TestTwoPartyPol(t *testing.T) {
 				TimeoutFee: "10000",
 			}
 
-			// tickMaxGas := "2000"
-			poolAddress := "todo"
+			// todo: no bueno, make it real here
+			poolAddress := neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
 
 			atomCoin := Coin{
 				Denom:  "uatom",
@@ -428,6 +437,7 @@ func TestTwoPartyPol(t *testing.T) {
 				InterchainRouterCode: routerCodeId,
 				ClockCode:            clockCodeId,
 				HolderCode:           holderCodeId,
+				LiquidPoolerCode:     lperCodeId,
 			}
 
 			ragequitTerms := RagequitTerms{
@@ -466,7 +476,7 @@ func TestTwoPartyPol(t *testing.T) {
 				"--home", neutron.HomeDir(),
 				"--node", neutron.GetRPCAddress(),
 				"--chain-id", neutron.Config().ChainID,
-				"--gas", "9000900",
+				"--gas", "90009000",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
@@ -520,6 +530,7 @@ func TestTwoPartyPol(t *testing.T) {
 					Party: "party_b",
 				},
 			}
+
 			var response CovenantAddressQueryResponse
 
 			err = cosmosNeutron.QueryContract(ctx, covenantAddress, ClockAddressQuery{}, &response)
@@ -531,6 +542,11 @@ func TestTwoPartyPol(t *testing.T) {
 			require.NoError(t, err, "failed to query instantiated holder address")
 			holderAddress = response.Data
 			println("holder addr: ", holderAddress)
+
+			err = cosmosNeutron.QueryContract(ctx, covenantAddress, LiquidPoolerQuery{}, &response)
+			require.NoError(t, err, "failed to query instantiated liquid pooler address")
+			liquidPoolerAddress = response.Data
+			println("liquid pooler addr: ", liquidPoolerAddress)
 
 			err = cosmosNeutron.QueryContract(ctx, covenantAddress, routerQueryPartyA, &response)
 			require.NoError(t, err, "failed to query instantiated party a router address")

@@ -670,6 +670,7 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "covenant-astroport-liquid-pooler",
  "covenant-clock",
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
