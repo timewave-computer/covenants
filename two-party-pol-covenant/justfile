@@ -29,6 +29,7 @@ simtest: optimize
         mv ./../artifacts/covenant_interchain_router-aarch64.wasm ./../artifacts/covenant_interchain_router.wasm && \
         mv ./../artifacts/covenant_clock-aarch64.wasm ./../artifacts/covenant_clock.wasm && \
         mv ./../artifacts/covenant_two_party_pol_holder-aarch64.wasm ./../artifacts/covenant_two_party_pol_holder.wasm && \
+        mv ./../artifacts/covenant_astroport_liquid_pooler-aarch64.wasm ./../artifacts/covenant_liquid_pooler.wasm && \
         mv ./../artifacts/covenant_two_party_pol-aarch64.wasm ./../artifacts/covenant_two_party_pol.wasm \
     ;fi
 
