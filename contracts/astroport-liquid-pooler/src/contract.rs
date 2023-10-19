@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    StdError, StdResult, SubMsg, Uint128, WasmMsg, Addr,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -37,7 +37,7 @@ const SINGLE_SIDED_REPLY_ID: u64 = 322u64;
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
@@ -47,8 +47,10 @@ pub fn instantiate(
     // validate the contract addresses
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
-    let holder_addr = deps.api.addr_validate(&msg.holder_address)?;
 
+    // TODO: instantiate2 / remove this field from instantiateMsg
+    let holder_addr = env.contract.address;
+    
     // contract starts at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 

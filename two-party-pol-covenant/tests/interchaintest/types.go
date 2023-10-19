@@ -26,6 +26,7 @@ type ContractCodeIds struct {
 	InterchainRouterCode uint64 `json:"router_code"`
 	ClockCode            uint64 `json:"clock_code"`
 	HolderCode           uint64 `json:"holder_code"`
+	LiquidPoolerCode     uint64 `json:"liquid_pooler_code"`
 }
 
 type Timeouts struct {
@@ -110,7 +111,10 @@ type InterchainRouterQuery struct {
 type IbcForwarderQuery struct {
 	Party Party `json:"ibc_forwarder_address"`
 }
-
+type LiquidPoolerAddress struct{}
+type LiquidPoolerQuery struct {
+	LiquidPoolerAddress LiquidPoolerAddress `json:"liquid_pooler_address"`
+}
 type CovenantAddressQueryResponse struct {
 	Data string `json:"data"`
 }
