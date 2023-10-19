@@ -51,6 +51,7 @@ pub struct CovenantContractCodeIds {
     pub holder_code: u64,
     pub clock_code: u64,
     pub router_code: u64,
+    pub liquid_pooler_code: u64,
 }
 
 #[cw_serde]
@@ -107,6 +108,8 @@ pub enum QueryMsg {
     IbcForwarderAddress { party: String },
     #[returns(Addr)]
     InterchainRouterAddress { party: String }, 
+    #[returns(Addr)]
+    LiquidPoolerAddress {},
 }
 
 #[cw_serde]

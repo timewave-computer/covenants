@@ -4,6 +4,7 @@ use cosmwasm_std::{
     to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Decimal, Uint128, CosmosMsg, WasmMsg, SubMsg, Reply, 
 };
 
+use covenant_astroport_liquid_pooler::msg::{PresetAstroLiquidPoolerFields, SingleSideLpLimits, AssetData};
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
@@ -18,7 +19,7 @@ use crate::{
         COVENANT_CLOCK_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
         PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
-        PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_B_FORWARDER_FIELDS, COVENANT_POL_HOLDER_ADDR, PRESET_PARTY_A_ROUTER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PARTY_A_ROUTER_ADDR, PARTY_B_ROUTER_ADDR,
+        PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_B_FORWARDER_FIELDS, COVENANT_POL_HOLDER_ADDR, PRESET_PARTY_A_ROUTER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PARTY_A_ROUTER_ADDR, PARTY_B_ROUTER_ADDR, PRESET_LIQUID_POOLER_FIELDS, LIQUID_POOLER_ADDR,
     },
 };
 
@@ -105,12 +106,28 @@ pub fn instantiate(
         code_id: msg.contract_codes.router_code,
     };
 
+    let preset_liquid_pooler_fields = PresetAstroLiquidPoolerFields {
+        slippage_tolerance: None,
+        autostake: None,
+        assets: AssetData {
+            asset_a_denom: msg.party_a_config.ibc_denom,
+            asset_b_denom: msg.party_b_config.ibc_denom,
+        },
+        single_side_lp_limits: SingleSideLpLimits {
+            asset_a_limit: Uint128::one(),
+            asset_b_limit: Uint128::one(),
+        },
+        label: format!("{}_liquid_pooler", msg.label),
+        code_id: msg.contract_codes.liquid_pooler_code,
+    };
+
     PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
     PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;   
     PRESET_PARTY_A_FORWARDER_FIELDS.save(deps.storage, &preset_party_a_forwarder_fields)?;
     PRESET_PARTY_B_FORWARDER_FIELDS.save(deps.storage, &preset_party_b_forwarder_fields)?;
     PRESET_PARTY_A_ROUTER_FIELDS.save(deps.storage, &preset_party_a_router_fields)?;
     PRESET_PARTY_B_ROUTER_FIELDS.save(deps.storage, &preset_party_b_router_fields)?;
+    PRESET_LIQUID_POOLER_FIELDS.save(deps.storage, &preset_liquid_pooler_fields)?;
 
     // we start the module instantiation chain with the clock
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -139,6 +156,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
         HOLDER_REPLY_ID => handle_holder_reply(deps, env, msg),
         PARTY_A_FORWARDER_REPLY_ID => handle_party_a_ibc_forwarder_reply(deps, env, msg),
         PARTY_B_FORWARDER_REPLY_ID => handle_party_b_ibc_forwarder_reply(deps, env, msg),
+        LP_REPLY_ID => handle_liquid_pooler_reply_id(deps, env, msg),
         _ => Err(ContractError::UnknownReplyId {}),
     }
 }
@@ -238,16 +256,65 @@ pub fn handle_party_b_interchain_router_reply(
             let router_addr = deps.api.addr_validate(&response.contract_address)?;
             PARTY_B_ROUTER_ADDR.save(deps.storage, &router_addr)?;
 
+            let clock_address = COVENANT_CLOCK_ADDR.load(deps.storage)?.to_string();
+            let pool_address = PRESET_HOLDER_FIELDS.load(deps.storage)?.pool_address.to_string();
+            let holder_address = "replace".to_string();
+            let preset_liquid_pooler_fields = PRESET_LIQUID_POOLER_FIELDS.load(deps.storage)?;
+
+            let instantiate_msg = preset_liquid_pooler_fields.to_instantiate_msg(
+                pool_address,
+                clock_address,
+                holder_address
+            );
+
+            let liquid_pooler_inst_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
+                admin: Some(env.contract.address.to_string()),
+                code_id: preset_liquid_pooler_fields.code_id,
+                msg: to_binary(&instantiate_msg)?,
+                funds: vec![],
+                label: preset_liquid_pooler_fields.label,
+            });
+
+            Ok(Response::default()
+                .add_attribute("method", "handle_party_b_interchain_router_reply")
+                .add_attribute("party_b_interchain_router_addr", router_addr)
+                .add_submessage(SubMsg::reply_always(
+                    liquid_pooler_inst_tx,
+                    LP_REPLY_ID,
+                )))
+        }
+        Err(err) => Err(ContractError::ContractInstantiationError {
+            contract: "party b router".to_string(),
+            err,
+        }),
+    }
+}
+
+
+pub fn handle_liquid_pooler_reply_id(
+    deps: DepsMut,
+    env: Env,
+    msg: Reply,
+) -> Result<Response, ContractError> {
+    deps.api.debug("WASMDEBUG: liquid pooler reply");
+
+    let parsed_data = parse_reply_instantiate_data(msg);
+    match parsed_data {
+        Ok(response) => {
+            // validate and store the instantiated liquid pooler address
+            let liquid_pooler = deps.api.addr_validate(&response.contract_address)?;
+            LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler)?;
+            
+            let party_b_router = PARTY_B_ROUTER_ADDR.load(deps.storage)?;
             let preset_holder_fields = PRESET_HOLDER_FIELDS.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let party_a_router = PARTY_A_ROUTER_ADDR.load(deps.storage)?;
 
-            let lper_addr = router_addr.clone(); // TODO: replace with actual lper
             let instantiate_msg = preset_holder_fields.clone().to_instantiate_msg(
                 clock_addr.to_string(),
-                lper_addr.to_string(),
+                liquid_pooler.to_string(),
                 party_a_router.to_string(),
-                router_addr.to_string(),
+                party_b_router.to_string(),
             );
 
             let holder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -259,20 +326,21 @@ pub fn handle_party_b_interchain_router_reply(
             });
 
             Ok(Response::default()
-                .add_attribute("method", "handle_party_b_interchain_router_reply")
-                .add_attribute("party_b_interchain_router_addr", router_addr)
+                .add_attribute("method", "handle_liquid_pooler_reply")
+                .add_attribute("liquid_pooler_addr", liquid_pooler)
                 .add_submessage(SubMsg::reply_always(
                     holder_instantiate_tx,
                     HOLDER_REPLY_ID,
                 )))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
-            contract: "party b router".to_string(),
+            contract: "liquid pooler".to_string(),
             err,
         }),
-    }}
+    }
+}
 
-
+    
 pub fn handle_holder_reply(
     deps: DepsMut,
     env: Env,
@@ -376,6 +444,20 @@ pub fn handle_party_b_ibc_forwarder_reply(
             let holder = COVENANT_POL_HOLDER_ADDR.load(deps.storage)?;
             let party_a_router = PARTY_A_ROUTER_ADDR.load(deps.storage)?;
             let party_b_router = PARTY_B_ROUTER_ADDR.load(deps.storage)?;
+            let liquid_pooler = LIQUID_POOLER_ADDR.load(deps.storage)?;
+
+            let lp_fields = PRESET_LIQUID_POOLER_FIELDS.load(deps.storage)?;
+
+            let update_liquid_pooler_holder_addr = WasmMsg::Migrate {
+                contract_addr: liquid_pooler.to_string(),
+                new_code_id: lp_fields.code_id,
+                msg: to_binary(&covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
+                    clock_addr: None,
+                    holder_address: Some(holder.to_string()),
+                    assets: None,
+                    lp_config: None,
+                })?,
+            };
 
             let update_clock_whitelist_msg = WasmMsg::Migrate {
                 contract_addr: clock_addr.to_string(),
@@ -387,6 +469,7 @@ pub fn handle_party_b_ibc_forwarder_reply(
                         holder.to_string(),
                         party_a_router.to_string(),
                         party_b_router.to_string(),
+                        liquid_pooler.to_string(),
                     ]),
                     remove: None,
                 })?,
@@ -395,7 +478,9 @@ pub fn handle_party_b_ibc_forwarder_reply(
             Ok(Response::default()
                 .add_attribute("method", "handle_party_b_ibc_forwarder_reply")
                 .add_attribute("party_b_ibc_forwarder_addr", party_b_ibc_forwarder_addr)
-                .add_message(update_clock_whitelist_msg))
+                .add_message(update_clock_whitelist_msg)
+                .add_message(update_liquid_pooler_holder_addr)
+            )
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "party_b ibc forwarder".to_string(),
@@ -429,7 +514,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 Some(Addr::unchecked("not found"))
             };
             Ok(to_binary(&resp)?)
-        }
+        },
+        QueryMsg::LiquidPoolerAddress {} => Ok(to_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?),
     }
 }
 

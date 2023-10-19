@@ -15,6 +15,35 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
+pub struct PresetAstroLiquidPoolerFields {
+    pub slippage_tolerance: Option<Decimal>,
+    pub autostake: Option<bool>,
+    pub assets: AssetData,
+    pub single_side_lp_limits: SingleSideLpLimits,
+    pub label: String,
+    pub code_id: u64,
+}
+
+impl PresetAstroLiquidPoolerFields {
+    pub fn to_instantiate_msg(
+        &self,
+        pool_address: String,
+        clock_address: String,
+        holder_address: String,
+    ) -> InstantiateMsg {
+        InstantiateMsg { 
+            pool_address,
+            clock_address,
+            holder_address,
+            slippage_tolerance: self.slippage_tolerance,
+            autostake: self.autostake.clone(),
+            assets: self.assets.clone(),
+            single_side_lp_limits: self.single_side_lp_limits.clone(),
+        }
+    }
+}
+
+#[cw_serde]
 pub struct LpConfig {
     /// address of the liquidity pool we plan to enter
     pub pool_address: Addr,
