@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,6 +42,12 @@ var atomNeutronICSConnectionId, neutronAtomICSConnectionId string
 var neutronOsmosisIBCConnId, osmosisNeutronIBCConnId string
 var atomNeutronIBCConnId, neutronAtomIBCConnId string
 var gaiaOsmosisIBCConnId, osmosisGaiaIBCConnId string
+var tokenAddress string
+var whitelistAddress string
+var factoryAddress string
+var coinRegistryAddress string
+var stableswapAddress string
+var liquidityTokenAddress string
 
 // PARTY_A
 const osmoContributionAmount uint64 = 100_000_000_000 // in uosmo
@@ -343,7 +350,7 @@ func TestTwoPartyPol(t *testing.T) {
 		t.Run("deploy covenant contracts", func(t *testing.T) {
 			// store covenant and get code id
 			covenantCodeIdStr, err = cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, covenantContractPath)
-			require.NoError(t, err, "failed to store stride covenant contract")
+			require.NoError(t, err, "failed to store two party pol covenant contract")
 			covenantCodeId, err = strconv.ParseUint(covenantCodeIdStr, 10, 64)
 			require.NoError(t, err, "failed to parse codeId into uint64")
 
@@ -380,6 +387,324 @@ func TestTwoPartyPol(t *testing.T) {
 			require.NoError(t, testutil.WaitForBlocks(ctx, 5, cosmosNeutron, cosmosAtom, cosmosOsmosis))
 		})
 
+		t.Run("deploy astroport contracts", func(t *testing.T) {
+
+			stablePairCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_pair_stable.wasm")
+			require.NoError(t, err, "failed to store astroport stableswap contract")
+			stablePairCodeId, err := strconv.ParseUint(stablePairCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			factoryCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_factory.wasm")
+			require.NoError(t, err, "failed to store astroport factory contract")
+
+			whitelistCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_whitelist.wasm")
+			require.NoError(t, err, "failed to store astroport whitelist contract")
+			whitelistCodeId, err := strconv.ParseUint(whitelistCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			tokenCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, "wasms/astroport_token.wasm")
+			require.NoError(t, err, "failed to store astroport token contract")
+			tokenCodeId, err := strconv.ParseUint(tokenCodeIdStr, 10, 64)
+			require.NoError(t, err, "failed to parse codeId into uint64")
+
+			t.Run("astroport token", func(t *testing.T) {
+
+				msg := NativeTokenInstantiateMsg{
+					Name:            "atomosmolp",
+					Symbol:          "atomosmo",
+					Decimals:        5,
+					InitialBalances: []Cw20Coin{},
+					Mint:            nil,
+					Marketing:       nil,
+				}
+
+				str, err := json.Marshal(msg)
+				require.NoError(t, err, "Failed to marshall NativeTokenInstantiateMsg")
+
+				tokenAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, tokenCodeIdStr, string(str), true)
+				require.NoError(t, err, "Failed to instantiate atom Token")
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
+				require.NoError(t, err, "failed to wait for blocks")
+			})
+
+			t.Run("whitelist", func(t *testing.T) {
+
+				admins := []string{neutronUser.Bech32Address(neutron.Config().Bech32Prefix)}
+
+				msg := WhitelistInstantiateMsg{
+					Admins:  admins,
+					Mutable: false,
+				}
+
+				str, err := json.Marshal(msg)
+				require.NoError(t, err, "Failed to marshall WhitelistInstantiateMsg")
+
+				whitelistAddress, err = cosmosNeutron.InstantiateContract(
+					ctx, neutronUser.KeyName, whitelistCodeIdStr, string(str), true)
+				require.NoError(t, err, "Failed to instantiate Whitelist")
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
+				require.NoError(t, err, "failed to wait for blocks")
+			})
+
+			t.Run("native coins registry", func(t *testing.T) {
+				coinRegistryCodeId, err := cosmosNeutron.StoreContract(
+					ctx, neutronUser.KeyName, "wasms/astroport_native_coin_registry.wasm")
+				require.NoError(t, err, "failed to store astroport native coin registry contract")
+
+				msg := NativeCoinRegistryInstantiateMsg{
+					Owner: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				}
+				str, err := json.Marshal(msg)
+				require.NoError(t, err, "Failed to marshall NativeCoinRegistryInstantiateMsg")
+
+				nativeCoinRegistryAddress, err := cosmosNeutron.InstantiateContract(
+					ctx, neutronUser.KeyName, coinRegistryCodeId, string(str), true)
+				require.NoError(t, err, "Failed to instantiate NativeCoinRegistry")
+				coinRegistryAddress = nativeCoinRegistryAddress
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
+				require.NoError(t, err, "failed to wait for blocks")
+			})
+
+			t.Run("add coins to registry", func(t *testing.T) {
+				// Add ibc native tokens for uosmo and uatom to the native coin registry
+				// each of these tokens has a precision of 6
+				addMessage := `{"add":{"native_coins":[["` + neutronAtomIbcDenom + `",6],["` + neutronOsmoIbcDenom + `",6]]}}`
+				addCmd := []string{"neutrond", "tx", "wasm", "execute",
+					coinRegistryAddress,
+					addMessage,
+					"--from", neutronUser.KeyName,
+					"--gas-prices", "0.0untrn",
+					"--gas-adjustment", `1.5`,
+					"--output", "json",
+					"--home", "/var/cosmos-chain/neutron-2",
+					"--node", neutron.GetRPCAddress(),
+					"--home", neutron.HomeDir(),
+					"--chain-id", neutron.Config().ChainID,
+					"--from", neutronUser.KeyName,
+					"--gas", "auto",
+					"--keyring-backend", keyring.BackendTest,
+					"-y",
+				}
+				_, _, err = cosmosNeutron.Exec(ctx, addCmd, nil)
+				require.NoError(t, err, err)
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
+				require.NoError(t, err, "failed to wait for blocks")
+			})
+
+			t.Run("factory", func(t *testing.T) {
+				pairConfigs := []PairConfig{
+					PairConfig{
+						CodeId: stablePairCodeId,
+						PairType: PairType{
+							Stable: struct{}{},
+						},
+						TotalFeeBps:         0,
+						MakerFeeBps:         0,
+						IsDisabled:          false,
+						IsGeneratorDisabled: true,
+					},
+				}
+
+				msg := FactoryInstantiateMsg{
+					PairConfigs:         pairConfigs,
+					TokenCodeId:         tokenCodeId,
+					FeeAddress:          nil,
+					GeneratorAddress:    nil,
+					Owner:               neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+					WhitelistCodeId:     whitelistCodeId,
+					CoinRegistryAddress: coinRegistryAddress,
+				}
+
+				str, err := json.Marshal(msg)
+				require.NoError(t, err, "Failed to marshall FactoryInstantiateMsg")
+
+				factoryAddr, err := cosmosNeutron.InstantiateContract(
+					ctx, neutronUser.KeyName, factoryCodeIdStr, string(str), true)
+				require.NoError(t, err, "Failed to instantiate Factory")
+				factoryAddress = factoryAddr
+				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
+				require.NoError(t, err, "failed to wait for blocks")
+			})
+
+			t.Run("create pair on factory", func(t *testing.T) {
+
+				initParams := StablePoolParams{
+					Amp: 3,
+				}
+				binaryData, err := json.Marshal(initParams)
+				require.NoError(t, err, "error encoding stable pool params to binary")
+
+				osmoNativeToken := NativeToken{
+					Denom: neutronOsmoIbcDenom,
+				}
+				atomNativeToken := NativeToken{
+					Denom: neutronAtomIbcDenom,
+				}
+				assetInfos := []AssetInfo{
+					{
+						NativeToken: &atomNativeToken,
+					},
+					{
+						NativeToken: &osmoNativeToken,
+					},
+				}
+
+				initPairMsg := CreatePair{
+					PairType: PairType{
+						Stable: struct{}{},
+					},
+					AssetInfos: assetInfos,
+					InitParams: binaryData,
+				}
+
+				createPairMsg := CreatePairMsg{
+					CreatePair: initPairMsg,
+				}
+
+				str, err := json.Marshal(createPairMsg)
+				require.NoError(t, err, "Failed to marshall CreatePair message")
+
+				createCmd := []string{"neutrond", "tx", "wasm", "execute",
+					factoryAddress,
+					string(str),
+					"--from", neutronUser.KeyName,
+					"--gas-prices", "0.0untrn",
+					"--gas-adjustment", `1.5`,
+					"--output", "json",
+					"--home", "/var/cosmos-chain/neutron-2",
+					"--node", neutron.GetRPCAddress(),
+					"--home", neutron.HomeDir(),
+					"--chain-id", neutron.Config().ChainID,
+					"--from", neutronUser.KeyName,
+					"--gas", "auto",
+					"--keyring-backend", keyring.BackendTest,
+					"-y",
+				}
+
+				_, _, err = cosmosNeutron.Exec(ctx, createCmd, nil)
+				require.NoError(t, err, err)
+				err = testutil.WaitForBlocks(ctx, 30, atom, neutron, osmosis)
+				require.NoError(t, err, "failed to wait for blocks")
+			})
+		})
+
+		t.Run("add liquidity to the atom-osmo stableswap pool", func(t *testing.T) {
+			osmoNativeToken := NativeToken{
+				Denom: neutronOsmoIbcDenom,
+			}
+			atomNativeToken := NativeToken{
+				Denom: neutronAtomIbcDenom,
+			}
+			assetInfos := []AssetInfo{
+				{
+					NativeToken: &atomNativeToken,
+				},
+				{
+					NativeToken: &osmoNativeToken,
+				},
+			}
+			pair := Pair{
+				AssetInfos: assetInfos,
+			}
+			pairQueryMsg := PairQuery{
+				Pair: pair,
+			}
+			queryJson, _ := json.Marshal(pairQueryMsg)
+
+			queryCmd := []string{"neutrond", "query", "wasm", "contract-state", "smart",
+				factoryAddress, string(queryJson),
+			}
+
+			print("\n factory query cmd: ", string(strings.Join(queryCmd, " ")), "\n")
+
+			factoryQueryRespBytes, _, _ := neutron.Exec(ctx, queryCmd, nil)
+			print(string(factoryQueryRespBytes))
+
+			var response FactoryPairResponse
+			err = cosmosNeutron.QueryContract(ctx, factoryAddress, pairQueryMsg, &response)
+			stableswapAddress = response.Data.ContractAddr
+			print("\n stableswap address: ", stableswapAddress, "\n")
+			liquidityTokenAddress = response.Data.LiquidityToken
+			print("\n liquidity token: ", liquidityTokenAddress, "\n")
+
+			require.NoError(t, err, "failed to query pair info")
+			jsonResp, _ := json.Marshal(response)
+			print("\npair info: ", string(jsonResp), "\n")
+
+			// set up the pool with 1:10 ratio of atom/osmo
+			transferAtom := ibc.WalletAmount{
+				Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				Denom:   atom.Config().Denom,
+				Amount:  int64(100_000_000_00),
+			}
+			_, err := atom.SendIBCTransfer(ctx, testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name], gaiaUser.KeyName, transferAtom, ibc.TransferOptions{})
+			require.NoError(t, err)
+
+			transferOsmo := ibc.WalletAmount{
+				Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				Denom:   osmosis.Config().Denom,
+				Amount:  int64(100_000_000_000),
+			}
+
+			_, err = osmosis.SendIBCTransfer(ctx, testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name], osmoUser.KeyName, transferOsmo, ibc.TransferOptions{})
+			require.NoError(t, err)
+
+			testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
+
+			// join pool
+			assets := []AstroportAsset{
+				AstroportAsset{
+					Info: AssetInfo{
+						NativeToken: &NativeToken{
+							Denom: neutronAtomIbcDenom,
+						},
+					},
+					Amount: "10000000000",
+				},
+				AstroportAsset{
+					Info: AssetInfo{
+						NativeToken: &NativeToken{
+							Denom: neutronOsmoIbcDenom,
+						},
+					},
+					Amount: "100000000000",
+				},
+			}
+
+			msg := ProvideLiqudityMsg{
+				ProvideLiquidity: ProvideLiquidityStruct{
+					Assets:            assets,
+					SlippageTolerance: "0.01",
+					AutoStake:         false,
+					Receiver:          neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				},
+			}
+
+			str, err := json.Marshal(msg)
+			require.NoError(t, err, "Failed to marshall provide liquidity msg")
+			amountStr := "10000000000" + neutronAtomIbcDenom + "," + "100000000000" + neutronOsmoIbcDenom
+
+			cmd := []string{"neutrond", "tx", "wasm", "execute", stableswapAddress,
+				string(str),
+				"--from", neutronUser.KeyName,
+				"--amount", amountStr,
+				"--output", "json",
+				"--home", "/var/cosmos-chain/neutron-2",
+				"--node", neutron.GetRPCAddress(),
+				"--chain-id", neutron.Config().ChainID,
+				"--gas", "900000",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+			resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+			require.NoError(t, err)
+			jsonResp, _ = json.Marshal(resp)
+			print("\nprovide liquidity response: ", string(jsonResp), "\n")
+
+			testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
+
+		})
+
 		t.Run("instantiate covenant", func(t *testing.T) {
 			timeouts := Timeouts{
 				IcaTimeout:         "100", // sec
@@ -398,9 +723,6 @@ func TestTwoPartyPol(t *testing.T) {
 				AckFee:     "10000",
 				TimeoutFee: "10000",
 			}
-
-			// todo: no bueno, make it real here
-			poolAddress := neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
 
 			atomCoin := Coin{
 				Denom:  "uatom",
@@ -456,7 +778,7 @@ func TestTwoPartyPol(t *testing.T) {
 				LockupConfig:             lockupConfig,
 				PartyAConfig:             partyAConfig,
 				PartyBConfig:             partyBConfig,
-				PoolAddress:              poolAddress,
+				PoolAddress:              stableswapAddress,
 				RagequitConfig:           &ragequitConfig,
 				DepositDeadline:          &depositDeadline,
 				PartyAShare:              "50",
