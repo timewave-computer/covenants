@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Uint64, Coin};
+use cosmwasm_std::{Addr, Uint128, Uint64, Coin, Decimal};
 use covenant_two_party_pol_holder::msg::RagequitConfig;
 use covenant_utils::ExpiryConfig;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -22,7 +22,8 @@ pub struct InstantiateMsg {
     pub deposit_deadline: Option<ExpiryConfig>,
     pub party_a_share: Uint64,
     pub party_b_share: Uint64,
-    // TODO: lper instantiation fields
+    pub expected_pool_ratio: Decimal,
+    pub acceptable_pool_ratio_delta: Decimal,
 }
 
 #[cw_serde]

@@ -449,18 +449,20 @@ func TestTwoPartyPol(t *testing.T) {
 			}
 
 			covenantMsg := CovenantInstantiateMsg{
-				Label:           "two-party-pol-covenant",
-				Timeouts:        timeouts,
-				PresetIbcFee:    presetIbcFee,
-				ContractCodeIds: codeIds,
-				LockupConfig:    lockupConfig,
-				PartyAConfig:    partyAConfig,
-				PartyBConfig:    partyBConfig,
-				PoolAddress:     poolAddress,
-				RagequitConfig:  &ragequitConfig,
-				DepositDeadline: &depositDeadline,
-				PartyAShare:     "50",
-				PartyBShare:     "50",
+				Label:                    "two-party-pol-covenant",
+				Timeouts:                 timeouts,
+				PresetIbcFee:             presetIbcFee,
+				ContractCodeIds:          codeIds,
+				LockupConfig:             lockupConfig,
+				PartyAConfig:             partyAConfig,
+				PartyBConfig:             partyBConfig,
+				PoolAddress:              poolAddress,
+				RagequitConfig:           &ragequitConfig,
+				DepositDeadline:          &depositDeadline,
+				PartyAShare:              "50",
+				PartyBShare:              "50",
+				ExpectedPoolRatio:        "0.5",
+				AcceptablePoolRatioDelta: "0.5",
 			}
 			str, err := json.Marshal(covenantMsg)
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")

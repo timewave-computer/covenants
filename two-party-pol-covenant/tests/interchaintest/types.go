@@ -6,19 +6,21 @@ package ibc_test
 
 // ----- Covenant Instantiation ------
 type CovenantInstantiateMsg struct {
-	Label           string              `json:"label"`
-	Timeouts        Timeouts            `json:"timeouts"`
-	PresetIbcFee    PresetIbcFee        `json:"preset_ibc_fee"`
-	ContractCodeIds ContractCodeIds     `json:"contract_codes"`
-	TickMaxGas      string              `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig    ExpiryConfig        `json:"lockup_config"`
-	PartyAConfig    CovenantPartyConfig `json:"party_a_config"`
-	PartyBConfig    CovenantPartyConfig `json:"party_b_config"`
-	PoolAddress     string              `json:"pool_address"`
-	RagequitConfig  *RagequitConfig     `json:"ragequit_config,omitempty"`
-	DepositDeadline *ExpiryConfig       `json:"deposit_deadline,omitempty"`
-	PartyAShare     string              `json:"party_a_share"`
-	PartyBShare     string              `json:"party_b_share"`
+	Label                    string              `json:"label"`
+	Timeouts                 Timeouts            `json:"timeouts"`
+	PresetIbcFee             PresetIbcFee        `json:"preset_ibc_fee"`
+	ContractCodeIds          ContractCodeIds     `json:"contract_codes"`
+	TickMaxGas               string              `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig             ExpiryConfig        `json:"lockup_config"`
+	PartyAConfig             CovenantPartyConfig `json:"party_a_config"`
+	PartyBConfig             CovenantPartyConfig `json:"party_b_config"`
+	PoolAddress              string              `json:"pool_address"`
+	RagequitConfig           *RagequitConfig     `json:"ragequit_config,omitempty"`
+	DepositDeadline          *ExpiryConfig       `json:"deposit_deadline,omitempty"`
+	PartyAShare              string              `json:"party_a_share"`
+	PartyBShare              string              `json:"party_b_share"`
+	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
+	AcceptablePoolRatioDelta string              `json:"acceptable_pool_ratio_delta"`
 }
 
 type ContractCodeIds struct {
