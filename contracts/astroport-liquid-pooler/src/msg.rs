@@ -3,6 +3,8 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Attribute, Binary, Decimal, Uint128};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 
+use crate::error::ContractError;
+
 #[cw_serde]
 pub struct InstantiateMsg {
     pub pool_address: String,
@@ -12,6 +14,8 @@ pub struct InstantiateMsg {
     pub autostake: Option<bool>,
     pub assets: AssetData,
     pub single_side_lp_limits: SingleSideLpLimits,
+    pub expected_pool_ratio: Decimal,
+    pub acceptable_pool_ratio_delta: Decimal,
 }
 
 #[cw_serde]
@@ -22,6 +26,8 @@ pub struct PresetAstroLiquidPoolerFields {
     pub single_side_lp_limits: SingleSideLpLimits,
     pub label: String,
     pub code_id: u64,
+    pub expected_pool_ratio: Decimal,
+    pub acceptable_pool_ratio_delta: Decimal,
 }
 
 impl PresetAstroLiquidPoolerFields {
@@ -39,6 +45,35 @@ impl PresetAstroLiquidPoolerFields {
             autostake: self.autostake.clone(),
             assets: self.assets.clone(),
             single_side_lp_limits: self.single_side_lp_limits.clone(),
+            expected_pool_ratio: self.expected_pool_ratio,
+            acceptable_pool_ratio_delta: self.acceptable_pool_ratio_delta,
+        }
+    }
+}
+
+#[cw_serde]
+pub struct DecimalRange {
+    min: Decimal,
+    max: Decimal,
+}
+
+impl DecimalRange {
+    pub fn new(min: Decimal, max: Decimal) -> Self {
+        DecimalRange { min, max }
+    }
+
+    pub fn try_from(mid: Decimal, delta: Decimal) -> Result<DecimalRange, ContractError> {
+        Ok(DecimalRange { 
+            min: mid.checked_sub(delta)?,
+            max: mid.checked_add(delta)?,
+        })
+    }
+
+    pub fn is_within_range(&self, value: Decimal) -> Result<(), ContractError> {
+        if value >= self.min && value <= self.max {
+            Ok(())
+        } else {
+            Err(ContractError::PriceRangeError {  })
         }
     }
 }
@@ -53,6 +88,8 @@ pub struct LpConfig {
     pub autostake: Option<bool>,
     /// slippage tolerance parameter for liquidity provisioning
     pub slippage_tolerance: Option<Decimal>,
+    /// expected price range
+    pub expected_pool_ratio_range: DecimalRange,
 }
 
 impl LpConfig {
@@ -124,50 +161,6 @@ impl AssetData {
 pub struct SingleSideLpLimits {
     pub asset_a_limit: Uint128,
     pub asset_b_limit: Uint128,
-}
-
-/// Defines fields relevant to LP module that are known prior to covenant
-/// being instantiated. Use `to_instantiate_msg` implemented method to obtain
-/// the `InstantiateMsg` by providing the non-deterministic fields.
-#[cw_serde]
-pub struct PresetLpFields {
-    /// slippage tolerance for providing liquidity
-    pub slippage_tolerance: Option<Decimal>,
-    /// determines whether provided liquidity is automatically staked
-    pub autostake: Option<bool>,
-    /// denominations of both assets
-    pub assets: AssetData,
-    /// limits (in `Uint128`) for single side liquidity provision.
-    /// Defaults to 100 if none are provided.
-    pub single_side_lp_limits: Option<SingleSideLpLimits>,
-    /// lp contract code
-    pub lp_code: u64,
-    /// label for contract to be instantiated with
-    pub label: String,
-    /// address of the target liquidity pool
-    pub pool_address: String,
-}
-
-impl PresetLpFields {
-    /// builds an `InstantiateMsg` by taking in any fields not known on instantiation.
-    pub fn to_instantiate_msg(
-        self,
-        clock_address: String,
-        holder_address: String,
-    ) -> InstantiateMsg {
-        InstantiateMsg {
-            pool_address: self.pool_address,
-            clock_address,
-            holder_address,
-            slippage_tolerance: self.slippage_tolerance,
-            autostake: self.autostake,
-            assets: self.assets,
-            single_side_lp_limits: self.single_side_lp_limits.unwrap_or(SingleSideLpLimits {
-                asset_a_limit: Uint128::new(100),
-                asset_b_limit: Uint128::new(100),
-            }),
-        }
-    }
 }
 
 #[clocked]

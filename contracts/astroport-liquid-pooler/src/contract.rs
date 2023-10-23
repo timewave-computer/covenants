@@ -1,8 +1,10 @@
+use std::ops::Sub;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdError, StdResult, SubMsg, Uint128, WasmMsg, Addr,
+    StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -17,7 +19,7 @@ use crate::{
     error::ContractError,
     msg::{
         ContractState, ExecuteMsg, InstantiateMsg, LpConfig, MigrateMsg, ProvidedLiquidityInfo,
-        QueryMsg,
+        QueryMsg, DecimalRange, AssetData,
     },
     state::{ASSETS, HOLDER_ADDRESS, LP_CONFIG, PROVIDED_LIQUIDITY_INFO},
 };
@@ -60,11 +62,17 @@ pub fn instantiate(
 
     ASSETS.save(deps.storage, &msg.assets)?;
 
+    let decimal_range = DecimalRange::try_from(
+        msg.expected_pool_ratio,
+        msg.acceptable_pool_ratio_delta,
+    )?;
+    
     let lp_config = LpConfig {
         pool_address: pool_addr,
         single_side_lp_limits: msg.single_side_lp_limits,
         autostake: msg.autostake,
         slippage_tolerance: msg.slippage_tolerance,
+        expected_pool_ratio_range: decimal_range,
     };
     LP_CONFIG.save(deps.storage, &lp_config)?;
 
@@ -115,6 +123,19 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 /// otherwise, single-sided liquidity provision is attempted.
 fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let asset_data = ASSETS.load(deps.storage)?;
+    let lp_config = LP_CONFIG.load(deps.storage)?;
+
+    let pool_response: PoolResponse = deps
+        .querier
+        .query_wasm_smart(&lp_config.pool_address, &astroport::pair::QueryMsg::Pool {})?;
+    let (pool_token_a_bal, pool_token_b_bal) = get_pool_asset_amounts(
+        pool_response.assets,
+        &asset_data.asset_a_denom.as_str(),
+        &asset_data.asset_b_denom.as_str(),
+    )?;
+    let a_to_b_ratio = Decimal::from_ratio(pool_token_a_bal, pool_token_b_bal);
+    // validate the current pool ratio against our expectations
+    lp_config.expected_pool_ratio_range.is_within_range(a_to_b_ratio)?;
 
     // first we query our own balances and filter out any unexpected denoms
     let bal_coins = deps
@@ -122,8 +143,8 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         .query_all_balances(env.contract.address.to_string())?;
     let (coin_a, coin_b) = get_relevant_balances(
         bal_coins,
-        asset_data.asset_a_denom,
-        asset_data.asset_b_denom,
+        asset_data.asset_a_denom.as_str(),
+        asset_data.asset_b_denom.as_str(),
     );
 
     // depending on available balances we attempt a different action:
@@ -131,7 +152,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         // one balance is non-zero, we attempt single-side
         (true, false) | (false, true) => {
             let single_sided_submsg =
-                try_get_single_side_lp_submsg(deps.branch(), coin_a, coin_b)?;
+                try_get_single_side_lp_submsg(deps.branch(), coin_a, coin_b, lp_config, asset_data)?;
             if let Some(msg) = single_sided_submsg {
                 return Ok(Response::default()
                     .add_submessage(msg)
@@ -141,7 +162,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         // both balances are non-zero, we attempt double-side
         (false, false) => {
             let double_sided_submsg =
-                try_get_double_side_lp_submsg(deps.branch(), coin_a, coin_b)?;
+                try_get_double_side_lp_submsg(deps.branch(), coin_a, coin_b, a_to_b_ratio, pool_token_a_bal, pool_token_b_bal, lp_config, asset_data)?;
 
             if let Some(msg) = double_sided_submsg {
                 return Ok(Response::default()
@@ -167,28 +188,16 @@ fn try_get_double_side_lp_submsg(
     deps: DepsMut,
     token_a: Coin,
     token_b: Coin,
+    pool_token_ratio: Decimal,
+    pool_token_a_bal: Uint128,
+    pool_token_b_bal: Uint128,
+    lp_config: LpConfig,
+    asset_data: AssetData,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let lp_config = LP_CONFIG.load(deps.storage)?;
-    let asset_data = ASSETS.load(deps.storage)?;
     let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
 
-    // we now query the pool to know the balances
-    let pool_response: PoolResponse = deps
-        .querier
-        .query_wasm_smart(&lp_config.pool_address, &astroport::pair::QueryMsg::Pool {})?;
-    let (pool_token_a_bal, pool_token_b_bal) = get_pool_asset_amounts(
-        pool_response.assets,
-        &asset_data.asset_a_denom.as_str(),
-        &asset_data.asset_b_denom.as_str(),
-    )?;
-
-    // we derive the ratio of token a to token b
-    // using this ratio we know how many of token a we should provide for every one b token
-    // by multiplying available b token amount by this ratio.
-    let a_to_b_ratio = Decimal::from_ratio(pool_token_a_bal, pool_token_b_bal);
-
     // we thus find the required token amount to enter into the position using all available b tokens:
-    let required_token_a_amount = a_to_b_ratio.checked_mul_uint128(token_b.amount)?;
+    let required_token_a_amount = pool_token_ratio.checked_mul_uint128(token_b.amount)?;
 
     // depending on available balances we determine the highest amount
     // of liquidity we can provide:
@@ -253,10 +262,10 @@ fn try_get_single_side_lp_submsg(
     deps: DepsMut,
     coin_a: Coin,
     coin_b: Coin,
+    lp_config: LpConfig,
+    asset_data: AssetData,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let asset_data = ASSETS.load(deps.storage)?;
     let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
-    let lp_config = LP_CONFIG.load(deps.storage)?;
     
     let assets = asset_data.to_asset_vec(coin_a.amount, coin_b.amount);
 
@@ -317,7 +326,7 @@ fn try_get_single_side_lp_submsg(
 }
 
 /// filters out a vector of `Coin`s to retrieve ones with relevant denoms
-fn get_relevant_balances(coins: Vec<Coin>, a_denom: String, b_denom: String) -> (Coin, Coin) {
+fn get_relevant_balances(coins: Vec<Coin>, a_denom: &str, b_denom: &str) -> (Coin, Coin) {
     let (mut token_a, mut token_b) = (Coin::default(), Coin::default());
 
     for c in coins {
