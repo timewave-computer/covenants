@@ -34,6 +34,7 @@ simtest: optimize
     ;fi
 
     mkdir -p tests/interchaintest/wasms
+    cp ./astroport/*.wasm ./../artifacts
 
     cp -R ./../artifacts/*.wasm tests/interchaintest/wasms
 
