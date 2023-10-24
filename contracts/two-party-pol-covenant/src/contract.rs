@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Decimal, Uint128, CosmosMsg, WasmMsg, SubMsg, Reply, 
+    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Decimal, Uint128, CosmosMsg, WasmMsg, SubMsg, Reply, Coin, 
 };
 
 use covenant_astroport_liquid_pooler::msg::{PresetAstroLiquidPoolerFields, SingleSideLpLimits, AssetData};
@@ -56,12 +56,18 @@ pub fn instantiate(
         ragequit_config: msg.ragequit_config.unwrap_or(RagequitConfig::Disabled),
         deposit_deadline: msg.deposit_deadline,
         party_a: PresetPolParty {
-            contribution: msg.party_a_config.contribution.clone(),
+            contribution: Coin {
+                denom: msg.party_a_config.ibc_denom.to_string(),
+                amount: msg.party_a_config.contribution.amount,
+            },
             addr: msg.party_a_config.addr,
             allocation: Decimal::from_ratio(msg.party_a_share, Uint128::new(100)),
         },
         party_b: PresetPolParty {
-            contribution: msg.party_b_config.contribution.clone(),
+            contribution: Coin {
+                denom: msg.party_b_config.ibc_denom.to_string(),
+                amount: msg.party_b_config.contribution.amount,
+            },
             addr: msg.party_b_config.addr,
             allocation: Decimal::from_ratio(msg.party_b_share, Uint128::new(100)),
         },
@@ -114,8 +120,8 @@ pub fn instantiate(
             asset_b_denom: msg.party_b_config.ibc_denom,
         },
         single_side_lp_limits: SingleSideLpLimits {
-            asset_a_limit: Uint128::one(),
-            asset_b_limit: Uint128::one(),
+            asset_a_limit: Uint128::new(10000),
+            asset_b_limit: Uint128::new(100000),
         },
         label: format!("{}_liquid_pooler", msg.label),
         code_id: msg.contract_codes.liquid_pooler_code,
@@ -407,7 +413,10 @@ pub fn handle_party_a_ibc_forwarder_reply(
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_party_b_ibc_forwarder.code_id,
                 msg: to_binary(
-                    &preset_party_b_ibc_forwarder.to_instantiate_msg(clock_addr.to_string(), holder.to_string()),
+                    &preset_party_b_ibc_forwarder.to_instantiate_msg(
+                        clock_addr.to_string(), 
+                        holder.to_string(),
+                    ),
                 )?,
                 funds: vec![],
                 label: preset_party_b_ibc_forwarder.label,

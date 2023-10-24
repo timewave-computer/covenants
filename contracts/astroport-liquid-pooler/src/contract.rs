@@ -57,7 +57,6 @@ pub fn instantiate(
     // store the relevant module addresses
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
-
     ASSETS.save(deps.storage, &msg.assets)?;
 
     let decimal_range = DecimalRange::try_from(
@@ -133,7 +132,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     )?;
     let a_to_b_ratio = Decimal::from_ratio(pool_token_a_bal, pool_token_b_bal);
     // validate the current pool ratio against our expectations
-    lp_config.expected_pool_ratio_range.is_within_range(a_to_b_ratio)?;
+    // lp_config.expected_pool_ratio_range.is_within_range(a_to_b_ratio)?;
 
     // first we query our own balances and filter out any unexpected denoms
     let bal_coins = deps
@@ -371,6 +370,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LpConfig {} => Ok(to_binary(&LP_CONFIG.may_load(deps.storage)?)?),
         // the deposit address for LP module is the contract itself
         QueryMsg::DepositAddress {} => Ok(to_binary(&Some(&env.contract.address.to_string()))?),
+        QueryMsg::ProvidedLiquidityInfo {} => Ok(to_binary(&PROVIDED_LIQUIDITY_INFO.load(deps.storage)?)?),
     }
 }
 

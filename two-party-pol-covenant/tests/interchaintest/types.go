@@ -292,3 +292,27 @@ type CreatePair struct {
 type CreatePairMsg struct {
 	CreatePair CreatePair `json:"create_pair"`
 }
+
+type BalanceResponse struct {
+	Balance string `json:"balance"`
+}
+
+type Cw20BalanceResponse struct {
+	Data BalanceResponse `json:"data"`
+}
+
+type AllAccountsResponse struct {
+	Data []string `json:"all_accounts_response"`
+}
+
+type Cw20QueryMsg struct {
+	Balance Balance `json:"balance"`
+	// AllAccounts *AllAccounts `json:"all_accounts"`
+}
+
+type AllAccounts struct {
+}
+
+type Balance struct {
+	Address string `json:"address"`
+}

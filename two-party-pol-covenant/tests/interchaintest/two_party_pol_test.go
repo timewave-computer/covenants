@@ -50,10 +50,10 @@ var stableswapAddress string
 var liquidityTokenAddress string
 
 // PARTY_A
-const osmoContributionAmount uint64 = 100_000_000_000 // in uosmo
+const atomContributionAmount uint64 = 5_000_000_000 // in uatom
 
 // PARTY_B
-const atomContributionAmount uint64 = 5_000_000_000 // in uatom
+const osmoContributionAmount uint64 = 50_000_000_000 // in uosmo
 
 // sets up and tests a two party pol between hub and osmo facilitated by neutron
 func TestTwoPartyPol(t *testing.T) {
@@ -347,6 +347,22 @@ func TestTwoPartyPol(t *testing.T) {
 		var covenantCodeId uint64
 		_ = covenantCodeId
 
+		queryLpTokenBalance := func(token string, addr string) string {
+			bal := Balance{
+				Address: addr,
+			}
+
+			balanceQueryMsg := Cw20QueryMsg{
+				Balance: bal,
+			}
+			var response Cw20BalanceResponse
+			err = cosmosNeutron.QueryContract(ctx, token, balanceQueryMsg, &response)
+			require.NoError(t, err, "failed to query lp token balance")
+			jsonResp, _ := json.Marshal(response)
+			print("\n balance response: ", string(jsonResp), "\n")
+			return response.Data.Balance
+		}
+
 		t.Run("deploy covenant contracts", func(t *testing.T) {
 			// store covenant and get code id
 			covenantCodeIdStr, err = cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, covenantContractPath)
@@ -410,8 +426,8 @@ func TestTwoPartyPol(t *testing.T) {
 			t.Run("astroport token", func(t *testing.T) {
 
 				msg := NativeTokenInstantiateMsg{
-					Name:            "atomosmolp",
-					Symbol:          "atomosmo",
+					Name:            "nativetoken",
+					Symbol:          "ntk",
 					Decimals:        5,
 					InitialBalances: []Cw20Coin{},
 					Mint:            nil,
@@ -422,7 +438,7 @@ func TestTwoPartyPol(t *testing.T) {
 				require.NoError(t, err, "Failed to marshall NativeTokenInstantiateMsg")
 
 				tokenAddress, err = cosmosNeutron.InstantiateContract(ctx, neutronUser.KeyName, tokenCodeIdStr, string(str), true)
-				require.NoError(t, err, "Failed to instantiate atom Token")
+				require.NoError(t, err, "Failed to instantiate nativetoken")
 				err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
@@ -542,10 +558,10 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 				assetInfos := []AssetInfo{
 					{
-						NativeToken: &atomNativeToken,
+						NativeToken: &osmoNativeToken,
 					},
 					{
-						NativeToken: &osmoNativeToken,
+						NativeToken: &atomNativeToken,
 					},
 				}
 
@@ -583,7 +599,7 @@ func TestTwoPartyPol(t *testing.T) {
 
 				_, _, err = cosmosNeutron.Exec(ctx, createCmd, nil)
 				require.NoError(t, err, err)
-				err = testutil.WaitForBlocks(ctx, 30, atom, neutron, osmosis)
+				err = testutil.WaitForBlocks(ctx, 20, atom, neutron, osmosis)
 				require.NoError(t, err, "failed to wait for blocks")
 			})
 		})
@@ -597,10 +613,10 @@ func TestTwoPartyPol(t *testing.T) {
 			}
 			assetInfos := []AssetInfo{
 				{
-					NativeToken: &atomNativeToken,
+					NativeToken: &osmoNativeToken,
 				},
 				{
-					NativeToken: &osmoNativeToken,
+					NativeToken: &atomNativeToken,
 				},
 			}
 			pair := Pair{
@@ -634,19 +650,27 @@ func TestTwoPartyPol(t *testing.T) {
 			// set up the pool with 1:10 ratio of atom/osmo
 			transferAtom := ibc.WalletAmount{
 				Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
-				Denom:   atom.Config().Denom,
-				Amount:  int64(100_000_000_00),
+				Denom:   cosmosAtom.Config().Denom,
+				Amount:  int64(atomContributionAmount),
 			}
-			_, err := atom.SendIBCTransfer(ctx, testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name], gaiaUser.KeyName, transferAtom, ibc.TransferOptions{})
+			_, err := atom.SendIBCTransfer(ctx,
+				testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+				gaiaUser.KeyName,
+				transferAtom,
+				ibc.TransferOptions{})
 			require.NoError(t, err)
 
 			transferOsmo := ibc.WalletAmount{
 				Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
 				Denom:   osmosis.Config().Denom,
-				Amount:  int64(100_000_000_000),
+				Amount:  int64(osmoContributionAmount),
 			}
 
-			_, err = osmosis.SendIBCTransfer(ctx, testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name], osmoUser.KeyName, transferOsmo, ibc.TransferOptions{})
+			_, err = osmosis.SendIBCTransfer(ctx,
+				testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
+				osmoUser.KeyName,
+				transferOsmo,
+				ibc.TransferOptions{})
 			require.NoError(t, err)
 
 			testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
@@ -659,7 +683,7 @@ func TestTwoPartyPol(t *testing.T) {
 							Denom: neutronAtomIbcDenom,
 						},
 					},
-					Amount: "10000000000",
+					Amount: strconv.FormatUint(atomContributionAmount, 10),
 				},
 				AstroportAsset{
 					Info: AssetInfo{
@@ -667,7 +691,7 @@ func TestTwoPartyPol(t *testing.T) {
 							Denom: neutronOsmoIbcDenom,
 						},
 					},
-					Amount: "100000000000",
+					Amount: strconv.FormatUint(osmoContributionAmount, 10),
 				},
 			}
 
@@ -682,7 +706,7 @@ func TestTwoPartyPol(t *testing.T) {
 
 			str, err := json.Marshal(msg)
 			require.NoError(t, err, "Failed to marshall provide liquidity msg")
-			amountStr := "10000000000" + neutronAtomIbcDenom + "," + "100000000000" + neutronOsmoIbcDenom
+			amountStr := strconv.FormatUint(atomContributionAmount, 10) + neutronAtomIbcDenom + "," + strconv.FormatUint(osmoContributionAmount, 10) + neutronOsmoIbcDenom
 
 			cmd := []string{"neutrond", "tx", "wasm", "execute", stableswapAddress,
 				string(str),
@@ -696,13 +720,16 @@ func TestTwoPartyPol(t *testing.T) {
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
+			println("liq provision msg: \n ", strings.Join(cmd, " "), "\n")
+
 			resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
 			jsonResp, _ = json.Marshal(resp)
 			print("\nprovide liquidity response: ", string(jsonResp), "\n")
 
 			testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
-
+			neutronUserLPTokenBal := queryLpTokenBalance(liquidityTokenAddress, neutronUser.Bech32Address(neutron.Config().Bech32Prefix))
+			println("neutronUser lp token bal: ", neutronUserLPTokenBal)
 		})
 
 		t.Run("instantiate covenant", func(t *testing.T) {
@@ -711,13 +738,14 @@ func TestTwoPartyPol(t *testing.T) {
 				IbcTransferTimeout: "100", // sec
 			}
 
-			block := Block(500)
+			depositBlock := Block(500)
+			lockupBlock := Block(1500)
 
 			lockupConfig := ExpiryConfig{
-				BlockHeight: &block,
+				BlockHeight: &lockupBlock,
 			}
 			depositDeadline := ExpiryConfig{
-				BlockHeight: &block,
+				BlockHeight: &depositBlock,
 			}
 			presetIbcFee := PresetIbcFee{
 				AckFee:     "10000",
@@ -725,13 +753,13 @@ func TestTwoPartyPol(t *testing.T) {
 			}
 
 			atomCoin := Coin{
-				Denom:  "uatom",
-				Amount: "5000000000",
+				Denom:  cosmosAtom.Config().Denom,
+				Amount: strconv.FormatUint(atomContributionAmount, 10),
 			}
 
 			osmoCoin := Coin{
-				Denom:  "uosmo",
-				Amount: "100000000000",
+				Denom:  cosmosOsmosis.Config().Denom,
+				Amount: strconv.FormatUint(osmoContributionAmount, 10),
 			}
 
 			partyAConfig := CovenantPartyConfig{
@@ -770,6 +798,8 @@ func TestTwoPartyPol(t *testing.T) {
 				Enabled: &ragequitTerms,
 			}
 
+			poolAddress := stableswapAddress
+
 			covenantMsg := CovenantInstantiateMsg{
 				Label:                    "two-party-pol-covenant",
 				Timeouts:                 timeouts,
@@ -778,13 +808,13 @@ func TestTwoPartyPol(t *testing.T) {
 				LockupConfig:             lockupConfig,
 				PartyAConfig:             partyAConfig,
 				PartyBConfig:             partyBConfig,
-				PoolAddress:              stableswapAddress,
+				PoolAddress:              poolAddress,
 				RagequitConfig:           &ragequitConfig,
 				DepositDeadline:          &depositDeadline,
 				PartyAShare:              "50",
 				PartyBShare:              "50",
-				ExpectedPoolRatio:        "0.5",
-				AcceptablePoolRatioDelta: "0.5",
+				ExpectedPoolRatio:        "0.1",
+				AcceptablePoolRatioDelta: "0.09",
 			}
 			str, err := json.Marshal(covenantMsg)
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
@@ -896,56 +926,67 @@ func TestTwoPartyPol(t *testing.T) {
 		t.Run("fund contracts with neutron", func(t *testing.T) {
 			err := neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: partyAIbcForwarderAddress,
-				Amount:  50000001,
+				Amount:  5000000001,
 				Denom:   nativeNtrnDenom,
 			})
-
 			require.NoError(t, err, "failed to send funds from neutron user to partyAIbcForwarder contract")
 
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: partyBIbcForwarderAddress,
-				Amount:  50000001,
+				Amount:  5000000001,
 				Denom:   nativeNtrnDenom,
 			})
 			require.NoError(t, err, "failed to send funds from neutron user to partyBIbcForwarder contract")
 
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: clockAddress,
-				Amount:  50000001,
+				Amount:  5000000001,
 				Denom:   nativeNtrnDenom,
 			})
 			require.NoError(t, err, "failed to send funds from neutron user to clock contract")
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: partyARouterAddress,
-				Amount:  150000001,
+				Amount:  5000000001,
 				Denom:   nativeNtrnDenom,
 			})
 			require.NoError(t, err, "failed to send funds from neutron user to party a router")
 			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 				Address: partyBRouterAddress,
-				Amount:  150000001,
+				Amount:  5000000001,
 				Denom:   nativeNtrnDenom,
 			})
 			require.NoError(t, err, "failed to send funds from neutron user to party b router")
+			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: holderAddress,
+				Amount:  5000000001,
+				Denom:   nativeNtrnDenom,
+			})
+			require.NoError(t, err, "failed to send funds from neutron user to holder")
+			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
+				Address: liquidPoolerAddress,
+				Amount:  5000000001,
+				Denom:   nativeNtrnDenom,
+			})
+			require.NoError(t, err, "failed to send funds from neutron user to holder")
 
 			err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
 			require.NoError(t, err, "failed to wait for blocks")
 
 			bal, err := neutron.GetBalance(ctx, partyAIbcForwarderAddress, nativeNtrnDenom)
 			require.NoError(t, err)
-			require.Equal(t, int64(50000001), bal)
+			require.Equal(t, int64(5000000001), bal)
 			bal, err = neutron.GetBalance(ctx, partyBIbcForwarderAddress, nativeNtrnDenom)
 			require.NoError(t, err)
-			require.Equal(t, int64(50000001), bal)
+			require.Equal(t, int64(5000000001), bal)
 			bal, err = neutron.GetBalance(ctx, clockAddress, nativeNtrnDenom)
 			require.NoError(t, err)
-			require.Equal(t, int64(50000001), bal)
+			require.Equal(t, int64(5000000001), bal)
 			bal, err = neutron.GetBalance(ctx, partyARouterAddress, nativeNtrnDenom)
 			require.NoError(t, err)
-			require.Equal(t, int64(150000001), bal)
+			require.Equal(t, int64(5000000001), bal)
 			bal, err = neutron.GetBalance(ctx, partyBRouterAddress, nativeNtrnDenom)
 			require.NoError(t, err)
-			require.Equal(t, int64(150000001), bal)
+			require.Equal(t, int64(5000000001), bal)
 		})
 
 		t.Run("two party POL", func(t *testing.T) {
@@ -968,8 +1009,10 @@ func TestTwoPartyPol(t *testing.T) {
 					"-y",
 				}
 
-				_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+				resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 				require.NoError(t, err)
+				println("tick response: ", string(resp), "\n")
+
 				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
 				require.NoError(t, err, "failed to wait for blocks")
 			}
@@ -1067,7 +1110,7 @@ func TestTwoPartyPol(t *testing.T) {
 
 					require.NoError(t,
 						cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
-						"failed to query forwarder A state")
+						"failed to query holder state")
 					holderState := response.Data
 
 					if holderAtomBal != 0 && holderOsmoBal != 0 || holderState == "complete" {
@@ -1081,11 +1124,59 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("tick until holder sends the funds to LPer", func(t *testing.T) {
-				// TODO
+				for {
+					liquidPoolerOsmoBal, err := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronOsmoIbcDenom)
+					require.NoError(t, err, "failed to query liquidPooler osmo bal")
+					liquidPoolerAtomBal, err := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronAtomIbcDenom)
+					require.NoError(t, err, "failed to query liquidPooler atom bal")
+
+					var response CovenantAddressQueryResponse
+					type ContractState struct{}
+					type ContractStateQuery struct {
+						ContractState ContractState `json:"contract_state"`
+					}
+					contractStateQuery := ContractStateQuery{
+						ContractState: ContractState{},
+					}
+
+					require.NoError(t,
+						cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
+						"failed to query forwarder A state")
+					holderState := response.Data
+					println("holder state: ", holderState)
+					println("liquid pooler atom bal: ", liquidPoolerAtomBal)
+					println("liquid pooler osmo bal: ", liquidPoolerOsmoBal)
+
+					holderLpTokenBal := queryLpTokenBalance(liquidityTokenAddress, holderAddress)
+					println("holder lp token balance: ", holderLpTokenBal)
+					holderLpBal, err := strconv.ParseUint(holderLpTokenBal, 10, 64)
+					if err != nil {
+						panic(err)
+					}
+
+					if liquidPoolerOsmoBal != 0 && liquidPoolerAtomBal != 0 || holderLpBal != 0 {
+						break
+					} else {
+						tickClock()
+					}
+				}
 			})
 
 			t.Run("tick until holder receives LP tokens", func(t *testing.T) {
-				// TODO
+				for {
+					holderLpTokenBal := queryLpTokenBalance(liquidityTokenAddress, holderAddress)
+					println("holder lp token balance: ", holderLpTokenBal)
+					holderLpBal, err := strconv.ParseUint(holderLpTokenBal, 10, 64)
+					if err != nil {
+						panic(err)
+					}
+
+					if holderLpBal == 0 {
+						tickClock()
+					} else {
+						break
+					}
+				}
 			})
 
 			t.Run("tick until routers route the funds after POL expires", func(t *testing.T) {
