@@ -1,4 +1,5 @@
 use astroport::{asset::Asset, pair::Cw20HookMsg};
+use cosmos_sdk_proto::cosmos::bank::v1beta1::{MsgMultiSend, Output};
 use cosmwasm_std::{
     to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, WasmMsg,
@@ -206,8 +207,8 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
     )?;
 
     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
-    let party_a_fulfilled = config.party_a.contribution.amount < party_a_bal.amount;
-    let party_b_fulfilled = config.party_b.contribution.amount < party_b_bal.amount;
+    let party_a_fulfilled = config.party_a.contribution.amount <= party_a_bal.amount;
+    let party_b_fulfilled = config.party_b.contribution.amount <= party_b_bal.amount;
 
     // note: even if both parties deposit their funds in time,
     // it is important to trigger this method before the expiry block
@@ -254,22 +255,22 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
     }
 
     // LiquidPooler is the next contract
-    let next_contract = NEXT_CONTRACT.load(deps.storage)?;
+    let liquid_pooler = NEXT_CONTRACT.load(deps.storage)?;
     let msg = BankMsg::Send {
-        to_address: next_contract.to_string(),
+        to_address: liquid_pooler.to_string(),
         amount: vec![party_a_bal, party_b_bal],
-    };  
+    };
 
     // advance the state to Active
     CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
     // We query the pool to get the contract for the pool info
     // The pool info is required to fetch the address of the
     // liquidity token contract. The liquidity tokens are CW20 tokens
-    let pool_addr = POOL_ADDRESS.load(deps.storage)?;
-    let pair_info: astroport::asset::PairInfo = deps
-        .querier
-        .query_wasm_smart(pool_addr.to_string(), &astroport::pair::QueryMsg::Pair {})?;
-    LP_TOKEN.save(deps.storage, &pair_info.liquidity_token)?;
+    // let pool_addr = POOL_ADDRESS.load(deps.storage)?;
+    // let pair_info: astroport::asset::PairInfo = deps
+    //     .querier
+    //     .query_wasm_smart(pool_addr.to_string(), &astroport::pair::QueryMsg::Pair {})?;
+    // LP_TOKEN.save(deps.storage, &pair_info.liquidity_token)?;
 
     Ok(Response::default()
         .add_attribute("method", "deposit_to_next_contract")
