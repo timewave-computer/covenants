@@ -180,6 +180,8 @@ pub enum QueryMsg {
     Assets {},
     #[returns(LpConfig)]
     LpConfig {},
+    #[returns(ProvidedLiquidityInfo)]
+    ProvidedLiquidityInfo {},
 }
 
 #[cw_serde]
