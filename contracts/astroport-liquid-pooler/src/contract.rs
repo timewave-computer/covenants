@@ -35,7 +35,7 @@ const SINGLE_SIDED_REPLY_ID: u64 = 322u64;
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
@@ -125,7 +125,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     )?;
     let a_to_b_ratio = Decimal::from_ratio(pool_token_a_bal, pool_token_b_bal);
     // validate the current pool ratio against our expectations
-    // lp_config.expected_pool_ratio_range.is_within_range(a_to_b_ratio)?;
+    lp_config.expected_pool_ratio_range.is_within_range(a_to_b_ratio)?;
 
     // first we query our own balances and filter out any unexpected denoms
     let bal_coins = deps
