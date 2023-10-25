@@ -1071,13 +1071,13 @@ func TestTwoPartyPol(t *testing.T) {
 				err := cosmosOsmosis.SendFunds(ctx, osmoUser.KeyName, ibc.WalletAmount{
 					Address: partyBDepositAddress,
 					Denom:   nativeOsmoDenom,
-					Amount:  int64(osmoContributionAmount + 1000),
+					Amount:  int64(osmoContributionAmount + 1),
 				})
 				require.NoError(t, err, "failed to fund osmo forwarder")
 				err = cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
 					Address: partyADepositAddress,
 					Denom:   nativeAtomDenom,
-					Amount:  int64(atomContributionAmount + 1000),
+					Amount:  int64(atomContributionAmount + 1),
 				})
 				require.NoError(t, err, "failed to fund gaia forwarder")
 
@@ -1086,10 +1086,10 @@ func TestTwoPartyPol(t *testing.T) {
 
 				bal, err := cosmosAtom.GetBalance(ctx, partyADepositAddress, nativeAtomDenom)
 				require.NoError(t, err, "failed to query bal")
-				require.Equal(t, int64(atomContributionAmount+1000), bal)
+				require.Equal(t, int64(atomContributionAmount+1), bal)
 				bal, err = cosmosOsmosis.GetBalance(ctx, partyBDepositAddress, nativeOsmoDenom)
 				require.NoError(t, err, "failed to query bal")
-				require.Equal(t, int64(osmoContributionAmount+1000), bal)
+				require.Equal(t, int64(osmoContributionAmount+1), bal)
 			})
 
 			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
@@ -1098,24 +1098,11 @@ func TestTwoPartyPol(t *testing.T) {
 					require.NoError(t, err, "failed to query holder osmo bal")
 					holderAtomBal, err := cosmosNeutron.GetBalance(ctx, holderAddress, neutronAtomIbcDenom)
 					require.NoError(t, err, "failed to query holder atom bal")
+					println("holder atom bal: ", holderAtomBal)
+					println("holder osmo bal: ", holderOsmoBal)
 
-					var response CovenantAddressQueryResponse
-					type ContractState struct{}
-					type ContractStateQuery struct {
-						ContractState ContractState `json:"contract_state"`
-					}
-					contractStateQuery := ContractStateQuery{
-						ContractState: ContractState{},
-					}
-
-					require.NoError(t,
-						cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
-						"failed to query holder state")
-					holderState := response.Data
-
-					if holderAtomBal != 0 && holderOsmoBal != 0 || holderState == "complete" {
-						println("holder atom bal: ", holderAtomBal)
-						println("holder osmo bal: ", holderOsmoBal)
+					if holderAtomBal == int64(atomContributionAmount) && holderOsmoBal == int64(osmoContributionAmount) {
+						println("\nholder received atom & osmo\n")
 						break
 					} else {
 						tickClock()
@@ -1129,32 +1116,13 @@ func TestTwoPartyPol(t *testing.T) {
 					require.NoError(t, err, "failed to query liquidPooler osmo bal")
 					liquidPoolerAtomBal, err := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronAtomIbcDenom)
 					require.NoError(t, err, "failed to query liquidPooler atom bal")
+					holderLpTokenBal := queryLpTokenBalance(liquidityTokenAddress, holderAddress)
 
-					var response CovenantAddressQueryResponse
-					type ContractState struct{}
-					type ContractStateQuery struct {
-						ContractState ContractState `json:"contract_state"`
-					}
-					contractStateQuery := ContractStateQuery{
-						ContractState: ContractState{},
-					}
-
-					require.NoError(t,
-						cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
-						"failed to query forwarder A state")
-					holderState := response.Data
-					println("holder state: ", holderState)
 					println("liquid pooler atom bal: ", liquidPoolerAtomBal)
 					println("liquid pooler osmo bal: ", liquidPoolerOsmoBal)
-
-					holderLpTokenBal := queryLpTokenBalance(liquidityTokenAddress, holderAddress)
 					println("holder lp token balance: ", holderLpTokenBal)
-					holderLpBal, err := strconv.ParseUint(holderLpTokenBal, 10, 64)
-					if err != nil {
-						panic(err)
-					}
 
-					if liquidPoolerOsmoBal != 0 && liquidPoolerAtomBal != 0 || holderLpBal != 0 {
+					if liquidPoolerOsmoBal == int64(osmoContributionAmount) && liquidPoolerAtomBal == int64(atomContributionAmount) {
 						break
 					} else {
 						tickClock()
@@ -1180,7 +1148,7 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("tick until routers route the funds after POL expires", func(t *testing.T) {
-				// TODO
+
 			})
 		})
 	})
