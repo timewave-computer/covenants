@@ -1098,11 +1098,16 @@ func TestTwoPartyPol(t *testing.T) {
 					require.NoError(t, err, "failed to query holder osmo bal")
 					holderAtomBal, err := cosmosNeutron.GetBalance(ctx, holderAddress, neutronAtomIbcDenom)
 					require.NoError(t, err, "failed to query holder atom bal")
+					liquidPoolerOsmoBal, err := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronOsmoIbcDenom)
+					require.NoError(t, err, "failed to query liquidPooler osmo bal")
+					liquidPoolerAtomBal, err := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronAtomIbcDenom)
+					require.NoError(t, err, "failed to query liquidPooler atom bal")
 					println("holder atom bal: ", holderAtomBal)
 					println("holder osmo bal: ", holderOsmoBal)
 
-					if holderAtomBal == int64(atomContributionAmount) && holderOsmoBal == int64(osmoContributionAmount) {
-						println("\nholder received atom & osmo\n")
+					if holderAtomBal == int64(atomContributionAmount) && holderOsmoBal == int64(osmoContributionAmount) ||
+						liquidPoolerAtomBal == int64(atomContributionAmount) && liquidPoolerOsmoBal == int64(osmoContributionAmount) {
+						println("\nholder/liquidpooler received atom & osmo\n")
 						break
 					} else {
 						tickClock()
@@ -1148,7 +1153,7 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("tick until routers route the funds after POL expires", func(t *testing.T) {
-
+				// todo
 			})
 		})
 	})

@@ -9,7 +9,6 @@ use crate::error::ContractError;
 pub struct InstantiateMsg {
     pub pool_address: String,
     pub clock_address: String,
-    pub holder_address: String,
     pub slippage_tolerance: Option<Decimal>,
     pub autostake: Option<bool>,
     pub assets: AssetData,
@@ -35,12 +34,10 @@ impl PresetAstroLiquidPoolerFields {
         &self,
         pool_address: String,
         clock_address: String,
-        holder_address: String,
     ) -> InstantiateMsg {
         InstantiateMsg { 
             pool_address,
             clock_address,
-            holder_address,
             slippage_tolerance: self.slippage_tolerance,
             autostake: self.autostake.clone(),
             assets: self.assets.clone(),

@@ -266,13 +266,11 @@ pub fn handle_party_b_interchain_router_reply(
 
             let clock_address = COVENANT_CLOCK_ADDR.load(deps.storage)?.to_string();
             let pool_address = PRESET_HOLDER_FIELDS.load(deps.storage)?.pool_address.to_string();
-            let holder_address = "replace".to_string();
             let preset_liquid_pooler_fields = PRESET_LIQUID_POOLER_FIELDS.load(deps.storage)?;
 
             let instantiate_msg = preset_liquid_pooler_fields.to_instantiate_msg(
                 pool_address,
                 clock_address,
-                holder_address
             );
 
             let liquid_pooler_inst_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
