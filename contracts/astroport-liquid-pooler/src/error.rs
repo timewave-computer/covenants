@@ -36,4 +36,7 @@ pub enum ContractError {
 
     #[error("Price range error")]
     PriceRangeError {},
+
+    #[error("Unknown holder address. Migrate update to set it.")]
+    MissingHolderError {},
 }

@@ -29,8 +29,6 @@ use crate::state::{CLOCK_ADDRESS, CONTRACT_STATE};
 const CONTRACT_NAME: &str = "crates.io:covenant-astroport-liquid-pooler";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// type QueryDeps<'a> = Deps<'a, NeutronQuery>;
-// type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 const DOUBLE_SIDED_REPLY_ID: u64 = 321u64;
 const SINGLE_SIDED_REPLY_ID: u64 = 322u64;
 
@@ -48,15 +46,11 @@ pub fn instantiate(
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
 
-    // TODO: instantiate2 / remove this field from instantiateMsg
-    let holder_addr = env.contract.address;
-    
     // contract starts at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     // store the relevant module addresses
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
-    HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
     ASSETS.save(deps.storage, &msg.assets)?;
 
     let decimal_range = DecimalRange::try_from(
@@ -85,7 +79,6 @@ pub fn instantiate(
     Ok(Response::default()
         .add_attribute("method", "lp_instantiate")
         .add_attribute("clock_addr", clock_addr)
-        .add_attribute("holder_addr", holder_addr)
         .add_attribute("asset_a_denom", msg.assets.asset_a_denom)
         .add_attribute("asset_b_denom", msg.assets.asset_b_denom)
         .add_attributes(lp_config.to_response_attributes()))
@@ -191,7 +184,11 @@ fn try_get_double_side_lp_submsg(
     lp_config: LpConfig,
     asset_data: AssetData,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
+    let holder_address = match HOLDER_ADDRESS.may_load(deps.storage)? {
+        Some(addr) => addr,
+        None => return Err(ContractError::MissingHolderError {}),
+    };
+
 
     // we thus find the required token amount to enter into the position using all available b tokens:
     let required_token_a_amount = pool_token_ratio.checked_mul_uint128(token_b.amount)?;
@@ -262,7 +259,10 @@ fn try_get_single_side_lp_submsg(
     lp_config: LpConfig,
     asset_data: AssetData,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let holder_address = HOLDER_ADDRESS.load(deps.storage)?;
+    let holder_address = match HOLDER_ADDRESS.may_load(deps.storage)? {
+        Some(addr) => addr,
+        None => return Err(ContractError::MissingHolderError {}),
+    };
     
     let assets = asset_data.to_asset_vec(coin_a.amount, coin_b.amount);
 
