@@ -39,4 +39,7 @@ pub enum ContractError {
 
     #[error("Unknown holder address. Migrate update to set it.")]
     MissingHolderError {},
+
+    #[error("Pair type mismatch")]
+    PairTypeMismatch {},
 }

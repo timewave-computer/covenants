@@ -799,6 +799,9 @@ func TestTwoPartyPol(t *testing.T) {
 			}
 
 			poolAddress := stableswapAddress
+			pairType := PairType{
+				Stable: struct{}{},
+			}
 
 			covenantMsg := CovenantInstantiateMsg{
 				Label:                    "two-party-pol-covenant",
@@ -815,6 +818,7 @@ func TestTwoPartyPol(t *testing.T) {
 				PartyBShare:              "50",
 				ExpectedPoolRatio:        "0.1",
 				AcceptablePoolRatioDelta: "0.09",
+				PairType:                 pairType,
 			}
 			str, err := json.Marshal(covenantMsg)
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
