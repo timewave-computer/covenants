@@ -1,3 +1,4 @@
+use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128, Uint64, Coin, Decimal};
 use covenant_two_party_pol_holder::msg::RagequitConfig;
@@ -24,6 +25,7 @@ pub struct InstantiateMsg {
     pub party_b_share: Uint64,
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
+    pub pool_pair_type: PairType,
 }
 
 #[cw_serde]

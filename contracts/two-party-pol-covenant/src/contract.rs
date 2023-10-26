@@ -127,6 +127,7 @@ pub fn instantiate(
         code_id: msg.contract_codes.liquid_pooler_code,
         expected_pool_ratio: msg.expected_pool_ratio,
         acceptable_pool_ratio_delta: msg.acceptable_pool_ratio_delta,
+        pair_type: msg.pool_pair_type,
     };
 
     PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
