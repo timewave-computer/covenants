@@ -48,6 +48,7 @@ covenant-ibc-forwarder = { workspace = true, features = ["library"] }
 covenant-interchain-router = { workspace = true, features = ["library"] }
 covenant-two-party-pol-holder = { workspace = true, features = ["library"] }
 covenant-astroport-liquid-pooler = { workspace = true, features = ["library"] }
+astroport = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test   = { workspace = true }

@@ -1,4 +1,4 @@
-use astroport::asset::{Asset, AssetInfo};
+use astroport::{asset::{Asset, AssetInfo}, factory::PairType};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Attribute, Binary, Decimal, Uint128};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
@@ -15,6 +15,7 @@ pub struct InstantiateMsg {
     pub single_side_lp_limits: SingleSideLpLimits,
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
+    pub pair_type: PairType,
 }
 
 #[cw_serde]
@@ -27,6 +28,7 @@ pub struct PresetAstroLiquidPoolerFields {
     pub code_id: u64,
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
+    pub pair_type: PairType,
 }
 
 impl PresetAstroLiquidPoolerFields {
@@ -44,6 +46,7 @@ impl PresetAstroLiquidPoolerFields {
             single_side_lp_limits: self.single_side_lp_limits.clone(),
             expected_pool_ratio: self.expected_pool_ratio,
             acceptable_pool_ratio_delta: self.acceptable_pool_ratio_delta,
+            pair_type: self.pair_type.clone(),
         }
     }
 }
@@ -87,6 +90,8 @@ pub struct LpConfig {
     pub slippage_tolerance: Option<Decimal>,
     /// expected price range
     pub expected_pool_ratio_range: DecimalRange,
+    /// pair type specified in the covenant
+    pub pair_type: PairType,
 }
 
 impl LpConfig {

@@ -8,9 +8,9 @@ use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 
 use astroport::{
-    asset::Asset,
+    asset::{Asset, PairInfo},
     pair::{ExecuteMsg::ProvideLiquidity, PoolResponse},
-    DecimalCheckedOps,
+    DecimalCheckedOps, factory::PairsResponse,
 };
 
 use crate::{
@@ -64,6 +64,7 @@ pub fn instantiate(
         autostake: msg.autostake,
         slippage_tolerance: msg.slippage_tolerance,
         expected_pool_ratio_range: decimal_range,
+        pair_type: msg.pair_type,
     };
     LP_CONFIG.save(deps.storage, &lp_config)?;
 
@@ -114,6 +115,14 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let asset_data = ASSETS.load(deps.storage)?;
     let lp_config = LP_CONFIG.load(deps.storage)?;
+
+    // validate that the pool did not migrate to a new pair type
+    let pool_response: PairInfo = deps
+        .querier
+        .query_wasm_smart(&lp_config.pool_address, &astroport::pair::QueryMsg::Pair {})?;
+    if pool_response.pair_type != lp_config.pair_type {
+        return Err(ContractError::PairTypeMismatch {})   
+    }
 
     let pool_response: PoolResponse = deps
         .querier
