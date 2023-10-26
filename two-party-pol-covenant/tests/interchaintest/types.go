@@ -21,6 +21,7 @@ type CovenantInstantiateMsg struct {
 	PartyBShare              string              `json:"party_b_share"`
 	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
 	AcceptablePoolRatioDelta string              `json:"acceptable_pool_ratio_delta"`
+	PairType                 PairType            `json:"pool_pair_type"`
 }
 
 type ContractCodeIds struct {
