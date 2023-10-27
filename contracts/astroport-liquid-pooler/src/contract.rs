@@ -10,7 +10,7 @@ use cw2::set_contract_version;
 use astroport::{
     asset::{Asset, PairInfo},
     pair::{ExecuteMsg::ProvideLiquidity, PoolResponse},
-    DecimalCheckedOps, factory::PairsResponse,
+    DecimalCheckedOps,
 };
 
 use crate::{
@@ -127,6 +127,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let pool_response: PoolResponse = deps
         .querier
         .query_wasm_smart(&lp_config.pool_address, &astroport::pair::QueryMsg::Pool {})?;
+
     let (pool_token_a_bal, pool_token_b_bal) = get_pool_asset_amounts(
         pool_response.assets,
         &asset_data.asset_a_denom.as_str(),
@@ -148,7 +149,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     // depending on available balances we attempt a different action:
     match (coin_a.amount.is_zero(), coin_b.amount.is_zero()) {
-        // one balance is non-zero, we attempt single-side
+        // exactly one balance is non-zero, we attempt single-side
         (true, false) | (false, true) => {
             let single_sided_submsg =
                 try_get_single_side_lp_submsg(deps.branch(), coin_a, coin_b, lp_config, asset_data)?;
@@ -162,7 +163,6 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         (false, false) => {
             let double_sided_submsg =
                 try_get_double_side_lp_submsg(deps.branch(), coin_a, coin_b, a_to_b_ratio, pool_token_a_bal, pool_token_b_bal, lp_config, asset_data)?;
-
             if let Some(msg) = double_sided_submsg {
                 return Ok(Response::default()
                     .add_submessage(msg)
