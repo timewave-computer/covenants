@@ -30,8 +30,10 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub struct CovenantPartyConfig {
-    /// authorized address of the party
-    pub addr: String,
+    /// authorized address of the party on the controller chain
+    pub controller_addr: String,
+    /// authorized address of the party on the host chain
+    pub host_addr: String,
     /// coin provided by the party on its native chain
     pub contribution: Coin,
     /// ibc denom provided by the party on neutron

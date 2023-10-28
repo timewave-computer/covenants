@@ -280,6 +280,8 @@ func TestTwoPartyPol(t *testing.T) {
 	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), atom, neutron, osmosis)
 	gaiaUser, neutronUser, osmoUser := users[0], users[1], users[2]
 	_, _, _ = gaiaUser, neutronUser, osmoUser
+	hubNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
+	osmoNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
 
 	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
 	require.NoError(t, err, "failed to wait for blocks")
@@ -739,7 +741,7 @@ func TestTwoPartyPol(t *testing.T) {
 			}
 
 			depositBlock := Block(500)
-			lockupBlock := Block(1500)
+			lockupBlock := Block(500)
 
 			lockupConfig := ExpiryConfig{
 				BlockHeight: &lockupBlock,
@@ -763,7 +765,8 @@ func TestTwoPartyPol(t *testing.T) {
 			}
 
 			partyAConfig := CovenantPartyConfig{
-				Addr:                      gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				ControllerAddr:            gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				HostAddr:                  hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 				Contribution:              atomCoin,
 				IbcDenom:                  neutronAtomIbcDenom,
 				PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
@@ -773,7 +776,8 @@ func TestTwoPartyPol(t *testing.T) {
 				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 			}
 			partyBConfig := CovenantPartyConfig{
-				Addr:                      osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+				ControllerAddr:            osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+				HostAddr:                  osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 				Contribution:              osmoCoin,
 				IbcDenom:                  neutronOsmoIbcDenom,
 				PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
@@ -999,16 +1003,15 @@ func TestTwoPartyPol(t *testing.T) {
 				println("\ntick")
 				cmd := []string{"neutrond", "tx", "wasm", "execute", clockAddress,
 					`{"tick":{}}`,
-					"--from", neutronUser.KeyName,
 					"--gas-prices", "0.0untrn",
-					"--gas-adjustment", `1.8`,
+					"--gas-adjustment", `1.5`,
 					"--output", "json",
 					"--home", "/var/cosmos-chain/neutron-2",
 					"--node", neutron.GetRPCAddress(),
 					"--home", neutron.HomeDir(),
 					"--chain-id", neutron.Config().ChainID,
 					"--from", neutronUser.KeyName,
-					"--gas", "auto",
+					"--gas", "1500000",
 					"--keyring-backend", keyring.BackendTest,
 					"-y",
 				}
@@ -1016,7 +1019,6 @@ func TestTwoPartyPol(t *testing.T) {
 				resp, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 				require.NoError(t, err)
 				println("tick response: ", string(resp), "\n")
-
 				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
 				require.NoError(t, err, "failed to wait for blocks")
 			}
@@ -1102,15 +1104,29 @@ func TestTwoPartyPol(t *testing.T) {
 					require.NoError(t, err, "failed to query holder osmo bal")
 					holderAtomBal, err := cosmosNeutron.GetBalance(ctx, holderAddress, neutronAtomIbcDenom)
 					require.NoError(t, err, "failed to query holder atom bal")
-					liquidPoolerOsmoBal, err := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronOsmoIbcDenom)
-					require.NoError(t, err, "failed to query liquidPooler osmo bal")
-					liquidPoolerAtomBal, err := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronAtomIbcDenom)
-					require.NoError(t, err, "failed to query liquidPooler atom bal")
+					// liquidPoolerOsmoBal, err := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronOsmoIbcDenom)
+					// require.NoError(t, err, "failed to query liquidPooler osmo bal")
+					// liquidPoolerAtomBal, err := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronAtomIbcDenom)
+					// require.NoError(t, err, "failed to query liquidPooler atom bal")
 					println("holder atom bal: ", holderAtomBal)
 					println("holder osmo bal: ", holderOsmoBal)
 
-					if holderAtomBal == int64(atomContributionAmount) && holderOsmoBal == int64(osmoContributionAmount) ||
-						liquidPoolerAtomBal == int64(atomContributionAmount) && liquidPoolerOsmoBal == int64(osmoContributionAmount) {
+					var response CovenantAddressQueryResponse
+					type ContractState struct{}
+					type ContractStateQuery struct {
+						ContractState ContractState `json:"contract_state"`
+					}
+					contractStateQuery := ContractStateQuery{
+						ContractState: ContractState{},
+					}
+
+					require.NoError(t,
+						cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
+						"failed to query holder state")
+					holderState := response.Data
+					println("holder state: ", holderState)
+
+					if holderAtomBal == int64(atomContributionAmount) && holderOsmoBal == int64(osmoContributionAmount) || holderState == "active" {
 						println("\nholder/liquidpooler received atom & osmo\n")
 						break
 					} else {
@@ -1156,8 +1172,114 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("tick until routers route the funds after POL expires", func(t *testing.T) {
-				// todo
+			t.Run("tick until POL expires", func(t *testing.T) {
+				for {
+					neutronHeight, err := cosmosNeutron.Height(ctx)
+					require.NoError(t, err)
+
+					if neutronHeight >= 500 {
+						println("neutron height: ", neutronHeight)
+						break
+					} else {
+						tickClock()
+
+					}
+				}
+			})
+
+			t.Run("party A claims and router routes the funds", func(t *testing.T) {
+
+				cmd := []string{"neutrond", "tx", "wasm", "execute", holderAddress,
+					`{"claim":{}}`,
+					"--from", hubNeutronAccount.GetKeyName(),
+					"--gas-prices", "0.0untrn",
+					"--gas-adjustment", `1.5`,
+					"--output", "json",
+					"--node", neutron.GetRPCAddress(),
+					"--home", neutron.HomeDir(),
+					"--chain-id", neutron.Config().ChainID,
+					"--gas", "42069420",
+					"--keyring-backend", keyring.BackendTest,
+					"-y",
+				}
+
+				println("hub claim msg: ", strings.Join(cmd, " "))
+				resp, _, _ := cosmosNeutron.Exec(ctx, cmd, nil)
+
+				println("claim response: ", string(resp), "\n")
+
+				for {
+					routerAtomBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
+					require.NoError(t, err)
+
+					routerAtomBalB, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronAtomIbcDenom)
+					require.NoError(t, err)
+
+					routerOsmoBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
+					require.NoError(t, err)
+
+					routerOsmoBalB, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronOsmoIbcDenom)
+					require.NoError(t, err)
+
+					println("routerAtomBalA: ", routerAtomBalA)
+					println("routerAtomBalB: ", routerAtomBalB)
+					println("routerOsmoBalA: ", routerOsmoBalA)
+					println("routerOsmoBalB: ", routerOsmoBalB)
+
+					if routerAtomBalA != 0 && routerOsmoBalA != 0 {
+						break
+					} else {
+						tickClock()
+
+					}
+				}
+			})
+
+			t.Run("party B claims and router routes the funds", func(t *testing.T) {
+
+				cmd := []string{"neutrond", "tx", "wasm", "execute", holderAddress,
+					`{"claim":{}}`,
+					"--from", osmoNeutronAccount.GetKeyName(),
+					"--gas-prices", "0.0untrn",
+					"--gas-adjustment", `1.8`,
+					"--output", "json",
+					"--node", neutron.GetRPCAddress(),
+					"--home", neutron.HomeDir(),
+					"--chain-id", neutron.Config().ChainID,
+					"--gas", "42069420",
+					"--keyring-backend", keyring.BackendTest,
+					"-y",
+				}
+
+				println("osmo claim msg: ", strings.Join(cmd, " "))
+				resp, _, _ := cosmosNeutron.Exec(ctx, cmd, nil)
+				println("claim response: ", string(resp), "\n")
+
+				for {
+					routerAtomBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
+					require.NoError(t, err)
+
+					routerAtomBalB, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronAtomIbcDenom)
+					require.NoError(t, err)
+
+					routerOsmoBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
+					require.NoError(t, err)
+
+					routerOsmoBalB, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronOsmoIbcDenom)
+					require.NoError(t, err)
+
+					println("routerAtomBalA: ", routerAtomBalA)
+					println("routerAtomBalB: ", routerAtomBalB)
+					println("routerOsmoBalA: ", routerOsmoBalA)
+					println("routerOsmoBalB: ", routerOsmoBalB)
+
+					if routerAtomBalB != 0 || routerOsmoBalB != 0 {
+						break
+					} else {
+						tickClock()
+
+					}
+				}
 			})
 		})
 	})

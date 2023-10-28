@@ -1,5 +1,4 @@
-use astroport::{asset::Asset, pair::Cw20HookMsg};
-use cosmos_sdk_proto::cosmos::bank::v1beta1::{MsgMultiSend, Output};
+use astroport::{asset::{Asset, PairInfo}, pair::Cw20HookMsg};
 use cosmwasm_std::{
     to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, WasmMsg,
@@ -33,7 +32,14 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     deps.api
         .debug("WASMDEBUG: covenant-two-party-pol-holder instantiate");
-
+    // We query the pool to get the contract for the pool info
+    // The pool info is required to fetch the address of the
+    // liquidity token contract. The liquidity tokens are CW20 tokens
+    let pair_info: PairInfo = deps.querier.query_wasm_smart(
+        msg.pool_address.to_string(),
+        &astroport::pair::QueryMsg::Pair {}
+    )?;
+    let liquidity_token = pair_info.liquidity_token.to_string();
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
@@ -44,7 +50,7 @@ pub fn instantiate(
         msg.covenant_config.party_a.allocation,
         msg.covenant_config.party_b.allocation,
     )?;
-
+    
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
@@ -52,6 +58,7 @@ pub fn instantiate(
     RAGEQUIT_CONFIG.save(deps.storage, &msg.ragequit_config)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     COVENANT_CONFIG.save(deps.storage, &msg.covenant_config)?;
+    LP_TOKEN.save(deps.storage, &liquidity_token)?;
 
     match &msg.deposit_deadline {
         Some(deadline) => {
@@ -84,7 +91,10 @@ pub fn execute(
 
 fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
-    let (mut claim_party, mut counterparty) = covenant_config.authorize_sender(&info.sender)?;
+    let (
+        mut claim_party,
+        mut counterparty
+    ) = covenant_config.authorize_sender(info.sender.to_string())?;
     let pool = POOL_ADDRESS.load(deps.storage)?;
     let lp_token = LP_TOKEN.load(deps.storage)?;
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
@@ -263,14 +273,6 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
 
     // advance the state to Active
     CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
-    // We query the pool to get the contract for the pool info
-    // The pool info is required to fetch the address of the
-    // liquidity token contract. The liquidity tokens are CW20 tokens
-    // let pool_addr = POOL_ADDRESS.load(deps.storage)?;
-    // let pair_info: astroport::asset::PairInfo = deps
-    //     .querier
-    //     .query_wasm_smart(pool_addr.to_string(), &astroport::pair::QueryMsg::Pair {})?;
-    // LP_TOKEN.save(deps.storage, &pair_info.liquidity_token)?;
 
     Ok(Response::default()
         .add_attribute("method", "deposit_to_next_contract")
@@ -316,7 +318,10 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
     }
 
     // authorize the message sender
-    let (mut rq_party, mut counterparty) = covenant_config.authorize_sender(&info.sender)?;
+    let (
+        mut rq_party,
+        mut counterparty
+    ) = covenant_config.authorize_sender(info.sender.to_string())?;
 
     // after all validations we are ready to perform the ragequit.
     // first we apply the ragequit penalty
@@ -384,7 +389,8 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
 
     Ok(Response::default()
         .add_attribute("method", "ragequit")
-        .add_attribute("caller", rq_party.addr)
+        .add_attribute("controller_chain_caller", rq_party.controller_addr)
+        .add_attribute("host_chain_caller", rq_party.host_addr)
         .add_messages(vec![withdraw_liquidity_msg, transfer_withdrawn_funds_msg]))
 }
 
@@ -452,9 +458,9 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             }
 
             if let Some(addr) = lp_token {
-                let lp_addr = deps.api.addr_validate(&addr)?;
-                LP_TOKEN.save(deps.storage, &lp_addr)?;
-                resp = resp.add_attribute("lp_token", lp_addr);
+                // let lp_addr = deps.api.addr_validate(&addr)?;
+                LP_TOKEN.save(deps.storage, &addr)?;
+                resp = resp.add_attribute("lp_token", addr);
             }
 
             if let Some(config) = ragequit_config {

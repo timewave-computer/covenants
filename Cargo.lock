@@ -675,7 +675,6 @@ dependencies = [
  "covenant-clock",
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
- "covenant-lp",
  "covenant-two-party-pol-holder",
  "covenant-utils",
  "cw-multi-test",

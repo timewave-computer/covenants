@@ -47,7 +47,8 @@ pub struct PresetTwoPartyPolHolderFields {
 #[cw_serde]
 pub struct PresetPolParty {
     pub contribution: Coin,
-    pub addr: String,
+    pub host_addr: String,
+    pub controller_addr: String,
     pub allocation: Decimal,
 }
 
@@ -61,7 +62,7 @@ impl PresetTwoPartyPolHolderFields {
     ) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
-            pool_address: next_contract.to_string(), // todo: replace with actual pool
+            pool_address: self.pool_address,
             next_contract,
             lockup_config: self.lockup_config,
             ragequit_config: self.ragequit_config,
@@ -69,15 +70,17 @@ impl PresetTwoPartyPolHolderFields {
             covenant_config: TwoPartyPolCovenantConfig {
                 party_a: TwoPartyPolCovenantParty { 
                     contribution: self.party_a.contribution,
-                    addr: self.party_a.addr,
                     allocation: self.party_a.allocation,
                     router: party_a_router,
+                    host_addr: self.party_a.host_addr,
+                    controller_addr: self.party_a.controller_addr,
                 },
                 party_b: TwoPartyPolCovenantParty { 
                     contribution: self.party_b.contribution,
-                    addr: self.party_b.addr,
                     allocation: self.party_b.allocation,
                     router: party_b_router,
+                    host_addr: self.party_b.host_addr,
+                    controller_addr: self.party_b.controller_addr,
                 },
             },
         }
@@ -92,7 +95,7 @@ pub struct TwoPartyPolCovenantConfig {
 
 impl TwoPartyPolCovenantConfig {
     pub fn update_parties(&mut self, p1: TwoPartyPolCovenantParty, p2: TwoPartyPolCovenantParty) {
-        if self.party_a.addr == p1.addr {
+        if self.party_a.controller_addr == p1.controller_addr {
             self.party_a = p1;
             self.party_b = p2;
         } else {
@@ -115,8 +118,10 @@ impl TwoPartyPolCovenantConfig {
 pub struct TwoPartyPolCovenantParty {
     /// the `denom` and `amount` (`Uint128`) to be contributed by the party
     pub contribution: Coin,
-    /// address authorized by the party to perform claims/ragequits
-    pub addr: String,
+    /// neutron address authorized by the party to perform claims/ragequits
+    pub host_addr: String,
+    /// address of the party on the controller chain (final receiver)
+    pub controller_addr: String,
     /// fraction of the entire LP position owned by the party.
     /// upon exiting it becomes 0.00. if counterparty exits, this would
     /// become 1.00, meaning that this party owns the entire position
@@ -130,13 +135,13 @@ impl TwoPartyPolCovenantConfig {
     /// if authorized, returns (party, counterparty). otherwise errors
     pub fn authorize_sender(
         &self,
-        sender: &Addr,
+        sender: String,
     ) -> Result<(TwoPartyPolCovenantParty, TwoPartyPolCovenantParty), ContractError> {
         let party_a = self.party_a.clone();
         let party_b = self.party_b.clone();
-        if party_a.addr == *sender {
+        if party_a.host_addr == sender {
             Ok((party_a, party_b))
-        } else if party_b.addr == *sender {
+        } else if party_b.host_addr == sender {
             Ok((party_b, party_a))
         } else {
             Err(ContractError::Unauthorized {})

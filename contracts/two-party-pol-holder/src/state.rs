@@ -28,7 +28,7 @@ pub const RAGEQUIT_CONFIG: Item<RagequitConfig> = Item::new("ragequit_config");
 pub const POOL_ADDRESS: Item<Addr> = Item::new("pool_address");
 
 /// address of the cw20 token issued for providing liquidity to the pool
-pub const LP_TOKEN: Item<Addr> = Item::new("lp_token");
+pub const LP_TOKEN: Item<String> = Item::new("lp_token");
 
 /// configuration storing both parties information
 pub const COVENANT_CONFIG: Item<TwoPartyPolCovenantConfig> = Item::new("covenant_config");
