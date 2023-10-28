@@ -74,7 +74,8 @@ type CovenantParty struct {
 }
 
 type CovenantPartyConfig struct {
-	Addr                      string `json:"addr"`
+	ControllerAddr            string `json:"controller_addr"`
+	HostAddr                  string `json:"host_addr"`
 	Contribution              Coin   `json:"contribution"`
 	IbcDenom                  string `json:"ibc_denom"`
 	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
