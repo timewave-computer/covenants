@@ -41,7 +41,6 @@ base64 = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
 bech32 ={ workspace = true }
-covenant-lp = { workspace = true, features=["library"] }
 covenant-clock = { workspace = true, features=["library"]}
 covenant-utils = { workspace = true }
 covenant-ibc-forwarder = { workspace = true, features = ["library"] }
