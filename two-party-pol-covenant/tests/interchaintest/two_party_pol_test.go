@@ -1189,6 +1189,9 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("party A claims and router receives the funds", func(t *testing.T) {
 
+				err = testutil.WaitForBlocks(ctx, 15, atom, neutron, osmosis)
+				require.NoError(t, err, "failed to wait for blocks")
+
 				cmd := []string{"neutrond", "tx", "wasm", "execute", holderAddress,
 					`{"claim":{}}`,
 					"--from", hubNeutronAccount.GetKeyName(),
@@ -1206,9 +1209,6 @@ func TestTwoPartyPol(t *testing.T) {
 				println("hub claim msg: ", strings.Join(cmd, " "))
 				_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 				require.NoError(t, err, "party A claim failed")
-
-				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
-				require.NoError(t, err, "failed to wait for blocks")
 
 				for {
 					routerAtomBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
@@ -1298,9 +1298,9 @@ func TestTwoPartyPol(t *testing.T) {
 
 					if osmoBalPartyA != 0 && atomBalPartyA != 0 && osmoBalPartyB != 0 && atomBalPartyB != 0 {
 						break
-					} else {
-						tickClock()
 					}
+
+					tickClock()
 				}
 			})
 		})
