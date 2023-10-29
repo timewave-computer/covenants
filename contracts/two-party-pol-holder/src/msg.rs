@@ -15,7 +15,7 @@ pub struct InstantiateMsg {
     pub next_contract: String,
     pub lockup_config: ExpiryConfig,
     pub ragequit_config: RagequitConfig,
-    pub deposit_deadline: Option<ExpiryConfig>,
+    pub deposit_deadline: ExpiryConfig,
     pub covenant_config: TwoPartyPolCovenantConfig,
 }
 
@@ -37,7 +37,7 @@ pub struct PresetTwoPartyPolHolderFields {
     pub pool_address: String,
     pub lockup_config: ExpiryConfig,
     pub ragequit_config: RagequitConfig,
-    pub deposit_deadline: Option<ExpiryConfig>,
+    pub deposit_deadline: ExpiryConfig,
     pub party_a: PresetPolParty,
     pub party_b: PresetPolParty,
     pub code_id: u64,
@@ -167,7 +167,6 @@ pub enum MigrateMsg {
         deposit_deadline: Option<ExpiryConfig>,
         pool_address: Option<String>,
         ragequit_config: Option<RagequitConfig>,
-        lp_token: Option<String>,
         covenant_config: Option<TwoPartyPolCovenantConfig>,
     },
     UpdateCodeId {
