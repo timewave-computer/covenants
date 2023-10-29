@@ -1187,7 +1187,7 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("party A claims and router routes the funds", func(t *testing.T) {
+			t.Run("party A claims and router receives the funds", func(t *testing.T) {
 
 				cmd := []string{"neutrond", "tx", "wasm", "execute", holderAddress,
 					`{"claim":{}}`,
@@ -1204,38 +1204,31 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				println("hub claim msg: ", strings.Join(cmd, " "))
-				resp, _, _ := cosmosNeutron.Exec(ctx, cmd, nil)
+				_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+				require.NoError(t, err, "party A claim failed")
 
-				println("claim response: ", string(resp), "\n")
+				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
+				require.NoError(t, err, "failed to wait for blocks")
 
 				for {
 					routerAtomBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
 					require.NoError(t, err)
 
-					routerAtomBalB, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronAtomIbcDenom)
-					require.NoError(t, err)
-
 					routerOsmoBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
 					require.NoError(t, err)
 
-					routerOsmoBalB, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronOsmoIbcDenom)
-					require.NoError(t, err)
-
 					println("routerAtomBalA: ", routerAtomBalA)
-					println("routerAtomBalB: ", routerAtomBalB)
 					println("routerOsmoBalA: ", routerOsmoBalA)
-					println("routerOsmoBalB: ", routerOsmoBalB)
 
 					if routerAtomBalA != 0 && routerOsmoBalA != 0 {
 						break
 					} else {
 						tickClock()
-
 					}
 				}
 			})
 
-			t.Run("party B claims and router routes the funds", func(t *testing.T) {
+			t.Run("party B claims and router receives the funds", func(t *testing.T) {
 
 				cmd := []string{"neutrond", "tx", "wasm", "execute", holderAddress,
 					`{"claim":{}}`,
@@ -1252,32 +1245,61 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				println("osmo claim msg: ", strings.Join(cmd, " "))
-				resp, _, _ := cosmosNeutron.Exec(ctx, cmd, nil)
-				println("claim response: ", string(resp), "\n")
+				_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+				require.NoError(t, err, "party B claim failed")
+
+				err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
+				require.NoError(t, err, "failed to wait for blocks")
 
 				for {
-					routerAtomBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
-					require.NoError(t, err)
-
 					routerAtomBalB, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronAtomIbcDenom)
-					require.NoError(t, err)
-
-					routerOsmoBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
 					require.NoError(t, err)
 
 					routerOsmoBalB, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronOsmoIbcDenom)
 					require.NoError(t, err)
 
-					println("routerAtomBalA: ", routerAtomBalA)
 					println("routerAtomBalB: ", routerAtomBalB)
-					println("routerOsmoBalA: ", routerOsmoBalA)
 					println("routerOsmoBalB: ", routerOsmoBalB)
 
 					if routerAtomBalB != 0 || routerOsmoBalB != 0 {
 						break
 					} else {
 						tickClock()
+					}
+				}
+			})
 
+			t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
+				for {
+					osmoBalPartyA, err := cosmosAtom.GetBalance(
+						ctx, gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom,
+					)
+					require.NoError(t, err)
+
+					osmoBalPartyB, err := cosmosOsmosis.GetBalance(
+						ctx, osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
+					)
+					require.NoError(t, err)
+
+					atomBalPartyA, err := cosmosAtom.GetBalance(
+						ctx, gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
+					)
+					require.NoError(t, err)
+
+					atomBalPartyB, err := cosmosOsmosis.GetBalance(
+						ctx, osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom,
+					)
+					require.NoError(t, err)
+
+					println("party A osmo bal: ", osmoBalPartyA)
+					println("party A atom bal: ", atomBalPartyA)
+					println("party B osmo bal: ", osmoBalPartyB)
+					println("party B atom bal: ", atomBalPartyB)
+
+					if osmoBalPartyA != 0 && atomBalPartyA != 0 && osmoBalPartyB != 0 && atomBalPartyB != 0 {
+						break
+					} else {
+						tickClock()
 					}
 				}
 			})
