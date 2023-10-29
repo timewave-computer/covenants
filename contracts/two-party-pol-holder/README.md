@@ -59,4 +59,3 @@ Any ticks received while holder is `Active` will trigger a check for expiration.
 
 If covenant is expired, holder state is advanced to `Expired`.
 Both parties are free to submit `Claim` messages to the holder.
-

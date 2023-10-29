@@ -20,7 +20,7 @@ pub struct InstantiateMsg {
     pub party_b_config: CovenantPartyConfig,
     pub pool_address: String,
     pub ragequit_config: Option<RagequitConfig>,
-    pub deposit_deadline: Option<ExpiryConfig>,
+    pub deposit_deadline: ExpiryConfig,
     pub party_a_share: Uint64,
     pub party_b_share: Uint64,
     pub expected_pool_ratio: Decimal,

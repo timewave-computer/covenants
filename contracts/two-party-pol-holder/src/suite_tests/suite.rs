@@ -47,7 +47,7 @@ impl Default for SuiteBuilder {
             instantiate: InstantiateMsg {
                 pool_address: POOL.to_string(),
                 ragequit_config: RagequitConfig::Disabled,
-                deposit_deadline: None,
+                deposit_deadline: ExpiryConfig::None,
                 clock_address: CLOCK_ADDR.to_string(),
                 next_contract: NEXT_CONTRACT.to_string(),
                 lockup_config: ExpiryConfig::None,
@@ -91,7 +91,7 @@ impl SuiteBuilder {
     }
 
     pub fn with_deposit_deadline(mut self, config: ExpiryConfig) -> Self {
-        self.instantiate.deposit_deadline = Some(config);
+        self.instantiate.deposit_deadline = config;
         self
     }
 
