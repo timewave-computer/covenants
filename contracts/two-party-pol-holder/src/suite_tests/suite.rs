@@ -3,7 +3,6 @@ use crate::msg::{
     TwoPartyPolCovenantParty,
 };
 use cosmwasm_std::{Addr, BlockInfo, Coin, Decimal, Timestamp, Uint128};
-use covenant_utils::ExpiryConfig;
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 use cw_utils::Expiration;
 
@@ -247,14 +246,14 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_deposit_deadline(&self) -> ExpiryConfig {
+    pub fn query_deposit_deadline(&self) -> Expiration {
         self.app
             .wrap()
             .query_wasm_smart(&self.holder, &QueryMsg::DepositDeadline {})
             .unwrap()
     }
 
-    pub fn query_lockup_config(&self) -> ExpiryConfig {
+    pub fn query_lockup_config(&self) -> Expiration {
         self.app
             .wrap()
             .query_wasm_smart(&self.holder, &QueryMsg::LockupConfig {})
