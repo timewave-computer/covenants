@@ -11,12 +11,12 @@ type CovenantInstantiateMsg struct {
 	PresetIbcFee             PresetIbcFee        `json:"preset_ibc_fee"`
 	ContractCodeIds          ContractCodeIds     `json:"contract_codes"`
 	TickMaxGas               string              `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig             ExpiryConfig        `json:"lockup_config"`
+	LockupConfig             Expiration          `json:"lockup_config"`
 	PartyAConfig             CovenantPartyConfig `json:"party_a_config"`
 	PartyBConfig             CovenantPartyConfig `json:"party_b_config"`
 	PoolAddress              string              `json:"pool_address"`
 	RagequitConfig           *RagequitConfig     `json:"ragequit_config,omitempty"`
-	DepositDeadline          *ExpiryConfig       `json:"deposit_deadline,omitempty"`
+	DepositDeadline          Expiration          `json:"deposit_deadline"`
 	PartyAShare              string              `json:"party_a_share"`
 	PartyBShare              string              `json:"party_b_share"`
 	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
@@ -45,10 +45,10 @@ type PresetIbcFee struct {
 type Timestamp string
 type Block uint64
 
-type ExpiryConfig struct {
-	None        string     `json:"none,omitempty"`
-	BlockHeight *Block     `json:"block,omitempty"`
-	Time        *Timestamp `json:"time,omitempty"`
+type Expiration struct {
+	Never    string     `json:"none,omitempty"`
+	AtHeight *Block     `json:"at_height,omitempty"`
+	AtTime   *Timestamp `json:"at_time,omitempty"`
 }
 
 type RagequitConfig struct {
