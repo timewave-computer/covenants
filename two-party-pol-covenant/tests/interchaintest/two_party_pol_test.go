@@ -743,11 +743,11 @@ func TestTwoPartyPol(t *testing.T) {
 			depositBlock := Block(500)
 			lockupBlock := Block(500)
 
-			lockupConfig := ExpiryConfig{
-				BlockHeight: &lockupBlock,
+			lockupConfig := Expiration{
+				AtHeight: &lockupBlock,
 			}
-			depositDeadline := ExpiryConfig{
-				BlockHeight: &depositBlock,
+			depositDeadline := Expiration{
+				AtHeight: &depositBlock,
 			}
 			presetIbcFee := PresetIbcFee{
 				AckFee:     "10000",
@@ -817,7 +817,7 @@ func TestTwoPartyPol(t *testing.T) {
 				PartyBConfig:             partyBConfig,
 				PoolAddress:              poolAddress,
 				RagequitConfig:           &ragequitConfig,
-				DepositDeadline:          &depositDeadline,
+				DepositDeadline:          depositDeadline,
 				PartyAShare:              "50",
 				PartyBShare:              "50",
 				ExpectedPoolRatio:        "0.1",
@@ -1172,25 +1172,21 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("tick until POL expires", func(t *testing.T) {
+			t.Run("tick until holder expires", func(t *testing.T) {
 				for {
 					neutronHeight, err := cosmosNeutron.Height(ctx)
 					require.NoError(t, err)
 
-					if neutronHeight >= 500 {
+					if neutronHeight >= 515 {
 						println("neutron height: ", neutronHeight)
 						break
 					} else {
 						tickClock()
-
 					}
 				}
 			})
 
 			t.Run("party A claims and router receives the funds", func(t *testing.T) {
-
-				err = testutil.WaitForBlocks(ctx, 15, atom, neutron, osmosis)
-				require.NoError(t, err, "failed to wait for blocks")
 
 				cmd := []string{"neutrond", "tx", "wasm", "execute", holderAddress,
 					`{"claim":{}}`,
@@ -1205,10 +1201,7 @@ func TestTwoPartyPol(t *testing.T) {
 					"--keyring-backend", keyring.BackendTest,
 					"-y",
 				}
-
 				println("hub claim msg: ", strings.Join(cmd, " "))
-				_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
-				require.NoError(t, err, "party A claim failed")
 
 				for {
 					routerAtomBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
@@ -1224,6 +1217,11 @@ func TestTwoPartyPol(t *testing.T) {
 						break
 					} else {
 						tickClock()
+						_, _, err = cosmosNeutron.Exec(ctx, cmd, nil)
+						require.NoError(t, err, "party A claim failed")
+
+						err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
+						require.NoError(t, err, "failed to wait for blocks")
 					}
 				}
 			})

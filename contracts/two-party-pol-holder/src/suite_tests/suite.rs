@@ -5,6 +5,7 @@ use crate::msg::{
 use cosmwasm_std::{Addr, BlockInfo, Coin, Decimal, Timestamp, Uint128};
 use covenant_utils::ExpiryConfig;
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
+use cw_utils::Expiration;
 
 use super::{
     mock_astro_lp_token_contract, mock_astro_pool_contract, mock_deposit_contract,
@@ -47,10 +48,10 @@ impl Default for SuiteBuilder {
             instantiate: InstantiateMsg {
                 pool_address: POOL.to_string(),
                 ragequit_config: RagequitConfig::Disabled,
-                deposit_deadline: ExpiryConfig::None,
+                deposit_deadline: Expiration::Never {},
                 clock_address: CLOCK_ADDR.to_string(),
                 next_contract: NEXT_CONTRACT.to_string(),
-                lockup_config: ExpiryConfig::None,
+                lockup_config: Expiration::Never {},
                 covenant_config: TwoPartyPolCovenantConfig {
                     party_a: TwoPartyPolCovenantParty {
                         router: PARTY_A_ROUTER.to_string(),
@@ -80,7 +81,7 @@ impl Default for SuiteBuilder {
 }
 
 impl SuiteBuilder {
-    pub fn with_lockup_config(mut self, config: ExpiryConfig) -> Self {
+    pub fn with_lockup_config(mut self, config: Expiration) -> Self {
         self.instantiate.lockup_config = config;
         self
     }
@@ -90,7 +91,7 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn with_deposit_deadline(mut self, config: ExpiryConfig) -> Self {
+    pub fn with_deposit_deadline(mut self, config: Expiration) -> Self {
         self.instantiate.deposit_deadline = config;
         self
     }

@@ -1,6 +1,6 @@
 use cosmwasm_std::Addr;
-use covenant_utils::ExpiryConfig;
 use cw_storage_plus::Item;
+use cw_utils::Expiration;
 
 use crate::msg::{ContractState, RagequitConfig, TwoPartyPolCovenantConfig};
 
@@ -17,11 +17,11 @@ pub const POOL_ADDRESS: Item<Addr> = Item::new("pool_address");
 
 /// configuration describing the lockup period after which parties are
 /// no longer subject to ragequit penalties in order to exit their position
-pub const LOCKUP_CONFIG: Item<ExpiryConfig> = Item::new("lockup_config");
+pub const LOCKUP_CONFIG: Item<Expiration> = Item::new("lockup_config");
 
 /// configuration describing the deposit period during which parties
 /// are expected to fulfill their parts of the covenant
-pub const DEPOSIT_DEADLINE: Item<ExpiryConfig> = Item::new("deposit_deadline");
+pub const DEPOSIT_DEADLINE: Item<Expiration> = Item::new("deposit_deadline");
 
 /// configuration describing the penalty applied to the allocation
 /// of the party initiating the ragequit

@@ -2,7 +2,7 @@ use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128, Uint64, Coin, Decimal};
 use covenant_two_party_pol_holder::msg::RagequitConfig;
-use covenant_utils::ExpiryConfig;
+use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
 const NEUTRON_DENOM: &str = "untrn";
@@ -15,12 +15,12 @@ pub struct InstantiateMsg {
     pub preset_ibc_fee: PresetIbcFee,
     pub contract_codes: CovenantContractCodeIds,
     pub clock_tick_max_gas: Option<Uint64>,
-    pub lockup_config: ExpiryConfig,
+    pub lockup_config: Expiration,
     pub party_a_config: CovenantPartyConfig,
     pub party_b_config: CovenantPartyConfig,
     pub pool_address: String,
     pub ragequit_config: Option<RagequitConfig>,
-    pub deposit_deadline: ExpiryConfig,
+    pub deposit_deadline: Expiration,
     pub party_a_share: Uint64,
     pub party_b_share: Uint64,
     pub expected_pool_ratio: Decimal,
