@@ -1,13 +1,10 @@
 use cosmwasm_std::Addr;
 use cw_storage_plus::Item;
 
-use crate::msg::{AssetData, ContractState, LpConfig, ProvidedLiquidityInfo};
+use crate::msg::{ContractState, LpConfig, ProvidedLiquidityInfo};
 
 /// contract state tracks the state machine progress
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
-
-/// asset denom information
-pub const ASSETS: Item<AssetData> = Item::new("assets");
 
 /// clock module address to verify the incoming ticks sender
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
