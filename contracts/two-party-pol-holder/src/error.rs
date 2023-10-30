@@ -36,8 +36,11 @@ pub enum ContractError {
     #[error("expiry block is already past")]
     InvalidExpiryBlockHeight {},
 
-    #[error("lockup validation failed")]
+    #[error("lockup deadline is already past")]
     LockupValidationError {},
+
+    #[error("deposit deadline is already past")]
+    DepositDeadlineValidationError {},
 
     #[error("shares of covenant parties must add up to 1.0")]
     InvolvedPartiesConfigError {},

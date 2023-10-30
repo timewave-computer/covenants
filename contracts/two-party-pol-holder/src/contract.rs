@@ -1,12 +1,12 @@
 use astroport::{asset::{Asset, PairInfo}, pair::Cw20HookMsg};
 use cosmwasm_std::{
     to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, WasmMsg, Uint128, QuerierWrapper,
+    Response, StdResult, WasmMsg, Uint128, QuerierWrapper, StdError,
 };
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use covenant_utils::ExpiryConfig;
+
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
@@ -37,9 +37,14 @@ pub fn instantiate(
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
-    msg.deposit_deadline.validate(&env.block)?;
+    if msg.deposit_deadline.is_expired(&env.block) {
+        return Err(ContractError::DepositDeadlineValidationError {})
+    }
+    if msg.lockup_config.is_expired(&env.block) {
+        return Err(ContractError::LockupValidationError {})
+    }
+
     msg.covenant_config.validate(deps.api)?;
-    msg.lockup_config.validate(&env.block)?;
     msg.ragequit_config.validate(
         msg.covenant_config.party_a.allocation,
         msg.covenant_config.party_b.allocation,
@@ -97,12 +102,18 @@ fn query_liquidity_token_address(querier: QuerierWrapper, pool: String) -> Resul
 // - Option<Decimal> ? None -> claim entire position, Some(%) -> claim the % of your entitlement
 fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
-    let (
-        mut claim_party,
-        mut counterparty
-    ) = covenant_config.authorize_sender(info.sender.to_string())?;
+    let (mut claim_party, mut counterparty) = 
+        covenant_config.authorize_sender(info.sender.to_string())?;
     let pool = POOL_ADDRESS.load(deps.storage)?;
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
+
+    // we exit early if contract is not in ragequit or expired state
+    // otherwise claim process is the same
+    let response: Response = match contract_state {
+        ContractState::Ragequit => Response::default().add_attribute("method", "try_claim_ragequit"),
+        ContractState::Expired => Response::default().add_attribute("method", "try_claim_expired"),
+        _ => return Err(ContractError::ClaimError {}),
+    };
 
     // if both parties already claimed everything we complete
     if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
@@ -172,16 +183,7 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
 
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
 
-    // claiming funds is only possible in Ragequit or Expired state
-    match contract_state {
-        ContractState::Ragequit => Ok(Response::default()
-            .add_attribute("method", "try_claim_ragequit")
-            .add_messages(withdraw_and_forward_msgs)),
-        ContractState::Expired => Ok(Response::default()
-            .add_attribute("method", "try_claim_expired")
-            .add_messages(withdraw_and_forward_msgs)),
-        _ => Err(ContractError::ClaimError {}),
-    }
+    Ok(response.add_messages(withdraw_and_forward_msgs))
 }
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
@@ -201,6 +203,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
                 .add_attribute("method", "tick")
                 .add_attribute("contract_state", state.to_string()))
         }
+        // ragequit and completed states do not trigger an action
         _ => Ok(Response::default()
             .add_attribute("method", "tick")
             .add_attribute("contract_state", state.to_string())),
@@ -227,7 +230,7 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
     // note: even if both parties deposit their funds in time,
     // it is important to trigger this method before the expiry block
     // if deposit deadline is due we complete and refund
-    if deposit_deadline.is_expired(env.block) {
+    if deposit_deadline.is_expired(&env.block) {
         let refund_messages: Vec<CosmosMsg> = match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
             // both balances empty, we complete
             (true, true) => {
@@ -287,7 +290,7 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
 fn check_expiration(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
 
-    if !lockup_config.is_expired(env.block) {
+    if !lockup_config.is_expired(&env.block) {
         return Ok(Response::default()
             .add_attribute("method", "check_expiration")
             .add_attribute("result", "not_due"));
@@ -318,7 +321,7 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
     }
     // we also validate an edge case where it did expire but
     // did not receive a tick yet. tick is then required to advance.
-    if lockup_config.is_expired(env.block) {
+    if lockup_config.is_expired(&env.block) {
         return Err(ContractError::Expired {});
     }
 
@@ -442,15 +445,19 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             }
 
             if let Some(expiry_config) = lockup_config {
-                expiry_config.validate(&env.block)?;
+                if expiry_config.is_expired(&env.block) {
+                    return Err(StdError::generic_err("lockup config is already past"))
+                }
                 LOCKUP_CONFIG.save(deps.storage, &expiry_config)?;
-                resp = resp.add_attributes(expiry_config.get_response_attributes());
+                resp = resp.add_attribute("lockup_config", expiry_config.to_string());
             }
 
             if let Some(expiry_config) = deposit_deadline {
-                expiry_config.validate(&env.block)?;
+                if expiry_config.is_expired(&env.block) {
+                    return Err(StdError::generic_err("deposit deadline is already past"))
+                }
                 DEPOSIT_DEADLINE.save(deps.storage, &expiry_config)?;
-                resp = resp.add_attributes(expiry_config.get_response_attributes());
+                resp = resp.add_attribute("deposit_deadline", expiry_config.to_string());
             }
 
             if let Some(addr) = pool_address {

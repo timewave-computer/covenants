@@ -5,6 +5,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Api, Attribute, Coin, Decimal, StdError, Binary};
 use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract, covenant_deposit_address};
 use covenant_utils::ExpiryConfig;
+use cw_utils::Expiration;
 
 use crate::error::ContractError;
 
@@ -13,9 +14,9 @@ pub struct InstantiateMsg {
     pub clock_address: String,
     pub pool_address: String,
     pub next_contract: String,
-    pub lockup_config: ExpiryConfig,
+    pub lockup_config: Expiration,
     pub ragequit_config: RagequitConfig,
-    pub deposit_deadline: ExpiryConfig,
+    pub deposit_deadline: Expiration,
     pub covenant_config: TwoPartyPolCovenantConfig,
 }
 
@@ -25,9 +26,10 @@ impl InstantiateMsg {
             Attribute::new("clock_addr", self.clock_address),
             Attribute::new("pool_address", self.pool_address),
             Attribute::new("next_contract", self.next_contract),
+            Attribute::new("lockup_config", self.lockup_config.to_string()),
+            Attribute::new("deposit_deadline", self.deposit_deadline.to_string()),
         ];
         attrs.extend(self.ragequit_config.get_response_attributes());
-        attrs.extend(self.lockup_config.get_response_attributes());
         attrs
     }
 }
@@ -35,9 +37,9 @@ impl InstantiateMsg {
 #[cw_serde]
 pub struct PresetTwoPartyPolHolderFields {
     pub pool_address: String,
-    pub lockup_config: ExpiryConfig,
+    pub lockup_config: Expiration,
     pub ragequit_config: RagequitConfig,
-    pub deposit_deadline: ExpiryConfig,
+    pub deposit_deadline: Expiration,
     pub party_a: PresetPolParty,
     pub party_b: PresetPolParty,
     pub code_id: u64,
@@ -163,8 +165,8 @@ pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
         next_contract: Option<String>,
-        lockup_config: Option<ExpiryConfig>,
-        deposit_deadline: Option<ExpiryConfig>,
+        lockup_config: Option<Expiration>,
+        deposit_deadline: Option<Expiration>,
         pool_address: Option<String>,
         ragequit_config: Option<RagequitConfig>,
         covenant_config: Option<TwoPartyPolCovenantConfig>,
