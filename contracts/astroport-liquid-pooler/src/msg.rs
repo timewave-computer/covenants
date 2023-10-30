@@ -10,7 +10,6 @@ pub struct InstantiateMsg {
     pub pool_address: String,
     pub clock_address: String,
     pub slippage_tolerance: Option<Decimal>,
-    pub autostake: Option<bool>,
     pub assets: AssetData,
     pub single_side_lp_limits: SingleSideLpLimits,
     pub expected_pool_ratio: Decimal,
@@ -21,7 +20,6 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub struct PresetAstroLiquidPoolerFields {
     pub slippage_tolerance: Option<Decimal>,
-    pub autostake: Option<bool>,
     pub assets: AssetData,
     pub single_side_lp_limits: SingleSideLpLimits,
     pub label: String,
@@ -41,7 +39,6 @@ impl PresetAstroLiquidPoolerFields {
             pool_address,
             clock_address,
             slippage_tolerance: self.slippage_tolerance,
-            autostake: self.autostake.clone(),
             assets: self.assets.clone(),
             single_side_lp_limits: self.single_side_lp_limits.clone(),
             expected_pool_ratio: self.expected_pool_ratio,
@@ -82,10 +79,10 @@ impl DecimalRange {
 pub struct LpConfig {
     /// address of the liquidity pool we plan to enter
     pub pool_address: Addr,
+    /// denoms of both parties
+    pub asset_data: AssetData,
     /// amounts of both tokens we consider ok to single-side lp
     pub single_side_lp_limits: SingleSideLpLimits,
-    /// boolean flag for enabling autostaking of LP tokens upon liquidity provisioning
-    pub autostake: Option<bool>,
     /// slippage tolerance parameter for liquidity provisioning
     pub slippage_tolerance: Option<Decimal>,
     /// expected price range
@@ -96,10 +93,6 @@ pub struct LpConfig {
 
 impl LpConfig {
     pub fn to_response_attributes(self) -> Vec<Attribute> {
-        let autostake = match self.autostake {
-            Some(val) => val.to_string(),
-            None => "None".to_string(),
-        };
         let slippage_tolerance = match self.slippage_tolerance {
             Some(val) => val.to_string(),
             None => "None".to_string(),
@@ -114,8 +107,9 @@ impl LpConfig {
                 "single_side_asset_b_limit",
                 self.single_side_lp_limits.asset_b_limit.to_string(),
             ),
-            Attribute::new("autostake", autostake),
             Attribute::new("slippage_tolerance", slippage_tolerance),
+            Attribute::new("party_a_denom", self.asset_data.asset_a_denom),
+            Attribute::new("party_b_denom", self.asset_data.asset_b_denom),
         ]
     }
 }
@@ -178,8 +172,6 @@ pub enum QueryMsg {
     ContractState {},
     #[returns(Addr)]
     HolderAddress {},
-    #[returns(Vec<Asset>)]
-    Assets {},
     #[returns(LpConfig)]
     LpConfig {},
     #[returns(ProvidedLiquidityInfo)]
@@ -191,7 +183,6 @@ pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
         holder_address: Option<String>,
-        assets: Option<AssetData>,
         lp_config: Option<LpConfig>,
     },
     UpdateCodeId {

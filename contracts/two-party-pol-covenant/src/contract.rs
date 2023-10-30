@@ -116,7 +116,6 @@ pub fn instantiate(
 
     let preset_liquid_pooler_fields = PresetAstroLiquidPoolerFields {
         slippage_tolerance: None,
-        autostake: None,
         assets: AssetData {
             asset_a_denom: msg.party_a_config.ibc_denom,
             asset_b_denom: msg.party_b_config.ibc_denom,
@@ -466,7 +465,6 @@ pub fn handle_party_b_ibc_forwarder_reply(
                 msg: to_binary(&covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
                     clock_addr: None,
                     holder_address: Some(holder.to_string()),
-                    assets: None,
                     lp_config: None,
                 })?,
             };

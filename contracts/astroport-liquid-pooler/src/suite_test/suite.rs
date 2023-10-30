@@ -145,7 +145,6 @@ impl Default for SuiteBuilder {
                 clock_address: "clock-addr".to_string(),
                 pool_address: "lp-addr".to_string(),
                 slippage_tolerance: Some(Decimal::one()),
-                autostake: Some(false),
                 assets: AssetData {
                     asset_a_denom: "uatom".to_string(),
                     asset_b_denom: "untrn".to_string(),
@@ -221,11 +220,6 @@ impl Default for SuiteBuilder {
 impl SuiteBuilder {
     fn with_slippage_tolerance(mut self, decimal: Decimal) -> Self {
         self.lp_instantiate.slippage_tolerance = Some(decimal);
-        self
-    }
-
-    fn with_autostake(mut self, autosake: Option<bool>) -> Self {
-        self.lp_instantiate.autostake = autosake;
         self
     }
 
@@ -411,7 +405,6 @@ impl SuiteBuilder {
             &MigrateMsg::UpdateConfig {
                 clock_addr: None,
                 holder_address: Some(CREATOR_ADDR.to_string()),
-                assets: None,
                 lp_config: None,
             },
             lper_code,
@@ -463,13 +456,6 @@ impl Suite {
         self.app
             .wrap()
             .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::HolderAddress {})
-            .unwrap()
-    }
-
-    pub fn query_assets(&self) -> Vec<Asset> {
-        self.app
-            .wrap()
-            .query_wasm_smart(&self.liquid_pooler.1, &QueryMsg::Assets {})
             .unwrap()
     }
 
