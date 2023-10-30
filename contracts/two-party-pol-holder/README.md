@@ -10,9 +10,9 @@ Multiple parties are going to be participating, so the holder should store a lis
 
 A `Lock` duration should be stored to keep track of the covenant duration.
 
-After the `Lock` period expires, holder should withdraw the liquidity and forward the underlying funds to the configured splitter module that will deal with the distribution.
-
-Splitter should be instantiated on demand, when the lock expires.
+After the `Lock` period expires, both parties are allowed to submit `Claim` messages.
+A successful claim results in the claiming party's liquidity portion being withdrawn from the
+pool, and forwarding the underlying assets to the respective router module.
 
 ### Ragequit
 
@@ -27,10 +27,6 @@ Ragequit breaks the regular covenant flow in the following way:
 - covenant is no longer subject to expiration
 - splitter module no longer gets instantiated, meaning that any pre-agreed upon token distribution split is void
   - both parties receive a 50/50 split of the underlying denoms
-
-### Updates
-
-Both parties are free to update their respective whitelisted addresses and do not need counterparty permission to do so.
 
 ### Deposit funds to Liquid Pooler
 

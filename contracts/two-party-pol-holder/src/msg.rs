@@ -4,7 +4,6 @@ use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Api, Attribute, Coin, Decimal, StdError, Binary};
 use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract, covenant_deposit_address};
-use covenant_utils::ExpiryConfig;
 use cw_utils::Expiration;
 
 use crate::error::ContractError;
@@ -217,7 +216,7 @@ pub enum QueryMsg {
     ContractState {},
     #[returns(RagequitConfig)]
     RagequitConfig {},
-    #[returns(ExpiryConfig)]
+    #[returns(Expiration)]
     LockupConfig {},
     #[returns(Addr)]
     PoolAddress {},
@@ -225,7 +224,7 @@ pub enum QueryMsg {
     ConfigPartyA {},
     #[returns(TwoPartyPolCovenantParty)]
     ConfigPartyB {},
-    #[returns(ExpiryConfig)]
+    #[returns(Expiration)]
     DepositDeadline {},
     #[returns(TwoPartyPolCovenantConfig)]
     Config {},
