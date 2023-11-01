@@ -33,7 +33,9 @@ Ragequit breaks the regular covenant flow in the following way:
 Both parties should deposit their funds to holder. After holder asserts the expected balances, it forwards
 the funds to the Liquid Pooler which then in turn enters into a position.
 
-If party A delivers their part of the covenant deposit agreement but party B fails, party A is refunded.
+Deposit stage is subject to a deposit deadline (`Expiration`).
+Once the deposit deadline expires, refunds are issued to parties that delivered their parts of the covenant.
+This can happen if any of the counterparties do not deliver the funds before the deadline expires, as holder attempts to send all expected funds in a combined `BankSend`.
 
 ## Flow
 
