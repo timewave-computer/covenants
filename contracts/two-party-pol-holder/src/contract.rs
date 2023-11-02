@@ -478,6 +478,6 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
 
             Ok(resp)
         },
-        MigrateMsg::UpdateCodeId { data } => todo!(),
+        MigrateMsg::UpdateCodeId { data: _ } => todo!(),
     }
 }

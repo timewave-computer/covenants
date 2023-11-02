@@ -84,7 +84,7 @@ fn test_tick() {
     deps.querier = querier;
 
     let info = mock_info(CLOCK_ADDR, &[]);
-    let init_msg = SuiteBuilder::default().instantiate;
+    let _init_msg = SuiteBuilder::default().instantiate;
 
     instantiate(
         deps.as_mut(),
