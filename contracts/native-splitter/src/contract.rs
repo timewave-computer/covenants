@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use cosmos_sdk_proto::cosmos::bank::v1beta1::{MsgMultiSend, Input, Output, MsgMultiSendResponse};
+use cosmos_sdk_proto::cosmos::bank::v1beta1::{MsgMultiSend, Input, Output};
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -13,7 +13,7 @@ use covenant_utils::neutron_ica::{self, OpenAckVersion, RemoteChainInfo, SudoPay
 use cw2::set_contract_version;
 use neutron_sdk::bindings::msg::MsgSubmitTxResponse;
 use neutron_sdk::interchain_txs::helpers::{
-    decode_acknowledgement_response, decode_message_response, get_port_id,
+    decode_acknowledgement_response, get_port_id, decode_message_response,
 };
 use neutron_sdk::sudo::msg::{RequestPacket, SudoMsg};
 use neutron_sdk::NeutronError;
@@ -363,7 +363,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         item_types.push(item_type.to_string());
         match item_type {
             "/cosmos.bank.v1beta1.MsgMultiSend" => {
-                let _out: MsgMultiSendResponse = decode_message_response(&item.data)?;
+                decode_message_response(&item.data)?;
                 // TODO: look into if this successful decoding is enough to assume multi
                 // send was successful
                 CONTRACT_STATE.save(deps.storage, &ContractState::Completed)?;

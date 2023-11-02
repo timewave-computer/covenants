@@ -435,7 +435,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
 
             Ok(resp)
         },
-        MigrateMsg::UpdateCodeId { data } => {
+        MigrateMsg::UpdateCodeId { data: _ } => {
             unimplemented!()
         },
     }
