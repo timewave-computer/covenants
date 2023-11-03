@@ -10,10 +10,10 @@ env:
 jobs:
   unit-test:
     name: Test Suite
-    runs-on: self-hosted-ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v4
+      - name: checkout sources
+        uses: actions/checkout@v3
 
       - name: Install latest stable toolchain
         uses: actions-rs/toolchain@v1
@@ -29,32 +29,32 @@ jobs:
           command: test
           args: --locked
 
-  # lints:
-  #   name: Lints
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout sources
-  #       uses: actions/checkout@v3
+  lints:
+    name: Lints
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout sources
+        uses: actions/checkout@v3
 
-  #     - name: Install stable toolchain
-  #       uses: actions-rs/toolchain@v1
-  #       with:
-  #         profile: minimal
-  #         toolchain: 1.66.0
-  #         override: true
-  #         components: rustfmt, clippy
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.66.0
+          override: true
+          components: rustfmt, clippy
       
-  #     - name: Run cargo fmt
-  #       uses: actions-rs/cargo@v1
-  #       with:
-  #         command: fmt
-  #         args: --all -- --check
+      - name: Run cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
 
-  #     - name: Run cargo clippy
-  #       uses: actions-rs/cargo@v1
-  #       with:
-  #         command: clippy
-  #         args: --all-targets -- -D warnings
+      - name: Run cargo clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all-targets -- -D warnings
 
   # schema:
   #   name: Schema

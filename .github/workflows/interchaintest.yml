@@ -23,7 +23,7 @@ jobs:
 
           - name: checkout sources  
             uses: actions/checkout@v3
-          
+
           - name: install tar for cache
             run: apk add --no-cache tar
 
@@ -42,6 +42,11 @@ jobs:
             timeout-minutes: 40
             run: optimize_workspace.sh .
 
+          - name: test ls
+            run: ls
+          - name: test pwd
+            run: pwd
+
           - name: upload contracts
             uses: actions/upload-artifact@v3
             with:
@@ -51,19 +56,28 @@ jobs:
           - name: test ls
             run: ls artifacts/
       
-#   events:
-#     runs-on: self-hosted-ubuntu-22.04
-#     steps:
-#       - name: checkout repository
-#         uses: actions/checkout@v3
+  events:
+    needs: compile-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v3
 
-#       - name: Set up Go  ${{ env.GO_VERSION }}
-#         uses: actions/setup-go@v4
-#         with:
-#           go-version:  ${{ env.GO_VERSION }}
+      - name: test ls
+        run: ls
+      - name: test pwd
+        run: pwd
+      - name: test ../ls
+        run: ls ../
+      - name: test ../../ls
+        run: ls ../../
+      - name: Set up Go  ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v4
+        with:
+          go-version:  ${{ env.GO_VERSION }}
 
-#       - name: setup just
-#         uses: extractions/setup-just@v1
+      - name: setup just
+        uses: extractions/setup-just@v1
         
-#       - name: interchaintest
-#         run: just swap-covenant
+      - name: interchaintest
+        run: just swap-covenant
