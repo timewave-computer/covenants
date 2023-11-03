@@ -339,9 +339,7 @@ dependencies = [
  "astroport-pair-stable",
  "astroport-token",
  "astroport-whitelist",
- "base64 0.13.1",
  "bech32",
- "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
@@ -349,17 +347,13 @@ dependencies = [
  "covenant-two-party-pol-holder",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.2",
  "cw1-whitelist 1.1.1",
  "cw2 1.1.1",
  "cw20 0.15.1",
  "neutron-sdk",
- "prost 0.11.9",
- "prost-types 0.11.9",
  "protobuf 3.3.0",
  "schemars",
  "serde",
- "serde-json-wasm 0.4.1",
  "sha2 0.10.8",
  "thiserror",
 ]
@@ -394,72 +388,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "covenant-depositor"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "base64 0.13.1",
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-ls",
- "covenant-macros",
- "covenant-utils",
- "cw-multi-test",
- "cw-storage-plus 1.1.0",
- "cw-utils 1.0.2",
- "cw2 1.1.1",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types 0.11.9",
- "protobuf 3.3.0",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "sha2 0.10.8",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-holder"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "astroport 2.9.0",
- "astroport-factory",
- "astroport-native-coin-registry",
- "astroport-pair-stable",
- "astroport-token",
- "astroport-whitelist",
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-multi-test",
- "cw-storage-plus 1.1.0",
- "cw2 1.1.1",
- "cw20 0.15.1",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "covenant-ibc-forwarder"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "base64 0.13.1",
  "bech32",
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
- "covenant-ls",
  "covenant-macros",
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.2",
  "cw2 1.1.1",
  "neutron-sdk",
  "prost 0.11.9",
@@ -477,18 +418,15 @@ name = "covenant-interchain-router"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "base64 0.13.1",
  "bech32",
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
- "covenant-ls",
  "covenant-macros",
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.2",
  "cw2 1.1.1",
  "neutron-sdk",
  "prost 0.11.9",
@@ -496,7 +434,6 @@ dependencies = [
  "protobuf 3.3.0",
  "schemars",
  "serde",
- "serde-json-wasm 0.4.1",
  "sha2 0.10.8",
  "thiserror",
 ]
@@ -506,72 +443,12 @@ name = "covenant-interchain-splitter"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-multi-test",
- "cw-storage-plus 1.1.0",
- "cw2 1.1.1",
- "neutron-sdk",
- "protobuf 3.3.0",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-lp"
-version = "1.0.0"
-dependencies = [
- "astroport 2.9.0",
- "astroport-factory",
- "astroport-native-coin-registry",
- "astroport-pair-stable",
- "astroport-token",
- "astroport-whitelist",
- "base64 0.13.1",
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-holder",
  "covenant-macros",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
- "cw-utils 1.0.2",
- "cw1-whitelist 1.1.1",
  "cw2 1.1.1",
- "cw20 0.15.1",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types 0.11.9",
- "protobuf 3.3.0",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "sha2 0.10.8",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-ls"
-version = "1.0.0"
-dependencies = [
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.1.0",
- "cw2 1.1.1",
- "neutron-sdk",
- "protobuf 3.3.0",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -582,8 +459,6 @@ dependencies = [
 name = "covenant-macros"
 version = "0.0.1"
 dependencies = [
- "cosmwasm-schema",
- "covenant-utils",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -615,18 +490,14 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "astroport 2.9.0",
- "base64 0.13.1",
  "bech32",
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-clock",
- "covenant-holder",
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
  "covenant-interchain-splitter",
- "covenant-lp",
- "covenant-ls",
  "covenant-swap-holder",
  "covenant-utils",
  "cw-multi-test",
@@ -652,13 +523,11 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
- "covenant-clock",
  "covenant-macros",
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw2 1.1.1",
- "cw20 0.15.1",
  "serde",
  "thiserror",
 ]
@@ -701,22 +570,16 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
  "astroport 2.9.0",
- "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
- "covenant-clock",
  "covenant-macros",
- "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.1.0",
  "cw-utils 1.0.2",
  "cw2 1.1.1",
  "cw20 0.15.1",
- "neutron-sdk",
- "protobuf 3.3.0",
  "schemars",
  "serde",
- "serde-json-wasm 0.4.1",
  "thiserror",
 ]
 
@@ -797,7 +660,6 @@ dependencies = [
 name = "cw-fifo"
 version = "0.0.1"
 dependencies = [
- "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus 1.1.0",
  "serde",
