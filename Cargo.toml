@@ -80,7 +80,7 @@ protobuf = { version = "3.2.0", features = ["with-bytes"] }
 serde-json-wasm = { version = "0.4.1" }
 base64 = "0.13.0"
 prost = "0.11"
-astroport = "2.8.0" 
+astroport = "2.9.0" 
 prost-types = "0.11"
 bech32 = "0.9.0"
 cosmwasm-schema = "1.2.1"
