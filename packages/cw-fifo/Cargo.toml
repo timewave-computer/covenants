@@ -7,7 +7,6 @@ description = "A CosmWasm FIFO queue with nice runtime and no size limits."
 license = { workspace = true }
 
 [dependencies]
-cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
 cw-storage-plus = { workspace = true }
 serde = { workspace = true }
