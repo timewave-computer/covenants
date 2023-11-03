@@ -75,16 +75,13 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
     let balances = deps
         .querier
         .query_all_balances(env.clone().contract.address)?;
-
     // if there are no balances, we return early;
     // otherwise build up the response attributes
     let balance_attributes: Vec<Attribute> = match balances.len() {
         0 => return Ok(Response::default()
                 .add_attribute("method", "try_route_balances")
                 .add_attribute("balances", "[]")),
-        1 => return Ok(Response::default()
-                .add_attribute("method", "try_route_balances")
-                .add_attribute("balances", balances[0].to_string())),
+        1 => vec![Attribute::new(balances[0].denom.to_string(), balances[0].amount)],
         _ => balances
                 .iter()
                 .map(|c| Attribute::new(c.denom.to_string(), c.amount))
