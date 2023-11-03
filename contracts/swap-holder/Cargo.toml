@@ -23,9 +23,7 @@ cw-storage-plus = { workspace = true }
 cw2 = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
-cw20             = { version = "0.15" }
 covenant-macros = { workspace = true }
-covenant-clock        = { workspace = true, features=["library"] }
 covenant-utils = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
 

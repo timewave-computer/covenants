@@ -20,7 +20,6 @@ library = []
 cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }
 covenant-macros = { workspace = true }
-covenant-clock-tester = { workspace = true, features=["library"] }
 cw-fifo = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw2 = { workspace = true }
@@ -31,3 +30,4 @@ neutron-sdk      = { workspace = true }
 [dev-dependencies]
 cw-multi-test = { workspace = true }
 anyhow = { workspace = true }
+covenant-clock-tester = { workspace = true, features=["library"] }

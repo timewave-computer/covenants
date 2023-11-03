@@ -37,14 +37,10 @@ cosmos-sdk-proto = { workspace = true }
 protobuf = { workspace = true }
 schemars = { workspace = true }
 serde-json-wasm = { workspace = true }
-base64 = { workspace = true }
 prost = { workspace = true }
 prost-types = { workspace = true }
 bech32 ={ workspace = true }
-covenant-ls = { workspace = true, features=["library"] }
-covenant-lp = { workspace = true, features=["library"] }
 covenant-clock = { workspace = true, features=["library"]}
-covenant-holder = { workspace = true, features=["library"] }
 covenant-swap-holder = { workspace = true, features = ["library"] }
 covenant-utils = { workspace = true }
 covenant-interchain-splitter = { workspace = true, features = ["library"] }
@@ -55,4 +51,4 @@ covenant-interchain-router = { workspace = true, features = ["library"] }
 cw-multi-test   = { workspace = true }
 anyhow          = { workspace = true }
 astroport = { workspace = true }
-prost = "0.11.9"
+prost = { workspace = true }
