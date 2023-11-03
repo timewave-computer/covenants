@@ -65,7 +65,7 @@ fn test_instantiate_invalid_allocations() {
 }
 
 #[test]
-#[should_panic(expected = "block height must be in the future")]
+#[should_panic(expected = "deposit deadline is already past")]
 fn test_instantiate_invalid_deposit_deadline_block_based() {
     SuiteBuilder::default()
         .with_deposit_deadline(Expiration::AtHeight(1))
@@ -73,7 +73,7 @@ fn test_instantiate_invalid_deposit_deadline_block_based() {
 }
 
 #[test]
-#[should_panic(expected = "block time must be in the future")]
+#[should_panic(expected = "deposit deadline is already past")]
 fn test_instantiate_invalid_deposit_deadline_time_based() {
     SuiteBuilder::default()
         .with_deposit_deadline(Expiration::AtTime(Timestamp::from_nanos(1)))
@@ -81,7 +81,7 @@ fn test_instantiate_invalid_deposit_deadline_time_based() {
 }
 
 #[test]
-#[should_panic(expected = "invalid expiry config: block time must be in the future")]
+#[should_panic(expected = "lockup deadline is already past")]
 fn test_instantiate_invalid_lockup_config_time_based() {
     SuiteBuilder::default()
         .with_lockup_config(Expiration::AtTime(Timestamp::from_nanos(
@@ -91,7 +91,7 @@ fn test_instantiate_invalid_lockup_config_time_based() {
 }
 
 #[test]
-#[should_panic(expected = "invalid expiry config: block height must be in the future")]
+#[should_panic(expected = "lockup deadline is already past")]
 fn test_instantiate_invalid_lockup_config_height_based() {
     SuiteBuilder::default()
         .with_lockup_config(Expiration::AtHeight(INITIAL_BLOCK_HEIGHT - 1))

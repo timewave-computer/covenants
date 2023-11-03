@@ -17,17 +17,12 @@ workspace-optimize:
 
 
 swap-covenant:
-    ls
-    pwd
-    
-    cd swap-covenant/
-    
-    mkdir -p tests/interchaintest/wasms
+    ls artifacts/
 
-    cp -R ./../artifacts/*.wasm tests/interchaintest/wasms
-
-    go clean -testcache
-    cd tests/interchaintest/ && go test -timeout 30m -v ./...
+    mkdir -p swap-covenant/tests/interchaintest/wasms
+    cp -R artifacts/*.wasm swap-covenant/tests/interchaintest/wasms
+    cd swap-covenant/tests/interchaintest && go test --timeout 30m 
+   
 
 two-party-pol:
     cd two-party-pol-covenant/
@@ -36,5 +31,4 @@ two-party-pol:
 
     cp -R ./../artifacts/*.wasm tests/interchaintest/wasms
 
-    go clean -testcache
     cd tests/interchaintest/ && go test -timeout 30m -v ./...
