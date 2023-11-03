@@ -72,7 +72,9 @@ fn test_unauthorized_tick() {
 
 #[test]
 fn test_tick() {
-    let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins(100, "usdc"))]);
+    let usdc_coin = coin(100, "usdc");
+    let coins = vec![usdc_coin];
+    let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)]);
 
     let mut deps = OwnedDeps {
         storage: MockStorage::default(),
