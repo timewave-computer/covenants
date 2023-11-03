@@ -1,47 +1,55 @@
 name: interchaintest
 
+permissions:
+  contents: write
+
 on:
     pull_request:
     push:
 
-permissions:
-    contents: write
-          
 env:
     GO_VERSION: 1.21
 
 jobs:
-  release:
-      runs-on: self-hosted-ubuntu-22.04
-      container: cosmwasm/workspace-optimizer:0.14.0
+  compile-contracts:
+      name: compile wasm contract with workspace-optimizer
+      runs-on: ubuntu-latest
+      container:
+        image: cosmwasm/workspace-optimizer:0.14.0
       steps:
-          - name: Install Node.js
+          - name: install node
             run: |
               apk add --no-cache nodejs
 
           - name: checkout sources  
             uses: actions/checkout@v3
           
-        #   - run: apk add --no-cache tar
+          - name: install tar for cache
+            run: apk add --no-cache tar
 
           - name: set up cargo cache
             uses: actions/cache@v3
             with:
                 path: |
-                    ~/.cargo/registry
-                    ~/.cargo/git
-                    target
+                    ~/.cargo/registry/bin/
+                    ~/.cargo/registry/index/
+                    ~/.cargo/registry/cache/
+                    ~/.cargo/git/db/
+                    target/
                 key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
   
           - name: compile contracts
-            timeout-minutes: 30
+            timeout-minutes: 40
             run: optimize_workspace.sh .
 
-          - name: Upload contracts
+          - name: upload contracts
             uses: actions/upload-artifact@v3
             with:
               name: contracts
               path: artifacts/
+
+          - name: test ls
+            run: ls artifacts/
       
 #   events:
 #     runs-on: self-hosted-ubuntu-22.04

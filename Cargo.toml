@@ -1,9 +1,25 @@
 [workspace]
 members = [
   "packages/*",
-  "contracts/*",
+  "contracts/astroport-liquid-pooler",
+  "contracts/clock",
+  "contracts/clock-tester",
+  "contracts/ibc-forwarder",
+  "contracts/interchain-router",
+  "contracts/interchain-splitter",
+  "contracts/native-splitter",
+  "contracts/swap-covenant",
+  "contracts/swap-holder",
+  "contracts/two-party-pol-holder",
+  "contracts/two-party-pol-covenant",
 ]
-exclude = ["contracts/covenant"]
+exclude = [
+  "contracts/covenant",
+  "contracts/depositor",
+  "contracts/ls",
+  "contracts/holder",
+  "contracts/lper",
+]
 
 [workspace.package]
 edition      = "2021"
@@ -26,11 +42,11 @@ rpath            = false
 
 [workspace.dependencies]
 # covenant-depositor       = { path = "contracts/depositor" }
-covenant-lp = { path = "contracts/lper" }
+# covenant-lp = { path = "contracts/lper" }
 covenant-clock = { path = "contracts/clock" }
 covenant-clock-tester = { path = "contracts/clock-tester" }
-covenant-ls = { path = "contracts/ls" }
-covenant-holder = { path = "contracts/holder" }
+# covenant-ls = { path = "contracts/ls" }
+# covenant-holder = { path = "contracts/holder" }
 covenant-ibc-forwarder = { path = "contracts/ibc-forwarder" }
 covenant-native-splitter = { path = "contracts/native-splitter" }
 covenant-interchain-splitter = { path = "contracts/interchain-splitter" }
@@ -69,8 +85,16 @@ serde     = { version = "1.0.145", default-features = false, features = ["derive
 thiserror = "1.0.31"
 schemars = "0.8.10"
 cw20             = { version = "0.15" }
+proc-macro2       = "1"
+quote             = "1"
+syn               = "1"
 
 # dev-dependencies
 cw-multi-test   = "0.16.2"
 anyhow          = { version = "1.0.51" }
-
+astroport-token = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-whitelist = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-factory =  {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-native-coin-registry = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-pair-stable = {git = "https://github.com/astroport-fi/astroport-core.git"}
+cw1-whitelist = "1.1.0"

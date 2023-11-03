@@ -53,4 +53,4 @@ astroport = { workspace = true }
 cw-multi-test   = { workspace = true }
 anyhow          = { workspace = true }
 astroport = { workspace = true }
-prost = "0.11.9"
+prost = { workspace = true }
