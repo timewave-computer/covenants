@@ -23,16 +23,11 @@ jobs:
               sudo apt install nodejs
               node -v
               sudo apt install npm
-              # apk update
-              # apk add nodejs npm
-              # apk update
-              # node -v
 
           - name: install tar for cache
             run: |
               sudo apt-get update
               sudo apt-get install tar
-
 
           - name: set up cargo cache
             uses: actions/cache@v3
@@ -53,23 +48,11 @@ jobs:
                 --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
                 cosmwasm/workspace-optimizer:0.12.13
 
-            #   - name: compile contracts
-            # timeout-minutes: 40
-            # run: optimize_workspace.sh .
-
-          - name: test ls
-            run: ls
-          - name: test pwd
-            run: pwd
-
           - name: upload contracts
             uses: actions/upload-artifact@v3
             with:
               name: contracts
               path: artifacts/
-
-          - name: test ls
-            run: ls artifacts/
 
   swap-covenant:
     needs: compile-contracts
@@ -115,9 +98,5 @@ jobs:
       - name: setup just
         uses: extractions/setup-just@v1
 
-      # - name: move wasms to test directories
-      #   run: just mv-contracts
-
       - name: two party POL covenant
         run: just two-party-pol-covenant
-        # run: cd two-party-pol-covenant/tests/interchaintest && go test --timeout 30m
