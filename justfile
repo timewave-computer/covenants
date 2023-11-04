@@ -15,20 +15,16 @@ workspace-optimize:
         --platform linux/amd64 \
         cosmwasm/workspace-optimizer:0.12.13
 
-
-swap-covenant:
+mv-contracts:
     ls artifacts/
 
     mkdir -p swap-covenant/tests/interchaintest/wasms
     cp -R artifacts/*.wasm swap-covenant/tests/interchaintest/wasms
+    mkdir -p two-party-pol-covenant/tests/interchaintest/wasms
+    cp -R artifacts/*.wasm two-party-pol-covenant/tests/interchaintest/wasms
+
+swap-covenant:
     cd swap-covenant/tests/interchaintest && go test --timeout 30m 
-   
 
-two-party-pol:
-    cd two-party-pol-covenant/
-    
-    mkdir -p tests/interchaintest/wasms
-
-    cp -R ./../artifacts/*.wasm tests/interchaintest/wasms
-
-    cd tests/interchaintest/ && go test -timeout 30m -v ./...
+two-party-pol-covenant:
+    cd two-party-pol-covenant/tests/interchaintest && go test --timeout 30m 

@@ -17,11 +17,6 @@ jobs:
       container:
         image: cosmwasm/workspace-optimizer:0.14.0
       steps:
-          # - uses: actions/setup-node@v3
-          #   with:
-          #     node-version: 16
-          #     cache: ${{ hashFiles('**/package-lock.json') && 'npm' || null }}
-        
           - name: checkout sources  
             uses: actions/checkout@v3
 
@@ -64,7 +59,7 @@ jobs:
           - name: test ls
             run: ls artifacts/
       
-  events:
+  swap-covenant:
     needs: compile-contracts
     runs-on: ubuntu-latest
     steps:
@@ -83,6 +78,36 @@ jobs:
 
       - name: setup just
         uses: extractions/setup-just@v1
+
+      - name: move wasms to test directories
+        run: just mv-contracts
         
-      - name: interchaintest
-        run: just swap-covenant
+      - name: swap covenant
+        run: cd swap-covenant/tests/interchaintest && go test --timeout 30m 
+
+      
+  two-party-pol-covenant:
+    needs: compile-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: contracts
+          path: artifacts/
+
+      - name: Set up Go  ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v4
+        with:
+          go-version:  ${{ env.GO_VERSION }}
+
+      - name: setup just
+        uses: extractions/setup-just@v1
+
+      - name: move wasms to test directories
+        run: just mv-contracts
+
+      - name: two party POL covenant
+        run: cd two-party-pol-covenant/tests/interchaintest && go test --timeout 30m
