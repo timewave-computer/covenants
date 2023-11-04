@@ -11,13 +11,21 @@ env:
     GO_VERSION: 1.21
 
 jobs:
+  docker:
+      name: install docker
+      runs-on: self-hosted-ubuntu-22.04
+      steps:
+        - name: Setup Docker Buildx
+          uses: docker/setup-buildx-action@v2
+
   compile-contracts:
       name: compile wasm contract with workspace-optimizer
-      runs-on: ubuntu-latest
+      # needs: docker
+      runs-on: self-hosted-ubuntu-22.04
       container:
         image: cosmwasm/workspace-optimizer:0.14.0
       steps:
-          - name: checkout sources  
+          - name: checkout sources
             uses: actions/checkout@v3
 
           - name: install nodejs
@@ -40,7 +48,7 @@ jobs:
                     ~/.cargo/git/db/
                     target/
                 key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-  
+
           - name: compile contracts
             timeout-minutes: 40
             run: optimize_workspace.sh .
@@ -58,10 +66,10 @@ jobs:
 
           - name: test ls
             run: ls artifacts/
-      
+
   swap-covenant:
     needs: compile-contracts
-    runs-on: ubuntu-latest
+    runs-on: self-hosted-ubuntu-22.04
     steps:
       - name: checkout repository
         uses: actions/checkout@v3
@@ -79,16 +87,13 @@ jobs:
       - name: setup just
         uses: extractions/setup-just@v1
 
-      - name: move wasms to test directories
-        run: just mv-contracts
-        
       - name: swap covenant
-        run: cd swap-covenant/tests/interchaintest && go test --timeout 30m 
+        run: just swap-covenant
 
-      
+
   two-party-pol-covenant:
     needs: compile-contracts
-    runs-on: ubuntu-latest
+    runs-on: self-hosted-ubuntu-22.04
     steps:
       - name: checkout repository
         uses: actions/checkout@v3
@@ -106,8 +111,9 @@ jobs:
       - name: setup just
         uses: extractions/setup-just@v1
 
-      - name: move wasms to test directories
-        run: just mv-contracts
+      # - name: move wasms to test directories
+      #   run: just mv-contracts
 
       - name: two party POL covenant
-        run: cd two-party-pol-covenant/tests/interchaintest && go test --timeout 30m
+        run: just two-party-pol-covenant
+        # run: cd two-party-pol-covenant/tests/interchaintest && go test --timeout 30m

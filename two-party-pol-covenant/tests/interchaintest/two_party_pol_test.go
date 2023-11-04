@@ -335,7 +335,7 @@ func TestTwoPartyPol(t *testing.T) {
 		const routerContractPath = "wasms/covenant_interchain_router.wasm"
 		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
 		const holderContractPath = "wasms/covenant_two_party_pol_holder.wasm"
-		const liquidPoolerPath = "wasms/covenant_liquid_pooler.wasm"
+		const liquidPoolerPath = "wasms/covenant_astroport_liquid_pooler.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64
