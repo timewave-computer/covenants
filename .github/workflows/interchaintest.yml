@@ -11,32 +11,28 @@ env:
     GO_VERSION: 1.21
 
 jobs:
-  docker:
-      name: install docker
-      runs-on: self-hosted-ubuntu-22.04
-      steps:
-        - name: Setup Docker Buildx
-          uses: docker/setup-buildx-action@v2
-
   compile-contracts:
       name: compile wasm contract with workspace-optimizer
-      # needs: docker
-      runs-on: self-hosted-ubuntu-22.04
-      container:
-        image: cosmwasm/workspace-optimizer:0.14.0
+      runs-on: ubuntu-latest
       steps:
           - name: checkout sources
             uses: actions/checkout@v3
 
           - name: install nodejs
             run: |
-              apk update
-              apk add nodejs npm
-              apk update
+              sudo apt install nodejs
               node -v
+              sudo apt install npm
+              # apk update
+              # apk add nodejs npm
+              # apk update
+              # node -v
 
           - name: install tar for cache
-            run: apk add --no-cache tar
+            run: |
+              sudo apt-get update
+              sudo apt-get install tar
+
 
           - name: set up cargo cache
             uses: actions/cache@v3
@@ -49,9 +45,17 @@ jobs:
                     target/
                 key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-          - name: compile contracts
+          - name: Build Artifacts
             timeout-minutes: 40
-            run: optimize_workspace.sh .
+            run: |
+              docker run --rm -v "$(pwd)":/code \
+                --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+                --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+                cosmwasm/workspace-optimizer:0.12.13
+
+            #   - name: compile contracts
+            # timeout-minutes: 40
+            # run: optimize_workspace.sh .
 
           - name: test ls
             run: ls
@@ -69,7 +73,7 @@ jobs:
 
   swap-covenant:
     needs: compile-contracts
-    runs-on: self-hosted-ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repository
         uses: actions/checkout@v3
@@ -93,7 +97,7 @@ jobs:
 
   two-party-pol-covenant:
     needs: compile-contracts
-    runs-on: self-hosted-ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repository
         uses: actions/checkout@v3
