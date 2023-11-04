@@ -24,7 +24,14 @@ mv-contracts:
     cp -R artifacts/*.wasm two-party-pol-covenant/tests/interchaintest/wasms
 
 swap-covenant:
-    cd swap-covenant/tests/interchaintest && go test --timeout 30m 
+    mkdir -p swap-covenant/tests/interchaintest/wasms
+    cp -R artifacts/*.wasm swap-covenant/tests/interchaintest/wasms
+    ls swap-covenant/tests/interchaintest/wasms/
+    cd swap-covenant/tests/interchaintest && go test --timeout 30m
 
 two-party-pol-covenant:
-    cd two-party-pol-covenant/tests/interchaintest && go test --timeout 30m 
+    mkdir -p two-party-pol-covenant/tests/interchaintest/wasms
+    cp -R artifacts/*.wasm two-party-pol-covenant/tests/interchaintest/wasms
+    cp -R two-party-pol-covenant/astroport/*.wasm two-party-pol-covenant/tests/interchaintest/wasms
+    ls two-party-pol-covenant/tests/interchaintest/wasms/
+    cd two-party-pol-covenant/tests/interchaintest && go test --timeout 30m

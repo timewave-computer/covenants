@@ -17,7 +17,8 @@ target/
 .cargo-ok
 
 # Build artifacts
-*.wasm
+# *.wasm
+**/wasms
 hash.txt
 contracts.txt
 artifacts/
