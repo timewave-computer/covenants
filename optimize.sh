@@ -1,6 +1,4 @@
 #!/bin/bash
-
-cd ..
 if [[ $(uname -m) =~ "arm64" ]]; then \
     docker run --rm -v "$(pwd)":/code \
         --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
