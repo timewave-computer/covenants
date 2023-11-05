@@ -18,6 +18,14 @@ jobs:
           - name: checkout sources
             uses: actions/checkout@v3
 
+          - name: install latest cargo nightly toolchain
+            uses: actions-rs/toolchain@v1
+            with:
+              profile: minimal
+              toolchain: nightly-2023-02-02
+              target: wasm32-unknown-unknown
+              override: true
+
           - name: install nodejs
             run: |
               sudo apt install nodejs
@@ -40,7 +48,7 @@ jobs:
                     target/
                 key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-          - name: Build Artifacts
+          - name: build artifacts
             timeout-minutes: 40
             run: |
               docker run --rm -v "$(pwd)":/code \
