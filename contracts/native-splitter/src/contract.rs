@@ -42,7 +42,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
@@ -62,7 +61,7 @@ pub fn instantiate(
     // validate each split and store it in a map
     let mut split_resp_attributes: Vec<Attribute> = Vec::new();
     let mut encountered_denoms: HashSet<String> = HashSet::new();
-    
+
     for split in msg.splits {
         // if denom had not yet been encountered we proceed, otherwise error
         if encountered_denoms.insert(split.denom.to_string()) {
@@ -70,7 +69,7 @@ pub fn instantiate(
             split_resp_attributes.push(validated_split.to_response_attribute());
             SPLIT_CONFIG_MAP.save(deps.storage, validated_split.denom, &validated_split.receivers)?;
         } else {
-            return Err(NeutronError::Std(StdError::GenericErr { msg: 
+            return Err(NeutronError::Std(StdError::GenericErr { msg:
                 format!("multiple {:?} entries", split.denom)
             }))
         }
@@ -145,7 +144,7 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
                 let amt = amount
                     .checked_multiply_ratio(split_receiver.share, Uint128::new(100))
                     .map_err(|e| NeutronError::Std(StdError::GenericErr { msg: e.to_string() }))?;
-                
+
                 outputs.push(Output {
                         address: split_receiver.addr.to_string(),
                         coins: vec![Coin {

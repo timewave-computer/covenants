@@ -30,8 +30,6 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    deps.api
-        .debug("WASMDEBUG: covenant-two-party-pol-holder instantiate");
 
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
@@ -49,7 +47,7 @@ pub fn instantiate(
         msg.covenant_config.party_a.allocation,
         msg.covenant_config.party_b.allocation,
     )?;
-    
+
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
@@ -102,7 +100,7 @@ fn query_liquidity_token_address(querier: QuerierWrapper, pool: String) -> Resul
 // - Option<Decimal> ? None -> claim entire position, Some(%) -> claim the % of your entitlement
 fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
-    let (mut claim_party, mut counterparty) = 
+    let (mut claim_party, mut counterparty) =
         covenant_config.authorize_sender(info.sender.to_string())?;
     let pool = POOL_ADDRESS.load(deps.storage)?;
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
@@ -266,7 +264,7 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
             .add_attribute("action", "refund")
             .add_messages(refund_messages));
     }
-    
+
     if !party_a_fulfilled || !party_b_fulfilled {
         // if deposit deadline is not yet due and both parties did not fulfill we error
         return Err(ContractError::InsufficientDeposits {});

@@ -39,7 +39,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: lp instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // validate the contract addresses
@@ -56,7 +55,7 @@ pub fn instantiate(
         msg.expected_pool_ratio,
         msg.acceptable_pool_ratio_delta,
     )?;
-    
+
     let lp_config = LpConfig {
         pool_address: pool_addr,
         single_side_lp_limits: msg.single_side_lp_limits,
@@ -109,7 +108,7 @@ fn validate_pair_type(querier: QuerierWrapper, pool: String, pair_type: &PairTyp
     let pool_response: PairInfo = querier.query_wasm_smart(
         &pool, &astroport::pair::QueryMsg::Pair {})?;
     if &pool_response.pair_type != pair_type {
-        return Err(ContractError::PairTypeMismatch {})   
+        return Err(ContractError::PairTypeMismatch {})
     }
     Ok(())
 }
@@ -271,7 +270,7 @@ fn try_get_single_side_lp_submsg(
         Some(addr) => addr,
         None => return Err(ContractError::MissingHolderError {}),
     };
-    
+
     let assets = lp_config.asset_data.to_asset_vec(coin_a.amount, coin_b.amount);
 
     // given one non-zero asset, we build the ProvideLiquidity message
