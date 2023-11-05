@@ -408,7 +408,7 @@ pub fn save_sudo_payload(
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
     match msg {
-        MigrateMsg::UpdateConfig { 
+        MigrateMsg::UpdateConfig {
             clock_addr,
             next_contract,
             remote_chain_info,

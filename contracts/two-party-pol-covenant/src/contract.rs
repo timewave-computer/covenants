@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Decimal, Uint128, CosmosMsg, WasmMsg, SubMsg, Reply, Coin, 
+    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Decimal, Uint128, CosmosMsg, WasmMsg, SubMsg, Reply, Coin,
 };
 
 use covenant_astroport_liquid_pooler::msg::{PresetAstroLiquidPoolerFields, SingleSideLpLimits, AssetData};
@@ -41,7 +41,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let preset_clock_fields = PresetClockFields {
@@ -132,7 +131,7 @@ pub fn instantiate(
     };
 
     PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
-    PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;   
+    PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
     PRESET_PARTY_A_FORWARDER_FIELDS.save(deps.storage, &preset_party_a_forwarder_fields)?;
     PRESET_PARTY_B_FORWARDER_FIELDS.save(deps.storage, &preset_party_b_forwarder_fields)?;
     PRESET_PARTY_A_ROUTER_FIELDS.save(deps.storage, &preset_party_a_router_fields)?;
@@ -312,7 +311,7 @@ pub fn handle_liquid_pooler_reply_id(
             // validate and store the instantiated liquid pooler address
             let liquid_pooler = deps.api.addr_validate(&response.contract_address)?;
             LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler)?;
-            
+
             let party_b_router = PARTY_B_ROUTER_ADDR.load(deps.storage)?;
             let preset_holder_fields = PRESET_HOLDER_FIELDS.load(deps.storage)?;
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
@@ -348,7 +347,7 @@ pub fn handle_liquid_pooler_reply_id(
     }
 }
 
-    
+
 pub fn handle_holder_reply(
     deps: DepsMut,
     env: Env,
@@ -414,7 +413,7 @@ pub fn handle_party_a_ibc_forwarder_reply(
                 code_id: preset_party_b_ibc_forwarder.code_id,
                 msg: to_binary(
                     &preset_party_b_ibc_forwarder.to_instantiate_msg(
-                        clock_addr.to_string(), 
+                        clock_addr.to_string(),
                         holder.to_string(),
                     ),
                 )?,
@@ -534,7 +533,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
     match msg {
-        MigrateMsg::MigrateContracts { 
+        MigrateMsg::MigrateContracts {
             clock,
             holder,
             party_a_router,
