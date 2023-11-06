@@ -1,6 +1,7 @@
-go 1.20
+go 1.21
 
 use (
 	./swap-covenant/tests/interchaintest
 	./two-party-pol-covenant/tests/interchaintest
+  ./single-party-pol-covenant/tests/interchaintest
 )

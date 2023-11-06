@@ -25,6 +25,8 @@ mv-contracts:
     cp -R artifacts/*.wasm swap-covenant/tests/interchaintest/wasms
     mkdir -p two-party-pol-covenant/tests/interchaintest/wasms
     cp -R artifacts/*.wasm two-party-pol-covenant/tests/interchaintest/wasms
+    mkdir -p single-party-pol-covenant/tests/interchaintest/wasms
+    cp -R artifacts/*.wasm single-party-pol-covenant/tests/interchaintest/wasms
 
 swap-covenant:
     mkdir -p swap-covenant/tests/interchaintest/wasms
@@ -38,6 +40,13 @@ two-party-pol-covenant:
     cp -R two-party-pol-covenant/astroport/*.wasm two-party-pol-covenant/tests/interchaintest/wasms
     ls two-party-pol-covenant/tests/interchaintest/wasms/
     cd two-party-pol-covenant/tests/interchaintest && go test --timeout 30m
+
+single-party-pol-covenant:
+    mkdir -p single-party-pol-covenant/tests/interchaintest/wasms
+    cp -R artifacts/*.wasm single-party-pol-covenant/tests/interchaintest/wasms
+    cp -R single-party-pol-covenant/astroport/*.wasm single-party-pol-covenant/tests/interchaintest/wasms
+    ls single-party-pol-covenant/tests/interchaintest/wasms/
+    cd single-party-pol-covenant/tests/interchaintest && go test --timeout 30m
 
 local-e2e-rebuild TEST: optimize
     #!/usr/bin/env sh
