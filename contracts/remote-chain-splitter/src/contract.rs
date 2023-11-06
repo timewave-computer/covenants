@@ -30,7 +30,7 @@ use neutron_sdk::{
 };
 
 const INTERCHAIN_ACCOUNT_ID: &str = "rc-ica";
-const CONTRACT_NAME: &str = "crates.io:covenant-native-splitter";
+const CONTRACT_NAME: &str = "crates.io:covenant-remote-chain-splitter";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const SUDO_PAYLOAD_REPLY_ID: u64 = 1u64;
@@ -76,7 +76,7 @@ pub fn instantiate(
     }
 
     Ok(Response::default()
-        .add_attribute("method", "native_splitter_instantiate")
+        .add_attribute("method", "remote_chain_splitter_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attributes(remote_chain_info.get_response_attributes())
         .add_attributes(split_resp_attributes))

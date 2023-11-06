@@ -465,7 +465,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "covenant-native-splitter"
+name = "covenant-remote-chain-splitter"
 version = "1.0.0"
 dependencies = [
  "cosmos-sdk-proto 0.14.0",

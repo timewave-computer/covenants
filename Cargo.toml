@@ -7,7 +7,7 @@ members = [
   "contracts/ibc-forwarder",
   "contracts/interchain-router",
   "contracts/interchain-splitter",
-  "contracts/native-splitter",
+  "contracts/remote-chain-splitter",
   "contracts/swap-covenant",
   "contracts/swap-holder",
   "contracts/two-party-pol-holder",
@@ -48,7 +48,7 @@ covenant-clock-tester = { path = "contracts/clock-tester" }
 # covenant-ls = { path = "contracts/ls" }
 # covenant-holder = { path = "contracts/holder" }
 covenant-ibc-forwarder = { path = "contracts/ibc-forwarder" }
-covenant-native-splitter = { path = "contracts/native-splitter" }
+covenant-remote-chain-splitter = { path = "contracts/remote-chain-splitter" }
 covenant-interchain-splitter = { path = "contracts/interchain-splitter" }
 covenant-swap-holder = { path = "contracts/swap-holder" }
 swap-covenant = { path = "contracts/swap-covenant" }
@@ -57,7 +57,7 @@ covenant-two-party-pol-holder = { path = "contracts/two-party-pol-holder" }
 covenant-two-party-pol = { path = "contracts/two-party-pol-covenant" }
 covenant-astroport-liquid-pooler = { path = "contracts/astroport-liquid-pooler" }
 
-# packages 
+# packages
 clock-derive = { path = "packages/clock-derive" }
 cw-fifo = { path = "packages/cw-fifo" }
 covenant-macros = { path = "packages/covenant-macros" }
@@ -73,7 +73,7 @@ protobuf = { version = "3.2.0", features = ["with-bytes"] }
 serde-json-wasm = { version = "0.4.1" }
 base64 = "0.13.0"
 prost = "0.11"
-astroport = "2.9.0" 
+astroport = "2.9.0"
 prost-types = "0.11"
 bech32 = "0.9.0"
 cosmwasm-schema = "1.2.1"
