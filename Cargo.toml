@@ -12,6 +12,8 @@ members = [
   "contracts/swap-holder",
   "contracts/two-party-pol-holder",
   "contracts/two-party-pol-covenant",
+  "contracts/single-party-pol-covenant",
+  "contracts/stride-liquid-staker",
 ]
 exclude = [
   "contracts/covenant",
@@ -53,7 +55,7 @@ covenant-two-party-pol-holder = { path = "contracts/two-party-pol-holder" }
 covenant-two-party-pol = { path = "contracts/two-party-pol-covenant" }
 covenant-astroport-liquid-pooler = { path = "contracts/astroport-liquid-pooler" }
 covenant-stride-liquid-staker = { path = "contracts/stride-liquid-staker" }
-# covenant-single-party-pol = { path = "contracts/covenant-single-party-pol" }
+covenant-single-party-pol = { path = "contracts/single-party-pol-covenant" }
 
 # packages
 clock-derive = { path = "packages/clock-derive" }

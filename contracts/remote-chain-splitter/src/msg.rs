@@ -43,6 +43,39 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
+pub struct PresetRemoteChainSplitterFields {
+    pub remote_chain_connection_id: String,
+    pub remote_chain_channel_id: String,
+    pub denom: String,
+    pub amount: Uint128,
+    pub splits: Vec<NativeDenomSplit>,
+    pub ibc_fee: IbcFee,
+    pub ica_timeout: Uint64,
+    pub ibc_transfer_timeout: Uint64,
+    pub code_id: u64,
+    pub label: String,
+}
+
+impl PresetRemoteChainSplitterFields {
+    pub fn to_instantiate_msg(
+        self,
+        clock_address: String,
+    ) -> InstantiateMsg {
+        InstantiateMsg {
+            clock_address,
+            remote_chain_connection_id: self.remote_chain_connection_id,
+            remote_chain_channel_id: self.remote_chain_channel_id,
+            denom: self.denom,
+            amount: self.amount,
+            splits: self.splits,
+            ibc_fee: self.ibc_fee,
+            ica_timeout: self.ica_timeout,
+            ibc_transfer_timeout: self.ibc_transfer_timeout,
+        }
+    }
+}
+
+#[cw_serde]
 pub struct NativeDenomSplit {
     /// denom to be distributed
     pub denom: String,
