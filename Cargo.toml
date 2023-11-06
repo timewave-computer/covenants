@@ -41,12 +41,8 @@ panic            = 'abort'
 rpath            = false
 
 [workspace.dependencies]
-# covenant-depositor       = { path = "contracts/depositor" }
-# covenant-lp = { path = "contracts/lper" }
 covenant-clock = { path = "contracts/clock" }
 covenant-clock-tester = { path = "contracts/clock-tester" }
-# covenant-ls = { path = "contracts/ls" }
-# covenant-holder = { path = "contracts/holder" }
 covenant-ibc-forwarder = { path = "contracts/ibc-forwarder" }
 covenant-remote-chain-splitter = { path = "contracts/remote-chain-splitter" }
 covenant-interchain-splitter = { path = "contracts/interchain-splitter" }
@@ -56,6 +52,8 @@ covenant-interchain-router = { path = "contracts/interchain-router" }
 covenant-two-party-pol-holder = { path = "contracts/two-party-pol-holder" }
 covenant-two-party-pol = { path = "contracts/two-party-pol-covenant" }
 covenant-astroport-liquid-pooler = { path = "contracts/astroport-liquid-pooler" }
+covenant-stride-liquid-staker = { path = "contracts/stride-liquid-staker" }
+# covenant-single-party-pol = { path = "contracts/covenant-single-party-pol" }
 
 # packages
 clock-derive = { path = "packages/clock-derive" }
