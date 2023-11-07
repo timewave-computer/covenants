@@ -3,6 +3,7 @@ use crate::msg::{
     TwoPartyPolCovenantParty,
 };
 use cosmwasm_std::{Addr, BlockInfo, Coin, Decimal, Timestamp, Uint128};
+use covenant_utils::{DenomSplit, SplitConfig, SplitType, Receiver};
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 use cw_utils::Expiration;
 
@@ -73,6 +74,15 @@ impl Default for SuiteBuilder {
                         allocation: Decimal::from_ratio(Uint128::one(), Uint128::new(2)),
                     },
                 },
+                splits: vec![
+                    (DENOM_A.to_string(), SplitType::Custom(SplitConfig { receivers: vec![
+                            Receiver { addr: PARTY_A_ROUTER.to_string(), share: Uint128::new(100) }
+                    ]})),
+                    (DENOM_B.to_string(), SplitType::Custom(SplitConfig { receivers: vec![
+                            Receiver { addr: PARTY_B_ROUTER.to_string(), share: Uint128::new(100) }
+                    ]})),
+                ],
+                fallback_split: None,
             },
             app: App::default(),
         }

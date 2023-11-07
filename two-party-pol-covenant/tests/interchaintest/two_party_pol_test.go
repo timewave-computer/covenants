@@ -1418,6 +1418,35 @@ func TestTwoPartyPol(t *testing.T) {
 					ExpectedPoolRatio:        "0.1",
 					AcceptablePoolRatioDelta: "0.09",
 					PairType:                 pairType,
+					Splits: []DenomSplit{
+						{
+							Denom: neutronAtomIbcDenom,
+							Type: SplitType{
+								Custom: SplitConfig{
+									Receivers: []Receiver{
+										{
+											Address: gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+											Share:   "100",
+										},
+									},
+								},
+							},
+						},
+						{
+							Denom: neutronOsmoIbcDenom,
+							Type: SplitType{
+								Custom: SplitConfig{
+									Receivers: []Receiver{
+										{
+											Address: osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+											Share:   "100",
+										},
+									},
+								},
+							},
+						},
+					},
+					FallbackSplit: nil,
 				}
 				str, err := json.Marshal(covenantMsg)
 				require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
@@ -1782,7 +1811,7 @@ func TestTwoPartyPol(t *testing.T) {
 					println("routerAtomBalA: ", routerAtomBalA)
 					println("routerOsmoBalA: ", routerOsmoBalA)
 
-					if routerAtomBalA != 0 && routerOsmoBalA != 0 {
+					if routerAtomBalA != 0 {
 						break
 					} else {
 						tickClock()
@@ -1828,7 +1857,7 @@ func TestTwoPartyPol(t *testing.T) {
 					println("routerAtomBalB: ", routerAtomBalB)
 					println("routerOsmoBalB: ", routerOsmoBalB)
 
-					if routerAtomBalB != 0 || routerOsmoBalB != 0 {
+					if routerOsmoBalB != 0 {
 						break
 					} else {
 						tickClock()
@@ -1863,7 +1892,7 @@ func TestTwoPartyPol(t *testing.T) {
 					println("party B osmo bal: ", osmoBalPartyB)
 					println("party B atom bal: ", atomBalPartyB)
 
-					if osmoBalPartyA != 0 && atomBalPartyA != 0 && osmoBalPartyB != 0 && atomBalPartyB != 0 {
+					if atomBalPartyA != 0 && osmoBalPartyB != 0 && atomBalPartyB != 0 {
 						break
 					}
 
