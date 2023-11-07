@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, IbcMsg, IbcTimeout, StdError, Timestamp,
-    Uint128, Uint64, StdResult,
+    Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, IbcMsg, IbcTimeout, StdError, StdResult,
+    Timestamp, Uint128, Uint64,
 };
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
@@ -167,14 +167,12 @@ pub mod neutron_ica {
     }
 }
 
-
 // splitter
 #[cw_serde]
 pub struct DenomSplit {
     pub denom: String,
     pub split: SplitType,
 }
-
 
 #[cw_serde]
 pub enum SplitType {
@@ -239,7 +237,9 @@ impl SplitConfig {
         if total_share == Uint128::new(100) {
             Ok(self)
         } else {
-            Err(StdError::GenericErr { msg: "shares must add up to 100".to_string() })
+            Err(StdError::GenericErr {
+                msg: "shares must add up to 100".to_string(),
+            })
         }
     }
 
@@ -253,7 +253,9 @@ impl SplitConfig {
         for receiver in self.receivers.iter() {
             let entitlement = amount
                 .checked_multiply_ratio(receiver.share, Uint128::new(100))
-                .map_err(|_| StdError::GenericErr { msg: "failed to checked_multiply".to_string() })?;
+                .map_err(|_| StdError::GenericErr {
+                    msg: "failed to checked_multiply".to_string(),
+                })?;
 
             let amount = Coin {
                 denom: denom.to_string(),
@@ -281,7 +283,6 @@ impl SplitConfig {
         Attribute::new(denom, receivers)
     }
 }
-
 
 pub fn get_distribution_messages(
     mut balances: Vec<Coin>,

@@ -332,10 +332,12 @@ pub fn handle_liquid_pooler_reply_id(
                 party_b_router.as_str(),
             ) {
                 Ok(msg) => msg,
-                Err(e) => return Err(ContractError::ContractInstantiationError {
-                    contract: "holder".to_string(),
-                    err: ParseReplyError::SubMsgFailure(e.to_string()),
-                }),
+                Err(e) => {
+                    return Err(ContractError::ContractInstantiationError {
+                        contract: "holder".to_string(),
+                        err: ParseReplyError::SubMsgFailure(e.to_string()),
+                    })
+                }
             };
 
             let holder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
