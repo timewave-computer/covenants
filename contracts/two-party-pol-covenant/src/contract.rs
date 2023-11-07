@@ -15,7 +15,7 @@ use covenant_two_party_pol_holder::msg::{
     PresetPolParty, PresetTwoPartyPolHolderFields, RagequitConfig,
 };
 use cw2::set_contract_version;
-use cw_utils::parse_reply_instantiate_data;
+use cw_utils::{parse_reply_instantiate_data, ParseReplyError};
 
 use crate::{
     error::ContractError,
@@ -80,6 +80,8 @@ pub fn instantiate(
         },
         code_id: msg.contract_codes.holder_code,
         label: format!("{}-holder", msg.label),
+        splits: msg.splits,
+        fallback_split: msg.fallback_split,
     };
     let preset_party_a_forwarder_fields = PresetIbcForwarderFields {
         remote_chain_connection_id: msg.party_a_config.party_chain_connection_id,
@@ -323,12 +325,18 @@ pub fn handle_liquid_pooler_reply_id(
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let party_a_router = PARTY_A_ROUTER_ADDR.load(deps.storage)?;
 
-            let instantiate_msg = preset_holder_fields.clone().to_instantiate_msg(
+            let instantiate_msg = match preset_holder_fields.clone().to_instantiate_msg(
                 clock_addr.to_string(),
                 liquid_pooler.to_string(),
-                party_a_router.to_string(),
-                party_b_router.to_string(),
-            );
+                party_a_router.as_str(),
+                party_b_router.as_str(),
+            ) {
+                Ok(msg) => msg,
+                Err(e) => return Err(ContractError::ContractInstantiationError {
+                    contract: "holder".to_string(),
+                    err: ParseReplyError::SubMsgFailure(e.to_string()),
+                }),
+            };
 
             let holder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),

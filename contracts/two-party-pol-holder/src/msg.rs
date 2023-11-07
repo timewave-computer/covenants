@@ -7,6 +7,7 @@ use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract,
 };
 use cw_utils::Expiration;
+use covenant_utils::{DenomSplit, SplitType};
 
 use crate::error::ContractError;
 
@@ -19,6 +20,11 @@ pub struct InstantiateMsg {
     pub ragequit_config: RagequitConfig,
     pub deposit_deadline: Expiration,
     pub covenant_config: TwoPartyPolCovenantConfig,
+    /// list of (denom, split) configurations
+    pub splits: Vec<(String, SplitType)>,
+    /// a split for all denoms that are not covered in the
+    /// regular `splits` list
+    pub fallback_split: Option<SplitType>,
 }
 
 impl InstantiateMsg {
@@ -45,6 +51,8 @@ pub struct PresetTwoPartyPolHolderFields {
     pub party_b: PresetPolParty,
     pub code_id: u64,
     pub label: String,
+    pub splits: Vec<DenomSplit>,
+    pub fallback_split: Option<SplitType>,
 }
 
 #[cw_serde]
@@ -60,10 +68,38 @@ impl PresetTwoPartyPolHolderFields {
         self,
         clock_address: String,
         next_contract: String,
-        party_a_router: String,
-        party_b_router: String,
-    ) -> InstantiateMsg {
-        InstantiateMsg {
+        party_a_router: &str,
+        party_b_router: &str,
+    ) -> Result<InstantiateMsg, ContractError> {
+        let mut remapped_splits: Vec<(String, SplitType)> = vec![];
+
+        for denom_split in &self.splits {
+            match &denom_split.split {
+                SplitType::Custom(config) => {
+                    let remapped_split = config.remap_receivers_to_routers(
+                        self.party_a.controller_addr.to_string(),
+                        party_a_router.to_string(),
+                        self.party_b.controller_addr.to_string(),
+                        party_b_router.to_string(),
+                    )?;
+                    remapped_splits.push((denom_split.denom.to_string(), remapped_split));
+                }
+            }
+        }
+
+        let remapped_fallback = match &self.fallback_split {
+            Some(split_type) => match split_type {
+                SplitType::Custom(config) => Some(config.remap_receivers_to_routers(
+                    self.party_a.controller_addr.to_string(),
+                    party_a_router.to_string(),
+                    self.party_b.controller_addr.to_string(),
+                    party_b_router.to_string(),
+                )?),
+            },
+            None => None,
+        };
+
+        Ok(InstantiateMsg {
             clock_address,
             pool_address: self.pool_address,
             next_contract,
@@ -74,19 +110,21 @@ impl PresetTwoPartyPolHolderFields {
                 party_a: TwoPartyPolCovenantParty {
                     contribution: self.party_a.contribution,
                     allocation: self.party_a.allocation,
-                    router: party_a_router,
+                    router: party_a_router.to_string(),
                     host_addr: self.party_a.host_addr,
                     controller_addr: self.party_a.controller_addr,
                 },
                 party_b: TwoPartyPolCovenantParty {
                     contribution: self.party_b.contribution,
                     allocation: self.party_b.allocation,
-                    router: party_b_router,
+                    router: party_b_router.to_string(),
                     host_addr: self.party_b.host_addr,
                     controller_addr: self.party_b.controller_addr,
                 },
             },
-        }
+            splits: remapped_splits,
+            fallback_split: remapped_fallback,
+        })
     }
 }
 

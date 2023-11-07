@@ -22,6 +22,26 @@ type CovenantInstantiateMsg struct {
 	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
 	AcceptablePoolRatioDelta string              `json:"acceptable_pool_ratio_delta"`
 	PairType                 PairType            `json:"pool_pair_type"`
+	Splits                   []DenomSplit        `json:"splits"`
+	FallbackSplit            *SplitType          `json:"fallback_split,omitempty"`
+}
+
+type SplitType struct {
+	Custom SplitConfig `json:"custom"`
+}
+
+type DenomSplit struct {
+	Denom string    `json:"denom"`
+	Type  SplitType `json:"split"`
+}
+
+type Receiver struct {
+	Address string `json:"addr"`
+	Share   string `json:"share"`
+}
+
+type SplitConfig struct {
+	Receivers []Receiver `json:"receivers"`
 }
 
 type ContractCodeIds struct {
