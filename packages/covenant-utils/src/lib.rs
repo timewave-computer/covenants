@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, IbcMsg, IbcTimeout, StdError, Timestamp,
-    Uint128, Uint64,
+    Uint128, Uint64, StdResult,
 };
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
@@ -165,6 +165,160 @@ pub mod neutron_ica {
             value: Binary::from(buf),
         })
     }
+}
+
+
+// splitter
+#[cw_serde]
+pub struct DenomSplit {
+    pub denom: String,
+    pub split: SplitType,
+}
+
+
+#[cw_serde]
+pub enum SplitType {
+    Custom(SplitConfig),
+    // predefined splits will go here
+}
+
+impl SplitType {
+    pub fn get_split_config(self) -> Result<SplitConfig, StdError> {
+        match self {
+            SplitType::Custom(c) => Ok(c),
+        }
+    }
+}
+
+#[cw_serde]
+pub struct SplitConfig {
+    pub receivers: Vec<Receiver>,
+}
+
+#[cw_serde]
+pub struct Receiver {
+    pub addr: String,
+    pub share: Uint128,
+}
+
+impl SplitConfig {
+    pub fn remap_receivers_to_routers(
+        &self,
+        receiver_a: String,
+        router_a: String,
+        receiver_b: String,
+        router_b: String,
+    ) -> Result<SplitType, StdError> {
+        let receivers = self
+            .receivers
+            .clone()
+            .into_iter()
+            .map(|receiver| {
+                if receiver.addr == receiver_a {
+                    Receiver {
+                        addr: router_a.to_string(),
+                        share: receiver.share,
+                    }
+                } else if receiver.addr == receiver_b {
+                    Receiver {
+                        addr: router_b.to_string(),
+                        share: receiver.share,
+                    }
+                } else {
+                    receiver
+                }
+            })
+            .collect();
+
+        Ok(SplitType::Custom(SplitConfig { receivers }))
+    }
+
+    pub fn validate(self) -> Result<SplitConfig, StdError> {
+        let total_share: Uint128 = self.receivers.iter().map(|r| r.share).sum();
+
+        if total_share == Uint128::new(100) {
+            Ok(self)
+        } else {
+            Err(StdError::GenericErr { msg: "shares must add up to 100".to_string() })
+        }
+    }
+
+    pub fn get_transfer_messages(
+        &self,
+        amount: Uint128,
+        denom: String,
+    ) -> Result<Vec<CosmosMsg>, StdError> {
+        let mut msgs: Vec<CosmosMsg> = vec![];
+
+        for receiver in self.receivers.iter() {
+            let entitlement = amount
+                .checked_multiply_ratio(receiver.share, Uint128::new(100))
+                .map_err(|_| StdError::GenericErr { msg: "failed to checked_multiply".to_string() })?;
+
+            let amount = Coin {
+                denom: denom.to_string(),
+                amount: entitlement,
+            };
+
+            msgs.push(CosmosMsg::Bank(BankMsg::Send {
+                to_address: receiver.addr.to_string(),
+                amount: vec![amount],
+            }));
+        }
+        Ok(msgs)
+    }
+
+    pub fn get_response_attribute(self, denom: String) -> Attribute {
+        let mut receivers = "[".to_string();
+        self.receivers.iter().for_each(|receiver| {
+            receivers.push('(');
+            receivers.push_str(&receiver.addr);
+            receivers.push(',');
+            receivers.push_str(&receiver.share.to_string());
+            receivers.push_str("),");
+        });
+        receivers.push(']');
+        Attribute::new(denom, receivers)
+    }
+}
+
+
+pub fn get_distribution_messages(
+    mut balances: Vec<Coin>,
+    split_configs: Box<dyn Iterator<Item = StdResult<(String, SplitConfig)>>>,
+    fallback_split: Option<SplitConfig>,
+) -> Result<Vec<CosmosMsg>, StdError> {
+    // first we query the contract balances
+    let mut distribution_messages: Vec<CosmosMsg> = vec![];
+
+    // then we iterate over our split config and try to match the entries to available balances
+    for entry in split_configs {
+        let (denom, config) = entry?;
+
+        // we try to find the index of matching coin in available balances
+        let balances_index = balances.iter().position(|coin| coin.denom == denom);
+        if let Some(index) = balances_index {
+            // pop the relevant coin and build the transfer messages
+            let coin = balances.remove(index);
+            let mut transfer_messages =
+                config.get_transfer_messages(coin.amount, coin.denom.to_string())?;
+            distribution_messages.append(&mut transfer_messages);
+        }
+    }
+
+    // by now all explicitly defined denom splits have been removed from the
+    // balances vector so we can take the remaining balances and distribute
+    // them according to the fallback split (if provided)
+    if let Some(split) = fallback_split {
+        // get the distribution messages and add them to the list
+        for leftover_bal in balances {
+            let mut fallback_messages =
+                split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom)?;
+            distribution_messages.append(&mut fallback_messages);
+        }
+    }
+
+    Ok(distribution_messages)
 }
 
 /// enum based configuration for asserting expiration.
