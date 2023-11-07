@@ -6,8 +6,8 @@ use cosmwasm_std::{Addr, Api, Attribute, Binary, Coin, Decimal, StdError};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract,
 };
-use cw_utils::Expiration;
 use covenant_utils::{DenomSplit, SplitType};
+use cw_utils::Expiration;
 
 use crate::error::ContractError;
 
