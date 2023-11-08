@@ -19,7 +19,7 @@ use neutron_sdk::{
 };
 
 use crate::{
-    msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, MigrateMsg},
+    msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
         REPLY_ID_STORAGE, SUDO_PAYLOAD, TRANSFER_AMOUNT,
@@ -403,7 +403,6 @@ pub fn save_sudo_payload(
     SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_vec(&payload)?)
 }
 
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
@@ -434,9 +433,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             Ok(resp)
-        },
+        }
         MigrateMsg::UpdateCodeId { data: _ } => {
             unimplemented!()
-        },
+        }
     }
 }

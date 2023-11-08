@@ -77,14 +77,19 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
     // if there are no balances, we return early;
     // otherwise build up the response attributes
     let balance_attributes: Vec<Attribute> = match balances.len() {
-        0 => return Ok(Response::default()
+        0 => {
+            return Ok(Response::default()
                 .add_attribute("method", "try_route_balances")
-                .add_attribute("balances", "[]")),
-        1 => vec![Attribute::new(balances[0].denom.to_string(), balances[0].amount)],
+                .add_attribute("balances", "[]"))
+        }
+        1 => vec![Attribute::new(
+            balances[0].denom.to_string(),
+            balances[0].amount,
+        )],
         _ => balances
-                .iter()
-                .map(|c| Attribute::new(c.denom.to_string(), c.amount))
-                .collect(),
+            .iter()
+            .map(|c| Attribute::new(c.denom.to_string(), c.amount))
+            .collect(),
     };
 
     // get ibc transfer messages for each denom

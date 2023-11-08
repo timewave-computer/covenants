@@ -186,8 +186,14 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             Ok(Response::default()
                 .add_attribute("method", "handle_clock_reply")
                 .add_attribute("clock_addr", clock_addr)
-                .add_attribute("router_code_id", party_a_router_preset_fields.code_id.to_string())
-                .add_attribute("party_a_addr", party_a_router_preset_fields.destination_receiver_addr)
+                .add_attribute(
+                    "router_code_id",
+                    party_a_router_preset_fields.code_id.to_string(),
+                )
+                .add_attribute(
+                    "party_a_addr",
+                    party_a_router_preset_fields.destination_receiver_addr,
+                )
                 .add_submessage(SubMsg::reply_always(
                     party_a_router_instantiate_tx,
                     PARTY_A_INTERCHAIN_ROUTER_REPLY_ID,

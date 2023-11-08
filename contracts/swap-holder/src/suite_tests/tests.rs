@@ -15,7 +15,7 @@ use crate::{
 
 use super::suite::SuiteBuilder;
 
-#[test] 
+#[test]
 fn test_instantiate_happy_and_query_all() {
     let suite = SuiteBuilder::default().build();
     let next_contract = suite.query_next_contract();

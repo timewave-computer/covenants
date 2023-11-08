@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use cosmos_sdk_proto::cosmos::bank::v1beta1::{MsgMultiSend, Input, Output};
+use cosmos_sdk_proto::cosmos::bank::v1beta1::{Input, MsgMultiSend, Output};
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -13,7 +13,7 @@ use covenant_utils::neutron_ica::{self, OpenAckVersion, RemoteChainInfo, SudoPay
 use cw2::set_contract_version;
 use neutron_sdk::bindings::msg::MsgSubmitTxResponse;
 use neutron_sdk::interchain_txs::helpers::{
-    decode_acknowledgement_response, get_port_id, decode_message_response,
+    decode_acknowledgement_response, decode_message_response, get_port_id,
 };
 use neutron_sdk::sudo::msg::{RequestPacket, SudoMsg};
 use neutron_sdk::NeutronError;
@@ -67,11 +67,15 @@ pub fn instantiate(
         if encountered_denoms.insert(split.denom.to_string()) {
             let validated_split = split.validate()?;
             split_resp_attributes.push(validated_split.to_response_attribute());
-            SPLIT_CONFIG_MAP.save(deps.storage, validated_split.denom, &validated_split.receivers)?;
+            SPLIT_CONFIG_MAP.save(
+                deps.storage,
+                validated_split.denom,
+                &validated_split.receivers,
+            )?;
         } else {
-            return Err(NeutronError::Std(StdError::GenericErr { msg:
-                format!("multiple {:?} entries", split.denom)
-            }))
+            return Err(NeutronError::Std(StdError::GenericErr {
+                msg: format!("multiple {:?} entries", split.denom),
+            }));
         }
     }
 
@@ -146,11 +150,11 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
                     .map_err(|e| NeutronError::Std(StdError::GenericErr { msg: e.to_string() }))?;
 
                 outputs.push(Output {
-                        address: split_receiver.addr.to_string(),
-                        coins: vec![Coin {
-                            denom: remote_chain_info.denom.to_string(),
-                            amount: amt.to_string(),
-                        }],
+                    address: split_receiver.addr.to_string(),
+                    coins: vec![Coin {
+                        denom: remote_chain_info.denom.to_string(),
+                        amount: amt.to_string(),
+                    }],
                 });
             }
 
