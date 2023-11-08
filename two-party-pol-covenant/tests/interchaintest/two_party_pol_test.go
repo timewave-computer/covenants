@@ -283,6 +283,12 @@ func TestTwoPartyPol(t *testing.T) {
 	hubNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
 	osmoNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
 
+	rqCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount+1), atom)[0]
+	rqCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount+1), osmosis)[0]
+
+	// happyCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
+	// happyCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx,  "default", int64(osmoContributionAmount), osmosis)[0]
+
 	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
 	require.NoError(t, err, "failed to wait for blocks")
 
@@ -791,24 +797,24 @@ func TestTwoPartyPol(t *testing.T) {
 		// 		}
 
 		// 		partyAConfig := CovenantPartyConfig{
-		// 			ControllerAddr:            gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+		// 			ControllerAddr:            happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix),
 		// 			HostAddr:                  hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 		// 			Contribution:              atomCoin,
 		// 			IbcDenom:                  neutronAtomIbcDenom,
 		// 			PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 		// 			HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-		// 			PartyReceiverAddr:         gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+		// 			PartyReceiverAddr:         happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix),
 		// 			PartyChainConnectionId:    neutronAtomIBCConnId,
 		// 			IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 		// 		}
 		// 		partyBConfig := CovenantPartyConfig{
-		// 			ControllerAddr:            osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+		// 			ControllerAddr:            happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
 		// 			HostAddr:                  osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 		// 			Contribution:              osmoCoin,
 		// 			IbcDenom:                  neutronOsmoIbcDenom,
 		// 			PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 		// 			HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-		// 			PartyReceiverAddr:         osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+		// 			PartyReceiverAddr:         happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
 		// 			PartyChainConnectionId:    neutronOsmosisIBCConnId,
 		// 			IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 		// 		}
@@ -1074,16 +1080,16 @@ func TestTwoPartyPol(t *testing.T) {
 
 		// 	t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
 
-		// 		err := cosmosOsmosis.SendFunds(ctx, osmoUser.KeyName, ibc.WalletAmount{
+		// 		err := cosmosOsmosis.SendFunds(ctx, happyCaseOsmoAccount.KeyName, ibc.WalletAmount{
 		// 			Address: partyBDepositAddress,
 		// 			Denom:   nativeOsmoDenom,
-		// 			Amount:  int64(osmoContributionAmount + 1),
+		// 			Amount:  int64(osmoContributionAmount),
 		// 		})
 		// 		require.NoError(t, err, "failed to fund osmo forwarder")
-		// 		err = cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
+		// 		err = cosmosAtom.SendFunds(ctx, happyCaseHubAccount.KeyName, ibc.WalletAmount{
 		// 			Address: partyADepositAddress,
 		// 			Denom:   nativeAtomDenom,
-		// 			Amount:  int64(atomContributionAmount + 1),
+		// 			Amount:  int64(atomContributionAmount),
 		// 		})
 		// 		require.NoError(t, err, "failed to fund gaia forwarder")
 
@@ -1270,22 +1276,22 @@ func TestTwoPartyPol(t *testing.T) {
 		// 	t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
 		// 		for {
 		// 			osmoBalPartyA, err := cosmosAtom.GetBalance(
-		// 				ctx, gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom,
+		// 				ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom,
 		// 			)
 		// 			require.NoError(t, err)
 
 		// 			osmoBalPartyB, err := cosmosOsmosis.GetBalance(
-		// 				ctx, osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
+		// 				ctx, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
 		// 			)
 		// 			require.NoError(t, err)
 
 		// 			atomBalPartyA, err := cosmosAtom.GetBalance(
-		// 				ctx, gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
+		// 				ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
 		// 			)
 		// 			require.NoError(t, err)
 
 		// 			atomBalPartyB, err := cosmosOsmosis.GetBalance(
-		// 				ctx, osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom,
+		// 				ctx, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom,
 		// 			)
 		// 			require.NoError(t, err)
 
@@ -1358,26 +1364,27 @@ func TestTwoPartyPol(t *testing.T) {
 					Denom:  cosmosOsmosis.Config().Denom,
 					Amount: strconv.FormatUint(osmoContributionAmount, 10),
 				}
-
+				hubReceiverAddr := rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
+				osmoReceiverAddr := rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
 				partyAConfig := CovenantPartyConfig{
-					ControllerAddr:            gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+					ControllerAddr:            hubReceiverAddr,
 					HostAddr:                  hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					Contribution:              atomCoin,
 					IbcDenom:                  neutronAtomIbcDenom,
 					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyReceiverAddr:         gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+					PartyReceiverAddr:         hubReceiverAddr,
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
 				partyBConfig := CovenantPartyConfig{
-					ControllerAddr:            osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+					ControllerAddr:            osmoReceiverAddr,
 					HostAddr:                  osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					Contribution:              osmoCoin,
 					IbcDenom:                  neutronOsmoIbcDenom,
 					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyReceiverAddr:         osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+					PartyReceiverAddr:         osmoReceiverAddr,
 					PartyChainConnectionId:    neutronOsmosisIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
@@ -1425,8 +1432,8 @@ func TestTwoPartyPol(t *testing.T) {
 								Custom: SplitConfig{
 									Receivers: []Receiver{
 										{
-											Address: gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-											Share:   "100",
+											Address: hubReceiverAddr,
+											Share:   "1.0",
 										},
 									},
 								},
@@ -1438,8 +1445,8 @@ func TestTwoPartyPol(t *testing.T) {
 								Custom: SplitConfig{
 									Receivers: []Receiver{
 										{
-											Address: osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-											Share:   "100",
+											Address: osmoReceiverAddr,
+											Share:   "1.0",
 										},
 									},
 								},
@@ -1672,16 +1679,16 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
 
-				err := cosmosOsmosis.SendFunds(ctx, osmoUser.KeyName, ibc.WalletAmount{
+				err := cosmosOsmosis.SendFunds(ctx, rqCaseOsmoAccount.KeyName, ibc.WalletAmount{
 					Address: partyBDepositAddress,
 					Denom:   nativeOsmoDenom,
-					Amount:  int64(osmoContributionAmount + 1),
+					Amount:  int64(osmoContributionAmount),
 				})
 				require.NoError(t, err, "failed to fund osmo forwarder")
-				err = cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
+				err = cosmosAtom.SendFunds(ctx, rqCaseHubAccount.KeyName, ibc.WalletAmount{
 					Address: partyADepositAddress,
 					Denom:   nativeAtomDenom,
-					Amount:  int64(atomContributionAmount + 1),
+					Amount:  int64(atomContributionAmount),
 				})
 				require.NoError(t, err, "failed to fund gaia forwarder")
 
@@ -1690,10 +1697,10 @@ func TestTwoPartyPol(t *testing.T) {
 
 				bal, err := cosmosAtom.GetBalance(ctx, partyADepositAddress, nativeAtomDenom)
 				require.NoError(t, err, "failed to query bal")
-				require.Equal(t, int64(atomContributionAmount+1), bal)
+				require.Equal(t, int64(atomContributionAmount), bal)
 				bal, err = cosmosOsmosis.GetBalance(ctx, partyBDepositAddress, nativeOsmoDenom)
 				require.NoError(t, err, "failed to query bal")
-				require.Equal(t, int64(osmoContributionAmount+1), bal)
+				require.Equal(t, int64(osmoContributionAmount), bal)
 			})
 
 			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
@@ -1805,11 +1812,11 @@ func TestTwoPartyPol(t *testing.T) {
 					routerAtomBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
 					require.NoError(t, err)
 
-					routerOsmoBalA, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
+					routerOsmoBalB, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronOsmoIbcDenom)
 					require.NoError(t, err)
 
 					println("routerAtomBalA: ", routerAtomBalA)
-					println("routerOsmoBalA: ", routerOsmoBalA)
+					println("routerOsmoBalB: ", routerOsmoBalB)
 
 					if routerAtomBalA != 0 {
 						break
@@ -1820,6 +1827,43 @@ func TestTwoPartyPol(t *testing.T) {
 
 						err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
 						require.NoError(t, err, "failed to wait for blocks")
+					}
+				}
+			})
+
+			t.Run("tick x10", func(t *testing.T) {
+				i := 10
+				for {
+
+					if i == 0 {
+						osmoBalPartyA, err := cosmosAtom.GetBalance(
+							ctx, rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom,
+						)
+						require.NoError(t, err)
+
+						osmoBalPartyB, err := cosmosOsmosis.GetBalance(
+							ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
+						)
+						require.NoError(t, err)
+
+						atomBalPartyA, err := cosmosAtom.GetBalance(
+							ctx, rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
+						)
+						require.NoError(t, err)
+
+						atomBalPartyB, err := cosmosOsmosis.GetBalance(
+							ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom,
+						)
+						require.NoError(t, err)
+
+						println("party A osmo bal: ", osmoBalPartyA)
+						println("party A atom bal: ", atomBalPartyA)
+						println("party B osmo bal: ", osmoBalPartyB)
+						println("party B atom bal: ", atomBalPartyB)
+						break
+					} else {
+						i = i - 1
+						tickClock()
 					}
 				}
 			})
@@ -1868,22 +1912,22 @@ func TestTwoPartyPol(t *testing.T) {
 			t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
 				for {
 					osmoBalPartyA, err := cosmosAtom.GetBalance(
-						ctx, gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom,
+						ctx, rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom,
 					)
 					require.NoError(t, err)
 
 					osmoBalPartyB, err := cosmosOsmosis.GetBalance(
-						ctx, osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
+						ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
 					)
 					require.NoError(t, err)
 
 					atomBalPartyA, err := cosmosAtom.GetBalance(
-						ctx, gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
+						ctx, rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
 					)
 					require.NoError(t, err)
 
 					atomBalPartyB, err := cosmosOsmosis.GetBalance(
-						ctx, osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom,
+						ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom,
 					)
 					require.NoError(t, err)
 
@@ -1892,7 +1936,8 @@ func TestTwoPartyPol(t *testing.T) {
 					println("party B osmo bal: ", osmoBalPartyB)
 					println("party B atom bal: ", atomBalPartyB)
 
-					if atomBalPartyA != 0 && osmoBalPartyB != 0 && atomBalPartyB != 0 {
+					if atomBalPartyA == int64(atomContributionAmount) && osmoBalPartyB == int64(osmoContributionAmount) {
+						println("nice")
 						break
 					}
 

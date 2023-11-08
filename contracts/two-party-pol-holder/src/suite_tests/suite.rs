@@ -80,7 +80,7 @@ impl Default for SuiteBuilder {
                         SplitType::Custom(SplitConfig {
                             receivers: vec![Receiver {
                                 addr: PARTY_A_ROUTER.to_string(),
-                                share: Uint128::new(100),
+                                share: Decimal::one(),
                             }],
                         }),
                     ),
@@ -89,7 +89,7 @@ impl Default for SuiteBuilder {
                         SplitType::Custom(SplitConfig {
                             receivers: vec![Receiver {
                                 addr: PARTY_B_ROUTER.to_string(),
-                                share: Uint128::new(100),
+                                share: Decimal::one(),
                             }],
                         }),
                     ),

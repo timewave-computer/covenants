@@ -10,6 +10,7 @@ use cosmwasm_std::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
+use covenant_utils::{Receiver, SplitConfig};
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
@@ -177,19 +178,38 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
         msg: to_binary(withdraw_liquidity_hook)?,
     };
 
+    let mut distribution_messages: Vec<CosmosMsg> = vec![];
+    for entry in SPLIT_CONFIG_MAP.range(deps.storage, None, None, Order::Ascending) {
+        let (denom, config) = entry?;
+
+        // we try to find the index of matching coin in available balances
+        let balances_index = withdraw_coins.iter().position(|coin| coin.denom == denom);
+        if let Some(index) = balances_index {
+            // pop the relevant coin and build the transfer messages
+            let coin = withdraw_coins.remove(index);
+            let mut transfer_messages =
+                config.get_transfer_messages(coin.amount, coin.denom.to_string())?;
+            distribution_messages.append(&mut transfer_messages);
+        }
+    }
+    if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
+        // get the distribution messages and add them to the list
+        for leftover_bal in withdraw_coins {
+            let mut fallback_messages =
+                split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom)?;
+            distribution_messages.append(&mut fallback_messages);
+        }
+    }
+
     // we submit the withdraw liquidity message followed by transfer of
     // underlying assets to the corresponding router
-    let withdraw_and_forward_msgs = vec![
-        CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: lp_token,
-            msg: to_binary(withdraw_msg)?,
-            funds: vec![],
-        }),
-        CosmosMsg::Bank(BankMsg::Send {
-            to_address: claim_party.clone().router,
-            amount: withdraw_coins,
-        }),
-    ];
+    let mut withdraw_and_forward_msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: lp_token.to_string(),
+        msg: to_binary(withdraw_msg)?,
+        funds: vec![],
+    })];
+
+    withdraw_and_forward_msgs.append(&mut distribution_messages);
 
     claim_party.allocation = Decimal::zero();
 
@@ -352,9 +372,46 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
     // authorize the message sender
     let (mut rq_party, mut counterparty) =
         covenant_config.authorize_sender(info.sender.to_string())?;
-
+    let rq_denom = rq_party.contribution.denom.to_string();
     // after all validations we are ready to perform the ragequit.
-    // first we apply the ragequit penalty
+    // first we apply the ragequit penalty.
+    // TODO: here we need to reflect the ragequit penalty on all split configurations?
+    SPLIT_CONFIG_MAP.update(deps.storage, rq_denom, |mut c| -> StdResult<_> {
+        match c {
+            Some(mut config) => {
+                let mut receivers = config.receivers;
+                match receivers.len() {
+                    1 => {
+                        // insert the counterparty and give him the RQ penalty
+                        receivers[0].share -= rq_config.penalty;
+                        receivers.push(Receiver {
+                            addr: counterparty.router.to_string(),
+                            share: rq_config.penalty,
+                        });
+                    }
+                    2 => {
+                        // subtract the RQ penalty from RQ party, add it to the counterparty
+                        for receiver in receivers.iter_mut() {
+                            if receiver.addr == rq_party.router {
+                                receiver.share -= rq_config.penalty;
+                            } else {
+                                receiver.share += rq_config.penalty;
+                            }
+                        }
+                    }
+                    _ => {
+                        // i hope not
+                        return Err(StdError::generic_err("what"));
+                    }
+                }
+                config.receivers = receivers;
+                Ok(config)
+            }
+            None => Err(StdError::not_found("unknown denom".to_string())),
+        }
+    })?;
+
+    // TODO: get rid of allocation property entirely?
     rq_party.allocation -= rq_config.penalty;
 
     let lp_token = query_liquidity_token_address(deps.querier, pool.to_string())?;
