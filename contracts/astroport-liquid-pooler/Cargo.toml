@@ -47,10 +47,6 @@ cw20             = { workspace = true }
 # dev-dependencies
 [dev-dependencies]
 cw-multi-test = { workspace = true }
-astroport-token = { workspace = true }
-astroport-whitelist = { workspace = true }
-astroport-factory = { workspace = true }
-astroport-native-coin-registry = { workspace = true }
-astroport-pair-stable = { workspace = true }
+astroport = { workspace = true }
 cw1-whitelist = { workspace = true }
 covenant-two-party-pol-holder = { workspace = true }

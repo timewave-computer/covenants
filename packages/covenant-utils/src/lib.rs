@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, IbcMsg, IbcTimeout, StdError, StdResult,
-    Timestamp, Uint128, Uint64,
+    Timestamp, Uint128, Uint64, Decimal, Fraction,
 };
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
@@ -196,7 +196,7 @@ pub struct SplitConfig {
 #[cw_serde]
 pub struct Receiver {
     pub addr: String,
-    pub share: Uint128,
+    pub share: Decimal,
 }
 
 impl SplitConfig {
@@ -232,13 +232,13 @@ impl SplitConfig {
     }
 
     pub fn validate(self) -> Result<SplitConfig, StdError> {
-        let total_share: Uint128 = self.receivers.iter().map(|r| r.share).sum();
+        let total_share: Decimal = self.receivers.iter().map(|r| r.share).sum();
 
-        if total_share == Uint128::new(100) {
+        if total_share == Decimal::one() {
             Ok(self)
         } else {
             Err(StdError::GenericErr {
-                msg: "shares must add up to 100".to_string(),
+                msg: "shares must add up to 1.0".to_string(),
             })
         }
     }
@@ -252,7 +252,7 @@ impl SplitConfig {
 
         for receiver in self.receivers.iter() {
             let entitlement = amount
-                .checked_multiply_ratio(receiver.share, Uint128::new(100))
+                .checked_multiply_ratio(receiver.share.numerator(), receiver.share.denominator())
                 .map_err(|_| StdError::GenericErr {
                     msg: "failed to checked_multiply".to_string(),
                 })?;
