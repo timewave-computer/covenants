@@ -5,7 +5,7 @@ name: Basic
 
 env:
     RUST_BACKTRACE: 1
-    CARGO_TERM_COLOR: always  
+    CARGO_TERM_COLOR: always
 
 jobs:
   unit-test:
@@ -19,7 +19,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.66.0
+          toolchain: 1.69.0
           target: wasm32-unknown-unknown
           override: true
 
@@ -40,10 +40,10 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: 1.66.0
+          toolchain: 1.69.0
           override: true
           components: rustfmt, clippy
-      
+
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
         with:
@@ -62,7 +62,7 @@ jobs:
   #   steps:
   #     - name: Checkout sources
   #       uses: actions/checkout@v2
-  
+
   #     - name: Install stable toolchain
   #       uses: actions-rs/toolchain@v1
   #       with:
