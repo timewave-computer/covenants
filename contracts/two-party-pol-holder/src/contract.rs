@@ -171,7 +171,7 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
     // underlying assets to the corresponding router
     let withdraw_and_forward_msgs = vec![
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: lp_token.to_string(),
+            contract_addr: lp_token,
             msg: to_binary(withdraw_msg)?,
             funds: vec![],
         }),
@@ -385,7 +385,7 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
     // underlying assets to the corresponding router
     let withdraw_and_forward_msgs = vec![
         CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: lp_token.to_string(),
+            contract_addr: lp_token,
             msg: to_binary(withdraw_msg)?,
             funds: vec![],
         }),

@@ -46,10 +46,7 @@ fn test_double_sided_lp() {
         suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
     assert_eq!(0usize, liquid_pooler_balances.len());
 
-    let holder_balances = suite.query_cw20_bal(
-        liquidity_token_addr.to_string(),
-        suite.holder_addr.to_string(),
-    );
+    let holder_balances = suite.query_cw20_bal(liquidity_token_addr, suite.holder_addr.to_string());
     assert_ne!(Uint128::zero(), holder_balances.balance);
 }
 
@@ -123,10 +120,7 @@ fn test_double_and_single_sided_lp() {
     assert_eq!(0, liquid_pooler_balances.len());
 
     let new_holder_balance = suite
-        .query_cw20_bal(
-            liquidity_token_addr.to_string(),
-            suite.holder_addr.to_string(),
-        )
+        .query_cw20_bal(liquidity_token_addr, suite.holder_addr.to_string())
         .balance;
     assert_ne!(holder_balance, new_holder_balance);
 }
