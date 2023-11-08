@@ -109,7 +109,7 @@ fn validate_pair_type(
     pair_type: &PairType,
 ) -> Result<(), ContractError> {
     let pool_response: PairInfo =
-        querier.query_wasm_smart(&pool, &astroport::pair::QueryMsg::Pair {})?;
+        querier.query_wasm_smart(pool, &astroport::pair::QueryMsg::Pair {})?;
     if &pool_response.pair_type != pair_type {
         return Err(ContractError::PairTypeMismatch {});
     }
@@ -136,8 +136,8 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     let (pool_token_a_bal, pool_token_b_bal) = get_pool_asset_amounts(
         pool_response.assets,
-        &lp_config.asset_data.asset_a_denom.as_str(),
-        &lp_config.asset_data.asset_b_denom.as_str(),
+        lp_config.asset_data.asset_a_denom.as_str(),
+        lp_config.asset_data.asset_b_denom.as_str(),
     )?;
     let a_to_b_ratio = Decimal::from_ratio(pool_token_a_bal, pool_token_b_bal);
     // validate the current pool ratio against our expectations

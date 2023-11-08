@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use cosmwasm_std::{
-    coin, coins,
+    coin,
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
     Attribute, CosmosMsg, Empty, OwnedDeps, SubMsg, Uint128, Uint64,
 };

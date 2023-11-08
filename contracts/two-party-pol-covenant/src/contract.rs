@@ -278,10 +278,7 @@ pub fn handle_party_b_interchain_router_reply(
             PARTY_B_ROUTER_ADDR.save(deps.storage, &router_addr)?;
 
             let clock_address = COVENANT_CLOCK_ADDR.load(deps.storage)?.to_string();
-            let pool_address = PRESET_HOLDER_FIELDS
-                .load(deps.storage)?
-                .pool_address
-                .to_string();
+            let pool_address = PRESET_HOLDER_FIELDS.load(deps.storage)?.pool_address;
             let preset_liquid_pooler_fields = PRESET_LIQUID_POOLER_FIELDS.load(deps.storage)?;
 
             let instantiate_msg =
