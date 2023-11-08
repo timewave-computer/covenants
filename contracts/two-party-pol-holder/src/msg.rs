@@ -2,8 +2,10 @@ use std::fmt;
 
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Api, Attribute, Coin, Decimal, StdError, Binary};
-use covenant_macros::{clocked, covenant_clock_address, covenant_next_contract, covenant_deposit_address};
+use cosmwasm_std::{Addr, Api, Attribute, Binary, Coin, Decimal, StdError};
+use covenant_macros::{
+    clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract,
+};
 use cw_utils::Expiration;
 
 use crate::error::ContractError;
@@ -69,14 +71,14 @@ impl PresetTwoPartyPolHolderFields {
             ragequit_config: self.ragequit_config,
             deposit_deadline: self.deposit_deadline,
             covenant_config: TwoPartyPolCovenantConfig {
-                party_a: TwoPartyPolCovenantParty { 
+                party_a: TwoPartyPolCovenantParty {
                     contribution: self.party_a.contribution,
                     allocation: self.party_a.allocation,
                     router: party_a_router,
                     host_addr: self.party_a.host_addr,
                     controller_addr: self.party_a.controller_addr,
                 },
-                party_b: TwoPartyPolCovenantParty { 
+                party_b: TwoPartyPolCovenantParty {
                     contribution: self.party_b.contribution,
                     allocation: self.party_b.allocation,
                     router: party_b_router,
@@ -174,7 +176,6 @@ pub enum MigrateMsg {
         data: Option<Binary>,
     },
 }
-
 
 #[cw_serde]
 pub enum ContractState {

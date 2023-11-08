@@ -1,6 +1,6 @@
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Uint64, Coin, Decimal};
+use cosmwasm_std::{Addr, Coin, Decimal, Uint128, Uint64};
 use covenant_two_party_pol_holder::msg::RagequitConfig;
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -112,7 +112,7 @@ pub enum QueryMsg {
     #[returns(Addr)]
     IbcForwarderAddress { party: String },
     #[returns(Addr)]
-    InterchainRouterAddress { party: String }, 
+    InterchainRouterAddress { party: String },
     #[returns(Addr)]
     LiquidPoolerAddress {},
 }

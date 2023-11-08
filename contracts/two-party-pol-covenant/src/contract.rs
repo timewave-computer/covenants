@@ -1,25 +1,31 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Decimal, Uint128, CosmosMsg, WasmMsg, SubMsg, Reply, Coin,
+    to_binary, Addr, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 
-use covenant_astroport_liquid_pooler::msg::{PresetAstroLiquidPoolerFields, SingleSideLpLimits, AssetData};
+use covenant_astroport_liquid_pooler::msg::{
+    AssetData, PresetAstroLiquidPoolerFields, SingleSideLpLimits,
+};
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
-use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig, PresetPolParty};
+use covenant_two_party_pol_holder::msg::{
+    PresetPolParty, PresetTwoPartyPolHolderFields, RagequitConfig,
+};
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
 
 use crate::{
     error::ContractError,
-    msg::{InstantiateMsg, QueryMsg, MigrateMsg},
+    msg::{InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        COVENANT_CLOCK_ADDR,
-        PARTY_A_IBC_FORWARDER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
-        PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
-        PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_B_FORWARDER_FIELDS, COVENANT_POL_HOLDER_ADDR, PRESET_PARTY_A_ROUTER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PARTY_A_ROUTER_ADDR, PARTY_B_ROUTER_ADDR, PRESET_LIQUID_POOLER_FIELDS, LIQUID_POOLER_ADDR,
+        COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
+        PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
+        PARTY_B_ROUTER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
+        PRESET_LIQUID_POOLER_FIELDS, PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS,
+        PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS,
     },
 };
 
@@ -50,7 +56,7 @@ pub fn instantiate(
         label: format!("{}-clock", msg.label),
     };
     let preset_holder_fields = PresetTwoPartyPolHolderFields {
-        lockup_config:msg.lockup_config,
+        lockup_config: msg.lockup_config,
         pool_address: msg.pool_address,
         ragequit_config: msg.ragequit_config.unwrap_or(RagequitConfig::Disabled),
         deposit_deadline: msg.deposit_deadline,
@@ -152,8 +158,7 @@ pub fn instantiate(
         .add_submessage(SubMsg::reply_on_success(
             clock_instantiate_tx,
             CLOCK_REPLY_ID,
-        ))
-    )
+        )))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -195,8 +200,14 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             Ok(Response::default()
                 .add_attribute("method", "handle_clock_reply")
                 .add_attribute("clock_addr", clock_addr)
-                .add_attribute("router_code_id", party_a_router_preset_fields.code_id.to_string())
-                .add_attribute("party_a_addr", party_a_router_preset_fields.destination_receiver_addr)
+                .add_attribute(
+                    "router_code_id",
+                    party_a_router_preset_fields.code_id.to_string(),
+                )
+                .add_attribute(
+                    "party_a_addr",
+                    party_a_router_preset_fields.destination_receiver_addr,
+                )
                 .add_submessage(SubMsg::reply_always(
                     party_a_router_instantiate_tx,
                     PARTY_A_ROUTER_REPLY_ID,
@@ -206,7 +217,8 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             contract: "clock".to_string(),
             err,
         }),
-    }}
+    }
+}
 
 pub fn handle_party_a_interchain_router_reply(
     deps: DepsMut,
@@ -266,13 +278,14 @@ pub fn handle_party_b_interchain_router_reply(
             PARTY_B_ROUTER_ADDR.save(deps.storage, &router_addr)?;
 
             let clock_address = COVENANT_CLOCK_ADDR.load(deps.storage)?.to_string();
-            let pool_address = PRESET_HOLDER_FIELDS.load(deps.storage)?.pool_address.to_string();
+            let pool_address = PRESET_HOLDER_FIELDS
+                .load(deps.storage)?
+                .pool_address
+                .to_string();
             let preset_liquid_pooler_fields = PRESET_LIQUID_POOLER_FIELDS.load(deps.storage)?;
 
-            let instantiate_msg = preset_liquid_pooler_fields.to_instantiate_msg(
-                pool_address,
-                clock_address,
-            );
+            let instantiate_msg =
+                preset_liquid_pooler_fields.to_instantiate_msg(pool_address, clock_address);
 
             let liquid_pooler_inst_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -285,10 +298,7 @@ pub fn handle_party_b_interchain_router_reply(
             Ok(Response::default()
                 .add_attribute("method", "handle_party_b_interchain_router_reply")
                 .add_attribute("party_b_interchain_router_addr", router_addr)
-                .add_submessage(SubMsg::reply_always(
-                    liquid_pooler_inst_tx,
-                    LP_REPLY_ID,
-                )))
+                .add_submessage(SubMsg::reply_always(liquid_pooler_inst_tx, LP_REPLY_ID)))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "party b router".to_string(),
@@ -296,7 +306,6 @@ pub fn handle_party_b_interchain_router_reply(
         }),
     }
 }
-
 
 pub fn handle_liquid_pooler_reply_id(
     deps: DepsMut,
@@ -335,10 +344,7 @@ pub fn handle_liquid_pooler_reply_id(
             Ok(Response::default()
                 .add_attribute("method", "handle_liquid_pooler_reply")
                 .add_attribute("liquid_pooler_addr", liquid_pooler)
-                .add_submessage(SubMsg::reply_always(
-                    holder_instantiate_tx,
-                    HOLDER_REPLY_ID,
-                )))
+                .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "liquid pooler".to_string(),
@@ -347,12 +353,7 @@ pub fn handle_liquid_pooler_reply_id(
     }
 }
 
-
-pub fn handle_holder_reply(
-    deps: DepsMut,
-    env: Env,
-    msg: Reply,
-) -> Result<Response, ContractError> {
+pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: holder reply");
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
@@ -363,13 +364,15 @@ pub fn handle_holder_reply(
 
             // load the fields relevant to router instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
-            let preset_party_a_ibc_forwarder = PRESET_PARTY_A_FORWARDER_FIELDS.load(deps.storage)?;
+            let preset_party_a_ibc_forwarder =
+                PRESET_PARTY_A_FORWARDER_FIELDS.load(deps.storage)?;
 
             let party_a_ibc_forwarder_inst_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_party_a_ibc_forwarder.code_id,
                 msg: to_binary(
-                    &preset_party_a_ibc_forwarder.to_instantiate_msg(clock_addr.to_string(), holder_addr.to_string()),
+                    &preset_party_a_ibc_forwarder
+                        .to_instantiate_msg(clock_addr.to_string(), holder_addr.to_string()),
                 )?,
                 funds: vec![],
                 label: preset_party_a_ibc_forwarder.label,
@@ -386,7 +389,7 @@ pub fn handle_holder_reply(
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "holder".to_string(),
             err,
-        })
+        }),
     }
 }
 
@@ -406,16 +409,15 @@ pub fn handle_party_a_ibc_forwarder_reply(
 
             // load the fields relevant to router instantiation
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
-            let preset_party_b_ibc_forwarder = PRESET_PARTY_B_FORWARDER_FIELDS.load(deps.storage)?;
+            let preset_party_b_ibc_forwarder =
+                PRESET_PARTY_B_FORWARDER_FIELDS.load(deps.storage)?;
 
             let party_b_ibc_forwarder_inst_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_party_b_ibc_forwarder.code_id,
                 msg: to_binary(
-                    &preset_party_b_ibc_forwarder.to_instantiate_msg(
-                        clock_addr.to_string(),
-                        holder.to_string(),
-                    ),
+                    &preset_party_b_ibc_forwarder
+                        .to_instantiate_msg(clock_addr.to_string(), holder.to_string()),
                 )?,
                 funds: vec![],
                 label: preset_party_b_ibc_forwarder.label,
@@ -432,8 +434,9 @@ pub fn handle_party_a_ibc_forwarder_reply(
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "PARTY_A_IBC_FORWARDER_ADDR".to_string(),
             err,
-        })
-    }}
+        }),
+    }
+}
 
 pub fn handle_party_b_ibc_forwarder_reply(
     deps: DepsMut,
@@ -461,11 +464,13 @@ pub fn handle_party_b_ibc_forwarder_reply(
             let update_liquid_pooler_holder_addr = WasmMsg::Migrate {
                 contract_addr: liquid_pooler.to_string(),
                 new_code_id: lp_fields.code_id,
-                msg: to_binary(&covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
-                    clock_addr: None,
-                    holder_address: Some(holder.to_string()),
-                    lp_config: None,
-                })?,
+                msg: to_binary(
+                    &covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
+                        clock_addr: None,
+                        holder_address: Some(holder.to_string()),
+                        lp_config: None,
+                    },
+                )?,
             };
 
             let update_clock_whitelist_msg = WasmMsg::Migrate {
@@ -488,14 +493,14 @@ pub fn handle_party_b_ibc_forwarder_reply(
                 .add_attribute("method", "handle_party_b_ibc_forwarder_reply")
                 .add_attribute("party_b_ibc_forwarder_addr", party_b_ibc_forwarder_addr)
                 .add_message(update_clock_whitelist_msg)
-                .add_message(update_liquid_pooler_holder_addr)
-            )
+                .add_message(update_liquid_pooler_holder_addr))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {
             contract: "party_b ibc forwarder".to_string(),
             err,
         }),
-    }}
+    }
+}
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
@@ -513,7 +518,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 Some(Addr::unchecked("not found"))
             };
             Ok(to_binary(&resp)?)
-        },
+        }
         QueryMsg::InterchainRouterAddress { party } => {
             let resp = if party == "party_a" {
                 PARTY_A_ROUTER_ADDR.may_load(deps.storage)?
@@ -523,11 +528,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 Some(Addr::unchecked("not found"))
             };
             Ok(to_binary(&resp)?)
-        },
-        QueryMsg::LiquidPoolerAddress {} => Ok(to_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?),
+        }
+        QueryMsg::LiquidPoolerAddress {} => {
+            Ok(to_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?)
+        }
     }
 }
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
@@ -610,8 +616,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-
             Ok(resp.add_messages(migrate_msgs))
-        },
+        }
     }
 }

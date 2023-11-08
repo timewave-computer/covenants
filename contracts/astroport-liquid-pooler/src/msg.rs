@@ -1,4 +1,7 @@
-use astroport::{asset::{Asset, AssetInfo}, factory::PairType};
+use astroport::{
+    asset::{Asset, AssetInfo},
+    factory::PairType,
+};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Attribute, Binary, Decimal, Uint128};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
@@ -35,7 +38,7 @@ impl PresetAstroLiquidPoolerFields {
         pool_address: String,
         clock_address: String,
     ) -> InstantiateMsg {
-        InstantiateMsg { 
+        InstantiateMsg {
             pool_address,
             clock_address,
             slippage_tolerance: self.slippage_tolerance,
@@ -60,7 +63,7 @@ impl DecimalRange {
     }
 
     pub fn try_from(mid: Decimal, delta: Decimal) -> Result<DecimalRange, ContractError> {
-        Ok(DecimalRange { 
+        Ok(DecimalRange {
             min: mid.checked_sub(delta)?,
             max: mid.checked_add(delta)?,
         })
@@ -70,7 +73,7 @@ impl DecimalRange {
         if value >= self.min && value <= self.max {
             Ok(())
         } else {
-            Err(ContractError::PriceRangeError {  })
+            Err(ContractError::PriceRangeError {})
         }
     }
 }
@@ -125,11 +128,15 @@ impl AssetData {
     pub fn to_asset_vec(&self, a_bal: Uint128, b_bal: Uint128) -> Vec<Asset> {
         vec![
             Asset {
-                info: AssetInfo::NativeToken { denom: self.asset_a_denom.to_string() },
+                info: AssetInfo::NativeToken {
+                    denom: self.asset_a_denom.to_string(),
+                },
                 amount: a_bal,
             },
             Asset {
-                info: AssetInfo::NativeToken { denom: self.asset_b_denom.to_string() },
+                info: AssetInfo::NativeToken {
+                    denom: self.asset_b_denom.to_string(),
+                },
                 amount: b_bal,
             },
         ]
@@ -139,11 +146,15 @@ impl AssetData {
     pub fn to_tuple(&self, a_bal: Uint128, b_bal: Uint128) -> (Asset, Asset) {
         (
             Asset {
-                info: AssetInfo::NativeToken { denom: self.asset_a_denom.to_string() },
+                info: AssetInfo::NativeToken {
+                    denom: self.asset_a_denom.to_string(),
+                },
                 amount: a_bal,
             },
             Asset {
-                info: AssetInfo::NativeToken { denom: self.asset_b_denom.to_string() },
+                info: AssetInfo::NativeToken {
+                    denom: self.asset_b_denom.to_string(),
+                },
                 amount: b_bal,
             },
         )
