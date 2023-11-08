@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, Uint128, Uint64, Binary};
+use cosmwasm_std::{Addr, Attribute, Binary, Uint128, Uint64};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,

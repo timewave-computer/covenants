@@ -30,8 +30,8 @@ fn test_instantiate_happy_and_query_all() {
     assert_eq!(NEXT_CONTRACT, next_contract.to_string());
     assert_eq!(PARTY_A_ROUTER, config_party_a.router);
     assert_eq!(PARTY_B_ROUTER, config_party_b.router);
-    assert_eq!(Expiration::Never {  }, deposit_deadline);
-    assert_eq!(Expiration::Never {  }, lockup_config);
+    assert_eq!(Expiration::Never {}, deposit_deadline);
+    assert_eq!(Expiration::Never {}, lockup_config);
 }
 
 #[test]

@@ -1,12 +1,15 @@
 use std::marker::PhantomData;
 
 use cosmwasm_std::{
-    coins,
+    coin, coins,
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
-    Attribute, CosmosMsg, Empty, OwnedDeps, SubMsg, Uint64, Uint128, coin,
+    Attribute, CosmosMsg, Empty, OwnedDeps, SubMsg, Uint128, Uint64,
 };
 use covenant_utils::DestinationConfig;
-use neutron_sdk::{bindings::msg::{NeutronMsg, IbcFee}, sudo::msg::RequestPacketTimeoutHeight};
+use neutron_sdk::{
+    bindings::msg::{IbcFee, NeutronMsg},
+    sudo::msg::RequestPacketTimeoutHeight,
+};
 
 use crate::{
     contract::{execute, instantiate},
@@ -114,7 +117,9 @@ fn test_tick() {
             revision_number: None,
             revision_height: None,
         },
-        timeout_timestamp: mock_env.block.time
+        timeout_timestamp: mock_env
+            .block
+            .time
             .plus_seconds(Uint64::new(10).u64())
             .nanos(),
         memo: "hi".to_string(),

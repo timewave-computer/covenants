@@ -15,7 +15,7 @@ use cw_multi_test::{
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use crate::msg::{AssetData, InstantiateMsg, LpConfig, QueryMsg, SingleSideLpLimits, MigrateMsg};
+use crate::msg::{AssetData, InstantiateMsg, LpConfig, MigrateMsg, QueryMsg, SingleSideLpLimits};
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
 use astroport::native_coin_registry::InstantiateMsg as NativeCoinRegistryInstantiateMsg;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;
@@ -232,7 +232,7 @@ impl SuiteBuilder {
         self.token_instantiate = msg;
         self
     }
-    
+
     pub fn with_expected_pair_type(mut self, pair_type: PairType) -> Self {
         self.lp_instantiate.pair_type = pair_type;
         self
@@ -408,7 +408,8 @@ impl SuiteBuilder {
                 lp_config: None,
             },
             lper_code,
-        ).unwrap();
+        )
+        .unwrap();
 
         Suite {
             app,
@@ -622,11 +623,7 @@ impl Suite {
             },
         ];
 
-        self.mint_coins_to_addr(
-            from.clone(),
-            TOKEN_A_DENOM.to_string(),
-            token_a_amt,
-        );
+        self.mint_coins_to_addr(from.clone(), TOKEN_A_DENOM.to_string(), token_a_amt);
         self.mint_coins_to_addr(from.clone(), TOKEN_B_DENOM.to_string(), token_b_amt);
 
         let provide_liquidity_msg = astroport::pair::ExecuteMsg::ProvideLiquidity {

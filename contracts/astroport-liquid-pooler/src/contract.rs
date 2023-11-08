@@ -1,23 +1,24 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdError, StdResult, SubMsg, Uint128, WasmMsg, QuerierWrapper,
+    to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
+    Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 
 use astroport::{
     asset::{Asset, PairInfo},
+    factory::PairType,
     pair::{ExecuteMsg::ProvideLiquidity, PoolResponse},
-    DecimalCheckedOps, factory::PairType,
+    DecimalCheckedOps,
 };
 
 use crate::{
     error::ContractError,
     msg::{
-        ContractState, ExecuteMsg, InstantiateMsg, LpConfig, MigrateMsg, ProvidedLiquidityInfo,
-        QueryMsg, DecimalRange,
+        ContractState, DecimalRange, ExecuteMsg, InstantiateMsg, LpConfig, MigrateMsg,
+        ProvidedLiquidityInfo, QueryMsg,
     },
     state::{HOLDER_ADDRESS, LP_CONFIG, PROVIDED_LIQUIDITY_INFO},
 };
@@ -51,10 +52,8 @@ pub fn instantiate(
     // store the relevant module addresses
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
 
-    let decimal_range = DecimalRange::try_from(
-        msg.expected_pool_ratio,
-        msg.acceptable_pool_ratio_delta,
-    )?;
+    let decimal_range =
+        DecimalRange::try_from(msg.expected_pool_ratio, msg.acceptable_pool_ratio_delta)?;
 
     let lp_config = LpConfig {
         pool_address: pool_addr,
@@ -104,11 +103,15 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     }
 }
 
-fn validate_pair_type(querier: QuerierWrapper, pool: String, pair_type: &PairType) -> Result<(), ContractError> {
-    let pool_response: PairInfo = querier.query_wasm_smart(
-        &pool, &astroport::pair::QueryMsg::Pair {})?;
+fn validate_pair_type(
+    querier: QuerierWrapper,
+    pool: String,
+    pair_type: &PairType,
+) -> Result<(), ContractError> {
+    let pool_response: PairInfo =
+        querier.query_wasm_smart(&pool, &astroport::pair::QueryMsg::Pair {})?;
     if &pool_response.pair_type != pair_type {
-        return Err(ContractError::PairTypeMismatch {})
+        return Err(ContractError::PairTypeMismatch {});
     }
     Ok(())
 }
@@ -121,9 +124,14 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let lp_config = LP_CONFIG.load(deps.storage)?;
 
     // validate that the pool did not migrate to a new pair type
-    validate_pair_type(deps.querier, lp_config.pool_address.to_string(), &lp_config.pair_type)?;
+    validate_pair_type(
+        deps.querier,
+        lp_config.pool_address.to_string(),
+        &lp_config.pair_type,
+    )?;
 
-    let pool_response: PoolResponse = deps.querier
+    let pool_response: PoolResponse = deps
+        .querier
         .query_wasm_smart(&lp_config.pool_address, &astroport::pair::QueryMsg::Pool {})?;
 
     let (pool_token_a_bal, pool_token_b_bal) = get_pool_asset_amounts(
@@ -133,10 +141,14 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     )?;
     let a_to_b_ratio = Decimal::from_ratio(pool_token_a_bal, pool_token_b_bal);
     // validate the current pool ratio against our expectations
-    lp_config.expected_pool_ratio_range.is_within_range(a_to_b_ratio)?;
+    lp_config
+        .expected_pool_ratio_range
+        .is_within_range(a_to_b_ratio)?;
 
     // first we query our own balances and filter out any unexpected denoms
-    let bal_coins = deps.querier.query_all_balances(env.contract.address.to_string())?;
+    let bal_coins = deps
+        .querier
+        .query_all_balances(env.contract.address.to_string())?;
     let (coin_a, coin_b) = get_relevant_balances(
         bal_coins,
         lp_config.asset_data.asset_a_denom.as_str(),
@@ -147,11 +159,8 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     match (coin_a.amount.is_zero(), coin_b.amount.is_zero()) {
         // exactly one balance is non-zero, we attempt single-side
         (true, false) | (false, true) => {
-            let single_sided_submsg = try_get_single_side_lp_submsg(
-                deps.branch(),
-                coin_a,
-                coin_b,
-                lp_config)?;
+            let single_sided_submsg =
+                try_get_single_side_lp_submsg(deps.branch(), coin_a, coin_b, lp_config)?;
             if let Some(msg) = single_sided_submsg {
                 return Ok(Response::default()
                     .add_submessage(msg)
@@ -167,7 +176,8 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 a_to_b_ratio,
                 pool_token_a_bal,
                 pool_token_b_bal,
-                lp_config)?;
+                lp_config,
+            )?;
             if let Some(msg) = double_sided_submsg {
                 return Ok(Response::default()
                     .add_submessage(msg)
@@ -207,21 +217,23 @@ fn try_get_double_side_lp_submsg(
 
     // depending on available balances we determine the highest amount
     // of liquidity we can provide:
-    let (asset_a_double_sided, asset_b_double_sided) =
-        if token_a.amount >= required_token_a_amount {
-            // if we are able to satisfy the required amount, we do that:
-            // provide all b tokens along with required amount of a tokens
-            lp_config.asset_data.to_tuple(required_token_a_amount, token_b.amount)
-        } else {
-            // otherwise, our token a amount is insufficient to provide double
-            // sided liquidity using all of our b tokens.
-            // this means that we should provide all of our available a tokens,
-            // and as many b tokens as needed to satisfy the existing ratio
-            let ratio = Decimal::from_ratio(pool_token_b_bal, pool_token_a_bal);
-            lp_config.asset_data.to_tuple(
-                token_a.amount,
-                ratio.checked_mul_uint128(token_a.amount)?)
-        };
+    let (asset_a_double_sided, asset_b_double_sided) = if token_a.amount >= required_token_a_amount
+    {
+        // if we are able to satisfy the required amount, we do that:
+        // provide all b tokens along with required amount of a tokens
+        lp_config
+            .asset_data
+            .to_tuple(required_token_a_amount, token_b.amount)
+    } else {
+        // otherwise, our token a amount is insufficient to provide double
+        // sided liquidity using all of our b tokens.
+        // this means that we should provide all of our available a tokens,
+        // and as many b tokens as needed to satisfy the existing ratio
+        let ratio = Decimal::from_ratio(pool_token_b_bal, pool_token_a_bal);
+        lp_config
+            .asset_data
+            .to_tuple(token_a.amount, ratio.checked_mul_uint128(token_a.amount)?)
+    };
 
     let a_coin = asset_a_double_sided.to_coin()?;
     let b_coin = asset_b_double_sided.to_coin()?;
@@ -239,9 +251,7 @@ fn try_get_double_side_lp_submsg(
         deps.storage,
         |mut info: ProvidedLiquidityInfo| -> StdResult<_> {
             info.provided_amount_b = info.provided_amount_b.checked_add(b_coin.amount)?;
-            info.provided_amount_a = info
-                .provided_amount_a
-                .checked_add(a_coin.amount)?;
+            info.provided_amount_a = info.provided_amount_a.checked_add(a_coin.amount)?;
             Ok(info)
         },
     )?;
@@ -271,7 +281,9 @@ fn try_get_single_side_lp_submsg(
         None => return Err(ContractError::MissingHolderError {}),
     };
 
-    let assets = lp_config.asset_data.to_asset_vec(coin_a.amount, coin_b.amount);
+    let assets = lp_config
+        .asset_data
+        .to_asset_vec(coin_a.amount, coin_b.amount);
 
     // given one non-zero asset, we build the ProvideLiquidity message
     let single_sided_liq_msg = ProvideLiquidity {
@@ -300,11 +312,12 @@ fn try_get_single_side_lp_submsg(
         );
 
         return Ok(Some(submsg));
-    } else if coin_b.amount.is_zero() && coin_a.amount <= lp_config.single_side_lp_limits.asset_a_limit {
+    } else if coin_b.amount.is_zero()
+        && coin_a.amount <= lp_config.single_side_lp_limits.asset_a_limit
+    {
         // update the provided liquidity info
         PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
-            info.provided_amount_a =
-                info.provided_amount_a.checked_add(coin_a.amount)?;
+            info.provided_amount_a = info.provided_amount_a.checked_add(coin_a.amount)?;
             Ok(info)
         })?;
 
@@ -372,7 +385,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LpConfig {} => Ok(to_binary(&LP_CONFIG.may_load(deps.storage)?)?),
         // the deposit address for LP module is the contract itself
         QueryMsg::DepositAddress {} => Ok(to_binary(&Some(&env.contract.address.to_string()))?),
-        QueryMsg::ProvidedLiquidityInfo {} => Ok(to_binary(&PROVIDED_LIQUIDITY_INFO.load(deps.storage)?)?),
+        QueryMsg::ProvidedLiquidityInfo {} => {
+            Ok(to_binary(&PROVIDED_LIQUIDITY_INFO.load(deps.storage)?)?)
+        }
     }
 }
 
