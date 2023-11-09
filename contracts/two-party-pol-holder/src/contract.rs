@@ -130,9 +130,7 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
     // we exit early if contract is not in ragequit or expired state
     // otherwise claim process is the same
     let response: Response = match contract_state {
-        ContractState::Ragequit => {
-            Response::default().add_attribute("method", "try_claim_ragequit")
-        }
+        ContractState::Ragequit => Response::default().add_attribute("method", "try_claim_ragequit"),
         ContractState::Expired => Response::default().add_attribute("method", "try_claim_expired"),
         _ => return Err(ContractError::ClaimError {}),
     };
@@ -374,8 +372,7 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
         covenant_config.authorize_sender(info.sender.to_string())?;
     let rq_denom = rq_party.contribution.denom.to_string();
     // after all validations we are ready to perform the ragequit.
-    // first we apply the ragequit penalty.
-    // TODO: here we need to reflect the ragequit penalty on all split configurations?
+    // first we apply the ragequit penalty on our split configs
     SPLIT_CONFIG_MAP.update(deps.storage, rq_denom, |mut c| -> StdResult<_> {
         match c {
             Some(mut config) => {
