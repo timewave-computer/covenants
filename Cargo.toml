@@ -93,3 +93,8 @@ syn               = "1"
 cw-multi-test   = "0.16.2"
 anyhow          = { version = "1.0.51" }
 cw1-whitelist = "1.1.0"
+astroport-token = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-whitelist = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-factory =  {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-native-coin-registry = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-pair-stable = {git = "https://github.com/astroport-fi/astroport-core.git"}

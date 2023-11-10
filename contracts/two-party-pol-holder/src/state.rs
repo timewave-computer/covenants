@@ -1,9 +1,9 @@
 use cosmwasm_std::Addr;
 use covenant_utils::SplitConfig;
-use cw_storage_plus::{Item, Map};
+use cw_storage_plus::Item;
 use cw_utils::Expiration;
 
-use crate::msg::{ContractState, RagequitConfig, TwoPartyPolCovenantConfig};
+use crate::msg::{ContractState, RagequitConfig, TwoPartyPolCovenantConfig, DenomSplits};
 
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
@@ -31,8 +31,5 @@ pub const RAGEQUIT_CONFIG: Item<RagequitConfig> = Item::new("ragequit_config");
 /// configuration storing both parties information
 pub const COVENANT_CONFIG: Item<TwoPartyPolCovenantConfig> = Item::new("covenant_config");
 
-/// maps a denom string to a vec of SplitReceivers
-pub const SPLIT_CONFIG_MAP: Map<String, SplitConfig> = Map::new("split_config");
-
-/// split for all denoms that are not explicitly defined in SPLIT_CONFIG_MAP
-pub const FALLBACK_SPLIT: Item<SplitConfig> = Item::new("fallback_split");
+/// stores the configuration describing how to distribute every denom
+pub const DENOM_SPLITS: Item<DenomSplits> = Item::new("denom_splits");
