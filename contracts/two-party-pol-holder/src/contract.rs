@@ -1,28 +1,30 @@
+use std::collections::BTreeMap;
+
 use astroport::{
     asset::{Asset, PairInfo},
     pair::Cw20HookMsg,
 };
 use cosmwasm_std::{
-    to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
+    to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     QuerierWrapper, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use covenant_utils::{Receiver, SplitConfig};
+use covenant_utils::SplitConfig;
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
 use crate::{
     error::ContractError,
     msg::{
-        ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, RagequitConfig,
-        RagequitState,
+        ContractState, DenomSplits, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+        RagequitConfig, RagequitState,
     },
     state::{
-        CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_CONFIG, DEPOSIT_DEADLINE, FALLBACK_SPLIT,
-        LOCKUP_CONFIG, NEXT_CONTRACT, POOL_ADDRESS, RAGEQUIT_CONFIG, SPLIT_CONFIG_MAP,
+        CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_CONFIG, DENOM_SPLITS, DEPOSIT_DEADLINE,
+        LOCKUP_CONFIG, NEXT_CONTRACT, POOL_ADDRESS, RAGEQUIT_CONFIG,
     },
 };
 
@@ -54,17 +56,26 @@ pub fn instantiate(
         msg.covenant_config.party_a.allocation,
         msg.covenant_config.party_b.allocation,
     )?;
-    // we validate the splits and store them per-denom
-    for (denom, split) in msg.splits.clone() {
-        let validated_split = split.get_split_config()?.validate()?;
-        SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &validated_split)?;
-    }
 
-    // if a fallback split is provided we validate and store it
-    if let Some(split) = msg.fallback_split.clone() {
-        FALLBACK_SPLIT.save(deps.storage, &split.get_split_config()?.validate()?)?;
-    }
-
+    // validate the splits and convert them into map
+    let explicit_splits = msg
+        .clone()
+        .splits
+        .into_iter()
+        .map(|(denom, split)| {
+            let validated_split: SplitConfig = split.get_split_config()?.validate()?;
+            Ok((denom, validated_split))
+        })
+        .collect::<Result<BTreeMap<String, SplitConfig>, ContractError>>()?;
+    let fallback_split = match msg.clone().fallback_split {
+        Some(split) => Some(split.get_split_config()?.validate()?),
+        None => None,
+    };
+    let denom_splits = DenomSplits {
+        explicit_splits,
+        fallback_split,
+    };
+    DENOM_SPLITS.save(deps.storage, &denom_splits)?;
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
@@ -130,7 +141,9 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
     // we exit early if contract is not in ragequit or expired state
     // otherwise claim process is the same
     let response: Response = match contract_state {
-        ContractState::Ragequit => Response::default().add_attribute("method", "try_claim_ragequit"),
+        ContractState::Ragequit => {
+            Response::default().add_attribute("method", "try_claim_ragequit")
+        }
         ContractState::Expired => Response::default().add_attribute("method", "try_claim_expired"),
         _ => return Err(ContractError::ClaimError {}),
     };
@@ -176,28 +189,8 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
         msg: to_binary(withdraw_liquidity_hook)?,
     };
 
-    let mut distribution_messages: Vec<CosmosMsg> = vec![];
-    for entry in SPLIT_CONFIG_MAP.range(deps.storage, None, None, Order::Ascending) {
-        let (denom, config) = entry?;
-
-        // we try to find the index of matching coin in available balances
-        let balances_index = withdraw_coins.iter().position(|coin| coin.denom == denom);
-        if let Some(index) = balances_index {
-            // pop the relevant coin and build the transfer messages
-            let coin = withdraw_coins.remove(index);
-            let mut transfer_messages =
-                config.get_transfer_messages(coin.amount, coin.denom.to_string())?;
-            distribution_messages.append(&mut transfer_messages);
-        }
-    }
-    if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
-        // get the distribution messages and add them to the list
-        for leftover_bal in withdraw_coins {
-            let mut fallback_messages =
-                split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom)?;
-            distribution_messages.append(&mut fallback_messages);
-        }
-    }
+    let denom_splits = DENOM_SPLITS.load(deps.storage)?;
+    let mut distribution_messages = denom_splits.get_distribution_messages(withdraw_coins);
 
     // we submit the withdraw liquidity message followed by transfer of
     // underlying assets to the corresponding router
@@ -370,42 +363,12 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
     // authorize the message sender
     let (mut rq_party, mut counterparty) =
         covenant_config.authorize_sender(info.sender.to_string())?;
-    let rq_denom = rq_party.contribution.denom.to_string();
-    // after all validations we are ready to perform the ragequit.
-    // first we apply the ragequit penalty on our split configs
-    SPLIT_CONFIG_MAP.update(deps.storage, rq_denom, |mut c| -> StdResult<_> {
-        match c {
-            Some(mut config) => {
-                let mut receivers = config.receivers;
-                match receivers.len() {
-                    1 => {
-                        // insert the counterparty and give him the RQ penalty
-                        receivers[0].share -= rq_config.penalty;
-                        receivers.push(Receiver {
-                            addr: counterparty.router.to_string(),
-                            share: rq_config.penalty,
-                        });
-                    }
-                    2 => {
-                        // subtract the RQ penalty from RQ party, add it to the counterparty
-                        for receiver in receivers.iter_mut() {
-                            if receiver.addr == rq_party.router {
-                                receiver.share -= rq_config.penalty;
-                            } else {
-                                receiver.share += rq_config.penalty;
-                            }
-                        }
-                    }
-                    _ => {
-                        // i hope not
-                        return Err(StdError::generic_err("what"));
-                    }
-                }
-                config.receivers = receivers;
-                Ok(config)
-            }
-            None => Err(StdError::not_found("unknown denom".to_string())),
-        }
+
+    // apply the ragequit penalty and get the new splits
+    let updated_denom_splits = DENOM_SPLITS.update(deps.storage, |mut splits| -> StdResult<_> {
+        let new_denom_splits: DenomSplits =
+            splits.apply_penalty(rq_config.penalty, &rq_party, &counterparty);
+        Ok(new_denom_splits)
     })?;
 
     // TODO: get rid of allocation property entirely?
@@ -445,29 +408,8 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
         msg: to_binary(withdraw_liquidity_hook)?,
     };
 
-    let mut distribution_messages: Vec<CosmosMsg> = vec![];
-    let mut balances = rq_state.coins.clone();
-    for entry in SPLIT_CONFIG_MAP.range(deps.storage, None, None, Order::Ascending) {
-        let (denom, config) = entry?;
-
-        // we try to find the index of matching coin in available balances
-        let balances_index = balances.iter().position(|coin| coin.denom == denom);
-        if let Some(index) = balances_index {
-            // pop the relevant coin and build the transfer messages
-            let coin = balances.remove(index);
-            let mut transfer_messages =
-                config.get_transfer_messages(coin.amount, coin.denom.to_string())?;
-            distribution_messages.append(&mut transfer_messages);
-        }
-    }
-    if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
-        // get the distribution messages and add them to the list
-        for leftover_bal in balances {
-            let mut fallback_messages =
-                split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom)?;
-            distribution_messages.append(&mut fallback_messages);
-        }
-    }
+    let balances = rq_state.coins.clone();
+    let mut distribution_messages = updated_denom_splits.get_distribution_messages(balances);
 
     // we submit the withdraw liquidity message followed by transfer of
     // underlying assets to the corresponding router
