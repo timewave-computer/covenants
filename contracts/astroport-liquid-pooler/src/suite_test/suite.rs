@@ -39,7 +39,7 @@ fn astro_token() -> Box<dyn Contract<Empty>> {
 
 fn astro_whitelist() -> Box<dyn Contract<Empty>> {
     Box::new(ContractWrapper::new(
-        astroport_whitelist::contract::instantiate,
+        astroport_whitelist::contract::execute,
         astroport_whitelist::contract::instantiate,
         astroport_whitelist::contract::query,
     ))
