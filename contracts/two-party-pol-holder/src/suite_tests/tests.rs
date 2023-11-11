@@ -41,6 +41,7 @@ fn test_invalid_ragequit_penalty() {
         .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
             penalty: Decimal::one(),
             state: None,
+            ty: crate::msg::RagequitType::Side,
         }))
         .build();
 }
@@ -52,6 +53,7 @@ fn test_ragequit_penalty_exceeds_either_party_allocation() {
         .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
             penalty: Decimal::percent(51),
             state: None,
+            ty: crate::msg::RagequitType::Side,
         }))
         .build();
 }
@@ -280,6 +282,7 @@ fn test_holder_ragequit_unauthorized() {
         .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
             penalty: Decimal::from_ratio(Uint128::one(), Uint128::new(10)),
             state: None,
+            ty: crate::msg::RagequitType::Side,
         }))
         .build();
 
@@ -339,6 +342,7 @@ fn test_holder_ragequit_active_but_expired() {
         .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
             penalty: Decimal::bps(10),
             state: None,
+            ty: crate::msg::RagequitType::Side,
         }))
         .with_lockup_config(Expiration::AtTime(current_timestamp.time.plus_minutes(200)))
         .build();
@@ -367,6 +371,7 @@ fn test_ragequit_double_claim_fails() {
         .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
             penalty: Decimal::from_ratio(Uint128::one(), Uint128::new(10)),
             state: None,
+            ty: crate::msg::RagequitType::Side,
         }))
         .with_lockup_config(Expiration::AtTime(current_timestamp.time.plus_minutes(200)))
         .build();
@@ -405,6 +410,7 @@ fn test_ragequit_happy_flow_to_completion() {
         .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
             penalty: Decimal::from_ratio(Uint128::one(), Uint128::new(10)),
             state: None,
+            ty: crate::msg::RagequitType::Side,
         }))
         .with_lockup_config(Expiration::AtTime(current_timestamp.time.plus_minutes(200)))
         .build();

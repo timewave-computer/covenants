@@ -1,12 +1,12 @@
-use std::{fmt, collections::{HashMap, BTreeMap}};
+use std::{collections::BTreeMap, fmt};
 
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Api, Attribute, Binary, Coin, Decimal, StdError, CosmosMsg};
+use cosmwasm_std::{Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, StdError};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract,
 };
-use covenant_utils::{DenomSplit, SplitType, SplitConfig, Receiver};
+use covenant_utils::{DenomSplit, Receiver, SplitConfig, SplitType};
 use cw_utils::Expiration;
 
 use crate::error::ContractError;
@@ -49,7 +49,8 @@ pub struct DenomSplits {
 
 impl DenomSplits {
     pub fn get_distribution_messages(self, available_coins: Vec<Coin>) -> Vec<CosmosMsg> {
-        available_coins.iter()
+        available_coins
+            .iter()
             .filter_map(|c| {
                 // for each coin denom we want to distribute,
                 // we look for it in our explicitly defined split configs
@@ -77,7 +78,12 @@ impl DenomSplits {
     }
 
     // todo: clean this up
-    pub fn apply_penalty(mut self, penalty: Decimal, party: &TwoPartyPolCovenantParty, counterparty: &TwoPartyPolCovenantParty) -> DenomSplits {
+    pub fn apply_penalty(
+        mut self,
+        penalty: Decimal,
+        party: &TwoPartyPolCovenantParty,
+        counterparty: &TwoPartyPolCovenantParty,
+    ) -> DenomSplits {
         // we iterate over explicitly defined splits
         for (denom, mut config) in self.explicit_splits.clone().into_iter() {
             // apply the ragequit penalty to rq party and its counterparty
@@ -90,7 +96,7 @@ impl DenomSplits {
                         addr: counterparty.router.to_string(),
                         share: penalty,
                     });
-                },
+                }
                 2 => {
                     // subtract the RQ penalty from RQ party, add it to the counterparty
                     for receiver in receivers.iter_mut() {
@@ -99,8 +105,8 @@ impl DenomSplits {
                         } else {
                             receiver.share += penalty;
                         }
-                    };
-                },
+                    }
+                }
                 _ => {}
             }
             config.receivers = receivers;
@@ -109,7 +115,9 @@ impl DenomSplits {
 
         if let Some(mut split_config) = self.fallback_split {
             // apply the ragequit penalty to rq party and its counterparty
-            let new_receivers: Vec<Receiver> = split_config.receivers.into_iter()
+            let new_receivers: Vec<Receiver> = split_config
+                .receivers
+                .into_iter()
                 .map(|mut receiver| {
                     if receiver.addr == party.router {
                         // find (ragequitting) party, subtract penalty from their allocation
@@ -410,6 +418,14 @@ pub struct RagequitTerms {
     /// optional rq state. none indicates no ragequit.
     /// some holds the ragequit related config
     pub state: Option<RagequitState>,
+    /// describes the ragequit dynamics
+    pub ty: RagequitType,
+}
+
+#[cw_serde]
+pub enum RagequitType {
+    Share,
+    Side,
 }
 
 #[cw_serde]

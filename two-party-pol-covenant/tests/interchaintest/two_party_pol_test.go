@@ -838,8 +838,13 @@ func TestTwoPartyPol(t *testing.T) {
 					LiquidPoolerCode:     lperCodeId,
 				}
 
+				ragequitType := RagequitType{
+					Share: &Share{},
+				}
+
 				ragequitTerms := RagequitTerms{
-					Penalty: "0.1",
+					Penalty:      "0.1",
+					RagequitType: ragequitType,
 				}
 
 				ragequitConfig := RagequitConfig{
@@ -1476,9 +1481,12 @@ func TestTwoPartyPol(t *testing.T) {
 					HolderCode:           holderCodeId,
 					LiquidPoolerCode:     lperCodeId,
 				}
-
+				ragequitType := RagequitType{
+					Share: &Share{},
+				}
 				ragequitTerms := RagequitTerms{
-					Penalty: "0.1",
+					Penalty:      "0.1",
+					RagequitType: ragequitType,
 				}
 
 				ragequitConfig := RagequitConfig{
