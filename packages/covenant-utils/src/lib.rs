@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, IbcMsg, IbcTimeout, StdError, StdResult,
-    Timestamp, Uint128, Uint64, Decimal, Fraction,
+    Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, Decimal, Fraction, IbcMsg, IbcTimeout,
+    StdError, StdResult, Timestamp, Uint128, Uint64,
 };
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
@@ -84,9 +84,7 @@ pub mod neutron_ica {
                 || self.ibc_fee.timeout_fee.is_empty()
                 || !self.ibc_fee.recv_fee.is_empty()
             {
-                return Err(StdError::GenericErr {
-                    msg: "invalid IbcFee".to_string(),
-                });
+                return Err(StdError::generic_err("invalid IbcFee".to_string()));
             }
 
             Ok(self)
@@ -237,9 +235,9 @@ impl SplitConfig {
         if total_share == Decimal::one() {
             Ok(self)
         } else {
-            Err(StdError::GenericErr {
-                msg: "shares must add up to 1.0".to_string(),
-            })
+            Err(StdError::generic_err(
+                "shares must add up to 1.0".to_string(),
+            ))
         }
     }
 
@@ -253,9 +251,7 @@ impl SplitConfig {
         for receiver in self.receivers.iter() {
             let entitlement = amount
                 .checked_multiply_ratio(receiver.share.numerator(), receiver.share.denominator())
-                .map_err(|_| StdError::GenericErr {
-                    msg: "failed to checked_multiply".to_string(),
-                })?;
+                .map_err(|_| StdError::generic_err("failed to checked_multiply".to_string()))?;
 
             let amount = Coin {
                 denom: denom.to_string(),
@@ -357,19 +353,18 @@ impl ExpiryConfig {
                 if h > &block_info.height {
                     Ok(())
                 } else {
-                    Err(StdError::GenericErr {
-                        msg: "invalid expiry config: block height must be in the future"
-                            .to_string(),
-                    })
+                    Err(StdError::generic_err(
+                        "invalid expiry config: block height must be in the future".to_string(),
+                    ))
                 }
             }
             ExpiryConfig::Time(t) => {
                 if t.nanos() > block_info.time.nanos() {
                     Ok(())
                 } else {
-                    Err(StdError::GenericErr {
-                        msg: "invalid expiry config: block time must be in the future".to_string(),
-                    })
+                    Err(StdError::generic_err(
+                        "invalid expiry config: block time must be in the future".to_string(),
+                    ))
                 }
             }
         }
@@ -378,13 +373,13 @@ impl ExpiryConfig {
     /// compares current block info with the stored expiry config.
     /// returns false if no expiry configuration is stored.
     /// otherwise, returns true if the current block is past the stored info.
-    pub fn is_expired(self, block_info: BlockInfo) -> bool {
+    pub fn is_expired(&self, block_info: BlockInfo) -> bool {
         match self {
             // no expiration date
             ExpiryConfig::None => false,
             // if stored expiration block height is less than or equal to the current block,
             // expired
-            ExpiryConfig::Block(h) => h <= block_info.height,
+            ExpiryConfig::Block(h) => h <= &block_info.height,
             // if stored expiration timestamp is more than or equal to the current timestamp,
             // expired
             ExpiryConfig::Time(t) => t.nanos() <= block_info.time.nanos(),
