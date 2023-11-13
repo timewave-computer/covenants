@@ -5,7 +5,7 @@ use astroport::{
     pair::Cw20HookMsg,
 };
 use cosmwasm_std::{
-    to_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     QuerierWrapper, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
@@ -20,7 +20,8 @@ use crate::{
     error::ContractError,
     msg::{
         ContractState, DenomSplits, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
-        RagequitConfig, RagequitState, RagequitType,
+        RagequitConfig, RagequitState, RagequitTerms, RagequitType, TwoPartyPolCovenantConfig,
+        TwoPartyPolCovenantParty,
     },
     state::{
         CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_CONFIG, DENOM_SPLITS, DEPOSIT_DEADLINE,
@@ -341,13 +342,13 @@ fn check_expiration(deps: DepsMut, env: Env) -> Result<Response, ContractError> 
 
 fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // first we error out if ragequit is disabled
-    let mut rq_config = match RAGEQUIT_CONFIG.load(deps.storage)? {
+    let rq_config = match RAGEQUIT_CONFIG.load(deps.storage)? {
         RagequitConfig::Disabled => return Err(ContractError::RagequitDisabled {}),
         RagequitConfig::Enabled(terms) => terms,
     };
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
-    let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
+    let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
     let pool = POOL_ADDRESS.load(deps.storage)?;
 
     // ragequit is only possible when contract is in Active state.
@@ -360,95 +361,202 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
         return Err(ContractError::Expired {});
     }
 
-    // authorize the message sender
-    let (mut rq_party, mut counterparty) =
-        covenant_config.authorize_sender(info.sender.to_string())?;
+    let lp_token = query_liquidity_token_address(deps.querier, pool.to_string())?;
 
-    match rq_config.ty {
-        RagequitType::Share => try_handle_share_based_ragequit(),
-        RagequitType::Side => try_handle_side_based_ragequit(),
+    // We query our own liquidity token balance
+    let liquidity_token_balance =
+        query_liquidity_token_balance(deps.querier, &lp_token, env.contract.address.to_string())?;
+
+    // if no lp tokens are available, no point to ragequit
+    if liquidity_token_balance.is_zero() {
+        return Err(ContractError::NoLpTokensAvailable {});
     }
+
+    // authorize the message sender
+    let (rq_party, counterparty) = covenant_config.authorize_sender(info.sender.to_string())?;
+
+    // depending on the type of ragequit configuration,
+    // different logic we execute
+    match rq_config.ty {
+        RagequitType::Share => try_handle_share_based_ragequit(
+            deps,
+            rq_party,
+            counterparty,
+            pool,
+            lp_token,
+            liquidity_token_balance,
+            rq_config,
+            covenant_config,
+        ),
+        RagequitType::Side => try_handle_side_based_ragequit(
+            deps,
+            rq_party,
+            counterparty,
+            pool,
+            lp_token,
+            liquidity_token_balance,
+            rq_config,
+            covenant_config,
+        ),
+    }
+}
+
+/// in a side-based situation, each party owns the denom that
+/// they provided.
+/// in case of a ragequit, the penalty is denominated as a percentage
+/// of the ragequitting party's denom. because of that, on ragequit,
+/// entire covenant LP token balance is burned, in turn withdrawing
+/// all underlying tokens to the holder.
+/// after applying the penalty, all tokens are routed back to the
+/// covenant parties. the covenant then completes.
+pub fn try_handle_side_based_ragequit(
+    deps: DepsMut,
+    mut ragequit_party: TwoPartyPolCovenantParty,
+    mut counterparty: TwoPartyPolCovenantParty,
+    pool: Addr,
+    lp_token_addr: String,
+    lp_token_bal: Uint128,
+    mut rq_terms: RagequitTerms,
+    mut covenant_config: TwoPartyPolCovenantConfig,
+) -> Result<Response, ContractError> {
     // apply the ragequit penalty and get the new splits
-    // let updated_denom_splits = DENOM_SPLITS.update(deps.storage, |mut splits| -> StdResult<_> {
-    //     let new_denom_splits: DenomSplits =
-    //         splits.apply_penalty(rq_config.penalty, &rq_party, &counterparty);
-    //     Ok(new_denom_splits)
-    // })?;
+    let updated_denom_splits = DENOM_SPLITS.update(deps.storage, |mut splits| -> StdResult<_> {
+        let new_denom_splits: DenomSplits =
+            splits.apply_penalty(rq_terms.penalty, &ragequit_party, &counterparty);
+        Ok(new_denom_splits)
+    })?;
 
-    // // TODO: get rid of allocation property entirely?
-    // rq_party.allocation -= rq_config.penalty;
+    // for withdrawing the entire LP position we query full share
+    let ragequit_assets: Vec<Asset> = deps.querier.query_wasm_smart(
+        pool.to_string(),
+        &astroport::pair::QueryMsg::Share {
+            amount: lp_token_bal,
+        },
+    )?;
 
-    // let lp_token = query_liquidity_token_address(deps.querier, pool.to_string())?;
+    // reflect the ragequit in ragequit config
+    let rq_state = RagequitState::from_share_response(ragequit_assets, ragequit_party.clone())?;
+    rq_terms.state = Some(rq_state.clone());
 
-    // // We query our own liquidity token balance
-    // let liquidity_token_balance =
-    //     query_liquidity_token_balance(deps.querier, &lp_token, env.contract.address.to_string())?;
+    // generate the withdraw_liquidity hook for the ragequitting party
+    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
+    let withdraw_msg = &Cw20ExecuteMsg::Send {
+        contract: pool.to_string(),
+        amount: lp_token_bal,
+        msg: to_binary(withdraw_liquidity_hook)?,
+    };
 
-    // // if no lp tokens are available, no point to ragequit
-    // if liquidity_token_balance.is_zero() {
-    //     return Err(ContractError::NoLpTokensAvailable {});
-    // }
+    let balances = rq_state.coins.clone();
+    let mut distribution_messages = updated_denom_splits.get_distribution_messages(balances);
 
-    // // we figure out the amounts of underlying tokens that rq party would receive
-    // let rq_party_lp_token_amount = liquidity_token_balance
-    //     .checked_mul_floor(rq_party.allocation)
-    //     .map_err(|_| ContractError::FractionMulError {})?;
-    // let rq_entitled_assets: Vec<Asset> = deps.querier.query_wasm_smart(
-    //     pool.to_string(),
-    //     &astroport::pair::QueryMsg::Share {
-    //         amount: rq_party_lp_token_amount,
-    //     },
-    // )?;
+    // we submit the withdraw liquidity message followed by transfer of
+    // underlying assets to the corresponding router
+    let mut withdraw_and_forward_msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: lp_token_addr.to_string(),
+        msg: to_binary(withdraw_msg)?,
+        funds: vec![],
+    })];
 
-    // // reflect the ragequit in ragequit config
-    // let rq_state = RagequitState::from_share_response(rq_entitled_assets, rq_party.clone())?;
-    // rq_config.state = Some(rq_state.clone());
+    withdraw_and_forward_msgs.append(&mut distribution_messages);
 
-    // // generate the withdraw_liquidity hook for the ragequitting party
-    // let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
-    // let withdraw_msg = &Cw20ExecuteMsg::Send {
-    //     contract: pool.to_string(),
-    //     amount: rq_party_lp_token_amount,
-    //     msg: to_binary(withdraw_liquidity_hook)?,
-    // };
+    ragequit_party.allocation = Decimal::zero();
+    counterparty.allocation = Decimal::zero();
+    covenant_config.update_parties(ragequit_party.clone(), counterparty);
 
-    // let balances = rq_state.coins.clone();
-    // let mut distribution_messages = updated_denom_splits.get_distribution_messages(balances);
+    // update the states
+    RAGEQUIT_CONFIG.save(deps.storage, &RagequitConfig::Enabled(rq_terms))?;
+    COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
+    // should we just complete here?
+    CONTRACT_STATE.save(deps.storage, &ContractState::Ragequit)?;
 
-    // // we submit the withdraw liquidity message followed by transfer of
-    // // underlying assets to the corresponding router
-    // let mut withdraw_and_forward_msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-    //     contract_addr: lp_token.to_string(),
-    //     msg: to_binary(withdraw_msg)?,
-    //     funds: vec![],
-    // })];
-
-    // withdraw_and_forward_msgs.append(&mut distribution_messages);
-
-    // // after building the messages we can finalize the config updates.
-    // // rq party is now entitled to nothing. counterparty owns the entire position.
-    // rq_party.allocation = Decimal::zero();
-    // counterparty.allocation = Decimal::one();
-    // covenant_config.update_parties(rq_party.clone(), counterparty);
-
-    // // update the states
-    // RAGEQUIT_CONFIG.save(deps.storage, &RagequitConfig::Enabled(rq_config))?;
-    // COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-    // CONTRACT_STATE.save(deps.storage, &ContractState::Ragequit)?;
-
-    // Ok(Response::default()
-    //     .add_attribute("method", "ragequit")
-    //     .add_attribute("controller_chain_caller", rq_party.controller_addr)
-    //     .add_attribute("host_chain_caller", rq_party.host_addr)
-    //     .add_messages(withdraw_and_forward_msgs))
+    Ok(Response::default()
+        .add_attribute("method", "ragequit_side_based")
+        .add_attribute("controller_chain_caller", ragequit_party.controller_addr)
+        .add_attribute("host_chain_caller", ragequit_party.host_addr)
+        .add_messages(withdraw_and_forward_msgs))
 }
 
-pub fn try_handle_side_based_ragequit() -> Result<Response, ContractError> {
-    Ok(Response::default())
-}
+/// in share-based situation, each party owns a fraction x_i of
+/// the entire LP position, where Σx_i = 1.
+/// in case of a ragequit, the penalty is denominated in LP tokens.
+/// this happens by the ragequitting party forfeiting a penalty P
+/// of the entire covenant POL position to the counterparty,
+/// denominated in `cosmwasm_std::Decimal`.
+/// this configuration is beneficial for POL covenants where maintaining
+/// pool depth is a priority, as only x_i - P of the entire liquidity
+/// is withdrawn from the pool (counterparty position remains active).
+pub fn try_handle_share_based_ragequit(
+    deps: DepsMut,
+    mut ragequit_party: TwoPartyPolCovenantParty,
+    mut counterparty: TwoPartyPolCovenantParty,
+    pool: Addr,
+    lp_token_addr: String,
+    lp_token_bal: Uint128,
+    mut rq_terms: RagequitTerms,
+    mut covenant_config: TwoPartyPolCovenantConfig,
+) -> Result<Response, ContractError> {
+    // apply the ragequit penalty and get the new splits
+    let updated_denom_splits = DENOM_SPLITS.update(deps.storage, |mut splits| -> StdResult<_> {
+        let new_denom_splits: DenomSplits =
+            splits.apply_penalty(rq_terms.penalty, &ragequit_party, &counterparty);
+        Ok(new_denom_splits)
+    })?;
 
-pub fn try_handle_share_based_ragequit() -> Result<Response, ContractError> {
-    Ok(Response::default())
+    // apply the ragequit penalty
+    ragequit_party.allocation -= rq_terms.penalty;
+
+    // we figure out the amounts of underlying tokens that rq party would receive
+    let rq_party_lp_token_amount = lp_token_bal
+        .checked_mul_floor(ragequit_party.allocation)
+        .map_err(|_| ContractError::FractionMulError {})?;
+    let rq_entitled_assets: Vec<Asset> = deps.querier.query_wasm_smart(
+        pool.to_string(),
+        &astroport::pair::QueryMsg::Share {
+            amount: rq_party_lp_token_amount,
+        },
+    )?;
+
+    // reflect the ragequit in ragequit config
+    let rq_state = RagequitState::from_share_response(rq_entitled_assets, ragequit_party.clone())?;
+    rq_terms.state = Some(rq_state.clone());
+
+    // generate the withdraw_liquidity hook for the ragequitting party
+    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
+    let withdraw_msg = &Cw20ExecuteMsg::Send {
+        contract: pool.to_string(),
+        amount: rq_party_lp_token_amount,
+        msg: to_binary(withdraw_liquidity_hook)?,
+    };
+
+    let balances = rq_state.coins.clone();
+    let mut distribution_messages = updated_denom_splits.get_distribution_messages(balances);
+
+    // we submit the withdraw liquidity message followed by transfer of
+    // underlying assets to the corresponding router
+    let mut withdraw_and_forward_msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: lp_token_addr.to_string(),
+        msg: to_binary(withdraw_msg)?,
+        funds: vec![],
+    })];
+
+    withdraw_and_forward_msgs.append(&mut distribution_messages);
+
+    // after building the messages we can finalize the config updates.
+    // rq party is now entitled to nothing. counterparty owns the entire position.
+    ragequit_party.allocation = Decimal::zero();
+    counterparty.allocation = Decimal::one();
+    covenant_config.update_parties(ragequit_party.clone(), counterparty);
+
+    // update the states
+    RAGEQUIT_CONFIG.save(deps.storage, &RagequitConfig::Enabled(rq_terms))?;
+    COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Ragequit)?;
+
+    Ok(Response::default()
+        .add_attribute("method", "ragequit_share_based")
+        .add_attribute("controller_chain_caller", ragequit_party.controller_addr)
+        .add_attribute("host_chain_caller", ragequit_party.host_addr)
+        .add_messages(withdraw_and_forward_msgs))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
