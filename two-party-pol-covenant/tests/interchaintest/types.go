@@ -76,18 +76,18 @@ type RagequitConfig struct {
 	Enabled  *RagequitTerms `json:"enabled,omitempty"`
 }
 
-type Share struct{}
-type Side struct{}
+type Share string
+type Side string
 
 type RagequitType struct {
-	Share *Share `json:"share,omitempty"`
-	Side  *Side  `json:"side,omitempty"`
+	Share string `json:"share,omitempty"`
+	Side  string `json:"side,omitempty"`
 }
 
 type RagequitTerms struct {
 	Penalty      string         `json:"penalty"`
 	State        *RagequitState `json:"state,omitempty"`
-	RagequitType RagequitType   `json:"ty"`
+	RagequitType string         `json:"ty"`
 }
 
 type RagequitState struct {

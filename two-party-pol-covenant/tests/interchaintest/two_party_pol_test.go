@@ -286,6 +286,9 @@ func TestTwoPartyPol(t *testing.T) {
 	rqCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount+1), atom)[0]
 	rqCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount+1), osmosis)[0]
 
+	// sideBasedRqCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount+1), atom)[0]
+	// sideBasedRqCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount+1), osmosis)[0]
+
 	happyCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount+1), atom)[0]
 	happyCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount+1), osmosis)[0]
 
@@ -838,13 +841,9 @@ func TestTwoPartyPol(t *testing.T) {
 					LiquidPoolerCode:     lperCodeId,
 				}
 
-				ragequitType := RagequitType{
-					Share: &Share{},
-				}
-
 				ragequitTerms := RagequitTerms{
 					Penalty:      "0.1",
-					RagequitType: ragequitType,
+					RagequitType: "share",
 				}
 
 				ragequitConfig := RagequitConfig{
@@ -1481,12 +1480,10 @@ func TestTwoPartyPol(t *testing.T) {
 					HolderCode:           holderCodeId,
 					LiquidPoolerCode:     lperCodeId,
 				}
-				ragequitType := RagequitType{
-					Share: &Share{},
-				}
+
 				ragequitTerms := RagequitTerms{
 					Penalty:      "0.1",
-					RagequitType: ragequitType,
+					RagequitType: "share",
 				}
 
 				ragequitConfig := RagequitConfig{
