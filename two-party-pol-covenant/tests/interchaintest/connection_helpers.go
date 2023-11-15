@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
 	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
@@ -55,8 +57,7 @@ func (testCtx *TestContext) tick(clock string, keyring string, from string) {
 
 	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
 	require.NoError(testCtx.t, err)
-	err = testutil.WaitForBlocks(testCtx.ctx, 5, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis)
-	require.NoError(testCtx.t, err, "failed to wait for blocks")
+	testCtx.skipBlocks(3)
 }
 
 func (testCtx *TestContext) queryClockAddress(contract string) string {
@@ -184,6 +185,10 @@ func (testCtx *TestContext) holderClaim(contract string, from *ibc.Wallet, keyri
 
 	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
 	require.NoError(testCtx.t, err, "claim failed")
+
+	require.NoError(testCtx.t,
+		testutil.WaitForBlocks(testCtx.ctx, 2, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
+
 }
 
 func (testCtx *TestContext) holderRagequit(contract string, from *ibc.Wallet, keyring string) {
@@ -210,7 +215,7 @@ func (testCtx *TestContext) manualInstantiate(codeId string, msg string, from *i
 
 	cmd := []string{"neutrond", "tx", "wasm", "instantiate", codeId,
 		msg,
-		"--label", "two-party-pol-covenant-happy",
+		"--label", fmt.Sprintf("two-party-pol-covenant-%s", codeId),
 		"--no-admin",
 		"--from", from.KeyName,
 		"--output", "json",
@@ -221,6 +226,7 @@ func (testCtx *TestContext) manualInstantiate(codeId string, msg string, from *i
 		"--keyring-backend", keyring,
 		"-y",
 	}
+	println("insantiating with cmd: ", strings.Join(cmd, " "))
 
 	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
 	require.NoError(testCtx.t, err, "manual instantiation failed")
@@ -250,6 +256,226 @@ func (testCtx *TestContext) manualInstantiate(codeId string, msg string, from *i
 	covenantAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
 
 	return covenantAddress
+}
+
+func (testCtx *TestContext) fundChainAddrs(addrs []string, chain *cosmos.CosmosChain, from *ibc.Wallet, amount int64) {
+	for i := 0; i < len(addrs); i++ {
+		err := chain.SendFunds(testCtx.ctx, from.KeyName, ibc.WalletAmount{
+			Address: addrs[i],
+			Denom:   chain.Config().Denom,
+			Amount:  int64(amount),
+		})
+		require.NoError(testCtx.t, err, "failed to send funds to addr")
+	}
+}
+
+func (testCtx *TestContext) storeContract(chain *cosmos.CosmosChain, from *ibc.Wallet, path string) uint64 {
+	codeIdStr, err := chain.StoreContract(testCtx.ctx, from.KeyName, path)
+	require.NoError(testCtx.t, err, "failed to store contract")
+	codeId, err := strconv.ParseUint(codeIdStr, 10, 64)
+	require.NoError(testCtx.t, err, "failed to parse codeId")
+	return codeId
+}
+
+func (testCtx *TestContext) instantiateAstroportFactory(pairCodeId uint64, tokenCodeId uint64, whitelistCodeId uint64, factoryCodeId uint64, coinRegistryAddr string, from *ibc.Wallet) string {
+	msg := FactoryInstantiateMsg{
+		PairConfigs: []PairConfig{
+			PairConfig{
+				CodeId: pairCodeId,
+				PairType: PairType{
+					Stable: struct{}{},
+				},
+				TotalFeeBps:         0,
+				MakerFeeBps:         0,
+				IsDisabled:          false,
+				IsGeneratorDisabled: true,
+			},
+		},
+		TokenCodeId:         tokenCodeId,
+		FeeAddress:          nil,
+		GeneratorAddress:    nil,
+		Owner:               from.Bech32Address(testCtx.Neutron.Config().Bech32Prefix),
+		WhitelistCodeId:     whitelistCodeId,
+		CoinRegistryAddress: coinRegistryAddr,
+	}
+
+	str, _ := json.Marshal(msg)
+	factoryAddr, err := testCtx.Neutron.InstantiateContract(
+		testCtx.ctx, from.KeyName, strconv.FormatUint(factoryCodeId, 10), string(str), true)
+	require.NoError(testCtx.t, err, "Failed to instantiate Factory")
+
+	return factoryAddr
+}
+
+func (testCtx *TestContext) queryAstroLpTokenAndStableswapAddress(
+	factoryAddress string, denom1 string, denom2 string,
+) (string, string) {
+	pairQueryMsg := PairQuery{
+		Pair: Pair{
+			AssetInfos: []AssetInfo{
+				{
+					NativeToken: &NativeToken{
+						Denom: denom1,
+					},
+				},
+				{
+					NativeToken: &NativeToken{
+						Denom: denom2,
+					},
+				},
+			},
+		},
+	}
+	queryJson, _ := json.Marshal(pairQueryMsg)
+	queryCmd := []string{"neutrond", "query", "wasm", "contract-state", "smart",
+		factoryAddress, string(queryJson),
+	}
+
+	factoryQueryRespBytes, _, _ := testCtx.Neutron.Exec(testCtx.ctx, queryCmd, nil)
+	print(string(factoryQueryRespBytes))
+
+	var response FactoryPairResponse
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, factoryAddress, pairQueryMsg, &response)
+	require.NoError(testCtx.t, err, "failed to query pair info")
+
+	stableswapAddress := response.Data.ContractAddr
+	print("\n stableswap address: ", stableswapAddress, "\n")
+	liquidityTokenAddress := response.Data.LiquidityToken
+	print("\n liquidity token: ", liquidityTokenAddress, "\n")
+
+	return liquidityTokenAddress, stableswapAddress
+}
+
+func (testCtx *TestContext) provideAstroportLiquidity(denom1 string, denom2 string, amount1 uint64, amount2 uint64, from *ibc.Wallet, pool string) {
+
+	msg := ProvideLiqudityMsg{
+		ProvideLiquidity: ProvideLiquidityStruct{
+			Assets: []AstroportAsset{
+				AstroportAsset{
+					Info: AssetInfo{
+						NativeToken: &NativeToken{
+							Denom: denom1,
+						},
+					},
+					Amount: strconv.FormatUint(amount1, 10),
+				},
+				AstroportAsset{
+					Info: AssetInfo{
+						NativeToken: &NativeToken{
+							Denom: denom2,
+						},
+					},
+					Amount: strconv.FormatUint(amount2, 10),
+				},
+			},
+			SlippageTolerance: "0.01",
+			AutoStake:         false,
+			Receiver:          from.Bech32Address(testCtx.Neutron.Config().Bech32Prefix),
+		},
+	}
+
+	str, err := json.Marshal(msg)
+	require.NoError(testCtx.t, err, "Failed to marshall provide liquidity msg")
+	amountStr := strconv.FormatUint(amount1, 10) + denom1 + "," + strconv.FormatUint(amount2, 10) + denom2
+
+	cmd := []string{"neutrond", "tx", "wasm", "execute", pool,
+		string(str),
+		"--from", from.KeyName,
+		"--amount", amountStr,
+		"--output", "json",
+		"--home", "/var/cosmos-chain/neutron-2",
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--gas", "900000",
+		"--keyring-backend", keyring.BackendTest,
+		"-y",
+	}
+	println("liq provision msg: \n ", strings.Join(cmd, " "), "\n")
+
+	_, _, err = testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	require.NoError(testCtx.t, err)
+}
+
+func (testCtx *TestContext) createAstroportFactoryPair(amp uint64, denom1 string, denom2 string, factory string, from *ibc.Wallet, keyring string) {
+	initParams := StablePoolParams{
+		Amp: amp,
+	}
+	binaryData, _ := json.Marshal(initParams)
+
+	createPairMsg := CreatePairMsg{
+		CreatePair: CreatePair{
+			PairType: PairType{
+				Stable: struct{}{},
+			},
+			AssetInfos: []AssetInfo{
+				{
+					NativeToken: &NativeToken{
+						Denom: denom1,
+					},
+				},
+				{
+					NativeToken: &NativeToken{
+						Denom: denom2,
+					},
+				},
+			},
+			InitParams: binaryData,
+		},
+	}
+
+	str, _ := json.Marshal(createPairMsg)
+
+	createCmd := []string{"neutrond", "tx", "wasm", "execute",
+		factory,
+		string(str),
+		"--gas-prices", "0.0untrn",
+		"--gas-adjustment", `1.5`,
+		"--output", "json",
+		"--home", "/var/cosmos-chain/neutron-2",
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--home", testCtx.Neutron.HomeDir(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--from", from.KeyName,
+		"--gas", "auto",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+
+	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, createCmd, nil)
+	require.NoError(testCtx.t, err, err)
+	testCtx.skipBlocks(3)
+}
+
+func (testCtx *TestContext) skipBlocks(n uint64) {
+	require.NoError(
+		testCtx.t,
+		testutil.WaitForBlocks(testCtx.ctx, 3, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis),
+		"failed to wait for blocks")
+}
+
+func (testCtx *TestContext) queryLpTokenBalance(token string, addr string) uint64 {
+	bal := Balance{
+		Address: addr,
+	}
+
+	balanceQueryMsg := Cw20QueryMsg{
+		Balance: bal,
+	}
+	var response Cw20BalanceResponse
+
+	require.NoError(
+		testCtx.t,
+		testCtx.Neutron.QueryContract(testCtx.ctx, token, balanceQueryMsg, &response),
+		"failed to query lp token balance",
+	)
+	balString := response.Data.Balance
+
+	lpBal, err := strconv.ParseUint(balString, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+
+	return lpBal
 }
 
 func (testCtx *TestContext) getIbcDenom(channelId string, denom string) string {
