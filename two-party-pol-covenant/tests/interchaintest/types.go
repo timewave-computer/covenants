@@ -17,6 +17,7 @@ type CovenantInstantiateMsg struct {
 	PoolAddress              string              `json:"pool_address"`
 	RagequitConfig           *RagequitConfig     `json:"ragequit_config,omitempty"`
 	DepositDeadline          Expiration          `json:"deposit_deadline"`
+	CovenantType             string              `json:"covenant_type"`
 	PartyAShare              string              `json:"party_a_share"`
 	PartyBShare              string              `json:"party_b_share"`
 	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
@@ -79,15 +80,14 @@ type RagequitConfig struct {
 type Share string
 type Side string
 
-type RagequitType struct {
+type CovenantType struct {
 	Share string `json:"share,omitempty"`
 	Side  string `json:"side,omitempty"`
 }
 
 type RagequitTerms struct {
-	Penalty      string         `json:"penalty"`
-	State        *RagequitState `json:"state,omitempty"`
-	RagequitType string         `json:"ty"`
+	Penalty string         `json:"penalty"`
+	State   *RagequitState `json:"state,omitempty"`
 }
 
 type RagequitState struct {

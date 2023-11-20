@@ -42,6 +42,12 @@ impl InstantiateMsg {
 }
 
 #[cw_serde]
+pub enum CovenantType {
+    Share,
+    Side,
+}
+
+#[cw_serde]
 pub struct DenomSplits {
     pub explicit_splits: BTreeMap<String, SplitConfig>,
     pub fallback_split: Option<SplitConfig>,
@@ -49,6 +55,8 @@ pub struct DenomSplits {
 
 impl DenomSplits {
     pub fn get_distribution_messages(self, available_coins: Vec<Coin>) -> Vec<CosmosMsg> {
+        // TODO: reverse this to loop over explicit splits instead of available coins
+        // TODO: move fallback split distribution into a separate method
         available_coins
             .iter()
             .filter_map(|c| {
@@ -150,6 +158,7 @@ pub struct PresetTwoPartyPolHolderFields {
     pub label: String,
     pub splits: Vec<DenomSplit>,
     pub fallback_split: Option<SplitType>,
+    pub covenant_type: CovenantType,
 }
 
 #[cw_serde]
@@ -218,6 +227,7 @@ impl PresetTwoPartyPolHolderFields {
                     host_addr: self.party_b.host_addr,
                     controller_addr: self.party_b.controller_addr,
                 },
+                covenant_type: self.covenant_type,
             },
             splits: remapped_splits,
             fallback_split: remapped_fallback,
@@ -229,6 +239,7 @@ impl PresetTwoPartyPolHolderFields {
 pub struct TwoPartyPolCovenantConfig {
     pub party_a: TwoPartyPolCovenantParty,
     pub party_b: TwoPartyPolCovenantParty,
+    pub covenant_type: CovenantType,
 }
 
 impl TwoPartyPolCovenantConfig {
@@ -418,14 +429,6 @@ pub struct RagequitTerms {
     /// optional rq state. none indicates no ragequit.
     /// some holds the ragequit related config
     pub state: Option<RagequitState>,
-    /// describes the ragequit dynamics
-    pub ty: RagequitType,
-}
-
-#[cw_serde]
-pub enum RagequitType {
-    Share,
-    Side,
 }
 
 #[cw_serde]
