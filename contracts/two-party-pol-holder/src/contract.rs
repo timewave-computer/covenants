@@ -16,11 +16,12 @@ use covenant_utils::SplitConfig;
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
+use crate::msg::CovenantType;
 use crate::{
     error::ContractError,
     msg::{
         ContractState, DenomSplits, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
-        RagequitConfig, RagequitState, RagequitTerms, RagequitType, TwoPartyPolCovenantConfig,
+        RagequitConfig, RagequitState, RagequitTerms, TwoPartyPolCovenantConfig,
         TwoPartyPolCovenantParty,
     },
     state::{
@@ -377,8 +378,8 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
 
     // depending on the type of ragequit configuration,
     // different logic we execute
-    match rq_config.ty {
-        RagequitType::Share => try_handle_share_based_ragequit(
+    match covenant_config.covenant_type {
+        CovenantType::Share => try_handle_share_based_ragequit(
             deps,
             rq_party,
             counterparty,
@@ -388,7 +389,7 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
             rq_config,
             covenant_config,
         ),
-        RagequitType::Side => try_handle_side_based_ragequit(
+        CovenantType::Side => try_handle_side_based_ragequit(
             deps,
             rq_party,
             counterparty,
