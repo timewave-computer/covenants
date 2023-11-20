@@ -131,26 +131,14 @@ fn query_liquidity_token_address(
     Ok(pair_info.liquidity_token.to_string())
 }
 
-// TODO: figure out best UX to implement a way to claim partial positions
-// - Option<Decimal> ? None -> claim entire position, Some(%) -> claim the % of your entitlement
 fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
-    let (mut claim_party, mut counterparty) =
+    let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
+    let (claim_party, counterparty) =
         covenant_config.authorize_sender(info.sender.to_string())?;
     let pool = POOL_ADDRESS.load(deps.storage)?;
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
 
-    // we exit early if contract is not in ragequit or expired state
-    // otherwise claim process is the same
-    let response: Response = match contract_state {
-        ContractState::Ragequit => {
-            Response::default().add_attribute("method", "try_claim_ragequit")
-        }
-        ContractState::Expired => Response::default().add_attribute("method", "try_claim_expired"),
-        _ => return Err(ContractError::ClaimError {}),
-    };
-
-    // if both parties already claimed everything we complete
+    // if both parties already claimed everything we complete early
     if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
         CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
         return Ok(Response::default()
@@ -158,6 +146,14 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
             .add_attribute("contract_state", "complete"));
     }
 
+    // we exit early if contract is not in ragequit or expired state
+    match contract_state {
+        ContractState::Ragequit => (),
+        ContractState::Expired => (),
+        _ => return Err(ContractError::ClaimError {}),
+    };
+
+    // find the liquidity token balance
     let lp_token = query_liquidity_token_address(deps.querier, pool.to_string())?;
     let liquidity_token_balance =
         query_liquidity_token_balance(deps.querier, &lp_token, env.contract.address.to_string())?;
@@ -167,8 +163,40 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
         return Err(ContractError::NoLpTokensAvailable {});
     }
 
+    match covenant_config.covenant_type {
+        CovenantType::Share => try_claim_share_based(
+            deps,
+            claim_party,
+            counterparty,
+            liquidity_token_balance,
+            lp_token,
+            pool.to_string(),
+            covenant_config,
+        ),
+        CovenantType::Side => try_claim_side_based(
+            deps,
+            claim_party,
+            counterparty,
+            liquidity_token_balance,
+            lp_token,
+            pool.to_string(),
+            covenant_config,
+        ),
+    }
+}
+
+fn try_claim_share_based(
+    deps: DepsMut,
+    mut claim_party: TwoPartyPolCovenantParty,
+    mut counterparty: TwoPartyPolCovenantParty,
+    lp_token_bal: Uint128,
+    lp_token_addr: String,
+    pool: String,
+    mut covenant_config: TwoPartyPolCovenantConfig,
+) -> Result<Response, ContractError> {
+
     // we figure out the amounts of underlying tokens that claiming party could receive
-    let claim_party_lp_token_amount = liquidity_token_balance
+    let claim_party_lp_token_amount = lp_token_bal
         .checked_mul_floor(claim_party.allocation)
         .map_err(|_| ContractError::FractionMulError {})?;
     let claim_party_entitled_assets: Vec<Asset> = deps.querier.query_wasm_smart(
@@ -197,7 +225,7 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
     // we submit the withdraw liquidity message followed by transfer of
     // underlying assets to the corresponding router
     let mut withdraw_and_forward_msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: lp_token.to_string(),
+        contract_addr: lp_token_addr.to_string(),
         msg: to_binary(withdraw_msg)?,
         funds: vec![],
     })];
@@ -217,8 +245,61 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
     covenant_config.update_parties(claim_party, counterparty);
 
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
+    Ok(Response::default().add_messages(withdraw_and_forward_msgs))
+}
 
-    Ok(response.add_messages(withdraw_and_forward_msgs))
+fn try_claim_side_based(
+    deps: DepsMut,
+    mut claim_party: TwoPartyPolCovenantParty,
+    mut counterparty: TwoPartyPolCovenantParty,
+    lp_token_bal: Uint128,
+    lp_token_addr: String,
+    pool: String,
+    mut covenant_config: TwoPartyPolCovenantConfig,
+) -> Result<Response, ContractError> {
+    // we figure out the amount of tokens to be expected
+    let entitled_assets: Vec<Asset> = deps.querier.query_wasm_smart(
+        pool.to_string(),
+        &astroport::pair::QueryMsg::Share {
+            amount: lp_token_bal,
+        },
+    )?;
+    // convert astro assets to coins
+    let mut withdraw_coins: Vec<Coin> = vec![];
+    for asset in entitled_assets {
+        withdraw_coins.push(asset.to_coin()?);
+    }
+
+    // generate the withdraw_liquidity hook for the claim party
+    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
+    let withdraw_msg = &Cw20ExecuteMsg::Send {
+        contract: pool.to_string(),
+        amount: lp_token_bal,
+        msg: to_binary(withdraw_liquidity_hook)?,
+    };
+
+    let denom_splits = DENOM_SPLITS.load(deps.storage)?;
+    let mut distribution_messages = denom_splits.get_distribution_messages(withdraw_coins);
+
+    // we submit the withdraw liquidity message followed by transfer of
+    // underlying assets to the corresponding router
+    let mut withdraw_and_forward_msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: lp_token_addr.to_string(),
+        msg: to_binary(withdraw_msg)?,
+        funds: vec![],
+    })];
+
+    withdraw_and_forward_msgs.append(&mut distribution_messages);
+
+    claim_party.allocation = Decimal::zero();
+    counterparty.allocation = Decimal::zero();
+    covenant_config.update_parties(claim_party.clone(), counterparty);
+
+    // update the states
+    COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+
+    Ok(Response::default().add_messages(withdraw_and_forward_msgs))
 }
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
