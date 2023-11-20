@@ -82,6 +82,7 @@ pub fn instantiate(
         label: format!("{}-holder", msg.label),
         splits: msg.splits,
         fallback_split: msg.fallback_split,
+        covenant_type: msg.covenant_type,
     };
     let preset_party_a_forwarder_fields = PresetIbcForwarderFields {
         remote_chain_connection_id: msg.party_a_config.party_chain_connection_id,

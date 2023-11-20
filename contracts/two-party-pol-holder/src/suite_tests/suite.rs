@@ -73,6 +73,7 @@ impl Default for SuiteBuilder {
                         controller_addr: PARTY_B_ADDR.to_string(),
                         allocation: Decimal::from_ratio(Uint128::one(), Uint128::new(2)),
                     },
+                    covenant_type: crate::msg::CovenantType::Share{},
                 },
                 splits: vec![
                     (

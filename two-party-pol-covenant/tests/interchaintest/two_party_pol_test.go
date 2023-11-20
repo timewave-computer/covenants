@@ -561,8 +561,7 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				ragequitTerms := RagequitTerms{
-					Penalty:      "0.1",
-					RagequitType: "share",
+					Penalty: "0.1",
 				}
 
 				ragequitConfig := RagequitConfig{
@@ -589,6 +588,7 @@ func TestTwoPartyPol(t *testing.T) {
 					PartyBShare:              "50",
 					ExpectedPoolRatio:        "0.1",
 					AcceptablePoolRatioDelta: "0.09",
+					CovenantType:             "share",
 					PairType:                 pairType,
 					Splits: []DenomSplit{
 						{
@@ -902,8 +902,7 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				ragequitTerms := RagequitTerms{
-					Penalty:      "0.1",
-					RagequitType: "share",
+					Penalty: "0.1",
 				}
 
 				ragequitConfig := RagequitConfig{
@@ -930,6 +929,7 @@ func TestTwoPartyPol(t *testing.T) {
 					PartyBShare:              "50",
 					ExpectedPoolRatio:        "0.1",
 					AcceptablePoolRatioDelta: "0.09",
+					CovenantType:             "share",
 					PairType:                 pairType,
 					Splits: []DenomSplit{
 						{
@@ -1237,8 +1237,7 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				ragequitTerms := RagequitTerms{
-					Penalty:      "0.1",
-					RagequitType: "side",
+					Penalty: "0.1",
 				}
 
 				ragequitConfig := RagequitConfig{
@@ -1266,6 +1265,7 @@ func TestTwoPartyPol(t *testing.T) {
 					ExpectedPoolRatio:        "0.1",
 					AcceptablePoolRatioDelta: "0.09",
 					PairType:                 pairType,
+					CovenantType:             "side",
 					Splits: []DenomSplit{
 						{
 							Denom: neutronAtomIbcDenom,
