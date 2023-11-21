@@ -65,12 +65,18 @@ pub fn instantiate(
         .splits
         .into_iter()
         .map(|(denom, split)| {
-            let validated_split: SplitConfig = split.get_split_config()?.validate()?;
+            let validated_split: SplitConfig = split.get_split_config()?.validate(
+                &msg.covenant_config.party_a.router,
+                &msg.covenant_config.party_b.router,
+            )?;
             Ok((denom, validated_split))
         })
         .collect::<Result<BTreeMap<String, SplitConfig>, ContractError>>()?;
     let fallback_split = match msg.clone().fallback_split {
-        Some(split) => Some(split.get_split_config()?.validate()?),
+        Some(split) => Some(split.get_split_config()?.validate(
+            &msg.covenant_config.party_a.controller_addr,
+            &msg.covenant_config.party_b.controller_addr,
+        )?),
         None => None,
     };
     let denom_splits = DenomSplits {
@@ -133,8 +139,7 @@ fn query_liquidity_token_address(
 
 fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
-    let (claim_party, counterparty) =
-        covenant_config.authorize_sender(info.sender.to_string())?;
+    let (claim_party, counterparty) = covenant_config.authorize_sender(info.sender.to_string())?;
     let pool = POOL_ADDRESS.load(deps.storage)?;
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
 
@@ -147,11 +152,7 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
     }
 
     // we exit early if contract is not in ragequit or expired state
-    match contract_state {
-        ContractState::Ragequit => (),
-        ContractState::Expired => (),
-        _ => return Err(ContractError::ClaimError {}),
-    };
+    contract_state.validate_claim_state()?;
 
     // find the liquidity token balance
     let lp_token = query_liquidity_token_address(deps.querier, pool.to_string())?;
@@ -194,7 +195,6 @@ fn try_claim_share_based(
     pool: String,
     mut covenant_config: TwoPartyPolCovenantConfig,
 ) -> Result<Response, ContractError> {
-
     // we figure out the amounts of underlying tokens that claiming party could receive
     let claim_party_lp_token_amount = lp_token_bal
         .checked_mul_floor(claim_party.allocation)

@@ -13,12 +13,19 @@ use crate::error::ContractError;
 
 #[cw_serde]
 pub struct InstantiateMsg {
+    /// address of authorized clock
     pub clock_address: String,
+    /// address of the target liquidity pool
     pub pool_address: String,
+    /// liquid pooler address
     pub next_contract: String,
+    /// config describing the agreed upon duration of POL
     pub lockup_config: Expiration,
+    /// config describing early exit dynamics
     pub ragequit_config: RagequitConfig,
+    /// deadline for both parties to deposit their funds
     pub deposit_deadline: Expiration,
+    /// config describing the covenant dynamics
     pub covenant_config: TwoPartyPolCovenantConfig,
     /// list of (denom, split) configurations
     pub splits: Vec<(String, SplitType)>,
@@ -55,7 +62,9 @@ pub struct DenomSplits {
 
 impl DenomSplits {
     pub fn get_distribution_messages(self, available_coins: Vec<Coin>) -> Vec<CosmosMsg> {
-        // TODO: reverse this to loop over explicit splits instead of available coins
+        // TODO: reverse this to loop over explicit splits instead of available coins?
+        // available coins here just means share response from astroport pool,
+        // meaning that we should never (?) have more than 2 items in that list
         // TODO: move fallback split distribution into a separate method
         available_coins
             .iter()
@@ -96,27 +105,19 @@ impl DenomSplits {
         for (denom, mut config) in self.explicit_splits.clone().into_iter() {
             // apply the ragequit penalty to rq party and its counterparty
             let mut receivers = config.receivers;
-            match receivers.len() {
-                1 => {
-                    // insert the counterparty and give him the RQ penalty
-                    receivers[0].share -= penalty;
-                    receivers.push(Receiver {
-                        addr: counterparty.router.to_string(),
-                        share: penalty,
-                    });
-                }
-                2 => {
-                    // subtract the RQ penalty from RQ party, add it to the counterparty
-                    for receiver in receivers.iter_mut() {
-                        if receiver.addr == party.router {
-                            receiver.share -= penalty;
-                        } else {
-                            receiver.share += penalty;
-                        }
+            // todo: formalize this
+            if receivers.len() == 2 {
+                // subtract the RQ penalty from RQ party, add it to the counterparty
+                for receiver in receivers.iter_mut() {
+                    if receiver.addr == party.router {
+                        receiver.share -= penalty;
+                    } else {
+                        receiver.share += penalty;
                     }
                 }
-                _ => {}
             }
+
+
             config.receivers = receivers;
             self.explicit_splits.insert(denom, config);
         }
@@ -339,6 +340,16 @@ pub enum ContractState {
     Expired,
     /// underlying funds have been withdrawn.
     Complete,
+}
+
+impl ContractState {
+    pub fn validate_claim_state(&self) -> Result<(), ContractError> {
+        match self {
+            ContractState::Ragequit => Ok(()),
+            ContractState::Expired => Ok(()),
+            _ => return Err(ContractError::ClaimError {}),
+        }
+    }
 }
 
 impl fmt::Display for ContractState {

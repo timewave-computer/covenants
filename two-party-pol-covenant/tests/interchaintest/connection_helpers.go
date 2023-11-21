@@ -211,10 +211,14 @@ func (testCtx *TestContext) holderRagequit(contract string, from *ibc.Wallet, ke
 	require.NoError(testCtx.t, err, "ragequit failed")
 }
 
-func (testCtx *TestContext) manualInstantiate(codeId string, msg string, from *ibc.Wallet, keyring string) string {
+func (testCtx *TestContext) manualInstantiate(codeId string, msg CovenantInstantiateMsg, from *ibc.Wallet, keyring string) string {
+
+	str, err := json.Marshal(msg)
+	require.NoError(testCtx.t, err, "Failed to marshall CovenantInstantiateMsg")
+	instantiateMsg := string(str)
 
 	cmd := []string{"neutrond", "tx", "wasm", "instantiate", codeId,
-		msg,
+		instantiateMsg,
 		"--label", fmt.Sprintf("two-party-pol-covenant-%s", codeId),
 		"--no-admin",
 		"--from", from.KeyName,
@@ -226,9 +230,12 @@ func (testCtx *TestContext) manualInstantiate(codeId string, msg string, from *i
 		"--keyring-backend", keyring,
 		"-y",
 	}
-	println("insantiating with cmd: ", strings.Join(cmd, " "))
 
-	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	prettyJson, _ := json.MarshalIndent(msg, "", "    ")
+	println("covenant instantiation message:")
+	fmt.Println(string(prettyJson))
+
+	_, _, err = testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
 	require.NoError(testCtx.t, err, "manual instantiation failed")
 
 	require.NoError(testCtx.t,
