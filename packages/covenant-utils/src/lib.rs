@@ -229,16 +229,36 @@ impl SplitConfig {
         Ok(SplitType::Custom(SplitConfig { receivers }))
     }
 
-    pub fn validate(self) -> Result<SplitConfig, StdError> {
-        let total_share: Decimal = self.receivers.iter().map(|r| r.share).sum();
+    pub fn validate(self, party_a: &str, party_b: &str) -> Result<SplitConfig, StdError> {
+        let mut total_share = Decimal::zero();
+        let mut party_a_entry = false;
+        let mut party_b_entry = false;
 
-        if total_share == Decimal::one() {
-            Ok(self)
-        } else {
-            Err(StdError::generic_err(
+        for receiver in self.receivers.iter() {
+            total_share += receiver.share;
+            if receiver.addr == party_a {
+                party_a_entry = true;
+            } else if receiver.addr == party_b {
+                party_b_entry = true;
+            }
+        }
+
+        if total_share != Decimal::one() {
+            return Err(StdError::generic_err(
                 "shares must add up to 1.0".to_string(),
             ))
         }
+        else if !party_a_entry {
+            return Err(StdError::generic_err(
+                "missing party A entry in split".to_string(),
+            ))
+        } else if !party_b_entry {
+            return Err(StdError::generic_err(
+                "missing party B entry in split".to_string(),
+            ))
+        }
+
+        Ok(self)
     }
 
     pub fn get_transfer_messages(
