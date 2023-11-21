@@ -603,6 +603,10 @@ func TestTwoPartyPol(t *testing.T) {
 											Address: hubReceiverAddr,
 											Share:   "1.0",
 										},
+										{
+											Address: osmoReceiverAddr,
+											Share:   "0.0",
+										},
 									},
 								},
 							},
@@ -616,6 +620,10 @@ func TestTwoPartyPol(t *testing.T) {
 											Address: osmoReceiverAddr,
 											Share:   "1.0",
 										},
+										{
+											Address: hubReceiverAddr,
+											Share:   "0.0",
+										},
 									},
 								},
 							},
@@ -623,11 +631,8 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 					FallbackSplit: nil,
 				}
-				str, err := json.Marshal(covenantMsg)
-				require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
-				instantiateMsg := string(str)
 
-				covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantCodeId, 10), instantiateMsg, neutronUser, keyring.BackendTest)
+				covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantCodeId, 10), covenantMsg, neutronUser, keyring.BackendTest)
 
 				println("covenant address: ", covenantAddress)
 			})
@@ -944,6 +949,10 @@ func TestTwoPartyPol(t *testing.T) {
 											Address: hubReceiverAddr,
 											Share:   "1.0",
 										},
+										{
+											Address: osmoReceiverAddr,
+											Share:   "0.0",
+										},
 									},
 								},
 							},
@@ -957,6 +966,10 @@ func TestTwoPartyPol(t *testing.T) {
 											Address: osmoReceiverAddr,
 											Share:   "1.0",
 										},
+										{
+											Address: hubReceiverAddr,
+											Share:   "0.0",
+										},
 									},
 								},
 							},
@@ -964,11 +977,8 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 					FallbackSplit: nil,
 				}
-				str, err := json.Marshal(covenantMsg)
-				require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
-				instantiateMsg := string(str)
 
-				covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantRqCodeId, 10), instantiateMsg, neutronUser, keyring.BackendTest)
+				covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantRqCodeId, 10), covenantMsg, neutronUser, keyring.BackendTest)
 				println("covenant address: ", covenantAddress)
 			})
 
@@ -1279,6 +1289,10 @@ func TestTwoPartyPol(t *testing.T) {
 											Address: hubReceiverAddr,
 											Share:   "1.0",
 										},
+										{
+											Address: osmoReceiverAddr,
+											Share:   "0.0",
+										},
 									},
 								},
 							},
@@ -1292,6 +1306,10 @@ func TestTwoPartyPol(t *testing.T) {
 											Address: osmoReceiverAddr,
 											Share:   "1.0",
 										},
+										{
+											Address: hubReceiverAddr,
+											Share:   "0.0",
+										},
 									},
 								},
 							},
@@ -1299,8 +1317,8 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 					FallbackSplit: nil,
 				}
-				str, _ := json.Marshal(covenantMsg)
-				covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantSideBasedRqCodeId, 10), string(str), neutronUser, keyring.BackendTest)
+
+				covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantSideBasedRqCodeId, 10), covenantMsg, neutronUser, keyring.BackendTest)
 				println("covenant address: ", covenantAddress)
 			})
 
@@ -1572,6 +1590,10 @@ func TestTwoPartyPol(t *testing.T) {
 											Address: hubReceiverAddr,
 											Share:   "1.0",
 										},
+										{
+											Address: osmoReceiverAddr,
+											Share:   "0.0",
+										},
 									},
 								},
 							},
@@ -1585,6 +1607,10 @@ func TestTwoPartyPol(t *testing.T) {
 											Address: osmoReceiverAddr,
 											Share:   "1.0",
 										},
+										{
+											Address: hubReceiverAddr,
+											Share:   "0.0",
+										},
 									},
 								},
 							},
@@ -1592,8 +1618,8 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 					FallbackSplit: nil,
 				}
-				str, _ := json.Marshal(covenantMsg)
-				covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantSideBasedRqCodeId, 10), string(str), neutronUser, keyring.BackendTest)
+
+				covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantSideBasedRqCodeId, 10), covenantMsg, neutronUser, keyring.BackendTest)
 				println("covenant address: ", covenantAddress)
 			})
 
