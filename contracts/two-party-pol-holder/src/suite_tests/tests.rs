@@ -1,4 +1,7 @@
+use std::{str::FromStr, collections::BTreeMap};
+
 use cosmwasm_std::{Decimal, Timestamp, Uint128};
+use covenant_utils::{SplitType, SplitConfig};
 use cw_utils::Expiration;
 
 use crate::{
@@ -6,7 +9,7 @@ use crate::{
     msg::{ContractState, RagequitConfig, RagequitTerms},
     suite_tests::suite::{
         get_default_block_info, CLOCK_ADDR, NEXT_CONTRACT, PARTY_A_ROUTER, PARTY_B_ADDR,
-        PARTY_B_ROUTER, POOL,
+        PARTY_B_ROUTER, POOL, DENOM_A, DENOM_B,
     },
 };
 
@@ -399,7 +402,7 @@ fn test_ragequit_double_claim_fails() {
 }
 
 #[test]
-fn test_ragequit_happy_flow_to_completion() {
+fn test_share_based_ragequit_flow_to_completion() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
         .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
@@ -448,7 +451,7 @@ fn test_ragequit_happy_flow_to_completion() {
 }
 
 #[test]
-fn test_expiry_happy_flow_to_completion() {
+fn test_share_based_expiry_happy_flow_to_completion() {
     let current_timestamp = get_default_block_info();
     let mut suite = SuiteBuilder::default()
         .with_lockup_config(Expiration::AtTime(current_timestamp.time.plus_minutes(200)))
@@ -531,4 +534,146 @@ fn test_expiry_happy_flow_to_completion() {
         suite.get_denom_b_balance(PARTY_B_ROUTER.to_string())
     );
     assert_eq!(ContractState::Complete {}, suite.query_contract_state());
+}
+
+
+#[test]
+fn test_side_based_expiry_happy_flow_to_completion() {
+    let current_timestamp = get_default_block_info();
+    let mut denom_a_split = BTreeMap::new();
+    denom_a_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
+    denom_a_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
+    let mut denom_b_split = BTreeMap::new();
+    denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
+    denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
+
+    let mut suite = SuiteBuilder::default()
+        .with_splits(vec![
+            (
+                DENOM_A.to_string(),
+                SplitType::Custom(SplitConfig {
+                    receivers: denom_a_split,
+                })
+            ),
+            (
+                DENOM_B.to_string(),
+                SplitType::Custom(SplitConfig {
+                    receivers: denom_b_split,
+                })
+            )
+        ])
+        .with_covenant_config_type(crate::msg::CovenantType::Side)
+        .with_lockup_config(Expiration::AtTime(current_timestamp.time.plus_minutes(200)))
+        .build();
+
+    // both parties fulfill their parts of the covenant
+    let coin_a = suite.get_party_a_coin(Uint128::new(200));
+    let coin_b = suite.get_party_b_coin(Uint128::new(200));
+    suite.fund_coin(coin_a);
+    suite.fund_coin(coin_b);
+
+    // we tick the holder to deposit the funds and activate
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    suite.pass_minutes(250);
+
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    assert_eq!(ContractState::Expired {}, suite.query_contract_state());
+    assert_eq!(
+        Uint128::new(0),
+        suite.get_denom_a_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(0),
+        suite.get_denom_b_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(0),
+        suite.get_denom_a_balance(PARTY_B_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(0),
+        suite.get_denom_b_balance(PARTY_B_ROUTER.to_string())
+    );
+
+    // party B claims
+    suite.claim(PARTY_B_ADDR).unwrap();
+
+    assert_eq!(
+        Uint128::new(200),
+        suite.get_denom_a_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(200),
+        suite.get_denom_b_balance(PARTY_B_ROUTER.to_string())
+    );
+    assert_eq!(ContractState::Complete {}, suite.query_contract_state());
+}
+
+
+#[test]
+fn test_side_based_ragequit_flow_to_completion() {
+    let current_timestamp = get_default_block_info();
+    let mut denom_a_split = BTreeMap::new();
+    denom_a_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
+    denom_a_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
+    let mut denom_b_split = BTreeMap::new();
+    denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
+    denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
+
+    let mut suite = SuiteBuilder::default()
+        .with_splits(vec![
+            (
+                DENOM_A.to_string(),
+                SplitType::Custom(SplitConfig {
+                    receivers: denom_a_split,
+                })
+            ),
+            (
+                DENOM_B.to_string(),
+                SplitType::Custom(SplitConfig {
+                    receivers: denom_b_split,
+                })
+            )
+        ])
+        .with_covenant_config_type(crate::msg::CovenantType::Side)
+        .with_ragequit_config(RagequitConfig::Enabled(
+            RagequitTerms {
+                penalty: Decimal::from_str("0.1").unwrap(),
+                state: None,
+            })
+        )
+        .with_lockup_config(Expiration::AtTime(
+            current_timestamp.time.plus_minutes(200))
+        )
+        .build();
+
+    // both parties fulfill their parts of the covenant
+    let coin_a = suite.get_party_a_coin(Uint128::new(200));
+    let coin_b = suite.get_party_b_coin(Uint128::new(200));
+    suite.fund_coin(coin_a);
+    suite.fund_coin(coin_b);
+
+    // we tick the holder to deposit the funds and activate
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    // party A ragequits, forfeiting 10% of their denom to counterparty
+    suite.rq(PARTY_A_ADDR).unwrap();
+
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    assert_eq!(ContractState::Complete {}, suite.query_contract_state());
+    assert_eq!(
+        Uint128::new(180),
+        suite.get_denom_a_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(200),
+        suite.get_denom_b_balance(PARTY_B_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(20),
+        suite.get_denom_a_balance(PARTY_B_ROUTER.to_string())
+    );
 }

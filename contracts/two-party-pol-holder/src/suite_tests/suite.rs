@@ -1,9 +1,11 @@
+use std::{collections::BTreeMap, str::FromStr};
+
 use crate::msg::{
     ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, TwoPartyPolCovenantConfig,
-    TwoPartyPolCovenantParty,
+    TwoPartyPolCovenantParty, CovenantType,
 };
 use cosmwasm_std::{Addr, BlockInfo, Coin, Decimal, Timestamp, Uint128};
-use covenant_utils::{DenomSplit, Receiver, SplitConfig, SplitType};
+use covenant_utils::{SplitConfig, SplitType};
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 use cw_utils::Expiration;
 
@@ -43,7 +45,28 @@ pub struct SuiteBuilder {
 }
 
 impl Default for SuiteBuilder {
+
     fn default() -> Self {
+        let mut denom_a_split = BTreeMap::new();
+        denom_a_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
+        denom_a_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
+        let mut denom_b_split = BTreeMap::new();
+        denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
+        denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
+        let splits = vec![
+            (
+                DENOM_A.to_string(),
+                SplitType::Custom(SplitConfig {
+                    receivers: denom_a_split,
+                }),
+            ),
+            (
+                DENOM_B.to_string(),
+                SplitType::Custom(SplitConfig {
+                    receivers: denom_b_split,
+                }),
+            ),
+        ];
         Self {
             instantiate: InstantiateMsg {
                 pool_address: POOL.to_string(),
@@ -67,7 +90,7 @@ impl Default for SuiteBuilder {
                         router: PARTY_B_ROUTER.to_string(),
                         contribution: Coin {
                             denom: DENOM_B.to_string(),
-                            amount: Uint128::new(100),
+                            amount: Uint128::new(200),
                         },
                         host_addr: PARTY_B_ADDR.to_string(),
                         controller_addr: PARTY_B_ADDR.to_string(),
@@ -75,26 +98,7 @@ impl Default for SuiteBuilder {
                     },
                     covenant_type: crate::msg::CovenantType::Share{},
                 },
-                splits: vec![
-                    (
-                        DENOM_A.to_string(),
-                        SplitType::Custom(SplitConfig {
-                            receivers: vec![Receiver {
-                                addr: PARTY_A_ROUTER.to_string(),
-                                share: Decimal::one(),
-                            }],
-                        }),
-                    ),
-                    (
-                        DENOM_B.to_string(),
-                        SplitType::Custom(SplitConfig {
-                            receivers: vec![Receiver {
-                                addr: PARTY_B_ROUTER.to_string(),
-                                share: Decimal::one(),
-                            }],
-                        }),
-                    ),
-                ],
+                splits,
                 fallback_split: None,
             },
             app: App::default(),
@@ -105,6 +109,16 @@ impl Default for SuiteBuilder {
 impl SuiteBuilder {
     pub fn with_lockup_config(mut self, config: Expiration) -> Self {
         self.instantiate.lockup_config = config;
+        self
+    }
+
+    pub fn with_covenant_config_type(mut self, config: CovenantType) -> Self {
+        self.instantiate.covenant_config.covenant_type = config;
+        self
+    }
+
+    pub fn with_splits(mut self, splits: Vec<(String, SplitType)>) -> Self {
+        self.instantiate.splits = splits;
         self
     }
 

@@ -42,7 +42,7 @@ type Receiver struct {
 }
 
 type SplitConfig struct {
-	Receivers []Receiver `json:"receivers"`
+	Receivers map[string]string `json:"receivers"`
 }
 
 type ContractCodeIds struct {

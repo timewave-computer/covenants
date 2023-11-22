@@ -6,7 +6,7 @@ use cosmwasm_std::{Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, StdEr
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract,
 };
-use covenant_utils::{DenomSplit, Receiver, SplitConfig, SplitType};
+use covenant_utils::{DenomSplit, SplitConfig, SplitType};
 use cw_utils::Expiration;
 
 use crate::error::ContractError;
@@ -61,7 +61,36 @@ pub struct DenomSplits {
 }
 
 impl DenomSplits {
-    pub fn get_distribution_messages(self, available_coins: Vec<Coin>) -> Vec<CosmosMsg> {
+    pub fn get_single_receiver_distribution_messages(self, available_coins: Vec<Coin>, addr: String) -> Vec<CosmosMsg> {
+        available_coins
+            .iter()
+            .filter_map(|c| {
+                // for each coin denom we want to distribute,
+                // we look for it in our explicitly defined split configs
+                let split = self.explicit_splits.get(&c.denom);
+                if let Some(config) = split {
+                    // found it, generate the msg or filter out
+                    match config.get_transfer_messages(c.amount, c.denom.to_string(), Some(addr.to_string())) {
+                        Ok(msgs) => Some(msgs),
+                        Err(_) => None,
+                    }
+                } else {
+                    // otherwise we try to get the fallback split messages or filter out
+                    if let Some(fallback_split) = &self.fallback_split {
+                        match fallback_split.get_transfer_messages(c.amount, c.denom.to_string(), Some(addr.to_string())) {
+                            Ok(msgs) => Some(msgs),
+                            Err(_) => None,
+                        }
+                    } else {
+                        None
+                    }
+                }
+            })
+            .flatten()
+            .collect()
+    }
+
+    pub fn get_shared_distribution_messages(self, available_coins: Vec<Coin>) -> Vec<CosmosMsg> {
         // TODO: reverse this to loop over explicit splits instead of available coins?
         // available coins here just means share response from astroport pool,
         // meaning that we should never (?) have more than 2 items in that list
@@ -74,14 +103,14 @@ impl DenomSplits {
                 let split = self.explicit_splits.get(&c.denom);
                 if let Some(config) = split {
                     // found it, generate the msg or filter out
-                    match config.get_transfer_messages(c.amount, c.denom.to_string()) {
+                    match config.get_transfer_messages(c.amount, c.denom.to_string(), None) {
                         Ok(msgs) => Some(msgs),
                         Err(_) => None,
                     }
                 } else {
                     // otherwise we try to get the fallback split messages or filter out
                     if let Some(fallback_split) = &self.fallback_split {
-                        match fallback_split.get_transfer_messages(c.amount, c.denom.to_string()) {
+                        match fallback_split.get_transfer_messages(c.amount, c.denom.to_string(), None) {
                             Ok(msgs) => Some(msgs),
                             Err(_) => None,
                         }
@@ -100,50 +129,65 @@ impl DenomSplits {
         penalty: Decimal,
         party: &TwoPartyPolCovenantParty,
         counterparty: &TwoPartyPolCovenantParty,
-    ) -> DenomSplits {
-        // we iterate over explicitly defined splits
+    ) -> Result<DenomSplits, ContractError> {
+        // we iterate over explicitly defined splits for each denom
         for (denom, mut config) in self.explicit_splits.clone().into_iter() {
-            // apply the ragequit penalty to rq party and its counterparty
-            let mut receivers = config.receivers;
-            // todo: formalize this
-            if receivers.len() == 2 {
-                // subtract the RQ penalty from RQ party, add it to the counterparty
-                for receiver in receivers.iter_mut() {
-                    if receiver.addr == party.router {
-                        receiver.share -= penalty;
-                    } else {
-                        receiver.share += penalty;
-                    }
-                }
+
+            let party_share = config.receivers
+                // get current party shares or error out if not found
+                .get(&party.router)
+                .ok_or_else(|| ContractError::PartyNotFound {  })?;
+
+            // we do not penalize already null allocations of
+            // the ragequitting party
+            if party_share > &Decimal::zero() {
+                let new_party_share = party_share
+                    // add the penalty or return overflow
+                    .checked_sub(penalty)
+                    .map_err(|e| StdError::overflow(e))?;
+
+                    let new_counterparty_share = config.receivers
+                    .get(&counterparty.router)
+                    .ok_or_else(|| ContractError::PartyNotFound {  })?
+                    .checked_add(penalty)
+                    .map_err(|e| StdError::overflow(e))?;
+
+                // override existing entries with the updated values
+                // while keeping the keys
+                config.receivers.insert(party.router.to_string(), new_party_share);
+                config.receivers.insert(counterparty.router.to_string(), new_counterparty_share);
+
+                // override the existing denom entry with updated config
+                self.explicit_splits.insert(denom, config);
             }
-
-
-            config.receivers = receivers;
-            self.explicit_splits.insert(denom, config);
         }
 
         if let Some(mut split_config) = self.fallback_split {
             // apply the ragequit penalty to rq party and its counterparty
-            let new_receivers: Vec<Receiver> = split_config
-                .receivers
-                .into_iter()
-                .map(|mut receiver| {
-                    if receiver.addr == party.router {
-                        // find (ragequitting) party, subtract penalty from their allocation
-                        receiver.share -= penalty;
-                    } else if receiver.addr == counterparty.router {
-                        // find counterparty, add penalty to their allocation
-                        receiver.share += penalty;
-                    }
-                    receiver
-                })
-                .collect();
-            // update the split config and reflect it in the explicit splits map
-            split_config.receivers = new_receivers;
+            let new_party_share = split_config.receivers
+                // get current party shares or error out if not found
+                .get(party.router.as_str())
+                .ok_or_else(|| ContractError::PartyNotFound {  })?
+                // add the penalty or return overflow
+                .checked_sub(penalty)
+                .map_err(|e| StdError::overflow(e))?;
+
+            let new_counterparty_share = split_config.receivers
+                .get(counterparty.router.as_str())
+                .ok_or_else(|| ContractError::PartyNotFound {  })?
+                .checked_add(penalty)
+                .map_err(|e| StdError::overflow(e))?;
+
+            // override existing entries with the updated values
+            // while keeping the keys
+            split_config.receivers.insert(party.router.to_string(), new_party_share);
+            split_config.receivers.insert(counterparty.router.to_string(), new_counterparty_share);
+
+            // reflect the updated values in self
             self.fallback_split = Some(split_config);
         }
 
-        self
+        Ok(self)
     }
 }
 
