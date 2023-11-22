@@ -506,8 +506,8 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 200)
-				lockupBlock := Block(currentHeight + 300)
+				depositBlock := Block(currentHeight + 100)
+				lockupBlock := Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -598,15 +598,9 @@ func TestTwoPartyPol(t *testing.T) {
 							Denom: neutronAtomIbcDenom,
 							Type: SplitType{
 								Custom: SplitConfig{
-									Receivers: []Receiver{
-										{
-											Address: hubReceiverAddr,
-											Share:   "1.0",
-										},
-										{
-											Address: osmoReceiverAddr,
-											Share:   "0.0",
-										},
+									Receivers: map[string]string{
+										hubReceiverAddr:  "0.5",
+										osmoReceiverAddr: "0.5",
 									},
 								},
 							},
@@ -615,15 +609,9 @@ func TestTwoPartyPol(t *testing.T) {
 							Denom: neutronOsmoIbcDenom,
 							Type: SplitType{
 								Custom: SplitConfig{
-									Receivers: []Receiver{
-										{
-											Address: osmoReceiverAddr,
-											Share:   "1.0",
-										},
-										{
-											Address: hubReceiverAddr,
-											Share:   "0.0",
-										},
+									Receivers: map[string]string{
+										hubReceiverAddr:  "0.5",
+										osmoReceiverAddr: "0.5",
 									},
 								},
 							},
@@ -766,12 +754,16 @@ func TestTwoPartyPol(t *testing.T) {
 			t.Run("party A claims and router receives the funds", func(t *testing.T) {
 				for {
 					routerAtomBalA, _ := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
+					routerOsmoBalA, _ := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
+					routerAtomBalB, _ := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronAtomIbcDenom)
 					routerOsmoBalB, _ := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronOsmoIbcDenom)
 
 					println("routerAtomBalA: ", routerAtomBalA)
+					println("routerOsmoBalA: ", routerOsmoBalA)
+					println("routerAtomBalB: ", routerAtomBalB)
 					println("routerOsmoBalB: ", routerOsmoBalB)
 
-					if routerAtomBalA != 0 && routerOsmoBalB != 0 {
+					if routerAtomBalA != 0 && routerOsmoBalA != 0 {
 						break
 					} else {
 						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -782,20 +774,15 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("tick until party A claim is distributed", func(t *testing.T) {
 				for {
-					osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom)
-
 					atomBalPartyA, _ := cosmosAtom.GetBalance(
 						ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom)
-
-					atomBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom)
+					osmoBalPartyA, _ := cosmosAtom.GetBalance(
+						ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
 
 					println("party A atom bal: ", atomBalPartyA)
-					println("party B osmo bal: ", osmoBalPartyB)
-					println("party B atom bal: ", atomBalPartyB)
+					println("party A osmo bal: ", osmoBalPartyA)
 
-					if atomBalPartyA != 0 && osmoBalPartyB != 0 {
+					if atomBalPartyA != 0 && osmoBalPartyA != 0 {
 						break
 					} else {
 						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -812,7 +799,7 @@ func TestTwoPartyPol(t *testing.T) {
 					println("routerAtomBalB: ", routerAtomBalB)
 					println("routerOsmoBalB: ", routerOsmoBalB)
 
-					if routerAtomBalB != 0 || routerOsmoBalB != 0 {
+					if routerAtomBalB != 0 && routerOsmoBalB != 0 {
 						break
 					} else {
 						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -844,7 +831,7 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 		})
 
-		t.Run("two party POL ragequit path", func(t *testing.T) {
+		t.Run("two party share based POL ragequit path", func(t *testing.T) {
 
 			t.Run("instantiate covenant", func(t *testing.T) {
 				timeouts := Timeouts{
@@ -854,8 +841,8 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 200)
-				lockupBlock := Block(currentHeight + 300)
+				depositBlock := Block(currentHeight + 100)
+				lockupBlock := Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -944,15 +931,9 @@ func TestTwoPartyPol(t *testing.T) {
 							Denom: neutronAtomIbcDenom,
 							Type: SplitType{
 								Custom: SplitConfig{
-									Receivers: []Receiver{
-										{
-											Address: hubReceiverAddr,
-											Share:   "1.0",
-										},
-										{
-											Address: osmoReceiverAddr,
-											Share:   "0.0",
-										},
+									Receivers: map[string]string{
+										hubReceiverAddr:  "0.5",
+										osmoReceiverAddr: "0.5",
 									},
 								},
 							},
@@ -961,15 +942,9 @@ func TestTwoPartyPol(t *testing.T) {
 							Denom: neutronOsmoIbcDenom,
 							Type: SplitType{
 								Custom: SplitConfig{
-									Receivers: []Receiver{
-										{
-											Address: osmoReceiverAddr,
-											Share:   "1.0",
-										},
-										{
-											Address: hubReceiverAddr,
-											Share:   "0.0",
-										},
+									Receivers: map[string]string{
+										hubReceiverAddr:  "0.5",
+										osmoReceiverAddr: "0.5",
 									},
 								},
 							},
@@ -1194,8 +1169,8 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 200)
-				lockupBlock := Block(currentHeight + 300)
+				depositBlock := Block(currentHeight + 100)
+				lockupBlock := Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1284,15 +1259,9 @@ func TestTwoPartyPol(t *testing.T) {
 							Denom: neutronAtomIbcDenom,
 							Type: SplitType{
 								Custom: SplitConfig{
-									Receivers: []Receiver{
-										{
-											Address: hubReceiverAddr,
-											Share:   "1.0",
-										},
-										{
-											Address: osmoReceiverAddr,
-											Share:   "0.0",
-										},
+									Receivers: map[string]string{
+										hubReceiverAddr:  "1.0",
+										osmoReceiverAddr: "0.0",
 									},
 								},
 							},
@@ -1301,15 +1270,9 @@ func TestTwoPartyPol(t *testing.T) {
 							Denom: neutronOsmoIbcDenom,
 							Type: SplitType{
 								Custom: SplitConfig{
-									Receivers: []Receiver{
-										{
-											Address: osmoReceiverAddr,
-											Share:   "1.0",
-										},
-										{
-											Address: hubReceiverAddr,
-											Share:   "0.0",
-										},
+									Receivers: map[string]string{
+										hubReceiverAddr:  "0.0",
+										osmoReceiverAddr: "1.0",
 									},
 								},
 							},
@@ -1585,15 +1548,9 @@ func TestTwoPartyPol(t *testing.T) {
 							Denom: neutronAtomIbcDenom,
 							Type: SplitType{
 								Custom: SplitConfig{
-									Receivers: []Receiver{
-										{
-											Address: hubReceiverAddr,
-											Share:   "1.0",
-										},
-										{
-											Address: osmoReceiverAddr,
-											Share:   "0.0",
-										},
+									Receivers: map[string]string{
+										hubReceiverAddr:  "1.0",
+										osmoReceiverAddr: "0.0",
 									},
 								},
 							},
@@ -1602,15 +1559,9 @@ func TestTwoPartyPol(t *testing.T) {
 							Denom: neutronOsmoIbcDenom,
 							Type: SplitType{
 								Custom: SplitConfig{
-									Receivers: []Receiver{
-										{
-											Address: osmoReceiverAddr,
-											Share:   "1.0",
-										},
-										{
-											Address: hubReceiverAddr,
-											Share:   "0.0",
-										},
+									Receivers: map[string]string{
+										hubReceiverAddr:  "0.0",
+										osmoReceiverAddr: "1.0",
 									},
 								},
 							},

@@ -40,6 +40,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    deps.querier.query_wasm_contract_info(env.contract.address)?.creator;
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
@@ -173,6 +174,7 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
             lp_token,
             pool.to_string(),
             covenant_config,
+            contract_state,
         ),
         CovenantType::Side => try_claim_side_based(
             deps,
@@ -194,6 +196,7 @@ fn try_claim_share_based(
     lp_token_addr: String,
     pool: String,
     mut covenant_config: TwoPartyPolCovenantConfig,
+    contract_state: ContractState,
 ) -> Result<Response, ContractError> {
     // we figure out the amounts of underlying tokens that claiming party could receive
     let claim_party_lp_token_amount = lp_token_bal
@@ -220,7 +223,9 @@ fn try_claim_share_based(
     };
 
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
-    let mut distribution_messages = denom_splits.get_distribution_messages(withdraw_coins);
+    let mut distribution_messages = denom_splits.get_single_receiver_distribution_messages(
+        withdraw_coins, claim_party.router.to_string());
+
 
     // we submit the withdraw liquidity message followed by transfer of
     // underlying assets to the corresponding router
@@ -279,7 +284,7 @@ fn try_claim_side_based(
     };
 
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
-    let mut distribution_messages = denom_splits.get_distribution_messages(withdraw_coins);
+    let mut distribution_messages: Vec<CosmosMsg> = denom_splits.get_shared_distribution_messages(withdraw_coins);
 
     // we submit the withdraw liquidity message followed by transfer of
     // underlying assets to the corresponding router
@@ -307,23 +312,25 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     match state {
         ContractState::Instantiated => try_deposit(deps, env, info),
         ContractState::Active => check_expiration(deps, env),
-        ContractState::Expired => {
-            let config = COVENANT_CONFIG.load(deps.storage)?;
-            let state =
-                if config.party_a.allocation.is_zero() && config.party_b.allocation.is_zero() {
-                    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-                    ContractState::Complete
-                } else {
-                    state
-                };
-            Ok(Response::default()
-                .add_attribute("method", "tick")
-                .add_attribute("contract_state", state.to_string()))
-        }
-        // ragequit and completed states do not trigger an action
-        _ => Ok(Response::default()
+        ContractState::Complete => Ok(Response::default()
             .add_attribute("method", "tick")
             .add_attribute("contract_state", state.to_string())),
+        // ragequit and expired
+        _ => {
+            let pool = POOL_ADDRESS.load(deps.storage)?;
+            let lp_token_addr = query_liquidity_token_address(deps.querier, pool.to_string())?;
+            let lp_token_bal = query_liquidity_token_balance(deps.querier, &lp_token_addr, env.contract.address.to_string())?;
+            let state = if lp_token_bal.is_zero() {
+                CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+                ContractState::Complete
+            } else {
+                state
+            };
+            Ok(Response::default()
+                .add_attribute("method", "tick")
+                .add_attribute("lp_token_bal", lp_token_bal)
+                .add_attribute("contract_state", state.to_string()))
+        }
     }
 }
 
@@ -502,11 +509,9 @@ pub fn try_handle_side_based_ragequit(
     mut covenant_config: TwoPartyPolCovenantConfig,
 ) -> Result<Response, ContractError> {
     // apply the ragequit penalty and get the new splits
-    let updated_denom_splits = DENOM_SPLITS.update(deps.storage, |mut splits| -> StdResult<_> {
-        let new_denom_splits: DenomSplits =
-            splits.apply_penalty(rq_terms.penalty, &ragequit_party, &counterparty);
-        Ok(new_denom_splits)
-    })?;
+    let denom_splits = DENOM_SPLITS.load(deps.storage)?;
+    let updated_denom_splits = denom_splits.apply_penalty(rq_terms.penalty, &ragequit_party, &counterparty)?;
+    DENOM_SPLITS.save(deps.storage, &updated_denom_splits)?;
 
     // for withdrawing the entire LP position we query full share
     let ragequit_assets: Vec<Asset> = deps.querier.query_wasm_smart(
@@ -529,7 +534,7 @@ pub fn try_handle_side_based_ragequit(
     };
 
     let balances = rq_state.coins.clone();
-    let mut distribution_messages = updated_denom_splits.get_distribution_messages(balances);
+    let mut distribution_messages = updated_denom_splits.get_shared_distribution_messages(balances);
 
     // we submit the withdraw liquidity message followed by transfer of
     // underlying assets to the corresponding router
@@ -549,7 +554,7 @@ pub fn try_handle_side_based_ragequit(
     RAGEQUIT_CONFIG.save(deps.storage, &RagequitConfig::Enabled(rq_terms))?;
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
     // should we just complete here?
-    CONTRACT_STATE.save(deps.storage, &ContractState::Ragequit)?;
+    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
 
     Ok(Response::default()
         .add_attribute("method", "ragequit_side_based")
@@ -578,11 +583,9 @@ pub fn try_handle_share_based_ragequit(
     mut covenant_config: TwoPartyPolCovenantConfig,
 ) -> Result<Response, ContractError> {
     // apply the ragequit penalty and get the new splits
-    let updated_denom_splits = DENOM_SPLITS.update(deps.storage, |mut splits| -> StdResult<_> {
-        let new_denom_splits: DenomSplits =
-            splits.apply_penalty(rq_terms.penalty, &ragequit_party, &counterparty);
-        Ok(new_denom_splits)
-    })?;
+    let denom_splits = DENOM_SPLITS.load(deps.storage)?;
+    let updated_denom_splits = denom_splits.apply_penalty(rq_terms.penalty, &ragequit_party, &counterparty)?;
+    DENOM_SPLITS.save(deps.storage, &updated_denom_splits)?;
 
     // apply the ragequit penalty
     ragequit_party.allocation -= rq_terms.penalty;
@@ -611,7 +614,8 @@ pub fn try_handle_share_based_ragequit(
     };
 
     let balances = rq_state.coins.clone();
-    let mut distribution_messages = updated_denom_splits.get_distribution_messages(balances);
+    let mut distribution_messages = updated_denom_splits
+        .get_single_receiver_distribution_messages(balances, ragequit_party.router.to_string());
 
     // we submit the withdraw liquidity message followed by transfer of
     // underlying assets to the corresponding router
