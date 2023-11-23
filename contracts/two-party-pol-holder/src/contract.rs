@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, borrow::BorrowMut};
 
 use astroport::{
     asset::{Asset, PairInfo},
@@ -12,7 +12,7 @@ use cosmwasm_std::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use covenant_utils::SplitConfig;
+use covenant_utils::{SplitConfig, SplitType};
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
@@ -40,7 +40,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    deps.querier.query_wasm_contract_info(env.contract.address)?.creator;
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
@@ -61,25 +60,31 @@ pub fn instantiate(
     )?;
 
     // validate the splits and convert them into map
-    let explicit_splits = msg
-        .clone()
-        .splits
-        .into_iter()
-        .map(|(denom, split)| {
-            let validated_split: SplitConfig = split.get_split_config()?.validate(
-                &msg.covenant_config.party_a.router,
-                &msg.covenant_config.party_b.router,
-            )?;
-            Ok((denom, validated_split))
-        })
-        .collect::<Result<BTreeMap<String, SplitConfig>, ContractError>>()?;
-    let fallback_split = match msg.clone().fallback_split {
-        Some(split) => Some(split.get_split_config()?.validate(
-            &msg.covenant_config.party_a.controller_addr,
-            &msg.covenant_config.party_b.controller_addr,
-        )?),
-        None => None,
-    };
+    let mut explicit_splits: BTreeMap<String, SplitConfig> = BTreeMap::new();
+    for (denom, split) in msg.clone().splits {
+        match split {
+            SplitType::Custom(split_config) => {
+                let validated_split = split_config.validate(
+                    &msg.covenant_config.party_a.router,
+                    &msg.covenant_config.party_b.router,
+                )?;
+                explicit_splits.insert(denom, validated_split);
+            },
+        }
+    }
+
+    // TODO: should be just a SplitConfig
+    let fallback_split = msg.clone().fallback_split
+        .map(|split_type| match split_type {
+            SplitType::Custom(split_config) => {
+                split_config.validate(
+                    &msg.covenant_config.party_a.router,
+                    &msg.covenant_config.party_b.router,
+                )
+            },
+        }).transpose()?;
+
+
     let denom_splits = DenomSplits {
         explicit_splits,
         fallback_split,
@@ -96,6 +101,7 @@ pub fn instantiate(
 
     Ok(Response::default()
         .add_attribute("method", "two_party_pol_holder_instantiate")
+        .add_attribute("denom_splits: ", to_binary(&denom_splits)?.to_string())
         .add_attributes(msg.get_response_attributes()))
 }
 
@@ -110,7 +116,22 @@ pub fn execute(
         ExecuteMsg::Ragequit {} => try_ragequit(deps, env, info),
         ExecuteMsg::Claim {} => try_claim(deps, env, info),
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
+        ExecuteMsg::DistributeFallbackSplit {} => try_distribute_fallback_split(deps, env),
     }
+}
+
+fn try_distribute_fallback_split(
+    deps: DepsMut,
+    env: Env,
+) -> Result<Response, ContractError> {
+    let available_balances = deps.querier.query_all_balances(env.contract.address)?;
+    let denom_splits = DENOM_SPLITS.load(deps.storage)?;
+    let fallback_distribution_messages = denom_splits
+        .get_fallback_distribution_messages(available_balances);
+
+    Ok(Response::default()
+        .add_attribute("method", "try_distribute_fallback_split")
+        .add_messages(fallback_distribution_messages))
 }
 
 /// queries the liquidity token balance of given address
@@ -174,7 +195,6 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
             lp_token,
             pool.to_string(),
             covenant_config,
-            contract_state,
         ),
         CovenantType::Side => try_claim_side_based(
             deps,
@@ -196,7 +216,6 @@ fn try_claim_share_based(
     lp_token_addr: String,
     pool: String,
     mut covenant_config: TwoPartyPolCovenantConfig,
-    contract_state: ContractState,
 ) -> Result<Response, ContractError> {
     // we figure out the amounts of underlying tokens that claiming party could receive
     let claim_party_lp_token_amount = lp_token_bal

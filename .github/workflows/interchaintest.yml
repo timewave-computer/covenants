@@ -26,11 +26,15 @@ jobs:
               target: wasm32-unknown-unknown
               override: true
 
-          - name: install nodejs
-            run: |
-              sudo apt install nodejs
-              node -v
-              sudo apt install npm
+          # - name: install nodejs
+          #   run: |
+          #     sudo apt install nodejs
+          #     node -v
+          #     sudo apt install npm
+          - uses: actions/setup-node@v3
+            with:
+              node-version: 18
+          - run: npm install
 
           - name: install tar for cache
             run: |

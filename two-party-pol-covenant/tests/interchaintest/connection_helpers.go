@@ -226,7 +226,7 @@ func (testCtx *TestContext) manualInstantiate(codeId string, msg CovenantInstant
 		"--home", testCtx.Neutron.HomeDir(),
 		"--node", testCtx.Neutron.GetRPCAddress(),
 		"--chain-id", testCtx.Neutron.Config().ChainID,
-		"--gas", "90009000",
+		"--gas", "900090000",
 		"--keyring-backend", keyring,
 		"-y",
 	}

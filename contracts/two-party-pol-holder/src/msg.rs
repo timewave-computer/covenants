@@ -27,19 +27,19 @@ pub struct InstantiateMsg {
     pub deposit_deadline: Expiration,
     /// config describing the covenant dynamics
     pub covenant_config: TwoPartyPolCovenantConfig,
-    /// list of (denom, split) configurations
-    pub splits: Vec<(String, SplitType)>,
+    /// mapping of denoms to their splits
+    pub splits: BTreeMap<String, SplitType>,
     /// a split for all denoms that are not covered in the
     /// regular `splits` list
     pub fallback_split: Option<SplitType>,
 }
 
 impl InstantiateMsg {
-    pub fn get_response_attributes(self) -> Vec<Attribute> {
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
         let mut attrs = vec![
-            Attribute::new("clock_addr", self.clock_address),
-            Attribute::new("pool_address", self.pool_address),
-            Attribute::new("next_contract", self.next_contract),
+            Attribute::new("clock_addr", self.clock_address.to_string()),
+            Attribute::new("pool_address", self.pool_address.to_string()),
+            Attribute::new("next_contract", self.next_contract.to_string()),
             Attribute::new("lockup_config", self.lockup_config.to_string()),
             Attribute::new("deposit_deadline", self.deposit_deadline.to_string()),
         ];
@@ -61,29 +61,42 @@ pub struct DenomSplits {
 }
 
 impl DenomSplits {
+    pub fn get_fallback_distribution_messages(self, available_coins: Vec<Coin>) -> Vec<CosmosMsg> {
+        available_coins
+            .iter()
+            .filter_map(|c| {
+                // explicit splits are distributed via claim/ragequit
+                if self.explicit_splits.contains_key(&c.denom) {
+                    None
+                } else if let Some(fallback_split) = &self.fallback_split {
+                    match fallback_split.get_transfer_messages(
+                        c.amount, c.denom.to_string(), None,
+                    ) {
+                        Ok(msgs) => Some(msgs),
+                        Err(_) => None,
+                    }
+                } else {
+                    None
+                }
+            })
+            .flatten()
+            .collect()
+    }
+
     pub fn get_single_receiver_distribution_messages(self, available_coins: Vec<Coin>, addr: String) -> Vec<CosmosMsg> {
         available_coins
             .iter()
             .filter_map(|c| {
                 // for each coin denom we want to distribute,
                 // we look for it in our explicitly defined split configs
-                let split = self.explicit_splits.get(&c.denom);
-                if let Some(config) = split {
+                if let Some(config) = self.explicit_splits.get(&c.denom) {
                     // found it, generate the msg or filter out
                     match config.get_transfer_messages(c.amount, c.denom.to_string(), Some(addr.to_string())) {
                         Ok(msgs) => Some(msgs),
                         Err(_) => None,
                     }
                 } else {
-                    // otherwise we try to get the fallback split messages or filter out
-                    if let Some(fallback_split) = &self.fallback_split {
-                        match fallback_split.get_transfer_messages(c.amount, c.denom.to_string(), Some(addr.to_string())) {
-                            Ok(msgs) => Some(msgs),
-                            Err(_) => None,
-                        }
-                    } else {
-                        None
-                    }
+                    None
                 }
             })
             .flatten()
@@ -91,10 +104,6 @@ impl DenomSplits {
     }
 
     pub fn get_shared_distribution_messages(self, available_coins: Vec<Coin>) -> Vec<CosmosMsg> {
-        // TODO: reverse this to loop over explicit splits instead of available coins?
-        // available coins here just means share response from astroport pool,
-        // meaning that we should never (?) have more than 2 items in that list
-        // TODO: move fallback split distribution into a separate method
         available_coins
             .iter()
             .filter_map(|c| {
@@ -108,15 +117,7 @@ impl DenomSplits {
                         Err(_) => None,
                     }
                 } else {
-                    // otherwise we try to get the fallback split messages or filter out
-                    if let Some(fallback_split) = &self.fallback_split {
-                        match fallback_split.get_transfer_messages(c.amount, c.denom.to_string(), None) {
-                            Ok(msgs) => Some(msgs),
-                            Err(_) => None,
-                        }
-                    } else {
-                        None
-                    }
+                    None
                 }
             })
             .flatten()
@@ -221,9 +222,8 @@ impl PresetTwoPartyPolHolderFields {
         next_contract: String,
         party_a_router: &str,
         party_b_router: &str,
-    ) -> Result<InstantiateMsg, ContractError> {
-        let mut remapped_splits: Vec<(String, SplitType)> = vec![];
-
+    ) -> Result<InstantiateMsg, StdError> {
+        let mut remapped_splits: BTreeMap<String, SplitType> = BTreeMap::new();
         for denom_split in &self.splits {
             match &denom_split.split {
                 SplitType::Custom(config) => {
@@ -233,7 +233,7 @@ impl PresetTwoPartyPolHolderFields {
                         self.party_b.controller_addr.to_string(),
                         party_b_router.to_string(),
                     )?;
-                    remapped_splits.push((denom_split.denom.to_string(), remapped_split));
+                    remapped_splits.insert(denom_split.denom.to_string(), remapped_split);
                 }
             }
         }
@@ -308,6 +308,7 @@ impl TwoPartyPolCovenantConfig {
     }
 }
 
+// TODO: remove controller addr?
 #[cw_serde]
 pub struct TwoPartyPolCovenantParty {
     /// the `denom` and `amount` (`Uint128`) to be contributed by the party
@@ -350,6 +351,8 @@ pub enum ExecuteMsg {
     Ragequit {},
     /// withdraw the liquidity party is entitled to
     Claim {},
+    /// distribute any unspecified denoms
+    DistributeFallbackSplit {},
 }
 
 #[cw_serde]
@@ -441,7 +444,7 @@ pub enum RagequitConfig {
 }
 
 impl RagequitConfig {
-    pub fn get_response_attributes(self) -> Vec<Attribute> {
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
         match self {
             RagequitConfig::Disabled => vec![Attribute::new("ragequit_config", "disabled")],
             RagequitConfig::Enabled(c) => vec![

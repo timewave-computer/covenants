@@ -1,14 +1,8 @@
 use std::collections::BTreeMap;
-use std::ops::Deref;
-use std::{collections::HashSet, hash::Hasher};
-use std::hash::Hash;
-
 use cosmwasm_schema::cw_serde;
-use cosmwasm_schema::schemars::JsonSchema;
-use cosmwasm_schema::serde::{Serialize, Deserialize};
 use cosmwasm_std::{
     Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, Decimal, Fraction, IbcMsg, IbcTimeout,
-    StdError, StdResult, Timestamp, Uint128, Uint64,
+    StdError, Timestamp, Uint128, Uint64,
 };
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
@@ -208,26 +202,30 @@ impl SplitConfig {
         receiver_b: String,
         router_b: String,
     ) -> Result<SplitType, StdError> {
-        let share_a = self.receivers.get(&receiver_a)
-            .ok_or_else(|| StdError::NotFound { kind: format!("receiver {:?} not found", receiver_b) })?
-            .to_owned();
-        let share_b = self.receivers.get(&receiver_b)
-            .ok_or_else(|| StdError::NotFound { kind: format!("receiver {:?} not found", receiver_b) })?
-            .to_owned();
-
         let mut new_receivers = BTreeMap::new();
-        new_receivers.insert(router_a, share_a);
-        new_receivers.insert(router_b, share_b);
+
+        match self.receivers.get(&receiver_a) {
+            Some(val) => new_receivers.insert(router_a, *val),
+            None => return Err(StdError::NotFound { kind: format!("receiver {:?} not found", receiver_b) }),
+        };
+        match self.receivers.get(&receiver_b) {
+            Some(val) => new_receivers.insert(router_b, *val),
+            None => return Err(StdError::NotFound { kind: format!("receiver {:?} not found", receiver_b) }),
+        };
 
         Ok(SplitType::Custom(SplitConfig { receivers: new_receivers }))
     }
 
     pub fn validate(self, party_a: &str, party_b: &str) -> Result<SplitConfig, StdError> {
-        let share_a = self.receivers.get(party_a)
-            .ok_or_else(|| StdError::NotFound { kind: format!("address {:?} not found", party_a) })?;
 
-        let share_b = self.receivers.get(party_b)
-            .ok_or_else(|| StdError::NotFound { kind: format!("address {:?} not found", party_b) })?;
+        let share_a = match self.receivers.get(party_a) {
+            Some(val) => *val,
+            None => return Err(StdError::not_found(party_a)),
+        };
+        let share_b = match self.receivers.get(party_b) {
+            Some(val) => *val,
+            None => return Err(StdError::not_found(party_b)),
+        };
 
         if share_a + share_b != Decimal::one() {
             return Err(StdError::generic_err(
@@ -297,44 +295,6 @@ impl SplitConfig {
         Attribute::new(denom, receivers)
     }
 }
-
-// pub fn get_distribution_messages(
-//     mut balances: Vec<Coin>,
-//     split_configs: Box<dyn Iterator<Item = StdResult<(String, SplitConfig)>>>,
-//     fallback_split: Option<SplitConfig>,
-// ) -> Result<Vec<CosmosMsg>, StdError> {
-//     // first we query the contract balances
-//     let mut distribution_messages: Vec<CosmosMsg> = vec![];
-
-//     // then we iterate over our split config and try to match the entries to available balances
-//     for entry in split_configs {
-//         let (denom, config) = entry?;
-
-//         // we try to find the index of matching coin in available balances
-//         let balances_index = balances.iter().position(|coin| coin.denom == denom);
-//         if let Some(index) = balances_index {
-//             // pop the relevant coin and build the transfer messages
-//             let coin = balances.remove(index);
-//             let mut transfer_messages =
-//                 config.get_transfer_messages(coin.amount, coin.denom.to_string())?;
-//             distribution_messages.append(&mut transfer_messages);
-//         }
-//     }
-
-//     // by now all explicitly defined denom splits have been removed from the
-//     // balances vector so we can take the remaining balances and distribute
-//     // them according to the fallback split (if provided)
-//     if let Some(split) = fallback_split {
-//         // get the distribution messages and add them to the list
-//         for leftover_bal in balances {
-//             let mut fallback_messages =
-//                 split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom)?;
-//             distribution_messages.append(&mut fallback_messages);
-//         }
-//     }
-
-//     Ok(distribution_messages)
-// }
 
 /// enum based configuration for asserting expiration.
 /// works by asserting the current block against enum variants.
