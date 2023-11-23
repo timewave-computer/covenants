@@ -53,20 +53,15 @@ impl Default for SuiteBuilder {
         let mut denom_b_split = BTreeMap::new();
         denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
         denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
-        let splits = vec![
-            (
-                DENOM_A.to_string(),
-                SplitType::Custom(SplitConfig {
-                    receivers: denom_a_split,
-                }),
-            ),
-            (
-                DENOM_B.to_string(),
-                SplitType::Custom(SplitConfig {
-                    receivers: denom_b_split,
-                }),
-            ),
-        ];
+
+        let mut splits = BTreeMap::new();
+        splits.insert(DENOM_A.to_string(), SplitType::Custom(SplitConfig {
+            receivers: denom_a_split,
+        }));
+        splits.insert(DENOM_B.to_string(), SplitType::Custom(SplitConfig {
+            receivers: denom_b_split,
+        }));
+
         Self {
             instantiate: InstantiateMsg {
                 pool_address: POOL.to_string(),
@@ -117,8 +112,13 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn with_splits(mut self, splits: Vec<(String, SplitType)>) -> Self {
+    pub fn with_splits(mut self, splits: BTreeMap<String, SplitType>) -> Self {
         self.instantiate.splits = splits;
+        self
+    }
+
+    pub fn with_fallback_split(mut self, split: SplitType) -> Self {
+        self.instantiate.fallback_split = Some(split);
         self
     }
 
@@ -223,6 +223,15 @@ impl Suite {
             Addr::unchecked(caller),
             self.holder.clone(),
             &ExecuteMsg::Tick {},
+            &[],
+        )
+    }
+
+    pub fn distribute_fallback(&mut self, caller: &str) -> Result<AppResponse, anyhow::Error> {
+        self.app.execute_contract(
+            Addr::unchecked(caller),
+            self.holder.clone(),
+            &ExecuteMsg::DistributeFallbackSplit {},
             &[],
         )
     }
@@ -344,6 +353,10 @@ impl Suite {
         self.app.wrap().query_balance(addr, DENOM_B).unwrap().amount
     }
 
+    pub fn get_all_balances(&mut self, addr: String) -> Vec<Coin> {
+        self.app.wrap().query_all_balances(addr).unwrap()
+    }
+
     pub fn get_party_a_coin(&mut self, amount: Uint128) -> Coin {
         Coin {
             denom: DENOM_A.to_string(),
@@ -355,6 +368,13 @@ impl Suite {
         Coin {
             denom: DENOM_B.to_string(),
             amount,
+        }
+    }
+
+    pub fn get_coin(&mut self, denom: String, amount: Uint128) -> Coin {
+        Coin {
+            denom,
+            amount
         }
     }
 }

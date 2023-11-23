@@ -326,20 +326,12 @@ pub fn handle_liquid_pooler_reply_id(
             let clock_addr = COVENANT_CLOCK_ADDR.load(deps.storage)?;
             let party_a_router = PARTY_A_ROUTER_ADDR.load(deps.storage)?;
 
-            let instantiate_msg = match preset_holder_fields.clone().to_instantiate_msg(
+            let instantiate_msg = preset_holder_fields.clone().to_instantiate_msg(
                 clock_addr.to_string(),
                 liquid_pooler.to_string(),
                 party_a_router.as_str(),
                 party_b_router.as_str(),
-            ) {
-                Ok(msg) => msg,
-                Err(e) => {
-                    return Err(ContractError::ContractInstantiationError {
-                        contract: "holder".to_string(),
-                        err: ParseReplyError::SubMsgFailure(e.to_string()),
-                    })
-                }
-            };
+            )?;
 
             let holder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
@@ -352,6 +344,7 @@ pub fn handle_liquid_pooler_reply_id(
             Ok(Response::default()
                 .add_attribute("method", "handle_liquid_pooler_reply")
                 .add_attribute("liquid_pooler_addr", liquid_pooler)
+                .add_attribute("holder_instantiate_tx", to_binary(&holder_instantiate_tx)?.to_string())
                 .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {

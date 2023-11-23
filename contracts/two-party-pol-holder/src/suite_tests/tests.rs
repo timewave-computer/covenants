@@ -1,6 +1,6 @@
 use std::{str::FromStr, collections::BTreeMap};
 
-use cosmwasm_std::{Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Decimal, Timestamp, Uint128, Addr};
 use covenant_utils::{SplitType, SplitConfig};
 use cw_utils::Expiration;
 
@@ -546,22 +546,15 @@ fn test_side_based_expiry_happy_flow_to_completion() {
     let mut denom_b_split = BTreeMap::new();
     denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
     denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
-
+    let mut splits = BTreeMap::new();
+    splits.insert(DENOM_A.to_string(), SplitType::Custom(SplitConfig {
+        receivers: denom_a_split,
+    }));
+    splits.insert(DENOM_B.to_string(), SplitType::Custom(SplitConfig {
+        receivers: denom_b_split,
+    }));
     let mut suite = SuiteBuilder::default()
-        .with_splits(vec![
-            (
-                DENOM_A.to_string(),
-                SplitType::Custom(SplitConfig {
-                    receivers: denom_a_split,
-                })
-            ),
-            (
-                DENOM_B.to_string(),
-                SplitType::Custom(SplitConfig {
-                    receivers: denom_b_split,
-                })
-            )
-        ])
+        .with_splits(splits)
         .with_covenant_config_type(crate::msg::CovenantType::Side)
         .with_lockup_config(Expiration::AtTime(current_timestamp.time.plus_minutes(200)))
         .build();
@@ -621,22 +614,15 @@ fn test_side_based_ragequit_flow_to_completion() {
     let mut denom_b_split = BTreeMap::new();
     denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
     denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
-
+    let mut splits = BTreeMap::new();
+    splits.insert(DENOM_A.to_string(), SplitType::Custom(SplitConfig {
+        receivers: denom_a_split,
+    }));
+    splits.insert(DENOM_B.to_string(), SplitType::Custom(SplitConfig {
+        receivers: denom_b_split,
+    }));
     let mut suite = SuiteBuilder::default()
-        .with_splits(vec![
-            (
-                DENOM_A.to_string(),
-                SplitType::Custom(SplitConfig {
-                    receivers: denom_a_split,
-                })
-            ),
-            (
-                DENOM_B.to_string(),
-                SplitType::Custom(SplitConfig {
-                    receivers: denom_b_split,
-                })
-            )
-        ])
+        .with_splits(splits)
         .with_covenant_config_type(crate::msg::CovenantType::Side)
         .with_ragequit_config(RagequitConfig::Enabled(
             RagequitTerms {
@@ -677,3 +663,88 @@ fn test_side_based_ragequit_flow_to_completion() {
         suite.get_denom_a_balance(PARTY_B_ROUTER.to_string())
     );
 }
+
+
+#[test]
+fn test_distribute_fallback_split() {
+    let current_timestamp = get_default_block_info();
+    let mut denom_a_split = BTreeMap::new();
+    denom_a_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
+    denom_a_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
+    let mut denom_b_split = BTreeMap::new();
+    denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
+    denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
+
+    let mut fallback_split = BTreeMap::new();
+    fallback_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
+    fallback_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
+
+    let mut splits = BTreeMap::new();
+    splits.insert(DENOM_A.to_string(), SplitType::Custom(SplitConfig {
+        receivers: denom_a_split,
+    }));
+    splits.insert(DENOM_B.to_string(), SplitType::Custom(SplitConfig {
+        receivers: denom_b_split,
+    }));
+
+    let mut suite = SuiteBuilder::default()
+        .with_splits(splits)
+        .with_covenant_config_type(crate::msg::CovenantType::Side)
+        .with_ragequit_config(RagequitConfig::Enabled(
+            RagequitTerms {
+                penalty: Decimal::from_str("0.1").unwrap(),
+                state: None,
+            })
+        )
+        .with_fallback_split(SplitType::Custom(SplitConfig { receivers: fallback_split }))
+        .with_lockup_config(Expiration::AtTime(
+            current_timestamp.time.plus_minutes(200))
+        )
+        .build();
+
+    // both parties fulfill their parts of the covenant
+    let coin_a = suite.get_party_a_coin(Uint128::new(200));
+    let coin_b = suite.get_party_b_coin(Uint128::new(200));
+    suite.fund_coin(coin_a.clone());
+    suite.fund_coin(coin_b);
+
+    // we tick the holder to deposit the funds and activate
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    // mint a bunch of coins to the holder
+    for i in 1..=100 {
+        let shitcoin = suite.get_coin(format!("shitcoin_{:?}", i), Uint128::new(100));
+        suite.fund_coin(shitcoin);
+    }
+
+    // party A ragequits, forfeiting 10% of their denom to counterparty
+    suite.rq(PARTY_A_ADDR).unwrap();
+
+    suite.tick(CLOCK_ADDR).unwrap();
+
+    assert_eq!(ContractState::Complete {}, suite.query_contract_state());
+    assert_eq!(
+        Uint128::new(180),
+        suite.get_denom_a_balance(PARTY_A_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(200),
+        suite.get_denom_b_balance(PARTY_B_ROUTER.to_string())
+    );
+    assert_eq!(
+        Uint128::new(20),
+        suite.get_denom_a_balance(PARTY_B_ROUTER.to_string())
+    );
+    assert_eq!(1, suite.get_all_balances(PARTY_A_ROUTER.to_string()).len());
+    assert_eq!(2, suite.get_all_balances(PARTY_B_ROUTER.to_string()).len());
+
+    // distribute the fallback and assert it arrives
+    suite.fund_coin(coin_a);
+    suite.distribute_fallback("random").unwrap();
+    assert_eq!(101, suite.get_all_balances(PARTY_A_ROUTER.to_string()).len());
+    assert_eq!(102, suite.get_all_balances(PARTY_B_ROUTER.to_string()).len());
+
+    // relevant denoms don't get distributed with fallback
+    assert_eq!(1, suite.get_all_balances(suite.holder.to_string()).len());
+}
+

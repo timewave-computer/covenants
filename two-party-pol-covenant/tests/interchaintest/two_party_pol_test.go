@@ -506,7 +506,7 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 100)
+				depositBlock := Block(currentHeight + 150)
 				lockupBlock := Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
@@ -576,6 +576,31 @@ func TestTwoPartyPol(t *testing.T) {
 					Stable: struct{}{},
 				}
 
+				denomSplits := []DenomSplit{
+					{
+						Denom: neutronAtomIbcDenom,
+						Type: SplitType{
+							Custom: SplitConfig{
+								Receivers: map[string]string{
+									hubReceiverAddr:  "0.5",
+									osmoReceiverAddr: "0.5",
+								},
+							},
+						},
+					},
+					{
+						Denom: neutronOsmoIbcDenom,
+						Type: SplitType{
+							Custom: SplitConfig{
+								Receivers: map[string]string{
+									hubReceiverAddr:  "0.5",
+									osmoReceiverAddr: "0.5",
+								},
+							},
+						},
+					},
+				}
+
 				covenantMsg := CovenantInstantiateMsg{
 					Label:                    "two-party-pol-covenant-happy",
 					Timeouts:                 timeouts,
@@ -593,31 +618,8 @@ func TestTwoPartyPol(t *testing.T) {
 					AcceptablePoolRatioDelta: "0.09",
 					CovenantType:             "share",
 					PairType:                 pairType,
-					Splits: []DenomSplit{
-						{
-							Denom: neutronAtomIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:  "0.5",
-										osmoReceiverAddr: "0.5",
-									},
-								},
-							},
-						},
-						{
-							Denom: neutronOsmoIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:  "0.5",
-										osmoReceiverAddr: "0.5",
-									},
-								},
-							},
-						},
-					},
-					FallbackSplit: nil,
+					Splits:                   denomSplits,
+					FallbackSplit:            nil,
 				}
 
 				covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantCodeId, 10), covenantMsg, neutronUser, keyring.BackendTest)
