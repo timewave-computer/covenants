@@ -35,16 +35,29 @@ pub struct InstantiateMsg {
 }
 
 impl InstantiateMsg {
-    // TODO: extend with all props
     pub fn get_response_attributes(&self) -> Vec<Attribute> {
+        let fallback_attr = match self.fallback_split.as_ref() {
+            Some(split) => split.get_response_attribute("fallback_split".to_string()),
+            None => Attribute::new("fallback_split".to_string(), "none".to_string()),
+        };
+        let splits_attr: Vec<Attribute> = self.splits.iter()
+            .map(|(denom, split_type)| {
+                match split_type {
+                    SplitType::Custom(split_config) => split_config.get_response_attribute(denom.to_string()),
+                }
+            })
+            .collect();
+
         let mut attrs = vec![
             Attribute::new("clock_addr", self.clock_address.to_string()),
             Attribute::new("pool_address", self.pool_address.to_string()),
             Attribute::new("next_contract", self.next_contract.to_string()),
             Attribute::new("lockup_config", self.lockup_config.to_string()),
             Attribute::new("deposit_deadline", self.deposit_deadline.to_string()),
+            fallback_attr,
         ];
         attrs.extend(self.ragequit_config.get_response_attributes());
+        attrs.extend(splits_attr);
         attrs
     }
 }
@@ -53,6 +66,15 @@ impl InstantiateMsg {
 pub enum CovenantType {
     Share,
     Side,
+}
+
+impl CovenantType {
+    pub fn get_response_attribute(&self) -> Attribute {
+        Attribute::new("covenant_type", match self {
+            CovenantType::Share => "share",
+            CovenantType::Side => "side",
+        })
+    }
 }
 
 #[cw_serde]
@@ -308,9 +330,18 @@ impl TwoPartyPolCovenantConfig {
         }
         Ok(())
     }
+
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
+        let mut attributes = vec![];
+        let party_a_attributes: Vec<Attribute> = self.party_a.get_response_attributes();
+        let party_b_attributes: Vec<Attribute> = self.party_b.get_response_attributes();
+        attributes.extend(party_a_attributes);
+        attributes.extend(party_b_attributes);
+        attributes.push(self.covenant_type.get_response_attribute());
+        attributes
+    }
 }
 
-// TODO: remove controller addr?
 #[cw_serde]
 pub struct TwoPartyPolCovenantParty {
     /// the `denom` and `amount` (`Uint128`) to be contributed by the party
@@ -326,6 +357,18 @@ pub struct TwoPartyPolCovenantParty {
     pub allocation: Decimal,
     /// address of the interchain router associated with this party
     pub router: String,
+}
+
+impl TwoPartyPolCovenantParty {
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
+        vec![
+            Attribute::new("contribution", self.contribution.to_string()),
+            Attribute::new("host_addr", self.host_addr.to_string()),
+            Attribute::new("controller_addr", self.controller_addr.to_string()),
+            Attribute::new("allocation", self.allocation.to_string()),
+            Attribute::new("router", self.router.to_string()),
+        ]
+    }
 }
 
 impl TwoPartyPolCovenantConfig {

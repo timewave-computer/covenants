@@ -284,12 +284,12 @@ impl SplitConfig {
         Ok(msgs?)
     }
 
-    pub fn get_response_attribute(self, denom: String) -> Attribute {
+    pub fn get_response_attribute(&self, denom: String) -> Attribute {
         let mut receivers = "[".to_string();
         self.receivers.iter().for_each(|(receiver, share)| {
             receivers.push('(');
             receivers.push_str(&receiver);
-            receivers.push(',');
+            receivers.push(':');
             receivers.push_str(&share.to_string());
             receivers.push_str("),");
         });
