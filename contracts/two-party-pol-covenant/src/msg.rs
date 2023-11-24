@@ -34,7 +34,8 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub struct CovenantPartyConfig {
-    /// authorized address of the party on the controller chain
+    /// authorized address of the party on the controller
+    /// chain (final receiver)
     pub controller_addr: String,
     /// authorized address of the party on the host chain
     pub host_addr: String,
@@ -46,8 +47,6 @@ pub struct CovenantPartyConfig {
     pub party_to_host_chain_channel_id: String,
     /// channel id from host chain to the party chain
     pub host_to_party_chain_channel_id: String,
-    /// address of the receiver on destination chain
-    pub party_receiver_addr: String,
     /// connection id to the party chain
     pub party_chain_connection_id: String,
     /// timeout in seconds

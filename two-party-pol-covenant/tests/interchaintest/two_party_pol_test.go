@@ -540,7 +540,6 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcDenom:                  neutronAtomIbcDenom,
 					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyReceiverAddr:         hubReceiverAddr,
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
@@ -551,7 +550,6 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcDenom:                  neutronOsmoIbcDenom,
 					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyReceiverAddr:         osmoReceiverAddr,
 					PartyChainConnectionId:    neutronOsmosisIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
@@ -875,7 +873,6 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcDenom:                  neutronAtomIbcDenom,
 					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyReceiverAddr:         hubReceiverAddr,
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
@@ -886,7 +883,6 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcDenom:                  neutronOsmoIbcDenom,
 					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyReceiverAddr:         osmoReceiverAddr,
 					PartyChainConnectionId:    neutronOsmosisIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
@@ -1203,7 +1199,6 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcDenom:                  neutronAtomIbcDenom,
 					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyReceiverAddr:         hubReceiverAddr,
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
@@ -1214,7 +1209,6 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcDenom:                  neutronOsmoIbcDenom,
 					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyReceiverAddr:         osmoReceiverAddr,
 					PartyChainConnectionId:    neutronOsmosisIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
@@ -1492,7 +1486,6 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcDenom:                  neutronAtomIbcDenom,
 					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyReceiverAddr:         hubReceiverAddr,
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
@@ -1503,7 +1496,6 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcDenom:                  neutronOsmoIbcDenom,
 					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyReceiverAddr:         osmoReceiverAddr,
 					PartyChainConnectionId:    neutronOsmosisIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}

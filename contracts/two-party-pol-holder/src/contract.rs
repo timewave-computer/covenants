@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, borrow::BorrowMut};
+use std::{collections::BTreeMap};
 
 use astroport::{
     asset::{Asset, PairInfo},
