@@ -201,7 +201,7 @@ impl SplitConfig {
         router_a: String,
         receiver_b: String,
         router_b: String,
-    ) -> Result<SplitType, StdError> {
+    ) -> Result<SplitConfig, StdError> {
         let mut new_receivers = BTreeMap::new();
 
         match self.receivers.get(&receiver_a) {
@@ -213,11 +213,10 @@ impl SplitConfig {
             None => return Err(StdError::NotFound { kind: format!("receiver {:?} not found", receiver_b) }),
         };
 
-        Ok(SplitType::Custom(SplitConfig { receivers: new_receivers }))
+        Ok(SplitConfig { receivers: new_receivers })
     }
 
-    pub fn validate(self, party_a: &str, party_b: &str) -> Result<SplitConfig, StdError> {
-
+    pub fn validate(&self, party_a: &str, party_b: &str) -> Result<(), StdError> {
         let share_a = match self.receivers.get(party_a) {
             Some(val) => *val,
             None => return Err(StdError::not_found(party_a)),
@@ -233,7 +232,7 @@ impl SplitConfig {
             ))
         }
 
-        Ok(self)
+        Ok(())
     }
 
     pub fn get_transfer_messages(

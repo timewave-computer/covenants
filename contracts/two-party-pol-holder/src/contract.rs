@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap};
+use std::collections::BTreeMap;
 
 use astroport::{
     asset::{Asset, PairInfo},
@@ -59,37 +59,32 @@ pub fn instantiate(
         msg.covenant_config.party_b.allocation,
     )?;
 
-    // validate the splits and convert them into map
-    let mut explicit_splits: BTreeMap<String, SplitConfig> = BTreeMap::new();
-    for (denom, split) in msg.clone().splits {
-        match split {
-            SplitType::Custom(split_config) => {
-                let validated_split = split_config.validate(
-                    &msg.covenant_config.party_a.router,
-                    &msg.covenant_config.party_b.router,
-                )?;
-                explicit_splits.insert(denom, validated_split);
-            },
-        }
-    }
+    // validate the splits and collect them into map
+    let explicit_splits: BTreeMap<String, SplitConfig> = msg.splits.iter()
+        .filter_map(|(denom, split)| {
+            match split {
+                SplitType::Custom(split_config) => {
+                    split_config.validate(
+                        &msg.covenant_config.party_a.router,
+                        &msg.covenant_config.party_b.router,
+                    ).ok()?;
+                    Some((denom.to_string(), split_config.to_owned()))
+                },
+            }
+        })
+        .collect();
 
-    // TODO: should be just a SplitConfig
-    let fallback_split = msg.clone().fallback_split
-        .map(|split_type| match split_type {
-            SplitType::Custom(split_config) => {
-                split_config.validate(
-                    &msg.covenant_config.party_a.router,
-                    &msg.covenant_config.party_b.router,
-                )
-            },
-        }).transpose()?;
+    msg.fallback_split.as_ref()
+        .map(|split_config| split_config.validate(
+            &msg.covenant_config.party_a.router,
+            &msg.covenant_config.party_b.router,
+        ))
+        .transpose()?;
 
-
-    let denom_splits = DenomSplits {
+    DENOM_SPLITS.save(deps.storage, &DenomSplits {
         explicit_splits,
-        fallback_split,
-    };
-    DENOM_SPLITS.save(deps.storage, &denom_splits)?;
+        fallback_split: msg.fallback_split.clone(),
+    })?;
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
@@ -101,7 +96,6 @@ pub fn instantiate(
 
     Ok(Response::default()
         .add_attribute("method", "two_party_pol_holder_instantiate")
-        .add_attribute("denom_splits: ", to_binary(&denom_splits)?.to_string())
         .add_attributes(msg.get_response_attributes()))
 }
 
@@ -135,6 +129,7 @@ fn try_distribute_fallback_split(
 }
 
 /// queries the liquidity token balance of given address
+// TODO: move to utils
 fn query_liquidity_token_balance(
     querier: QuerierWrapper,
     liquidity_token: &str,
@@ -150,6 +145,7 @@ fn query_liquidity_token_balance(
 }
 
 /// queries the cw20 liquidity token address corresponding to a given pool
+// TODO: move to utils
 fn query_liquidity_token_address(
     querier: QuerierWrapper,
     pool: String,

@@ -31,10 +31,11 @@ pub struct InstantiateMsg {
     pub splits: BTreeMap<String, SplitType>,
     /// a split for all denoms that are not covered in the
     /// regular `splits` list
-    pub fallback_split: Option<SplitType>,
+    pub fallback_split: Option<SplitConfig>,
 }
 
 impl InstantiateMsg {
+    // TODO: extend with all props
     pub fn get_response_attributes(&self) -> Vec<Attribute> {
         let mut attrs = vec![
             Attribute::new("clock_addr", self.clock_address.to_string()),
@@ -203,7 +204,7 @@ pub struct PresetTwoPartyPolHolderFields {
     pub code_id: u64,
     pub label: String,
     pub splits: Vec<DenomSplit>,
-    pub fallback_split: Option<SplitType>,
+    pub fallback_split: Option<SplitConfig>,
     pub covenant_type: CovenantType,
 }
 
@@ -233,20 +234,21 @@ impl PresetTwoPartyPolHolderFields {
                         self.party_b.controller_addr.to_string(),
                         party_b_router.to_string(),
                     )?;
-                    remapped_splits.insert(denom_split.denom.to_string(), remapped_split);
+                    remapped_splits.insert(
+                        denom_split.denom.to_string(),
+                        SplitType::Custom(remapped_split),
+                    );
                 }
             }
         }
 
         let remapped_fallback = match &self.fallback_split {
-            Some(split_type) => match split_type {
-                SplitType::Custom(config) => Some(config.remap_receivers_to_routers(
-                    self.party_a.controller_addr.to_string(),
-                    party_a_router.to_string(),
-                    self.party_b.controller_addr.to_string(),
-                    party_b_router.to_string(),
-                )?),
-            },
+            Some(split_config) => Some(split_config.remap_receivers_to_routers(
+                self.party_a.controller_addr.to_string(),
+                party_a_router.to_string(),
+                self.party_b.controller_addr.to_string(),
+                party_b_router.to_string(),
+            )?),
             None => None,
         };
 

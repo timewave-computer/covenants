@@ -2,7 +2,7 @@ use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128, Uint64};
 use covenant_two_party_pol_holder::msg::{RagequitConfig, CovenantType};
-use covenant_utils::{DenomSplit, SplitType};
+use covenant_utils::{DenomSplit, SplitType, SplitConfig};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -29,7 +29,7 @@ pub struct InstantiateMsg {
     pub acceptable_pool_ratio_delta: Decimal,
     pub pool_pair_type: PairType,
     pub splits: Vec<DenomSplit>,
-    pub fallback_split: Option<SplitType>,
+    pub fallback_split: Option<SplitConfig>,
 }
 
 #[cw_serde]
