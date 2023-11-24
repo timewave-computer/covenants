@@ -117,7 +117,7 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn with_fallback_split(mut self, split: SplitType) -> Self {
+    pub fn with_fallback_split(mut self, split: SplitConfig) -> Self {
         self.instantiate.fallback_split = Some(split);
         self
     }

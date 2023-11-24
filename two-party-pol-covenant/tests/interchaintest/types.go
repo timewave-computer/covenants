@@ -24,7 +24,7 @@ type CovenantInstantiateMsg struct {
 	AcceptablePoolRatioDelta string              `json:"acceptable_pool_ratio_delta"`
 	PairType                 PairType            `json:"pool_pair_type"`
 	Splits                   []DenomSplit        `json:"splits"`
-	FallbackSplit            *SplitType          `json:"fallback_split,omitempty"`
+	FallbackSplit            *SplitConfig        `json:"fallback_split,omitempty"`
 }
 
 type SplitType struct {

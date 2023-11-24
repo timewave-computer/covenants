@@ -696,7 +696,7 @@ fn test_distribute_fallback_split() {
                 state: None,
             })
         )
-        .with_fallback_split(SplitType::Custom(SplitConfig { receivers: fallback_split }))
+        .with_fallback_split(SplitConfig { receivers: fallback_split })
         .with_lockup_config(Expiration::AtTime(
             current_timestamp.time.plus_minutes(200))
         )
