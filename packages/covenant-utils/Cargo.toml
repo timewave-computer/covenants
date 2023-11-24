@@ -15,3 +15,5 @@ neutron-sdk      = { workspace = true }
 cosmwasm-std     = { workspace = true }
 prost            = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
+cw20             = { workspace = true }
+astroport        = { workspace = true }
