@@ -109,7 +109,6 @@ type CovenantPartyConfig struct {
 	IbcDenom                  string `json:"ibc_denom"`
 	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
 	HostToPartyChainChannelId string `json:"host_to_party_chain_channel_id"`
-	PartyReceiverAddr         string `json:"party_receiver_addr"`
 	PartyChainConnectionId    string `json:"party_chain_connection_id"`
 	IbcTransferTimeout        string `json:"ibc_transfer_timeout"`
 }
