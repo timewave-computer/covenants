@@ -588,9 +588,11 @@ dependencies = [
 name = "covenant-utils"
 version = "0.0.1"
 dependencies = [
+ "astroport 2.9.1",
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw20 0.15.1",
  "neutron-sdk",
  "prost 0.11.9",
 ]

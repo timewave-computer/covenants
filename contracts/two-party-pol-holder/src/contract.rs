@@ -12,11 +12,11 @@ use cosmwasm_std::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use covenant_utils::{SplitConfig, SplitType};
+use covenant_utils::{SplitConfig, SplitType, query_astro_pool_token};
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
-use crate::msg::CovenantType;
+use crate::{msg::CovenantType};
 use crate::{
     error::ContractError,
     msg::{
@@ -128,33 +128,6 @@ fn try_distribute_fallback_split(
         .add_messages(fallback_distribution_messages))
 }
 
-/// queries the liquidity token balance of given address
-// TODO: move to utils
-fn query_liquidity_token_balance(
-    querier: QuerierWrapper,
-    liquidity_token: &str,
-    contract_addr: String,
-) -> Result<Uint128, ContractError> {
-    let liquidity_token_balance: BalanceResponse = querier.query_wasm_smart(
-        liquidity_token,
-        &cw20::Cw20QueryMsg::Balance {
-            address: contract_addr,
-        },
-    )?;
-    Ok(liquidity_token_balance.balance)
-}
-
-/// queries the cw20 liquidity token address corresponding to a given pool
-// TODO: move to utils
-fn query_liquidity_token_address(
-    querier: QuerierWrapper,
-    pool: String,
-) -> Result<String, ContractError> {
-    let pair_info: PairInfo =
-        querier.query_wasm_smart(pool, &astroport::pair::QueryMsg::Pair {})?;
-    Ok(pair_info.liquidity_token.to_string())
-}
-
 fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
     let (claim_party, counterparty) = covenant_config.authorize_sender(info.sender.to_string())?;
@@ -173,12 +146,13 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
     contract_state.validate_claim_state()?;
 
     // find the liquidity token balance
-    let lp_token = query_liquidity_token_address(deps.querier, pool.to_string())?;
-    let liquidity_token_balance =
-        query_liquidity_token_balance(deps.querier, &lp_token, env.contract.address.to_string())?;
-
+    let lp_token_info = query_astro_pool_token(
+        deps.querier,
+        pool.to_string(),
+        env.contract.address.to_string(),
+    )?;
     // if no lp tokens are available, no point to ragequit
-    if liquidity_token_balance.is_zero() {
+    if lp_token_info.balance_response.balance.is_zero() {
         return Err(ContractError::NoLpTokensAvailable {});
     }
 
@@ -187,8 +161,8 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
             deps,
             claim_party,
             counterparty,
-            liquidity_token_balance,
-            lp_token,
+            lp_token_info.balance_response.balance,
+            lp_token_info.pair_info.liquidity_token.to_string(),
             pool.to_string(),
             covenant_config,
         ),
@@ -196,8 +170,8 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
             deps,
             claim_party,
             counterparty,
-            liquidity_token_balance,
-            lp_token,
+            lp_token_info.balance_response.balance,
+            lp_token_info.pair_info.liquidity_token.to_string(),
             pool.to_string(),
             covenant_config,
         ),
@@ -333,8 +307,11 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         // ragequit and expired
         _ => {
             let pool = POOL_ADDRESS.load(deps.storage)?;
-            let lp_token_addr = query_liquidity_token_address(deps.querier, pool.to_string())?;
-            let lp_token_bal = query_liquidity_token_balance(deps.querier, &lp_token_addr, env.contract.address.to_string())?;
+            let lp_token_bal = query_astro_pool_token(
+                deps.querier,
+                pool.to_string(),
+                env.contract.address.to_string(),
+            )?.balance_response.balance;
             let state = if lp_token_bal.is_zero() {
                 CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
                 ContractState::Complete
@@ -465,19 +442,21 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
         return Err(ContractError::Expired {});
     }
 
-    let lp_token = query_liquidity_token_address(deps.querier, pool.to_string())?;
-
-    // We query our own liquidity token balance
-    let liquidity_token_balance =
-        query_liquidity_token_balance(deps.querier, &lp_token, env.contract.address.to_string())?;
+    // we query our own liquidity token balance and address
+    let lp_token_info = query_astro_pool_token(
+        deps.querier,
+        pool.to_string(),
+        env.contract.address.to_string(),
+    )?;
 
     // if no lp tokens are available, no point to ragequit
-    if liquidity_token_balance.is_zero() {
+    if lp_token_info.balance_response.balance.is_zero() {
         return Err(ContractError::NoLpTokensAvailable {});
     }
 
     // authorize the message sender
-    let (rq_party, counterparty) = covenant_config.authorize_sender(info.sender.to_string())?;
+    let (rq_party, counterparty) = covenant_config
+        .authorize_sender(info.sender.to_string())?;
 
     // depending on the type of ragequit configuration,
     // different logic we execute
@@ -487,8 +466,8 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
             rq_party,
             counterparty,
             pool,
-            lp_token,
-            liquidity_token_balance,
+            lp_token_info.pair_info.liquidity_token.to_string(),
+            lp_token_info.balance_response.balance,
             rq_config,
             covenant_config,
         ),
@@ -497,8 +476,8 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
             rq_party,
             counterparty,
             pool,
-            lp_token,
-            liquidity_token_balance,
+            lp_token_info.pair_info.liquidity_token.to_string(),
+            lp_token_info.balance_response.balance,
             rq_config,
             covenant_config,
         ),
