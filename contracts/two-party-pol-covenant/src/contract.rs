@@ -15,7 +15,7 @@ use covenant_two_party_pol_holder::msg::{
     PresetPolParty, PresetTwoPartyPolHolderFields, RagequitConfig,
 };
 use cw2::set_contract_version;
-use cw_utils::{parse_reply_instantiate_data, ParseReplyError};
+use cw_utils::parse_reply_instantiate_data;
 
 use crate::{
     error::ContractError,
@@ -65,7 +65,7 @@ pub fn instantiate(
                 denom: msg.party_a_config.ibc_denom.to_string(),
                 amount: msg.party_a_config.contribution.amount,
             },
-            controller_addr: msg.party_a_config.controller_addr,
+            controller_addr: msg.party_a_config.controller_addr.to_string(),
             host_addr: msg.party_a_config.host_addr,
             allocation: Decimal::from_ratio(msg.party_a_share, Uint128::new(100)),
         },
@@ -74,7 +74,7 @@ pub fn instantiate(
                 denom: msg.party_b_config.ibc_denom.to_string(),
                 amount: msg.party_b_config.contribution.amount,
             },
-            controller_addr: msg.party_b_config.controller_addr,
+            controller_addr: msg.party_b_config.controller_addr.to_string(),
             host_addr: msg.party_b_config.host_addr,
             allocation: Decimal::from_ratio(msg.party_b_share, Uint128::new(100)),
         },
@@ -109,14 +109,14 @@ pub fn instantiate(
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
         destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
-        destination_receiver_addr: msg.party_a_config.party_receiver_addr,
+        destination_receiver_addr: msg.party_a_config.controller_addr,
         ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
         label: format!("{}_party_a_interchain_router", msg.label),
         code_id: msg.contract_codes.router_code,
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
         destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
-        destination_receiver_addr: msg.party_b_config.party_receiver_addr,
+        destination_receiver_addr: msg.party_b_config.controller_addr,
         ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
         label: format!("{}_party_b_interchain_router", msg.label),
         code_id: msg.contract_codes.router_code,
