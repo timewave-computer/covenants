@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
 use astroport::{
-    asset::{Asset, PairInfo},
+    asset::Asset,
     pair::Cw20HookMsg,
 };
 use cosmwasm_std::{
     to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    QuerierWrapper, Response, StdError, StdResult, Uint128, WasmMsg,
+    Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
 #[cfg(not(feature = "library"))]
@@ -14,7 +14,7 @@ use cosmwasm_std::entry_point;
 
 use covenant_utils::{query_astro_pool_token, SplitConfig, SplitType};
 use cw2::set_contract_version;
-use cw20::{BalanceResponse, Cw20ExecuteMsg};
+use cw20::Cw20ExecuteMsg;
 
 use crate::msg::CovenantType;
 use crate::{
