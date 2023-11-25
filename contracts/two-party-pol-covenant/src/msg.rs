@@ -1,8 +1,8 @@
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128, Uint64};
-use covenant_two_party_pol_holder::msg::{RagequitConfig, CovenantType};
-use covenant_utils::{DenomSplit, SplitType, SplitConfig};
+use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig};
+use covenant_utils::{DenomSplit, SplitConfig, SplitType};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 

@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use crate::msg::{
-    ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig, TwoPartyPolCovenantConfig,
-    TwoPartyPolCovenantParty, CovenantType,
+    ContractState, CovenantType, ExecuteMsg, InstantiateMsg, QueryMsg, RagequitConfig,
+    TwoPartyPolCovenantConfig, TwoPartyPolCovenantParty,
 };
 use cosmwasm_std::{Addr, BlockInfo, Coin, Decimal, Timestamp, Uint128};
 use covenant_utils::{SplitConfig, SplitType};
@@ -45,22 +45,39 @@ pub struct SuiteBuilder {
 }
 
 impl Default for SuiteBuilder {
-
     fn default() -> Self {
         let mut denom_a_split = BTreeMap::new();
-        denom_a_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
-        denom_a_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
+        denom_a_split.insert(
+            PARTY_A_ROUTER.to_string(),
+            Decimal::from_str("0.5").unwrap(),
+        );
+        denom_a_split.insert(
+            PARTY_B_ROUTER.to_string(),
+            Decimal::from_str("0.5").unwrap(),
+        );
         let mut denom_b_split = BTreeMap::new();
-        denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
-        denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
+        denom_b_split.insert(
+            PARTY_A_ROUTER.to_string(),
+            Decimal::from_str("0.5").unwrap(),
+        );
+        denom_b_split.insert(
+            PARTY_B_ROUTER.to_string(),
+            Decimal::from_str("0.5").unwrap(),
+        );
 
         let mut splits = BTreeMap::new();
-        splits.insert(DENOM_A.to_string(), SplitType::Custom(SplitConfig {
-            receivers: denom_a_split,
-        }));
-        splits.insert(DENOM_B.to_string(), SplitType::Custom(SplitConfig {
-            receivers: denom_b_split,
-        }));
+        splits.insert(
+            DENOM_A.to_string(),
+            SplitType::Custom(SplitConfig {
+                receivers: denom_a_split,
+            }),
+        );
+        splits.insert(
+            DENOM_B.to_string(),
+            SplitType::Custom(SplitConfig {
+                receivers: denom_b_split,
+            }),
+        );
 
         Self {
             instantiate: InstantiateMsg {
@@ -91,7 +108,7 @@ impl Default for SuiteBuilder {
                         controller_addr: PARTY_B_ADDR.to_string(),
                         allocation: Decimal::from_ratio(Uint128::one(), Uint128::new(2)),
                     },
-                    covenant_type: crate::msg::CovenantType::Share{},
+                    covenant_type: crate::msg::CovenantType::Share {},
                 },
                 splits,
                 fallback_split: None,
@@ -372,10 +389,7 @@ impl Suite {
     }
 
     pub fn get_coin(&mut self, denom: String, amount: Uint128) -> Coin {
-        Coin {
-            denom,
-            amount
-        }
+        Coin { denom, amount }
     }
 }
 

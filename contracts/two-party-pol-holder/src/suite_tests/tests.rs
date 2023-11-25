@@ -1,15 +1,15 @@
-use std::{str::FromStr, collections::BTreeMap};
+use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::{Decimal, Timestamp, Uint128, Addr};
-use covenant_utils::{SplitType, SplitConfig};
+use cosmwasm_std::{Addr, Decimal, Timestamp, Uint128};
+use covenant_utils::{SplitConfig, SplitType};
 use cw_utils::Expiration;
 
 use crate::{
     error::ContractError,
     msg::{ContractState, RagequitConfig, RagequitTerms},
     suite_tests::suite::{
-        get_default_block_info, CLOCK_ADDR, NEXT_CONTRACT, PARTY_A_ROUTER, PARTY_B_ADDR,
-        PARTY_B_ROUTER, POOL, DENOM_A, DENOM_B,
+        get_default_block_info, CLOCK_ADDR, DENOM_A, DENOM_B, NEXT_CONTRACT, PARTY_A_ROUTER,
+        PARTY_B_ADDR, PARTY_B_ROUTER, POOL,
     },
 };
 
@@ -536,23 +536,40 @@ fn test_share_based_expiry_happy_flow_to_completion() {
     assert_eq!(ContractState::Complete {}, suite.query_contract_state());
 }
 
-
 #[test]
 fn test_side_based_expiry_happy_flow_to_completion() {
     let current_timestamp = get_default_block_info();
     let mut denom_a_split = BTreeMap::new();
-    denom_a_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
-    denom_a_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
+    denom_a_split.insert(
+        PARTY_A_ROUTER.to_string(),
+        Decimal::from_str("1.0").unwrap(),
+    );
+    denom_a_split.insert(
+        PARTY_B_ROUTER.to_string(),
+        Decimal::from_str("0.0").unwrap(),
+    );
     let mut denom_b_split = BTreeMap::new();
-    denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
-    denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
+    denom_b_split.insert(
+        PARTY_A_ROUTER.to_string(),
+        Decimal::from_str("0.0").unwrap(),
+    );
+    denom_b_split.insert(
+        PARTY_B_ROUTER.to_string(),
+        Decimal::from_str("1.0").unwrap(),
+    );
     let mut splits = BTreeMap::new();
-    splits.insert(DENOM_A.to_string(), SplitType::Custom(SplitConfig {
-        receivers: denom_a_split,
-    }));
-    splits.insert(DENOM_B.to_string(), SplitType::Custom(SplitConfig {
-        receivers: denom_b_split,
-    }));
+    splits.insert(
+        DENOM_A.to_string(),
+        SplitType::Custom(SplitConfig {
+            receivers: denom_a_split,
+        }),
+    );
+    splits.insert(
+        DENOM_B.to_string(),
+        SplitType::Custom(SplitConfig {
+            receivers: denom_b_split,
+        }),
+    );
     let mut suite = SuiteBuilder::default()
         .with_splits(splits)
         .with_covenant_config_type(crate::msg::CovenantType::Side)
@@ -604,35 +621,48 @@ fn test_side_based_expiry_happy_flow_to_completion() {
     assert_eq!(ContractState::Complete {}, suite.query_contract_state());
 }
 
-
 #[test]
 fn test_side_based_ragequit_flow_to_completion() {
     let current_timestamp = get_default_block_info();
     let mut denom_a_split = BTreeMap::new();
-    denom_a_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
-    denom_a_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
+    denom_a_split.insert(
+        PARTY_A_ROUTER.to_string(),
+        Decimal::from_str("1.0").unwrap(),
+    );
+    denom_a_split.insert(
+        PARTY_B_ROUTER.to_string(),
+        Decimal::from_str("0.0").unwrap(),
+    );
     let mut denom_b_split = BTreeMap::new();
-    denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
-    denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
+    denom_b_split.insert(
+        PARTY_A_ROUTER.to_string(),
+        Decimal::from_str("0.0").unwrap(),
+    );
+    denom_b_split.insert(
+        PARTY_B_ROUTER.to_string(),
+        Decimal::from_str("1.0").unwrap(),
+    );
     let mut splits = BTreeMap::new();
-    splits.insert(DENOM_A.to_string(), SplitType::Custom(SplitConfig {
-        receivers: denom_a_split,
-    }));
-    splits.insert(DENOM_B.to_string(), SplitType::Custom(SplitConfig {
-        receivers: denom_b_split,
-    }));
+    splits.insert(
+        DENOM_A.to_string(),
+        SplitType::Custom(SplitConfig {
+            receivers: denom_a_split,
+        }),
+    );
+    splits.insert(
+        DENOM_B.to_string(),
+        SplitType::Custom(SplitConfig {
+            receivers: denom_b_split,
+        }),
+    );
     let mut suite = SuiteBuilder::default()
         .with_splits(splits)
         .with_covenant_config_type(crate::msg::CovenantType::Side)
-        .with_ragequit_config(RagequitConfig::Enabled(
-            RagequitTerms {
-                penalty: Decimal::from_str("0.1").unwrap(),
-                state: None,
-            })
-        )
-        .with_lockup_config(Expiration::AtTime(
-            current_timestamp.time.plus_minutes(200))
-        )
+        .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
+            penalty: Decimal::from_str("0.1").unwrap(),
+            state: None,
+        }))
+        .with_lockup_config(Expiration::AtTime(current_timestamp.time.plus_minutes(200)))
         .build();
 
     // both parties fulfill their parts of the covenant
@@ -664,42 +694,63 @@ fn test_side_based_ragequit_flow_to_completion() {
     );
 }
 
-
 #[test]
 fn test_distribute_fallback_split() {
     let current_timestamp = get_default_block_info();
     let mut denom_a_split = BTreeMap::new();
-    denom_a_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
-    denom_a_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
+    denom_a_split.insert(
+        PARTY_A_ROUTER.to_string(),
+        Decimal::from_str("1.0").unwrap(),
+    );
+    denom_a_split.insert(
+        PARTY_B_ROUTER.to_string(),
+        Decimal::from_str("0.0").unwrap(),
+    );
     let mut denom_b_split = BTreeMap::new();
-    denom_b_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.0").unwrap());
-    denom_b_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("1.0").unwrap());
+    denom_b_split.insert(
+        PARTY_A_ROUTER.to_string(),
+        Decimal::from_str("0.0").unwrap(),
+    );
+    denom_b_split.insert(
+        PARTY_B_ROUTER.to_string(),
+        Decimal::from_str("1.0").unwrap(),
+    );
 
     let mut fallback_split = BTreeMap::new();
-    fallback_split.insert(PARTY_A_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
-    fallback_split.insert(PARTY_B_ROUTER.to_string(), Decimal::from_str("0.5").unwrap());
+    fallback_split.insert(
+        PARTY_A_ROUTER.to_string(),
+        Decimal::from_str("0.5").unwrap(),
+    );
+    fallback_split.insert(
+        PARTY_B_ROUTER.to_string(),
+        Decimal::from_str("0.5").unwrap(),
+    );
 
     let mut splits = BTreeMap::new();
-    splits.insert(DENOM_A.to_string(), SplitType::Custom(SplitConfig {
-        receivers: denom_a_split,
-    }));
-    splits.insert(DENOM_B.to_string(), SplitType::Custom(SplitConfig {
-        receivers: denom_b_split,
-    }));
+    splits.insert(
+        DENOM_A.to_string(),
+        SplitType::Custom(SplitConfig {
+            receivers: denom_a_split,
+        }),
+    );
+    splits.insert(
+        DENOM_B.to_string(),
+        SplitType::Custom(SplitConfig {
+            receivers: denom_b_split,
+        }),
+    );
 
     let mut suite = SuiteBuilder::default()
         .with_splits(splits)
         .with_covenant_config_type(crate::msg::CovenantType::Side)
-        .with_ragequit_config(RagequitConfig::Enabled(
-            RagequitTerms {
-                penalty: Decimal::from_str("0.1").unwrap(),
-                state: None,
-            })
-        )
-        .with_fallback_split(SplitConfig { receivers: fallback_split })
-        .with_lockup_config(Expiration::AtTime(
-            current_timestamp.time.plus_minutes(200))
-        )
+        .with_ragequit_config(RagequitConfig::Enabled(RagequitTerms {
+            penalty: Decimal::from_str("0.1").unwrap(),
+            state: None,
+        }))
+        .with_fallback_split(SplitConfig {
+            receivers: fallback_split,
+        })
+        .with_lockup_config(Expiration::AtTime(current_timestamp.time.plus_minutes(200)))
         .build();
 
     // both parties fulfill their parts of the covenant
@@ -741,10 +792,15 @@ fn test_distribute_fallback_split() {
     // distribute the fallback and assert it arrives
     suite.fund_coin(coin_a);
     suite.distribute_fallback("random").unwrap();
-    assert_eq!(101, suite.get_all_balances(PARTY_A_ROUTER.to_string()).len());
-    assert_eq!(102, suite.get_all_balances(PARTY_B_ROUTER.to_string()).len());
+    assert_eq!(
+        101,
+        suite.get_all_balances(PARTY_A_ROUTER.to_string()).len()
+    );
+    assert_eq!(
+        102,
+        suite.get_all_balances(PARTY_B_ROUTER.to_string()).len()
+    );
 
     // relevant denoms don't get distributed with fallback
     assert_eq!(1, suite.get_all_balances(suite.holder.to_string()).len());
 }
-

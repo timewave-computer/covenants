@@ -12,11 +12,11 @@ use cosmwasm_std::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use covenant_utils::{SplitConfig, SplitType, query_astro_pool_token};
+use covenant_utils::{query_astro_pool_token, SplitConfig, SplitType};
 use cw2::set_contract_version;
 use cw20::{BalanceResponse, Cw20ExecuteMsg};
 
-use crate::{msg::CovenantType};
+use crate::msg::CovenantType;
 use crate::{
     error::ContractError,
     msg::{
@@ -60,31 +60,39 @@ pub fn instantiate(
     )?;
 
     // validate the splits and collect them into map
-    let explicit_splits: BTreeMap<String, SplitConfig> = msg.splits.iter()
-        .filter_map(|(denom, split)| {
-            match split {
-                SplitType::Custom(split_config) => {
-                    split_config.validate(
+    let explicit_splits: BTreeMap<String, SplitConfig> = msg
+        .splits
+        .iter()
+        .filter_map(|(denom, split)| match split {
+            SplitType::Custom(split_config) => {
+                split_config
+                    .validate(
                         &msg.covenant_config.party_a.router,
                         &msg.covenant_config.party_b.router,
-                    ).ok()?;
-                    Some((denom.to_string(), split_config.to_owned()))
-                },
+                    )
+                    .ok()?;
+                Some((denom.to_string(), split_config.to_owned()))
             }
         })
         .collect();
 
-    msg.fallback_split.as_ref()
-        .map(|split_config| split_config.validate(
-            &msg.covenant_config.party_a.router,
-            &msg.covenant_config.party_b.router,
-        ))
+    msg.fallback_split
+        .as_ref()
+        .map(|split_config| {
+            split_config.validate(
+                &msg.covenant_config.party_a.router,
+                &msg.covenant_config.party_b.router,
+            )
+        })
         .transpose()?;
 
-    DENOM_SPLITS.save(deps.storage, &DenomSplits {
-        explicit_splits,
-        fallback_split: msg.fallback_split.clone(),
-    })?;
+    DENOM_SPLITS.save(
+        deps.storage,
+        &DenomSplits {
+            explicit_splits,
+            fallback_split: msg.fallback_split.clone(),
+        },
+    )?;
     POOL_ADDRESS.save(deps.storage, &pool_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
@@ -114,14 +122,11 @@ pub fn execute(
     }
 }
 
-fn try_distribute_fallback_split(
-    deps: DepsMut,
-    env: Env,
-) -> Result<Response, ContractError> {
+fn try_distribute_fallback_split(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let available_balances = deps.querier.query_all_balances(env.contract.address)?;
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
-    let fallback_distribution_messages = denom_splits
-        .get_fallback_distribution_messages(available_balances);
+    let fallback_distribution_messages =
+        denom_splits.get_fallback_distribution_messages(available_balances);
 
     Ok(Response::default()
         .add_attribute("method", "try_distribute_fallback_split")
@@ -212,9 +217,8 @@ fn try_claim_share_based(
     };
 
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
-    let mut distribution_messages = denom_splits.get_single_receiver_distribution_messages(
-        withdraw_coins, claim_party.router.to_string());
-
+    let mut distribution_messages = denom_splits
+        .get_single_receiver_distribution_messages(withdraw_coins, claim_party.router.to_string());
 
     // we submit the withdraw liquidity message followed by transfer of
     // underlying assets to the corresponding router
@@ -273,7 +277,8 @@ fn try_claim_side_based(
     };
 
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
-    let mut distribution_messages: Vec<CosmosMsg> = denom_splits.get_shared_distribution_messages(withdraw_coins);
+    let mut distribution_messages: Vec<CosmosMsg> =
+        denom_splits.get_shared_distribution_messages(withdraw_coins);
 
     // we submit the withdraw liquidity message followed by transfer of
     // underlying assets to the corresponding router
@@ -311,7 +316,9 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
                 deps.querier,
                 pool.to_string(),
                 env.contract.address.to_string(),
-            )?.balance_response.balance;
+            )?
+            .balance_response
+            .balance;
             let state = if lp_token_bal.is_zero() {
                 CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
                 ContractState::Complete
@@ -455,8 +462,7 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
     }
 
     // authorize the message sender
-    let (rq_party, counterparty) = covenant_config
-        .authorize_sender(info.sender.to_string())?;
+    let (rq_party, counterparty) = covenant_config.authorize_sender(info.sender.to_string())?;
 
     // depending on the type of ragequit configuration,
     // different logic we execute
@@ -504,7 +510,8 @@ pub fn try_handle_side_based_ragequit(
 ) -> Result<Response, ContractError> {
     // apply the ragequit penalty and get the new splits
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
-    let updated_denom_splits = denom_splits.apply_penalty(rq_terms.penalty, &ragequit_party, &counterparty)?;
+    let updated_denom_splits =
+        denom_splits.apply_penalty(rq_terms.penalty, &ragequit_party, &counterparty)?;
     DENOM_SPLITS.save(deps.storage, &updated_denom_splits)?;
 
     // for withdrawing the entire LP position we query full share
@@ -578,7 +585,8 @@ pub fn try_handle_share_based_ragequit(
 ) -> Result<Response, ContractError> {
     // apply the ragequit penalty and get the new splits
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
-    let updated_denom_splits = denom_splits.apply_penalty(rq_terms.penalty, &ragequit_party, &counterparty)?;
+    let updated_denom_splits =
+        denom_splits.apply_penalty(rq_terms.penalty, &ragequit_party, &counterparty)?;
     DENOM_SPLITS.save(deps.storage, &updated_denom_splits)?;
 
     // apply the ragequit penalty

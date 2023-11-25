@@ -121,9 +121,9 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
 
     // if query returns None, then we error and wait
     let Some(deposit_address) = deposit_address_query else {
-        return Err(NeutronError::Std(
-            StdError::not_found("Next contract is not ready for receiving the funds yet")
-        ))
+        return Err(NeutronError::Std(StdError::not_found(
+            "Next contract is not ready for receiving the funds yet",
+        )));
     };
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
@@ -287,7 +287,7 @@ fn sudo_open_ack(
 
     // get the parsed OpenAckVersion or return an error if we fail
     let Ok(parsed_version) = parsed_version else {
-        return Err(StdError::generic_err("Can't parse counterparty_version"))
+        return Err(StdError::generic_err("Can't parse counterparty_version"));
     };
 
     // Update the storage record associated with the interchain account.

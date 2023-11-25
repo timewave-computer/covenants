@@ -344,7 +344,10 @@ pub fn handle_liquid_pooler_reply_id(
             Ok(Response::default()
                 .add_attribute("method", "handle_liquid_pooler_reply")
                 .add_attribute("liquid_pooler_addr", liquid_pooler)
-                .add_attribute("holder_instantiate_tx", to_binary(&holder_instantiate_tx)?.to_string())
+                .add_attribute(
+                    "holder_instantiate_tx",
+                    to_binary(&holder_instantiate_tx)?.to_string(),
+                )
                 .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
         }
         Err(err) => Err(ContractError::ContractInstantiationError {

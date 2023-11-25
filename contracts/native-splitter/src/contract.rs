@@ -320,7 +320,7 @@ fn sudo_open_ack(
 
     // get the parsed OpenAckVersion or return an error if we fail
     let Ok(parsed_version) = parsed_version else {
-        return Err(StdError::generic_err("Can't parse counterparty_version"))
+        return Err(StdError::generic_err("Can't parse counterparty_version"));
     };
 
     // Update the storage record associated with the interchain account.
