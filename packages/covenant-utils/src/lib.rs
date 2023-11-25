@@ -9,7 +9,7 @@ use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
     sudo::msg::RequestPacketTimeoutHeight,
 };
-use std::{collections::BTreeMap, io::Stderr};
+use std::collections::BTreeMap;
 
 pub mod neutron_ica {
     use cosmwasm_schema::{cw_serde, QueryResponses};
@@ -289,14 +289,14 @@ impl SplitConfig {
             })
             .collect();
 
-        Ok(msgs?)
+        msgs
     }
 
     pub fn get_response_attribute(&self, denom: String) -> Attribute {
         let mut receivers = "[".to_string();
         self.receivers.iter().for_each(|(receiver, share)| {
             receivers.push('(');
-            receivers.push_str(&receiver);
+            receivers.push_str(receiver);
             receivers.push(':');
             receivers.push_str(&share.to_string());
             receivers.push_str("),");
