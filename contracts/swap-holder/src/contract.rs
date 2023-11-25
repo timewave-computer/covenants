@@ -127,9 +127,9 @@ fn try_forward(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     // if query returns None, then we error and wait
     let Some(deposit_address) = deposit_address_query else {
-        return Err(ContractError::Std(
-            StdError::not_found("Next contract is not ready for receiving the funds yet")
-        ))
+        return Err(ContractError::Std(StdError::not_found(
+            "Next contract is not ready for receiving the funds yet",
+        )));
     };
 
     let multi_send_msg = CosmosMsg::Bank(BankMsg::Send {

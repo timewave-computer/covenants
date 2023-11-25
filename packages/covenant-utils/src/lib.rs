@@ -1,16 +1,15 @@
-use std::{collections::BTreeMap, io::Stderr};
+use astroport::asset::PairInfo;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, Decimal, Fraction, IbcMsg, IbcTimeout,
-    StdError, Timestamp, Uint128, Uint64, QuerierWrapper,
+    QuerierWrapper, StdError, Timestamp, Uint128, Uint64,
 };
 use cw20::BalanceResponse;
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
     sudo::msg::RequestPacketTimeoutHeight,
 };
-use astroport::asset::PairInfo;
-
+use std::{collections::BTreeMap, io::Stderr};
 
 pub mod neutron_ica {
     use cosmwasm_schema::{cw_serde, QueryResponses};
@@ -196,7 +195,6 @@ pub struct SplitConfig {
     pub receivers: BTreeMap<String, Decimal>,
 }
 
-
 impl SplitConfig {
     pub fn remap_receivers_to_routers(
         &self,
@@ -209,14 +207,24 @@ impl SplitConfig {
 
         match self.receivers.get(&receiver_a) {
             Some(val) => new_receivers.insert(router_a, *val),
-            None => return Err(StdError::NotFound { kind: format!("receiver {:?} not found", receiver_b) }),
+            None => {
+                return Err(StdError::NotFound {
+                    kind: format!("receiver {:?} not found", receiver_b),
+                })
+            }
         };
         match self.receivers.get(&receiver_b) {
             Some(val) => new_receivers.insert(router_b, *val),
-            None => return Err(StdError::NotFound { kind: format!("receiver {:?} not found", receiver_b) }),
+            None => {
+                return Err(StdError::NotFound {
+                    kind: format!("receiver {:?} not found", receiver_b),
+                })
+            }
         };
 
-        Ok(SplitConfig { receivers: new_receivers })
+        Ok(SplitConfig {
+            receivers: new_receivers,
+        })
     }
 
     pub fn validate(&self, party_a: &str, party_b: &str) -> Result<(), StdError> {
@@ -232,7 +240,7 @@ impl SplitConfig {
         if share_a + share_b != Decimal::one() {
             return Err(StdError::generic_err(
                 "shares must add up to 1.0".to_string(),
-            ))
+            ));
         }
 
         Ok(())
@@ -259,7 +267,7 @@ impl SplitConfig {
                         } else {
                             (addr, Decimal::zero())
                         }
-                    },
+                    }
                     None => (addr, *share),
                 }
             })
@@ -606,12 +614,13 @@ pub fn query_astro_pool_token(
 
     let liquidity_token_balance: BalanceResponse = querier.query_wasm_smart(
         pair_info.liquidity_token.as_ref(),
-        &cw20::Cw20QueryMsg::Balance {
-            address: addr,
-        },
+        &cw20::Cw20QueryMsg::Balance { address: addr },
     )?;
 
-    Ok(AstroportPoolTokenResponse { pair_info, balance_response: liquidity_token_balance })
+    Ok(AstroportPoolTokenResponse {
+        pair_info,
+        balance_response: liquidity_token_balance,
+    })
 }
 
 #[cw_serde]
