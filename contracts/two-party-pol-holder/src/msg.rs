@@ -40,10 +40,12 @@ impl InstantiateMsg {
             Some(split) => split.get_response_attribute("fallback_split".to_string()),
             None => Attribute::new("fallback_split".to_string(), "none".to_string()),
         };
-        let splits_attr: Vec<Attribute> = self.splits.iter()
-            .map(|(denom, split_type)| {
-                match split_type {
-                    SplitType::Custom(split_config) => split_config.get_response_attribute(denom.to_string()),
+        let splits_attr: Vec<Attribute> = self
+            .splits
+            .iter()
+            .map(|(denom, split_type)| match split_type {
+                SplitType::Custom(split_config) => {
+                    split_config.get_response_attribute(denom.to_string())
                 }
             })
             .collect();
@@ -70,10 +72,13 @@ pub enum CovenantType {
 
 impl CovenantType {
     pub fn get_response_attribute(&self) -> Attribute {
-        Attribute::new("covenant_type", match self {
-            CovenantType::Share => "share",
-            CovenantType::Side => "side",
-        })
+        Attribute::new(
+            "covenant_type",
+            match self {
+                CovenantType::Share => "share",
+                CovenantType::Side => "side",
+            },
+        )
     }
 }
 
@@ -92,9 +97,8 @@ impl DenomSplits {
                 if self.explicit_splits.contains_key(&c.denom) {
                     None
                 } else if let Some(fallback_split) = &self.fallback_split {
-                    match fallback_split.get_transfer_messages(
-                        c.amount, c.denom.to_string(), None,
-                    ) {
+                    match fallback_split.get_transfer_messages(c.amount, c.denom.to_string(), None)
+                    {
                         Ok(msgs) => Some(msgs),
                         Err(_) => None,
                     }
@@ -106,7 +110,11 @@ impl DenomSplits {
             .collect()
     }
 
-    pub fn get_single_receiver_distribution_messages(self, available_coins: Vec<Coin>, addr: String) -> Vec<CosmosMsg> {
+    pub fn get_single_receiver_distribution_messages(
+        self,
+        available_coins: Vec<Coin>,
+        addr: String,
+    ) -> Vec<CosmosMsg> {
         available_coins
             .iter()
             .filter_map(|c| {
@@ -114,7 +122,11 @@ impl DenomSplits {
                 // we look for it in our explicitly defined split configs
                 if let Some(config) = self.explicit_splits.get(&c.denom) {
                     // found it, generate the msg or filter out
-                    match config.get_transfer_messages(c.amount, c.denom.to_string(), Some(addr.to_string())) {
+                    match config.get_transfer_messages(
+                        c.amount,
+                        c.denom.to_string(),
+                        Some(addr.to_string()),
+                    ) {
                         Ok(msgs) => Some(msgs),
                         Err(_) => None,
                     }
@@ -156,11 +168,11 @@ impl DenomSplits {
     ) -> Result<DenomSplits, ContractError> {
         // we iterate over explicitly defined splits for each denom
         for (denom, mut config) in self.explicit_splits.clone().into_iter() {
-
-            let party_share = config.receivers
+            let party_share = config
+                .receivers
                 // get current party shares or error out if not found
                 .get(&party.router)
-                .ok_or_else(|| ContractError::PartyNotFound {  })?;
+                .ok_or_else(|| ContractError::PartyNotFound {})?;
 
             // we do not penalize already null allocations of
             // the ragequitting party
@@ -170,16 +182,21 @@ impl DenomSplits {
                     .checked_sub(penalty)
                     .map_err(|e| StdError::overflow(e))?;
 
-                    let new_counterparty_share = config.receivers
+                let new_counterparty_share = config
+                    .receivers
                     .get(&counterparty.router)
-                    .ok_or_else(|| ContractError::PartyNotFound {  })?
+                    .ok_or_else(|| ContractError::PartyNotFound {})?
                     .checked_add(penalty)
                     .map_err(|e| StdError::overflow(e))?;
 
                 // override existing entries with the updated values
                 // while keeping the keys
-                config.receivers.insert(party.router.to_string(), new_party_share);
-                config.receivers.insert(counterparty.router.to_string(), new_counterparty_share);
+                config
+                    .receivers
+                    .insert(party.router.to_string(), new_party_share);
+                config
+                    .receivers
+                    .insert(counterparty.router.to_string(), new_counterparty_share);
 
                 // override the existing denom entry with updated config
                 self.explicit_splits.insert(denom, config);
@@ -188,24 +205,30 @@ impl DenomSplits {
 
         if let Some(mut split_config) = self.fallback_split {
             // apply the ragequit penalty to rq party and its counterparty
-            let new_party_share = split_config.receivers
+            let new_party_share = split_config
+                .receivers
                 // get current party shares or error out if not found
                 .get(party.router.as_str())
-                .ok_or_else(|| ContractError::PartyNotFound {  })?
+                .ok_or_else(|| ContractError::PartyNotFound {})?
                 // add the penalty or return overflow
                 .checked_sub(penalty)
                 .map_err(|e| StdError::overflow(e))?;
 
-            let new_counterparty_share = split_config.receivers
+            let new_counterparty_share = split_config
+                .receivers
                 .get(counterparty.router.as_str())
-                .ok_or_else(|| ContractError::PartyNotFound {  })?
+                .ok_or_else(|| ContractError::PartyNotFound {})?
                 .checked_add(penalty)
                 .map_err(|e| StdError::overflow(e))?;
 
             // override existing entries with the updated values
             // while keeping the keys
-            split_config.receivers.insert(party.router.to_string(), new_party_share);
-            split_config.receivers.insert(counterparty.router.to_string(), new_counterparty_share);
+            split_config
+                .receivers
+                .insert(party.router.to_string(), new_party_share);
+            split_config
+                .receivers
+                .insert(counterparty.router.to_string(), new_counterparty_share);
 
             // reflect the updated values in self
             self.fallback_split = Some(split_config);

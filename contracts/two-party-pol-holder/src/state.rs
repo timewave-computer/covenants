@@ -3,7 +3,7 @@ use covenant_utils::SplitConfig;
 use cw_storage_plus::Item;
 use cw_utils::Expiration;
 
-use crate::msg::{ContractState, RagequitConfig, TwoPartyPolCovenantConfig, DenomSplits};
+use crate::msg::{ContractState, DenomSplits, RagequitConfig, TwoPartyPolCovenantConfig};
 
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
