@@ -1,9 +1,6 @@
 use std::collections::BTreeMap;
 
-use astroport::{
-    asset::Asset,
-    pair::Cw20HookMsg,
-};
+use astroport::{asset::Asset, pair::Cw20HookMsg};
 use cosmwasm_std::{
     to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdError, StdResult, Uint128, WasmMsg,
