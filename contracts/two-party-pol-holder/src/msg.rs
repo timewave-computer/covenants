@@ -172,7 +172,7 @@ impl DenomSplits {
                 .receivers
                 // get current party shares or error out if not found
                 .get(&party.router)
-                .ok_or_else(|| ContractError::PartyNotFound {})?;
+                .ok_or(ContractError::PartyNotFound {})?;
 
             // we do not penalize already null allocations of
             // the ragequitting party
@@ -180,14 +180,14 @@ impl DenomSplits {
                 let new_party_share = party_share
                     // add the penalty or return overflow
                     .checked_sub(penalty)
-                    .map_err(|e| StdError::overflow(e))?;
+                    .map_err(StdError::overflow)?;
 
                 let new_counterparty_share = config
                     .receivers
                     .get(&counterparty.router)
-                    .ok_or_else(|| ContractError::PartyNotFound {})?
+                    .ok_or(ContractError::PartyNotFound {})?
                     .checked_add(penalty)
-                    .map_err(|e| StdError::overflow(e))?;
+                    .map_err(StdError::overflow)?;
 
                 // override existing entries with the updated values
                 // while keeping the keys
@@ -209,17 +209,17 @@ impl DenomSplits {
                 .receivers
                 // get current party shares or error out if not found
                 .get(party.router.as_str())
-                .ok_or_else(|| ContractError::PartyNotFound {})?
+                .ok_or(ContractError::PartyNotFound {})?
                 // add the penalty or return overflow
                 .checked_sub(penalty)
-                .map_err(|e| StdError::overflow(e))?;
+                .map_err(StdError::overflow)?;
 
             let new_counterparty_share = split_config
                 .receivers
                 .get(counterparty.router.as_str())
-                .ok_or_else(|| ContractError::PartyNotFound {})?
+                .ok_or(ContractError::PartyNotFound {})?
                 .checked_add(penalty)
-                .map_err(|e| StdError::overflow(e))?;
+                .map_err(StdError::overflow)?;
 
             // override existing entries with the updated values
             // while keeping the keys
@@ -462,7 +462,7 @@ impl ContractState {
         match self {
             ContractState::Ragequit => Ok(()),
             ContractState::Expired => Ok(()),
-            _ => return Err(ContractError::ClaimError {}),
+            _ => Err(ContractError::ClaimError {}),
         }
     }
 }
