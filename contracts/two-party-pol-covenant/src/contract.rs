@@ -509,7 +509,9 @@ pub fn handle_party_b_ibc_forwarder_reply(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_json_binary(&COVENANT_CLOCK_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_json_binary(
+            &COVENANT_CLOCK_ADDR.may_load(deps.storage)?,
+        )?),
         QueryMsg::HolderAddress {} => Ok(to_json_binary(
             &COVENANT_POL_HOLDER_ADDR.may_load(deps.storage)?,
         )?),

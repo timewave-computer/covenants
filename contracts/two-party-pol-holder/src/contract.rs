@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use astroport::{asset::Asset, pair::Cw20HookMsg};
 use cosmwasm_std::{
-    to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Response, StdError, StdResult, Uint128, WasmMsg,
+    to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
 #[cfg(not(feature = "library"))]
@@ -677,8 +677,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.load(deps.storage)?)?),
         QueryMsg::NextContract {} => Ok(to_json_binary(&NEXT_CONTRACT.load(deps.storage)?)?),
         QueryMsg::PoolAddress {} => Ok(to_json_binary(&POOL_ADDRESS.load(deps.storage)?)?),
-        QueryMsg::ConfigPartyA {} => Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?.party_a)?),
-        QueryMsg::ConfigPartyB {} => Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?.party_b)?),
+        QueryMsg::ConfigPartyA {} => Ok(to_json_binary(
+            &COVENANT_CONFIG.load(deps.storage)?.party_a,
+        )?),
+        QueryMsg::ConfigPartyB {} => Ok(to_json_binary(
+            &COVENANT_CONFIG.load(deps.storage)?.party_b,
+        )?),
         QueryMsg::DepositDeadline {} => Ok(to_json_binary(&DEPOSIT_DEADLINE.load(deps.storage)?)?),
         QueryMsg::Config {} => Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&env.contract.address)?),
