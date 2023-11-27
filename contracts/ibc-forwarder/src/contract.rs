@@ -220,8 +220,12 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
 
             Ok(to_json_binary(&ica)?)
         }
-        QueryMsg::IcaAddress {} => Ok(to_json_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
-        QueryMsg::RemoteChainInfo {} => Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
+        QueryMsg::IcaAddress {} => Ok(to_json_binary(
+            &get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
+        )?),
+        QueryMsg::RemoteChainInfo {} => {
+            Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?)
+        }
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
     }
 }
