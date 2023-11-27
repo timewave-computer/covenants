@@ -2,13 +2,13 @@ use crate::{
     error::ContractError,
     msg::ExecuteMsg::{Dequeue, Enqueue},
 };
-use cosmwasm_std::{to_binary, Addr, StdResult, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, StdResult, WasmMsg};
 use neutron_sdk::NeutronError;
 
 pub fn enqueue_msg(addr: &str) -> StdResult<WasmMsg> {
     Ok(WasmMsg::Execute {
         contract_addr: addr.to_string(),
-        msg: to_binary(&Enqueue {})?,
+        msg: to_json_binary(&Enqueue {})?,
         funds: vec![],
     })
 }
@@ -16,7 +16,7 @@ pub fn enqueue_msg(addr: &str) -> StdResult<WasmMsg> {
 pub fn dequeue_msg(addr: &str) -> StdResult<WasmMsg> {
     Ok(WasmMsg::Execute {
         contract_addr: addr.to_string(),
-        msg: to_binary(&Dequeue {})?,
+        msg: to_json_binary(&Dequeue {})?,
         funds: vec![],
     })
 }

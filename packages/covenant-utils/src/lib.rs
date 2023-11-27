@@ -127,8 +127,7 @@ pub mod neutron_ica {
     /// helper that serializes a MsgTransfer to protobuf
     pub fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
         // Serialize the Transfer message
-        let mut buf = Vec::new();
-        buf.reserve(msg.encoded_len());
+        let mut buf = Vec::with_capacity(msg.encoded_len());
         if let Err(e) = msg.encode(&mut buf) {
             return Err(StdError::generic_err(format!("Encode error: {e}")).into());
         }
@@ -141,8 +140,7 @@ pub mod neutron_ica {
 
     pub fn to_proto_msg_send(msg: impl Message) -> NeutronResult<ProtobufAny> {
         // Serialize the Send message
-        let mut buf = Vec::new();
-        buf.reserve(msg.encoded_len());
+        let mut buf = Vec::with_capacity(msg.encoded_len());
         if let Err(e) = msg.encode(&mut buf) {
             return Err(StdError::generic_err(format!("Encode error: {e}")).into());
         }
@@ -155,8 +153,7 @@ pub mod neutron_ica {
 
     pub fn to_proto_msg_multi_send(msg: impl Message) -> NeutronResult<ProtobufAny> {
         // Serialize the Send message
-        let mut buf = Vec::new();
-        buf.reserve(msg.encoded_len());
+        let mut buf = Vec::with_capacity(msg.encoded_len());
         if let Err(e) = msg.encode(&mut buf) {
             return Err(StdError::generic_err(format!("Encode error: {e}")).into());
         }

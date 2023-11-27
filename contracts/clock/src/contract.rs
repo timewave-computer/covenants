@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg,
     Uint64, WasmMsg,
 };
 use cw2::set_contract_version;
@@ -75,7 +75,7 @@ pub fn execute(
                         SubMsg::reply_on_error(
                             WasmMsg::Execute {
                                 contract_addr: receiver.to_string(),
-                                msg: to_binary(&ExecuteMsg::Tick {})?,
+                                msg: to_json_binary(&ExecuteMsg::Tick {})?,
                                 funds: vec![],
                             },
                             0,
@@ -123,9 +123,9 @@ pub fn execute(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::IsQueued { address } => {
-            to_binary(&QUEUE.has(deps.storage, Addr::unchecked(address)))
+            to_json_binary(&QUEUE.has(deps.storage, Addr::unchecked(address)))
         }
-        QueryMsg::Queue { start_after, limit } => to_binary(
+        QueryMsg::Queue { start_after, limit } => to_json_binary(
             &QUEUE.query_queue(
                 deps.storage,
                 start_after
@@ -134,9 +134,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 limit,
             )?,
         ),
-        QueryMsg::TickMaxGas {} => to_binary(&TICK_MAX_GAS.load(deps.storage)?),
-        QueryMsg::Paused {} => to_binary(&PAUSED.load(deps.storage)?),
-        QueryMsg::Whitelist {} => to_binary(&WHITELIST.load(deps.storage)?),
+        QueryMsg::TickMaxGas {} => to_json_binary(&TICK_MAX_GAS.load(deps.storage)?),
+        QueryMsg::Paused {} => to_json_binary(&PAUSED.load(deps.storage)?),
+        QueryMsg::Whitelist {} => to_json_binary(&WHITELIST.load(deps.storage)?),
     }
 }
 

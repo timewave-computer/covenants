@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_binary, Binary, Deps, Empty, Env, StdResult};
+use cosmwasm_std::{to_json_binary, Binary, Deps, Empty, Env, StdResult};
 use covenant_macros::covenant_deposit_address;
 use cw_multi_test::{Contract, ContractWrapper};
 
@@ -36,6 +36,6 @@ pub enum QueryMsg {}
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::DepositAddress {} => Ok(to_binary(&"native-splitter")?),
+        QueryMsg::DepositAddress {} => Ok(to_json_binary(&"native-splitter")?),
     }
 }

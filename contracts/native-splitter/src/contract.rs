@@ -5,7 +5,7 @@ use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
+    to_json_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
     Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
@@ -220,14 +220,14 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
-        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => {
             let ica = query_deposit_address(deps, env)?;
             // up to the querying module to make sense of the response
-            Ok(to_binary(&ica)?)
+            Ok(to_json_binary(&ica)?)
         }
-        QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
+        QueryMsg::RemoteChainInfo {} => Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
         QueryMsg::SplitConfig {} => {
             let mut vec: Vec<(String, Vec<SplitReceiver>)> = Vec::new();
 
@@ -237,10 +237,10 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
                 vec.push(entry?)
             }
 
-            Ok(to_binary(&vec)?)
+            Ok(to_json_binary(&vec)?)
         }
-        QueryMsg::TransferAmount {} => Ok(to_binary(&TRANSFER_AMOUNT.may_load(deps.storage)?)?),
-        QueryMsg::IcaAddress {} => Ok(to_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
+        QueryMsg::TransferAmount {} => Ok(to_json_binary(&TRANSFER_AMOUNT.may_load(deps.storage)?)?),
+        QueryMsg::IcaAddress {} => Ok(to_json_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
     }
 }
 

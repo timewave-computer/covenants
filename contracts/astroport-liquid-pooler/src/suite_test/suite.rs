@@ -5,7 +5,7 @@ use astroport::{
 };
 
 use cosmwasm_std::{
-    testing::MockApi, to_binary, Addr, Coin, Decimal, Empty, MemoryStorage, QueryRequest, Uint128,
+    testing::MockApi, to_json_binary, Addr, Coin, Decimal, Empty, MemoryStorage, QueryRequest, Uint128,
     Uint64, WasmQuery,
 };
 use cw20::Cw20ExecuteMsg;
@@ -197,7 +197,7 @@ impl Default for SuiteBuilder {
                 token_code_id: u64::MAX,
                 factory_addr: "TODO".to_string(),
                 init_params: Some(
-                    to_binary(&StablePoolParams {
+                    to_json_binary(&StablePoolParams {
                         amp: 1000,
                         owner: Some(CREATOR_ADDR.to_string()),
                     })
@@ -333,7 +333,7 @@ impl SuiteBuilder {
                 },
             ],
             init_params: Some(
-                to_binary(&StablePoolParams {
+                to_json_binary(&StablePoolParams {
                     owner: Some(CREATOR_ADDR.to_string()),
                     amp: 10,
                 })
@@ -469,7 +469,7 @@ impl Suite {
             .wrap()
             .query(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: self.stable_pair.clone().1,
-                msg: to_binary(&astroport::pair::QueryMsg::Pool {}).unwrap(),
+                msg: to_json_binary(&astroport::pair::QueryMsg::Pool {}).unwrap(),
             }))
             .unwrap()
     }
@@ -582,7 +582,7 @@ impl Suite {
                 &Cw20ExecuteMsg::Send {
                     contract: self.stable_pair.1.to_string(),
                     amount: Uint128::from(amount),
-                    msg: to_binary(&Cw20HookMsg::WithdrawLiquidity { assets }).unwrap(),
+                    msg: to_json_binary(&Cw20HookMsg::WithdrawLiquidity { assets }).unwrap(),
                 },
                 &[],
             )
