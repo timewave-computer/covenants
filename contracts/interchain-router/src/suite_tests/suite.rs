@@ -25,19 +25,20 @@ fn router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
 
     Box::new(contract)
 }
+type CustomApp = App<
+    BankKeeper,
+    MockApi,
+    MockStorage,
+    FailingModule<NeutronMsg, NeutronQuery, Empty>,
+    WasmKeeper<NeutronMsg, NeutronQuery>,
+    StakeKeeper,
+    DistributionKeeper,
+    IbcAcceptingModule,
+    FailingModule<GovMsg, Empty, Empty>,
+>;
 
 pub struct Suite {
-    pub app: App<
-        BankKeeper,
-        MockApi,
-        MockStorage,
-        FailingModule<NeutronMsg, NeutronQuery, Empty>,
-        WasmKeeper<NeutronMsg, NeutronQuery>,
-        StakeKeeper,
-        DistributionKeeper,
-        IbcAcceptingModule,
-        FailingModule<GovMsg, Empty, Empty>,
-    >,
+    pub app: CustomApp,
     pub router: Addr,
 }
 
@@ -121,7 +122,7 @@ impl Suite {
 
 // helper
 impl Suite {
-    pub fn fund_router(&mut self, tokens: Vec<Coin>) -> AppResponse {
+    pub fn _fund_router(&mut self, tokens: Vec<Coin>) -> AppResponse {
         self.app
             .sudo(cw_multi_test::SudoMsg::Bank(
                 cw_multi_test::BankSudo::Mint {
@@ -132,7 +133,7 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn assert_router_balance(&mut self, tokens: Vec<Coin>) {
+    pub fn _assert_router_balance(&mut self, tokens: Vec<Coin>) {
         for c in &tokens {
             let queried_amount = self
                 .app

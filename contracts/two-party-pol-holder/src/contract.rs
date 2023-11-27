@@ -9,7 +9,7 @@ use cosmwasm_std::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use covenant_utils::{query_astro_pool_token, SplitConfig, SplitType};
+use covenant_utils::{query_astro_pool_token, AstroportPoolTokenResponse, SplitConfig, SplitType};
 use cw2::set_contract_version;
 use cw20::Cw20ExecuteMsg;
 
@@ -492,8 +492,7 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
             rq_party,
             counterparty,
             pool,
-            lp_token_info.pair_info.liquidity_token.to_string(),
-            lp_token_info.balance_response.balance,
+            lp_token_info,
             rq_config,
             covenant_config,
         ),
@@ -502,8 +501,7 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
             rq_party,
             counterparty,
             pool,
-            lp_token_info.pair_info.liquidity_token.to_string(),
-            lp_token_info.balance_response.balance,
+            lp_token_info,
             rq_config,
             covenant_config,
         ),
@@ -523,8 +521,7 @@ pub fn try_handle_side_based_ragequit(
     mut ragequit_party: TwoPartyPolCovenantParty,
     mut counterparty: TwoPartyPolCovenantParty,
     pool: Addr,
-    lp_token_addr: String,
-    lp_token_bal: Uint128,
+    lp_token_response: AstroportPoolTokenResponse,
     mut rq_terms: RagequitTerms,
     mut covenant_config: TwoPartyPolCovenantConfig,
 ) -> Result<Response, ContractError> {
@@ -538,7 +535,7 @@ pub fn try_handle_side_based_ragequit(
     let ragequit_assets: Vec<Asset> = deps.querier.query_wasm_smart(
         pool.to_string(),
         &astroport::pair::QueryMsg::Share {
-            amount: lp_token_bal,
+            amount: lp_token_response.balance_response.balance,
         },
     )?;
 
@@ -550,7 +547,7 @@ pub fn try_handle_side_based_ragequit(
     let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
     let withdraw_msg = &Cw20ExecuteMsg::Send {
         contract: pool.to_string(),
-        amount: lp_token_bal,
+        amount: lp_token_response.balance_response.balance,
         msg: to_json_binary(withdraw_liquidity_hook)?,
     };
 
@@ -560,7 +557,7 @@ pub fn try_handle_side_based_ragequit(
     // messages will contain the withdraw liquidity message followed
     // by transfer of underlying assets to the corresponding router
     let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: lp_token_addr.to_string(),
+        contract_addr: lp_token_response.pair_info.liquidity_token.to_string(),
         msg: to_json_binary(withdraw_msg)?,
         funds: vec![],
     })];
@@ -598,8 +595,7 @@ pub fn try_handle_share_based_ragequit(
     mut ragequit_party: TwoPartyPolCovenantParty,
     mut counterparty: TwoPartyPolCovenantParty,
     pool: Addr,
-    lp_token_addr: String,
-    lp_token_bal: Uint128,
+    lp_token_response: AstroportPoolTokenResponse,
     mut rq_terms: RagequitTerms,
     mut covenant_config: TwoPartyPolCovenantConfig,
 ) -> Result<Response, ContractError> {
@@ -613,7 +609,9 @@ pub fn try_handle_share_based_ragequit(
     ragequit_party.allocation -= rq_terms.penalty;
 
     // we figure out the amounts of underlying tokens that rq party would receive
-    let rq_party_lp_token_amount = lp_token_bal
+    let rq_party_lp_token_amount = lp_token_response
+        .balance_response
+        .balance
         .checked_mul_floor(ragequit_party.allocation)
         .map_err(|_| ContractError::FractionMulError {})?;
     let rq_entitled_assets: Vec<Asset> = deps.querier.query_wasm_smart(
@@ -642,7 +640,7 @@ pub fn try_handle_share_based_ragequit(
     // messages will contain the withdraw liquidity message followed
     // by transfer of underlying assets to the corresponding router
     let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: lp_token_addr.to_string(),
+        contract_addr: lp_token_response.pair_info.liquidity_token.to_string(),
         msg: to_json_binary(withdraw_msg)?,
         funds: vec![],
     })];
@@ -738,12 +736,12 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
                 resp = resp.add_attribute("pool_addr", pool_addr);
             }
 
-            if let Some(config) = ragequit_config {
+            if let Some(config) = *ragequit_config {
                 RAGEQUIT_CONFIG.save(deps.storage, &config)?;
                 resp = resp.add_attributes(config.get_response_attributes());
             }
 
-            if let Some(config) = covenant_config {
+            if let Some(config) = *covenant_config {
                 COVENANT_CONFIG.save(deps.storage, &config)?;
                 resp = resp.add_attribute("todo", "todo");
             }

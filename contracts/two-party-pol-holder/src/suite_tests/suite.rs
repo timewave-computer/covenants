@@ -258,12 +258,14 @@ impl Suite {
     }
 
     pub fn rq(&mut self, caller: &str) -> Result<AppResponse, anyhow::Error> {
-        self.app.execute_contract(
+        let resp = self.app.execute_contract(
             Addr::unchecked(caller),
             self.holder.clone(),
             &ExecuteMsg::Ragequit {},
             &[],
-        )
+        );
+        println!("rq response: {:?}", resp);
+        resp
     }
 
     pub fn claim(&mut self, caller: &str) -> Result<AppResponse, anyhow::Error> {
@@ -345,16 +347,11 @@ impl Suite {
 // helper
 impl Suite {
     pub fn pass_blocks(&mut self, n: u64) {
-        self.app.update_block(|mut b| b.height += n);
+        self.app.update_block(|b| b.height += n);
     }
 
     pub fn pass_minutes(&mut self, n: u64) {
-        self.app
-            .update_block(|mut b| b.time = b.time.plus_minutes(n));
-    }
-
-    pub fn get_current_block(&mut self) -> BlockInfo {
-        self.app.block_info()
+        self.app.update_block(|b| b.time = b.time.plus_minutes(n));
     }
 
     pub fn fund_coin(&mut self, coin: Coin) -> AppResponse {
