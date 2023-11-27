@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
+    to_json_binary, Addr, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
     Response, StdResult, SubMsg, Uint128, WasmMsg,
 };
 
@@ -151,7 +151,7 @@ pub fn instantiate(
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
         code_id: preset_clock_fields.code_id,
-        msg: to_binary(&preset_clock_fields.to_instantiate_msg())?,
+        msg: to_json_binary(&preset_clock_fields.to_instantiate_msg())?,
         funds: vec![],
         label: preset_clock_fields.label,
     });
@@ -193,7 +193,7 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             let party_a_router_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: party_a_router_preset_fields.code_id,
-                msg: to_binary(
+                msg: to_json_binary(
                     &party_a_router_preset_fields.to_instantiate_msg(clock_addr.to_string()),
                 )?,
                 funds: vec![],
@@ -244,7 +244,7 @@ pub fn handle_party_a_interchain_router_reply(
             let party_b_router_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: party_b_router_preset_fields.code_id,
-                msg: to_binary(
+                msg: to_json_binary(
                     &party_b_router_preset_fields.to_instantiate_msg(clock_addr.to_string()),
                 )?,
                 funds: vec![],
@@ -290,7 +290,7 @@ pub fn handle_party_b_interchain_router_reply(
             let liquid_pooler_inst_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_liquid_pooler_fields.code_id,
-                msg: to_binary(&instantiate_msg)?,
+                msg: to_json_binary(&instantiate_msg)?,
                 funds: vec![],
                 label: preset_liquid_pooler_fields.label,
             });
@@ -336,7 +336,7 @@ pub fn handle_liquid_pooler_reply_id(
             let holder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_holder_fields.code_id,
-                msg: to_binary(&instantiate_msg)?,
+                msg: to_json_binary(&instantiate_msg)?,
                 funds: vec![],
                 label: preset_holder_fields.label,
             });
@@ -346,7 +346,7 @@ pub fn handle_liquid_pooler_reply_id(
                 .add_attribute("liquid_pooler_addr", liquid_pooler)
                 .add_attribute(
                     "holder_instantiate_tx",
-                    to_binary(&holder_instantiate_tx)?.to_string(),
+                    to_json_binary(&holder_instantiate_tx)?.to_string(),
                 )
                 .add_submessage(SubMsg::reply_always(holder_instantiate_tx, HOLDER_REPLY_ID)))
         }
@@ -374,7 +374,7 @@ pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respon
             let party_a_ibc_forwarder_inst_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_party_a_ibc_forwarder.code_id,
-                msg: to_binary(
+                msg: to_json_binary(
                     &preset_party_a_ibc_forwarder
                         .to_instantiate_msg(clock_addr.to_string(), holder_addr.to_string()),
                 )?,
@@ -419,7 +419,7 @@ pub fn handle_party_a_ibc_forwarder_reply(
             let party_b_ibc_forwarder_inst_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_party_b_ibc_forwarder.code_id,
-                msg: to_binary(
+                msg: to_json_binary(
                     &preset_party_b_ibc_forwarder
                         .to_instantiate_msg(clock_addr.to_string(), holder.to_string()),
                 )?,
@@ -468,7 +468,7 @@ pub fn handle_party_b_ibc_forwarder_reply(
             let update_liquid_pooler_holder_addr = WasmMsg::Migrate {
                 contract_addr: liquid_pooler.to_string(),
                 new_code_id: lp_fields.code_id,
-                msg: to_binary(
+                msg: to_json_binary(
                     &covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
                         clock_addr: None,
                         holder_address: Some(holder.to_string()),
@@ -480,7 +480,7 @@ pub fn handle_party_b_ibc_forwarder_reply(
             let update_clock_whitelist_msg = WasmMsg::Migrate {
                 contract_addr: clock_addr.to_string(),
                 new_code_id: preset_clock_fields.code_id,
-                msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
+                msg: to_json_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
                     add: Some(vec![
                         party_a_forwarder.to_string(),
                         party_b_ibc_forwarder_addr.to_string(),
@@ -509,8 +509,8 @@ pub fn handle_party_b_ibc_forwarder_reply(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_binary(&COVENANT_CLOCK_ADDR.may_load(deps.storage)?)?),
-        QueryMsg::HolderAddress {} => Ok(to_binary(
+        QueryMsg::ClockAddress {} => Ok(to_json_binary(&COVENANT_CLOCK_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::HolderAddress {} => Ok(to_json_binary(
             &COVENANT_POL_HOLDER_ADDR.may_load(deps.storage)?,
         )?),
         QueryMsg::IbcForwarderAddress { party } => {
@@ -521,7 +521,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else {
                 Some(Addr::unchecked("not found"))
             };
-            Ok(to_binary(&resp)?)
+            Ok(to_json_binary(&resp)?)
         }
         QueryMsg::InterchainRouterAddress { party } => {
             let resp = if party == "party_a" {
@@ -531,10 +531,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else {
                 Some(Addr::unchecked("not found"))
             };
-            Ok(to_binary(&resp)?)
+            Ok(to_json_binary(&resp)?)
         }
         QueryMsg::LiquidPoolerAddress {} => {
-            Ok(to_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?)
+            Ok(to_json_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?)
         }
     }
 }
@@ -555,7 +555,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             let mut resp = Response::default().add_attribute("method", "migrate_contracts");
 
             if let Some(clock) = clock {
-                let msg = to_binary(&clock)?;
+                let msg = to_json_binary(&clock)?;
                 let clock_fields = PRESET_CLOCK_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("clock_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
@@ -566,7 +566,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             if let Some(router) = party_a_router {
-                let msg: Binary = to_binary(&router)?;
+                let msg: Binary = to_json_binary(&router)?;
                 let router_fields = PRESET_PARTY_A_ROUTER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("party_a_router_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
@@ -577,7 +577,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             if let Some(router) = party_b_router {
-                let msg: Binary = to_binary(&router)?;
+                let msg: Binary = to_json_binary(&router)?;
                 let router_fields = PRESET_PARTY_B_ROUTER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("party_b_router_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
@@ -588,7 +588,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             if let Some(forwarder) = party_a_forwarder {
-                let msg: Binary = to_binary(&forwarder)?;
+                let msg: Binary = to_json_binary(&forwarder)?;
                 let forwarder_fields = PRESET_PARTY_A_FORWARDER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("party_a_forwarder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
@@ -599,7 +599,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             if let Some(forwarder) = party_b_forwarder {
-                let msg: Binary = to_binary(&forwarder)?;
+                let msg: Binary = to_json_binary(&forwarder)?;
                 let forwarder_fields = PRESET_PARTY_B_FORWARDER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("party_b_forwarder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
@@ -610,7 +610,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             if let Some(holder) = holder {
-                let msg: Binary = to_binary(&holder)?;
+                let msg: Binary = to_json_binary(&holder)?;
                 let holder_fields = PRESET_HOLDER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("holder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {

@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    to_json_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
     StdResult, SubMsg, WasmMsg,
 };
 
@@ -128,7 +128,7 @@ pub fn instantiate(
     let clock_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
         admin: Some(env.contract.address.to_string()),
         code_id: preset_clock_fields.code_id,
-        msg: to_binary(&preset_clock_fields.to_instantiate_msg())?,
+        msg: to_json_binary(&preset_clock_fields.to_instantiate_msg())?,
         funds: vec![],
         label: preset_clock_fields.label,
     });
@@ -176,7 +176,7 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
             let party_a_router_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: party_a_router_preset_fields.code_id,
-                msg: to_binary(
+                msg: to_json_binary(
                     &party_a_router_preset_fields.to_instantiate_msg(clock_addr.to_string()),
                 )?,
                 funds: vec![],
@@ -229,7 +229,7 @@ pub fn handle_party_a_interchain_router_reply(
             let party_b_router_instantiate_tx: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: party_b_router_preset_fields.code_id,
-                msg: to_binary(
+                msg: to_json_binary(
                     &party_b_router_preset_fields.to_instantiate_msg(clock_addr.to_string()),
                 )?,
                 funds: vec![],
@@ -284,7 +284,7 @@ pub fn handle_party_b_interchain_router_reply(
             let splitter_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_splitter_fields.code_id,
-                msg: to_binary(&splitter_instantiate_msg)?,
+                msg: to_json_binary(&splitter_instantiate_msg)?,
                 funds: vec![],
                 label: preset_splitter_fields.label,
             });
@@ -327,7 +327,7 @@ pub fn handle_splitter_reply(
             let holder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_holder_fields.code_id,
-                msg: to_binary(
+                msg: to_json_binary(
                     &preset_holder_fields
                         .clone()
                         .to_instantiate_msg(clock_addr.to_string(), splitter_addr.to_string()),
@@ -377,7 +377,7 @@ pub fn handle_swap_holder_reply(
             let party_a_forwarder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_party_a_forwarder_fields.code_id,
-                msg: to_binary(&instantiate_msg)?,
+                msg: to_json_binary(&instantiate_msg)?,
                 funds: vec![],
                 label: preset_party_a_forwarder_fields.label,
             });
@@ -425,7 +425,7 @@ pub fn handle_party_a_ibc_forwarder_reply(
             let party_b_forwarder_instantiate_tx = CosmosMsg::Wasm(WasmMsg::Instantiate {
                 admin: Some(env.contract.address.to_string()),
                 code_id: preset_party_b_forwarder_fields.code_id,
-                msg: to_binary(&instantiate_msg)?,
+                msg: to_json_binary(&instantiate_msg)?,
                 funds: vec![],
                 label: preset_party_b_forwarder_fields.label,
             });
@@ -472,7 +472,7 @@ pub fn handle_party_b_ibc_forwarder_reply(
             let update_clock_whitelist_msg = WasmMsg::Migrate {
                 contract_addr: clock_addr.to_string(),
                 new_code_id: preset_clock_fields.code_id,
-                msg: to_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
+                msg: to_json_binary(&covenant_clock::msg::MigrateMsg::ManageWhitelist {
                     add: Some(vec![
                         party_a_forwarder.to_string(),
                         party_b_ibc_forwarder_addr.to_string(),
@@ -500,11 +500,11 @@ pub fn handle_party_b_ibc_forwarder_reply(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_binary(&COVENANT_CLOCK_ADDR.may_load(deps.storage)?)?),
-        QueryMsg::HolderAddress {} => Ok(to_binary(
+        QueryMsg::ClockAddress {} => Ok(to_json_binary(&COVENANT_CLOCK_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::HolderAddress {} => Ok(to_json_binary(
             &COVENANT_SWAP_HOLDER_ADDR.may_load(deps.storage)?,
         )?),
-        QueryMsg::SplitterAddress {} => Ok(to_binary(
+        QueryMsg::SplitterAddress {} => Ok(to_json_binary(
             &COVENANT_INTERCHAIN_SPLITTER_ADDR.may_load(deps.storage)?,
         )?),
         QueryMsg::InterchainRouterAddress { party } => {
@@ -515,7 +515,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else {
                 Some(Addr::unchecked("not found"))
             };
-            Ok(to_binary(&resp)?)
+            Ok(to_json_binary(&resp)?)
         }
         QueryMsg::IbcForwarderAddress { party } => {
             let resp = if party == "party_a" {
@@ -525,7 +525,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else {
                 Some(Addr::unchecked("not found"))
             };
-            Ok(to_binary(&resp)?)
+            Ok(to_json_binary(&resp)?)
         }
     }
 }

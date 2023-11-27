@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
 use covenant_clock::helpers::verify_clock;
 use covenant_utils::DestinationConfig;
@@ -109,9 +109,9 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
 pub fn query(deps: QueryDeps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::DestinationConfig {} => {
-            Ok(to_binary(&DESTINATION_CONFIG.may_load(deps.storage)?)?)
+            Ok(to_json_binary(&DESTINATION_CONFIG.may_load(deps.storage)?)?)
         }
-        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
     }
 }
 

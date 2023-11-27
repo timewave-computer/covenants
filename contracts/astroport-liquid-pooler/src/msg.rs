@@ -194,7 +194,7 @@ pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
         holder_address: Option<String>,
-        lp_config: Option<LpConfig>,
+        lp_config: Option<Box<LpConfig>>,
     },
     UpdateCodeId {
         data: Option<Binary>,

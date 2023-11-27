@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
+    to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
     Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::verify_clock;
@@ -259,7 +259,7 @@ fn try_get_double_side_lp_submsg(
     Ok(Some(SubMsg::reply_on_success(
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: lp_config.pool_address.to_string(),
-            msg: to_binary(&double_sided_liq_msg)?,
+            msg: to_json_binary(&double_sided_liq_msg)?,
             funds: vec![a_coin, b_coin],
         }),
         DOUBLE_SIDED_REPLY_ID,
@@ -305,7 +305,7 @@ fn try_get_single_side_lp_submsg(
         let submsg = SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: lp_config.pool_address.to_string(),
-                msg: to_binary(&single_sided_liq_msg)?,
+                msg: to_json_binary(&single_sided_liq_msg)?,
                 funds: vec![coin_b],
             }),
             SINGLE_SIDED_REPLY_ID,
@@ -325,7 +325,7 @@ fn try_get_single_side_lp_submsg(
         let submsg = SubMsg::reply_on_success(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: lp_config.pool_address.to_string(),
-                msg: to_binary(&single_sided_liq_msg)?,
+                msg: to_json_binary(&single_sided_liq_msg)?,
                 funds: vec![coin_a],
             }),
             SINGLE_SIDED_REPLY_ID,
@@ -363,14 +363,14 @@ fn get_pool_asset_amounts(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
-        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
-        QueryMsg::HolderAddress {} => Ok(to_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
-        QueryMsg::LpConfig {} => Ok(to_binary(&LP_CONFIG.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
+        QueryMsg::HolderAddress {} => Ok(to_json_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::LpConfig {} => Ok(to_json_binary(&LP_CONFIG.may_load(deps.storage)?)?),
         // the deposit address for LP module is the contract itself
-        QueryMsg::DepositAddress {} => Ok(to_binary(&Some(&env.contract.address.to_string()))?),
+        QueryMsg::DepositAddress {} => Ok(to_json_binary(&Some(&env.contract.address.to_string()))?),
         QueryMsg::ProvidedLiquidityInfo {} => {
-            Ok(to_binary(&PROVIDED_LIQUIDITY_INFO.load(deps.storage)?)?)
+            Ok(to_json_binary(&PROVIDED_LIQUIDITY_INFO.load(deps.storage)?)?)
         }
     }
 }
