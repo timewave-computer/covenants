@@ -225,7 +225,7 @@ fn try_claim_share_based(
     // generate the withdraw_liquidity hook for the claim party
     let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
     let withdraw_msg = &Cw20ExecuteMsg::Send {
-        contract: pool.to_string(),
+        contract: pool,
         amount: claim_party_lp_token_amount,
         msg: to_json_binary(withdraw_liquidity_hook)?,
     };
@@ -237,7 +237,7 @@ fn try_claim_share_based(
     // messages will contain the withdraw liquidity message followed
     // by transfer of underlying assets to the corresponding router
     let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: lp_token_addr.to_string(),
+        contract_addr: lp_token_addr,
         msg: to_json_binary(withdraw_msg)?,
         funds: vec![],
     })];
@@ -289,7 +289,7 @@ fn try_claim_side_based(
     // generate the withdraw_liquidity hook for the claim party
     let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
     let withdraw_msg = &Cw20ExecuteMsg::Send {
-        contract: pool.to_string(),
+        contract: pool,
         amount: lp_token_bal,
         msg: to_json_binary(withdraw_liquidity_hook)?,
     };
@@ -301,7 +301,7 @@ fn try_claim_side_based(
     // messages will contain the withdraw liquidity message followed
     // by transfer of underlying assets to the corresponding router
     let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: lp_token_addr.to_string(),
+        contract_addr: lp_token_addr,
         msg: to_json_binary(withdraw_msg)?,
         funds: vec![],
     })];
@@ -311,7 +311,7 @@ fn try_claim_side_based(
 
     claim_party.allocation = Decimal::zero();
     counterparty.allocation = Decimal::zero();
-    covenant_config.update_parties(claim_party.clone(), counterparty);
+    covenant_config.update_parties(claim_party, counterparty);
 
     // update the states
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
