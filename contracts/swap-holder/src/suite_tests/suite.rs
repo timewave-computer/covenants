@@ -184,12 +184,11 @@ impl Suite {
 // helper
 impl Suite {
     pub fn pass_blocks(&mut self, n: u64) {
-        self.app.update_block(|mut b| b.height += n);
+        self.app.update_block(|b| b.height += n);
     }
 
     pub fn pass_minutes(&mut self, n: u64) {
-        self.app
-            .update_block(|mut b| b.time = b.time.plus_minutes(n));
+        self.app.update_block(|b| b.time = b.time.plus_minutes(n));
     }
 
     pub fn fund_coin(&mut self, coin: Coin) -> AppResponse {

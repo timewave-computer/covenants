@@ -395,7 +395,7 @@ fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResu
 
 pub fn read_reply_payload(store: &mut dyn Storage) -> StdResult<neutron_ica::SudoPayload> {
     let data = REPLY_ID_STORAGE.load(store)?;
-    from_json(&Binary(data))
+    from_json(Binary(data))
 }
 
 pub fn save_sudo_payload(
