@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, QuerierWrapper,
-    Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    QuerierWrapper, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
@@ -368,10 +368,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::HolderAddress {} => Ok(to_json_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::LpConfig {} => Ok(to_json_binary(&LP_CONFIG.may_load(deps.storage)?)?),
         // the deposit address for LP module is the contract itself
-        QueryMsg::DepositAddress {} => Ok(to_json_binary(&Some(&env.contract.address.to_string()))?),
-        QueryMsg::ProvidedLiquidityInfo {} => {
-            Ok(to_json_binary(&PROVIDED_LIQUIDITY_INFO.load(deps.storage)?)?)
+        QueryMsg::DepositAddress {} => {
+            Ok(to_json_binary(&Some(&env.contract.address.to_string()))?)
         }
+        QueryMsg::ProvidedLiquidityInfo {} => Ok(to_json_binary(
+            &PROVIDED_LIQUIDITY_INFO.load(deps.storage)?,
+        )?),
     }
 }
 

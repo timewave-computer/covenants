@@ -160,8 +160,8 @@ fn test_single_party_deposit_refund_no_deposit_deadline() {
 
     // time passes, clock ticks..
     suite.pass_minutes(25000000);
-    suite.tick(CLOCK_ADDR);
-    suite.tick(CLOCK_ADDR);
+    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(CLOCK_ADDR).unwrap();
     let resp: ContractError = suite.tick(CLOCK_ADDR).unwrap_err().downcast().unwrap();
 
     // we assert that holder still holds the tokens and did not advance the state

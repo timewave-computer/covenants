@@ -5,8 +5,8 @@ use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128,
+    to_json_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo,
+    Reply, Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::verify_clock;
 use covenant_utils::neutron_ica::{self, OpenAckVersion, RemoteChainInfo, SudoPayload};
@@ -227,7 +227,9 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             // up to the querying module to make sense of the response
             Ok(to_json_binary(&ica)?)
         }
-        QueryMsg::RemoteChainInfo {} => Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
+        QueryMsg::RemoteChainInfo {} => {
+            Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?)
+        }
         QueryMsg::SplitConfig {} => {
             let mut vec: Vec<(String, Vec<SplitReceiver>)> = Vec::new();
 
@@ -239,8 +241,12 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
 
             Ok(to_json_binary(&vec)?)
         }
-        QueryMsg::TransferAmount {} => Ok(to_json_binary(&TRANSFER_AMOUNT.may_load(deps.storage)?)?),
-        QueryMsg::IcaAddress {} => Ok(to_json_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
+        QueryMsg::TransferAmount {} => {
+            Ok(to_json_binary(&TRANSFER_AMOUNT.may_load(deps.storage)?)?)
+        }
+        QueryMsg::IcaAddress {} => Ok(to_json_binary(
+            &get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
+        )?),
     }
 }
 
@@ -422,7 +428,7 @@ fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResu
 // allows you "attach" some payload to your SubmitTx message
 // and process this payload when an acknowledgement for the SubmitTx message
 // is received in Sudo handler
-fn prepare_sudo_payload(mut deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
+fn _prepare_sudo_payload(mut deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
     let payload = read_reply_payload(deps.storage)?;
     let resp: MsgSubmitTxResponse = serde_json_wasm::from_slice(
         msg.result

@@ -5,8 +5,8 @@ use astroport::{
 };
 
 use cosmwasm_std::{
-    testing::MockApi, to_json_binary, Addr, Coin, Decimal, Empty, MemoryStorage, QueryRequest, Uint128,
-    Uint64, WasmQuery,
+    testing::MockApi, to_json_binary, Addr, Coin, Decimal, Empty, MemoryStorage, QueryRequest,
+    Uint128, Uint64, WasmQuery,
 };
 use cw20::Cw20ExecuteMsg;
 use cw_multi_test::{
