@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use astroport::{asset::Asset, pair::Cw20HookMsg};
 use cosmwasm_std::{
-    to_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
@@ -227,7 +227,7 @@ fn try_claim_share_based(
     let withdraw_msg = &Cw20ExecuteMsg::Send {
         contract: pool.to_string(),
         amount: claim_party_lp_token_amount,
-        msg: to_binary(withdraw_liquidity_hook)?,
+        msg: to_json_binary(withdraw_liquidity_hook)?,
     };
 
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
@@ -238,7 +238,7 @@ fn try_claim_share_based(
     // by transfer of underlying assets to the corresponding router
     let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: lp_token_addr.to_string(),
-        msg: to_binary(withdraw_msg)?,
+        msg: to_json_binary(withdraw_msg)?,
         funds: vec![],
     })];
 
@@ -291,7 +291,7 @@ fn try_claim_side_based(
     let withdraw_msg = &Cw20ExecuteMsg::Send {
         contract: pool.to_string(),
         amount: lp_token_bal,
-        msg: to_binary(withdraw_liquidity_hook)?,
+        msg: to_json_binary(withdraw_liquidity_hook)?,
     };
 
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
@@ -302,7 +302,7 @@ fn try_claim_side_based(
     // by transfer of underlying assets to the corresponding router
     let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: lp_token_addr.to_string(),
-        msg: to_binary(withdraw_msg)?,
+        msg: to_json_binary(withdraw_msg)?,
         funds: vec![],
     })];
 
@@ -551,7 +551,7 @@ pub fn try_handle_side_based_ragequit(
     let withdraw_msg = &Cw20ExecuteMsg::Send {
         contract: pool.to_string(),
         amount: lp_token_bal,
-        msg: to_binary(withdraw_liquidity_hook)?,
+        msg: to_json_binary(withdraw_liquidity_hook)?,
     };
 
     let balances = rq_state.coins.clone();
@@ -561,7 +561,7 @@ pub fn try_handle_side_based_ragequit(
     // by transfer of underlying assets to the corresponding router
     let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: lp_token_addr.to_string(),
-        msg: to_binary(withdraw_msg)?,
+        msg: to_json_binary(withdraw_msg)?,
         funds: vec![],
     })];
 
@@ -632,7 +632,7 @@ pub fn try_handle_share_based_ragequit(
     let withdraw_msg = &Cw20ExecuteMsg::Send {
         contract: pool.to_string(),
         amount: rq_party_lp_token_amount,
-        msg: to_binary(withdraw_liquidity_hook)?,
+        msg: to_json_binary(withdraw_liquidity_hook)?,
     };
 
     let balances = rq_state.coins.clone();
@@ -643,7 +643,7 @@ pub fn try_handle_share_based_ragequit(
     // by transfer of underlying assets to the corresponding router
     let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: lp_token_addr.to_string(),
-        msg: to_binary(withdraw_msg)?,
+        msg: to_json_binary(withdraw_msg)?,
         funds: vec![],
     })];
 
@@ -671,17 +671,17 @@ pub fn try_handle_share_based_ragequit(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.load(deps.storage)?)?),
-        QueryMsg::RagequitConfig {} => Ok(to_binary(&RAGEQUIT_CONFIG.load(deps.storage)?)?),
-        QueryMsg::LockupConfig {} => Ok(to_binary(&LOCKUP_CONFIG.load(deps.storage)?)?),
-        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.load(deps.storage)?)?),
-        QueryMsg::NextContract {} => Ok(to_binary(&NEXT_CONTRACT.load(deps.storage)?)?),
-        QueryMsg::PoolAddress {} => Ok(to_binary(&POOL_ADDRESS.load(deps.storage)?)?),
-        QueryMsg::ConfigPartyA {} => Ok(to_binary(&COVENANT_CONFIG.load(deps.storage)?.party_a)?),
-        QueryMsg::ConfigPartyB {} => Ok(to_binary(&COVENANT_CONFIG.load(deps.storage)?.party_b)?),
-        QueryMsg::DepositDeadline {} => Ok(to_binary(&DEPOSIT_DEADLINE.load(deps.storage)?)?),
-        QueryMsg::Config {} => Ok(to_binary(&COVENANT_CONFIG.load(deps.storage)?)?),
-        QueryMsg::DepositAddress {} => Ok(to_binary(&env.contract.address)?),
+        QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.load(deps.storage)?)?),
+        QueryMsg::RagequitConfig {} => Ok(to_json_binary(&RAGEQUIT_CONFIG.load(deps.storage)?)?),
+        QueryMsg::LockupConfig {} => Ok(to_json_binary(&LOCKUP_CONFIG.load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.load(deps.storage)?)?),
+        QueryMsg::NextContract {} => Ok(to_json_binary(&NEXT_CONTRACT.load(deps.storage)?)?),
+        QueryMsg::PoolAddress {} => Ok(to_json_binary(&POOL_ADDRESS.load(deps.storage)?)?),
+        QueryMsg::ConfigPartyA {} => Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?.party_a)?),
+        QueryMsg::ConfigPartyB {} => Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?.party_b)?),
+        QueryMsg::DepositDeadline {} => Ok(to_json_binary(&DEPOSIT_DEADLINE.load(deps.storage)?)?),
+        QueryMsg::Config {} => Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?)?),
+        QueryMsg::DepositAddress {} => Ok(to_json_binary(&env.contract.address)?),
     }
 }
 

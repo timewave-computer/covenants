@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint64,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint64,
 };
 use cw2::set_contract_version;
 
@@ -48,6 +48,6 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::TickCount {} => to_binary(&Uint64::new(TICK_COUNT.load(deps.storage)?)),
+        QueryMsg::TickCount {} => to_json_binary(&Uint64::new(TICK_COUNT.load(deps.storage)?)),
     }
 }

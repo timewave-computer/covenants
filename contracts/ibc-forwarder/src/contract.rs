@@ -2,7 +2,7 @@ use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_binary, to_binary, to_vec, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env,
+    from_json, to_json_binary, to_json_vec, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env,
     MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
 };
 use covenant_clock::helpers::verify_clock;
@@ -199,7 +199,7 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         // we expect to receive funds into our ICA account on the remote chain.
         // if the ICA had not been opened yet, we return `None` so that the
         // contract querying this will be instructed to wait and retry.
@@ -218,11 +218,11 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
                 None => None,
             };
 
-            Ok(to_binary(&ica)?)
+            Ok(to_json_binary(&ica)?)
         }
-        QueryMsg::IcaAddress {} => Ok(to_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
-        QueryMsg::RemoteChainInfo {} => Ok(to_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
-        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
+        QueryMsg::IcaAddress {} => Ok(to_json_binary(&get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0)?),
+        QueryMsg::RemoteChainInfo {} => Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?),
+        QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
     }
 }
 
@@ -354,7 +354,7 @@ pub fn save_reply_payload(
     store: &mut dyn Storage,
     payload: neutron_ica::SudoPayload,
 ) -> StdResult<()> {
-    REPLY_ID_STORAGE.save(store, &to_vec(&payload)?)
+    REPLY_ID_STORAGE.save(store, &to_json_vec(&payload)?)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -391,7 +391,7 @@ fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResu
 
 pub fn read_reply_payload(store: &mut dyn Storage) -> StdResult<neutron_ica::SudoPayload> {
     let data = REPLY_ID_STORAGE.load(store)?;
-    from_binary(&Binary(data))
+    from_json(&Binary(data))
 }
 
 pub fn save_sudo_payload(
@@ -400,7 +400,7 @@ pub fn save_sudo_payload(
     seq_id: u64,
     payload: neutron_ica::SudoPayload,
 ) -> StdResult<()> {
-    SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_vec(&payload)?)
+    SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_json_vec(&payload)?)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

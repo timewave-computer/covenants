@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    to_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
     StdError, StdResult, SubMsg, Uint128,
 };
 
@@ -206,14 +206,14 @@ fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::NextContract {} => Ok(to_binary(&NEXT_CONTRACT.may_load(deps.storage)?)?),
-        QueryMsg::LockupConfig {} => Ok(to_binary(&LOCKUP_CONFIG.may_load(deps.storage)?)?),
-        QueryMsg::CovenantParties {} => Ok(to_binary(&PARTIES_CONFIG.may_load(deps.storage)?)?),
-        QueryMsg::CovenantTerms {} => Ok(to_binary(&COVENANT_TERMS.may_load(deps.storage)?)?),
-        QueryMsg::ClockAddress {} => Ok(to_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
-        QueryMsg::ContractState {} => Ok(to_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
+        QueryMsg::NextContract {} => Ok(to_json_binary(&NEXT_CONTRACT.may_load(deps.storage)?)?),
+        QueryMsg::LockupConfig {} => Ok(to_json_binary(&LOCKUP_CONFIG.may_load(deps.storage)?)?),
+        QueryMsg::CovenantParties {} => Ok(to_json_binary(&PARTIES_CONFIG.may_load(deps.storage)?)?),
+        QueryMsg::CovenantTerms {} => Ok(to_json_binary(&COVENANT_TERMS.may_load(deps.storage)?)?),
+        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         // the deposit address for swap-holder is the contract itself
-        QueryMsg::DepositAddress {} => Ok(to_binary(&Some(env.contract.address))?),
+        QueryMsg::DepositAddress {} => Ok(to_json_binary(&Some(env.contract.address))?),
     }
 }
 

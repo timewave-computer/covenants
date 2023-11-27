@@ -1,7 +1,7 @@
 use astroport::asset::{Asset, PairInfo};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_binary, Addr, BankMsg, Binary, Coin, Deps, DepsMut, Empty, Env, MessageInfo, Response,
+    to_json_binary, Addr, BankMsg, Binary, Coin, Deps, DepsMut, Empty, Env, MessageInfo, Response,
     StdResult, Uint128,
 };
 use covenant_macros::covenant_deposit_address;
@@ -44,7 +44,7 @@ pub enum QueryMsg {}
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::DepositAddress {} => Ok(to_binary(&"splitter")?),
+        QueryMsg::DepositAddress {} => Ok(to_json_binary(&"splitter")?),
     }
 }
 
@@ -87,13 +87,13 @@ pub fn query_astro_pool(
     msg: astroport::pair::QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        astroport::pair::QueryMsg::Pair {} => Ok(to_binary(&PairInfo {
+        astroport::pair::QueryMsg::Pair {} => Ok(to_json_binary(&PairInfo {
             asset_infos: vec![],
             contract_addr: Addr::unchecked("contract0"),
             liquidity_token: Addr::unchecked("contract0"),
             pair_type: astroport::factory::PairType::Xyk {},
         })?),
-        astroport::pair::QueryMsg::Share { amount: _ } => Ok(to_binary(&vec![
+        astroport::pair::QueryMsg::Share { amount: _ } => Ok(to_json_binary(&vec![
             Asset {
                 info: astroport::asset::AssetInfo::NativeToken {
                     denom: DENOM_A.to_string(),
@@ -107,16 +107,16 @@ pub fn query_astro_pool(
                 amount: Uint128::new(200),
             },
         ])?),
-        _ => Ok(to_binary(&"-")?),
+        _ => Ok(to_json_binary(&"-")?),
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query_astro_lp_token(_deps: Deps, _env: Env, msg: cw20::Cw20QueryMsg) -> StdResult<Binary> {
     match msg {
-        Cw20QueryMsg::Balance { address: _ } => Ok(to_binary(&BalanceResponse {
+        Cw20QueryMsg::Balance { address: _ } => Ok(to_json_binary(&BalanceResponse {
             balance: Uint128::new(100),
         })?),
-        _ => Ok(to_binary(&"-")?),
+        _ => Ok(to_json_binary(&"-")?),
     }
 }
