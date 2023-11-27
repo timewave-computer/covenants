@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::{Addr, Decimal, Timestamp, Uint128};
+use cosmwasm_std::{Decimal, Timestamp, Uint128};
 use covenant_utils::{SplitConfig, SplitType};
 use cw_utils::Expiration;
 
@@ -160,8 +160,6 @@ fn test_single_party_deposit_refund_no_deposit_deadline() {
 
     // time passes, clock ticks..
     suite.pass_minutes(25000000);
-    suite.tick(CLOCK_ADDR).unwrap();
-    suite.tick(CLOCK_ADDR).unwrap();
     let resp: ContractError = suite.tick(CLOCK_ADDR).unwrap_err().downcast().unwrap();
 
     // we assert that holder still holds the tokens and did not advance the state
@@ -773,7 +771,6 @@ fn test_distribute_fallback_split() {
 
     // party A ragequits, forfeiting 10% of their denom to counterparty
     suite.rq(PARTY_A_ADDR).unwrap();
-
     suite.tick(CLOCK_ADDR).unwrap();
 
     assert_eq!(ContractState::Complete {}, suite.query_contract_state());

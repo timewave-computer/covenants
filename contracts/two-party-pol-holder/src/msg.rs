@@ -432,8 +432,8 @@ pub enum MigrateMsg {
         lockup_config: Option<Expiration>,
         deposit_deadline: Option<Expiration>,
         pool_address: Option<String>,
-        ragequit_config: Option<RagequitConfig>,
-        covenant_config: Option<TwoPartyPolCovenantConfig>,
+        ragequit_config: Box<Option<RagequitConfig>>,
+        covenant_config: Box<Option<TwoPartyPolCovenantConfig>>,
     },
     UpdateCodeId {
         data: Option<Binary>,
