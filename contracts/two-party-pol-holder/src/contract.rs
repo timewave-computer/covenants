@@ -214,18 +214,19 @@ fn try_claim_share_based(
     };
 
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
-    let mut distribution_messages = denom_splits
+    let distribution_messages = denom_splits
         .get_single_receiver_distribution_messages(withdraw_coins, claim_party.router.to_string());
 
-    // we submit the withdraw liquidity message followed by transfer of
-    // underlying assets to the corresponding router
-    let mut withdraw_and_forward_msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    // messages will contain the withdraw liquidity message followed
+    // by transfer of underlying assets to the corresponding router
+    let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: lp_token_addr.to_string(),
         msg: to_binary(withdraw_msg)?,
         funds: vec![],
     })];
 
-    withdraw_and_forward_msgs.append(&mut distribution_messages);
+    // Append distribution messages
+    messages.extend(distribution_messages);
 
     claim_party.allocation = Decimal::zero();
 
@@ -240,7 +241,10 @@ fn try_claim_share_based(
     covenant_config.update_parties(claim_party, counterparty);
 
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-    Ok(Response::default().add_messages(withdraw_and_forward_msgs))
+
+    Ok(Response::default()
+        .add_attribute("method", "claim_share_based")
+        .add_messages(messages))
 }
 
 fn try_claim_side_based(
@@ -274,18 +278,19 @@ fn try_claim_side_based(
     };
 
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
-    let mut distribution_messages: Vec<CosmosMsg> =
+    let distribution_messages: Vec<CosmosMsg> =
         denom_splits.get_shared_distribution_messages(withdraw_coins);
 
-    // we submit the withdraw liquidity message followed by transfer of
-    // underlying assets to the corresponding router
-    let mut withdraw_and_forward_msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    // messages will contain the withdraw liquidity message followed
+    // by transfer of underlying assets to the corresponding router
+    let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: lp_token_addr.to_string(),
         msg: to_binary(withdraw_msg)?,
         funds: vec![],
     })];
 
-    withdraw_and_forward_msgs.append(&mut distribution_messages);
+    // Append distribution messages
+    messages.extend(distribution_messages);
 
     claim_party.allocation = Decimal::zero();
     counterparty.allocation = Decimal::zero();
@@ -295,7 +300,9 @@ fn try_claim_side_based(
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
 
-    Ok(Response::default().add_messages(withdraw_and_forward_msgs))
+    Ok(Response::default()
+        .add_attribute("method", "claim_side_based")
+        .add_messages(messages))
 }
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
@@ -532,17 +539,18 @@ pub fn try_handle_side_based_ragequit(
     };
 
     let balances = rq_state.coins.clone();
-    let mut distribution_messages = updated_denom_splits.get_shared_distribution_messages(balances);
+    let distribution_messages = updated_denom_splits.get_shared_distribution_messages(balances);
 
-    // we submit the withdraw liquidity message followed by transfer of
-    // underlying assets to the corresponding router
-    let mut withdraw_and_forward_msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    // messages will contain the withdraw liquidity message followed
+    // by transfer of underlying assets to the corresponding router
+    let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: lp_token_addr.to_string(),
         msg: to_binary(withdraw_msg)?,
         funds: vec![],
     })];
 
-    withdraw_and_forward_msgs.append(&mut distribution_messages);
+    // Append distribution messages
+    messages.extend(distribution_messages);
 
     ragequit_party.allocation = Decimal::zero();
     counterparty.allocation = Decimal::zero();
@@ -551,14 +559,13 @@ pub fn try_handle_side_based_ragequit(
     // update the states
     RAGEQUIT_CONFIG.save(deps.storage, &RagequitConfig::Enabled(rq_terms))?;
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-    // should we just complete here?
     CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
 
     Ok(Response::default()
         .add_attribute("method", "ragequit_side_based")
         .add_attribute("controller_chain_caller", ragequit_party.controller_addr)
         .add_attribute("host_chain_caller", ragequit_party.host_addr)
-        .add_messages(withdraw_and_forward_msgs))
+        .add_messages(messages))
 }
 
 /// in share-based situation, each party owns a fraction x_i of
@@ -613,18 +620,19 @@ pub fn try_handle_share_based_ragequit(
     };
 
     let balances = rq_state.coins.clone();
-    let mut distribution_messages = updated_denom_splits
+    let distribution_messages = updated_denom_splits
         .get_single_receiver_distribution_messages(balances, ragequit_party.router.to_string());
 
-    // we submit the withdraw liquidity message followed by transfer of
-    // underlying assets to the corresponding router
-    let mut withdraw_and_forward_msgs = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    // messages will contain the withdraw liquidity message followed
+    // by transfer of underlying assets to the corresponding router
+    let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: lp_token_addr.to_string(),
         msg: to_binary(withdraw_msg)?,
         funds: vec![],
     })];
 
-    withdraw_and_forward_msgs.append(&mut distribution_messages);
+    // Append distribution messages
+    messages.extend(distribution_messages);
 
     // after building the messages we can finalize the config updates.
     // rq party is now entitled to nothing. counterparty owns the entire position.
@@ -641,7 +649,7 @@ pub fn try_handle_share_based_ragequit(
         .add_attribute("method", "ragequit_share_based")
         .add_attribute("controller_chain_caller", ragequit_party.controller_addr)
         .add_attribute("host_chain_caller", ragequit_party.host_addr)
-        .add_messages(withdraw_and_forward_msgs))
+        .add_messages(messages))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
