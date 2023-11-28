@@ -313,8 +313,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         ContractState::Complete => Ok(Response::default()
             .add_attribute("method", "tick")
             .add_attribute("contract_state", state.to_string())),
-        // ragequit and expired
-        _ => {
+        ContractState::Expired | ContractState::Ragequit => {
             let pool = POOL_ADDRESS.load(deps.storage)?;
             let lp_token_bal = query_astro_pool_token(
                 deps.querier,
