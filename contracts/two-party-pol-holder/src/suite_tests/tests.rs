@@ -792,24 +792,25 @@ fn test_distribute_fallback_split() {
     assert_eq!(1, suite.get_all_balances(PARTY_A_ROUTER.to_string()).len());
     assert_eq!(2, suite.get_all_balances(PARTY_B_ROUTER.to_string()).len());
 
-
     // first try to distribute the explicit denom which should fail
     suite.fund_coin(coin_a);
-    let err: ContractError = suite.distribute_fallback("random", vec![DENOM_A.to_string()])
+    let err: ContractError = suite
+        .distribute_fallback("random", vec![DENOM_A.to_string()])
         .unwrap_err()
         .downcast()
         .unwrap();
-    assert_eq!(err, ContractError::UnauthorizedDenomDistribution {  });
+    assert_eq!(err, ContractError::UnauthorizedDenomDistribution {});
 
     // try to distribute mix of explicitly defined denoms and fallback
     let mut random_denoms = Vec::new();
     random_denoms.extend(denoms.clone());
     random_denoms.push(DENOM_A.to_string());
-    let err: ContractError = suite.distribute_fallback("random", vec![DENOM_A.to_string()])
+    let err: ContractError = suite
+        .distribute_fallback("random", vec![DENOM_A.to_string()])
         .unwrap_err()
         .downcast()
         .unwrap();
-    assert_eq!(err, ContractError::UnauthorizedDenomDistribution {  });
+    assert_eq!(err, ContractError::UnauthorizedDenomDistribution {});
 
     // distribute the fallback and assert it arrives
     suite.distribute_fallback("random", denoms).unwrap();

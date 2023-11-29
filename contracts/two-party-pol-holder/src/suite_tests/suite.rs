@@ -244,7 +244,11 @@ impl Suite {
         )
     }
 
-    pub fn distribute_fallback(&mut self, caller: &str, denoms: Vec<String>) -> Result<AppResponse, anyhow::Error> {
+    pub fn distribute_fallback(
+        &mut self,
+        caller: &str,
+        denoms: Vec<String>,
+    ) -> Result<AppResponse, anyhow::Error> {
         self.app.execute_contract(
             Addr::unchecked(caller),
             self.holder.clone(),
