@@ -762,10 +762,13 @@ fn test_distribute_fallback_split() {
     // we tick the holder to deposit the funds and activate
     suite.tick(CLOCK_ADDR).unwrap();
 
-    // mint a bunch of coins to the holder
+    // mint a bunch of coins to the holder and keep track of their denoms
+    let mut denoms = Vec::new();
     for i in 1..=100 {
-        let shitcoin = suite.get_coin(format!("shitcoin_{:?}", i), Uint128::new(100));
+        let token_denom = format!("shitcoin_{:?}", i);
+        let shitcoin = suite.get_coin(token_denom.to_string(), Uint128::new(100));
         suite.fund_coin(shitcoin);
+        denoms.push(token_denom);
     }
 
     // party A ragequits, forfeiting 10% of their denom to counterparty
@@ -789,9 +792,27 @@ fn test_distribute_fallback_split() {
     assert_eq!(1, suite.get_all_balances(PARTY_A_ROUTER.to_string()).len());
     assert_eq!(2, suite.get_all_balances(PARTY_B_ROUTER.to_string()).len());
 
-    // distribute the fallback and assert it arrives
+
+    // first try to distribute the explicit denom which should fail
     suite.fund_coin(coin_a);
-    suite.distribute_fallback("random").unwrap();
+    let err: ContractError = suite.distribute_fallback("random", vec![DENOM_A.to_string()])
+        .unwrap_err()
+        .downcast()
+        .unwrap();
+    assert_eq!(err, ContractError::UnauthorizedDenomDistribution {  });
+
+    // try to distribute mix of explicitly defined denoms and fallback
+    let mut random_denoms = Vec::new();
+    random_denoms.extend(denoms.clone());
+    random_denoms.push(DENOM_A.to_string());
+    let err: ContractError = suite.distribute_fallback("random", vec![DENOM_A.to_string()])
+        .unwrap_err()
+        .downcast()
+        .unwrap();
+    assert_eq!(err, ContractError::UnauthorizedDenomDistribution {  });
+
+    // distribute the fallback and assert it arrives
+    suite.distribute_fallback("random", denoms).unwrap();
     assert_eq!(
         101,
         suite.get_all_balances(PARTY_A_ROUTER.to_string()).len()

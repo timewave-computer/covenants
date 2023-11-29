@@ -62,4 +62,7 @@ pub enum ContractError {
 
     #[error("no lp tokens available")]
     NoLpTokensAvailable {},
+
+    #[error("unauthorized to distribute explicitly defined denom")]
+    UnauthorizedDenomDistribution {},
 }
