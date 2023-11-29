@@ -115,13 +115,22 @@ pub fn execute(
         ExecuteMsg::Ragequit {} => try_ragequit(deps, env, info),
         ExecuteMsg::Claim {} => try_claim(deps, env, info),
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::DistributeFallbackSplit {} => try_distribute_fallback_split(deps, env),
+        ExecuteMsg::DistributeFallbackSplit { denoms } => try_distribute_fallback_split(deps, env, denoms),
     }
 }
 
-fn try_distribute_fallback_split(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
-    let available_balances = deps.querier.query_all_balances(env.contract.address)?;
+fn try_distribute_fallback_split(deps: DepsMut, env: Env, denoms: Vec<String>) -> Result<Response, ContractError> {
+    let mut available_balances = Vec::new();
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
+
+    for denom in denoms {
+        if denom_splits.explicit_splits.contains_key(&denom) {
+            return Err(ContractError::UnauthorizedDenomDistribution {})
+        }
+        let queried_coin = deps.querier.query_balance(env.contract.address.to_string(), denom)?;
+        available_balances.push(queried_coin);
+    }
+
     let fallback_distribution_messages =
         denom_splits.get_fallback_distribution_messages(available_balances);
 
