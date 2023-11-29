@@ -145,15 +145,15 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         .expected_pool_ratio_range
         .is_within_range(a_to_b_ratio)?;
 
-    // first we query our own balances and filter out any unexpected denoms
-    let bal_coins = deps
-        .querier
-        .query_all_balances(env.contract.address.to_string())?;
-    let (coin_a, coin_b) = get_relevant_balances(
-        bal_coins,
+    // first we query our own balances
+    let coin_a = deps.querier.query_balance(
+        env.contract.address.to_string(),
         lp_config.asset_data.asset_a_denom.as_str(),
+    )?;
+    let coin_b = deps.querier.query_balance(
+        env.contract.address.to_string(),
         lp_config.asset_data.asset_b_denom.as_str(),
-    );
+    )?;
 
     // depending on available balances we attempt a different action:
     match (coin_a.amount.is_zero(), coin_b.amount.is_zero()) {
@@ -336,22 +336,6 @@ fn try_get_single_side_lp_submsg(
 
     // if neither a nor b token single side lp message was built, we just go back and wait
     Ok(None)
-}
-
-/// filters out a vector of `Coin`s to retrieve ones with relevant denoms
-fn get_relevant_balances(coins: Vec<Coin>, a_denom: &str, b_denom: &str) -> (Coin, Coin) {
-    let (mut token_a, mut token_b) = (Coin::default(), Coin::default());
-
-    for c in coins {
-        if c.denom == a_denom {
-            // found token_a balance
-            token_a = c;
-        } else if c.denom == b_denom {
-            // found token_b balance
-            token_b = c;
-        }
-    }
-    (token_a, token_b)
 }
 
 /// filters out irrelevant balances and returns a and b token amounts

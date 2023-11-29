@@ -88,6 +88,7 @@ pub struct DenomSplits {
     pub fallback_split: Option<SplitConfig>,
 }
 
+// TODO: try to generalize these implementations
 impl DenomSplits {
     pub fn get_fallback_distribution_messages(self, available_coins: Vec<Coin>) -> Vec<CosmosMsg> {
         available_coins
@@ -420,7 +421,7 @@ pub enum ExecuteMsg {
     /// withdraw the liquidity party is entitled to
     Claim {},
     /// distribute any unspecified denoms
-    DistributeFallbackSplit {},
+    DistributeFallbackSplit { denoms: Vec<String> },
 }
 
 #[cw_serde]

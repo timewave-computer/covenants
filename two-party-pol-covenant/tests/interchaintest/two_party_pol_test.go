@@ -497,6 +497,8 @@ func TestTwoPartyPol(t *testing.T) {
 		})
 
 		t.Run("two party POL happy path", func(t *testing.T) {
+			var depositBlock Block
+			var lockupBlock Block
 
 			t.Run("instantiate covenant", func(t *testing.T) {
 				timeouts := Timeouts{
@@ -506,8 +508,8 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 150)
-				lockupBlock := Block(currentHeight + 150)
+				depositBlock = Block(currentHeight + 100)
+				lockupBlock = Block(currentHeight + 100)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -742,11 +744,11 @@ func TestTwoPartyPol(t *testing.T) {
 					neutronHeight, err := cosmosNeutron.Height(ctx)
 					require.NoError(t, err)
 
-					if neutronHeight >= 515 {
-						println("neutron height: ", neutronHeight)
+					if neutronHeight >= uint64(lockupBlock) {
 						break
 					} else {
 						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+						println("neutron height: ", neutronHeight)
 					}
 				}
 			})
@@ -841,7 +843,7 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 150)
+				depositBlock := Block(currentHeight + 100)
 				lockupBlock := Block(currentHeight + 150)
 
 				lockupConfig := Expiration{
@@ -1690,16 +1692,19 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("lockup expires", func(t *testing.T) {
 				for {
-					currentHeight, _ := cosmosNeutron.Height(ctx)
-					if currentHeight <= uint64(expirationHeight) {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-						println("height: ", currentHeight)
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
+					currentHeight, err := cosmosNeutron.Height(ctx)
+					require.NoError(t, err)
+					println("height: ", currentHeight)
+
+					if currentHeight >= uint64(expirationHeight) {
+						break
 					}
 				}
 			})
 
 			t.Run("party A claims", func(t *testing.T) {
-				testCtx.holderClaim(holderAddress, osmoNeutronAccount, keyring.BackendTest)
 				for {
 					routerAtomBalB, _ := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronAtomIbcDenom)
 					routerOsmoBalB, _ := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronOsmoIbcDenom)
@@ -1715,6 +1720,7 @@ func TestTwoPartyPol(t *testing.T) {
 						break
 					} else {
 						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+						testCtx.holderClaim(holderAddress, osmoNeutronAccount, keyring.BackendTest)
 					}
 				}
 
