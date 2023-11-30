@@ -551,7 +551,7 @@ pub fn try_handle_side_based_ragequit(
         msg: to_json_binary(withdraw_liquidity_hook)?,
     };
 
-    let balances = rq_state.coins.clone();
+    let balances = rq_state.coins;
     let distribution_messages = updated_denom_splits.get_shared_distribution_messages(balances);
 
     // messages will contain the withdraw liquidity message followed
@@ -633,7 +633,7 @@ pub fn try_handle_share_based_ragequit(
         msg: to_json_binary(withdraw_liquidity_hook)?,
     };
 
-    let balances = rq_state.coins.clone();
+    let balances = rq_state.coins;
     let distribution_messages = updated_denom_splits
         .get_single_receiver_distribution_messages(balances, ragequit_party.router.to_string());
 
