@@ -8,4 +8,7 @@ pub enum ContractError {
 
     #[error("Unauthorized")]
     Unauthorized {},
+
+    #[error("unauthorized to distribute explicitly defined denom")]
+    UnauthorizedDenomDistribution {},
 }

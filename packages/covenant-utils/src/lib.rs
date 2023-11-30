@@ -525,7 +525,7 @@ impl DestinationConfig {
         address: String,
     ) -> Vec<CosmosMsg<NeutronMsg>> {
         let mut messages: Vec<CosmosMsg<NeutronMsg>> = vec![];
-
+        // TODO: what if neutron wants to tokenswap?
         for coin in coins {
             if coin.denom != "untrn" {
                 messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
