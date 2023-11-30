@@ -14,6 +14,8 @@ pub struct InstantiateMsg {
     pub destination_receiver_addr: String,
     /// timeout in seconds
     pub ibc_transfer_timeout: Uint64,
+    /// specified denoms to route
+    pub denoms: Vec<String>,
 }
 
 #[cw_serde]
@@ -29,19 +31,22 @@ pub struct PresetInterchainRouterFields {
 }
 
 impl PresetInterchainRouterFields {
-    pub fn to_instantiate_msg(&self, clock_address: String) -> InstantiateMsg {
+    pub fn to_instantiate_msg(&self, clock_address: String, denoms: Vec<String>) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
             destination_chain_channel_id: self.destination_chain_channel_id.to_string(),
             destination_receiver_addr: self.destination_receiver_addr.to_string(),
             ibc_transfer_timeout: self.ibc_transfer_timeout,
+            denoms,
         }
     }
 }
 
 #[clocked]
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    DistributeFallback { denoms: Vec<String> },
+}
 
 #[covenant_clock_address]
 #[derive(QueryResponses)]
