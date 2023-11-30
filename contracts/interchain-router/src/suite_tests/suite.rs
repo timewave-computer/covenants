@@ -58,12 +58,10 @@ impl Default for SuiteBuilder {
         Self {
             instantiate: InstantiateMsg {
                 clock_address: CLOCK_ADDR.to_string(),
-                receiver_config: covenant_utils::ReceiverConfig::Ibc(DestinationConfig {
-                    destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
-                    destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
-                    ibc_transfer_timeout: Uint64::new(10),
-                }),
-                denoms: BTreeSet::new(),
+                destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
+                destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
+                ibc_transfer_timeout: Uint64::new(10),
+                denoms: vec![],
             },
             app: App::default(),
         }
