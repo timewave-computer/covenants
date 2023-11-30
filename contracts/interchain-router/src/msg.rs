@@ -10,11 +10,14 @@ pub struct InstantiateMsg {
     /// address for the clock. this contract verifies
     /// that only the clock can execute ticks
     pub clock_address: String,
-    /// config that determines whether router should
-    /// route over ibc or natively
-    pub receiver_config: ReceiverConfig,
+    /// channel id of the destination chain
+    pub destination_chain_channel_id: String,
+    /// address of the receiver on destination chain
+    pub destination_receiver_addr: String,
+    /// timeout in seconds
+    pub ibc_transfer_timeout: Uint64,
     /// specified denoms to route
-    pub denoms: BTreeSet<String>,
+    pub denoms: Vec<String>,
 }
 
 #[cw_serde]
@@ -29,11 +32,13 @@ pub struct PresetInterchainRouterFields {
 }
 
 impl PresetInterchainRouterFields {
-    pub fn to_instantiate_msg(&self, clock_address: String) -> InstantiateMsg {
+    pub fn to_instantiate_msg(&self, clock_address: String, denoms: Vec<String>) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
-            receiver_config: self.receiver_config.clone(),
-            denoms: self.denoms.clone(),
+            destination_chain_channel_id: self.destination_chain_channel_id.to_string(),
+            destination_receiver_addr: self.destination_receiver_addr.to_string(),
+            ibc_transfer_timeout: self.ibc_transfer_timeout,
+            denoms,
         }
     }
 
