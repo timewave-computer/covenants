@@ -1,20 +1,23 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult,
 };
 use covenant_clock::helpers::verify_clock;
 use covenant_utils::DestinationConfig;
 use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
-    NeutronResult,
+    NeutronError, NeutronResult,
 };
 
+use crate::state::DENOMS;
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{CLOCK_ADDRESS, DESTINATION_CONFIG},
 };
+
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 
@@ -40,6 +43,7 @@ pub fn instantiate(
 
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     DESTINATION_CONFIG.save(deps.storage, &destination_config)?;
+    DENOMS.save(deps.storage, &msg.denoms)?;
 
     Ok(Response::default()
         .add_attribute("method", "interchain_router_instantiate")
@@ -58,35 +62,76 @@ pub fn execute(
     deps.api
         .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
 
-    // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
-
     match msg {
-        ExecuteMsg::Tick {} => try_route_balances(deps, env),
+        ExecuteMsg::Tick {} => {
+            // Verify caller is the clock
+            verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+
+            try_route_balances(deps, env)
+        }
+        ExecuteMsg::DistributeFallback { denoms } => try_distribute_fallback(deps, env, denoms),
     }
+}
+
+fn try_distribute_fallback(
+    deps: ExecuteDeps,
+    env: Env,
+    denoms: Vec<String>,
+) -> NeutronResult<Response<NeutronMsg>> {
+    let mut available_balances = Vec::new();
+    let destination_config = DESTINATION_CONFIG.load(deps.storage)?;
+    let explicit_denoms = DENOMS.load(deps.storage)?;
+
+    for denom in denoms {
+        if explicit_denoms.contains(&denom) {
+            return Err(NeutronError::Std(StdError::generic_err(
+                "unauthorized denom distribution",
+            )));
+        }
+        let queried_coin = deps
+            .querier
+            .query_balance(env.contract.address.to_string(), denom)?;
+        available_balances.push(queried_coin);
+    }
+
+    let fallback_distribution_messages = destination_config.get_ibc_transfer_messages_for_coins(
+        available_balances,
+        env.block.time,
+        env.contract.address.to_string(),
+    );
+
+    Ok(Response::default()
+        .add_attribute("method", "try_distribute_fallback")
+        .add_messages(fallback_distribution_messages))
 }
 
 /// method that attempts to transfer out all available balances to the receiver
 fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-    let destination_config: DestinationConfig = DESTINATION_CONFIG.load(deps.storage)?;
+    let destination_config = DESTINATION_CONFIG.load(deps.storage)?;
+    let denoms_to_route = DENOMS.load(deps.storage)?;
+    let mut denom_balances = Vec::new();
+    for denom in denoms_to_route {
+        let coin_to_route = deps
+            .querier
+            .query_balance(env.contract.address.to_string(), denom)?;
+        if !coin_to_route.amount.is_zero() {
+            denom_balances.push(coin_to_route);
+        }
+    }
 
-    // first we query all balances of the router
-    let balances = deps
-        .querier
-        .query_all_balances(env.clone().contract.address)?;
     // if there are no balances, we return early;
     // otherwise build up the response attributes
-    let balance_attributes: Vec<Attribute> = match balances.len() {
+    let balance_attributes: Vec<Attribute> = match denom_balances.len() {
         0 => {
             return Ok(Response::default()
                 .add_attribute("method", "try_route_balances")
                 .add_attribute("balances", "[]"))
         }
         1 => vec![Attribute::new(
-            balances[0].denom.to_string(),
-            balances[0].amount,
+            denom_balances[0].denom.to_string(),
+            denom_balances[0].amount,
         )],
-        _ => balances
+        _ => denom_balances
             .iter()
             .map(|c| Attribute::new(c.denom.to_string(), c.amount))
             .collect(),
@@ -94,7 +139,7 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
 
     // get ibc transfer messages for each denom
     let messages = destination_config.get_ibc_transfer_messages_for_coins(
-        balances,
+        denom_balances,
         env.block.time,
         env.contract.address.to_string(),
     );

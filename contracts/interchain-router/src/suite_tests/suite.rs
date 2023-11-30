@@ -55,6 +55,7 @@ impl Default for SuiteBuilder {
                 destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
                 destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
                 ibc_transfer_timeout: Uint64::new(10),
+                denoms: vec![],
             },
             app: App::default(),
         }
