@@ -552,11 +552,7 @@ impl DestinationConfig {
         address: String,
     ) -> Vec<CosmosMsg<NeutronMsg>> {
         let mut messages: Vec<CosmosMsg<NeutronMsg>> = vec![];
-        // we get the number of target denoms we have to reserve
-        // neutron fees for. we pessimistically add 1 extra to
-        // the count to enable one additional transfer if needed.
-        let count = Uint128::from(1 + coins.len() as u128);
-
+        // TODO: what if neutron wants to tokenswap?
         for coin in coins {
             // if denom is not neutron, we just distribute it entirely
             let send_coin = if coin.denom != "untrn" {
