@@ -85,116 +85,22 @@ pub fn instantiate(
         CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
     };
 
-    let clock_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.clock_code,
-        &creator_address,
-        &clock_salt,
-    )?;
-
-    let party_a_router_address = get_precomputed_address(
-        deps.as_ref(),
-        party_a_router_code,
-        &creator_address,
-        &party_a_router_salt,
-    )?;
-    let party_b_router_address = get_precomputed_address(
-        deps.as_ref(),
-        party_b_router_code,
-        &creator_address,
-        &party_b_router_salt,
-    )?;
-    let splitter_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.splitter_code,
-        &creator_address,
-        &splitter_salt,
-    )?;
-    let swap_holder_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.holder_code,
-        &creator_address,
-        &holder_salt,
-    )?;
-    let party_a_forwarder_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.ibc_forwarder_code,
-        &creator_address,
-        &party_a_forwarder_salt,
-    )?;
-    let party_b_forwarder_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.ibc_forwarder_code,
-        &creator_address,
-        &party_b_forwarder_salt,
-    )?;
-
-    COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
-    PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_router_address)?;
-    PARTY_B_ROUTER_ADDR.save(deps.storage, &party_b_router_address)?;
-    COVENANT_INTERCHAIN_SPLITTER_ADDR.save(deps.storage, &splitter_address)?;
-    COVENANT_SWAP_HOLDER_ADDR.save(deps.storage, &swap_holder_address)?;
-
-    let mut clock_whitelist = vec![
-        swap_holder_address.to_string(),
-        party_a_router_address.to_string(),
-        party_b_router_address.to_string(),
-        splitter_address.to_string(),
-    ];
-    let preset_party_a_forwarder_fields = match msg.party_a_config.clone() {
-        CovenantPartyConfig::Interchain(config) => {
-            PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &party_a_forwarder_address)?;
-            clock_whitelist.insert(0, party_a_forwarder_address.to_string());
-            Some(PresetIbcForwarderFields {
-                remote_chain_connection_id: config.party_chain_connection_id,
-                remote_chain_channel_id: config.party_to_host_chain_channel_id,
-                denom: config.remote_chain_denom,
-                amount: msg.covenant_terms.party_a_amount,
-                label: format!("{}_party_a_ibc_forwarder", msg.label),
-                code_id: msg.contract_codes.ibc_forwarder_code,
-                ica_timeout: msg.timeouts.ica_timeout,
-                ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-                ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-            })
-        }
-        CovenantPartyConfig::Native(_) => None,
-    };
-
-    let preset_party_b_forwarder_fields = match msg.party_b_config.clone() {
-        CovenantPartyConfig::Interchain(config) => {
-            PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_forwarder_address)?;
-            clock_whitelist.insert(1, party_b_forwarder_address.to_string());
-            Some(PresetIbcForwarderFields {
-                remote_chain_connection_id: config.party_chain_connection_id,
-                remote_chain_channel_id: config.party_to_host_chain_channel_id,
-                denom: config.remote_chain_denom,
-                amount: msg.covenant_terms.party_b_amount,
-                label: format!("{}_party_b_ibc_forwarder", msg.label),
-                code_id: msg.contract_codes.ibc_forwarder_code,
-                ica_timeout: msg.timeouts.ica_timeout,
-                ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-                ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-            })
-        }
-        CovenantPartyConfig::Native(_) => None,
-    };
-
-    let covenant_denoms: BTreeSet<String> = msg
-        .splits
-        .iter()
-        .map(|split| split.denom.to_string())
-        .collect();
+    let covenant_denoms: BTreeSet<String> = msg.splits.iter().map(|split| split.denom.to_string()).collect();
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
-        receiver_config: msg.party_a_config.to_receiver_config(),
-        label: format!("{}_party_a_router", msg.label),
-        code_id: party_a_router_code,
+        destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
+        destination_receiver_addr: msg.party_a_config.party_receiver_addr,
+        ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
+        label: format!("{}_party_a_interchain_router", msg.label),
+        code_id: msg.contract_codes.interchain_router_code,
         denoms: covenant_denoms.clone(),
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
-        receiver_config: msg.party_b_config.to_receiver_config(),
-        label: format!("{}_party_b_router", msg.label),
-        code_id: party_b_router_code,
+        destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
+        destination_receiver_addr: msg.party_b_config.party_receiver_addr,
+        ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
+        label: format!("{}_party_b_interchain_router", msg.label),
+        code_id: msg.contract_codes.interchain_router_code,
         denoms: covenant_denoms,
     };
     let preset_splitter_fields = PresetInterchainSplitterFields {
