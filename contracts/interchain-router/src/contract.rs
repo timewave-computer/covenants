@@ -66,7 +66,6 @@ pub fn execute(
         ExecuteMsg::Tick {} => {
             // Verify caller is the clock
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
-
             try_route_balances(deps, env)
         }
         ExecuteMsg::DistributeFallback { denoms } => try_distribute_fallback(deps, env, denoms),
@@ -83,6 +82,8 @@ fn try_distribute_fallback(
     let explicit_denoms = DENOMS.load(deps.storage)?;
 
     for denom in denoms {
+        // we do not distribute the main covenant denoms
+        // according to the fallback split
         if explicit_denoms.contains(&denom) {
             return Err(NeutronError::Std(StdError::generic_err(
                 "unauthorized denom distribution",
@@ -157,6 +158,7 @@ pub fn query(deps: QueryDeps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             Ok(to_json_binary(&DESTINATION_CONFIG.may_load(deps.storage)?)?)
         }
         QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::Denoms {} => Ok(to_json_binary(&DENOMS.may_load(deps.storage)?)?),
     }
 }
 

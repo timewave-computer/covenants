@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -69,12 +71,16 @@ pub fn instantiate(
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
     };
+
+    let covenant_denoms: BTreeSet<String> = msg.splits.iter().map(|split| split.denom.to_string()).collect();
+
     let preset_party_a_router_fields = PresetInterchainRouterFields {
         destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
         destination_receiver_addr: msg.party_a_config.party_receiver_addr,
         ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
         label: format!("{}_party_a_interchain_router", msg.label),
         code_id: msg.contract_codes.interchain_router_code,
+        denoms: covenant_denoms.clone(),
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
         destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
@@ -82,6 +88,7 @@ pub fn instantiate(
         ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
         label: format!("{}_party_b_interchain_router", msg.label),
         code_id: msg.contract_codes.interchain_router_code,
+        denoms: covenant_denoms,
     };
     let preset_splitter_fields = PresetInterchainSplitterFields {
         splits: msg.splits,
