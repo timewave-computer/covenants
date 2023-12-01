@@ -422,6 +422,10 @@ pub enum ExecuteMsg {
     Claim {},
     /// distribute any unspecified denoms
     DistributeFallbackSplit { denoms: Vec<String> },
+    // / pulls out all the liquidity without rq penalty.
+    // / the funds are then distributed in the expected
+    // / manner.
+    // EmergencyShutdown {},
 }
 
 #[cw_serde]

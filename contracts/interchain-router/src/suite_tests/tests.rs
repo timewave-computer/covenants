@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, collections::BTreeSet};
 
 use cosmwasm_std::{
     coin,
@@ -8,7 +8,7 @@ use cosmwasm_std::{
 use covenant_utils::DestinationConfig;
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
-    sudo::msg::RequestPacketTimeoutHeight,
+    sudo::msg::RequestPacketTimeoutHeight, NeutronError,
 };
 
 use crate::{
@@ -25,6 +25,7 @@ fn test_instantiate_and_query_all() {
 
     let clock = suite.query_clock_addr();
     let config = suite.query_destination_config();
+    let denoms = suite.query_denoms();
 
     assert_eq!("clock", clock);
     assert_eq!(
@@ -35,6 +36,7 @@ fn test_instantiate_and_query_all() {
         },
         config
     );
+    assert_eq!(BTreeSet::new(), denoms);
 }
 
 #[test]
@@ -76,8 +78,13 @@ fn test_unauthorized_tick() {
 #[test]
 fn test_tick() {
     let usdc_coin = coin(100, "usdc");
-    let coins = vec![usdc_coin];
-    let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)]);
+    let random_coin_1 = coin(100, "denom1");
+    let random_coin_2 = coin(100, "denom2");
+    let random_coin_3 = coin(100, "denom3");
+
+    let coins = vec![usdc_coin, random_coin_1, random_coin_2, random_coin_3];
+    let querier: MockQuerier<Empty> = MockQuerier::new(&[
+        ("cosmos2contract", &coins)]);
 
     let mut deps = OwnedDeps {
         storage: MockStorage::default(),
@@ -89,20 +96,19 @@ fn test_tick() {
     deps.querier = querier;
 
     let info = mock_info(CLOCK_ADDR, &[]);
-    let _init_msg = SuiteBuilder::default().instantiate;
 
     instantiate(
         deps.as_mut(),
         mock_env(),
-        info,
-        SuiteBuilder::default().instantiate,
+        info.clone(),
+        SuiteBuilder::default().with_denoms(vec!["usdc".to_string()]).instantiate,
     )
     .unwrap();
 
     let resp = execute(
         deps.as_mut(),
         mock_env(),
-        mock_info(CLOCK_ADDR, &[]),
+        info.clone(),
         crate::msg::ExecuteMsg::Tick {},
     )
     .unwrap();
@@ -156,4 +162,53 @@ fn test_tick() {
     // assert the expected response attributes and messages
     assert_eq!(expected_messages, resp.messages);
     assert_eq!(expected_attributes, resp.attributes);
+
+    // try to use the fallback method to distribute
+    // explicitly defined denom
+    let err = execute(
+        deps.as_mut(),
+        mock_env.clone(),
+        info.clone(),
+        crate::msg::ExecuteMsg::DistributeFallback { denoms: vec!["usdc".to_string()] },
+    )
+    .unwrap_err();
+
+    assert_eq!(err, NeutronError::Std(cosmwasm_std::StdError::generic_err("unauthorized denom distribution".to_string())));
+
+    // now distribute a valid fallback denom
+    let resp = execute(
+        deps.as_mut(),
+        mock_env,
+        info,
+        crate::msg::ExecuteMsg::DistributeFallback { denoms: vec!["denom1".to_string()] },
+    )
+    .unwrap();
+
+    for msg in resp.messages {
+        assert_eq!(
+            msg,
+            SubMsg {
+                id: 0,
+                msg: CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+                    source_port: "transfer".to_string(),
+                    source_channel: "channel-1".to_string(),
+                    token: cosmwasm_std::Coin::new(100, "denom1".to_string()),
+                    sender: "cosmos2contract".to_string(),
+                    receiver: "receiver".to_string(),
+                    timeout_height: RequestPacketTimeoutHeight {
+                        revision_number: None,
+                        revision_height: None
+                    },
+                    timeout_timestamp: 1571797429879305533,
+                    memo: "hi".to_string(),
+                    fee: IbcFee {
+                        recv_fee: vec![],
+                        ack_fee: vec![cosmwasm_std::coin(1000, "untrn".to_string())],
+                        timeout_fee: vec![cosmwasm_std::coin(1000, "untrn".to_string())],
+                    } }),
+                    gas_limit: None,
+                    reply_on: cosmwasm_std::ReplyOn::Never,
+            }
+        );
+    }
 }

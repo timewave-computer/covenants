@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -48,6 +50,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    let covenant_denoms: BTreeSet<String> = msg.splits.iter().map(|split| split.denom.to_string()).collect();
 
     let preset_clock_fields = PresetClockFields {
         tick_max_gas: msg.clock_tick_max_gas,
@@ -113,6 +116,7 @@ pub fn instantiate(
         ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
         label: format!("{}_party_a_interchain_router", msg.label),
         code_id: msg.contract_codes.router_code,
+        denoms: covenant_denoms.clone(),
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
         destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
@@ -120,6 +124,7 @@ pub fn instantiate(
         ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
         label: format!("{}_party_b_interchain_router", msg.label),
         code_id: msg.contract_codes.router_code,
+        denoms: covenant_denoms,
     };
 
     let preset_liquid_pooler_fields = PresetAstroLiquidPoolerFields {
