@@ -61,7 +61,7 @@ impl Default for SuiteBuilder {
                 destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
                 destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
                 ibc_transfer_timeout: Uint64::new(10),
-                denoms: vec![],
+                denoms: BTreeSet::new(),
             },
             app: App::default(),
         }
@@ -76,7 +76,7 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn build(mut self) -> Suite {
+    pub fn build(self) -> Suite {
         let mut app = BasicAppBuilder::<NeutronMsg, NeutronQuery>::new_custom()
             .with_ibc(IbcAcceptingModule::new())
             .build(|_, _, _| ());
@@ -153,6 +153,13 @@ impl Suite {
         self.app
             .wrap()
             .query_wasm_smart(&self.router, &QueryMsg::TargetDenoms {})
+            .unwrap()
+    }
+
+    pub fn query_denoms(&self) -> BTreeSet<String> {
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.router, &QueryMsg::Denoms {})
             .unwrap()
     }
 }

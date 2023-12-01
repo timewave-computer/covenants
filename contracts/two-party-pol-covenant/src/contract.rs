@@ -67,127 +67,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    let clock_salt = generate_contract_salt(CLOCK_SALT);
-    let party_a_router_salt = generate_contract_salt(PARTY_A_INTERCHAIN_ROUTER_SALT);
-    let party_b_router_salt = generate_contract_salt(PARTY_B_INTERCHAIN_ROUTER_SALT);
-    let holder_salt = generate_contract_salt(HOLDER_SALT);
-    let party_a_forwarder_salt = generate_contract_salt(PARTY_A_FORWARDER_SALT);
-    let party_b_forwarder_salt = generate_contract_salt(PARTY_B_FORWARDER_SALT);
-    let liquid_pooler_salt = generate_contract_salt(LIQUID_POOLER_SALT);
-
-    let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
-
-    let clock_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.clock_code,
-        &creator_address,
-        &clock_salt,
-    )?;
-
-    let party_a_router_code = match msg.clone().party_a_config {
-        CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
-        CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
-    };
-
-    let party_b_router_code = match msg.clone().party_b_config {
-        CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
-        CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
-    };
-
-    let party_a_router_address = get_precomputed_address(
-        deps.as_ref(),
-        party_a_router_code,
-        &creator_address,
-        &party_a_router_salt,
-    )?;
-
-    let party_b_router_address = get_precomputed_address(
-        deps.as_ref(),
-        party_b_router_code,
-        &creator_address,
-        &party_b_router_salt,
-    )?;
-    let liquid_pooler_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.liquid_pooler_code,
-        &creator_address,
-        &liquid_pooler_salt,
-    )?;
-    let holder_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.holder_code,
-        &creator_address,
-        &holder_salt,
-    )?;
-    let party_a_forwarder_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.ibc_forwarder_code,
-        &creator_address,
-        &party_a_forwarder_salt,
-    )?;
-    let party_b_forwarder_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.ibc_forwarder_code,
-        &creator_address,
-        &party_b_forwarder_salt,
-    )?;
-
-    COVENANT_POL_HOLDER_ADDR.save(deps.storage, &holder_address)?;
-    LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_address)?;
-    PARTY_B_ROUTER_ADDR.save(deps.storage, &party_b_router_address)?;
-    PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_router_address)?;
-    COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
-
-    let mut clock_whitelist = vec![
-        holder_address.to_string(),
-        party_a_router_address.to_string(),
-        party_b_router_address.to_string(),
-        liquid_pooler_address.to_string(),
-    ];
-
-    let preset_party_a_forwarder_fields = match msg.clone().party_a_config {
-        CovenantPartyConfig::Interchain(config) => {
-            PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &party_a_forwarder_address)?;
-            clock_whitelist.insert(0, party_a_forwarder_address.to_string());
-            Some(PresetIbcForwarderFields {
-                remote_chain_connection_id: config.party_chain_connection_id,
-                remote_chain_channel_id: config.party_to_host_chain_channel_id,
-                denom: config.remote_chain_denom,
-                amount: config.contribution.amount,
-                label: format!("{}_party_a_ibc_forwarder", msg.label),
-                code_id: msg.contract_codes.ibc_forwarder_code,
-                ica_timeout: msg.timeouts.ica_timeout,
-                ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-                ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-            })
-        }
-        CovenantPartyConfig::Native(_) => None,
-    };
-
-    let preset_party_b_forwarder_fields = match msg.clone().party_b_config {
-        CovenantPartyConfig::Interchain(config) => {
-            PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_forwarder_address)?;
-            clock_whitelist.insert(1, party_b_forwarder_address.to_string());
-            Some(PresetIbcForwarderFields {
-                remote_chain_connection_id: config.party_chain_connection_id,
-                remote_chain_channel_id: config.party_to_host_chain_channel_id,
-                denom: config.remote_chain_denom,
-                amount: config.contribution.amount,
-                label: format!("{}_party_b_ibc_forwarder", msg.label),
-                code_id: msg.contract_codes.ibc_forwarder_code,
-                ica_timeout: msg.timeouts.ica_timeout,
-                ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-                ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-            })
-        }
-        CovenantPartyConfig::Native(_) => None,
-    };
-
-    let covenant_denoms: BTreeSet<String> = msg
-        .splits
-        .iter()
-        .map(|split| split.denom.to_string())
-        .collect();
+    let covenant_denoms: BTreeSet<String> = msg.splits.iter().map(|split| split.denom.to_string()).collect();
 
     let preset_clock_fields = PresetClockFields {
         tick_max_gas: msg.clock_tick_max_gas,
@@ -213,15 +93,19 @@ pub fn instantiate(
     };
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
-        receiver_config: msg.party_a_config.to_receiver_config(),
-        label: format!("{}_party_a_router", msg.label),
-        code_id: party_a_router_code,
+        destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
+        destination_receiver_addr: msg.party_a_config.controller_addr,
+        ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
+        label: format!("{}_party_a_interchain_router", msg.label),
+        code_id: msg.contract_codes.router_code,
         denoms: covenant_denoms.clone(),
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
-        receiver_config: msg.party_b_config.to_receiver_config(),
-        label: format!("{}_party_b_router", msg.label),
-        code_id: party_b_router_code,
+        destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
+        destination_receiver_addr: msg.party_b_config.controller_addr,
+        ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
+        label: format!("{}_party_b_interchain_router", msg.label),
+        code_id: msg.contract_codes.router_code,
         denoms: covenant_denoms,
     };
 

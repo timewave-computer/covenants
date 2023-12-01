@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, marker::PhantomData};
+use std::{marker::PhantomData, collections::BTreeSet};
 
 use cosmwasm_std::{
     coin,
@@ -8,8 +8,7 @@ use cosmwasm_std::{
 use covenant_utils::{DestinationConfig, ReceiverConfig};
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
-    sudo::msg::RequestPacketTimeoutHeight,
-    NeutronError,
+    sudo::msg::RequestPacketTimeoutHeight, NeutronError,
 };
 
 use crate::{
@@ -26,7 +25,7 @@ fn test_instantiate_and_query_all() {
 
     let clock = suite.query_clock_addr().to_string();
     let config = suite.query_destination_config();
-    let denoms = suite.query_target_denoms();
+    let denoms = suite.query_denoms();
 
     assert_eq!("contract0", clock);
     assert_eq!(
@@ -88,7 +87,8 @@ fn test_tick() {
     let random_coin_3 = coin(100, "denom3");
 
     let coins = vec![usdc_coin, random_coin_1, random_coin_2, random_coin_3];
-    let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)]);
+    let querier: MockQuerier<Empty> = MockQuerier::new(&[
+        ("cosmos2contract", &coins)]);
 
     let mut deps = OwnedDeps {
         storage: MockStorage::default(),
@@ -105,9 +105,7 @@ fn test_tick() {
         deps.as_mut(),
         mock_env(),
         info.clone(),
-        SuiteBuilder::default()
-            .with_denoms(vec!["usdc".to_string()])
-            .instantiate,
+        SuiteBuilder::default().with_denoms(vec!["usdc".to_string()]).instantiate,
     )
     .unwrap();
 
@@ -174,27 +172,18 @@ fn test_tick() {
         deps.as_mut(),
         mock_env.clone(),
         info.clone(),
-        crate::msg::ExecuteMsg::DistributeFallback {
-            denoms: vec!["usdc".to_string()],
-        },
+        crate::msg::ExecuteMsg::DistributeFallback { denoms: vec!["usdc".to_string()] },
     )
     .unwrap_err();
 
-    assert_eq!(
-        err,
-        NeutronError::Std(cosmwasm_std::StdError::generic_err(
-            "unauthorized denom distribution".to_string()
-        ))
-    );
+    assert_eq!(err, NeutronError::Std(cosmwasm_std::StdError::generic_err("unauthorized denom distribution".to_string())));
 
     // now distribute a valid fallback denom
     let resp = execute(
         deps.as_mut(),
         mock_env,
         info,
-        crate::msg::ExecuteMsg::DistributeFallback {
-            denoms: vec!["denom1".to_string()],
-        },
+        crate::msg::ExecuteMsg::DistributeFallback { denoms: vec!["denom1".to_string()] },
     )
     .unwrap();
 
@@ -214,16 +203,14 @@ fn test_tick() {
                         revision_height: None
                     },
                     timeout_timestamp: 1571797429879305533,
-                    memo: format!("ibc_distribution: {:?}:{:?}", "denom1", Uint128::new(100),)
-                        .to_string(),
+                    memo: "hi".to_string(),
                     fee: IbcFee {
                         recv_fee: vec![],
-                        ack_fee: vec![cosmwasm_std::coin(100000, "untrn".to_string())],
-                        timeout_fee: vec![cosmwasm_std::coin(100000, "untrn".to_string())],
-                    },
-                },),
-                gas_limit: None,
-                reply_on: cosmwasm_std::ReplyOn::Never,
+                        ack_fee: vec![cosmwasm_std::coin(1000, "untrn".to_string())],
+                        timeout_fee: vec![cosmwasm_std::coin(1000, "untrn".to_string())],
+                    } }),
+                    gas_limit: None,
+                    reply_on: cosmwasm_std::ReplyOn::Never,
             }
         );
     }
