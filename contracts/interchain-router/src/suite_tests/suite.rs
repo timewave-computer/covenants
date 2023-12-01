@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use cosmwasm_std::{
     testing::{MockApi, MockStorage},
@@ -55,7 +57,7 @@ impl Default for SuiteBuilder {
                 destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
                 destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
                 ibc_transfer_timeout: Uint64::new(10),
-                denoms: vec![],
+                denoms: BTreeSet::new(),
             },
             app: App::default(),
         }
@@ -63,6 +65,13 @@ impl Default for SuiteBuilder {
 }
 
 impl SuiteBuilder {
+    pub fn with_denoms(mut self, denoms: Vec<String>) -> Self {
+        let covenant_denoms: BTreeSet<String> = denoms.into_iter().collect();
+
+        self.instantiate.denoms = covenant_denoms;
+        self
+    }
+
     pub fn build(self) -> Suite {
         let mut app = BasicAppBuilder::<NeutronMsg, NeutronQuery>::new_custom()
             .with_ibc(IbcAcceptingModule)
@@ -117,6 +126,13 @@ impl Suite {
         self.app
             .wrap()
             .query_wasm_smart(&self.router, &QueryMsg::DestinationConfig {})
+            .unwrap()
+    }
+
+    pub fn query_denoms(&self) -> BTreeSet<String> {
+        self.app
+            .wrap()
+            .query_wasm_smart(&self.router, &QueryMsg::Denoms {})
             .unwrap()
     }
 }
