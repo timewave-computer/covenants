@@ -69,9 +69,7 @@ pub fn execute(
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
             try_route_balances(deps, env)
         }
-        ExecuteMsg::DistributeFallback { denoms } => {
-            try_distribute_fallback(deps, env, denoms)
-        }
+        ExecuteMsg::DistributeFallback { denoms } => try_distribute_fallback(deps, env, denoms),
     }
 }
 
@@ -188,7 +186,7 @@ pub fn migrate(
             }
 
             if let Some(denoms) = target_denoms {
-                let denoms_str = denoms.join(",").to_string();
+                let denoms_str = denoms.join(",");
                 let denom_set: BTreeSet<String> = denoms.into_iter().collect();
                 TARGET_DENOMS.save(deps.storage, &denom_set)?;
                 response = response.add_attribute("target_denoms", denoms_str);
