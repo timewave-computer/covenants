@@ -25,7 +25,7 @@ fn test_instantiate_and_query_all() {
 
     let clock = suite.query_clock_addr();
     let config = suite.query_destination_config();
-    let denoms = suite.query_denoms();
+    let denoms = suite.query_target_denoms();
 
     assert_eq!("clock", clock);
     assert_eq!(
@@ -42,7 +42,8 @@ fn test_instantiate_and_query_all() {
 #[test]
 fn test_migrate_config() {
     let mut suite = SuiteBuilder::default().build();
-
+    let target_denom_vec = vec!["new_denom_1".to_string(), "new_denom_2".to_string()];
+    let target_denom_set: BTreeSet<String> = target_denom_vec.clone().into_iter().collect();
     let migrate_msg = MigrateMsg::UpdateConfig {
         clock_addr: Some("working_clock".to_string()),
         destination_config: Some(DestinationConfig {
@@ -50,12 +51,14 @@ fn test_migrate_config() {
             destination_receiver_addr: "new_receiver".to_string(),
             ibc_transfer_timeout: Uint64::new(100),
         }),
+        target_denoms: Some(target_denom_vec),
     };
 
     suite.migrate(migrate_msg).unwrap();
 
     let clock = suite.query_clock_addr();
     let config = suite.query_destination_config();
+    let target_denoms = suite.query_target_denoms();
 
     assert_eq!("working_clock", clock);
     assert_eq!(
@@ -66,6 +69,7 @@ fn test_migrate_config() {
         },
         config
     );
+    assert_eq!(target_denom_set, target_denoms);
 }
 
 #[test]
