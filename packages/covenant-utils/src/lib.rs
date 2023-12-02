@@ -517,6 +517,29 @@ pub struct DestinationConfig {
     pub ibc_transfer_timeout: Uint64,
 }
 
+pub fn default_ibc_ack_fee_amount() -> Uint128 {
+    Uint128::new(1000)
+}
+
+pub fn default_ibc_timeout_fee_amount() -> Uint128 {
+    Uint128::new(1000)
+}
+
+pub fn default_ibc_fee() -> IbcFee {
+    IbcFee {
+        // must be empty
+        recv_fee: vec![],
+        ack_fee: vec![cosmwasm_std::Coin {
+            denom: "untrn".to_string(),
+            amount: default_ibc_ack_fee_amount(),
+        }],
+        timeout_fee: vec![cosmwasm_std::Coin {
+            denom: "untrn".to_string(),
+            amount: default_ibc_timeout_fee_amount(),
+        }],
+    }
+}
+
 impl DestinationConfig {
     pub fn get_ibc_transfer_messages_for_coins(
         &self,
@@ -542,18 +565,7 @@ impl DestinationConfig {
                         .plus_seconds(self.ibc_transfer_timeout.u64())
                         .nanos(),
                     memo: "hi".to_string(),
-                    fee: IbcFee {
-                        // must be empty
-                        recv_fee: vec![],
-                        ack_fee: vec![cosmwasm_std::Coin {
-                            denom: "untrn".to_string(),
-                            amount: Uint128::new(1000),
-                        }],
-                        timeout_fee: vec![cosmwasm_std::Coin {
-                            denom: "untrn".to_string(),
-                            amount: Uint128::new(1000),
-                        }],
-                    },
+                    fee: default_ibc_fee(),
                 }));
             }
         }
