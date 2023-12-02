@@ -67,7 +67,11 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    let covenant_denoms: BTreeSet<String> = msg.splits.iter().map(|split| split.denom.to_string()).collect();
+    let covenant_denoms: BTreeSet<String> = msg
+        .splits
+        .iter()
+        .map(|split| split.denom.to_string())
+        .collect();
 
     let preset_clock_fields = PresetClockFields {
         tick_max_gas: msg.clock_tick_max_gas,
