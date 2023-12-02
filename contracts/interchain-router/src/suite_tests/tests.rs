@@ -25,7 +25,7 @@ fn test_instantiate_and_query_all() {
 
     let clock = suite.query_clock_addr().to_string();
     let config = suite.query_destination_config();
-    let denoms = suite.query_denoms();
+    let denoms = suite.query_target_denoms();
 
     assert_eq!("contract0", clock);
     assert_eq!(
@@ -50,7 +50,7 @@ fn test_migrate_config() {
             destination_chain_channel_id: "new_channel".to_string(),
             destination_receiver_addr: "new_receiver".to_string(),
             ibc_transfer_timeout: Uint64::new(100),
-        })),
+        }),
         target_denoms: Some(target_denom_vec),
     };
 
