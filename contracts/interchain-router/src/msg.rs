@@ -76,14 +76,14 @@ pub enum QueryMsg {
     #[returns(DestinationConfig)]
     DestinationConfig {},
     #[returns(BTreeSet<String>)]
-    Denoms {},
+    TargetDenoms {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
-        receiver_config: Option<ReceiverConfig>,
+        destination_config: Option<DestinationConfig>,
         target_denoms: Option<Vec<String>>,
     },
     UpdateCodeId {
