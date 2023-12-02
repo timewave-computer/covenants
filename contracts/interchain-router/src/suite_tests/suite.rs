@@ -129,10 +129,10 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_denoms(&self) -> BTreeSet<String> {
+    pub fn query_target_denoms(&self) -> BTreeSet<String> {
         self.app
             .wrap()
-            .query_wasm_smart(&self.router, &QueryMsg::Denoms {})
+            .query_wasm_smart(&self.router, &QueryMsg::TargetDenoms {})
             .unwrap()
     }
 }

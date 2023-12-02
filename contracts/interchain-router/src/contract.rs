@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -12,7 +14,7 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 
-use crate::state::DENOMS;
+use crate::state::TARGET_DENOMS;
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{CLOCK_ADDRESS, DESTINATION_CONFIG},
@@ -43,7 +45,7 @@ pub fn instantiate(
 
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     DESTINATION_CONFIG.save(deps.storage, &destination_config)?;
-    DENOMS.save(deps.storage, &msg.denoms)?;
+    TARGET_DENOMS.save(deps.storage, &msg.denoms)?;
 
     Ok(Response::default()
         .add_attribute("method", "interchain_router_instantiate")
@@ -79,7 +81,7 @@ fn try_distribute_fallback(
 ) -> NeutronResult<Response<NeutronMsg>> {
     let mut available_balances = Vec::new();
     let destination_config = DESTINATION_CONFIG.load(deps.storage)?;
-    let explicit_denoms = DENOMS.load(deps.storage)?;
+    let explicit_denoms = TARGET_DENOMS.load(deps.storage)?;
 
     for denom in denoms {
         // we do not distribute the main covenant denoms
@@ -109,7 +111,7 @@ fn try_distribute_fallback(
 /// method that attempts to transfer out all available balances to the receiver
 fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let destination_config = DESTINATION_CONFIG.load(deps.storage)?;
-    let denoms_to_route = DENOMS.load(deps.storage)?;
+    let denoms_to_route = TARGET_DENOMS.load(deps.storage)?;
     let mut denom_balances = Vec::new();
     for denom in denoms_to_route {
         let coin_to_route = deps
@@ -158,7 +160,7 @@ pub fn query(deps: QueryDeps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             Ok(to_json_binary(&DESTINATION_CONFIG.may_load(deps.storage)?)?)
         }
         QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
-        QueryMsg::Denoms {} => Ok(to_json_binary(&DENOMS.may_load(deps.storage)?)?),
+        QueryMsg::TargetDenoms {} => Ok(to_json_binary(&TARGET_DENOMS.may_load(deps.storage)?)?),
     }
 }
 
@@ -174,6 +176,7 @@ pub fn migrate(
         MigrateMsg::UpdateConfig {
             clock_addr,
             destination_config,
+            target_denoms,
         } => {
             let mut response =
                 Response::default().add_attribute("method", "update_interchain_router");
@@ -181,6 +184,13 @@ pub fn migrate(
             if let Some(addr) = clock_addr {
                 CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
                 response = response.add_attribute("clock_addr", addr);
+            }
+
+            if let Some(denoms) = target_denoms {
+                let denoms_str = denoms.join(",").to_string();
+                let denom_set: BTreeSet<String> = denoms.into_iter().collect();
+                TARGET_DENOMS.save(deps.storage, &denom_set)?;
+                response = response.add_attribute("target_denoms", denoms_str);
             }
 
             if let Some(config) = destination_config {
