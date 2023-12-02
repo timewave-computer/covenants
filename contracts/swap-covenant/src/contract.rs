@@ -72,7 +72,11 @@ pub fn instantiate(
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
     };
 
-    let covenant_denoms: BTreeSet<String> = msg.splits.iter().map(|split| split.denom.to_string()).collect();
+    let covenant_denoms: BTreeSet<String> = msg
+        .splits
+        .iter()
+        .map(|split| split.denom.to_string())
+        .collect();
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
         destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
