@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, collections::BTreeSet};
+use std::{collections::BTreeSet, marker::PhantomData};
 
 use cosmwasm_std::{
     coin,
@@ -8,7 +8,8 @@ use cosmwasm_std::{
 use covenant_utils::DestinationConfig;
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
-    sudo::msg::RequestPacketTimeoutHeight, NeutronError,
+    sudo::msg::RequestPacketTimeoutHeight,
+    NeutronError,
 };
 
 use crate::{
@@ -87,8 +88,7 @@ fn test_tick() {
     let random_coin_3 = coin(100, "denom3");
 
     let coins = vec![usdc_coin, random_coin_1, random_coin_2, random_coin_3];
-    let querier: MockQuerier<Empty> = MockQuerier::new(&[
-        ("cosmos2contract", &coins)]);
+    let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)]);
 
     let mut deps = OwnedDeps {
         storage: MockStorage::default(),
@@ -105,7 +105,9 @@ fn test_tick() {
         deps.as_mut(),
         mock_env(),
         info.clone(),
-        SuiteBuilder::default().with_denoms(vec!["usdc".to_string()]).instantiate,
+        SuiteBuilder::default()
+            .with_denoms(vec!["usdc".to_string()])
+            .instantiate,
     )
     .unwrap();
 
@@ -173,18 +175,27 @@ fn test_tick() {
         deps.as_mut(),
         mock_env.clone(),
         info.clone(),
-        crate::msg::ExecuteMsg::DistributeFallback { denoms: vec!["usdc".to_string()] },
+        crate::msg::ExecuteMsg::DistributeFallback {
+            denoms: vec!["usdc".to_string()],
+        },
     )
     .unwrap_err();
 
-    assert_eq!(err, NeutronError::Std(cosmwasm_std::StdError::generic_err("unauthorized denom distribution".to_string())));
+    assert_eq!(
+        err,
+        NeutronError::Std(cosmwasm_std::StdError::generic_err(
+            "unauthorized denom distribution".to_string()
+        ))
+    );
 
     // now distribute a valid fallback denom
     let resp = execute(
         deps.as_mut(),
         mock_env,
         info,
-        crate::msg::ExecuteMsg::DistributeFallback { denoms: vec!["denom1".to_string()] },
+        crate::msg::ExecuteMsg::DistributeFallback {
+            denoms: vec!["denom1".to_string()],
+        },
     )
     .unwrap();
 
@@ -209,9 +220,10 @@ fn test_tick() {
                         recv_fee: vec![],
                         ack_fee: vec![cosmwasm_std::coin(1000, "untrn".to_string())],
                         timeout_fee: vec![cosmwasm_std::coin(1000, "untrn".to_string())],
-                    } }),
-                    gas_limit: None,
-                    reply_on: cosmwasm_std::ReplyOn::Never,
+                    }
+                }),
+                gas_limit: None,
+                reply_on: cosmwasm_std::ReplyOn::Never,
             }
         );
     }
