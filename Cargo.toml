@@ -10,7 +10,7 @@ edition      = "2021"
 license      = "Apache-2.0"
 version      = "1.0.0"
 repository = "https://github.com/timewave-computer/covenants"
-# rust-version = "1.71.0"
+rust-version = "1.70.0"
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
@@ -53,8 +53,8 @@ covenant-utils = { path = "packages/covenant-utils" }
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
 # updated. to find cosmwasm_std's sha function:
 # ```cargo tree --package cosmwasm-std```
-sha2 = "0.10.8"
-neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk", branch = "feat/cw-dex-bindings" }
+sha2 = "0.10.6"
+neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk" }
 cosmos-sdk-proto = { version = "0.14.0", default-features = false }
 protobuf = { version = "3.2.0", features = ["with-bytes"] }
 serde-json-wasm = { version = "0.4.1" }
@@ -63,11 +63,10 @@ prost = "0.11"
 astroport = "2.9.5"
 prost-types = "0.11"
 bech32 = "0.9.0"
-cosmwasm-schema = "1.5.0"
+cosmwasm-schema = "1.2.1"
 cosmwasm-std    = { version = "1.5.0", features = ["ibc3", "cosmwasm_1_1", "cosmwasm_1_2"] }
-cw-storage-plus = "1.2.0"
-cw-utils        = "1.0.3"
-getrandom = { version = "0.2", features = ["js"] }
+cw-storage-plus = "1.0.1"
+cw-utils        = "1.0.2"
 cw2             = "1.0.1"
 serde     = { version = "1.0.145", default-features = false, features = ["derive"] }
 thiserror = "1.0.31"
