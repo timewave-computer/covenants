@@ -18,7 +18,7 @@ library = []
 
 [dependencies]
 cosmwasm-schema = { workspace = true }
-cosmwasm-std = { workspace = true }
+cosmwasm-std = { workspace = true, features = ["cosmwasm_1_2"] }
 covenant-macros = { workspace = true }
 cw-fifo = { workspace = true }
 cw-storage-plus = { workspace = true }
