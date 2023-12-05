@@ -54,7 +54,8 @@ func setupNeutronGenesis(
 		}
 
 		out, err := json.Marshal(g)
-
+		println("neutron genesis:")
+		println(string(out))
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
 		}
