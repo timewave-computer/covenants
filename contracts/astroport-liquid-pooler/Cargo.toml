@@ -6,6 +6,7 @@ license     = { workspace = true }
 repository  = { workspace = true }
 version     = { workspace = true }
 edition     = { workspace = true }
+rust-version = { workspace = true }
 
 exclude = [
   "contract.wasm",
@@ -27,7 +28,7 @@ covenant-macros = { workspace = true }
 covenant-clock        = { workspace = true, features=["library"] }
 
 cosmwasm-schema = { workspace = true }
-cosmwasm-std    = { workspace = true }
+cosmwasm-std    = { workspace = true, features = ["cosmwasm_1_2"] }
 cw-storage-plus = { workspace = true }
 cw2             = { workspace = true }
 serde           = { workspace = true }

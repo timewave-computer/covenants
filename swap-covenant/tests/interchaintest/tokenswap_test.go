@@ -82,7 +82,7 @@ func TestTokenSwap(t *testing.T) {
 				Images: []ibc.DockerImage{
 					{
 						Repository: "ghcr.io/strangelove-ventures/heighliner/neutron",
-						Version:    "v1.0.2",
+						Version:    "v1.0.4-rc1",
 						UidGid:     "1025:1025",
 					},
 				},
@@ -391,16 +391,19 @@ func TestTokenSwap(t *testing.T) {
 				PartyBAmount: strconv.FormatUint(osmoContributionAmount, 10),
 			}
 
-			// timestamp := Timestamp("1981539923")
-			block := Block(500)
-
-			lockupConfig := LockupConfig{
-				BlockHeight: &block,
+			currentHeight, err := cosmosNeutron.Height(ctx)
+			require.NoError(t, err, "failed to get neutron height")
+			depositBlock := Block(currentHeight + 150)
+			lockupConfig := Expiration{
+				AtHeight: &depositBlock,
 			}
+
 			presetIbcFee := PresetIbcFee{
 				AckFee:     "10000",
 				TimeoutFee: "10000",
 			}
+			hubReceiverAddr := gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix)
+			osmoReceiverAddr := osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
 
 			presetSplitterFields := PresetSplitterFields{
 				Splits: []DenomSplit{
@@ -408,11 +411,9 @@ func TestTokenSwap(t *testing.T) {
 						Denom: neutronOsmoIbcDenom,
 						Type: SplitType{
 							Custom: SplitConfig{
-								Receivers: []Receiver{
-									{
-										Address: gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-										Share:   "100",
-									},
+								Receivers: map[string]string{
+									hubReceiverAddr:  "1.0",
+									osmoReceiverAddr: "0.0",
 								},
 							},
 						},
@@ -421,11 +422,9 @@ func TestTokenSwap(t *testing.T) {
 						Denom: neutronAtomIbcDenom,
 						Type: SplitType{
 							Custom: SplitConfig{
-								Receivers: []Receiver{
-									{
-										Address: osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-										Share:   "100",
-									},
+								Receivers: map[string]string{
+									hubReceiverAddr:  "0.0",
+									osmoReceiverAddr: "1.0",
 								},
 							},
 						},

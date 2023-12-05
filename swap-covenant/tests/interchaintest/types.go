@@ -11,7 +11,7 @@ type CovenantInstantiateMsg struct {
 	PresetIbcFee                PresetIbcFee                `json:"preset_ibc_fee"`
 	SwapCovenantContractCodeIds SwapCovenantContractCodeIds `json:"contract_codes"`
 	TickMaxGas                  string                      `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig                LockupConfig                `json:"lockup_config"`
+	LockupConfig                Expiration                  `json:"lockup_config"`
 	SwapCovenantTerms           SwapCovenantTerms           `json:"covenant_terms"`
 	PartyAConfig                SwapPartyConfig             `json:"party_a_config"`
 	PartyBConfig                SwapPartyConfig             `json:"party_b_config"`
@@ -33,7 +33,7 @@ type Receiver struct {
 }
 
 type SplitConfig struct {
-	Receivers []Receiver `json:"receivers"`
+	Receivers map[string]string `json:"receivers"`
 }
 
 type SplitType struct {
@@ -69,7 +69,7 @@ type PresetClockFields struct {
 }
 
 type PresetSwapHolderFields struct {
-	LockupConfig          LockupConfig          `json:"lockup_config"`
+	LockupConfig          Expiration            `json:"lockup_config"`
 	CovenantPartiesConfig CovenantPartiesConfig `json:"parties_config"`
 	CovenantTerms         CovenantTerms         `json:"covenant_terms"`
 	CodeId                uint64                `json:"code_id"`
@@ -79,10 +79,10 @@ type PresetSwapHolderFields struct {
 type Timestamp string
 type Block uint64
 
-type LockupConfig struct {
-	None        bool       `json:"none,omitempty"`
-	BlockHeight *Block     `json:"block,omitempty"`
-	Time        *Timestamp `json:"time,omitempty"`
+type Expiration struct {
+	Never    string     `json:"none,omitempty"`
+	AtHeight *Block     `json:"at_height,omitempty"`
+	AtTime   *Timestamp `json:"at_time,omitempty"`
 }
 
 type CovenantPartiesConfig struct {
