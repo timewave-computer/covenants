@@ -1,4 +1,4 @@
-use cosmwasm_std::{Instantiate2AddressError, StdError};
+use cosmwasm_std::{StdError, Instantiate2AddressError};
 use cw_utils::ParseReplyError;
 use thiserror::Error;
 

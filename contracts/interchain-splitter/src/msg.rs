@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, WasmMsg};
+use cosmwasm_std::{Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Uint128, WasmMsg, StdError, to_json_binary};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::SplitConfig;
 
@@ -86,22 +86,15 @@ impl PresetInterchainSplitterFields {
     }
 
     pub fn to_instantiate2_msg(
-        &self,
-        admin_addr: String,
-        salt: Binary,
+        &self, admin_addr: String, salt: &[u8],
         clock_address: String,
         party_a_router: String,
         party_b_router: String,
     ) -> Result<WasmMsg, StdError> {
-        let instantiate_msg =
-            match self.to_instantiate_msg(clock_address, party_a_router, party_b_router) {
-                Ok(msg) => msg,
-                Err(_) => {
-                    return Err(StdError::generic_err(
-                        "failed to generate regular instantiation message",
-                    ))
-                }
-            };
+        let instantiate_msg = match self.to_instantiate_msg(clock_address, party_a_router, party_b_router) {
+            Ok(msg) => msg,
+            Err(_) => return Err(StdError::generic_err("failed to generate regular instantiation message")),
+        };
 
         Ok(WasmMsg::Instantiate2 {
             admin: Some(admin_addr),
@@ -109,7 +102,7 @@ impl PresetInterchainSplitterFields {
             label: self.label.to_string(),
             msg: to_json_binary(&instantiate_msg)?,
             funds: vec![],
-            salt,
+            salt: to_json_binary(&salt)?,
         })
     }
 }

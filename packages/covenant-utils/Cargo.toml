@@ -12,7 +12,7 @@ license = { workspace = true }
 [dependencies]
 cosmwasm-schema  = { workspace = true }
 neutron-sdk      = { workspace = true }
-cosmwasm-std     = { workspace = true }
+cosmwasm-std     = { workspace = true, features = ["cosmwasm_1_2"] }
 prost            = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
 cw20             = { workspace = true }
