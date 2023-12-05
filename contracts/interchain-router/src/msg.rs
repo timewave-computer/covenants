@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, WasmMsg};
+use cosmwasm_std::{Addr, Binary, Uint64, WasmMsg, StdError, to_json_binary};
 use covenant_macros::{clocked, covenant_clock_address};
 use covenant_utils::ReceiverConfig;
 
@@ -46,19 +46,15 @@ impl PresetInterchainRouterFields {
     }
 
     pub fn to_instantiate2_msg(
-        &self,
-        admin_addr: String,
-        salt: Binary,
-        clock_address: String,
+        &self, admin_addr: String, salt: &[u8], clock_address: String,
     ) -> Result<WasmMsg, StdError> {
-        let instantiate_msg = self.to_instantiate_msg(clock_address);
         Ok(WasmMsg::Instantiate2 {
             admin: Some(admin_addr),
             code_id: self.code_id,
             label: self.label.to_string(),
-            msg: to_json_binary(&instantiate_msg)?,
+            msg: to_json_binary(&self.to_instantiate_msg(clock_address))?,
             funds: vec![],
-            salt,
+            salt: to_json_binary(&salt)?,
         })
     }
 }
