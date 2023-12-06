@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+
 	ibctest "github.com/strangelove-ventures/interchaintest/v4"
 	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
