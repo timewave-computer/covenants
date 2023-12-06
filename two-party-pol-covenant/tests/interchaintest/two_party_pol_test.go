@@ -88,7 +88,7 @@ func TestTwoPartyPol(t *testing.T) {
 				Images: []ibc.DockerImage{
 					{
 						Repository: "ghcr.io/strangelove-ventures/heighliner/neutron",
-						Version:    "v1.0.2",
+						Version:    "v2.0.0",
 						UidGid:     "1025:1025",
 					},
 				},
@@ -103,7 +103,7 @@ func TestTwoPartyPol(t *testing.T) {
 					"0.05",
 					[]string{nativeNtrnDenom},
 					[]string{nativeAtomDenom},
-					getDefaultInterchainGenesisMessages(),
+					getDefaultNeutronInterchainGenesisMessages(),
 				),
 				ConfigFileOverrides: configFileOverrides,
 			},
