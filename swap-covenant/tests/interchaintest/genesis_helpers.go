@@ -53,6 +53,10 @@ func setupNeutronGenesis(
 			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w", err)
 		}
 
+		if err := dyno.Set(g, "30000000", "consensus_params", "block", "max_gas"); err != nil {
+			return nil, fmt.Errorf("failed to set block max gas: %w", err)
+		}
+
 		out, err := json.Marshal(g)
 		println("neutron genesis:")
 		println(string(out))
@@ -97,6 +101,26 @@ func getDefaultInterchainGenesisMessages() []string {
 		"/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
 		"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
 		"/ibc.applications.transfer.v1.MsgTransfer",
+	}
+}
+
+func getDefaultNeutronInterchainGenesisMessages() []string {
+	return []string{
+		"/cosmos.bank.v1beta1.MsgSend",
+		"/cosmos.bank.v1beta1.MsgMultiSend",
+		"/cosmos.staking.v1beta1.MsgDelegate",
+		"/cosmos.staking.v1beta1.MsgUndelegate",
+		"/cosmos.staking.v1beta1.MsgBeginRedelegate",
+		"/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
+		"/cosmos.staking.v1beta1.MsgTokenizeShares",
+		"/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+		"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+		"/ibc.applications.transfer.v1.MsgTransfer",
+		"/ibc.lightclients.localhost.v2.ClientState",
+		"/ibc.core.client.v1.MsgCreateClient",
+		"/ibc.core.client.v1.Query/ClientState",
+		"/ibc.core.client.v1.Query/ConsensusState",
+		"/ibc.core.connection.v1.Query/Connection",
 	}
 }
 
