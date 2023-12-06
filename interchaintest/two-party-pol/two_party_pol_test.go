@@ -103,7 +103,7 @@ func TestTwoPartyPol(t *testing.T) {
 					"0.05",
 					[]string{nativeNtrnDenom},
 					[]string{nativeAtomDenom},
-					utils.GetDefaultNeutronInterchainGenesisMessages(),
+					getDefaultNeutronInterchainGenesisMessages(),
 				),
 				ConfigFileOverrides: configFileOverrides,
 			},
