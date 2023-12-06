@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, fmt};
 
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, StdError};
+use cosmwasm_std::{Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, StdError, to_json_binary, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract,
 };
@@ -264,7 +264,7 @@ pub struct PresetPolParty {
 
 impl PresetTwoPartyPolHolderFields {
     pub fn to_instantiate_msg(
-        self,
+        &self,
         clock_address: String,
         next_contract: String,
         party_a_router: &str,
@@ -300,30 +300,49 @@ impl PresetTwoPartyPolHolderFields {
 
         Ok(InstantiateMsg {
             clock_address,
-            pool_address: self.pool_address,
+            pool_address: self.pool_address.to_string(),
             next_contract,
             lockup_config: self.lockup_config,
-            ragequit_config: self.ragequit_config,
+            ragequit_config: self.ragequit_config.clone(),
             deposit_deadline: self.deposit_deadline,
             covenant_config: TwoPartyPolCovenantConfig {
                 party_a: TwoPartyPolCovenantParty {
-                    contribution: self.party_a.contribution,
+                    contribution: self.party_a.contribution.clone(),
                     allocation: self.party_a.allocation,
                     router: party_a_router.to_string(),
-                    host_addr: self.party_a.host_addr,
-                    controller_addr: self.party_a.controller_addr,
+                    host_addr: self.party_a.host_addr.to_string(),
+                    controller_addr: self.party_a.controller_addr.to_string(),
                 },
                 party_b: TwoPartyPolCovenantParty {
-                    contribution: self.party_b.contribution,
+                    contribution: self.party_b.contribution.clone(),
                     allocation: self.party_b.allocation,
                     router: party_b_router.to_string(),
-                    host_addr: self.party_b.host_addr,
-                    controller_addr: self.party_b.controller_addr,
+                    host_addr: self.party_b.host_addr.to_string(),
+                    controller_addr: self.party_b.controller_addr.to_string(),
                 },
-                covenant_type: self.covenant_type,
+                covenant_type: self.covenant_type.clone(),
             },
             splits: remapped_splits,
             fallback_split: remapped_fallback,
+        })
+    }
+
+    pub fn to_instantiate2_msg(
+        &self, admin_addr: String, salt: &[u8],
+        clock_address: String,
+        next_contract: String,
+        party_a_router: String,
+        party_b_router: String,
+    ) -> Result<WasmMsg, StdError> {
+        let instantiate_msg = &self.to_instantiate_msg(clock_address, next_contract, &party_a_router, &party_b_router)?;
+
+        Ok(WasmMsg::Instantiate2 {
+            admin: Some(admin_addr),
+            code_id: self.code_id,
+            label: self.label.to_string(),
+            msg: to_json_binary(&instantiate_msg)?,
+            funds: vec![],
+            salt: to_json_binary(&salt)?,
         })
     }
 }
