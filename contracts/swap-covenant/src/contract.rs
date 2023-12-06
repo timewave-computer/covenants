@@ -14,7 +14,6 @@ use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
 use covenant_utils::{CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig};
 use cw2::set_contract_version;
-use cw_utils::{parse_reply_instantiate_data, ParseReplyError};
 
 use crate::{
     error::ContractError,
@@ -30,14 +29,6 @@ use crate::{
 
 const CONTRACT_NAME: &str = "crates.io:swap-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-pub const CLOCK_REPLY_ID: u64 = 1u64;
-pub const PARTY_A_INTERCHAIN_ROUTER_REPLY_ID: u64 = 2u64;
-pub const PARTY_B_INTERCHAIN_ROUTER_REPLY_ID: u64 = 3u64;
-pub const SPLITTER_REPLY_ID: u64 = 4u64;
-pub const SWAP_HOLDER_REPLY_ID: u64 = 5u64;
-pub const PARTY_A_FORWARDER_REPLY_ID: u64 = 6u64;
-pub const PARTY_B_FORWARDER_REPLY_ID: u64 = 7u64;
 
 pub const CLOCK_SALT: &[u8]                     = b"clock";
 pub const PARTY_A_INTERCHAIN_ROUTER_SALT: &[u8] = b"party_a_interchain_router";
@@ -78,9 +69,9 @@ pub fn instantiate(
 
     let clock_address = get_precomputed_address(deps.as_ref(), msg.contract_codes.clock_code, &creator_address, CLOCK_SALT)?;
     let party_a_interchain_router_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.interchain_router_code, &creator_address, PARTY_A_FORWARDER_SALT)?;
+        get_precomputed_address(deps.as_ref(), msg.contract_codes.interchain_router_code, &creator_address, PARTY_A_INTERCHAIN_ROUTER_SALT)?;
     let party_b_interchain_router_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.interchain_router_code, &creator_address, PARTY_B_FORWARDER_SALT)?;
+        get_precomputed_address(deps.as_ref(), msg.contract_codes.interchain_router_code, &creator_address, PARTY_B_INTERCHAIN_ROUTER_SALT)?;
     let splitter_address =
         get_precomputed_address(deps.as_ref(), msg.contract_codes.splitter_code, &creator_address, SPLITTER_SALT)?;
     let swap_holder_address =
