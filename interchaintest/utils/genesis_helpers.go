@@ -53,9 +53,11 @@ func SetupNeutronGenesis(
 			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w", err)
 		}
 
-		if err := dyno.Set(g, "1000000000", "consensus_params", "block", "max_gas"); err != nil {
+		if err := dyno.Set(g, "30000000", "consensus_params", "block", "max_gas"); err != nil {
 			return nil, fmt.Errorf("failed to set block max gas: %w", err)
 		}
+
+		out, err := json.Marshal(g)
 
 		minGasEntries := []interface{}{
 			map[string]string{"denom": "untrn", "amount": "0"},
