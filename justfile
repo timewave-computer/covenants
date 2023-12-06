@@ -18,13 +18,9 @@ optimize:
             fi
         done
     fi
+    cp -R artifacts/*.wasm {{TEST}}/tests/interchaintest/wasms
+    ls {{TEST}}/tests/interchaintest/wasms
+    cd {{TEST}}/tests/interchaintest/ && go clean -testcache && go test -timeout 50m -v
 
-local-e2e-rebuild TEST PATTERN='.*': optimize
-    mkdir interchaintest/{{TEST}}/wasms
-    cp -R artifacts/*.wasm interchaintest/{{TEST}}/wasms
-    cp -R interchaintest/wasms/polytone/*.wasm interchaintest/{{TEST}}/wasms
-    ls interchaintest/{{TEST}}/wasms
-    cd interchaintest/{{TEST}} && go clean -testcache && go test -timeout 50m -v -run '{{PATTERN}}'
-
-local-e2e TEST PATTERN='.*':
-    cd interchaintest/{{TEST}} && go clean -testcache && go test -timeout 50m -v -run '{{PATTERN}}'
+local-e2e TEST:
+    cd {{TEST}}/tests/interchaintest/ && go clean -testcache && go test -timeout 40m -v
