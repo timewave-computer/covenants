@@ -1,4 +1,4 @@
-package utils
+package ibc_test
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 //
 // [^1]: https://docs.neutron.org/neutron/consumer-chain-launch#relevant-parameters
 // [^2]: https://github.com/cosmos/interchain-security/blob/54e9852d3c89a2513cd0170a56c6eec894fc878d/proto/interchain_security/ccv/consumer/v1/consumer.proto#L61-L66
-func SetupNeutronGenesis(
+func setupNeutronGenesis(
 	soft_opt_out_threshold string,
 	reward_denoms []string,
 	provider_reward_denoms []string,
@@ -58,8 +58,7 @@ func SetupNeutronGenesis(
 		}
 
 		out, err := json.Marshal(g)
-		println("neutron genesis:")
-		println(string(out))
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
 		}
@@ -70,7 +69,7 @@ func SetupNeutronGenesis(
 // Sets custom fields for the Gaia genesis file that interchaintest isn't aware of by default.
 //
 // allowed_messages - explicitly allowed messages to be accepted by the the interchainaccounts section
-func SetupGaiaGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
+func setupGaiaGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
 		g := make(map[string]interface{})
 		if err := json.Unmarshal(genbz, &g); err != nil {
@@ -89,7 +88,7 @@ func SetupGaiaGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 	}
 }
 
-func GetDefaultInterchainGenesisMessages() []string {
+func getDefaultInterchainGenesisMessages() []string {
 	return []string{
 		"/cosmos.bank.v1beta1.MsgSend",
 		"/cosmos.bank.v1beta1.MsgMultiSend",
@@ -101,26 +100,6 @@ func GetDefaultInterchainGenesisMessages() []string {
 		"/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
 		"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
 		"/ibc.applications.transfer.v1.MsgTransfer",
-	}
-}
-
-func getDefaultNeutronInterchainGenesisMessages() []string {
-	return []string{
-		"/cosmos.bank.v1beta1.MsgSend",
-		"/cosmos.bank.v1beta1.MsgMultiSend",
-		"/cosmos.staking.v1beta1.MsgDelegate",
-		"/cosmos.staking.v1beta1.MsgUndelegate",
-		"/cosmos.staking.v1beta1.MsgBeginRedelegate",
-		"/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
-		"/cosmos.staking.v1beta1.MsgTokenizeShares",
-		"/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
-		"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
-		"/ibc.applications.transfer.v1.MsgTransfer",
-		"/ibc.lightclients.localhost.v2.ClientState",
-		"/ibc.core.client.v1.MsgCreateClient",
-		"/ibc.core.client.v1.Query/ClientState",
-		"/ibc.core.client.v1.Query/ConsensusState",
-		"/ibc.core.connection.v1.Query/Connection",
 	}
 }
 
@@ -164,7 +143,7 @@ func setupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 	}
 }
 
-func GetCreateValidatorCmd(chain ibc.Chain) []string {
+func getCreateValidatorCmd(chain ibc.Chain) []string {
 	// Before receiving a validator set change (VSC) packet,
 	// consumer chains disallow bank transfers. To trigger a VSC
 	// packet, this creates a validator (from a random public key)
@@ -191,7 +170,7 @@ func GetCreateValidatorCmd(chain ibc.Chain) []string {
 	return cmd
 }
 
-func GetChannelMap(r ibc.Relayer, ctx context.Context, eRep *testreporter.RelayerExecReporter,
+func getChannelMap(r ibc.Relayer, ctx context.Context, eRep *testreporter.RelayerExecReporter,
 	cosmosStride *cosmos.CosmosChain, cosmosNeutron *cosmos.CosmosChain, cosmosAtom *cosmos.CosmosChain) map[string]string {
 	channelMap := map[string]string{
 		"hi": "Dog",
