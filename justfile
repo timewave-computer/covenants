@@ -51,7 +51,7 @@ local-e2e-rebuild TEST: optimize
     fi
     cp -R artifacts/*.wasm {{TEST}}/tests/interchaintest/wasms
     ls {{TEST}}/tests/interchaintest/wasms
-    cd {{TEST}}/tests/interchaintest/ && go test -timeout 50m -v
+    cd {{TEST}}/tests/interchaintest/ && go clean -testcache && go test -timeout 50m -v
 
 local-e2e TEST:
-    cd {{TEST}}/tests/interchaintest/ && go test -timeout 40m -v
+    cd {{TEST}}/tests/interchaintest/ && go clean -testcache && go test -timeout 40m -v
