@@ -2,9 +2,7 @@ use std::{collections::BTreeMap, fmt};
 
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, StdError, WasmMsg,
-};
+use cosmwasm_std::{Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, StdError, to_json_binary, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract,
 };
@@ -330,20 +328,13 @@ impl PresetTwoPartyPolHolderFields {
     }
 
     pub fn to_instantiate2_msg(
-        &self,
-        admin_addr: String,
-        salt: Binary,
+        &self, admin_addr: String, salt: &[u8],
         clock_address: String,
         next_contract: String,
         party_a_router: String,
         party_b_router: String,
     ) -> Result<WasmMsg, StdError> {
-        let instantiate_msg = &self.to_instantiate_msg(
-            clock_address,
-            next_contract,
-            &party_a_router,
-            &party_b_router,
-        )?;
+        let instantiate_msg = &self.to_instantiate_msg(clock_address, next_contract, &party_a_router, &party_b_router)?;
 
         Ok(WasmMsg::Instantiate2 {
             admin: Some(admin_addr),
@@ -351,7 +342,7 @@ impl PresetTwoPartyPolHolderFields {
             label: self.label.to_string(),
             msg: to_json_binary(&instantiate_msg)?,
             funds: vec![],
-            salt,
+            salt: to_json_binary(&salt)?,
         })
     }
 }
