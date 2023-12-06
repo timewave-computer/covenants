@@ -14,7 +14,6 @@ use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
 use covenant_utils::{CovenantPartiesConfig, CovenantTerms};
 use cw2::set_contract_version;
-use sha2::{Digest, Sha256};
 
 use crate::{
     error::ContractError,
@@ -30,33 +29,6 @@ use crate::{
 
 const CONTRACT_NAME: &str = "crates.io:swap-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-pub const CLOCK_SALT: &[u8] = b"clock";
-pub const PARTY_A_INTERCHAIN_ROUTER_SALT: &[u8] = b"party_a_interchain_router";
-pub const PARTY_B_INTERCHAIN_ROUTER_SALT: &[u8] = b"party_b_interchain_router";
-pub const SPLITTER_SALT: &[u8] = b"splitter";
-pub const SWAP_HOLDER_SALT: &[u8] = b"swap_holder";
-pub const PARTY_A_FORWARDER_SALT: &[u8] = b"party_a_ibc_forwarder";
-pub const PARTY_B_FORWARDER_SALT: &[u8] = b"party_b_ibc_forwarder";
-
-pub fn generate_contract_salt(salt_str: &[u8]) -> cosmwasm_std::Binary {
-    let mut hasher = Sha256::new();
-    hasher.update(salt_str);
-    hasher.finalize().to_vec().into()
-}
-
-fn get_precomputed_address(
-    deps: Deps,
-    code_id: u64,
-    creator: &CanonicalAddr,
-    salt: &[u8],
-) -> Result<Addr, ContractError> {
-    let CodeInfoResponse { checksum, .. } = deps.querier.query_wasm_code_info(code_id)?;
-
-    let precomputed_address = instantiate2_address(&checksum, creator, salt)?;
-
-    Ok(deps.api.addr_humanize(&precomputed_address)?)
-}
 
 pub const CLOCK_SALT: &[u8]                     = b"clock";
 pub const PARTY_A_INTERCHAIN_ROUTER_SALT: &[u8] = b"party_a_interchain_router";
@@ -97,9 +69,9 @@ pub fn instantiate(
 
     let clock_address = get_precomputed_address(deps.as_ref(), msg.contract_codes.clock_code, &creator_address, CLOCK_SALT)?;
     let party_a_interchain_router_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.interchain_router_code, &creator_address, PARTY_A_FORWARDER_SALT)?;
+        get_precomputed_address(deps.as_ref(), msg.contract_codes.interchain_router_code, &creator_address, PARTY_A_INTERCHAIN_ROUTER_SALT)?;
     let party_b_interchain_router_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.interchain_router_code, &creator_address, PARTY_B_FORWARDER_SALT)?;
+        get_precomputed_address(deps.as_ref(), msg.contract_codes.interchain_router_code, &creator_address, PARTY_B_INTERCHAIN_ROUTER_SALT)?;
     let splitter_address =
         get_precomputed_address(deps.as_ref(), msg.contract_codes.splitter_code, &creator_address, SPLITTER_SALT)?;
     let swap_holder_address =
