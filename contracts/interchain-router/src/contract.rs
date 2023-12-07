@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult,
+    StdResult, Addr,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use cw2::set_contract_version;
@@ -34,7 +34,7 @@ pub fn instantiate(
 ) -> NeutronResult<Response<NeutronMsg>> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
+    // let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
     let destination_config = DestinationConfig {
         destination_chain_channel_id: msg.destination_chain_channel_id.to_string(),
@@ -42,15 +42,16 @@ pub fn instantiate(
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
     };
 
-    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+    CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
     DESTINATION_CONFIG.save(deps.storage, &destination_config)?;
-    TARGET_DENOMS.save(deps.storage, &msg.denoms)?;
+    // TARGET_DENOMS.save(deps.storage, &msg.denoms)?;
 
     Ok(Response::default()
         .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "interchain_router_instantiate")
-        .add_attribute("clock_address", clock_addr))
-    // .add_attributes(destination_config.get_response_attributes()))
+        // .add_attribute("clock_address", clock_addr)
+        .add_attribute("destination_receiver_addr", msg.destination_receiver_addr))
+        // .add_attributes(destination_config.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

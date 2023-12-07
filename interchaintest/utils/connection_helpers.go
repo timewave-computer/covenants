@@ -682,11 +682,11 @@ func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.
 	println("covenant instantiation message:")
 	fmt.Println(string(prettyJson))
 
-	covInstantiationResp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
-	require.NoError(testCtx.T, err, "manual instantiation failed")
+	covInstantiationResp, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	require.NoError(testCtx.t, err, "manual instantiation failed")
 	println("covenant instantiation response: ", string(covInstantiationResp))
-	require.NoError(testCtx.T,
-		testutil.WaitForBlocks(testCtx.Ctx, 5, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
+	require.NoError(testCtx.t,
+		testutil.WaitForBlocks(testCtx.ctx, 5, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
 
 	queryCmd := []string{"neutrond", "query", "wasm",
 		"list-contract-by-code", codeIdStr,
