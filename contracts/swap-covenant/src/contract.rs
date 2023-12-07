@@ -104,7 +104,7 @@ pub fn instantiate(
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
     };
 
-    let covenant_denoms: BTreeSet<String> = msg
+    let covenant_denoms: Vec<String> = msg
         .splits
         .iter()
         .map(|split| split.denom.to_string())

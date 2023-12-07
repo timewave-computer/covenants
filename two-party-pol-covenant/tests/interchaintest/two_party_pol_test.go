@@ -991,6 +991,7 @@ func TestTwoPartyPol(t *testing.T) {
 					holderAddress,
 					liquidPoolerAddress,
 				}
+				println("funding addresses with 5000000000untrn: ", addrs)
 				testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
 
 				testCtx.skipBlocks(2)

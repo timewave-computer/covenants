@@ -7,9 +7,9 @@ use cosmwasm_std::{
     Response, StdResult, SubMsg, Uint128, WasmMsg, CanonicalAddr, CodeInfoResponse, instantiate2_address,
 };
 
-use covenant_astroport_liquid_pooler::msg::{
+use covenant_astroport_liquid_pooler::{msg::{
     AssetData, PresetAstroLiquidPoolerFields, SingleSideLpLimits,
-};
+}, state::HOLDER_ADDRESS};
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
@@ -34,11 +34,11 @@ const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const CLOCK_SALT: &[u8]                     = b"clock";
-pub const PARTY_A_INTERCHAIN_ROUTER_SALT: &[u8] = b"party_a_interchain_router";
-pub const PARTY_B_INTERCHAIN_ROUTER_SALT: &[u8] = b"party_b_interchain_router";
+pub const PARTY_A_INTERCHAIN_ROUTER_SALT: &[u8] = b"router_a";
+pub const PARTY_B_INTERCHAIN_ROUTER_SALT: &[u8] = b"router_b";
 pub const HOLDER_SALT: &[u8]                    = b"pol_holder";
-pub const PARTY_A_FORWARDER_SALT: &[u8]         = b"party_a_ibc_forwarder";
-pub const PARTY_B_FORWARDER_SALT: &[u8]         = b"party_b_ibc_forwarder";
+pub const PARTY_A_FORWARDER_SALT: &[u8]         = b"forwarder_a";
+pub const PARTY_B_FORWARDER_SALT: &[u8]         = b"forwarder_b";
 pub const LIQUID_POOLER_SALT: &[u8]             = b"liquid_pooler";
 
 
@@ -83,7 +83,15 @@ pub fn instantiate(
     let party_b_forwarder_address =
         get_precomputed_address(deps.as_ref(), msg.contract_codes.ibc_forwarder_code, &creator_address, PARTY_B_FORWARDER_SALT)?;
 
-    let covenant_denoms: BTreeSet<String> = msg
+    PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_forwarder_address)?;
+    PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &party_a_forwarder_address)?;
+    COVENANT_POL_HOLDER_ADDR.save(deps.storage, &holder_address)?;
+    LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_address)?;
+    PARTY_B_ROUTER_ADDR.save(deps.storage, &party_b_interchain_router_address)?;
+    PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_interchain_router_address)?;
+    COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
+
+    let covenant_denoms: Vec<String> = msg
         .splits
         .iter()
         .map(|split| split.denom.to_string())
@@ -91,7 +99,14 @@ pub fn instantiate(
 
     let preset_clock_fields = PresetClockFields {
         tick_max_gas: msg.clock_tick_max_gas,
-        whitelist: vec![],
+        whitelist: vec![
+            party_a_forwarder_address.to_string(),
+            party_b_forwarder_address.to_string(),
+            holder_address.to_string(),
+            party_a_interchain_router_address.to_string(),
+            party_b_interchain_router_address.to_string(),
+            liquid_pooler_address.to_string(),
+        ],
         code_id: msg.contract_codes.clock_code,
         label: format!("{}-clock", msg.label),
     };
@@ -181,14 +196,6 @@ pub fn instantiate(
         pair_type: msg.pool_pair_type,
     };
 
-    PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
-    PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
-    PRESET_PARTY_A_FORWARDER_FIELDS.save(deps.storage, &preset_party_a_forwarder_fields)?;
-    PRESET_PARTY_B_FORWARDER_FIELDS.save(deps.storage, &preset_party_b_forwarder_fields)?;
-    PRESET_PARTY_A_ROUTER_FIELDS.save(deps.storage, &preset_party_a_router_fields)?;
-    PRESET_PARTY_B_ROUTER_FIELDS.save(deps.storage, &preset_party_b_router_fields)?;
-    PRESET_LIQUID_POOLER_FIELDS.save(deps.storage, &preset_liquid_pooler_fields)?;
-
     let clock_instantiate2_msg = preset_clock_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
         CLOCK_SALT
@@ -196,7 +203,12 @@ pub fn instantiate(
 
     let holder_instantiate2_msg = preset_holder_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
-        HOLDER_SALT, clock_address.to_string(), liquid_pooler_address.to_string(), party_a_interchain_router_address.to_string(), party_b_interchain_router_address.to_string())?;
+        HOLDER_SALT,
+        clock_address.to_string(),
+        liquid_pooler_address.to_string(),
+        party_a_interchain_router_address.to_string(),
+        party_b_interchain_router_address.to_string(),
+    )?;
 
     let party_a_router_instantiate2_msg = preset_party_a_router_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
@@ -210,7 +222,9 @@ pub fn instantiate(
 
     let liquid_pooler_instantiate2_msg = preset_liquid_pooler_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
-        LIQUID_POOLER_SALT, liquid_pooler_address.to_string(), clock_address.to_string())?;
+        LIQUID_POOLER_SALT,
+        liquid_pooler_address.to_string(),
+        clock_address.to_string())?;
 
     let party_a_ibc_forwarder_instantiate2_msg = preset_party_a_forwarder_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
@@ -228,14 +242,18 @@ pub fn instantiate(
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
+        .add_attribute("party_a_ibc_forwarder_instantiate2_msg", to_json_binary(&party_a_ibc_forwarder_instantiate2_msg)?.to_string())
+        .add_attribute("party_b_ibc_forwarder_instantiate2_msg", to_json_binary(&party_b_ibc_forwarder_instantiate2_msg)?.to_string())
+        .add_attribute("party_a_router_instantiate2_msg", to_json_binary(&party_a_router_instantiate2_msg)?.to_string())
+        .add_attribute("party_b_router_instantiate2_msg", to_json_binary(&party_b_router_instantiate2_msg)?.to_string())
         .add_messages(vec![
-            clock_instantiate2_msg,
-            holder_instantiate2_msg,
-            party_a_ibc_forwarder_instantiate2_msg,
-            party_b_ibc_forwarder_instantiate2_msg,
-            party_a_router_instantiate2_msg,
-            party_b_router_instantiate2_msg,
-            liquid_pooler_instantiate2_msg,
+            CosmosMsg::Wasm(clock_instantiate2_msg),
+            CosmosMsg::Wasm(party_a_router_instantiate2_msg),
+            CosmosMsg::Wasm(party_b_router_instantiate2_msg),
+            CosmosMsg::Wasm(liquid_pooler_instantiate2_msg),
+            CosmosMsg::Wasm(holder_instantiate2_msg),
+            CosmosMsg::Wasm(party_a_ibc_forwarder_instantiate2_msg),
+            CosmosMsg::Wasm(party_b_ibc_forwarder_instantiate2_msg),
         ]))
 }
 
