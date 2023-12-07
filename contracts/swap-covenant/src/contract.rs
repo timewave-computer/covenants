@@ -95,7 +95,7 @@ pub fn instantiate(
         CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
     };
 
-    let covenant_denoms: BTreeSet<String> = msg
+    let covenant_denoms: Vec<String> = msg
         .splits
         .iter()
         .map(|split| split.denom.to_string())
