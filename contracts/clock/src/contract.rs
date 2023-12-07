@@ -38,11 +38,19 @@ pub fn instantiate(
     TICK_MAX_GAS.save(deps.storage, &tick_max_gas)?;
     PAUSED.save(deps.storage, &false)?;
 
-    let whitelist: Vec<Addr> = msg
-        .whitelist
-        .iter()
-        .map(|addr| deps.api.addr_validate(addr))
-        .collect::<StdResult<Vec<Addr>>>()?;
+    let mut whitelist = vec![];
+
+    for addr in msg.whitelist {
+        let addr = deps.api.addr_validate(&addr)?;
+
+        // deps.querier
+        //     .query_wasm_contract_info(addr.as_str())
+        //     .map_err(|e| ContractError::NotContract(e.to_string()))?;
+
+        QUEUE.enqueue(deps.storage, addr.clone())?;
+        whitelist.push(addr);
+
+    }
 
     WHITELIST.save(deps.storage, &whitelist)?;
 
