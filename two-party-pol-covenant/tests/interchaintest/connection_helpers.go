@@ -235,9 +235,9 @@ func (testCtx *TestContext) manualInstantiate(codeId string, msg CovenantInstant
 	println("covenant instantiation message:")
 	fmt.Println(string(prettyJson))
 
-	_, _, err = testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	covInstantiationResp, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
 	require.NoError(testCtx.t, err, "manual instantiation failed")
-
+	println("covenant instantiation response: ", string(covInstantiationResp))
 	require.NoError(testCtx.t,
 		testutil.WaitForBlocks(testCtx.ctx, 5, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
 
