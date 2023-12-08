@@ -54,7 +54,7 @@ impl PresetAstroLiquidPoolerFields {
     }
 
     pub fn to_instantiate2_msg(
-        &self, admin_addr: String, salt: &[u8],
+        &self, admin_addr: String, salt: Binary,
         pool_address: String,
         clock_address: String,
     ) -> Result<WasmMsg, StdError> {
@@ -64,7 +64,7 @@ impl PresetAstroLiquidPoolerFields {
             label: self.label.to_string(),
             msg: to_json_binary(&self.to_instantiate_msg(pool_address, clock_address))?,
             funds: vec![],
-            salt: to_json_binary(&salt)?,
+            salt,
         })
     }
 }
