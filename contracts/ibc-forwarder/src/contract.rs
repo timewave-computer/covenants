@@ -3,7 +3,7 @@ use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     from_json, to_json_binary, to_json_vec, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env,
-    MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
+    MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, coin, Coin,
 };
 use covenant_clock::helpers::verify_clock;
 use covenant_utils::neutron_ica::{self, get_proto_coin, RemoteChainInfo};
@@ -96,9 +96,11 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 /// tries to register an ICA on the remote chain
 fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
+    let register_fee: Option<Vec<Coin>> = Some(vec![coin(1000001, "untrn")]);
     let register_msg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
         INTERCHAIN_ACCOUNT_ID.to_string(),
+        register_fee,
     );
 
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
