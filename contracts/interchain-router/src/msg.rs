@@ -46,7 +46,7 @@ impl PresetInterchainRouterFields {
     }
 
     pub fn to_instantiate2_msg(
-        &self, admin_addr: String, salt: &[u8], clock_address: String,
+        &self, admin_addr: String, salt: Binary, clock_address: String,
     ) -> Result<WasmMsg, StdError> {
         let instantiate_msg = self.to_instantiate_msg(clock_address);
         Ok(WasmMsg::Instantiate2 {
@@ -55,7 +55,7 @@ impl PresetInterchainRouterFields {
             label: self.label.to_string(),
             msg: to_json_binary(&instantiate_msg)?,
             funds: vec![],
-            salt: to_json_binary(&salt)?,
+            salt,
         })
     }
 }

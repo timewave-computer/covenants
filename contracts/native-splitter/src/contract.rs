@@ -120,6 +120,7 @@ fn try_register_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMs
     let register: NeutronMsg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
         INTERCHAIN_ACCOUNT_ID.to_string(),
+        None,
     );
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
 
