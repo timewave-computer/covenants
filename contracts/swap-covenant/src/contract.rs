@@ -144,7 +144,7 @@ pub fn instantiate(
 
     let clock_instantiate2_msg = preset_clock_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
-        CLOCK_SALT
+        CLOCK_SALT.into()
     )?;
 
     let holder_instantiate2_msg = preset_holder_fields.to_instantiate2_msg(
@@ -153,12 +153,12 @@ pub fn instantiate(
 
     let party_a_router_instantiate2_msg = preset_party_a_router_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
-        PARTY_A_INTERCHAIN_ROUTER_SALT,
+        PARTY_A_INTERCHAIN_ROUTER_SALT.into(),
         clock_address.to_string())?;
 
     let party_b_router_instantiate2_msg = preset_party_b_router_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
-        PARTY_B_INTERCHAIN_ROUTER_SALT,
+        PARTY_B_INTERCHAIN_ROUTER_SALT.into(),
         clock_address.to_string())?;
 
     let splitter_instantiate2_msg = preset_splitter_fields.to_instantiate2_msg(
@@ -169,14 +169,14 @@ pub fn instantiate(
 
     let party_a_ibc_forwarder_instantiate2_msg = preset_party_a_forwarder_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
-        PARTY_A_FORWARDER_SALT,
+        PARTY_A_FORWARDER_SALT.into(),
         clock_address.to_string(),
         swap_holder_address.to_string(),
     )?;
 
     let party_b_ibc_forwarder_instantiate2_msg = preset_party_b_forwarder_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
-        PARTY_B_FORWARDER_SALT,
+        PARTY_B_FORWARDER_SALT.into(),
         clock_address.to_string(),
         swap_holder_address.to_string(),
     )?;
