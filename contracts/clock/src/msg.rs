@@ -53,7 +53,7 @@ impl PresetClockFields {
 
     pub fn to_instantiate2_msg(&self, admin_addr: String, salt: Binary) -> Result<WasmMsg, StdError> {
         Ok(WasmMsg::Instantiate2 {
-            admin: None,
+            admin: Some(admin_addr),
             code_id: self.code_id,
             label: self.label.to_string(),
             msg: to_json_binary(&self.to_instantiate_msg())?,

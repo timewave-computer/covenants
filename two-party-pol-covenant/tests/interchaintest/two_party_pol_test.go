@@ -508,8 +508,8 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock = Block(currentHeight + 100)
-				lockupBlock = Block(currentHeight + 100)
+				depositBlock = Block(currentHeight + 150)
+				lockupBlock = Block(currentHeight + 150)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -690,11 +690,13 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
 				for {
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
 					holderOsmoBal, _ := cosmosNeutron.GetBalance(ctx, holderAddress, neutronOsmoIbcDenom)
 					holderAtomBal, _ := cosmosNeutron.GetBalance(ctx, holderAddress, neutronAtomIbcDenom)
 					holderState := testCtx.queryContractState(holderAddress)
-					println("holder atom bal: ", holderAtomBal)
-					println("holder osmo bal: ", holderOsmoBal)
+					println("holder balance [", neutronAtomIbcDenom, "]  =  ", holderAtomBal)
+					println("holder balance [", neutronOsmoIbcDenom, "]  =  ", holderOsmoBal)
 					println("holder state: ", holderState)
 
 					if holderAtomBal == int64(atomContributionAmount) && holderOsmoBal == int64(osmoContributionAmount) {
@@ -703,26 +705,34 @@ func TestTwoPartyPol(t *testing.T) {
 					} else if holderState == "active" {
 						println("holder: active")
 						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					}
 				}
 			})
 
 			t.Run("tick until holder sends the funds to LPer", func(t *testing.T) {
 				for {
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
 					liquidPoolerOsmoBal, _ := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronOsmoIbcDenom)
 					liquidPoolerAtomBal, _ := cosmosNeutron.GetBalance(ctx, liquidPoolerAddress, neutronAtomIbcDenom)
-					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
+					holderOsmoBal, _ := cosmosNeutron.GetBalance(ctx, holderAddress, neutronOsmoIbcDenom)
+					holderAtomBal, _ := cosmosNeutron.GetBalance(ctx, holderAddress, neutronAtomIbcDenom)
 
-					println("liquid pooler atom bal: ", liquidPoolerAtomBal)
-					println("liquid pooler osmo bal: ", liquidPoolerOsmoBal)
+					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
+					liquidPoolerLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
+
+					println("holder balance [", neutronAtomIbcDenom, "]  =  ", holderAtomBal)
+					println("holder balance [", neutronOsmoIbcDenom, "]  =  ", holderOsmoBal)
+					println("liquid balance [", neutronAtomIbcDenom, "]  =  ", liquidPoolerAtomBal)
+					println("liquid balance [", neutronOsmoIbcDenom, "]  =  ", liquidPoolerOsmoBal)
 					println("holder lp token balance: ", holderLpTokenBal)
+					println("liquid pooler lp token balance: ", liquidPoolerLpTokenBal)
 
 					if liquidPoolerOsmoBal == int64(osmoContributionAmount) && liquidPoolerAtomBal == int64(atomContributionAmount) {
 						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+					}
+					if holderLpTokenBal != 0 {
+						break
 					}
 				}
 			})
@@ -741,35 +751,40 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("tick until holder expires", func(t *testing.T) {
 				for {
-					neutronHeight, err := cosmosNeutron.Height(ctx)
-					require.NoError(t, err)
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 
-					if neutronHeight >= uint64(lockupBlock) {
+					holderState := testCtx.queryContractState(holderAddress)
+					println("holder state: ", holderState)
+
+					if holderState == "expired" {
 						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-						println("neutron height: ", neutronHeight)
 					}
 				}
 			})
 
 			t.Run("party A claims and router receives the funds", func(t *testing.T) {
+				holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
+				println("holder lp token bal: ", holderLpTokenBal)
+				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+				testCtx.skipBlocks(10)
+				testCtx.holderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
+				testCtx.skipBlocks(10)
+				println("party a router address: ", partyARouterAddress)
+				println("neutronAtomIbcDenom: ", neutronAtomIbcDenom)
+				println("neutronOsmoIbcDenom: ", neutronOsmoIbcDenom)
 				for {
-					routerAtomBalA, _ := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronAtomIbcDenom)
-					routerOsmoBalA, _ := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
-					routerAtomBalB, _ := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronAtomIbcDenom)
-					routerOsmoBalB, _ := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronOsmoIbcDenom)
+					routerOsmoBalA := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyARouterAddress)
+					routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
 
 					println("routerAtomBalA: ", routerAtomBalA)
 					println("routerOsmoBalA: ", routerOsmoBalA)
-					println("routerAtomBalB: ", routerAtomBalB)
-					println("routerOsmoBalB: ", routerOsmoBalB)
-
+					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
+					println("holder lp token bal: ", holderLpTokenBal)
 					if routerAtomBalA != 0 && routerOsmoBalA != 0 {
 						break
 					} else {
 						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-						testCtx.holderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
+						// testCtx.holderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
 					}
 				}
 			})
