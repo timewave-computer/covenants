@@ -54,10 +54,11 @@ func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
 		"-y",
 	}
 
-	tickresponse, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
-	require.NoError(testCtx.T, err)
-	println("tick reponse: ", string(tickresponse))
-	testCtx.SkipBlocks(3)
+	tickResponse, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	require.NoError(testCtx.t, err)
+	println("tick response: ", string(tickResponse))
+	println("\n")
+	testCtx.skipBlocks(3)
 }
 
 func (testCtx *TestContext) SkipBlocks(n uint64) {
@@ -657,8 +658,51 @@ func (testCtx *TestContext) QueryDepositAddress(covenant string, party string) s
 	return depositAddressResponse.Data
 }
 
-func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.Wallet, keyring string) string {
-	codeIdStr := strconv.FormatUint(codeId, 10)
+func (testCtx *TestContext) holderClaim(contract string, from *ibc.Wallet, keyring string) {
+
+	cmd := []string{"neutrond", "tx", "wasm", "execute", contract,
+		`{"claim":{}}`,
+		"--from", from.GetKeyName(),
+		"--gas-prices", "0.0untrn",
+		"--gas-adjustment", `1.5`,
+		"--output", "json",
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--home", testCtx.Neutron.HomeDir(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--gas", "42069420",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+
+	resp, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	require.NoError(testCtx.t, err, "claim failed")
+	println("claim response: ", string(resp))
+	require.NoError(testCtx.t,
+		testutil.WaitForBlocks(testCtx.ctx, 2, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
+
+}
+
+func (testCtx *TestContext) holderRagequit(contract string, from *ibc.Wallet, keyring string) {
+
+	cmd := []string{"neutrond", "tx", "wasm", "execute", contract,
+		`{"ragequit":{}}`,
+		"--from", from.GetKeyName(),
+		"--gas-prices", "0.0untrn",
+		"--gas-adjustment", `1.5`,
+		"--output", "json",
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--home", testCtx.Neutron.HomeDir(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--gas", "42069420",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+
+	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	require.NoError(testCtx.t, err, "ragequit failed")
+}
+
+func (testCtx *TestContext) manualInstantiate(codeId string, msg CovenantInstantiateMsg, from *ibc.Wallet, keyring string) string {
 
 	str, err := json.Marshal(msg)
 	require.NoError(testCtx.T, err, "Failed to marshall CovenantInstantiateMsg")
@@ -1024,8 +1068,17 @@ func (testCtx *TestContext) QueryLpTokenBalance(token string, addr string) uint6
 	return lpBal
 }
 
-type AllAccountsResponse struct {
-	Data []string `json:"all_accounts_response"`
+func (testCtx *TestContext) queryNeutronDenomBalance(denom string, addr string) int64 {
+	bal, err := testCtx.Neutron.GetBalance(testCtx.ctx, addr, denom)
+	require.NoError(testCtx.t, err, "failed to get neutron denom balance")
+
+	return bal
+}
+
+func (testCtx *TestContext) getIbcDenom(channelId string, denom string) string {
+	prefixedDenom := transfertypes.GetPrefixedDenom("transfer", channelId, denom)
+	srcDenomTrace := transfertypes.ParseDenomTrace(prefixedDenom)
+	return srcDenomTrace.IBCDenom()
 }
 
 type Cw20QueryMsg struct {
