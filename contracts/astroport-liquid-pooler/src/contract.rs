@@ -45,12 +45,15 @@ pub fn instantiate(
     // validate the contract addresses
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
+    let holder_addr = deps.api.addr_validate(&msg.holder_address)?;
 
     // contract starts at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     // store the relevant module addresses
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+
+    HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
 
     let decimal_range =
         DecimalRange::try_from(msg.expected_pool_ratio, msg.acceptable_pool_ratio_delta)?;
