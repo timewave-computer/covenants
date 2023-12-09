@@ -75,7 +75,7 @@ impl PresetIbcForwarderFields {
         &self, admin_addr: String, salt: Binary, clock_address: String, next_contract: String
     ) -> Result<WasmMsg, StdError> {
         Ok(WasmMsg::Instantiate2 {
-            admin: None,
+            admin: Some(admin_addr),
             code_id: self.code_id,
             label: self.label.to_string(),
             msg: to_json_binary(&self.to_instantiate_msg(clock_address, next_contract))?,

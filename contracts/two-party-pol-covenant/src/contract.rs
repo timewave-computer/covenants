@@ -16,6 +16,7 @@ use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
+use schemars::JsonSchema;
 use sha2::{Sha256, Sha512, Digest};
 
 use crate::{
@@ -236,8 +237,10 @@ pub fn instantiate(
     let liquid_pooler_instantiate2_msg = preset_liquid_pooler_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
         liquid_pooler_salt,
-        liquid_pooler_address.to_string(),
-        clock_address.to_string())?;
+        preset_holder_fields.pool_address.to_string(),
+        clock_address.to_string(),
+        holder_address.to_string(),
+    )?;
 
     let party_a_ibc_forwarder_instantiate2_msg = preset_party_a_forwarder_fields.to_instantiate2_msg(
         env.contract.address.to_string(),

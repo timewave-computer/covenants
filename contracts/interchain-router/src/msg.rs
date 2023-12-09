@@ -50,7 +50,7 @@ impl PresetInterchainRouterFields {
     ) -> Result<WasmMsg, StdError> {
         let instantiate_msg = self.to_instantiate_msg(clock_address);
         Ok(WasmMsg::Instantiate2 {
-            admin: None,
+            admin: Some(admin_addr),
             code_id: self.code_id,
             label: self.label.to_string(),
             msg: to_json_binary(&instantiate_msg)?,
