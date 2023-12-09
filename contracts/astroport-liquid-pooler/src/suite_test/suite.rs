@@ -156,6 +156,7 @@ impl Default for SuiteBuilder {
                 expected_pool_ratio: Decimal::from_ratio(Uint128::new(1), Uint128::new(10)),
                 acceptable_pool_ratio_delta: Decimal::from_ratio(Uint128::one(), Uint128::new(100)),
                 pair_type: PairType::Stable {},
+                holder_address: "holder".to_string(),
             },
             token_instantiate: TokenInstantiateMsg {
                 name: "nativetoken".to_string(),

@@ -45,7 +45,6 @@ func (testCtx *TestContext) tick(clock string, keyring string, from string) {
 		"--gas-prices", "0.0untrn",
 		"--gas-adjustment", `1.5`,
 		"--output", "json",
-		"--home", "/var/cosmos-chain/neutron-2",
 		"--node", testCtx.Neutron.GetRPCAddress(),
 		"--home", testCtx.Neutron.HomeDir(),
 		"--chain-id", testCtx.Neutron.Config().ChainID,
@@ -55,8 +54,10 @@ func (testCtx *TestContext) tick(clock string, keyring string, from string) {
 		"-y",
 	}
 
-	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	tickResponse, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
 	require.NoError(testCtx.t, err)
+	println("tick response: ", string(tickResponse))
+	println("\n")
 	testCtx.skipBlocks(3)
 }
 
@@ -183,9 +184,9 @@ func (testCtx *TestContext) holderClaim(contract string, from *ibc.Wallet, keyri
 		"-y",
 	}
 
-	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	resp, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
 	require.NoError(testCtx.t, err, "claim failed")
-
+	println("claim response: ", string(resp))
 	require.NoError(testCtx.t,
 		testutil.WaitForBlocks(testCtx.ctx, 2, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
 
@@ -483,6 +484,13 @@ func (testCtx *TestContext) queryLpTokenBalance(token string, addr string) uint6
 	}
 
 	return lpBal
+}
+
+func (testCtx *TestContext) queryNeutronDenomBalance(denom string, addr string) int64 {
+	bal, err := testCtx.Neutron.GetBalance(testCtx.ctx, addr, denom)
+	require.NoError(testCtx.t, err, "failed to get neutron denom balance")
+
+	return bal
 }
 
 func (testCtx *TestContext) getIbcDenom(channelId string, denom string) string {
