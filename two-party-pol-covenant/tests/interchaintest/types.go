@@ -346,3 +346,8 @@ type AllAccounts struct {
 type Balance struct {
 	Address string `json:"address"`
 }
+
+type NativeBalQueryResponse struct {
+	Amount string `json:"amount"`
+	Denom  string `json:"denom"`
+}
