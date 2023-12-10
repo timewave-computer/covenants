@@ -1,23 +1,20 @@
-use std::collections::BTreeSet;
-
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
+    to_json_binary, Addr, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
     Response, StdResult, SubMsg, Uint128, WasmMsg, CanonicalAddr, CodeInfoResponse, instantiate2_address,
 };
 
-use covenant_astroport_liquid_pooler::{msg::{
+use covenant_astroport_liquid_pooler::msg::{
     AssetData, PresetAstroLiquidPoolerFields, SingleSideLpLimits,
-}, state::HOLDER_ADDRESS};
+};
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
 use cw2::set_contract_version;
 use cw_utils::parse_reply_instantiate_data;
-use schemars::JsonSchema;
-use sha2::{Sha256, Sha512, Digest};
+use sha2::{Sha256, Digest};
 
 use crate::{
     error::ContractError,
@@ -25,9 +22,7 @@ use crate::{
     state::{
         COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
-        PARTY_B_ROUTER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
-        PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS,
-        PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS,
+        PARTY_B_ROUTER_ADDR, PRESET_PARTY_A_ROUTER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PRESET_CLOCK_FIELDS, PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_HOLDER_FIELDS, PRESET_PARTY_A_FORWARDER_FIELDS,
     },
 };
 
@@ -289,13 +284,9 @@ pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Respons
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
         Ok(response) => {
-            // validate and store the clock address
-            let clock_addr = deps.api.addr_validate(&response.contract_address)?;
-            // COVENANT_CLOCK_ADDR.save(deps.storage, &clock_addr)?;
-
             Ok(Response::default()
                 .add_attribute("method", "handle_clock_reply")
-                .add_attribute("clock_addr", clock_addr)
+                .add_attribute("clock_addr", deps.api.addr_validate(&response.contract_address)?)
             )
         }
         Err(err) => Ok(Response::default()
@@ -316,12 +307,9 @@ pub fn handle_party_a_interchain_router_reply(
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
         Ok(response) => {
-            // validate and store the instantiated router address
-            let router_addr = deps.api.addr_validate(&response.contract_address)?;
-
             Ok(Response::default()
                 .add_attribute("method", "handle_party_a_interchain_router_reply")
-                .add_attribute("party_a_interchain_router_addr", router_addr)
+                .add_attribute("party_a_interchain_router_addr", deps.api.addr_validate(&response.contract_address)?)
             )
         }
         Err(err) => Ok(Response::default()

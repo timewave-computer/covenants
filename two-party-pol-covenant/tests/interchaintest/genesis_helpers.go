@@ -135,9 +135,6 @@ func getDefaultNeutronInterchainGenesisMessages() []string {
 		"/ibc.applications.transfer.v1.MsgTransfer",
 		"/ibc.lightclients.localhost.v2.ClientState",
 		"/ibc.core.client.v1.MsgCreateClient",
-		"/ibc.core.client.v1.Query/ClientState",
-		"/ibc.core.client.v1.Query/ConsensusState",
-		"/ibc.core.connection.v1.Query/Connection",
 	}
 }
 
