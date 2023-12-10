@@ -86,7 +86,7 @@ impl PresetInterchainSplitterFields {
     }
 
     pub fn to_instantiate2_msg(
-        &self, admin_addr: String, salt: &[u8],
+        &self, admin_addr: String, salt: Binary,
         clock_address: String,
         party_a_router: String,
         party_b_router: String,
@@ -102,7 +102,7 @@ impl PresetInterchainSplitterFields {
             label: self.label.to_string(),
             msg: to_json_binary(&instantiate_msg)?,
             funds: vec![],
-            salt: to_json_binary(&salt)?,
+            salt,
         })
     }
 }
