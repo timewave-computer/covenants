@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdResult, SubMsg, Uint128, WasmMsg, CanonicalAddr, CodeInfoResponse, instantiate2_address,
+    to_json_binary, Addr, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Response, StdResult, Uint128, WasmMsg, CanonicalAddr, CodeInfoResponse, instantiate2_address,
 };
 
 use covenant_astroport_liquid_pooler::msg::{
@@ -13,7 +13,6 @@ use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
 use cw2::set_contract_version;
-use cw_utils::parse_reply_instantiate_data;
 use sha2::{Sha256, Digest};
 
 use crate::{
@@ -36,14 +35,6 @@ pub const HOLDER_SALT: &[u8]                    = b"pol_holder";
 pub const PARTY_A_FORWARDER_SALT: &[u8]         = b"forwarder_a";
 pub const PARTY_B_FORWARDER_SALT: &[u8]         = b"forwarder_b";
 pub const LIQUID_POOLER_SALT: &[u8]             = b"liquid_pooler";
-
-pub const CLOCK_REPLY_ID: u64 = 1u64;
-pub const HOLDER_REPLY_ID: u64 = 2u64;
-pub const PARTY_A_FORWARDER_REPLY_ID: u64 = 3u64;
-pub const PARTY_B_FORWARDER_REPLY_ID: u64 = 4u64;
-pub const LP_REPLY_ID: u64 = 5u64;
-pub const PARTY_A_ROUTER_REPLY_ID: u64 = 6u64;
-pub const PARTY_B_ROUTER_REPLY_ID: u64 = 7u64;
 
 fn get_precomputed_address(
     deps: Deps,
@@ -253,190 +244,15 @@ pub fn instantiate(
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
-        .add_submessages(vec![
-            SubMsg::reply_always(clock_instantiate2_msg, CLOCK_REPLY_ID),
-            SubMsg::reply_always(party_a_router_instantiate2_msg, PARTY_A_ROUTER_REPLY_ID),
-            SubMsg::reply_always(party_b_router_instantiate2_msg, PARTY_B_ROUTER_REPLY_ID),
-            SubMsg::reply_always(liquid_pooler_instantiate2_msg, LP_REPLY_ID),
-            SubMsg::reply_always(holder_instantiate2_msg, HOLDER_REPLY_ID),
-            SubMsg::reply_always(party_a_ibc_forwarder_instantiate2_msg, PARTY_A_FORWARDER_REPLY_ID),
-            SubMsg::reply_always(party_b_ibc_forwarder_instantiate2_msg, PARTY_B_FORWARDER_REPLY_ID),
+        .add_messages(vec![
+            clock_instantiate2_msg,
+            party_a_router_instantiate2_msg,
+            party_b_router_instantiate2_msg,
+            liquid_pooler_instantiate2_msg,
+            holder_instantiate2_msg,
+            party_a_ibc_forwarder_instantiate2_msg,
+            party_b_ibc_forwarder_instantiate2_msg,
         ]))
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
-    match msg.id {
-        CLOCK_REPLY_ID => handle_clock_reply(deps, env, msg),
-        PARTY_A_ROUTER_REPLY_ID => handle_party_a_interchain_router_reply(deps, env, msg),
-        PARTY_B_ROUTER_REPLY_ID => handle_party_b_interchain_router_reply(deps, env, msg),
-        HOLDER_REPLY_ID => handle_holder_reply(deps, env, msg),
-        PARTY_A_FORWARDER_REPLY_ID => handle_party_a_ibc_forwarder_reply(deps, env, msg),
-        PARTY_B_FORWARDER_REPLY_ID => handle_party_b_ibc_forwarder_reply(deps, env, msg),
-        LP_REPLY_ID => handle_liquid_pooler_reply_id(deps, env, msg),
-        _ => Err(ContractError::UnknownReplyId {}),
-    }
-}
-
-pub fn handle_clock_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: clock reply");
-
-    let parsed_data = parse_reply_instantiate_data(msg);
-    match parsed_data {
-        Ok(response) => {
-            Ok(Response::default()
-                .add_attribute("method", "handle_clock_reply")
-                .add_attribute("clock_addr", deps.api.addr_validate(&response.contract_address)?)
-            )
-        }
-        Err(err) => Ok(Response::default()
-            .add_attribute("method", "handle_clock_reply")
-            .add_attribute("error", err.to_string())
-        ),
-    }
-}
-
-pub fn handle_party_a_interchain_router_reply(
-    deps: DepsMut,
-    env: Env,
-    msg: Reply,
-) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: party A interchain router reply");
-
-
-    let parsed_data = parse_reply_instantiate_data(msg);
-    match parsed_data {
-        Ok(response) => {
-            Ok(Response::default()
-                .add_attribute("method", "handle_party_a_interchain_router_reply")
-                .add_attribute("party_a_interchain_router_addr", deps.api.addr_validate(&response.contract_address)?)
-            )
-        }
-        Err(err) => Ok(Response::default()
-            .add_attribute("method", "handle_party_a_interchain_router_reply")
-            .add_attribute("err", err.to_string())
-        ),
-    }
-}
-
-pub fn handle_party_b_interchain_router_reply(
-    deps: DepsMut,
-    env: Env,
-    msg: Reply,
-) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: party B interchain router reply");
-
-    let parsed_data = parse_reply_instantiate_data(msg);
-    match parsed_data {
-        Ok(response) => {
-            // validate and store the instantiated router address
-            let router_addr = deps.api.addr_validate(&response.contract_address)?;
-
-
-            Ok(Response::default()
-                .add_attribute("method", "handle_party_b_interchain_router_reply")
-                .add_attribute("party_b_interchain_router_addr", router_addr)
-            )
-        }
-        Err(err) => Ok(Response::default()
-            .add_attribute("method", "handle_party_b_interchain_router_reply")
-            .add_attribute("error", err.to_string())
-        ),
-    }
-}
-
-pub fn handle_liquid_pooler_reply_id(
-    deps: DepsMut,
-    env: Env,
-    msg: Reply,
-) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: liquid pooler reply");
-
-    let parsed_data = parse_reply_instantiate_data(msg);
-    match parsed_data {
-        Ok(response) => {
-            // validate and store the instantiated liquid pooler address
-            let liquid_pooler = deps.api.addr_validate(&response.contract_address)?;
-
-            Ok(Response::default()
-                .add_attribute("method", "handle_liquid_pooler_reply")
-                .add_attribute("liquid_pooler_addr", liquid_pooler)
-            )
-        }
-        Err(err) => Ok(Response::default()
-            .add_attribute("method", "handle_liquid_pooler_reply_id")
-            .add_attribute("error", err.to_string())
-        ),
-    }
-}
-
-pub fn handle_holder_reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: holder reply");
-
-    let parsed_data = parse_reply_instantiate_data(msg);
-    match parsed_data {
-        Ok(response) => {
-            // validate and store the instantiated holder address
-            let holder_addr = deps.api.addr_validate(&response.contract_address)?;
-
-            Ok(Response::default()
-                .add_attribute("method", "handle_holder_reply")
-                .add_attribute("holder_addr", holder_addr)
-            )
-        }
-        Err(err) =>  Ok(Response::default()
-            .add_attribute("method", "handle_holder_reply")
-            .add_attribute("err", err.to_string())
-        ),
-    }
-}
-
-pub fn handle_party_a_ibc_forwarder_reply(
-    deps: DepsMut,
-    env: Env,
-    msg: Reply,
-) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: party A ibc forwarder reply");
-    let parsed_data = parse_reply_instantiate_data(msg);
-    match parsed_data {
-        Ok(response) => {
-            // validate and store the instantiated forwarder address
-            let forwarder_addr = deps.api.addr_validate(&response.contract_address)?;
-
-            Ok(Response::default()
-                .add_attribute("method", "handle_party_a_ibc_forwarder_reply")
-                .add_attribute("PARTY_A_IBC_FORWARDER_ADDR", forwarder_addr)
-            )
-        }
-        Err(err) => Ok(Response::default()
-            .add_attribute("method", "handle_party_a_ibc_forwarder_reply")
-            .add_attribute("err", err.to_string())
-        ),
-    }
-}
-
-pub fn handle_party_b_ibc_forwarder_reply(
-    deps: DepsMut,
-    _env: Env,
-    msg: Reply,
-) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: party B ibc forwarder reply");
-    let parsed_data = parse_reply_instantiate_data(msg);
-    match parsed_data {
-        Ok(response) => {
-            // validate and store the party b ibc forwarder address
-            let party_b_ibc_forwarder_addr = deps.api.addr_validate(&response.contract_address)?;
-
-            Ok(Response::default()
-                .add_attribute("method", "handle_party_b_ibc_forwarder_reply")
-                .add_attribute("party_b_ibc_forwarder_addr", party_b_ibc_forwarder_addr)
-            )
-        }
-        Err(err) =>  Ok(Response::default()
-            .add_attribute("method", "handle_party_b_ibc_forwarder_reply")
-            .add_attribute("err", err.to_string())
-        ),
-    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
