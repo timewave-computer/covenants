@@ -13,6 +13,7 @@ use astroport::{
     pair::{ExecuteMsg::ProvideLiquidity, PoolResponse},
     DecimalCheckedOps,
 };
+use cw_utils::parse_reply_instantiate_data;
 
 use crate::{
     error::ContractError,
@@ -98,7 +99,7 @@ pub fn execute(
 /// attempts to advance the state machine. performs `info.sender` validation.
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -433,13 +434,27 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 }
 
 fn handle_double_sided_reply_id(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     msg: Reply,
 ) -> Result<Response, ContractError> {
-    Ok(Response::default()
-        .add_attribute("method", "handle_double_sided_reply_id")
-        .add_attribute("reply_id", msg.id.to_string()))
+    // Ok(Response::default()
+    //     .add_attribute("method", "handle_double_sided_reply_id")
+    //     .add_attribute("reply_id", msg.id.to_string()))
+
+    let parsed_data = parse_reply_instantiate_data(msg);
+    match parsed_data {
+        Ok(response) => {
+            Ok(Response::default()
+                .add_attribute("method", "handle_double_sided_reply_id")
+                .add_attribute("response", response.data.unwrap().to_base64())
+            )
+        }
+        Err(err) => Ok(Response::default()
+            .add_attribute("method", "handle_double_sided_reply_id")
+            .add_attribute("error", err.to_string())
+        ),
+    }
 }
 
 fn handle_single_sided_reply_id(
@@ -447,7 +462,21 @@ fn handle_single_sided_reply_id(
     _env: Env,
     msg: Reply,
 ) -> Result<Response, ContractError> {
-    Ok(Response::default()
-        .add_attribute("method", "handle_single_sided_reply_id")
-        .add_attribute("reply_id", msg.id.to_string()))
+    // Ok(Response::default()
+    //     .add_attribute("method", "handle_single_sided_reply_id")
+    //     .add_attribute("reply_id", msg.id.to_string()))
+
+    let parsed_data = parse_reply_instantiate_data(msg);
+    match parsed_data {
+        Ok(response) => {
+            Ok(Response::default()
+                .add_attribute("method", "handle_single_sided_reply_id")
+                .add_attribute("response", response.data.unwrap().to_base64())
+            )
+        }
+        Err(err) => Ok(Response::default()
+            .add_attribute("method", "handle_single_sided_reply_id")
+            .add_attribute("error", err.to_string())
+        ),
+    }
 }
