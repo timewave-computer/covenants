@@ -54,10 +54,10 @@ func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
 		"-y",
 	}
 
-	tickResponse, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
 	require.NoError(testCtx.t, err)
-	println("tick response: ", string(tickResponse))
-	println("\n")
+	// println("tick response: ", string(tickResponse))
+	// println("\n")
 	testCtx.skipBlocks(3)
 }
 
@@ -1068,11 +1068,44 @@ func (testCtx *TestContext) QueryLpTokenBalance(token string, addr string) uint6
 	return lpBal
 }
 
-func (testCtx *TestContext) queryNeutronDenomBalance(denom string, addr string) int64 {
-	bal, err := testCtx.Neutron.GetBalance(testCtx.ctx, addr, denom)
-	require.NoError(testCtx.t, err, "failed to get neutron denom balance")
+func (testCtx *TestContext) queryNeutronDenomBalance(denom string, addr string) uint64 {
+	queryCmd := []string{"neutrond", "query", "bank",
+		"balances", addr,
+		"--denom", denom,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+	}
+	var nativeBalanceResponse NativeBalQueryResponse
 
-	return bal
+	queryResp, _, err := testCtx.Neutron.Exec(testCtx.ctx, queryCmd, nil)
+	require.NoError(testCtx.t, err, "failed to query")
+
+	require.NoError(
+		testCtx.t,
+		json.Unmarshal(queryResp, &nativeBalanceResponse),
+		"failed to unmarshal json",
+	)
+	parsedBalance, err := strconv.ParseUint(nativeBalanceResponse.Amount, 10, 64)
+	require.NoError(testCtx.t, err, "failed to parse balance response to uint64")
+	return parsedBalance
+}
+
+func (testCtx *TestContext) queryHubDenomBalance(denom string, addr string) uint64 {
+	bal, err := testCtx.Hub.GetBalance(testCtx.ctx, addr, denom)
+	require.NoError(testCtx.t, err, "failed to get hub denom balance")
+
+	uintBal := uint64(bal)
+	return uintBal
+}
+
+func (testCtx *TestContext) queryOsmosisDenomBalance(denom string, addr string) uint64 {
+	bal, err := testCtx.Osmosis.GetBalance(testCtx.ctx, addr, denom)
+	require.NoError(testCtx.t, err, "failed to get osmosis denom balance")
+
+	uintBal := uint64(bal)
+	return uintBal
 }
 
 func (testCtx *TestContext) getIbcDenom(channelId string, denom string) string {
