@@ -404,52 +404,48 @@ func TestTokenSwap(t *testing.T) {
 			hubReceiverAddr := gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 			osmoReceiverAddr := osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
 
-			presetSplitterFields := PresetSplitterFields{
-				Splits: []DenomSplit{
-					{
-						Denom: neutronOsmoIbcDenom,
-						Type: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:  "1.0",
-									osmoReceiverAddr: "0.0",
-								},
-							},
-						},
-					},
-					{
-						Denom: neutronAtomIbcDenom,
-						Type: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:  "0.0",
-									osmoReceiverAddr: "1.0",
-								},
+			splits := []DenomSplit{
+				{
+					Denom: neutronOsmoIbcDenom,
+					Type: SplitType{
+						Custom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:  "1.0",
+								osmoReceiverAddr: "0.0",
 							},
 						},
 					},
 				},
-				FallbackSplit: nil,
-				Label:         "interchain-splitter",
+				{
+					Denom: neutronAtomIbcDenom,
+					Type: SplitType{
+						Custom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:  "0.0",
+								osmoReceiverAddr: "1.0",
+							},
+						},
+					},
+				},
 			}
 
 			partyAConfig := SwapPartyConfig{
-				Addr:                      gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				Addr:                      hubReceiverAddr,
 				NativeDenom:               nativeAtomDenom,
 				IbcDenom:                  neutronAtomIbcDenom,
 				PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 				HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-				PartyReceiverAddr:         gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				PartyReceiverAddr:         hubReceiverAddr,
 				PartyChainConnectionId:    neutronAtomIBCConnId,
 				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 			}
 			partyBConfig := SwapPartyConfig{
-				Addr:                      osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+				Addr:                      osmoReceiverAddr,
 				NativeDenom:               nativeOsmoDenom,
 				IbcDenom:                  neutronOsmoIbcDenom,
 				PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 				HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-				PartyReceiverAddr:         osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+				PartyReceiverAddr:         osmoReceiverAddr,
 				PartyChainConnectionId:    neutronOsmosisIBCConnId,
 				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 			}
@@ -470,8 +466,7 @@ func TestTokenSwap(t *testing.T) {
 				SwapCovenantTerms:           swapCovenantTerms,
 				PartyAConfig:                partyAConfig,
 				PartyBConfig:                partyBConfig,
-				Splits:                      presetSplitterFields.Splits,
-				FallbackSplit:               presetSplitterFields.FallbackSplit,
+				Splits:                      splits,
 			}
 			str, err := json.Marshal(covenantMsg)
 			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
