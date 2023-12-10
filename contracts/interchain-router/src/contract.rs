@@ -35,7 +35,7 @@ pub fn instantiate(
 ) -> NeutronResult<Response<NeutronMsg>> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
+    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
     let destination_config = DestinationConfig {
         destination_chain_channel_id: msg.destination_chain_channel_id.to_string(),
@@ -45,11 +45,13 @@ pub fn instantiate(
 
     CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
     DESTINATION_CONFIG.save(deps.storage, &destination_config)?;
-    // TARGET_DENOMS.save(deps.storage, &msg.denoms)?;
+
+    let denom_set: BTreeSet<String> = msg.denoms.into_iter().map(|d| d).collect();
+    TARGET_DENOMS.save(deps.storage, &denom_set)?;
 
     Ok(Response::default()
         .add_attribute("method", "interchain_router_instantiate")
-        // .add_attribute("clock_address", clock_addr)
+        .add_attribute("clock_address", clock_addr)
         .add_attribute("destination_receiver_addr", msg.destination_receiver_addr))
         // .add_attributes(destination_config.get_response_attributes()))
 }
