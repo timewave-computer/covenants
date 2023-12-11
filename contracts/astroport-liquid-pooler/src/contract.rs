@@ -445,16 +445,12 @@ fn handle_double_sided_reply_id(
 
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
-        Ok(response) => {
-            Ok(Response::default()
-                .add_attribute("method", "handle_double_sided_reply_id")
-                .add_attribute("response", response.data.unwrap().to_base64())
-            )
-        }
+        Ok(response) => Ok(Response::default()
+            .add_attribute("method", "handle_double_sided_reply_id")
+            .add_attribute("response", response.data.unwrap().to_base64())),
         Err(err) => Ok(Response::default()
             .add_attribute("method", "handle_double_sided_reply_id")
-            .add_attribute("error", err.to_string())
-        ),
+            .add_attribute("error", err.to_string())),
     }
 }
 
@@ -469,15 +465,11 @@ fn handle_single_sided_reply_id(
 
     let parsed_data = parse_reply_instantiate_data(msg);
     match parsed_data {
-        Ok(response) => {
-            Ok(Response::default()
-                .add_attribute("method", "handle_single_sided_reply_id")
-                .add_attribute("response", response.data.unwrap().to_base64())
-            )
-        }
+        Ok(response) => Ok(Response::default()
+            .add_attribute("method", "handle_single_sided_reply_id")
+            .add_attribute("response", response.data.unwrap().to_base64())),
         Err(err) => Ok(Response::default()
             .add_attribute("method", "handle_single_sided_reply_id")
-            .add_attribute("error", err.to_string())
-        ),
+            .add_attribute("error", err.to_string())),
     }
 }

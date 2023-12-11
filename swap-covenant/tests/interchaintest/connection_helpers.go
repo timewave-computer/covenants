@@ -55,8 +55,7 @@ func (testCtx *TestContext) tick(clock string, keyring string, from string) {
 
 	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
 	require.NoError(testCtx.t, err)
-	// println("tick response: ", string(tickResponse))
-	// println("\n")
+
 	testCtx.skipBlocks(3)
 }
 

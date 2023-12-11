@@ -143,7 +143,9 @@ pub fn query_split(deps: Deps, denom: String) -> Result<SplitConfig, StdError> {
         }
     }
 
-    Ok(SplitConfig { receivers: BTreeMap::new() })
+    Ok(SplitConfig {
+        receivers: BTreeMap::new(),
+    })
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -177,11 +179,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             if let Some(split) = fallback_split {
-
                 FALLBACK_SPLIT.save(deps.storage, &split)?;
-                resp = resp.add_attributes(vec![
-                    split.get_response_attribute("fallback".to_string())
-                ]);
+                resp =
+                    resp.add_attributes(vec![split.get_response_attribute("fallback".to_string())]);
             }
 
             Ok(resp)
