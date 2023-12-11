@@ -1,14 +1,12 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Addr;
 
+use cosmwasm_std::to_json_binary;
 use cosmwasm_std::Binary;
 use cosmwasm_std::StdError;
 use cosmwasm_std::Uint64;
 use cosmwasm_std::WasmMsg;
-use cosmwasm_std::to_json_binary;
 use covenant_macros::clocked;
-
-use crate::error::ContractError;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -51,7 +49,11 @@ impl PresetClockFields {
         }
     }
 
-    pub fn to_instantiate2_msg(&self, admin_addr: String, salt: Binary) -> Result<WasmMsg, StdError> {
+    pub fn to_instantiate2_msg(
+        &self,
+        admin_addr: String,
+        salt: Binary,
+    ) -> Result<WasmMsg, StdError> {
         Ok(WasmMsg::Instantiate2 {
             admin: Some(admin_addr),
             code_id: self.code_id,

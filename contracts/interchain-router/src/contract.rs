@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Addr,
+    to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult,
 };
 use covenant_clock::helpers::verify_clock;
 use covenant_utils::DestinationConfig;
@@ -53,7 +53,7 @@ pub fn instantiate(
         .add_attribute("method", "interchain_router_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attribute("destination_receiver_addr", msg.destination_receiver_addr))
-        // .add_attributes(destination_config.get_response_attributes()))
+    // .add_attributes(destination_config.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
