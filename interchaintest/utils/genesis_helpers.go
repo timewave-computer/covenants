@@ -56,6 +56,7 @@ func SetupNeutronGenesis(
 		if err := dyno.Set(g, "1000000000", "consensus_params", "block", "max_gas"); err != nil {
 			return nil, fmt.Errorf("failed to set block max gas: %w", err)
 		}
+
 		minGasEntries := []interface{}{
 			map[string]string{"denom": "untrn", "amount": "0"},
 		}
@@ -64,8 +65,17 @@ func SetupNeutronGenesis(
 			return nil, fmt.Errorf("failed to set min gas entries in genesis json: %w", err)
 		}
 
-		out, err := json.Marshal(g)
+		if err := dyno.Set(g, "neutron1ctnjk7an90lz5wjfvr3cf6x984a8cjnv8dpmztmlpcq4xteaa2xsj6vhez", "app_state", "tokenfactory", "params", "fee_collector_address"); err != nil {
+			return nil, fmt.Errorf("failed to set fee_collector_address in genesis json: %w", err)
+		}
 
+		if err := dyno.Set(g, "neutron1ctnjk7an90lz5wjfvr3cf6x984a8cjnv8dpmztmlpcq4xteaa2xsj6vhez", "app_state", "feeburner", "params", "treasury_address"); err != nil {
+			return nil, fmt.Errorf("failed to set treasury_address in genesis json: %w", err)
+		}
+
+		out, err := json.Marshal(g)
+		println("neutron genesis:")
+		print(string(out))
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
 		}
