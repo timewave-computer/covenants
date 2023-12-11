@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Coin, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, Uint128, WasmMsg, CanonicalAddr, CodeInfoResponse, instantiate2_address,
+    instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, Coin,
+    Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
 
 use covenant_astroport_liquid_pooler::msg::{
@@ -15,7 +15,7 @@ use covenant_two_party_pol_holder::msg::{
     PresetPolParty, PresetTwoPartyPolHolderFields, RagequitConfig,
 };
 use cw2::set_contract_version;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 use crate::{
     error::ContractError,
@@ -23,20 +23,22 @@ use crate::{
     state::{
         COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
-        PARTY_B_ROUTER_ADDR, PRESET_PARTY_A_ROUTER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PRESET_CLOCK_FIELDS, PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_HOLDER_FIELDS, PRESET_PARTY_A_FORWARDER_FIELDS,
+        PARTY_B_ROUTER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
+        PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS,
+        PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS,
     },
 };
 
 const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub const CLOCK_SALT: &[u8]                     = b"clock";
+pub const CLOCK_SALT: &[u8] = b"clock";
 pub const PARTY_A_INTERCHAIN_ROUTER_SALT: &[u8] = b"router_a";
 pub const PARTY_B_INTERCHAIN_ROUTER_SALT: &[u8] = b"router_b";
-pub const HOLDER_SALT: &[u8]                    = b"pol_holder";
-pub const PARTY_A_FORWARDER_SALT: &[u8]         = b"forwarder_a";
-pub const PARTY_B_FORWARDER_SALT: &[u8]         = b"forwarder_b";
-pub const LIQUID_POOLER_SALT: &[u8]             = b"liquid_pooler";
+pub const HOLDER_SALT: &[u8] = b"pol_holder";
+pub const PARTY_A_FORWARDER_SALT: &[u8] = b"forwarder_a";
+pub const PARTY_B_FORWARDER_SALT: &[u8] = b"forwarder_b";
+pub const LIQUID_POOLER_SALT: &[u8] = b"liquid_pooler";
 
 fn get_precomputed_address(
     deps: Deps,
@@ -44,10 +46,7 @@ fn get_precomputed_address(
     creator: &CanonicalAddr,
     salt: &[u8],
 ) -> Result<Addr, ContractError> {
-    let CodeInfoResponse {
-        checksum,
-        ..
-    } = deps.querier.query_wasm_code_info(code_id)?;
+    let CodeInfoResponse { checksum, .. } = deps.querier.query_wasm_code_info(code_id)?;
 
     let precomputed_address = instantiate2_address(&checksum, &creator, salt)?;
 
@@ -78,19 +77,48 @@ pub fn instantiate(
 
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
 
-    let clock_address = get_precomputed_address(deps.as_ref(), msg.contract_codes.clock_code, &creator_address, &clock_salt)?;
-    let party_a_interchain_router_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.router_code, &creator_address, &party_a_router_salt)?;
-    let party_b_interchain_router_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.router_code, &creator_address, &party_b_router_salt)?;
-    let liquid_pooler_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.liquid_pooler_code, &creator_address, &liquid_pooler_salt)?;
-    let holder_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.holder_code, &creator_address, &holder_salt)?;
-    let party_a_forwarder_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.ibc_forwarder_code, &creator_address, &party_a_forwarder_salt)?;
-    let party_b_forwarder_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.ibc_forwarder_code, &creator_address, &party_b_forwarder_salt)?;
+    let clock_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.clock_code,
+        &creator_address,
+        &clock_salt,
+    )?;
+    let party_a_interchain_router_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.router_code,
+        &creator_address,
+        &party_a_router_salt,
+    )?;
+    let party_b_interchain_router_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.router_code,
+        &creator_address,
+        &party_b_router_salt,
+    )?;
+    let liquid_pooler_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.liquid_pooler_code,
+        &creator_address,
+        &liquid_pooler_salt,
+    )?;
+    let holder_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.holder_code,
+        &creator_address,
+        &holder_salt,
+    )?;
+    let party_a_forwarder_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.ibc_forwarder_code,
+        &creator_address,
+        &party_a_forwarder_salt,
+    )?;
+    let party_b_forwarder_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.ibc_forwarder_code,
+        &creator_address,
+        &party_b_forwarder_salt,
+    )?;
 
     PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_forwarder_address)?;
     PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &party_a_forwarder_address)?;
@@ -205,10 +233,8 @@ pub fn instantiate(
         pair_type: msg.pool_pair_type,
     };
 
-    let clock_instantiate2_msg = preset_clock_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        clock_salt
-    )?;
+    let clock_instantiate2_msg =
+        preset_clock_fields.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
 
     let holder_instantiate2_msg = preset_holder_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
@@ -222,12 +248,14 @@ pub fn instantiate(
     let party_a_router_instantiate2_msg = preset_party_a_router_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
         party_a_router_salt,
-        clock_address.to_string())?;
+        clock_address.to_string(),
+    )?;
 
     let party_b_router_instantiate2_msg = preset_party_b_router_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
         party_b_router_salt,
-        clock_address.to_string())?;
+        clock_address.to_string(),
+    )?;
 
     let liquid_pooler_instantiate2_msg = preset_liquid_pooler_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
@@ -237,19 +265,21 @@ pub fn instantiate(
         holder_address.to_string(),
     )?;
 
-    let party_a_ibc_forwarder_instantiate2_msg = preset_party_a_forwarder_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        party_a_forwarder_salt,
-        clock_address.to_string(),
-        holder_address.to_string(),
-    )?;
+    let party_a_ibc_forwarder_instantiate2_msg = preset_party_a_forwarder_fields
+        .to_instantiate2_msg(
+            env.contract.address.to_string(),
+            party_a_forwarder_salt,
+            clock_address.to_string(),
+            holder_address.to_string(),
+        )?;
 
-    let party_b_ibc_forwarder_instantiate2_msg = preset_party_b_forwarder_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        party_b_forwarder_salt,
-        clock_address.to_string(),
-        holder_address.to_string(),
-    )?;
+    let party_b_ibc_forwarder_instantiate2_msg = preset_party_b_forwarder_fields
+        .to_instantiate2_msg(
+            env.contract.address.to_string(),
+            party_b_forwarder_salt,
+            clock_address.to_string(),
+            holder_address.to_string(),
+        )?;
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")

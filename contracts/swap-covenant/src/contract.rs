@@ -1,9 +1,8 @@
-
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdResult, SubMsg, WasmMsg, CanonicalAddr, instantiate2_address, CodeInfoResponse,
+    instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, CosmosMsg,
+    Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg, WasmMsg,
 };
 
 use covenant_clock::msg::PresetClockFields;
@@ -13,7 +12,7 @@ use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
 use covenant_utils::{CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig};
 use cw2::set_contract_version;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 use crate::{
     error::ContractError,
@@ -28,14 +27,13 @@ use crate::{
 const CONTRACT_NAME: &str = "crates.io:swap-covenant";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub const CLOCK_SALT: &[u8]                     = b"clock";
+pub const CLOCK_SALT: &[u8] = b"clock";
 pub const PARTY_A_INTERCHAIN_ROUTER_SALT: &[u8] = b"party_a_interchain_router";
 pub const PARTY_B_INTERCHAIN_ROUTER_SALT: &[u8] = b"party_b_interchain_router";
-pub const SPLITTER_SALT: &[u8]                  = b"splitter";
-pub const SWAP_HOLDER_SALT: &[u8]               = b"swap_holder";
-pub const PARTY_A_FORWARDER_SALT: &[u8]         = b"party_a_ibc_forwarder";
-pub const PARTY_B_FORWARDER_SALT: &[u8]         = b"party_b_ibc_forwarder";
-
+pub const SPLITTER_SALT: &[u8] = b"splitter";
+pub const SWAP_HOLDER_SALT: &[u8] = b"swap_holder";
+pub const PARTY_A_FORWARDER_SALT: &[u8] = b"party_a_ibc_forwarder";
+pub const PARTY_B_FORWARDER_SALT: &[u8] = b"party_b_ibc_forwarder";
 
 pub fn generate_contract_salt(salt_str: &[u8]) -> cosmwasm_std::Binary {
     let mut hasher = Sha256::new();
@@ -49,16 +47,12 @@ fn get_precomputed_address(
     creator: &CanonicalAddr,
     salt: &[u8],
 ) -> Result<Addr, ContractError> {
-    let CodeInfoResponse {
-        checksum,
-        ..
-    } = deps.querier.query_wasm_code_info(code_id)?;
+    let CodeInfoResponse { checksum, .. } = deps.querier.query_wasm_code_info(code_id)?;
 
     let precomputed_address = instantiate2_address(&checksum, &creator, salt)?;
 
     Ok(deps.api.addr_humanize(&precomputed_address)?)
 }
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -80,20 +74,48 @@ pub fn instantiate(
     let party_b_forwarder_salt = generate_contract_salt(PARTY_B_FORWARDER_SALT);
     let splitter_salt = generate_contract_salt(SPLITTER_SALT);
 
-
-    let clock_address = get_precomputed_address(deps.as_ref(), msg.contract_codes.clock_code, &creator_address, &clock_salt)?;
-    let party_a_interchain_router_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.interchain_router_code, &creator_address, &party_a_router_salt)?;
-    let party_b_interchain_router_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.interchain_router_code, &creator_address, &party_b_router_salt)?;
-    let splitter_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.splitter_code, &creator_address, &splitter_salt)?;
-    let swap_holder_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.holder_code, &creator_address, &holder_salt)?;
-    let party_a_forwarder_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.ibc_forwarder_code, &creator_address, &party_a_forwarder_salt)?;
-    let party_b_forwarder_address =
-        get_precomputed_address(deps.as_ref(), msg.contract_codes.ibc_forwarder_code, &creator_address, &party_b_forwarder_salt)?;
+    let clock_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.clock_code,
+        &creator_address,
+        &clock_salt,
+    )?;
+    let party_a_interchain_router_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.interchain_router_code,
+        &creator_address,
+        &party_a_router_salt,
+    )?;
+    let party_b_interchain_router_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.interchain_router_code,
+        &creator_address,
+        &party_b_router_salt,
+    )?;
+    let splitter_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.splitter_code,
+        &creator_address,
+        &splitter_salt,
+    )?;
+    let swap_holder_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.holder_code,
+        &creator_address,
+        &holder_salt,
+    )?;
+    let party_a_forwarder_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.ibc_forwarder_code,
+        &creator_address,
+        &party_a_forwarder_salt,
+    )?;
+    let party_b_forwarder_address = get_precomputed_address(
+        deps.as_ref(),
+        msg.contract_codes.ibc_forwarder_code,
+        &creator_address,
+        &party_b_forwarder_salt,
+    )?;
 
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
     PARTY_A_INTERCHAIN_ROUTER_ADDR.save(deps.storage, &party_a_interchain_router_address)?;
@@ -188,10 +210,8 @@ pub fn instantiate(
         label: format!("{}-clock", msg.label),
     };
 
-    let clock_instantiate2_msg = preset_clock_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        clock_salt
-    )?;
+    let clock_instantiate2_msg =
+        preset_clock_fields.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
 
     let holder_instantiate2_msg = preset_holder_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
@@ -220,19 +240,21 @@ pub fn instantiate(
         party_b_interchain_router_address.to_string(),
     )?;
 
-    let party_a_ibc_forwarder_instantiate2_msg = preset_party_a_forwarder_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        party_a_forwarder_salt,
-        clock_address.to_string(),
-        swap_holder_address.to_string(),
-    )?;
+    let party_a_ibc_forwarder_instantiate2_msg = preset_party_a_forwarder_fields
+        .to_instantiate2_msg(
+            env.contract.address.to_string(),
+            party_a_forwarder_salt,
+            clock_address.to_string(),
+            swap_holder_address.to_string(),
+        )?;
 
-    let party_b_ibc_forwarder_instantiate2_msg = preset_party_b_forwarder_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        party_b_forwarder_salt,
-        clock_address.to_string(),
-        swap_holder_address.to_string(),
-    )?;
+    let party_b_ibc_forwarder_instantiate2_msg = preset_party_b_forwarder_fields
+        .to_instantiate2_msg(
+            env.contract.address.to_string(),
+            party_b_forwarder_salt,
+            clock_address.to_string(),
+            swap_holder_address.to_string(),
+        )?;
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
@@ -244,8 +266,7 @@ pub fn instantiate(
             party_a_router_instantiate2_msg,
             party_b_router_instantiate2_msg,
             splitter_instantiate2_msg,
-        ])
-    )
+        ]))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

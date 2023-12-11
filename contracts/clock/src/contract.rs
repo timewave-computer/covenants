@@ -49,7 +49,6 @@ pub fn instantiate(
 
         QUEUE.enqueue(deps.storage, addr.clone())?;
         whitelist.push(addr);
-
     }
 
     WHITELIST.save(deps.storage, &whitelist)?;
