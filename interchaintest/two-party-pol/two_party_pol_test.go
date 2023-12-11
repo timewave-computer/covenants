@@ -384,7 +384,7 @@ func TestTwoPartyPol(t *testing.T) {
 			lperCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, liquidPoolerPath)
 
 			// store holder and get code id
-			holderCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, holderContractPath)
+			holderCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, holderContractPath)
 
 			testCtx.SkipBlocks(5)
 		})
