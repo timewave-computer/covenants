@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, Binary, Uint128, Uint64, to_json_binary, WasmMsg, StdError};
+use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, StdError, Uint128, Uint64, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
@@ -72,7 +72,11 @@ impl PresetIbcForwarderFields {
     }
 
     pub fn to_instantiate2_msg(
-        &self, admin_addr: String, salt: Binary, clock_address: String, next_contract: String
+        &self,
+        admin_addr: String,
+        salt: Binary,
+        clock_address: String,
+        next_contract: String,
     ) -> Result<WasmMsg, StdError> {
         Ok(WasmMsg::Instantiate2 {
             admin: Some(admin_addr),

@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Uint128, WasmMsg, StdError, to_json_binary, Decimal};
+use cosmwasm_std::{
+    to_json_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Decimal, StdError, Uint128,
+    WasmMsg,
+};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::SplitConfig;
 
@@ -62,7 +65,10 @@ impl PresetInterchainSplitterFields {
                         self.party_b_addr.to_string(),
                         party_b_router.to_string(),
                     )?;
-                    remapped_splits.push((denom_split.denom.to_string(), SplitType::Custom(remapped_split)));
+                    remapped_splits.push((
+                        denom_split.denom.to_string(),
+                        SplitType::Custom(remapped_split),
+                    ));
                 }
             }
         }
@@ -85,15 +91,22 @@ impl PresetInterchainSplitterFields {
     }
 
     pub fn to_instantiate2_msg(
-        &self, admin_addr: String, salt: Binary,
+        &self,
+        admin_addr: String,
+        salt: Binary,
         clock_address: String,
         party_a_router: String,
         party_b_router: String,
     ) -> Result<WasmMsg, StdError> {
-        let instantiate_msg = match self.to_instantiate_msg(clock_address, party_a_router, party_b_router) {
-            Ok(msg) => msg,
-            Err(_) => return Err(StdError::generic_err("failed to generate regular instantiation message")),
-        };
+        let instantiate_msg =
+            match self.to_instantiate_msg(clock_address, party_a_router, party_b_router) {
+                Ok(msg) => msg,
+                Err(_) => {
+                    return Err(StdError::generic_err(
+                        "failed to generate regular instantiation message",
+                    ))
+                }
+            };
 
         Ok(WasmMsg::Instantiate2 {
             admin: Some(admin_addr),
