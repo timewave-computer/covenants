@@ -325,11 +325,11 @@ dependencies = [
  "covenant-macros",
  "covenant-two-party-pol-holder",
  "cw-multi-test",
- "cw-storage-plus 1.1.0",
- "cw-utils 1.0.2",
- "cw1-whitelist 1.1.1",
- "cw2 1.1.1",
- "cw20 0.15.1",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw1-whitelist 1.1.2",
+ "cw2 1.1.2",
+ "cw20 1.1.2",
  "neutron-sdk",
  "protobuf 3.3.0",
  "schemars",
@@ -529,13 +529,12 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
- "covenant-clock",
  "covenant-macros",
  "covenant-utils",
  "cw-multi-test",
- "cw-storage-plus 1.1.0",
- "cw-utils 1.0.2",
- "cw2 1.1.1",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
  "serde",
  "thiserror",
 ]
@@ -1043,12 +1042,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "heck"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
-
-[[package]]
 name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1125,8 +1118,6 @@ dependencies = [
  "cosmos-sdk-proto 0.20.0",
  "cosmwasm-schema",
  "cosmwasm-std",
- "prost 0.12.3",
- "prost-types 0.12.1",
  "protobuf 3.3.0",
  "schemars",
  "serde",
@@ -1331,12 +1322,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustversion"
-version = "1.0.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ffc183a10b4478d04cbbbfc96d0873219d962dd5accaff2ffbd4ceb7df837f4"
-
-[[package]]
 name = "ryu"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1531,16 +1516,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "speedate"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "242f76c50fd18cbf098607090ade73a08d39cfd84ea835f3796a2c855223b19b"
-dependencies = [
- "strum",
- "strum_macros",
-]
-
-[[package]]
 name = "spki"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1555,28 +1530,6 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
-
-[[package]]
-name = "strum"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
-dependencies = [
- "strum_macros",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.25.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.39",
-]
 
 [[package]]
 name = "subtle"
