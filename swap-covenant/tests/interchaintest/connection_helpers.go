@@ -2,12 +2,15 @@ package ibc_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
 	transfertypes "github.com/cosmos/ibc-go/v4/modules/apps/transfer/types"
+	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v4/ibc"
 	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
 	"github.com/strangelove-ventures/interchaintest/v4/testutil"
@@ -15,6 +18,9 @@ import (
 )
 
 type TestContext struct {
+	Neutron                   *cosmos.CosmosChain
+	Hub                       *cosmos.CosmosChain
+	Osmosis                   *cosmos.CosmosChain
 	OsmoClients               []*ibc.ClientOutput
 	GaiaClients               []*ibc.ClientOutput
 	NeutronClients            []*ibc.ClientOutput
@@ -26,6 +32,39 @@ type TestContext struct {
 	OsmoTransferChannelIds    map[string]string
 	GaiaIcsChannelIds         map[string]string
 	NeutronIcsChannelIds      map[string]string
+	t                         *testing.T
+	ctx                       context.Context
+}
+
+func (testCtx *TestContext) tick(clock string, keyring string, from string) {
+	neutronHeight, _ := testCtx.Neutron.Height(testCtx.ctx)
+	println("tick neutron@", neutronHeight)
+	cmd := []string{"neutrond", "tx", "wasm", "execute", clock,
+		`{"tick":{}}`,
+		"--gas-prices", "0.0untrn",
+		"--gas-adjustment", `1.5`,
+		"--output", "json",
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--home", testCtx.Neutron.HomeDir(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--from", from,
+		"--gas", "1500000",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+
+	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	require.NoError(testCtx.t, err)
+	// println("tick response: ", string(tickResponse))
+	// println("\n")
+	testCtx.skipBlocks(3)
+}
+
+func (testCtx *TestContext) skipBlocks(n uint64) {
+	require.NoError(
+		testCtx.t,
+		testutil.WaitForBlocks(testCtx.ctx, 3, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis),
+		"failed to wait for blocks")
 }
 
 func (testCtx *TestContext) getIbcDenom(channelId string, denom string) string {
@@ -412,4 +451,220 @@ func getPairwiseCCVChannelIds(
 		}
 	}
 	panic("failed to match pairwise ICS channels")
+}
+
+type NativeBalQueryResponse struct {
+	Amount string `json:"amount"`
+	Denom  string `json:"denom"`
+}
+
+func (testCtx *TestContext) queryNeutronDenomBalance(denom string, addr string) uint64 {
+	queryCmd := []string{"neutrond", "query", "bank",
+		"balances", addr,
+		"--denom", denom,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+	}
+	var nativeBalanceResponse NativeBalQueryResponse
+
+	queryResp, _, err := testCtx.Neutron.Exec(testCtx.ctx, queryCmd, nil)
+	require.NoError(testCtx.t, err, "failed to query")
+
+	require.NoError(
+		testCtx.t,
+		json.Unmarshal(queryResp, &nativeBalanceResponse),
+		"failed to unmarshal json",
+	)
+	parsedBalance, err := strconv.ParseUint(nativeBalanceResponse.Amount, 10, 64)
+	require.NoError(testCtx.t, err, "failed to parse balance response to uint64")
+	return parsedBalance
+}
+
+func (testCtx *TestContext) fundChainAddrs(addrs []string, chain *cosmos.CosmosChain, from *ibc.Wallet, amount int64) {
+	for i := 0; i < len(addrs); i++ {
+		err := chain.SendFunds(testCtx.ctx, from.KeyName, ibc.WalletAmount{
+			Address: addrs[i],
+			Denom:   chain.Config().Denom,
+			Amount:  int64(amount),
+		})
+		require.NoError(testCtx.t, err, "failed to send funds to addr")
+	}
+}
+
+func (testCtx *TestContext) queryClockAddress(contract string) string {
+	var response CovenantAddressQueryResponse
+
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, contract, ClockAddressQuery{}, &response)
+	require.NoError(
+		testCtx.t,
+		err,
+		"failed to query clock address",
+	)
+	println("clock addr: ", response.Data)
+	return response.Data
+}
+
+func (testCtx *TestContext) queryHolderAddress(contract string) string {
+	var response CovenantAddressQueryResponse
+
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, contract, HolderAddressQuery{}, &response)
+	require.NoError(
+		testCtx.t,
+		err,
+		"failed to query holder address",
+	)
+	println("holder addr: ", response.Data)
+	return response.Data
+}
+
+func (testCtx *TestContext) queryIbcForwarderAddress(contract string, party string) string {
+	var response CovenantAddressQueryResponse
+	query := IbcForwarderQuery{
+		Party: Party{
+			Party: party,
+		},
+	}
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, contract, query, &response)
+	require.NoError(
+		testCtx.t,
+		err,
+		"failed to query ibc forwarder address",
+	)
+	println(party, " forwarder addr: ", response.Data)
+	return response.Data
+}
+
+func (testCtx *TestContext) queryInterchainRouterAddress(contract string, party string) string {
+	var response CovenantAddressQueryResponse
+	query := InterchainRouterQuery{
+		Party: Party{
+			Party: party,
+		},
+	}
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, contract, query, &response)
+	require.NoError(
+		testCtx.t,
+		err,
+		"failed to query interchain router address",
+	)
+	println(party, " router addr: ", response.Data)
+
+	return response.Data
+}
+
+func (testCtx *TestContext) queryInterchainSplitterAddress(contract string) string {
+	var response CovenantAddressQueryResponse
+
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, contract, SplitterAddressQuery{}, &response)
+	require.NoError(
+		testCtx.t,
+		err,
+		"failed to query interchain router address",
+	)
+	println("splitter addr: ", response.Data)
+
+	return response.Data
+}
+
+func (testCtx *TestContext) storeContract(chain *cosmos.CosmosChain, from *ibc.Wallet, path string) uint64 {
+	codeIdStr, err := chain.StoreContract(testCtx.ctx, from.KeyName, path)
+	require.NoError(testCtx.t, err, "failed to store contract")
+	codeId, err := strconv.ParseUint(codeIdStr, 10, 64)
+	require.NoError(testCtx.t, err, "failed to parse codeId")
+	return codeId
+}
+
+func (testCtx *TestContext) queryContractState(contract string) string {
+	var response CovenantAddressQueryResponse
+	type ContractState struct{}
+	type ContractStateQuery struct {
+		ContractState ContractState `json:"contract_state"`
+	}
+	contractStateQuery := ContractStateQuery{
+		ContractState: ContractState{},
+	}
+
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, contract, contractStateQuery, &response)
+	require.NoError(
+		testCtx.t,
+		err,
+		fmt.Sprintf("failed to query %s state", contract),
+	)
+	return response.Data
+}
+
+func (testCtx *TestContext) queryDepositAddress(contract string) string {
+	var depositAddressResponse CovenantAddressQueryResponse
+
+	type DepositAddress struct{}
+	type DepositAddressQuery struct {
+		DepositAddress DepositAddress `json:"deposit_address"`
+	}
+	depositAddressQuery := DepositAddressQuery{
+		DepositAddress: DepositAddress{},
+	}
+
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, contract, depositAddressQuery, &depositAddressResponse)
+	require.NoError(
+		testCtx.t,
+		err,
+		fmt.Sprintf("failed to query %s deposit address", contract),
+	)
+	return depositAddressResponse.Data
+}
+
+func (testCtx *TestContext) manualInstantiate(codeId string, msg CovenantInstantiateMsg, from *ibc.Wallet, keyring string) string {
+
+	str, err := json.Marshal(msg)
+	require.NoError(testCtx.t, err, "Failed to marshall CovenantInstantiateMsg")
+	instantiateMsg := string(str)
+
+	cmd := []string{"neutrond", "tx", "wasm", "instantiate", codeId,
+		instantiateMsg,
+		"--label", fmt.Sprintf("swap-covenant-%s", codeId),
+		"--no-admin",
+		"--from", from.KeyName,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--gas", "900090000",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+
+	prettyJson, _ := json.MarshalIndent(msg, "", "    ")
+	println("covenant instantiation message:")
+	fmt.Println(string(prettyJson))
+
+	covInstantiationResp, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	require.NoError(testCtx.t, err, "manual instantiation failed")
+	println("covenant instantiation response: ", string(covInstantiationResp))
+	require.NoError(testCtx.t,
+		testutil.WaitForBlocks(testCtx.ctx, 5, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
+
+	queryCmd := []string{"neutrond", "query", "wasm",
+		"list-contract-by-code", codeId,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+	}
+
+	queryResp, _, err := testCtx.Neutron.Exec(testCtx.ctx, queryCmd, nil)
+	require.NoError(testCtx.t, err, "failed to query")
+
+	type QueryContractResponse struct {
+		Contracts  []string `json:"contracts"`
+		Pagination any      `json:"pagination"`
+	}
+
+	contactsRes := QueryContractResponse{}
+	require.NoError(testCtx.t, json.Unmarshal(queryResp, &contactsRes), "failed to unmarshal contract response")
+
+	covenantAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
+
+	return covenantAddress
 }
