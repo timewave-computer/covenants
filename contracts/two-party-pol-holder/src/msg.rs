@@ -2,7 +2,9 @@ use std::{collections::BTreeMap, fmt};
 
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, StdError, to_json_binary, WasmMsg};
+use cosmwasm_std::{
+    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, StdError, WasmMsg,
+};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract,
 };
@@ -336,7 +338,12 @@ impl PresetTwoPartyPolHolderFields {
         party_a_router: String,
         party_b_router: String,
     ) -> Result<WasmMsg, StdError> {
-        let instantiate_msg = &self.to_instantiate_msg(clock_address, next_contract, &party_a_router, &party_b_router)?;
+        let instantiate_msg = &self.to_instantiate_msg(
+            clock_address,
+            next_contract,
+            &party_a_router,
+            &party_b_router,
+        )?;
 
         Ok(WasmMsg::Instantiate2 {
             admin: Some(admin_addr),
