@@ -33,9 +33,7 @@ pub fn instantiate(
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
     if msg.lockup_config.is_expired(&env.block) {
-        return Err(ContractError::Std(StdError::generic_err(
-            "past lockup config",
-        )));
+        return Err(ContractError::Std(StdError::generic_err("past lockup config")))
     }
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;

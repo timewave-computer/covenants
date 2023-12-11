@@ -6,7 +6,6 @@ use cosmwasm_std::{
     to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
     StdResult,
 };
-use covenant_clock::helpers::enqueue_msg;
 use covenant_utils::SplitConfig;
 use cw2::set_contract_version;
 
@@ -47,7 +46,9 @@ pub fn instantiate(
 
     // if a fallback split is provided we validate and store it
     if let Some(split) = msg.fallback_split {
-        resp = resp.add_attributes(vec![split.get_response_attribute("fallback".to_string())]);
+        resp = resp.add_attributes(vec![split
+            .clone()
+            .get_response_attribute("fallback".to_string())]);
         FALLBACK_SPLIT.save(deps.storage, &split)?;
     } else {
         resp = resp.add_attribute("fallback", "None");
@@ -142,9 +143,7 @@ pub fn query_split(deps: Deps, denom: String) -> Result<SplitConfig, StdError> {
         }
     }
 
-    Ok(SplitConfig {
-        receivers: BTreeMap::new(),
-    })
+    Ok(SplitConfig { receivers: BTreeMap::new() })
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -178,9 +177,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             if let Some(split) = fallback_split {
+
                 FALLBACK_SPLIT.save(deps.storage, &split)?;
-                resp =
-                    resp.add_attributes(vec![split.get_response_attribute("fallback".to_string())]);
+                resp = resp.add_attributes(vec![
+                    split.get_response_attribute("fallback".to_string())
+                ]);
             }
 
             Ok(resp)
