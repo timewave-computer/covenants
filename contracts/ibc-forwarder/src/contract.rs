@@ -2,8 +2,8 @@ use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_json, to_json_binary, to_json_vec, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env,
-    MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg, coin, Coin,
+    coin, from_json, to_json_binary, to_json_vec, Binary, Coin, CosmosMsg, CustomQuery, Deps,
+    DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::neutron_ica::{self, get_proto_coin, RemoteChainInfo};
