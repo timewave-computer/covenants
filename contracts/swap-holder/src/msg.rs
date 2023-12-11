@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, WasmMsg, StdError, to_json_binary, Binary};
+use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, StdError, WasmMsg};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::{CovenantPartiesConfig, CovenantTerms, ExpiryConfig};
 use cw_utils::Expiration;
@@ -65,7 +65,9 @@ impl PresetSwapHolderFields {
     }
 
     pub fn to_instantiate2_msg(
-        &self, admin_addr: String, salt: Binary,
+        &self,
+        admin_addr: String,
+        salt: Binary,
         clock_address: String,
         next_contract: String,
     ) -> Result<WasmMsg, StdError> {
