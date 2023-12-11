@@ -1,5 +1,7 @@
+use std::collections::BTreeMap;
+
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Uint128, WasmMsg, StdError, to_json_binary};
+use cosmwasm_std::{Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Uint128, WasmMsg, StdError, to_json_binary, Decimal};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::SplitConfig;
 
@@ -60,10 +62,7 @@ impl PresetInterchainSplitterFields {
                         self.party_b_addr.to_string(),
                         party_b_router.to_string(),
                     )?;
-                    remapped_splits.push((
-                        denom_split.denom.to_string(),
-                        SplitType::Custom(remapped_split),
-                    ));
+                    remapped_splits.push((denom_split.denom.to_string(), SplitType::Custom(remapped_split)));
                 }
             }
         }

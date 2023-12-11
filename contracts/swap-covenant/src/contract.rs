@@ -127,7 +127,7 @@ pub fn instantiate(
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
         destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
-        destination_receiver_addr: msg.party_a_config.party_receiver_addr,
+        destination_receiver_addr: msg.party_a_config.party_receiver_addr.to_string(),
         ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
         label: format!("{}_party_a_interchain_router", msg.label),
         code_id: msg.contract_codes.interchain_router_code,
@@ -135,7 +135,7 @@ pub fn instantiate(
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
         destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
-        destination_receiver_addr: msg.party_b_config.party_receiver_addr,
+        destination_receiver_addr: msg.party_b_config.party_receiver_addr.to_string(),
         ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
         label: format!("{}_party_b_interchain_router", msg.label),
         code_id: msg.contract_codes.interchain_router_code,
@@ -146,8 +146,8 @@ pub fn instantiate(
         fallback_split: msg.fallback_split,
         label: format!("{}_interchain_splitter", msg.label),
         code_id: msg.contract_codes.splitter_code,
-        party_a_addr: msg.party_a_config.get_final_receiver_address(),
-        party_b_addr: msg.party_b_config.get_final_receiver_address(),
+        party_a_addr: msg.party_a_config.party_receiver_addr.to_string(),
+        party_b_addr: msg.party_b_config.party_receiver_addr.to_string(),
     };
     let preset_holder_fields = PresetSwapHolderFields {
         lockup_config: msg.lockup_config,
