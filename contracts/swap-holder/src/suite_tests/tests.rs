@@ -55,7 +55,7 @@ fn test_instantiate_happy_and_query_all() {
 #[should_panic(expected = "invalid expiry config: block height must be in the future")]
 fn test_instantiate_past_lockup_block_height() {
     SuiteBuilder::default()
-        .with_lockup_config(ExpiryConfig::Block(1))
+        .with_lockup_config(cw_utils::Expiration::AtHeight(1))
         .build();
 }
 
@@ -63,7 +63,7 @@ fn test_instantiate_past_lockup_block_height() {
 #[should_panic(expected = "invalid expiry config: block time must be in the future")]
 fn test_instantiate_past_lockup_block_time() {
     SuiteBuilder::default()
-        .with_lockup_config(ExpiryConfig::Time(Timestamp::from_seconds(1)))
+        .with_lockup_config(cw_utils::Expiration::AtTime(Timestamp::from_seconds(1)))
         .build();
 }
 
@@ -79,7 +79,7 @@ fn test_tick_unauthorized() {
 #[test]
 fn test_forward_block_expired_covenant() {
     let mut suite = SuiteBuilder::default()
-        .with_lockup_config(ExpiryConfig::Block(INITIAL_BLOCK_HEIGHT + 50))
+        .with_lockup_config(cw_utils::Expiration::AtHeight(INITIAL_BLOCK_HEIGHT + 50))
         .build();
     suite.pass_blocks(100);
 
@@ -94,7 +94,7 @@ fn test_forward_block_expired_covenant() {
 #[test]
 fn test_forward_time_expired_covenant() {
     let mut suite = SuiteBuilder::default()
-        .with_lockup_config(ExpiryConfig::Time(Timestamp::from_nanos(
+        .with_lockup_config(cw_utils::Expiration::AtTime(Timestamp::from_nanos(
             INITIAL_BLOCK_NANOS + 50,
         )))
         .build();
@@ -192,7 +192,7 @@ fn test_forward_tick() {
 #[test]
 fn test_refund_nothing_to_refund() {
     let mut suite = SuiteBuilder::default()
-        .with_lockup_config(ExpiryConfig::Block(21345))
+        .with_lockup_config(cw_utils::Expiration::AtHeight(21345))
         .build();
 
     suite.pass_blocks(10000);
@@ -217,7 +217,7 @@ fn test_refund_nothing_to_refund() {
 #[test]
 fn test_refund_party_a() {
     let mut suite = SuiteBuilder::default()
-        .with_lockup_config(ExpiryConfig::Block(21345))
+        .with_lockup_config(cw_utils::Expiration::AtHeight(21345))
         .build();
 
     let coin_a = Coin {
@@ -250,7 +250,7 @@ fn test_refund_party_a() {
 #[test]
 fn test_refund_party_b() {
     let mut suite = SuiteBuilder::default()
-        .with_lockup_config(ExpiryConfig::Block(21345))
+        .with_lockup_config(cw_utils::Expiration::AtHeight(21345))
         .build();
 
     let coin_b = Coin {
@@ -284,7 +284,7 @@ fn test_refund_party_b() {
 #[test]
 fn test_refund_both_parties() {
     let mut suite = SuiteBuilder::default()
-        .with_lockup_config(ExpiryConfig::Block(21345))
+        .with_lockup_config(cw_utils::Expiration::AtHeight(21345))
         .build();
     let coin_a = Coin {
         denom: DENOM_A.to_string(),

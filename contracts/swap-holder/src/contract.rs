@@ -32,8 +32,9 @@ pub fn instantiate(
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
-    msg.lockup_config.validate(&env.block)?;
-
+    if msg.lockup_config.is_expired(&env.block) {
+        return Err(ContractError::Std(StdError::generic_err("past lockup config")))
+    }
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     LOCKUP_CONFIG.save(deps.storage, &msg.lockup_config)?;
@@ -78,7 +79,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 fn try_forward(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
     // check if covenant is expired
-    if lockup_config.is_expired(env.block) {
+    if lockup_config.is_expired(&env.block) {
         CONTRACT_STATE.save(deps.storage, &ContractState::Expired)?;
         return Ok(Response::default()
             .add_attribute("method", "try_forward")
