@@ -2,7 +2,6 @@ package ibc_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"testing"
@@ -67,12 +66,16 @@ func TestTokenSwap(t *testing.T) {
 
 	// Chain Factory
 	cf := ibctest.NewBuiltinChainFactory(zaptest.NewLogger(t, zaptest.Level(zap.WarnLevel)), []*ibctest.ChainSpec{
-		{Name: "gaia", Version: "v9.1.0", ChainConfig: ibc.ChainConfig{
-			GasAdjustment:       1.3,
-			GasPrices:           "0.0atom",
-			ModifyGenesis:       setupGaiaGenesis(getDefaultInterchainGenesisMessages()),
-			ConfigFileOverrides: configFileOverrides,
-		}},
+		{
+			Name:    "gaia",
+			Version: "v9.1.0",
+			ChainConfig: ibc.ChainConfig{
+				GasAdjustment:       1.3,
+				GasPrices:           "0.0atom",
+				ModifyGenesis:       setupGaiaGenesis(getDefaultInterchainGenesisMessages()),
+				ConfigFileOverrides: configFileOverrides,
+			},
+		},
 		{
 			ChainConfig: ibc.ChainConfig{
 				Type:    "cosmos",
@@ -198,6 +201,9 @@ func TestTokenSwap(t *testing.T) {
 	require.NoError(t, err, "failed to wait for blocks")
 
 	testCtx := &TestContext{
+		Neutron:                   cosmosNeutron,
+		Hub:                       cosmosAtom,
+		Osmosis:                   cosmosOsmosis,
 		OsmoClients:               []*ibc.ClientOutput{},
 		GaiaClients:               []*ibc.ClientOutput{},
 		NeutronClients:            []*ibc.ClientOutput{},
@@ -209,6 +215,8 @@ func TestTokenSwap(t *testing.T) {
 		OsmoTransferChannelIds:    make(map[string]string),
 		GaiaIcsChannelIds:         make(map[string]string),
 		NeutronIcsChannelIds:      make(map[string]string),
+		t:                         t,
+		ctx:                       ctx,
 	}
 
 	t.Run("generate IBC paths", func(t *testing.T) {
@@ -223,19 +231,17 @@ func TestTokenSwap(t *testing.T) {
 		neutronClients := testCtx.getChainClients(cosmosNeutron.Config().Name)
 		atomClients := testCtx.getChainClients(cosmosAtom.Config().Name)
 
-		err = r.UpdatePath(ctx, eRep, gaiaNeutronICSPath, ibc.PathUpdateOptions{
-			SrcClientID: &neutronClients[0].ClientID,
-			DstClientID: &atomClients[0].ClientID,
-		})
-		require.NoError(t, err)
+		require.NoError(t,
+			r.UpdatePath(ctx, eRep, gaiaNeutronICSPath, ibc.PathUpdateOptions{
+				SrcClientID: &neutronClients[0].ClientID,
+				DstClientID: &atomClients[0].ClientID,
+			}),
+		)
 
 		atomNeutronICSConnectionId, neutronAtomICSConnectionId = generateConnections(t, ctx, testCtx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
-
 		generateICSChannel(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
-
 		createValidator(t, ctx, r, eRep, atom, neutron)
-		err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
-		require.NoError(t, err, "failed to wait for blocks")
+		testCtx.skipBlocks(3)
 	})
 
 	t.Run("setup IBC interchain clients, connections, and links", func(t *testing.T) {
@@ -262,8 +268,7 @@ func TestTokenSwap(t *testing.T) {
 		}
 	})
 
-	err = testutil.WaitForBlocks(ctx, 2, atom, neutron, osmosis)
-	require.NoError(t, err, "failed to wait for blocks")
+	testCtx.skipBlocks(2)
 
 	// Once the VSC packet has been relayed, x/bank transfers are
 	// enabled on Neutron and we can fund its account.
@@ -276,8 +281,7 @@ func TestTokenSwap(t *testing.T) {
 	hubNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
 	osmoNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
 
-	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
-	require.NoError(t, err, "failed to wait for blocks")
+	testCtx.skipBlocks(10)
 
 	t.Run("determine ibc channels", func(t *testing.T) {
 		neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
@@ -338,48 +342,15 @@ func TestTokenSwap(t *testing.T) {
 		var splitterCodeId uint64
 		var ibcForwarderCodeId uint64
 		var swapHolderCodeId uint64
-		var covenantCodeIdStr string
 		var covenantCodeId uint64
-		_ = covenantCodeId
 
 		t.Run("deploy covenant contracts", func(t *testing.T) {
-			// store covenant and get code id
-			covenantCodeIdStr, err = cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, covenantContractPath)
-			require.NoError(t, err, "failed to store stride covenant contract")
-			covenantCodeId, err = strconv.ParseUint(covenantCodeIdStr, 10, 64)
-			require.NoError(t, err, "failed to parse codeId into uint64")
-
-			// store clock and get code id
-			clockCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, clockContractPath)
-			require.NoError(t, err, "failed to store clock contract")
-			clockCodeId, err = strconv.ParseUint(clockCodeIdStr, 10, 64)
-			require.NoError(t, err, "failed to parse codeId into uint64")
-
-			// store router and get code id
-			routerCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, routerContractPath)
-			require.NoError(t, err, "failed to store router contract")
-			routerCodeId, err = strconv.ParseUint(routerCodeIdStr, 10, 64)
-			require.NoError(t, err, "failed to parse codeId into uint64")
-
-			// store clock and get code id
-			splitterCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, splitterContractPath)
-			require.NoError(t, err, "failed to store splitter contract")
-			splitterCodeId, err = strconv.ParseUint(splitterCodeIdStr, 10, 64)
-			require.NoError(t, err, "failed to parse codeId into uint64")
-
-			// store clock and get code id
-			ibcForwarderCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, ibcForwarderContractPath)
-			require.NoError(t, err, "failed to store ibc forwarder contract")
-			ibcForwarderCodeId, err = strconv.ParseUint(ibcForwarderCodeIdStr, 10, 64)
-			require.NoError(t, err, "failed to parse codeId into uint64")
-
-			// store clock and get code id
-			swapHolderCodeIdStr, err := cosmosNeutron.StoreContract(ctx, neutronUser.KeyName, swapHolderContractPath)
-			require.NoError(t, err, "failed to store swap holder contract")
-			swapHolderCodeId, err = strconv.ParseUint(swapHolderCodeIdStr, 10, 64)
-			require.NoError(t, err, "failed to parse codeId into uint64")
-
-			// require.NoError(t, testutil.WaitForBlocks(ctx, 5, cosmosNeutron, cosmosAtom, cosmosOsmosis))
+			covenantCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, covenantContractPath)
+			clockCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, clockContractPath)
+			routerCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, routerContractPath)
+			splitterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, splitterContractPath)
+			ibcForwarderCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, ibcForwarderContractPath)
+			swapHolderCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, swapHolderContractPath)
 		})
 
 		t.Run("instantiate covenant", func(t *testing.T) {
@@ -431,7 +402,6 @@ func TestTokenSwap(t *testing.T) {
 					},
 				},
 			}
-			_ = splits
 
 			partyAConfig := SwapPartyConfig{
 				Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
@@ -472,378 +442,113 @@ func TestTokenSwap(t *testing.T) {
 				PartyBConfig:                partyBConfig,
 				Splits:                      splits,
 			}
-			str, err := json.Marshal(covenantMsg)
-			require.NoError(t, err, "Failed to marshall CovenantInstantiateMsg")
-			instantiateMsg := string(str)
 
-			println("instantiation message: ", instantiateMsg)
-			cmd := []string{"neutrond", "tx", "wasm", "instantiate", covenantCodeIdStr,
-				instantiateMsg,
-				"--label", "swap-covenant",
-				"--no-admin",
-				"--from", neutronUser.KeyName,
-				"--output", "json",
-				"--home", neutron.HomeDir(),
-				"--node", neutron.GetRPCAddress(),
-				"--chain-id", neutron.Config().ChainID,
-				"--gas", "90009000",
-				"--keyring-backend", keyring.BackendTest,
-				"-y",
-			}
-
-			resp, _, err := neutron.Exec(ctx, cmd, nil)
-			require.NoError(t, err)
-			println("instantiation response: ", string(resp))
-
-			require.NoError(t, testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis))
-
-			queryCmd := []string{"neutrond", "query", "wasm",
-				"list-contract-by-code", covenantCodeIdStr,
-				"--output", "json",
-				"--home", neutron.HomeDir(),
-				"--node", neutron.GetRPCAddress(),
-				"--chain-id", neutron.Config().ChainID,
-			}
-
-			queryResp, _, err := neutron.Exec(ctx, queryCmd, nil)
-			require.NoError(t, err, "failed to query")
-
-			type QueryContractResponse struct {
-				Contracts  []string `json:"contracts"`
-				Pagination any      `json:"pagination"`
-			}
-
-			contactsRes := QueryContractResponse{}
-			require.NoError(t, json.Unmarshal(queryResp, &contactsRes), "failed to unmarshal contract response")
-
-			covenantAddress = contactsRes.Contracts[len(contactsRes.Contracts)-1]
-
+			covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantCodeId, 10), covenantMsg, neutronUser, keyring.BackendTest)
 			println("covenant address: ", covenantAddress)
 		})
 
 		t.Run("query covenant contracts", func(t *testing.T) {
-			routerQueryPartyA := InterchainRouterQuery{
-				Party: Party{
-					Party: "party_a",
-				},
-			}
-			routerQueryPartyB := InterchainRouterQuery{
-				Party: Party{
-					Party: "party_b",
-				},
-			}
-			forwarderQueryPartyA := IbcForwarderQuery{
-				Party: Party{
-					Party: "party_a",
-				},
-			}
-			forwarderQueryPartyB := IbcForwarderQuery{
-				Party: Party{
-					Party: "party_b",
-				},
-			}
-			var response CovenantAddressQueryResponse
-
-			err = cosmosNeutron.QueryContract(ctx, covenantAddress, ClockAddressQuery{}, &response)
-			require.NoError(t, err, "failed to query instantiated clock address")
-			clockAddress = response.Data
-			println("clock addr: ", clockAddress)
-
-			err = cosmosNeutron.QueryContract(ctx, covenantAddress, HolderAddressQuery{}, &response)
-			require.NoError(t, err, "failed to query instantiated holder address")
-			holderAddress = response.Data
-			println("holder addr: ", holderAddress)
-
-			err = cosmosNeutron.QueryContract(ctx, covenantAddress, SplitterAddressQuery{}, &response)
-			require.NoError(t, err, "failed to query instantiated splitter address")
-			splitterAddress = response.Data
-			println("splitter addr: ", splitterAddress)
-
-			err = cosmosNeutron.QueryContract(ctx, covenantAddress, routerQueryPartyA, &response)
-			require.NoError(t, err, "failed to query instantiated party a router address")
-			partyARouterAddress = response.Data
-			println("partyARouterAddress: ", partyARouterAddress)
-
-			err = cosmosNeutron.QueryContract(ctx, covenantAddress, routerQueryPartyB, &response)
-			require.NoError(t, err, "failed to query instantiated party b router address")
-			partyBRouterAddress = response.Data
-			println("partyBRouterAddress: ", partyBRouterAddress)
-
-			err = cosmosNeutron.QueryContract(ctx, covenantAddress, forwarderQueryPartyA, &response)
-			require.NoError(t, err, "failed to query instantiated party a forwarder address")
-			partyAIbcForwarderAddress = response.Data
-			println("partyAIbcForwarderAddress: ", partyAIbcForwarderAddress)
-
-			err = cosmosNeutron.QueryContract(ctx, covenantAddress, forwarderQueryPartyB, &response)
-			require.NoError(t, err, "failed to query instantiated party b forwarder address")
-			partyBIbcForwarderAddress = response.Data
-			println("partyBIbcForwarderAddress: ", partyBIbcForwarderAddress)
+			clockAddress = testCtx.queryClockAddress(covenantAddress)
+			holderAddress = testCtx.queryHolderAddress(covenantAddress)
+			splitterAddress = testCtx.queryInterchainSplitterAddress(covenantAddress)
+			partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
+			partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
+			partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
+			partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
 		})
 
 		t.Run("fund contracts with neutron", func(t *testing.T) {
-			err := neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
-				Address: partyAIbcForwarderAddress,
-				Amount:  5000001,
-				Denom:   nativeNtrnDenom,
-			})
-
-			require.NoError(t, err, "failed to send funds from neutron user to partyAIbcForwarder contract")
-
-			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
-				Address: partyBIbcForwarderAddress,
-				Amount:  5000001,
-				Denom:   nativeNtrnDenom,
-			})
-			require.NoError(t, err, "failed to send funds from neutron user to partyBIbcForwarder contract")
-
-			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
-				Address: clockAddress,
-				Amount:  5000001,
-				Denom:   nativeNtrnDenom,
-			})
-			require.NoError(t, err, "failed to send funds from neutron user to clock contract")
-			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
-				Address: partyARouterAddress,
-				Amount:  15000001,
-				Denom:   nativeNtrnDenom,
-			})
-			require.NoError(t, err, "failed to send funds from neutron user to party a router")
-			err = neutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
-				Address: partyBRouterAddress,
-				Amount:  15000001,
-				Denom:   nativeNtrnDenom,
-			})
-			require.NoError(t, err, "failed to send funds from neutron user to party b router")
-
-			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
-			require.NoError(t, err, "failed to wait for blocks")
-
-			// bal, err := neutron.GetBalance(ctx, partyAIbcForwarderAddress, nativeNtrnDenom)
-			// require.NoError(t, err)
-			// require.Equal(t, int64(5000001), bal)
-			// bal, err = neutron.GetBalance(ctx, partyBIbcForwarderAddress, nativeNtrnDenom)
-			// require.NoError(t, err)
-			// require.Equal(t, int64(5000001), bal)
-			// bal, err = neutron.GetBalance(ctx, clockAddress, nativeNtrnDenom)
-			// require.NoError(t, err)
-			// require.Equal(t, int64(5000001), bal)
-			// bal, err = neutron.GetBalance(ctx, partyARouterAddress, nativeNtrnDenom)
-			// require.NoError(t, err)
-			// require.Equal(t, int64(15000001), bal)
-			// bal, err = neutron.GetBalance(ctx, partyBRouterAddress, nativeNtrnDenom)
-			// require.NoError(t, err)
-			// require.Equal(t, int64(15000001), bal)
+			addrs := []string{
+				partyAIbcForwarderAddress,
+				partyBIbcForwarderAddress,
+				clockAddress,
+				partyARouterAddress,
+				partyBRouterAddress,
+			}
+			testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
+			testCtx.skipBlocks(2)
 		})
 	})
 
 	t.Run("tokenswap run", func(t *testing.T) {
-		// tickClock := func() {
-		// 	println("\ntick")
-		// 	cmd := []string{"neutrond", "tx", "wasm", "execute", clockAddress,
-		// 		`{"tick":{}}`,
-		// 		"--from", neutronUser.KeyName,
-		// 		"--gas-prices", "0.0untrn",
-		// 		"--gas-adjustment", `1.8`,
-		// 		"--output", "json",
-		// 		"--home", "/var/cosmos-chain/neutron-2",
-		// 		"--node", neutron.GetRPCAddress(),
-		// 		"--home", neutron.HomeDir(),
-		// 		"--chain-id", neutron.Config().ChainID,
-		// 		"--from", neutronUser.KeyName,
-		// 		"--gas", "auto",
-		// 		"--keyring-backend", keyring.BackendTest,
-		// 		"-y",
-		// 	}
-
-		// 	tickResponse, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
-		// 	require.NoError(t, err)
-		// 	println("tick response: ", string(tickResponse))
-		// 	err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
-		// 	require.NoError(t, err, "failed to wait for blocks")
-		// 	var response CovenantAddressQueryResponse
-		// 	type ContractState struct{}
-		// 	type ContractStateQuery struct {
-		// 		ContractState ContractState `json:"contract_state"`
-		// 	}
-		// 	contractStateQuery := ContractStateQuery{
-		// 		ContractState: ContractState{},
-		// 	}
-
-		// 	require.NoError(t,
-		// 		cosmosNeutron.QueryContract(ctx, partyAIbcForwarderAddress, contractStateQuery, &response),
-		// 		"failed to query forwarder A state")
-		// 	partyAForwarderState := response.Data
-		// 	require.NoError(t,
-		// 		cosmosNeutron.QueryContract(ctx, partyBIbcForwarderAddress, contractStateQuery, &response),
-		// 		"failed to query forwarder A state")
-		// 	partyBForwarderState := response.Data
-		// 	require.NoError(t,
-		// 		cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
-		// 		"failed to query forwarder A state")
-		// 	holderState := response.Data
-
-		// 	println("partyAForwarderState: ", partyAForwarderState)
-		// 	println("partyBForwarderState: ", partyBForwarderState)
-		// 	println("holderState: ", holderState)
-
-		// }
-		tickClock := func() {
-			neutronHeight, _ := cosmosNeutron.Height(ctx)
-			println("tick neutron@", neutronHeight)
-			cmd := []string{"neutrond", "tx", "wasm", "execute", clockAddress,
-				`{"tick":{}}`,
-				"--gas-prices", "0.0untrn",
-				"--gas-adjustment", `1.5`,
-				"--output", "json",
-				"--node", cosmosNeutron.GetRPCAddress(),
-				"--home", cosmosNeutron.HomeDir(),
-				"--chain-id", cosmosNeutron.Config().ChainID,
-				"--from", neutronUser.KeyName,
-				"--gas", "1500000",
-				"--keyring-backend", keyring.BackendTest,
-				"-y",
-			}
-
-			tickResponse, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
-			require.NoError(t, err)
-			println("tick response: ", string(tickResponse))
-			println("\n")
-			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
-			require.NoError(t, err, "failed to wait for blocks")
-		}
 
 		t.Run("tick until forwarders create ICA", func(t *testing.T) {
 			for {
-				tickClock()
-				var response CovenantAddressQueryResponse
-				type ContractState struct{}
-				type ContractStateQuery struct {
-					ContractState ContractState `json:"contract_state"`
-				}
-				contractStateQuery := ContractStateQuery{
-					ContractState: ContractState{},
-				}
-
-				require.NoError(t,
-					cosmosNeutron.QueryContract(ctx, partyAIbcForwarderAddress, contractStateQuery, &response),
-					"failed to query forwarder A state")
-				forwarderAState := response.Data
-
-				require.NoError(t,
-					cosmosNeutron.QueryContract(ctx, partyBIbcForwarderAddress, contractStateQuery, &response),
-					"failed to query forwarder B state")
-
-				forwarderBState := response.Data
+				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+				forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
+				forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
 
 				if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-					type DepositAddress struct{}
-					type DepositAddressQuery struct {
-						DepositAddress DepositAddress `json:"deposit_address"`
-					}
-					depositAddressQuery := DepositAddressQuery{
-						DepositAddress: DepositAddress{},
-					}
-
-					err := cosmosNeutron.QueryContract(ctx, partyAIbcForwarderAddress, depositAddressQuery, &response)
-					require.NoError(t, err, "failed to query party a forwarder deposit address")
-					partyADepositAddress = response.Data
-
-					err = cosmosNeutron.QueryContract(ctx, partyBIbcForwarderAddress, depositAddressQuery, &response)
-					require.NoError(t, err, "failed to query party b forwarder deposit address")
-					partyBDepositAddress = response.Data
-
+					partyADepositAddress = testCtx.queryDepositAddress(partyAIbcForwarderAddress)
+					partyBDepositAddress = testCtx.queryDepositAddress(partyBIbcForwarderAddress)
 					break
 				}
 			}
 		})
 
 		t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
-			err := cosmosOsmosis.SendFunds(ctx, osmoUser.KeyName, ibc.WalletAmount{
-				Address: partyBDepositAddress,
-				Denom:   nativeOsmoDenom,
-				Amount:  int64(osmoContributionAmount + 1000),
-			})
-			require.NoError(t, err, "failed to fund osmo forwarder")
-			err = cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
-				Address: partyADepositAddress,
-				Denom:   nativeAtomDenom,
-				Amount:  int64(atomContributionAmount + 1000),
-			})
-			require.NoError(t, err, "failed to fund gaia forwarder")
+			require.NoError(t,
+				cosmosOsmosis.SendFunds(ctx, osmoUser.KeyName, ibc.WalletAmount{
+					Address: partyBDepositAddress,
+					Denom:   nativeOsmoDenom,
+					Amount:  int64(osmoContributionAmount + 1000),
+				}),
+				"failed to fund osmo forwarder",
+			)
 
-			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
-			require.NoError(t, err, "failed to wait for blocks")
-
-			bal, err := cosmosAtom.GetBalance(ctx, partyADepositAddress, nativeAtomDenom)
-			require.NoError(t, err, "failed to query bal")
-			require.Equal(t, int64(atomContributionAmount+1000), bal)
-			bal, err = cosmosOsmosis.GetBalance(ctx, partyBDepositAddress, nativeOsmoDenom)
-			require.NoError(t, err, "failed to query bal")
-			require.Equal(t, int64(osmoContributionAmount+1000), bal)
+			require.NoError(t,
+				cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
+					Address: partyADepositAddress,
+					Denom:   nativeAtomDenom,
+					Amount:  int64(atomContributionAmount + 1000),
+				}),
+				"failed to fund gaia forwarder",
+			)
+			testCtx.skipBlocks(5)
 		})
 
 		t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
 			for {
-				holderOsmoBal, err := cosmosNeutron.GetBalance(ctx, holderAddress, neutronOsmoIbcDenom)
-				require.NoError(t, err, "failed to query holder osmo bal")
-				holderAtomBal, err := cosmosNeutron.GetBalance(ctx, holderAddress, neutronAtomIbcDenom)
-				require.NoError(t, err, "failed to query holder atom bal")
-
-				var response CovenantAddressQueryResponse
-				type ContractState struct{}
-				type ContractStateQuery struct {
-					ContractState ContractState `json:"contract_state"`
-				}
-				contractStateQuery := ContractStateQuery{
-					ContractState: ContractState{},
-				}
-
-				require.NoError(t,
-					cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
-					"failed to query forwarder A state")
-				holderState := response.Data
+				holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
+				holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+				holderState := testCtx.queryContractState(holderAddress)
 
 				if holderAtomBal != 0 && holderOsmoBal != 0 || holderState == "complete" {
 					println("holder atom bal: ", holderAtomBal)
 					println("holder osmo bal: ", holderOsmoBal)
 					break
 				} else {
-					tickClock()
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
 		})
 
 		t.Run("tick until holder sends the funds to splitter", func(t *testing.T) {
 			for {
-				splitterOsmoBal, err := cosmosNeutron.GetBalance(ctx, splitterAddress, neutronOsmoIbcDenom)
-				require.NoError(t, err, "failed to query splitterOsmoBal")
-				splitterAtomBal, err := cosmosNeutron.GetBalance(ctx, splitterAddress, neutronAtomIbcDenom)
-				require.NoError(t, err, "failed to query splitterAtomBal")
+				splitterOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, splitterAddress)
+				splitterAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, splitterAddress)
 
 				if splitterAtomBal != 0 && splitterOsmoBal != 0 {
 					println("splitterOsmoBal: ", splitterOsmoBal)
 					println("splitterAtomBal: ", splitterAtomBal)
 					break
 				} else {
-					tickClock()
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
 		})
 
 		t.Run("tick until splitter sends the funds to routers", func(t *testing.T) {
 			for {
-				partyARouterOsmoBal, err := cosmosNeutron.GetBalance(ctx, partyARouterAddress, neutronOsmoIbcDenom)
-				require.NoError(t, err, "failed to query partyARouterOsmoBal")
-
-				partyBRouterAtomBal, err := cosmosNeutron.GetBalance(ctx, partyBRouterAddress, neutronAtomIbcDenom)
-				require.NoError(t, err, "failed to query partyBRouterAtomBal")
+				partyARouterOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyARouterAddress)
+				partyBRouterAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
 
 				if partyARouterOsmoBal != 0 && partyBRouterAtomBal != 0 {
 					println("partyARouter osmo bal: ", partyARouterOsmoBal)
 					println("partyBRouterAtomBal: ", partyBRouterAtomBal)
 					break
 				} else {
-					tickClock()
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
 		})
@@ -860,7 +565,7 @@ func TestTokenSwap(t *testing.T) {
 					println("osmo user atom bal: ", osmoBal)
 					break
 				} else {
-					tickClock()
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
 		})
