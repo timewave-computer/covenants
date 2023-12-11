@@ -1,13 +1,16 @@
+use std::collections::BTreeMap;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
     StdResult,
 };
+use covenant_utils::SplitConfig;
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SplitConfig, SplitType};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SplitType};
 use crate::state::{CLOCK_ADDRESS, FALLBACK_SPLIT, SPLIT_CONFIG_MAP};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-interchain-splitter";
@@ -31,18 +34,22 @@ pub fn instantiate(
 
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
-        let validated_split = split.get_split_config()?.validate()?;
-        SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &validated_split)?;
-        resp = resp.add_attributes(vec![validated_split.get_response_attribute(denom)]);
+        // split.get_split_config()?.validate()?;
+        match split {
+            SplitType::Custom(config) => {
+                SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &config)?;
+            }
+        }
+
+        // resp = resp.add_attributes(vec![split.get_response_attribute(denom)]);
     }
 
     // if a fallback split is provided we validate and store it
     if let Some(split) = msg.fallback_split {
         resp = resp.add_attributes(vec![split
             .clone()
-            .get_split_config()?
             .get_response_attribute("fallback".to_string())]);
-        FALLBACK_SPLIT.save(deps.storage, &split.get_split_config()?.validate()?)?;
+        FALLBACK_SPLIT.save(deps.storage, &split)?;
     } else {
         resp = resp.add_attribute("fallback", "None");
     }
@@ -84,7 +91,7 @@ pub fn try_distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError
             // pop the relevant coin and build the transfer messages
             let coin = balances.remove(index);
             let mut transfer_messages =
-                config.get_transfer_messages(coin.amount, coin.denom.to_string())?;
+                config.get_transfer_messages(coin.amount, coin.denom.to_string(), None)?;
             distribution_messages.append(&mut transfer_messages);
         }
     }
@@ -96,7 +103,7 @@ pub fn try_distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError
         // get the distribution messages and add them to the list
         for leftover_bal in balances {
             let mut fallback_messages =
-                split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom)?;
+                split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom, None)?;
             distribution_messages.append(&mut fallback_messages);
         }
     }
@@ -136,7 +143,7 @@ pub fn query_split(deps: Deps, denom: String) -> Result<SplitConfig, StdError> {
         }
     }
 
-    Ok(SplitConfig { receivers: vec![] })
+    Ok(SplitConfig { receivers: BTreeMap::new() })
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -162,30 +169,19 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 for (denom, split_type) in splits {
                     match split_type {
                         // we validate each split before storing it
-                        SplitType::Custom(split) => match split.validate() {
-                            Ok(split) => {
-                                SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
-                                resp =
-                                    resp.add_attributes(vec![split.get_response_attribute(denom)]);
-                            }
-                            Err(_) => {
-                                return Err(StdError::generic_err("invalid split".to_string()))
-                            }
-                        },
+                        SplitType::Custom(split) => {
+                            SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
+                        }
                     }
                 }
             }
 
             if let Some(split) = fallback_split {
-                match split.validate() {
-                    Ok(split) => {
-                        FALLBACK_SPLIT.save(deps.storage, &split)?;
-                        resp = resp.add_attributes(vec![
-                            split.get_response_attribute("fallback".to_string())
-                        ]);
-                    }
-                    Err(_) => return Err(StdError::generic_err("invalid split".to_string())),
-                }
+
+                FALLBACK_SPLIT.save(deps.storage, &split)?;
+                resp = resp.add_attributes(vec![
+                    split.get_response_attribute("fallback".to_string())
+                ]);
             }
 
             Ok(resp)

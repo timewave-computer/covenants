@@ -2,6 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Attribute, WasmMsg, StdError, to_json_binary, Binary};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::{CovenantPartiesConfig, CovenantTerms, ExpiryConfig};
+use cw_utils::Expiration;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -13,7 +14,7 @@ pub struct InstantiateMsg {
     pub next_contract: String,
     /// block height of covenant expiration. Position is exited
     /// automatically upon reaching that height.
-    pub lockup_config: ExpiryConfig,
+    pub lockup_config: Expiration,
     /// parties engaged in the POL.
     pub parties_config: CovenantPartiesConfig,
     /// terms of the covenant
@@ -25,10 +26,10 @@ impl InstantiateMsg {
         let mut attrs = vec![
             Attribute::new("clock_addr", self.clock_address),
             Attribute::new("next_contract", self.next_contract),
+            Attribute::new("lockup_config", self.lockup_config.to_string()),
         ];
         attrs.extend(self.parties_config.get_response_attributes());
         attrs.extend(self.covenant_terms.get_response_attributes());
-        attrs.extend(self.lockup_config.get_response_attributes());
         attrs
     }
 }
@@ -37,7 +38,7 @@ impl InstantiateMsg {
 pub struct PresetSwapHolderFields {
     /// block height of covenant expiration. Position is exited
     /// automatically upon reaching that height.
-    pub lockup_config: ExpiryConfig,
+    pub lockup_config: Expiration,
     /// parties engaged in the POL.
     pub parties_config: CovenantPartiesConfig,
     /// terms of the covenant

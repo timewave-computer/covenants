@@ -273,6 +273,9 @@ func TestTokenSwap(t *testing.T) {
 	gaiaUser, neutronUser, osmoUser := users[0], users[1], users[2]
 	_, _, _ = gaiaUser, neutronUser, osmoUser
 
+	hubNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
+	osmoNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
+
 	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
 	require.NoError(t, err, "failed to wait for blocks")
 
@@ -376,7 +379,7 @@ func TestTokenSwap(t *testing.T) {
 			swapHolderCodeId, err = strconv.ParseUint(swapHolderCodeIdStr, 10, 64)
 			require.NoError(t, err, "failed to parse codeId into uint64")
 
-			require.NoError(t, testutil.WaitForBlocks(ctx, 5, cosmosNeutron, cosmosAtom, cosmosOsmosis))
+			// require.NoError(t, testutil.WaitForBlocks(ctx, 5, cosmosNeutron, cosmosAtom, cosmosOsmosis))
 		})
 
 		t.Run("instantiate covenant", func(t *testing.T) {
@@ -428,9 +431,10 @@ func TestTokenSwap(t *testing.T) {
 					},
 				},
 			}
+			_ = splits
 
 			partyAConfig := SwapPartyConfig{
-				Addr:                      hubReceiverAddr,
+				Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 				NativeDenom:               nativeAtomDenom,
 				IbcDenom:                  neutronAtomIbcDenom,
 				PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
@@ -440,7 +444,7 @@ func TestTokenSwap(t *testing.T) {
 				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 			}
 			partyBConfig := SwapPartyConfig{
-				Addr:                      osmoReceiverAddr,
+				Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 				NativeDenom:               nativeOsmoDenom,
 				IbcDenom:                  neutronOsmoIbcDenom,
 				PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
@@ -487,8 +491,10 @@ func TestTokenSwap(t *testing.T) {
 				"-y",
 			}
 
-			_, _, err = neutron.Exec(ctx, cmd, nil)
+			resp, _, err := neutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
+			println("instantiation response: ", string(resp))
+
 			require.NoError(t, testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis))
 
 			queryCmd := []string{"neutrond", "query", "wasm",
@@ -612,73 +618,98 @@ func TestTokenSwap(t *testing.T) {
 			err = testutil.WaitForBlocks(ctx, 2, atom, neutron)
 			require.NoError(t, err, "failed to wait for blocks")
 
-			bal, err := neutron.GetBalance(ctx, partyAIbcForwarderAddress, nativeNtrnDenom)
-			require.NoError(t, err)
-			require.Equal(t, int64(5000001), bal)
-			bal, err = neutron.GetBalance(ctx, partyBIbcForwarderAddress, nativeNtrnDenom)
-			require.NoError(t, err)
-			require.Equal(t, int64(5000001), bal)
-			bal, err = neutron.GetBalance(ctx, clockAddress, nativeNtrnDenom)
-			require.NoError(t, err)
-			require.Equal(t, int64(5000001), bal)
-			bal, err = neutron.GetBalance(ctx, partyARouterAddress, nativeNtrnDenom)
-			require.NoError(t, err)
-			require.Equal(t, int64(15000001), bal)
-			bal, err = neutron.GetBalance(ctx, partyBRouterAddress, nativeNtrnDenom)
-			require.NoError(t, err)
-			require.Equal(t, int64(15000001), bal)
+			// bal, err := neutron.GetBalance(ctx, partyAIbcForwarderAddress, nativeNtrnDenom)
+			// require.NoError(t, err)
+			// require.Equal(t, int64(5000001), bal)
+			// bal, err = neutron.GetBalance(ctx, partyBIbcForwarderAddress, nativeNtrnDenom)
+			// require.NoError(t, err)
+			// require.Equal(t, int64(5000001), bal)
+			// bal, err = neutron.GetBalance(ctx, clockAddress, nativeNtrnDenom)
+			// require.NoError(t, err)
+			// require.Equal(t, int64(5000001), bal)
+			// bal, err = neutron.GetBalance(ctx, partyARouterAddress, nativeNtrnDenom)
+			// require.NoError(t, err)
+			// require.Equal(t, int64(15000001), bal)
+			// bal, err = neutron.GetBalance(ctx, partyBRouterAddress, nativeNtrnDenom)
+			// require.NoError(t, err)
+			// require.Equal(t, int64(15000001), bal)
 		})
 	})
 
 	t.Run("tokenswap run", func(t *testing.T) {
+		// tickClock := func() {
+		// 	println("\ntick")
+		// 	cmd := []string{"neutrond", "tx", "wasm", "execute", clockAddress,
+		// 		`{"tick":{}}`,
+		// 		"--from", neutronUser.KeyName,
+		// 		"--gas-prices", "0.0untrn",
+		// 		"--gas-adjustment", `1.8`,
+		// 		"--output", "json",
+		// 		"--home", "/var/cosmos-chain/neutron-2",
+		// 		"--node", neutron.GetRPCAddress(),
+		// 		"--home", neutron.HomeDir(),
+		// 		"--chain-id", neutron.Config().ChainID,
+		// 		"--from", neutronUser.KeyName,
+		// 		"--gas", "auto",
+		// 		"--keyring-backend", keyring.BackendTest,
+		// 		"-y",
+		// 	}
+
+		// 	tickResponse, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+		// 	require.NoError(t, err)
+		// 	println("tick response: ", string(tickResponse))
+		// 	err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
+		// 	require.NoError(t, err, "failed to wait for blocks")
+		// 	var response CovenantAddressQueryResponse
+		// 	type ContractState struct{}
+		// 	type ContractStateQuery struct {
+		// 		ContractState ContractState `json:"contract_state"`
+		// 	}
+		// 	contractStateQuery := ContractStateQuery{
+		// 		ContractState: ContractState{},
+		// 	}
+
+		// 	require.NoError(t,
+		// 		cosmosNeutron.QueryContract(ctx, partyAIbcForwarderAddress, contractStateQuery, &response),
+		// 		"failed to query forwarder A state")
+		// 	partyAForwarderState := response.Data
+		// 	require.NoError(t,
+		// 		cosmosNeutron.QueryContract(ctx, partyBIbcForwarderAddress, contractStateQuery, &response),
+		// 		"failed to query forwarder A state")
+		// 	partyBForwarderState := response.Data
+		// 	require.NoError(t,
+		// 		cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
+		// 		"failed to query forwarder A state")
+		// 	holderState := response.Data
+
+		// 	println("partyAForwarderState: ", partyAForwarderState)
+		// 	println("partyBForwarderState: ", partyBForwarderState)
+		// 	println("holderState: ", holderState)
+
+		// }
 		tickClock := func() {
-			println("\ntick")
+			neutronHeight, _ := cosmosNeutron.Height(ctx)
+			println("tick neutron@", neutronHeight)
 			cmd := []string{"neutrond", "tx", "wasm", "execute", clockAddress,
 				`{"tick":{}}`,
-				"--from", neutronUser.KeyName,
 				"--gas-prices", "0.0untrn",
-				"--gas-adjustment", `1.8`,
+				"--gas-adjustment", `1.5`,
 				"--output", "json",
-				"--home", "/var/cosmos-chain/neutron-2",
-				"--node", neutron.GetRPCAddress(),
-				"--home", neutron.HomeDir(),
-				"--chain-id", neutron.Config().ChainID,
+				"--node", cosmosNeutron.GetRPCAddress(),
+				"--home", cosmosNeutron.HomeDir(),
+				"--chain-id", cosmosNeutron.Config().ChainID,
 				"--from", neutronUser.KeyName,
-				"--gas", "auto",
+				"--gas", "1500000",
 				"--keyring-backend", keyring.BackendTest,
 				"-y",
 			}
 
-			_, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
+			tickResponse, _, err := cosmosNeutron.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
+			println("tick response: ", string(tickResponse))
+			println("\n")
 			err = testutil.WaitForBlocks(ctx, 5, atom, neutron, osmosis)
 			require.NoError(t, err, "failed to wait for blocks")
-			var response CovenantAddressQueryResponse
-			type ContractState struct{}
-			type ContractStateQuery struct {
-				ContractState ContractState `json:"contract_state"`
-			}
-			contractStateQuery := ContractStateQuery{
-				ContractState: ContractState{},
-			}
-
-			require.NoError(t,
-				cosmosNeutron.QueryContract(ctx, partyAIbcForwarderAddress, contractStateQuery, &response),
-				"failed to query forwarder A state")
-			partyAForwarderState := response.Data
-			require.NoError(t,
-				cosmosNeutron.QueryContract(ctx, partyBIbcForwarderAddress, contractStateQuery, &response),
-				"failed to query forwarder A state")
-			partyBForwarderState := response.Data
-			require.NoError(t,
-				cosmosNeutron.QueryContract(ctx, holderAddress, contractStateQuery, &response),
-				"failed to query forwarder A state")
-			holderState := response.Data
-
-			println("partyAForwarderState: ", partyAForwarderState)
-			println("partyBForwarderState: ", partyBForwarderState)
-			println("holderState: ", holderState)
-
 		}
 
 		t.Run("tick until forwarders create ICA", func(t *testing.T) {

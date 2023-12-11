@@ -16,7 +16,7 @@ type CovenantInstantiateMsg struct {
 	PartyAConfig                SwapPartyConfig             `json:"party_a_config"`
 	PartyBConfig                SwapPartyConfig             `json:"party_b_config"`
 	Splits                      []DenomSplit                `json:"splits"`
-	FallbackSplit               *SplitType                  `json:"fallback_split,omitempty"`
+	FallbackSplit               *SplitConfig                `json:"fallback_split,omitempty"`
 }
 
 type SwapCovenantContractCodeIds struct {

@@ -5,6 +5,7 @@ use covenant_utils::{
     SwapCovenantTerms,
 };
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
+use cw_utils::Expiration;
 
 use super::{mock_deposit_contract, swap_holder_contract};
 
@@ -41,7 +42,7 @@ impl Default for SuiteBuilder {
             instantiate: InstantiateMsg {
                 clock_address: CLOCK_ADDR.to_string(),
                 next_contract: NEXT_CONTRACT.to_string(),
-                lockup_config: ExpiryConfig::None,
+                lockup_config: cw_utils::Expiration::Never {  },
                 parties_config: CovenantPartiesConfig {
                     party_a: CovenantParty {
                         addr: PARTY_A_ADDR.to_string(),
@@ -69,7 +70,7 @@ impl Default for SuiteBuilder {
 }
 
 impl SuiteBuilder {
-    pub fn with_lockup_config(mut self, config: ExpiryConfig) -> Self {
+    pub fn with_lockup_config(mut self, config: Expiration) -> Self {
         self.instantiate.lockup_config = config;
         self
     }
