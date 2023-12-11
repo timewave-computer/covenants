@@ -46,7 +46,7 @@ impl Default for SuiteBuilder {
             instantiate: InstantiateMsg {
                 clock_address: CLOCK_ADDR.to_string(),
                 next_contract: NEXT_CONTRACT.to_string(),
-                lockup_config: cw_utils::Expiration::Never {},
+                lockup_config: cw_utils::Expiration::Never {  },
                 parties_config: CovenantPartiesConfig {
                     party_a: CovenantParty {
                         addr: PARTY_A_ADDR.to_string(),
