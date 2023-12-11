@@ -56,6 +56,7 @@ func SetupNeutronGenesis(
 		if err := dyno.Set(g, "1000000000", "consensus_params", "block", "max_gas"); err != nil {
 			return nil, fmt.Errorf("failed to set block max gas: %w", err)
 		}
+
 		minGasEntries := []interface{}{
 			map[string]string{"denom": "untrn", "amount": "0"},
 		}
