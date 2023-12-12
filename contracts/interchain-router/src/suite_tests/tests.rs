@@ -51,7 +51,7 @@ fn test_migrate_config() {
             destination_chain_channel_id: "new_channel".to_string(),
             destination_receiver_addr: "new_receiver".to_string(),
             ibc_transfer_timeout: Uint64::new(100),
-        }),
+        })),
         target_denoms: Some(target_denom_vec),
     };
 
@@ -166,6 +166,7 @@ fn test_tick() {
     ];
 
     // assert the expected response attributes and messages
+    // assert_eq!(expected_messages, resp.messages);
     assert_eq!(expected_attributes, resp.attributes);
 
     // try to use the fallback method to distribute
@@ -219,8 +220,8 @@ fn test_tick() {
                         recv_fee: vec![],
                         ack_fee: vec![cosmwasm_std::coin(1000, "untrn".to_string())],
                         timeout_fee: vec![cosmwasm_std::coin(1000, "untrn".to_string())],
-                    }
-                }),
+                    },
+                },),
                 gas_limit: None,
                 reply_on: cosmwasm_std::ReplyOn::Never,
             }
