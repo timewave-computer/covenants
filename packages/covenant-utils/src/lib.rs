@@ -414,7 +414,7 @@ impl CovenantParty {
             ReceiverConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
                 to_address: addr.to_string(),
                 amount: vec![cosmwasm_std::Coin {
-                    denom: self.ibc_denom,
+                    denom: self.native_denom,
                     amount,
                 }],
             }),
@@ -422,7 +422,7 @@ impl CovenantParty {
                 channel_id: destination_config.destination_chain_channel_id,
                 to_address: self.addr.to_string(),
                 amount: cosmwasm_std::Coin {
-                    denom: self.ibc_denom,
+                    denom: self.native_denom,
                     amount,
                 },
                 timeout: IbcTimeout::with_timestamp(
