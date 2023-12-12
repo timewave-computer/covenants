@@ -5,7 +5,6 @@ use cosmwasm_std::{
     testing::{MockApi, MockStorage},
     Addr, Coin, Empty, GovMsg, Uint64,
 };
-
 use covenant_utils::{DestinationConfig, ReceiverConfig};
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, DistributionKeeper,
@@ -58,9 +57,11 @@ impl Default for SuiteBuilder {
         Self {
             instantiate: InstantiateMsg {
                 clock_address: CLOCK_ADDR.to_string(),
-                destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
-                destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
-                ibc_transfer_timeout: Uint64::new(10),
+                receiver_config: covenant_utils::ReceiverConfig::Ibc(DestinationConfig {
+                    destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
+                    destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
+                    ibc_transfer_timeout: Uint64::new(10),
+                }),
                 denoms: vec![],
             },
             app: App::default(),
@@ -146,13 +147,6 @@ impl Suite {
         self.app
             .wrap()
             .query_wasm_smart(&self.router, &QueryMsg::ReceiverConfig {})
-            .unwrap()
-    }
-
-    pub fn query_target_denoms(&self) -> BTreeSet<String> {
-        self.app
-            .wrap()
-            .query_wasm_smart(&self.router, &QueryMsg::TargetDenoms {})
             .unwrap()
     }
 
