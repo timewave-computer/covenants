@@ -13,10 +13,32 @@ type CovenantInstantiateMsg struct {
 	TickMaxGas                  string                      `json:"clock_tick_max_gas,omitempty"`
 	LockupConfig                Expiration                  `json:"lockup_config"`
 	SwapCovenantTerms           SwapCovenantTerms           `json:"covenant_terms"`
-	PartyAConfig                SwapPartyConfig             `json:"party_a_config"`
-	PartyBConfig                SwapPartyConfig             `json:"party_b_config"`
+	PartyAConfig                CovenantPartyConfig         `json:"party_a_config"`
+	PartyBConfig                CovenantPartyConfig         `json:"party_b_config"`
 	Splits                      []DenomSplit                `json:"splits"`
 	FallbackSplit               *SplitConfig                `json:"fallback_split,omitempty"`
+}
+
+type CovenantPartyConfig struct {
+	Interchain *InterchainCovenantParty `json:"interchain,omitempty"`
+	Native     *NativeCovenantParty     `json:"native,omitempty"`
+}
+
+type InterchainCovenantParty struct {
+	Addr                      string `json:"addr"`
+	NativeDenom               string `json:"native_denom"`
+	RemoteChainDenom          string `json:"remote_chain_denom"`
+	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
+	HostToPartyChainChannelId string `json:"host_to_party_chain_channel_id"`
+	PartyReceiverAddr         string `json:"party_receiver_addr"`
+	PartyChainConnectionId    string `json:"party_chain_connection_id"`
+	IbcTransferTimeout        string `json:"ibc_transfer_timeout"`
+}
+
+type NativeCovenantParty struct {
+	Addr              string `json:"addr"`
+	NativeDenom       string `json:"native_denom"`
+	PartyReceiverAddr string `json:"party_receiver_addr"`
 }
 
 type SwapCovenantContractCodeIds struct {
@@ -96,16 +118,16 @@ type CovenantParty struct {
 	ReceiverConfig ReceiverConfig `json:"receiver_config"`
 }
 
-type SwapPartyConfig struct {
-	Addr                      string `json:"addr"`
-	NativeDenom               string `json:"native_denom"`
-	IbcDenom                  string `json:"ibc_denom"`
-	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
-	HostToPartyChainChannelId string `json:"host_to_party_chain_channel_id"`
-	PartyReceiverAddr         string `json:"party_receiver_addr"`
-	PartyChainConnectionId    string `json:"party_chain_connection_id"`
-	IbcTransferTimeout        string `json:"ibc_transfer_timeout"`
-}
+// type SwapPartyConfig struct {
+// 	Addr                      string `json:"addr"`
+// 	NativeDenom               string `json:"native_denom"`
+// 	IbcDenom                  string `json:"ibc_denom"`
+// 	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
+// 	HostToPartyChainChannelId string `json:"host_to_party_chain_channel_id"`
+// 	PartyReceiverAddr         string `json:"party_receiver_addr"`
+// 	PartyChainConnectionId    string `json:"party_chain_connection_id"`
+// 	IbcTransferTimeout        string `json:"ibc_transfer_timeout"`
+// }
 
 type ReceiverConfig struct {
 	Native string `json:"native"`

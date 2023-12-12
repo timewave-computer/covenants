@@ -1,7 +1,9 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128, Uint64};
 use covenant_interchain_splitter::msg::DenomSplit;
-use covenant_utils::{SplitConfig, SwapCovenantTerms};
+use covenant_utils::{
+    CovenantParty, DestinationConfig, ReceiverConfig, SplitConfig, SwapCovenantTerms,
+};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -24,23 +26,76 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
-pub struct CovenantPartyConfig {
-    /// authorized address of the party
-    pub addr: String,
-    /// denom provided by the party on its native chain
-    pub native_denom: String,
-    /// ibc denom provided by the party on neutron
-    pub ibc_denom: String,
-    /// channel id from party to host chain
-    pub party_to_host_chain_channel_id: String,
-    /// channel id from host chain to the party chain
-    pub host_to_party_chain_channel_id: String,
+pub enum CovenantPartyConfig {
+    Interchain(InterchainCovenantParty),
+    Native(NativeCovenantParty),
+}
+
+impl CovenantPartyConfig {
+    pub fn to_receiver_config(&self) -> ReceiverConfig {
+        match self {
+            CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
+                destination_chain_channel_id: config.host_to_party_chain_channel_id.to_string(),
+                destination_receiver_addr: config.party_receiver_addr.to_string(),
+                ibc_transfer_timeout: config.ibc_transfer_timeout,
+            }),
+            CovenantPartyConfig::Native(config) => {
+                ReceiverConfig::Native(Addr::unchecked(config.party_receiver_addr.to_string()))
+            }
+        }
+    }
+
+    pub fn get_final_receiver_address(&self) -> String {
+        match self {
+            CovenantPartyConfig::Interchain(config) => config.party_receiver_addr.to_string(),
+            CovenantPartyConfig::Native(config) => config.party_receiver_addr.to_string(),
+        }
+    }
+
+    pub fn to_covenant_party(&self) -> CovenantParty {
+        match self {
+            CovenantPartyConfig::Interchain(config) => CovenantParty {
+                addr: config.addr.to_string(),
+                native_denom: config.native_denom.to_string(),
+                receiver_config: self.to_receiver_config(),
+            },
+            CovenantPartyConfig::Native(config) => CovenantParty {
+                addr: config.addr.to_string(),
+                native_denom: config.native_denom.to_string(),
+                receiver_config: self.to_receiver_config(),
+            },
+        }
+    }
+}
+
+#[cw_serde]
+pub struct InterchainCovenantParty {
     /// address of the receiver on destination chain
     pub party_receiver_addr: String,
     /// connection id to the party chain
     pub party_chain_connection_id: String,
     /// timeout in seconds
     pub ibc_transfer_timeout: Uint64,
+    /// channel id from party to host chain
+    pub party_to_host_chain_channel_id: String,
+    /// channel id from host chain to the party chain
+    pub host_to_party_chain_channel_id: String,
+    /// denom provided by the party on its native chain
+    pub remote_chain_denom: String,
+    /// authorized address of the party on neutron
+    pub addr: String,
+    /// denom provided by the party on neutron
+    pub native_denom: String,
+}
+
+#[cw_serde]
+pub struct NativeCovenantParty {
+    /// address of the receiver on destination chain
+    pub party_receiver_addr: String,
+    /// denom provided by the party on neutron
+    pub native_denom: String,
+    /// authorized address of the party on neutron
+    pub addr: String,
 }
 
 #[cw_serde]
@@ -130,6 +185,8 @@ pub enum QueryMsg {
     InterchainRouterAddress { party: String },
     #[returns(Addr)]
     IbcForwarderAddress { party: String },
+    #[returns(Addr)]
+    PartyDepositAddress { party: String },
 }
 
 #[cw_serde]

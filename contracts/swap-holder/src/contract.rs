@@ -93,11 +93,11 @@ fn try_forward(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let CovenantTerms::TokenSwap(covenant_terms) = COVENANT_TERMS.load(deps.storage)?;
 
     let mut party_a_coin = Coin {
-        denom: parties.party_a.ibc_denom,
+        denom: parties.party_a.native_denom,
         amount: Uint128::zero(),
     };
     let mut party_b_coin = Coin {
-        denom: parties.party_b.ibc_denom,
+        denom: parties.party_b.native_denom,
         amount: Uint128::zero(),
     };
 
@@ -150,11 +150,11 @@ fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let parties = PARTIES_CONFIG.load(deps.storage)?;
 
     let mut party_a_coin = Coin {
-        denom: parties.clone().party_a.ibc_denom,
+        denom: parties.clone().party_a.native_denom,
         amount: Uint128::zero(),
     };
     let mut party_b_coin = Coin {
-        denom: parties.clone().party_b.ibc_denom,
+        denom: parties.clone().party_b.native_denom,
         amount: Uint128::zero(),
     };
 
