@@ -1,33 +1,27 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, Uint64, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, WasmMsg};
 use covenant_macros::{clocked, covenant_clock_address};
-use covenant_utils::DestinationConfig;
+use covenant_utils::ReceiverConfig;
 
 #[cw_serde]
 pub struct InstantiateMsg {
     /// address for the clock. this contract verifies
     /// that only the clock can execute ticks
     pub clock_address: String,
-    /// channel id of the destination chain
-    pub destination_chain_channel_id: String,
-    /// address of the receiver on destination chain
-    pub destination_receiver_addr: String,
-    /// timeout in seconds
-    pub ibc_transfer_timeout: Uint64,
+    /// config that determines whether router should
+    /// route over ibc or natively
+    pub receiver_config: ReceiverConfig,
     /// specified denoms to route
     pub denoms: Vec<String>,
 }
 
 #[cw_serde]
 pub struct PresetInterchainRouterFields {
-    /// channel id of the destination chain
-    pub destination_chain_channel_id: String,
-    /// address of the receiver on destination chain
-    pub destination_receiver_addr: String,
-    /// timeout in seconds
-    pub ibc_transfer_timeout: Uint64,
+    /// config that determines whether router should
+    /// route over ibc or natively
+    pub receiver_config: ReceiverConfig,
     /// specified denoms to route
     pub denoms: Vec<String>,
     pub label: String,
@@ -38,9 +32,7 @@ impl PresetInterchainRouterFields {
     pub fn to_instantiate_msg(&self, clock_address: String) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
-            destination_chain_channel_id: self.destination_chain_channel_id.to_string(),
-            destination_receiver_addr: self.destination_receiver_addr.to_string(),
-            ibc_transfer_timeout: self.ibc_transfer_timeout,
+            receiver_config: self.receiver_config.clone(),
             denoms: self.denoms.clone(),
         }
     }
@@ -73,8 +65,8 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 #[cw_serde]
 pub enum QueryMsg {
-    #[returns(DestinationConfig)]
-    DestinationConfig {},
+    #[returns(ReceiverConfig)]
+    ReceiverConfig {},
     #[returns(BTreeSet<String>)]
     TargetDenoms {},
 }
@@ -83,7 +75,7 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
-        destination_config: Option<DestinationConfig>,
+        receiver_config: Option<ReceiverConfig>,
         target_denoms: Option<Vec<String>>,
     },
     UpdateCodeId {

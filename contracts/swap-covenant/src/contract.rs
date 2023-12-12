@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, CosmosMsg,
-    Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg, WasmMsg,
+    instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps,
+    DepsMut, Env, MessageInfo, Response, StdResult,
 };
 
 use covenant_clock::msg::PresetClockFields;
@@ -10,7 +10,9 @@ use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
-use covenant_utils::{CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig};
+use covenant_utils::{
+    CovenantPartiesConfig, CovenantParty, CovenantTerms, DestinationConfig, ReceiverConfig,
+};
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
 
@@ -155,17 +157,21 @@ pub fn instantiate(
         .collect();
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
-        destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
-        destination_receiver_addr: msg.party_a_config.party_receiver_addr.to_string(),
-        ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
+        receiver_config: ReceiverConfig::Ibc(DestinationConfig {
+            destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
+            destination_receiver_addr: msg.party_a_config.party_receiver_addr.to_string(),
+            ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
+        }),
         label: format!("{}_party_a_interchain_router", msg.label),
         code_id: msg.contract_codes.interchain_router_code,
         denoms: covenant_denoms.clone(),
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
-        destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
-        destination_receiver_addr: msg.party_b_config.party_receiver_addr.to_string(),
-        ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
+        receiver_config: ReceiverConfig::Ibc(DestinationConfig {
+            destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
+            destination_receiver_addr: msg.party_b_config.party_receiver_addr.to_string(),
+            ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
+        }),
         label: format!("{}_party_b_interchain_router", msg.label),
         code_id: msg.contract_codes.interchain_router_code,
         denoms: covenant_denoms,
