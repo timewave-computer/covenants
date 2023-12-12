@@ -5,7 +5,7 @@ use cosmwasm_std::{
     testing::{MockApi, MockStorage},
     Addr, Coin, Empty, GovMsg, Uint64,
 };
-use covenant_utils::DestinationConfig;
+use covenant_utils::{DestinationConfig, ReceiverConfig};
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, DistributionKeeper,
     Executor, FailingModule, IbcAcceptingModule, StakeKeeper, WasmKeeper,
@@ -54,9 +54,11 @@ impl Default for SuiteBuilder {
         Self {
             instantiate: InstantiateMsg {
                 clock_address: CLOCK_ADDR.to_string(),
-                destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
-                destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
-                ibc_transfer_timeout: Uint64::new(10),
+                receiver_config: covenant_utils::ReceiverConfig::Ibc(DestinationConfig {
+                    destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
+                    destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
+                    ibc_transfer_timeout: Uint64::new(10),
+                }),
                 denoms: vec![],
             },
             app: App::default(),
@@ -122,10 +124,10 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_destination_config(&self) -> DestinationConfig {
+    pub fn query_destination_config(&self) -> ReceiverConfig {
         self.app
             .wrap()
-            .query_wasm_smart(&self.router, &QueryMsg::DestinationConfig {})
+            .query_wasm_smart(&self.router, &QueryMsg::ReceiverConfig {})
             .unwrap()
     }
 

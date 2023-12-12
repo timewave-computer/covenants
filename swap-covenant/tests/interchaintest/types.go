@@ -90,11 +90,6 @@ type CovenantPartiesConfig struct {
 	PartyB CovenantParty `json:"party_b"`
 }
 
-type SwapCovenantParties struct {
-	PartyA SwapPartyConfig `json:"party_a"`
-	PartyB SwapPartyConfig `json:"party_b"`
-}
-
 type CovenantParty struct {
 	Addr           string         `json:"addr"`
 	IbcDenom       string         `json:"ibc_denom"`

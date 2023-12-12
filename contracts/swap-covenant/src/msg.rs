@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128, Uint64};
-use covenant_interchain_splitter::msg::{DenomSplit, SplitType};
+use covenant_interchain_splitter::msg::DenomSplit;
 use covenant_utils::{SplitConfig, SwapCovenantTerms};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -52,12 +52,8 @@ pub struct SwapCovenantContractCodeIds {
     pub clock_code: u64,
 }
 
-#[cw_serde]
-pub struct SwapCovenantParties {
-    pub party_a: SwapPartyConfig,
-    pub party_b: SwapPartyConfig,
-}
-
+// TODO: this config should enable the option to have both
+// ibc and native chain parties
 #[cw_serde]
 pub struct SwapPartyConfig {
     /// authorized address of the party
@@ -130,8 +126,6 @@ pub enum QueryMsg {
     HolderAddress {},
     #[returns(Addr)]
     SplitterAddress {},
-    // #[returns(SwapCovenantParties)]
-    // CovenantParties {},
     #[returns(Addr)]
     InterchainRouterAddress { party: String },
     #[returns(Addr)]
