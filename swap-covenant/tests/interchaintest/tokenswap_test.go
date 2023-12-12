@@ -372,8 +372,8 @@ func TestTokenSwap(t *testing.T) {
 			}
 
 			presetIbcFee := PresetIbcFee{
-				AckFee:     "10000",
-				TimeoutFee: "10000",
+				AckFee:     "1000001",
+				TimeoutFee: "1000001",
 			}
 			hubReceiverAddr := gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 			osmoReceiverAddr := osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
@@ -403,20 +403,20 @@ func TestTokenSwap(t *testing.T) {
 				},
 			}
 
-			partyAConfig := SwapPartyConfig{
+			partyAConfig := InterchainCovenantParty{
 				Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-				NativeDenom:               nativeAtomDenom,
-				IbcDenom:                  neutronAtomIbcDenom,
+				NativeDenom:               neutronAtomIbcDenom,
+				RemoteChainDenom:          nativeAtomDenom,
 				PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 				HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 				PartyReceiverAddr:         hubReceiverAddr,
 				PartyChainConnectionId:    neutronAtomIBCConnId,
 				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 			}
-			partyBConfig := SwapPartyConfig{
+			partyBConfig := InterchainCovenantParty{
 				Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-				NativeDenom:               nativeOsmoDenom,
-				IbcDenom:                  neutronOsmoIbcDenom,
+				NativeDenom:               neutronOsmoIbcDenom,
+				RemoteChainDenom:          nativeOsmoDenom,
 				PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 				HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
 				PartyReceiverAddr:         osmoReceiverAddr,
@@ -438,9 +438,13 @@ func TestTokenSwap(t *testing.T) {
 				SwapCovenantContractCodeIds: codeIds,
 				LockupConfig:                lockupConfig,
 				SwapCovenantTerms:           swapCovenantTerms,
-				PartyAConfig:                partyAConfig,
-				PartyBConfig:                partyBConfig,
-				Splits:                      splits,
+				PartyAConfig: CovenantPartyConfig{
+					Interchain: &partyAConfig,
+				},
+				PartyBConfig: CovenantPartyConfig{
+					Interchain: &partyBConfig,
+				},
+				Splits: splits,
 			}
 
 			covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantCodeId, 10), covenantMsg, neutronUser, keyring.BackendTest)
@@ -464,6 +468,8 @@ func TestTokenSwap(t *testing.T) {
 				clockAddress,
 				partyARouterAddress,
 				partyBRouterAddress,
+				holderAddress,
+				splitterAddress,
 			}
 			testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
 			testCtx.skipBlocks(2)
@@ -481,6 +487,8 @@ func TestTokenSwap(t *testing.T) {
 				if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
 					partyADepositAddress = testCtx.queryDepositAddress(partyAIbcForwarderAddress)
 					partyBDepositAddress = testCtx.queryDepositAddress(partyBIbcForwarderAddress)
+					println("partyADepositAddress", partyADepositAddress)
+					println("partyBDepositAddress", partyBDepositAddress)
 					break
 				}
 			}
