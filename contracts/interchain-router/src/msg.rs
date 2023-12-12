@@ -14,7 +14,7 @@ pub struct InstantiateMsg {
     /// route over ibc or natively
     pub receiver_config: ReceiverConfig,
     /// specified denoms to route
-    pub denoms: Vec<String>,
+    pub denoms: BTreeSet<String>,
 }
 
 #[cw_serde]
@@ -23,7 +23,7 @@ pub struct PresetInterchainRouterFields {
     /// route over ibc or natively
     pub receiver_config: ReceiverConfig,
     /// specified denoms to route
-    pub denoms: Vec<String>,
+    pub denoms: BTreeSet<String>,
     pub label: String,
     pub code_id: u64,
 }

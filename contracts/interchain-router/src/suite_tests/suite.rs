@@ -59,7 +59,7 @@ impl Default for SuiteBuilder {
                     destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
                     ibc_transfer_timeout: Uint64::new(10),
                 }),
-                denoms: vec![],
+                denoms: BTreeSet::new(),
             },
             app: App::default(),
         }
@@ -68,9 +68,9 @@ impl Default for SuiteBuilder {
 
 impl SuiteBuilder {
     pub fn with_denoms(mut self, denoms: Vec<String>) -> Self {
-        // let covenant_denoms: BTreeSet<String> = denoms.into_iter().collect();
+        let covenant_denoms: BTreeSet<String> = denoms.into_iter().collect();
 
-        self.instantiate.denoms = denoms;
+        self.instantiate.denoms = covenant_denoms;
         self
     }
 

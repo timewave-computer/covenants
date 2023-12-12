@@ -403,7 +403,7 @@ pub struct CovenantParty {
     /// authorized address of the party
     pub addr: String,
     /// denom provided by the party
-    pub ibc_denom: String,
+    pub native_denom: String,
     /// information about receiver address
     pub receiver_config: ReceiverConfig,
 }
@@ -414,7 +414,7 @@ impl CovenantParty {
             ReceiverConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
                 to_address: addr.to_string(),
                 amount: vec![cosmwasm_std::Coin {
-                    denom: self.ibc_denom,
+                    denom: self.native_denom,
                     amount,
                 }],
             }),
@@ -422,7 +422,7 @@ impl CovenantParty {
                 channel_id: destination_config.destination_chain_channel_id,
                 to_address: self.addr.to_string(),
                 amount: cosmwasm_std::Coin {
-                    denom: self.ibc_denom,
+                    denom: self.native_denom,
                     amount,
                 },
                 timeout: IbcTimeout::with_timestamp(
@@ -445,9 +445,9 @@ impl CovenantPartiesConfig {
     pub fn get_response_attributes(self) -> Vec<Attribute> {
         let mut attrs = vec![
             Attribute::new("party_a_address", self.party_a.addr),
-            Attribute::new("party_a_ibc_denom", self.party_a.ibc_denom),
+            Attribute::new("party_a_ibc_denom", self.party_a.native_denom),
             Attribute::new("party_b_address", self.party_b.addr),
-            Attribute::new("party_b_ibc_denom", self.party_b.ibc_denom),
+            Attribute::new("party_b_ibc_denom", self.party_b.native_denom),
         ];
         attrs.extend(
             self.party_a

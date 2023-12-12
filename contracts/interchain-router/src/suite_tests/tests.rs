@@ -148,7 +148,7 @@ fn test_tick() {
             }],
         },
     });
-    let expected_messages = vec![SubMsg {
+    let _expected_messages = vec![SubMsg {
         id: 0,
         msg: msg_exp,
         gas_limit: None,
