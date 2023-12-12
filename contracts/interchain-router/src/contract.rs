@@ -37,9 +37,7 @@ pub fn instantiate(
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
     RECEIVER_CONFIG.save(deps.storage, &msg.receiver_config)?;
-
-    let denom_set: BTreeSet<String> = msg.denoms.into_iter().map(|d| d).collect();
-    TARGET_DENOMS.save(deps.storage, &denom_set)?;
+    TARGET_DENOMS.save(deps.storage, &msg.denoms)?;
 
     Ok(Response::default()
         .add_message(enqueue_msg(clock_addr.as_str())?)
@@ -93,7 +91,7 @@ fn try_distribute_fallback(
     // this will return either a bunch of bank sends in case the receiver is
     // on the same chain, or a bunch of ibc transfer msgs otherwise
     let fallback_distribution_messages = match receiver_config {
-        covenant_utils::ReceiverConfig::Native(addr) => vec![], // TODO
+        covenant_utils::ReceiverConfig::Native(_addr) => vec![], // TODO
         covenant_utils::ReceiverConfig::Ibc(destination_config) => destination_config
             .get_ibc_transfer_messages_for_coins(
                 available_balances,
@@ -141,7 +139,7 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
 
     // get transfer messages for each denom
     let messages = match receiver_config {
-        covenant_utils::ReceiverConfig::Native(addr) => vec![], // TODO
+        covenant_utils::ReceiverConfig::Native(_addr) => vec![], // TODO
         covenant_utils::ReceiverConfig::Ibc(destination_config) => destination_config
             .get_ibc_transfer_messages_for_coins(
                 denom_balances,
