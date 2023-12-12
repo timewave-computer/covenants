@@ -6,14 +6,14 @@ use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
+use covenant_clock::helpers::verify_clock;
 use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
     NeutronError, NeutronResult,
 };
 
-use crate::state::TARGET_DENOMS;
+use crate::state::{RECEIVER_CONFIG, TARGET_DENOMS};
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::CLOCK_ADDRESS,
@@ -35,15 +35,8 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-
-    let destination_config = DestinationConfig {
-        destination_chain_channel_id: msg.destination_chain_channel_id.to_string(),
-        destination_receiver_addr: msg.destination_receiver_addr.to_string(),
-        ibc_transfer_timeout: msg.ibc_transfer_timeout,
-    };
-
     CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
-    DESTINATION_CONFIG.save(deps.storage, &destination_config)?;
+    RECEIVER_CONFIG.save(deps.storage, &msg.receiver_config)?;
 
     let denom_set: BTreeSet<String> = msg.denoms.into_iter().map(|d| d).collect();
     TARGET_DENOMS.save(deps.storage, &denom_set)?;
@@ -51,8 +44,7 @@ pub fn instantiate(
     Ok(Response::default()
         .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "interchain_router_instantiate")
-        .add_attribute("clock_address", clock_addr)
-        .add_attribute("destination_receiver_addr", msg.destination_receiver_addr))
+        .add_attribute("clock_address", clock_addr))
     // .add_attributes(destination_config.get_response_attributes()))
 }
 
@@ -83,7 +75,7 @@ fn try_distribute_fallback(
     denoms: Vec<String>,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let mut available_balances = Vec::new();
-    let destination_config = DESTINATION_CONFIG.load(deps.storage)?;
+    let receiver_config = RECEIVER_CONFIG.load(deps.storage)?;
     let explicit_denoms = TARGET_DENOMS.load(deps.storage)?;
 
     for denom in denoms {
@@ -100,11 +92,17 @@ fn try_distribute_fallback(
         available_balances.push(queried_coin);
     }
 
-    let fallback_distribution_messages = destination_config.get_ibc_transfer_messages_for_coins(
-        available_balances,
-        env.block.time,
-        env.contract.address.to_string(),
-    );
+    // this will return either a bunch of bank sends in case the receiver is
+    // on the same chain, or a bunch of ibc transfer msgs otherwise
+    let fallback_distribution_messages = match receiver_config {
+        covenant_utils::ReceiverConfig::Native(addr) => vec![], // TODO
+        covenant_utils::ReceiverConfig::Ibc(destination_config) => destination_config
+            .get_ibc_transfer_messages_for_coins(
+                available_balances,
+                env.block.time,
+                env.contract.address.to_string(),
+            ),
+    };
 
     Ok(Response::default()
         .add_attribute("method", "try_distribute_fallback")
@@ -113,7 +111,7 @@ fn try_distribute_fallback(
 
 /// method that attempts to transfer out all available balances to the receiver
 fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-    let destination_config = DESTINATION_CONFIG.load(deps.storage)?;
+    let receiver_config = RECEIVER_CONFIG.load(deps.storage)?;
     let denoms_to_route = TARGET_DENOMS.load(deps.storage)?;
     let mut denom_balances = Vec::new();
     for denom in denoms_to_route {
@@ -143,12 +141,16 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
             .collect(),
     };
 
-    // get ibc transfer messages for each denom
-    let messages = destination_config.get_ibc_transfer_messages_for_coins(
-        denom_balances,
-        env.block.time,
-        env.contract.address.to_string(),
-    );
+    // get transfer messages for each denom
+    let messages = match receiver_config {
+        covenant_utils::ReceiverConfig::Native(addr) => vec![], // TODO
+        covenant_utils::ReceiverConfig::Ibc(destination_config) => destination_config
+            .get_ibc_transfer_messages_for_coins(
+                denom_balances,
+                env.block.time,
+                env.contract.address.to_string(),
+            ),
+    };
 
     Ok(Response::default()
         .add_attribute("method", "try_route_balances")
@@ -178,7 +180,7 @@ pub fn migrate(
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
-            destination_config,
+            receiver_config,
             target_denoms,
         } => {
             let mut response =
@@ -196,9 +198,9 @@ pub fn migrate(
                 response = response.add_attribute("target_denoms", denoms_str);
             }
 
-            if let Some(config) = destination_config {
-                DESTINATION_CONFIG.save(deps.storage, &config)?;
-                response = response.add_attributes(config.get_response_attributes());
+            if let Some(config) = receiver_config {
+                RECEIVER_CONFIG.save(deps.storage, &config)?;
+                // response = response.add_attributes(config.get_response_attributes());
             }
 
             Ok(response)
