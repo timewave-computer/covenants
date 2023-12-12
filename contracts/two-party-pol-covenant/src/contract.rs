@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -49,7 +51,7 @@ fn get_precomputed_address(
 ) -> Result<Addr, ContractError> {
     let CodeInfoResponse { checksum, .. } = deps.querier.query_wasm_code_info(code_id)?;
 
-    let precomputed_address = instantiate2_address(&checksum, &creator, salt)?;
+    let precomputed_address = instantiate2_address(&checksum, creator, salt)?;
 
     Ok(deps.api.addr_humanize(&precomputed_address)?)
 }
@@ -129,7 +131,7 @@ pub fn instantiate(
     PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_interchain_router_address)?;
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
 
-    let covenant_denoms: Vec<String> = msg
+    let covenant_denoms: BTreeSet<String> = msg
         .splits
         .iter()
         .map(|split| split.denom.to_string())
@@ -258,7 +260,7 @@ pub fn instantiate(
     let liquid_pooler_instantiate2_msg = preset_liquid_pooler_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
         liquid_pooler_salt,
-        preset_holder_fields.pool_address.to_string(),
+        preset_holder_fields.pool_address,
         clock_address.to_string(),
         holder_address.to_string(),
     )?;
