@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, StdError, WasmMsg};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
-use covenant_utils::{CovenantPartiesConfig, CovenantTerms, ExpiryConfig};
+use covenant_utils::{CovenantPartiesConfig, CovenantTerms};
 use cw_utils::Expiration;
 
 #[cw_serde]
