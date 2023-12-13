@@ -6,6 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
     StdResult,
 };
+use covenant_clock::helpers::enqueue_msg;
 use covenant_utils::SplitConfig;
 use cw2::set_contract_version;
 
