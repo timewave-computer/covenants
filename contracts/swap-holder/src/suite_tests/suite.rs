@@ -1,8 +1,7 @@
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_std::{Addr, Coin, Uint128};
 use covenant_utils::{
-    CovenantPartiesConfig, CovenantParty, CovenantTerms, ExpiryConfig, ReceiverConfig,
-    SwapCovenantTerms,
+    CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig, SwapCovenantTerms,
 };
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 use cw_utils::Expiration;
@@ -135,7 +134,7 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_lockup_config(&self) -> ExpiryConfig {
+    pub fn query_lockup_config(&self) -> Expiration {
         self.app
             .wrap()
             .query_wasm_smart(&self.holder, &QueryMsg::LockupConfig {})

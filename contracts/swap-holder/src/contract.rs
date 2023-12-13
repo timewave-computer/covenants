@@ -3,11 +3,6 @@ use cosmwasm_std::{
     Response, StdError, StdResult, SubMsg, Uint128,
 };
 
-#[cfg(not(feature = "library"))]
-use cosmwasm_std::entry_point;
-use covenant_utils::CovenantTerms;
-use cw2::set_contract_version;
-
 use crate::{
     error::ContractError,
     msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg},
@@ -15,6 +10,11 @@ use crate::{
         CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_TERMS, LOCKUP_CONFIG, NEXT_CONTRACT, PARTIES_CONFIG,
     },
 };
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+use covenant_clock::helpers::enqueue_msg;
+use covenant_utils::CovenantTerms;
+use cw2::set_contract_version;
 
 const CONTRACT_NAME: &str = "crates.io:covenant-swap-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -45,6 +45,7 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     Ok(Response::default()
+        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "swap_holder_instantiate")
         .add_attributes(msg.get_response_attributes()))
 }
