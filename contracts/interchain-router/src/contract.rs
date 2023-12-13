@@ -6,7 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult,
 };
-use covenant_clock::helpers::verify_clock;
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
