@@ -46,9 +46,7 @@ pub fn instantiate(
 
     // if a fallback split is provided we validate and store it
     if let Some(split) = msg.fallback_split {
-        resp = resp.add_attributes(vec![split
-            .clone()
-            .get_response_attribute("fallback".to_string())]);
+        resp = resp.add_attributes(vec![split.get_response_attribute("fallback".to_string())]);
         FALLBACK_SPLIT.save(deps.storage, &split)?;
     } else {
         resp = resp.add_attribute("fallback", "None");

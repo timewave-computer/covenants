@@ -103,15 +103,39 @@ type CovenantParty struct {
 }
 
 type CovenantPartyConfig struct {
-	ControllerAddr            string `json:"controller_addr"`
-	HostAddr                  string `json:"host_addr"`
-	Contribution              Coin   `json:"contribution"`
-	IbcDenom                  string `json:"ibc_denom"`
+	Interchain *InterchainCovenantParty `json:"interchain,omitempty"`
+	Native     *NativeCovenantParty     `json:"native,omitempty"`
+}
+
+type InterchainCovenantParty struct {
+	Addr                      string `json:"addr"`
+	NativeDenom               string `json:"native_denom"`
+	RemoteChainDenom          string `json:"remote_chain_denom"`
 	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
 	HostToPartyChainChannelId string `json:"host_to_party_chain_channel_id"`
+	PartyReceiverAddr         string `json:"party_receiver_addr"`
 	PartyChainConnectionId    string `json:"party_chain_connection_id"`
 	IbcTransferTimeout        string `json:"ibc_transfer_timeout"`
+	Contribution              Coin   `json:"contribution"`
 }
+
+type NativeCovenantParty struct {
+	Addr              string `json:"addr"`
+	NativeDenom       string `json:"native_denom"`
+	PartyReceiverAddr string `json:"party_receiver_addr"`
+	Contribution      Coin   `json:"contribution"`
+}
+
+// type CovenantPartyConfig struct {
+// 	ControllerAddr            string `json:"controller_addr"`
+// 	HostAddr                  string `json:"host_addr"`
+// 	Contribution              Coin   `json:"contribution"`
+// 	IbcDenom                  string `json:"ibc_denom"`
+// 	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
+// 	HostToPartyChainChannelId string `json:"host_to_party_chain_channel_id"`
+// 	PartyChainConnectionId    string `json:"party_chain_connection_id"`
+// 	IbcTransferTimeout        string `json:"ibc_transfer_timeout"`
+// }
 
 type Coin struct {
 	Denom  string `json:"denom"`

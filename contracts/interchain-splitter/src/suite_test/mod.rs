@@ -4,7 +4,7 @@ use cw_multi_test::{Contract, ContractWrapper};
 mod suite;
 mod tests;
 
-pub fn splitter_contract() -> Box<dyn Contract<Empty>> {
+pub fn _splitter_contract() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
         crate::contract::execute,
         crate::contract::instantiate,
