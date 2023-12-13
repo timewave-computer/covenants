@@ -12,9 +12,7 @@ use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
-use covenant_utils::{
-    CovenantPartiesConfig, CovenantTerms,
-};
+use covenant_utils::{CovenantPartiesConfig, CovenantTerms};
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
 
