@@ -54,10 +54,10 @@ func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
 		"-y",
 	}
 
-	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
+	tickResponse, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
 	require.NoError(testCtx.t, err)
-	// println("tick response: ", string(tickResponse))
-	// println("\n")
+	println("tick response: ", string(tickResponse))
+	println("\n")
 	testCtx.skipBlocks(3)
 }
 
@@ -630,11 +630,7 @@ func (testCtx *TestContext) QueryContractState(contract string) string {
 	return response.Data
 }
 
-type CovenantAddressQueryResponse struct {
-	Data string `json:"data"`
-}
-
-func (testCtx *TestContext) QueryDepositAddress(covenant string, party string) string {
+func (testCtx *TestContext) queryDepositAddress(covenant string, party string) string {
 	var depositAddressResponse CovenantAddressQueryResponse
 
 	type PartyDepositAddress struct {
@@ -649,7 +645,7 @@ func (testCtx *TestContext) QueryDepositAddress(covenant string, party string) s
 		},
 	}
 
-	err := testCtx.Neutron.QueryContract(testCtx.Ctx, covenant, depositAddressQuery, &depositAddressResponse)
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, covenant, depositAddressQuery, &depositAddressResponse)
 	require.NoError(
 		testCtx.T,
 		err,

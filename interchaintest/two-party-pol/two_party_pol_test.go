@@ -668,8 +668,10 @@ func TestTwoPartyPol(t *testing.T) {
 					forwarderBState := testCtx.QueryContractState(partyBIbcForwarderAddress)
 
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-						partyADepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_a")
-						partyBDepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_b")
+						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -679,7 +681,7 @@ func TestTwoPartyPol(t *testing.T) {
 				testCtx.FundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, happyCaseOsmoAccount, int64(osmoContributionAmount))
 				testCtx.FundChainAddrs([]string{partyADepositAddress}, cosmosAtom, happyCaseHubAccount, int64(atomContributionAmount))
 
-				testCtx.SkipBlocks(3)
+				testCtx.skipBlocks(3)
 			})
 
 			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
@@ -756,9 +758,9 @@ func TestTwoPartyPol(t *testing.T) {
 				holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
 				println("holder lp token bal: ", holderLpTokenBal)
 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-				testCtx.skipBlocks(10)
+				testCtx.skipBlocks(5)
 				testCtx.holderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
-				testCtx.skipBlocks(10)
+				testCtx.skipBlocks(5)
 				println("party a router address: ", partyARouterAddress)
 				println("neutronAtomIbcDenom: ", neutronAtomIbcDenom)
 				println("neutronOsmoIbcDenom: ", neutronOsmoIbcDenom)
@@ -987,7 +989,7 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("tick until forwarders create ICA", func(t *testing.T) {
-				testCtx.SkipBlocks(5)
+				testCtx.skipBlocks(5)
 				for {
 					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 
@@ -995,9 +997,11 @@ func TestTwoPartyPol(t *testing.T) {
 					forwarderBState := testCtx.QueryContractState(partyBIbcForwarderAddress)
 
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-						testCtx.SkipBlocks(3)
-						partyADepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_a")
-						partyBDepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_b")
+						testCtx.skipBlocks(3)
+						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -1007,7 +1011,7 @@ func TestTwoPartyPol(t *testing.T) {
 				testCtx.FundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, rqCaseOsmoAccount, int64(osmoContributionAmount))
 				testCtx.FundChainAddrs([]string{partyADepositAddress}, cosmosAtom, rqCaseHubAccount, int64(atomContributionAmount))
 
-				testCtx.SkipBlocks(3)
+				testCtx.skipBlocks(3)
 			})
 
 			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
@@ -1302,9 +1306,11 @@ func TestTwoPartyPol(t *testing.T) {
 					forwarderBState := testCtx.QueryContractState(partyBIbcForwarderAddress)
 
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-						testCtx.SkipBlocks(5)
-						partyADepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_a")
-						partyBDepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_b")
+						testCtx.skipBlocks(5)
+						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -1373,9 +1379,9 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("party A ragequits", func(t *testing.T) {
-				testCtx.SkipBlocks(10)
-				testCtx.HolderRagequit(holderAddress, hubNeutronAccount, keyring.BackendTest)
-				testCtx.SkipBlocks(5)
+				testCtx.skipBlocks(10)
+				testCtx.holderRagequit(holderAddress, hubNeutronAccount, keyring.BackendTest)
+				testCtx.skipBlocks(5)
 				for {
 					routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
 					routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
@@ -1386,7 +1392,7 @@ func TestTwoPartyPol(t *testing.T) {
 					if routerAtomBalA != 0 {
 						break
 					} else {
-						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					}
 				}
 			})
@@ -1576,9 +1582,11 @@ func TestTwoPartyPol(t *testing.T) {
 					forwarderBState := testCtx.QueryContractState(partyBIbcForwarderAddress)
 
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-						testCtx.SkipBlocks(5)
-						partyADepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_a")
-						partyBDepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_b")
+						testCtx.skipBlocks(5)
+						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
