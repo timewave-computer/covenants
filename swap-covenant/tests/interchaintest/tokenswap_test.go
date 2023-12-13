@@ -485,8 +485,8 @@ func TestTokenSwap(t *testing.T) {
 				forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
 
 				if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-					partyADepositAddress = testCtx.queryDepositAddress(partyAIbcForwarderAddress)
-					partyBDepositAddress = testCtx.queryDepositAddress(partyBIbcForwarderAddress)
+					partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+					partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
 					println("partyADepositAddress", partyADepositAddress)
 					println("partyBDepositAddress", partyBDepositAddress)
 					break

@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, Coin,
-    Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, WasmMsg,
+    instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps,
+    DepsMut, Env, MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
 
 use covenant_astroport_liquid_pooler::msg::{
@@ -13,16 +13,13 @@ use covenant_astroport_liquid_pooler::msg::{
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
-use covenant_two_party_pol_holder::msg::{
-    PresetPolParty, PresetTwoPartyPolHolderFields, RagequitConfig,
-};
-use covenant_utils::{DestinationConfig, ReceiverConfig};
+use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
 
 use crate::{
     error::ContractError,
-    msg::{InstantiateMsg, MigrateMsg, QueryMsg},
+    msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
@@ -123,13 +120,56 @@ pub fn instantiate(
         &party_b_forwarder_salt,
     )?;
 
-    PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_forwarder_address)?;
-    PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &party_a_forwarder_address)?;
     COVENANT_POL_HOLDER_ADDR.save(deps.storage, &holder_address)?;
     LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_address)?;
     PARTY_B_ROUTER_ADDR.save(deps.storage, &party_b_interchain_router_address)?;
     PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_interchain_router_address)?;
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
+
+    let mut clock_whitelist = vec![
+        holder_address.to_string(),
+        party_a_interchain_router_address.to_string(),
+        party_b_interchain_router_address.to_string(),
+        liquid_pooler_address.to_string(),
+    ];
+
+    let preset_party_a_forwarder_fields = match msg.clone().party_a_config {
+        CovenantPartyConfig::Interchain(config) => {
+            PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &party_a_forwarder_address)?;
+            clock_whitelist.insert(0, party_a_forwarder_address.to_string());
+            Some(PresetIbcForwarderFields {
+                remote_chain_connection_id: config.party_chain_connection_id,
+                remote_chain_channel_id: config.party_to_host_chain_channel_id,
+                denom: config.remote_chain_denom,
+                amount: config.contribution.amount,
+                label: format!("{}_party_a_ibc_forwarder", msg.label),
+                code_id: msg.contract_codes.ibc_forwarder_code,
+                ica_timeout: msg.timeouts.ica_timeout,
+                ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+                ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+            })
+        }
+        CovenantPartyConfig::Native(_) => None,
+    };
+
+    let preset_party_b_forwarder_fields = match msg.clone().party_b_config {
+        CovenantPartyConfig::Interchain(config) => {
+            PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_forwarder_address)?;
+            clock_whitelist.insert(1, party_b_forwarder_address.to_string());
+            Some(PresetIbcForwarderFields {
+                remote_chain_connection_id: config.party_chain_connection_id,
+                remote_chain_channel_id: config.party_to_host_chain_channel_id,
+                denom: config.remote_chain_denom,
+                amount: config.contribution.amount,
+                label: format!("{}_party_b_ibc_forwarder", msg.label),
+                code_id: msg.contract_codes.ibc_forwarder_code,
+                ica_timeout: msg.timeouts.ica_timeout,
+                ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+                ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+            })
+        }
+        CovenantPartyConfig::Native(_) => None,
+    };
 
     let covenant_denoms: BTreeSet<String> = msg
         .splits
@@ -139,14 +179,7 @@ pub fn instantiate(
 
     let preset_clock_fields = PresetClockFields {
         tick_max_gas: msg.clock_tick_max_gas,
-        whitelist: vec![
-            party_a_forwarder_address.to_string(),
-            party_b_forwarder_address.to_string(),
-            holder_address.to_string(),
-            party_a_interchain_router_address.to_string(),
-            party_b_interchain_router_address.to_string(),
-            liquid_pooler_address.to_string(),
-        ],
+        whitelist: clock_whitelist,
         code_id: msg.contract_codes.clock_code,
         label: format!("{}-clock", msg.label),
     };
@@ -155,69 +188,26 @@ pub fn instantiate(
         pool_address: msg.pool_address,
         ragequit_config: msg.ragequit_config.unwrap_or(RagequitConfig::Disabled),
         deposit_deadline: msg.deposit_deadline,
-        party_a: PresetPolParty {
-            contribution: Coin {
-                denom: msg.party_a_config.ibc_denom.to_string(),
-                amount: msg.party_a_config.contribution.amount,
-            },
-            controller_addr: msg.party_a_config.controller_addr.to_string(),
-            host_addr: msg.party_a_config.host_addr,
-            allocation: Decimal::from_ratio(msg.party_a_share, Uint128::new(100)),
-        },
-        party_b: PresetPolParty {
-            contribution: Coin {
-                denom: msg.party_b_config.ibc_denom.to_string(),
-                amount: msg.party_b_config.contribution.amount,
-            },
-            controller_addr: msg.party_b_config.controller_addr.to_string(),
-            host_addr: msg.party_b_config.host_addr,
-            allocation: Decimal::from_ratio(msg.party_b_share, Uint128::new(100)),
-        },
+        party_a: msg.party_a_config.to_preset_pol_party(msg.party_a_share),
+        party_b: msg
+            .party_b_config
+            .clone()
+            .to_preset_pol_party(msg.party_b_share),
         code_id: msg.contract_codes.holder_code,
         label: format!("{}-holder", msg.label),
         splits: msg.splits,
         fallback_split: msg.fallback_split,
         covenant_type: msg.covenant_type,
     };
-    let preset_party_a_forwarder_fields = PresetIbcForwarderFields {
-        remote_chain_connection_id: msg.party_a_config.party_chain_connection_id,
-        remote_chain_channel_id: msg.party_a_config.party_to_host_chain_channel_id,
-        denom: msg.party_a_config.contribution.denom.to_string(),
-        amount: msg.party_a_config.contribution.amount,
-        label: format!("{}_party_a_ibc_forwarder", msg.label),
-        code_id: msg.contract_codes.ibc_forwarder_code,
-        ica_timeout: msg.timeouts.ica_timeout,
-        ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-    };
-    let preset_party_b_forwarder_fields = PresetIbcForwarderFields {
-        remote_chain_connection_id: msg.party_b_config.party_chain_connection_id,
-        remote_chain_channel_id: msg.party_b_config.party_to_host_chain_channel_id,
-        denom: msg.party_b_config.contribution.denom.to_string(),
-        amount: msg.party_b_config.contribution.amount,
-        label: format!("{}_party_b_ibc_forwarder", msg.label),
-        code_id: msg.contract_codes.ibc_forwarder_code,
-        ica_timeout: msg.timeouts.ica_timeout,
-        ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-    };
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
-        receiver_config: ReceiverConfig::Ibc(DestinationConfig {
-            destination_chain_channel_id: msg.party_a_config.host_to_party_chain_channel_id,
-            destination_receiver_addr: msg.party_a_config.controller_addr,
-            ibc_transfer_timeout: msg.party_a_config.ibc_transfer_timeout,
-        }),
+        receiver_config: msg.party_a_config.to_receiver_config(),
         label: format!("{}_party_a_interchain_router", msg.label),
         code_id: msg.contract_codes.router_code,
         denoms: covenant_denoms.clone(),
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
-        receiver_config: ReceiverConfig::Ibc(DestinationConfig {
-            destination_chain_channel_id: msg.party_b_config.host_to_party_chain_channel_id,
-            destination_receiver_addr: msg.party_b_config.controller_addr,
-            ibc_transfer_timeout: msg.party_b_config.ibc_transfer_timeout,
-        }),
+        receiver_config: msg.party_b_config.to_receiver_config(),
         label: format!("{}_party_b_interchain_router", msg.label),
         code_id: msg.contract_codes.router_code,
         denoms: covenant_denoms,
@@ -226,8 +216,8 @@ pub fn instantiate(
     let preset_liquid_pooler_fields = PresetAstroLiquidPoolerFields {
         slippage_tolerance: None,
         assets: AssetData {
-            asset_a_denom: msg.party_a_config.ibc_denom,
-            asset_b_denom: msg.party_b_config.ibc_denom,
+            asset_a_denom: msg.party_a_config.get_native_denom(),
+            asset_b_denom: msg.party_b_config.get_native_denom(),
         },
         single_side_lp_limits: SingleSideLpLimits {
             asset_a_limit: Uint128::new(10000),
@@ -239,66 +229,56 @@ pub fn instantiate(
         acceptable_pool_ratio_delta: msg.acceptable_pool_ratio_delta,
         pair_type: msg.pool_pair_type,
     };
+    let mut messages = vec![
+        preset_clock_fields.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?,
+        preset_holder_fields.to_instantiate2_msg(
+            env.contract.address.to_string(),
+            holder_salt,
+            clock_address.to_string(),
+            liquid_pooler_address.to_string(),
+            party_a_interchain_router_address.to_string(),
+            party_b_interchain_router_address.to_string(),
+        )?,
+        preset_party_a_router_fields.to_instantiate2_msg(
+            env.contract.address.to_string(),
+            party_a_router_salt,
+            clock_address.to_string(),
+        )?,
+        preset_party_b_router_fields.to_instantiate2_msg(
+            env.contract.address.to_string(),
+            party_b_router_salt,
+            clock_address.to_string(),
+        )?,
+        preset_liquid_pooler_fields.to_instantiate2_msg(
+            env.contract.address.to_string(),
+            liquid_pooler_salt,
+            preset_holder_fields.pool_address,
+            clock_address.to_string(),
+            holder_address.to_string(),
+        )?,
+    ];
 
-    let clock_instantiate2_msg =
-        preset_clock_fields.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
-
-    let holder_instantiate2_msg = preset_holder_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        holder_salt,
-        clock_address.to_string(),
-        liquid_pooler_address.to_string(),
-        party_a_interchain_router_address.to_string(),
-        party_b_interchain_router_address.to_string(),
-    )?;
-
-    let party_a_router_instantiate2_msg = preset_party_a_router_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        party_a_router_salt,
-        clock_address.to_string(),
-    )?;
-
-    let party_b_router_instantiate2_msg = preset_party_b_router_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        party_b_router_salt,
-        clock_address.to_string(),
-    )?;
-
-    let liquid_pooler_instantiate2_msg = preset_liquid_pooler_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        liquid_pooler_salt,
-        preset_holder_fields.pool_address,
-        clock_address.to_string(),
-        holder_address.to_string(),
-    )?;
-
-    let party_a_ibc_forwarder_instantiate2_msg = preset_party_a_forwarder_fields
-        .to_instantiate2_msg(
+    if let Some(fields) = preset_party_a_forwarder_fields {
+        messages.push(fields.to_instantiate2_msg(
             env.contract.address.to_string(),
             party_a_forwarder_salt,
             clock_address.to_string(),
             holder_address.to_string(),
-        )?;
+        )?);
+    }
 
-    let party_b_ibc_forwarder_instantiate2_msg = preset_party_b_forwarder_fields
-        .to_instantiate2_msg(
+    if let Some(fields) = preset_party_b_forwarder_fields {
+        messages.push(fields.to_instantiate2_msg(
             env.contract.address.to_string(),
             party_b_forwarder_salt,
             clock_address.to_string(),
             holder_address.to_string(),
-        )?;
+        )?);
+    };
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
-        .add_messages(vec![
-            clock_instantiate2_msg,
-            party_a_router_instantiate2_msg,
-            party_b_router_instantiate2_msg,
-            liquid_pooler_instantiate2_msg,
-            holder_instantiate2_msg,
-            party_a_ibc_forwarder_instantiate2_msg,
-            party_b_ibc_forwarder_instantiate2_msg,
-        ]))
+        .add_messages(messages))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -332,6 +312,32 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
         QueryMsg::LiquidPoolerAddress {} => {
             Ok(to_json_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?)
+        }
+        QueryMsg::PartyDepositAddress { party } => {
+            // here depending on the party we query their ibc forwarder.
+            // if it's present, we then query it for a deposit address
+            // which should return the address of ICA on a remote chain.
+            // if no ibc forwarder is saved, we return the holder.
+            let resp = if party == "party_a" {
+                match PARTY_A_IBC_FORWARDER_ADDR.may_load(deps.storage)? {
+                    Some(addr) => deps.querier.query_wasm_smart(
+                        addr,
+                        &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
+                    )?,
+                    None => COVENANT_POL_HOLDER_ADDR.may_load(deps.storage)?,
+                }
+            } else if party == "party_b" {
+                match PARTY_B_IBC_FORWARDER_ADDR.may_load(deps.storage)? {
+                    Some(addr) => deps.querier.query_wasm_smart(
+                        addr,
+                        &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
+                    )?,
+                    None => COVENANT_POL_HOLDER_ADDR.may_load(deps.storage)?,
+                }
+            } else {
+                Some(Addr::unchecked("not found"))
+            };
+            Ok(to_json_binary(&resp)?)
         }
     }
 }

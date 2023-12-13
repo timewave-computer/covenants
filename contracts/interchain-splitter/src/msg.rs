@@ -1,10 +1,5 @@
-use std::collections::BTreeMap;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Decimal, StdError, Uint128,
-    WasmMsg,
-};
+use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, WasmMsg};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::SplitConfig;
 
