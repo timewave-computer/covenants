@@ -22,9 +22,9 @@ fn test_instantiate_happy_and_query_all() {
     let lockup_config = suite.query_lockup_config();
     let covenant_parties = suite.query_covenant_parties();
     let covenant_terms = suite.query_covenant_terms();
-    let clock = suite.clock;
-    assert_eq!(next_contract, "contract1");
-    assert_eq!(clock_address, clock.as_str());
+
+    assert_eq!(next_contract, "contract0");
+    assert_eq!(clock_address, "clock_address");
     assert_eq!(lockup_config, Expiration::Never {});
     assert_eq!(
         covenant_parties,
