@@ -100,7 +100,7 @@ pub fn execute(
 /// attempts to advance the state machine. performs `info.sender` validation.
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
-    // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -435,7 +435,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 }
 
 fn handle_double_sided_reply_id(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
     msg: Reply,
 ) -> Result<Response, ContractError> {
@@ -447,7 +447,7 @@ fn handle_double_sided_reply_id(
     match parsed_data {
         Ok(response) => Ok(Response::default()
             .add_attribute("method", "handle_double_sided_reply_id")
-            .add_attribute("response", response.data.unwrap().to_base64())),
+            .add_attribute("response", to_json_binary(&response.data)?.to_base64())),
         Err(err) => Ok(Response::default()
             .add_attribute("method", "handle_double_sided_reply_id")
             .add_attribute("error", err.to_string())),
@@ -467,7 +467,7 @@ fn handle_single_sided_reply_id(
     match parsed_data {
         Ok(response) => Ok(Response::default()
             .add_attribute("method", "handle_single_sided_reply_id")
-            .add_attribute("response", response.data.unwrap().to_base64())),
+            .add_attribute("response", to_json_binary(&response.data)?.to_base64())),
         Err(err) => Ok(Response::default()
             .add_attribute("method", "handle_single_sided_reply_id")
             .add_attribute("error", err.to_string())),
