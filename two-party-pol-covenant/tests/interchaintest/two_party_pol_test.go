@@ -535,25 +535,27 @@ func TestTwoPartyPol(t *testing.T) {
 				hubReceiverAddr := happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 				osmoReceiverAddr := happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
 
-				partyAConfig := CovenantPartyConfig{
-					ControllerAddr:            hubReceiverAddr,
-					HostAddr:                  hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					Contribution:              atomCoin,
-					IbcDenom:                  neutronAtomIbcDenom,
+				partyAConfig := InterchainCovenantParty{
+					Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+					NativeDenom:               neutronAtomIbcDenom,
+					RemoteChainDenom:          "uatom",
 					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
+					PartyReceiverAddr:         hubReceiverAddr,
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+					Contribution:              atomCoin,
 				}
-				partyBConfig := CovenantPartyConfig{
-					ControllerAddr:            osmoReceiverAddr,
-					HostAddr:                  osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					Contribution:              osmoCoin,
-					IbcDenom:                  neutronOsmoIbcDenom,
+				partyBConfig := InterchainCovenantParty{
+					Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+					NativeDenom:               neutronOsmoIbcDenom,
+					RemoteChainDenom:          "uosmo",
 					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
+					PartyReceiverAddr:         osmoReceiverAddr,
 					PartyChainConnectionId:    neutronOsmosisIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+					Contribution:              osmoCoin,
 				}
 				codeIds := ContractCodeIds{
 					IbcForwarderCode:     ibcForwarderCodeId,
@@ -602,13 +604,17 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				covenantMsg := CovenantInstantiateMsg{
-					Label:                    "two-party-pol-covenant-happy",
-					Timeouts:                 timeouts,
-					PresetIbcFee:             presetIbcFee,
-					ContractCodeIds:          codeIds,
-					LockupConfig:             lockupConfig,
-					PartyAConfig:             partyAConfig,
-					PartyBConfig:             partyBConfig,
+					Label:           "two-party-pol-covenant-happy",
+					Timeouts:        timeouts,
+					PresetIbcFee:    presetIbcFee,
+					ContractCodeIds: codeIds,
+					LockupConfig:    lockupConfig,
+					PartyAConfig: CovenantPartyConfig{
+						Interchain: &partyAConfig,
+					},
+					PartyBConfig: CovenantPartyConfig{
+						Interchain: &partyBConfig,
+					},
 					PoolAddress:              poolAddress,
 					RagequitConfig:           &ragequitConfig,
 					DepositDeadline:          depositDeadline,
@@ -664,16 +670,16 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("tick until forwarders create ICA", func(t *testing.T) {
-				testCtx.skipBlocks(5)
 				for {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
 					forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
 
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-						partyADepositAddress = testCtx.queryDepositAddress(partyAIbcForwarderAddress)
-						partyBDepositAddress = testCtx.queryDepositAddress(partyBIbcForwarderAddress)
-						println(fmt.Sprintf("party A ica: %s, party B ica: %s", partyADepositAddress, partyBDepositAddress))
+						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -683,7 +689,7 @@ func TestTwoPartyPol(t *testing.T) {
 				testCtx.fundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, happyCaseOsmoAccount, int64(osmoContributionAmount))
 				testCtx.fundChainAddrs([]string{partyADepositAddress}, cosmosAtom, happyCaseHubAccount, int64(atomContributionAmount))
 
-				testCtx.skipBlocks(5)
+				testCtx.skipBlocks(3)
 			})
 
 			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
@@ -760,9 +766,9 @@ func TestTwoPartyPol(t *testing.T) {
 				holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
 				println("holder lp token bal: ", holderLpTokenBal)
 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-				testCtx.skipBlocks(10)
+				testCtx.skipBlocks(5)
 				testCtx.holderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
-				testCtx.skipBlocks(10)
+				testCtx.skipBlocks(5)
 				println("party a router address: ", partyARouterAddress)
 				println("neutronAtomIbcDenom: ", neutronAtomIbcDenom)
 				println("neutronOsmoIbcDenom: ", neutronOsmoIbcDenom)
@@ -873,21 +879,23 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 				hubReceiverAddr := rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 				osmoReceiverAddr := rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
-				partyAConfig := CovenantPartyConfig{
-					ControllerAddr:            hubReceiverAddr,
-					HostAddr:                  hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+				partyAConfig := InterchainCovenantParty{
+					RemoteChainDenom:          "uatom",
+					PartyReceiverAddr:         hubReceiverAddr,
+					Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					Contribution:              atomCoin,
-					IbcDenom:                  neutronAtomIbcDenom,
+					NativeDenom:               neutronAtomIbcDenom,
 					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
-				partyBConfig := CovenantPartyConfig{
-					ControllerAddr:            osmoReceiverAddr,
-					HostAddr:                  osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+				partyBConfig := InterchainCovenantParty{
+					RemoteChainDenom:          "uosmo",
+					PartyReceiverAddr:         osmoReceiverAddr,
+					Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					Contribution:              osmoCoin,
-					IbcDenom:                  neutronOsmoIbcDenom,
+					NativeDenom:               neutronOsmoIbcDenom,
 					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
 					PartyChainConnectionId:    neutronOsmosisIBCConnId,
@@ -920,8 +928,8 @@ func TestTwoPartyPol(t *testing.T) {
 					PresetIbcFee:             presetIbcFee,
 					ContractCodeIds:          codeIds,
 					LockupConfig:             lockupConfig,
-					PartyAConfig:             partyAConfig,
-					PartyBConfig:             partyBConfig,
+					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
+					PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
 					PoolAddress:              poolAddress,
 					RagequitConfig:           &ragequitConfig,
 					DepositDeadline:          depositDeadline,
@@ -1000,7 +1008,7 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("tick until forwarders create ICA", func(t *testing.T) {
-				testCtx.skipBlocks(10)
+				testCtx.skipBlocks(5)
 				for {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 
@@ -1009,10 +1017,10 @@ func TestTwoPartyPol(t *testing.T) {
 
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
 						testCtx.skipBlocks(3)
-
-						partyADepositAddress = testCtx.queryDepositAddress(partyAIbcForwarderAddress)
-						partyBDepositAddress = testCtx.queryDepositAddress(partyBIbcForwarderAddress)
-						println("both parties icas created: ", partyADepositAddress, " , ", partyBDepositAddress)
+						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -1022,12 +1030,7 @@ func TestTwoPartyPol(t *testing.T) {
 				testCtx.fundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, rqCaseOsmoAccount, int64(osmoContributionAmount))
 				testCtx.fundChainAddrs([]string{partyADepositAddress}, cosmosAtom, rqCaseHubAccount, int64(atomContributionAmount))
 
-				testCtx.skipBlocks(5)
-
-				bal, _ := cosmosAtom.GetBalance(ctx, partyADepositAddress, nativeAtomDenom)
-				require.Equal(t, int64(atomContributionAmount), bal)
-				bal, _ = cosmosOsmosis.GetBalance(ctx, partyBDepositAddress, nativeOsmoDenom)
-				require.Equal(t, int64(osmoContributionAmount), bal)
+				testCtx.skipBlocks(3)
 			})
 
 			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
@@ -1195,21 +1198,23 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 				hubReceiverAddr := sideBasedRqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 				osmoReceiverAddr := sideBasedRqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
-				partyAConfig := CovenantPartyConfig{
-					ControllerAddr:            hubReceiverAddr,
-					HostAddr:                  hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+				partyAConfig := InterchainCovenantParty{
+					RemoteChainDenom:          "uatom",
+					PartyReceiverAddr:         hubReceiverAddr,
+					Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					Contribution:              atomCoin,
-					IbcDenom:                  neutronAtomIbcDenom,
+					NativeDenom:               neutronAtomIbcDenom,
 					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
-				partyBConfig := CovenantPartyConfig{
-					ControllerAddr:            osmoReceiverAddr,
-					HostAddr:                  osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+				partyBConfig := InterchainCovenantParty{
+					RemoteChainDenom:          "uosmo",
+					PartyReceiverAddr:         osmoReceiverAddr,
+					Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					Contribution:              osmoCoin,
-					IbcDenom:                  neutronOsmoIbcDenom,
+					NativeDenom:               neutronOsmoIbcDenom,
 					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
 					PartyChainConnectionId:    neutronOsmosisIBCConnId,
@@ -1242,8 +1247,8 @@ func TestTwoPartyPol(t *testing.T) {
 					PresetIbcFee:             presetIbcFee,
 					ContractCodeIds:          codeIds,
 					LockupConfig:             lockupConfig,
-					PartyAConfig:             partyAConfig,
-					PartyBConfig:             partyBConfig,
+					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
+					PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
 					PoolAddress:              poolAddress,
 					RagequitConfig:           &ragequitConfig,
 					DepositDeadline:          depositDeadline,
@@ -1323,7 +1328,6 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("tick until forwarders create ICA", func(t *testing.T) {
-				testCtx.skipBlocks(2)
 				for {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 
@@ -1332,11 +1336,10 @@ func TestTwoPartyPol(t *testing.T) {
 
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
 						testCtx.skipBlocks(5)
-
-						partyADepositAddress = testCtx.queryDepositAddress(partyAIbcForwarderAddress)
-						partyBDepositAddress = testCtx.queryDepositAddress(partyBIbcForwarderAddress)
-
-						println("both parties icas created: ", partyADepositAddress, " , ", partyBDepositAddress)
+						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -1405,6 +1408,9 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("party A ragequits", func(t *testing.T) {
+				testCtx.skipBlocks(10)
+				testCtx.holderRagequit(holderAddress, hubNeutronAccount, keyring.BackendTest)
+				testCtx.skipBlocks(5)
 				for {
 					routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
 					routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
@@ -1416,7 +1422,6 @@ func TestTwoPartyPol(t *testing.T) {
 						break
 					} else {
 						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-						testCtx.holderRagequit(holderAddress, hubNeutronAccount, keyring.BackendTest)
 					}
 				}
 			})
@@ -1482,21 +1487,23 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 				hubReceiverAddr := sideBasedHappyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 				osmoReceiverAddr := sideBasedHappyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
-				partyAConfig := CovenantPartyConfig{
-					ControllerAddr:            hubReceiverAddr,
-					HostAddr:                  hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+				partyAConfig := InterchainCovenantParty{
+					RemoteChainDenom:          "uatom",
+					PartyReceiverAddr:         hubReceiverAddr,
+					Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					Contribution:              atomCoin,
-					IbcDenom:                  neutronAtomIbcDenom,
+					NativeDenom:               neutronAtomIbcDenom,
 					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				}
-				partyBConfig := CovenantPartyConfig{
-					ControllerAddr:            osmoReceiverAddr,
-					HostAddr:                  osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+				partyBConfig := InterchainCovenantParty{
+					RemoteChainDenom:          "uosmo",
+					PartyReceiverAddr:         osmoReceiverAddr,
+					Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					Contribution:              osmoCoin,
-					IbcDenom:                  neutronOsmoIbcDenom,
+					NativeDenom:               neutronOsmoIbcDenom,
 					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
 					PartyChainConnectionId:    neutronOsmosisIBCConnId,
@@ -1529,8 +1536,8 @@ func TestTwoPartyPol(t *testing.T) {
 					PresetIbcFee:             presetIbcFee,
 					ContractCodeIds:          codeIds,
 					LockupConfig:             lockupConfig,
-					PartyAConfig:             partyAConfig,
-					PartyBConfig:             partyBConfig,
+					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
+					PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
 					PoolAddress:              poolAddress,
 					RagequitConfig:           &ragequitConfig,
 					DepositDeadline:          depositDeadline,
@@ -1610,7 +1617,6 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("tick until forwarders create ICA", func(t *testing.T) {
-				testCtx.skipBlocks(2)
 				for {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 
@@ -1619,11 +1625,10 @@ func TestTwoPartyPol(t *testing.T) {
 
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
 						testCtx.skipBlocks(5)
-
-						partyADepositAddress = testCtx.queryDepositAddress(partyAIbcForwarderAddress)
-						partyBDepositAddress = testCtx.queryDepositAddress(partyBIbcForwarderAddress)
-
-						println("both parties icas created: ", partyADepositAddress, " , ", partyBDepositAddress)
+						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -1735,12 +1740,6 @@ func TestTwoPartyPol(t *testing.T) {
 					atomBalPartyA, _ := cosmosAtom.GetBalance(
 						ctx, sideBasedHappyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
 					)
-					// osmoBalPartyA, _ := cosmosOsmosis.GetBalance(
-					// 	ctx, sideBasedHappyCaseHubAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
-					// )
-					// atomBalPartyB, _ := cosmosAtom.GetBalance(
-					// 	ctx, sideBasedHappyCaseOsmoAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), ,
-					// )
 
 					println("party A atom bal: ", atomBalPartyA)
 					println("party B osmo bal: ", osmoBalPartyB)

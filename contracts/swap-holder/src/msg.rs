@@ -58,7 +58,7 @@ impl PresetSwapHolderFields {
         InstantiateMsg {
             clock_address,
             next_contract,
-            lockup_config: self.lockup_config.clone(),
+            lockup_config: self.lockup_config,
             parties_config: self.parties_config.clone(),
             covenant_terms: self.covenant_terms.clone(),
         }

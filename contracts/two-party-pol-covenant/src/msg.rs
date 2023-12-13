@@ -1,8 +1,8 @@
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Coin, Decimal, Uint128, Uint64};
-use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig};
-use covenant_utils::{DenomSplit, SplitConfig};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128, Uint64};
+use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
+use covenant_utils::{CovenantParty, DenomSplit, DestinationConfig, ReceiverConfig, SplitConfig};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -32,25 +32,108 @@ pub struct InstantiateMsg {
     pub fallback_split: Option<SplitConfig>,
 }
 
+impl CovenantPartyConfig {
+    pub fn to_receiver_config(&self) -> ReceiverConfig {
+        match self {
+            CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
+                destination_chain_channel_id: config.host_to_party_chain_channel_id.to_string(),
+                destination_receiver_addr: config.party_receiver_addr.to_string(),
+                ibc_transfer_timeout: config.ibc_transfer_timeout,
+            }),
+            CovenantPartyConfig::Native(config) => {
+                ReceiverConfig::Native(Addr::unchecked(config.party_receiver_addr.to_string()))
+            }
+        }
+    }
+
+    pub fn get_final_receiver_address(&self) -> String {
+        match self {
+            CovenantPartyConfig::Interchain(config) => config.party_receiver_addr.to_string(),
+            CovenantPartyConfig::Native(config) => config.party_receiver_addr.to_string(),
+        }
+    }
+
+    pub fn to_covenant_party(&self) -> CovenantParty {
+        match self {
+            CovenantPartyConfig::Interchain(config) => CovenantParty {
+                addr: config.addr.to_string(),
+                native_denom: config.native_denom.to_string(),
+                receiver_config: self.to_receiver_config(),
+            },
+            CovenantPartyConfig::Native(config) => CovenantParty {
+                addr: config.addr.to_string(),
+                native_denom: config.native_denom.to_string(),
+                receiver_config: self.to_receiver_config(),
+            },
+        }
+    }
+
+    pub fn to_preset_pol_party(&self, party_share: Uint64) -> PresetPolParty {
+        match self {
+            CovenantPartyConfig::Interchain(config) => PresetPolParty {
+                contribution: coin(
+                    config.contribution.amount.u128(),
+                    config.native_denom.to_string(),
+                ),
+                host_addr: config.addr.to_string(),
+                controller_addr: config.party_receiver_addr.to_string(),
+                allocation: Decimal::from_ratio(party_share, Uint128::new(100)),
+            },
+            CovenantPartyConfig::Native(config) => PresetPolParty {
+                contribution: config.contribution.clone(),
+                host_addr: config.addr.to_string(),
+                controller_addr: config.party_receiver_addr.to_string(),
+                allocation: Decimal::from_ratio(party_share, Uint128::new(100)),
+            },
+        }
+    }
+
+    pub fn get_native_denom(&self) -> String {
+        match self {
+            CovenantPartyConfig::Interchain(config) => config.native_denom.to_string(),
+            CovenantPartyConfig::Native(config) => config.native_denom.to_string(),
+        }
+    }
+}
+
 #[cw_serde]
-pub struct CovenantPartyConfig {
-    /// authorized address of the party on the controller
-    /// chain (final receiver)
-    pub controller_addr: String,
-    /// authorized address of the party on the host chain
-    pub host_addr: String,
+pub enum CovenantPartyConfig {
+    Interchain(InterchainCovenantParty),
+    Native(NativeCovenantParty),
+}
+
+#[cw_serde]
+pub struct NativeCovenantParty {
+    /// address of the receiver on destination chain
+    pub party_receiver_addr: String,
+    /// denom provided by the party on neutron
+    pub native_denom: String,
+    /// authorized address of the party on neutron
+    pub addr: String,
     /// coin provided by the party on its native chain
     pub contribution: Coin,
-    /// ibc denom provided by the party on neutron
-    pub ibc_denom: String,
-    /// channel id from party to host chain
-    pub party_to_host_chain_channel_id: String,
-    /// channel id from host chain to the party chain
-    pub host_to_party_chain_channel_id: String,
+}
+
+#[cw_serde]
+pub struct InterchainCovenantParty {
+    /// address of the receiver on destination chain
+    pub party_receiver_addr: String,
     /// connection id to the party chain
     pub party_chain_connection_id: String,
     /// timeout in seconds
     pub ibc_transfer_timeout: Uint64,
+    /// channel id from party to host chain
+    pub party_to_host_chain_channel_id: String,
+    /// channel id from host chain to the party chain
+    pub host_to_party_chain_channel_id: String,
+    /// denom provided by the party on its native chain
+    pub remote_chain_denom: String,
+    /// authorized address of the party on neutron
+    pub addr: String,
+    /// denom provided by the party on neutron
+    pub native_denom: String,
+    /// coin provided by the party on its native chain
+    pub contribution: Coin,
 }
 
 #[cw_serde]
@@ -118,6 +201,8 @@ pub enum QueryMsg {
     InterchainRouterAddress { party: String },
     #[returns(Addr)]
     LiquidPoolerAddress {},
+    #[returns(Addr)]
+    PartyDepositAddress { party: String },
 }
 
 #[cw_serde]
