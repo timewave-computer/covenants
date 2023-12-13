@@ -6,6 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
     StdResult,
 };
+use covenant_clock::helpers::enqueue_msg;
 use covenant_utils::SplitConfig;
 use cw2::set_contract_version;
 
@@ -30,7 +31,7 @@ pub fn instantiate(
 
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
-    resp = resp.add_attribute("clock_addr", clock_addr);
+    resp = resp.add_attribute("clock_addr", clock_addr.to_string());
 
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
@@ -52,7 +53,7 @@ pub fn instantiate(
         resp = resp.add_attribute("fallback", "None");
     }
 
-    Ok(resp)
+    Ok(resp.add_message(enqueue_msg(clock_addr.as_str())?))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

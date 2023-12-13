@@ -6,7 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult,
 };
-use covenant_clock::helpers::verify_clock;
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
@@ -40,6 +40,7 @@ pub fn instantiate(
     TARGET_DENOMS.save(deps.storage, &msg.denoms)?;
 
     Ok(Response::default()
+        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "interchain_router_instantiate")
         .add_attribute("clock_address", clock_addr))
     // .add_attributes(destination_config.get_response_attributes()))

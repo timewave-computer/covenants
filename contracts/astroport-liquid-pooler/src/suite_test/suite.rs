@@ -211,7 +211,7 @@ impl Default for SuiteBuilder {
             clock_instantiate: covenant_clock::msg::InstantiateMsg {
                 tick_max_gas: Some(Uint64::new(50000)),
                 // this is the lper, if any instantiate flow changes, this needs to be updated
-                whitelist: vec!["contract9".to_string()],
+                whitelist: vec!["contract8".to_string()],
             },
         }
     }
@@ -252,18 +252,6 @@ impl SuiteBuilder {
         let lper_code = app.store_code(lper_contract());
         let clock_code = app.store_code(clock_contract());
 
-        let clock_address = app
-            .instantiate_contract(
-                clock_code,
-                Addr::unchecked(CREATOR_ADDR),
-                &self.clock_instantiate,
-                &[],
-                "clock",
-                None,
-            )
-            .unwrap();
-
-        self.lp_instantiate.clock_address = clock_address.to_string();
         self.factory_instantiate.token_code_id = token_code;
         self.stablepair_instantiate.token_code_id = token_code;
         self.factory_instantiate.whitelist_code_id = whitelist_code;
@@ -387,6 +375,7 @@ impl SuiteBuilder {
         app.update_block(|b| b.height += 5);
 
         self.lp_instantiate.pool_address = stable_pair_addr.to_string();
+        self.lp_instantiate.clock_address = "contract8".to_string();
 
         let lper_address = app
             .instantiate_contract(
@@ -396,6 +385,17 @@ impl SuiteBuilder {
                 &[],
                 "lper contract",
                 Some(CREATOR_ADDR.to_string()),
+            )
+            .unwrap();
+
+        let clock_address = app
+            .instantiate_contract(
+                clock_code,
+                Addr::unchecked(CREATOR_ADDR),
+                &self.clock_instantiate,
+                &[],
+                "clock",
+                None,
             )
             .unwrap();
         app.update_block(|b| b.height += 5);

@@ -1,8 +1,8 @@
 use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
 use covenant_utils::{
-    CovenantPartiesConfig, CovenantParty, CovenantTerms, ExpiryConfig, ReceiverConfig,
-    SwapCovenantTerms,
+    CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig, SwapCovenantTerms,
 };
+use cw_utils::Expiration;
 
 use crate::{
     error::ContractError,
@@ -26,7 +26,7 @@ fn test_instantiate_happy_and_query_all() {
 
     assert_eq!(next_contract, "contract0");
     assert_eq!(clock_address, "clock_address");
-    assert_eq!(lockup_config, ExpiryConfig::None);
+    assert_eq!(lockup_config, Expiration::Never {});
     assert_eq!(
         covenant_parties,
         CovenantPartiesConfig {
@@ -52,7 +52,7 @@ fn test_instantiate_happy_and_query_all() {
 }
 
 #[test]
-#[should_panic(expected = "invalid expiry config: block height must be in the future")]
+#[should_panic(expected = "past lockup config")]
 fn test_instantiate_past_lockup_block_height() {
     SuiteBuilder::default()
         .with_lockup_config(cw_utils::Expiration::AtHeight(1))
@@ -60,7 +60,7 @@ fn test_instantiate_past_lockup_block_height() {
 }
 
 #[test]
-#[should_panic(expected = "invalid expiry config: block time must be in the future")]
+#[should_panic(expected = "past lockup config")]
 fn test_instantiate_past_lockup_block_time() {
     SuiteBuilder::default()
         .with_lockup_config(cw_utils::Expiration::AtTime(Timestamp::from_seconds(1)))
