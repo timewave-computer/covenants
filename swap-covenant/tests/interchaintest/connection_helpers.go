@@ -594,22 +594,26 @@ func (testCtx *TestContext) queryContractState(contract string) string {
 	return response.Data
 }
 
-func (testCtx *TestContext) queryDepositAddress(contract string) string {
+func (testCtx *TestContext) queryDepositAddress(covenant string, party string) string {
 	var depositAddressResponse CovenantAddressQueryResponse
 
-	type DepositAddress struct{}
-	type DepositAddressQuery struct {
-		DepositAddress DepositAddress `json:"deposit_address"`
+	type PartyDepositAddress struct {
+		Party string `json:"party"`
 	}
-	depositAddressQuery := DepositAddressQuery{
-		DepositAddress: DepositAddress{},
+	type PartyDepositAddressQuery struct {
+		PartyDepositAddress PartyDepositAddress `json:"party_deposit_address"`
+	}
+	depositAddressQuery := PartyDepositAddressQuery{
+		PartyDepositAddress: PartyDepositAddress{
+			Party: party,
+		},
 	}
 
-	err := testCtx.Neutron.QueryContract(testCtx.ctx, contract, depositAddressQuery, &depositAddressResponse)
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, covenant, depositAddressQuery, &depositAddressResponse)
 	require.NoError(
 		testCtx.t,
 		err,
-		fmt.Sprintf("failed to query %s deposit address", contract),
+		fmt.Sprintf("failed to query %s deposit address", party),
 	)
 	return depositAddressResponse.Data
 }
