@@ -670,6 +670,8 @@ func TestTwoPartyPol(t *testing.T) {
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
 						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
 						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -756,9 +758,9 @@ func TestTwoPartyPol(t *testing.T) {
 				holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
 				println("holder lp token bal: ", holderLpTokenBal)
 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-				testCtx.skipBlocks(10)
+				testCtx.skipBlocks(5)
 				testCtx.holderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
-				testCtx.skipBlocks(10)
+				testCtx.skipBlocks(5)
 				println("party a router address: ", partyARouterAddress)
 				println("neutronAtomIbcDenom: ", neutronAtomIbcDenom)
 				println("neutronOsmoIbcDenom: ", neutronOsmoIbcDenom)
@@ -998,6 +1000,8 @@ func TestTwoPartyPol(t *testing.T) {
 						testCtx.skipBlocks(3)
 						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
 						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -1304,6 +1308,8 @@ func TestTwoPartyPol(t *testing.T) {
 						testCtx.skipBlocks(5)
 						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
 						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -1578,6 +1584,8 @@ func TestTwoPartyPol(t *testing.T) {
 						testCtx.skipBlocks(5)
 						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
 						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+						println("partyADepositAddress", partyADepositAddress)
+						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
