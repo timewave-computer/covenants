@@ -4,7 +4,7 @@ use cosmwasm_std::{
     to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     QuerierWrapper, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
-use covenant_clock::helpers::verify_clock;
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use cw2::set_contract_version;
 
 use astroport::{
@@ -79,6 +79,7 @@ pub fn instantiate(
     )?;
 
     Ok(Response::default()
+        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "lp_instantiate")
         .add_attribute("clock_addr", clock_addr)
         .add_attributes(lp_config.to_response_attributes()))

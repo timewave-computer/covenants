@@ -5,7 +5,7 @@ use cosmwasm_std::{
     coin, from_json, to_json_binary, to_json_vec, Binary, Coin, CosmosMsg, CustomQuery, Deps,
     DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
 };
-use covenant_clock::helpers::verify_clock;
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::neutron_ica::{self, get_proto_coin, RemoteChainInfo};
 use cw2::set_contract_version;
 use neutron_sdk::{
@@ -60,6 +60,7 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     Ok(Response::default()
+        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "ibc_forwarder_instantiate")
         .add_attribute("next_contract", next_contract)
         .add_attribute("contract_state", "instantiated")

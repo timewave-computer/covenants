@@ -9,6 +9,7 @@ use cosmwasm_std::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
+use covenant_clock::helpers::enqueue_msg;
 use covenant_utils::{query_astro_pool_token, AstroportPoolTokenResponse, SplitConfig, SplitType};
 use cw2::set_contract_version;
 use cw20::Cw20ExecuteMsg;
@@ -100,6 +101,7 @@ pub fn instantiate(
     DEPOSIT_DEADLINE.save(deps.storage, &msg.deposit_deadline)?;
 
     Ok(Response::default()
+        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "two_party_pol_holder_instantiate")
         .add_attributes(msg.get_response_attributes()))
 }

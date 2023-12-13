@@ -303,74 +303,74 @@ impl SplitConfig {
     }
 }
 
-/// enum based configuration for asserting expiration.
-/// works by asserting the current block against enum variants.
-#[cw_serde]
-pub enum ExpiryConfig {
-    /// no expiration configured
-    None,
-    /// block height based expiry config
-    Block(u64),
-    /// timestamp based expiry config
-    Time(Timestamp),
-}
+// /// enum based configuration for asserting expiration.
+// /// works by asserting the current block against enum variants.
+// #[cw_serde]
+// pub enum ExpiryConfig {
+//     /// no expiration configured
+//     None,
+//     /// block height based expiry config
+//     Block(u64),
+//     /// timestamp based expiry config
+//     Time(Timestamp),
+// }
 
-impl ExpiryConfig {
-    pub fn get_response_attributes(&self) -> Vec<Attribute> {
-        match self {
-            ExpiryConfig::None => vec![Attribute::new("expiry_config", "none")],
-            ExpiryConfig::Block(h) => vec![Attribute::new(
-                "expiry_config_expiry_block_height",
-                h.to_string(),
-            )],
-            ExpiryConfig::Time(t) => vec![Attribute::new(
-                "expiry_config_expiry_block_timestamp",
-                t.to_string(),
-            )],
-        }
-    }
+// impl ExpiryConfig {
+//     pub fn get_response_attributes(&self) -> Vec<Attribute> {
+//         match self {
+//             ExpiryConfig::None => vec![Attribute::new("expiry_config", "none")],
+//             ExpiryConfig::Block(h) => vec![Attribute::new(
+//                 "expiry_config_expiry_block_height",
+//                 h.to_string(),
+//             )],
+//             ExpiryConfig::Time(t) => vec![Attribute::new(
+//                 "expiry_config_expiry_block_timestamp",
+//                 t.to_string(),
+//             )],
+//         }
+//     }
 
-    /// validates that the lockup config being stored is not already expired.
-    pub fn validate(&self, block_info: &BlockInfo) -> Result<(), StdError> {
-        match self {
-            ExpiryConfig::None => Ok(()),
-            ExpiryConfig::Block(h) => {
-                if h > &block_info.height {
-                    Ok(())
-                } else {
-                    Err(StdError::generic_err(
-                        "invalid expiry config: block height must be in the future".to_string(),
-                    ))
-                }
-            }
-            ExpiryConfig::Time(t) => {
-                if t.nanos() > block_info.time.nanos() {
-                    Ok(())
-                } else {
-                    Err(StdError::generic_err(
-                        "invalid expiry config: block time must be in the future".to_string(),
-                    ))
-                }
-            }
-        }
-    }
+//     /// validates that the lockup config being stored is not already expired.
+//     pub fn validate(&self, block_info: &BlockInfo) -> Result<(), StdError> {
+//         match self {
+//             ExpiryConfig::None => Ok(()),
+//             ExpiryConfig::Block(h) => {
+//                 if h > &block_info.height {
+//                     Ok(())
+//                 } else {
+//                     Err(StdError::generic_err(
+//                         "invalid expiry config: block height must be in the future".to_string(),
+//                     ))
+//                 }
+//             }
+//             ExpiryConfig::Time(t) => {
+//                 if t.nanos() > block_info.time.nanos() {
+//                     Ok(())
+//                 } else {
+//                     Err(StdError::generic_err(
+//                         "invalid expiry config: block time must be in the future".to_string(),
+//                     ))
+//                 }
+//             }
+//         }
+//     }
 
-    /// compares current block info with the stored expiry config.
-    /// returns false if no expiry configuration is stored.
-    /// otherwise, returns true if the current block is past the stored info.
-    pub fn is_expired(&self, block_info: BlockInfo) -> bool {
-        match self {
-            // no expiration date
-            ExpiryConfig::None => false,
-            // if stored expiration block height is less than or equal to the current block,
-            // expired
-            ExpiryConfig::Block(h) => h <= &block_info.height,
-            // if stored expiration timestamp is more than or equal to the current timestamp,
-            // expired
-            ExpiryConfig::Time(t) => t.nanos() <= block_info.time.nanos(),
-        }
-    }
-}
+//     /// compares current block info with the stored expiry config.
+//     /// returns false if no expiry configuration is stored.
+//     /// otherwise, returns true if the current block is past the stored info.
+//     pub fn is_expired(&self, block_info: BlockInfo) -> bool {
+//         match self {
+//             // no expiration date
+//             ExpiryConfig::None => false,
+//             // if stored expiration block height is less than or equal to the current block,
+//             // expired
+//             ExpiryConfig::Block(h) => h <= &block_info.height,
+//             // if stored expiration timestamp is more than or equal to the current timestamp,
+//             // expired
+//             ExpiryConfig::Time(t) => t.nanos() <= block_info.time.nanos(),
+//         }
+//     }
+// }
 
 #[cw_serde]
 pub enum ReceiverConfig {
