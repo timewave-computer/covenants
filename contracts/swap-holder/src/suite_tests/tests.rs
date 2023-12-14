@@ -8,8 +8,7 @@ use crate::{
     error::ContractError,
     msg::ContractState,
     suite_tests::suite::{
-        CLOCK_ADDR, DENOM_A, DENOM_B, INITIAL_BLOCK_HEIGHT, INITIAL_BLOCK_NANOS, PARTY_A_ADDR,
-        PARTY_B_ADDR,
+        DENOM_A, DENOM_B, INITIAL_BLOCK_HEIGHT, INITIAL_BLOCK_NANOS, PARTY_A_ADDR, PARTY_B_ADDR,
     },
 };
 
@@ -23,9 +22,9 @@ fn test_instantiate_happy_and_query_all() {
     let lockup_config = suite.query_lockup_config();
     let covenant_parties = suite.query_covenant_parties();
     let covenant_terms = suite.query_covenant_terms();
-
-    assert_eq!(next_contract, "contract0");
-    assert_eq!(clock_address, "clock_address");
+    let clock = suite.clock;
+    assert_eq!(next_contract, "contract1");
+    assert_eq!(clock_address, clock.as_str());
     assert_eq!(lockup_config, Expiration::Never {});
     assert_eq!(
         covenant_parties,
@@ -82,10 +81,10 @@ fn test_forward_block_expired_covenant() {
         .with_lockup_config(cw_utils::Expiration::AtHeight(INITIAL_BLOCK_HEIGHT + 50))
         .build();
     suite.pass_blocks(100);
-
+    let clock = suite.clock.to_string();
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Instantiated);
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
 
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Expired);
@@ -99,10 +98,11 @@ fn test_forward_time_expired_covenant() {
         )))
         .build();
     suite.pass_minutes(100);
+    let clock = suite.clock.to_string();
 
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Instantiated);
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
 
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Expired);
@@ -112,6 +112,7 @@ fn test_forward_time_expired_covenant() {
 #[should_panic(expected = "Insufficient funds to forward")]
 fn test_forward_tick_insufficient_funds() {
     let mut suite = SuiteBuilder::default().build();
+    let clock = suite.clock.to_string();
 
     suite.fund_coin(Coin {
         denom: DENOM_A.to_string(),
@@ -122,12 +123,14 @@ fn test_forward_tick_insufficient_funds() {
         amount: Uint128::new(10),
     });
 
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
 }
 
 #[test]
 fn test_covenant_query_endpoint() {
     let mut suite = SuiteBuilder::default().build();
+    let clock = suite.clock.to_string();
+
     let coin_a = Coin {
         denom: DENOM_A.to_string(),
         amount: Uint128::new(500),
@@ -139,7 +142,7 @@ fn test_covenant_query_endpoint() {
     suite.fund_coin(coin_a.clone());
     suite.fund_coin(coin_b.clone());
 
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     suite.pass_blocks(10);
 
     let state = suite.query_contract_state();
@@ -165,6 +168,8 @@ fn test_covenant_query_endpoint() {
 #[test]
 fn test_forward_tick() {
     let mut suite = SuiteBuilder::default().build();
+    let clock = suite.clock.to_string();
+
     let coin_a = Coin {
         denom: DENOM_A.to_string(),
         amount: Uint128::new(500),
@@ -177,7 +182,7 @@ fn test_forward_tick() {
     suite.fund_coin(coin_a.clone());
     suite.fund_coin(coin_b.clone());
 
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     suite.pass_blocks(10);
 
     let state = suite.query_contract_state();
@@ -194,16 +199,17 @@ fn test_refund_nothing_to_refund() {
     let mut suite = SuiteBuilder::default()
         .with_lockup_config(cw_utils::Expiration::AtHeight(21345))
         .build();
+    let clock = suite.clock.to_string();
 
     suite.pass_blocks(10000);
 
     // first tick acknowledges the expiration
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Expired);
 
     // second tick completes
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Complete);
 
@@ -219,6 +225,7 @@ fn test_refund_party_a() {
     let mut suite = SuiteBuilder::default()
         .with_lockup_config(cw_utils::Expiration::AtHeight(21345))
         .build();
+    let clock = suite.clock.to_string();
 
     let coin_a = Coin {
         denom: DENOM_A.to_string(),
@@ -229,14 +236,14 @@ fn test_refund_party_a() {
     suite.pass_blocks(10000);
 
     // first tick acknowledges the expiration
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Expired);
 
     // second tick refunds
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     // third tick acknowledges the refund and completes
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Complete);
 
@@ -252,6 +259,7 @@ fn test_refund_party_b() {
     let mut suite = SuiteBuilder::default()
         .with_lockup_config(cw_utils::Expiration::AtHeight(21345))
         .build();
+    let clock = suite.clock.to_string();
 
     let coin_b = Coin {
         denom: DENOM_B.to_string(),
@@ -262,14 +270,14 @@ fn test_refund_party_b() {
     suite.pass_blocks(10000);
 
     // first tick acknowledges the expiration
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Expired);
 
     // second refunds
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     // third tick completes
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
 
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Complete);
@@ -286,6 +294,7 @@ fn test_refund_both_parties() {
     let mut suite = SuiteBuilder::default()
         .with_lockup_config(cw_utils::Expiration::AtHeight(21345))
         .build();
+    let clock = suite.clock.to_string();
     let coin_a = Coin {
         denom: DENOM_A.to_string(),
         amount: Uint128::new(300),
@@ -300,14 +309,14 @@ fn test_refund_both_parties() {
     suite.pass_blocks(10000);
 
     // first tick acknowledges the expiration
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Expired);
 
     // second tick refunds the parties
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
     // third tick acknowledges the refund and completes
-    suite.tick(CLOCK_ADDR).unwrap();
+    suite.tick(clock.as_str()).unwrap();
 
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Complete);

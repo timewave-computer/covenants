@@ -89,8 +89,8 @@ pub fn query_astro_pool(
     match msg {
         astroport::pair::QueryMsg::Pair {} => Ok(to_json_binary(&PairInfo {
             asset_infos: vec![],
-            contract_addr: Addr::unchecked("contract0"),
-            liquidity_token: Addr::unchecked("contract0"),
+            contract_addr: Addr::unchecked("contract1"),
+            liquidity_token: Addr::unchecked("contract1"),
             pair_type: astroport::factory::PairType::Xyk {},
         })?),
         astroport::pair::QueryMsg::Share { amount: _ } => Ok(to_json_binary(&vec![

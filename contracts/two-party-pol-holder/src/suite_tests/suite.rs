@@ -5,6 +5,9 @@ use crate::msg::{
     TwoPartyPolCovenantConfig, TwoPartyPolCovenantParty,
 };
 use cosmwasm_std::{Addr, BlockInfo, Coin, Decimal, Timestamp, Uint128};
+use covenant_clock::test_helpers::helpers::{
+    mock_clock_deps_contract, mock_clock_instantiate_message,
+};
 use covenant_utils::{SplitConfig, SplitType};
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 use cw_utils::Expiration;
@@ -25,10 +28,10 @@ pub const PARTY_B_ADDR: &str = "party_b";
 pub const PARTY_A_ROUTER: &str = "party_a_router";
 pub const PARTY_B_ROUTER: &str = "party_b_router";
 
-pub const CLOCK_ADDR: &str = "clock_address";
-pub const NEXT_CONTRACT: &str = "contract2";
+pub const CLOCK_ADDR: &str = "contract0";
+pub const NEXT_CONTRACT: &str = "contract3";
 
-pub const POOL: &str = "contract1";
+pub const POOL: &str = "contract2";
 
 pub const INITIAL_BLOCK_HEIGHT: u64 = 12345;
 pub const INITIAL_BLOCK_NANOS: u64 = 1571797419879305533;
@@ -81,11 +84,11 @@ impl Default for SuiteBuilder {
 
         Self {
             instantiate: InstantiateMsg {
-                pool_address: POOL.to_string(),
+                pool_address: "contract2".to_string(),
                 ragequit_config: RagequitConfig::Disabled,
                 deposit_deadline: Expiration::Never {},
-                clock_address: CLOCK_ADDR.to_string(),
-                next_contract: NEXT_CONTRACT.to_string(),
+                clock_address: "contract0".to_string(),
+                next_contract: "contract3".to_string(),
                 lockup_config: Expiration::Never {},
                 covenant_config: TwoPartyPolCovenantConfig {
                     party_a: TwoPartyPolCovenantParty {
@@ -161,6 +164,20 @@ impl SuiteBuilder {
         let mock_deposit_code = app.store_code(mock_deposit_contract());
         let astro_pool_mock_code = app.store_code(mock_astro_pool_contract());
         let astro_lp_token_mock_code = app.store_code(mock_astro_lp_token_contract());
+        let clock_mock_code = app.store_code(mock_clock_deps_contract());
+
+        let clock = app
+            .instantiate_contract(
+                clock_mock_code,
+                Addr::unchecked(ADMIN),
+                &mock_clock_instantiate_message(),
+                &[],
+                "clock_mock",
+                Some(ADMIN.to_string()),
+            )
+            .unwrap();
+        self.instantiate.clock_address = clock.to_string();
+        println!("clock address: {:?}", clock.to_string());
         let astro_lp = app
             .instantiate_contract(
                 astro_lp_token_mock_code,
@@ -171,6 +188,7 @@ impl SuiteBuilder {
                 Some(ADMIN.to_string()),
             )
             .unwrap();
+        println!("astro lp address: {:?}", astro_lp.to_string());
 
         let denom_b = Coin {
             denom: DENOM_B.to_string(),
@@ -186,8 +204,6 @@ impl SuiteBuilder {
         }))
         .unwrap();
 
-        println!("lp token: {:?}", astro_lp);
-
         let astro_mock = app
             .instantiate_contract(
                 astro_pool_mock_code,
@@ -198,6 +214,7 @@ impl SuiteBuilder {
                 Some(ADMIN.to_string()),
             )
             .unwrap();
+        println!("astro_mock address: {:?}", astro_mock.to_string());
 
         self.instantiate.pool_address = astro_mock.to_string();
 
@@ -207,11 +224,12 @@ impl SuiteBuilder {
                 Addr::unchecked(ADMIN),
                 &self.instantiate,
                 &[],
-                "holder",
+                "mock_deposit",
                 Some(ADMIN.to_string()),
             )
             .unwrap();
 
+        println!("mock deposit: {:?}", mock_deposit.to_string());
         self.instantiate.next_contract = mock_deposit.to_string();
 
         let holder = app
@@ -224,6 +242,7 @@ impl SuiteBuilder {
                 Some(ADMIN.to_string()),
             )
             .unwrap();
+        println!("holder address: {:?}", holder);
 
         Suite {
             app,
@@ -258,6 +277,7 @@ impl Suite {
     }
 
     pub fn rq(&mut self, caller: &str) -> Result<AppResponse, anyhow::Error> {
+        println!("hq holder {:?}", self.holder.to_string());
         let resp = self.app.execute_contract(
             Addr::unchecked(caller),
             self.holder.clone(),
