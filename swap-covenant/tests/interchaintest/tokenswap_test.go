@@ -366,14 +366,14 @@ func TestTokenSwap(t *testing.T) {
 
 			currentHeight, err := cosmosNeutron.Height(ctx)
 			require.NoError(t, err, "failed to get neutron height")
-			depositBlock := Block(currentHeight + 150)
+			depositBlock := Block(currentHeight + 250)
 			lockupConfig := Expiration{
 				AtHeight: &depositBlock,
 			}
 
 			presetIbcFee := PresetIbcFee{
-				AckFee:     "1000001",
-				TimeoutFee: "1000001",
+				AckFee:     "10000",
+				TimeoutFee: "10000",
 			}
 			hubReceiverAddr := gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 			osmoReceiverAddr := osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
@@ -499,7 +499,7 @@ func TestTokenSwap(t *testing.T) {
 				cosmosOsmosis.SendFunds(ctx, osmoUser.KeyName, ibc.WalletAmount{
 					Address: partyBDepositAddress,
 					Denom:   nativeOsmoDenom,
-					Amount:  int64(osmoContributionAmount + 1000),
+					Amount:  int64(osmoContributionAmount),
 				}),
 				"failed to fund osmo forwarder",
 			)
@@ -508,7 +508,7 @@ func TestTokenSwap(t *testing.T) {
 				cosmosAtom.SendFunds(ctx, gaiaUser.KeyName, ibc.WalletAmount{
 					Address: partyADepositAddress,
 					Denom:   nativeAtomDenom,
-					Amount:  int64(atomContributionAmount + 1000),
+					Amount:  int64(atomContributionAmount),
 				}),
 				"failed to fund gaia forwarder",
 			)
@@ -521,10 +521,12 @@ func TestTokenSwap(t *testing.T) {
 				holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
 				holderState := testCtx.queryContractState(holderAddress)
 
-				if holderAtomBal != 0 && holderOsmoBal != 0 || holderState == "complete" {
+				if holderAtomBal != 0 && holderOsmoBal != 0 {
 					println("holder atom bal: ", holderAtomBal)
 					println("holder osmo bal: ", holderOsmoBal)
 					break
+				} else if holderState == "complete" {
+					println("holder state: ", holderState)
 				} else {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
@@ -535,10 +537,9 @@ func TestTokenSwap(t *testing.T) {
 			for {
 				splitterOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, splitterAddress)
 				splitterAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, splitterAddress)
-
+				println("splitterOsmoBal: ", splitterOsmoBal)
+				println("splitterAtomBal: ", splitterAtomBal)
 				if splitterAtomBal != 0 && splitterOsmoBal != 0 {
-					println("splitterOsmoBal: ", splitterOsmoBal)
-					println("splitterAtomBal: ", splitterAtomBal)
 					break
 				} else {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -550,10 +551,10 @@ func TestTokenSwap(t *testing.T) {
 			for {
 				partyARouterOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyARouterAddress)
 				partyBRouterAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
+				println("partyARouter osmo bal: ", partyARouterOsmoBal)
+				println("partyBRouterAtomBal: ", partyBRouterAtomBal)
 
 				if partyARouterOsmoBal != 0 && partyBRouterAtomBal != 0 {
-					println("partyARouter osmo bal: ", partyARouterOsmoBal)
-					println("partyBRouterAtomBal: ", partyBRouterAtomBal)
 					break
 				} else {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -567,10 +568,9 @@ func TestTokenSwap(t *testing.T) {
 				require.NoError(t, err, "failed to query osmoBal")
 				gaiaBal, err := cosmosAtom.GetBalance(ctx, gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
 				require.NoError(t, err, "failed to query gaiaBal")
-
+				println("gaia user osmo bal: ", gaiaBal)
+				println("osmo user atom bal: ", osmoBal)
 				if osmoBal != 0 && gaiaBal != 0 {
-					println("gaia user osmo bal: ", gaiaBal)
-					println("osmo user atom bal: ", osmoBal)
 					break
 				} else {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
