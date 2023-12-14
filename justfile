@@ -5,7 +5,15 @@ test:
 	cargo test
 
 lint:
-	cargo clippy --all-targets -- -D warnings
+	cargo +nightly clippy --all-targets -- -D warnings
+
+workspace-optimize:
+    #!/bin/bash
+    docker run --rm -v "$(pwd)":/code \
+        --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+        --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+        --platform linux/amd64 \
+        cosmwasm/workspace-optimizer:0.15.0
 
 optimize:
     #!/usr/bin/env sh
