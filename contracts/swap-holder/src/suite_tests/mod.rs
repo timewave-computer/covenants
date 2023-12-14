@@ -1,5 +1,8 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Binary, Deps, Empty, Env, StdResult};
+use covenant_clock::test_helpers::helpers::{
+    mock_clock_execute, mock_clock_instantiate, mock_clock_query,
+};
 use covenant_macros::covenant_deposit_address;
 use cw_multi_test::{Contract, ContractWrapper};
 
@@ -38,4 +41,11 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&"native-splitter")?),
     }
+}
+
+pub fn mock_clock_deps_contract() -> Box<dyn Contract<Empty>> {
+    let contract =
+        ContractWrapper::new(mock_clock_execute, mock_clock_instantiate, mock_clock_query);
+
+    Box::new(contract)
 }

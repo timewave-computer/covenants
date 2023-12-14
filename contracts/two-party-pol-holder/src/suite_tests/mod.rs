@@ -4,6 +4,9 @@ use cosmwasm_std::{
     to_json_binary, Addr, BankMsg, Binary, Coin, Deps, DepsMut, Empty, Env, MessageInfo, Response,
     StdResult, Uint128,
 };
+use covenant_clock::test_helpers::helpers::{
+    mock_clock_execute, mock_clock_instantiate, mock_clock_query,
+};
 use covenant_macros::covenant_deposit_address;
 use cw20::{BalanceResponse, Cw20ExecuteMsg, Cw20QueryMsg};
 use cw_multi_test::{Contract, ContractWrapper};
@@ -119,4 +122,11 @@ pub fn query_astro_lp_token(_deps: Deps, _env: Env, msg: cw20::Cw20QueryMsg) -> 
         })?),
         _ => Ok(to_json_binary(&"-")?),
     }
+}
+
+pub fn mock_clock_deps_contract() -> Box<dyn Contract<Empty>> {
+    let contract =
+        ContractWrapper::new(mock_clock_execute, mock_clock_instantiate, mock_clock_query);
+
+    Box::new(contract)
 }

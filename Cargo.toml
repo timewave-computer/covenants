@@ -72,23 +72,24 @@ prost = "0.11"
 astroport = "2.9.5"
 prost-types = "0.11"
 bech32 = "0.9.0"
-cosmwasm-schema = "1.2.1"
+cosmwasm-schema = "1.5.0"
 cosmwasm-std    = { version = "1.5.0", features = ["ibc3", "cosmwasm_1_1", "cosmwasm_1_2"] }
-cw-storage-plus = "1.0.1"
-cw-utils        = "1.0.2"
+cw-storage-plus = "1.2.0"
+cw-utils        = "1.0.3"
+getrandom = { version = "0.2", features = ["js"] }
 cw2             = "1.0.1"
 serde     = { version = "1.0.145", default-features = false, features = ["derive"] }
 thiserror = "1.0.31"
 schemars = "0.8.10"
-cw20             = { version = "0.15" }
+cw20             = { version = "1.1.2" }
 proc-macro2       = "1"
 quote             = "1"
 syn               = "1"
 
 # dev-dependencies
-cw-multi-test   = "0.16.2"
+cw-multi-test   = "0.20.0"
 anyhow          = { version = "1.0.51" }
-cw1-whitelist = "1.1.0"
+cw1-whitelist = "1.1.2"
 astroport-token = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
 astroport-whitelist = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
 astroport-factory =  {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
