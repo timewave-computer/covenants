@@ -508,8 +508,8 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock = Block(currentHeight + 100)
-				lockupBlock = Block(currentHeight + 110)
+				depositBlock = Block(currentHeight + 120)
+				lockupBlock = Block(currentHeight + 120)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -699,8 +699,8 @@ func TestTwoPartyPol(t *testing.T) {
 					holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
 					holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
 					holderState := testCtx.queryContractState(holderAddress)
-					println("holder balance [", neutronAtomIbcDenom, "]  =  ", holderAtomBal)
-					println("holder balance [", neutronOsmoIbcDenom, "]  =  ", holderOsmoBal)
+					println("holder ibc atom balance: ", holderAtomBal)
+					println("holder ibc osmo balance: ", holderOsmoBal)
 					println("holder state: ", holderState)
 
 					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
@@ -713,31 +713,7 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("tick until holder sends the funds to LPer", func(t *testing.T) {
-				for {
-					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-
-					liquidPoolerOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, liquidPoolerAddress)
-					liquidPoolerAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
-
-					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-					liquidPoolerLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
-
-					println("lpooler neutronAtomIbcDenom: ", liquidPoolerAtomBal)
-					println("lpooler neutronOsmoIbcDenom: ", liquidPoolerOsmoBal)
-					println("holder lp token balance: ", holderLpTokenBal)
-					println("liquid pooler lp token balance: ", liquidPoolerLpTokenBal)
-
-					if liquidPoolerOsmoBal == osmoContributionAmount && liquidPoolerAtomBal == atomContributionAmount {
-						break
-					}
-					if holderLpTokenBal != 0 {
-						break
-					}
-				}
-			})
-
-			t.Run("tick until holder receives LP tokens", func(t *testing.T) {
+			t.Run("tick until holder sends funds to LiquidPooler and receives LP tokens in return", func(t *testing.T) {
 				for {
 					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
 
@@ -854,8 +830,8 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 100)
-				lockupBlock := Block(currentHeight + 110)
+				depositBlock := Block(currentHeight + 120)
+				lockupBlock := Block(currentHeight + 120)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1173,8 +1149,8 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 100)
-				lockupBlock := Block(currentHeight + 110)
+				depositBlock := Block(currentHeight + 120)
+				lockupBlock := Block(currentHeight + 120)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1462,8 +1438,8 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 100)
-				lockupBlock := Block(currentHeight + 100)
+				depositBlock := Block(currentHeight + 120)
+				lockupBlock := Block(currentHeight + 120)
 				expirationHeight = lockupBlock
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
