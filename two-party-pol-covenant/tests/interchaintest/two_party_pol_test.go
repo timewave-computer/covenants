@@ -831,7 +831,7 @@ func TestTwoPartyPol(t *testing.T) {
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
 				depositBlock := Block(currentHeight + 120)
-				lockupBlock := Block(currentHeight + 120)
+				lockupBlock := Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1060,6 +1060,9 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("party A ragequits", func(t *testing.T) {
+				testCtx.skipBlocks(10)
+				testCtx.holderRagequit(holderAddress, hubNeutronAccount, keyring.BackendTest)
+				testCtx.skipBlocks(5)
 				for {
 					routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
 					routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
@@ -1071,7 +1074,6 @@ func TestTwoPartyPol(t *testing.T) {
 						break
 					} else {
 						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-						testCtx.holderRagequit(holderAddress, hubNeutronAccount, keyring.BackendTest)
 					}
 				}
 			})
@@ -1150,7 +1152,7 @@ func TestTwoPartyPol(t *testing.T) {
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
 				depositBlock := Block(currentHeight + 120)
-				lockupBlock := Block(currentHeight + 120)
+				lockupBlock := Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
