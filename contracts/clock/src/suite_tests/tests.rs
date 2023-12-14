@@ -1,7 +1,8 @@
-use cosmwasm_std::{Addr, Uint64};
+use cosmwasm_std::{Addr, StdError, Uint64};
 use covenant_clock_tester::msg::Mode;
 
 use crate::contract::DEFAULT_TICK_MAX_GAS;
+use crate::error::ContractError;
 
 use super::is_error;
 use super::suite::SuiteBuilder;
@@ -147,10 +148,13 @@ fn test_update_tick_max_gas() {
 // tests that dequeueing an address that is not in the queue results
 // in an error.
 #[test]
-#[should_panic(expected = "u64 not found")]
 fn test_dequeue_nonexistant() {
     let mut suite = SuiteBuilder::default().build();
-    suite.dequeue("nobody").unwrap();
+    let err: ContractError = suite.dequeue("nobody").unwrap_err().downcast().unwrap();
+    assert!(matches!(
+        err,
+        ContractError::Std(StdError::NotFound { kind: _ })
+    ));
 }
 
 // the same tick receiver can not be in the queue more than once.
