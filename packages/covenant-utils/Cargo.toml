@@ -1,10 +1,10 @@
 [package]
 name = "covenant-utils"
-version = "0.0.1"
-edition = "2021"
+version = { workspace = true }
+edition = { workspace = true }
 authors = ["benskey bekauz@protonmail.com"]
 description = "A package for common utils for covenants"
-license = "BSD-3"
+license = { workspace = true }
 
 
 [lib]

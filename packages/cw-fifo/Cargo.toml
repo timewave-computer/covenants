@@ -1,7 +1,7 @@
 [package]
 name = "cw-fifo"
-version = "0.0.1"
-edition = "2021"
+version =  { workspace = true }
+edition =  { workspace = true }
 authors = ["ekez <ekez@withoutdoing.com>"]
 description = "A CosmWasm FIFO queue with nice runtime and no size limits."
 license = { workspace = true }

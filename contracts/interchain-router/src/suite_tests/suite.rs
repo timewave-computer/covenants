@@ -6,13 +6,14 @@ use cosmwasm_std::{
     Addr, Coin, Empty, GovMsg, Uint64,
 };
 
-use covenant_clock::test_helpers::helpers::mock_clock_neutron_deps_contract;
 use covenant_utils::{DestinationConfig, ReceiverConfig};
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, DistributionKeeper,
     Executor, FailingModule, IbcAcceptingModule, StakeKeeper, WasmKeeper,
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
+
+use super::mock_clock_neutron_deps_contract;
 
 pub const ADMIN: &str = "admin";
 pub const DEFAULT_RECEIVER: &str = "receiver";
@@ -79,7 +80,7 @@ impl SuiteBuilder {
 
     pub fn build(mut self) -> Suite {
         let mut app = BasicAppBuilder::<NeutronMsg, NeutronQuery>::new_custom()
-            .with_ibc(IbcAcceptingModule)
+            .with_ibc(IbcAcceptingModule::new())
             .build(|_, _, _| ());
 
         let router_code = app.store_code(router_contract());
