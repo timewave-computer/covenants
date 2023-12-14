@@ -4,7 +4,7 @@ authors = ["udit <udit.vira@gmail.com>"]
 description = "A holder can hold funds in a covenant"
 edition = { workspace = true }
 license = { workspace = true }
-rust-version = { workspace = true }
+# rust-version = { workspace = true }
 version = { workspace = true }
 
 [lib]

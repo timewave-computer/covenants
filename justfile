@@ -5,7 +5,7 @@ test:
 	cargo test
 
 lint:
-	cargo +nightly clippy --all-targets -- -D warnings
+	cargo clippy --all-targets -- -D warnings
 
 workspace-optimize:
     #!/bin/bash
@@ -13,7 +13,7 @@ workspace-optimize:
         --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
         --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
         --platform linux/amd64 \
-        cosmwasm/workspace-optimizer:0.15.0
+        cosmwasm/workspace-optimizer:0.14.0
 
 optimize:
     ./optimize.sh
