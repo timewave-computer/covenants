@@ -824,7 +824,7 @@ func TestTwoPartyPol(t *testing.T) {
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
 				depositBlock := Block(currentHeight + 120)
-				lockupBlock := Block(currentHeight + 120)
+				lockupBlock := Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1132,7 +1132,7 @@ func TestTwoPartyPol(t *testing.T) {
 				currentHeight, err := cosmosNeutron.Height(ctx)
 				require.NoError(t, err, "failed to get neutron height")
 				depositBlock := Block(currentHeight + 120)
-				lockupBlock := Block(currentHeight + 120)
+				lockupBlock := Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
