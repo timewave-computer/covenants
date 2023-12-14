@@ -5,6 +5,8 @@ use cosmwasm_std::{
     testing::{MockApi, MockStorage},
     Addr, Coin, Empty, GovMsg, Uint64,
 };
+
+use covenant_clock::test_helpers::helpers::mock_clock_neutron_deps_contract;
 use covenant_utils::{DestinationConfig, ReceiverConfig};
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, DistributionKeeper,
@@ -27,6 +29,7 @@ fn router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
 
     Box::new(contract)
 }
+
 type CustomApp = App<
     BankKeeper,
     MockApi,
@@ -74,12 +77,28 @@ impl SuiteBuilder {
         self
     }
 
-    pub fn build(self) -> Suite {
+    pub fn build(mut self) -> Suite {
         let mut app = BasicAppBuilder::<NeutronMsg, NeutronQuery>::new_custom()
             .with_ibc(IbcAcceptingModule)
             .build(|_, _, _| ());
 
         let router_code = app.store_code(router_contract());
+        let clock_code = app.store_code(mock_clock_neutron_deps_contract());
+
+        self.instantiate.clock_address = app
+            .instantiate_contract(
+                clock_code,
+                Addr::unchecked(ADMIN),
+                &covenant_clock::msg::InstantiateMsg {
+                    tick_max_gas: None,
+                    whitelist: vec![],
+                },
+                &[],
+                "clock",
+                Some(ADMIN.to_string()),
+            )
+            .unwrap()
+            .to_string();
 
         let router = app
             .instantiate_contract(

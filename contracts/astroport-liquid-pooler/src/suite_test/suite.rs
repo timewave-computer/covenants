@@ -373,9 +373,18 @@ impl SuiteBuilder {
             .unwrap();
 
         app.update_block(|b| b.height += 5);
-
+        let clock_address = app
+            .instantiate_contract(
+                clock_code,
+                Addr::unchecked(CREATOR_ADDR),
+                &self.clock_instantiate,
+                &[],
+                "clock",
+                None,
+            )
+            .unwrap();
         self.lp_instantiate.pool_address = stable_pair_addr.to_string();
-        self.lp_instantiate.clock_address = "contract8".to_string();
+        self.lp_instantiate.clock_address = clock_address.to_string();
 
         let lper_address = app
             .instantiate_contract(
@@ -388,16 +397,6 @@ impl SuiteBuilder {
             )
             .unwrap();
 
-        let clock_address = app
-            .instantiate_contract(
-                clock_code,
-                Addr::unchecked(CREATOR_ADDR),
-                &self.clock_instantiate,
-                &[],
-                "clock",
-                None,
-            )
-            .unwrap();
         app.update_block(|b| b.height += 5);
 
         app.migrate_contract(

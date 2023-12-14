@@ -1,5 +1,8 @@
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg};
 use cosmwasm_std::{Addr, Coin, Uint128};
+use covenant_clock::test_helpers::helpers::{
+    mock_clock_deps_contract, mock_clock_instantiate_message,
+};
 use covenant_utils::{
     CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig, SwapCovenantTerms,
 };
@@ -28,6 +31,7 @@ pub struct Suite {
     pub mock_deposit: Addr,
     pub party_a: CovenantParty,
     pub party_b: CovenantParty,
+    pub clock: Addr,
 }
 
 pub struct SuiteBuilder {
@@ -78,6 +82,21 @@ impl SuiteBuilder {
         let mut app = self.app;
         let holder_code = app.store_code(swap_holder_contract());
         let mock_deposit_code = app.store_code(mock_deposit_contract());
+        let mock_clock_code = app.store_code(mock_clock_deps_contract());
+
+        let clock_address = app
+            .instantiate_contract(
+                mock_clock_code,
+                Addr::unchecked(ADMIN),
+                &mock_clock_instantiate_message(),
+                &[],
+                "clock",
+                Some(ADMIN.to_string()),
+            )
+            .unwrap();
+        self.instantiate.clock_address = clock_address.to_string();
+
+        println!("clock address: {:?}", clock_address);
 
         let mock_deposit = app
             .instantiate_contract(
@@ -91,7 +110,6 @@ impl SuiteBuilder {
             .unwrap();
 
         self.instantiate.next_contract = mock_deposit.to_string();
-
         let holder = app
             .instantiate_contract(
                 holder_code,
@@ -109,6 +127,7 @@ impl SuiteBuilder {
             mock_deposit,
             party_a: self.instantiate.parties_config.party_a,
             party_b: self.instantiate.parties_config.party_b,
+            clock: clock_address,
         }
     }
 }
