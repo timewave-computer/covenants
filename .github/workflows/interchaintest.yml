@@ -22,7 +22,7 @@ jobs:
             uses: actions-rs/toolchain@v1
             with:
               profile: minimal
-              toolchain: nightly-2023-02-02
+              toolchain: 1.71.0
               target: wasm32-unknown-unknown
               override: true
 
@@ -52,7 +52,7 @@ jobs:
               docker run --rm -v "$(pwd)":/code \
                 --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
                 --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-                cosmwasm/workspace-optimizer:0.15.0
+                cosmwasm/workspace-optimizer:0.14.0
 
           - name: upload contracts
             uses: actions/upload-artifact@v3
