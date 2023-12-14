@@ -1,4 +1,7 @@
-use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+use cosmwasm_std::{Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult};
+use cw_multi_test::{Contract, ContractWrapper};
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
     NeutronResult,
@@ -80,6 +83,23 @@ pub fn mock_clock_query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Bina
         QueryMsg::Paused {} => Ok(Binary::default()),
         QueryMsg::Whitelist {} => Ok(Binary::default()),
     }
+}
+
+pub fn mock_clock_neutron_deps_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
+    let contract = ContractWrapper::new(
+        mock_neutron_clock_execute,
+        mock_neutron_clock_instantiate,
+        mock_neutron_clock_query,
+    );
+
+    Box::new(contract)
+}
+
+pub fn mock_clock_deps_contract() -> Box<dyn Contract<Empty>> {
+    let contract =
+        ContractWrapper::new(mock_clock_execute, mock_clock_instantiate, mock_clock_query);
+
+    Box::new(contract)
 }
 
 pub fn mock_clock_instantiate_message() -> InstantiateMsg {
