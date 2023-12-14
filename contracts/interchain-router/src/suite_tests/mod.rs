@@ -1,2 +1,2 @@
-mod suite;
+pub mod suite;
 mod tests;

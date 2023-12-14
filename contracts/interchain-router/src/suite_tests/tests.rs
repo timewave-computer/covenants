@@ -24,11 +24,11 @@ use super::suite::{SuiteBuilder, CLOCK_ADDR};
 fn test_instantiate_and_query_all() {
     let suite = SuiteBuilder::default().build();
 
-    let clock = suite.query_clock_addr();
+    let clock = suite.query_clock_addr().to_string();
     let config = suite.query_destination_config();
     let denoms = suite.query_target_denoms();
 
-    assert_eq!("clock", clock);
+    assert_eq!("contract0", clock);
     assert_eq!(
         ReceiverConfig::Ibc(DestinationConfig {
             destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
