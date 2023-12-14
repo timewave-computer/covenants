@@ -6,7 +6,6 @@ use cosmwasm_std::{
     Addr, Coin, Empty, GovMsg, Uint64,
 };
 
-use covenant_clock::test_helpers::helpers::mock_clock_neutron_deps_contract;
 use covenant_utils::{DestinationConfig, ReceiverConfig};
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, DistributionKeeper,
