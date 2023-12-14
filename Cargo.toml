@@ -1,7 +1,17 @@
 [workspace]
 members = [
   "packages/*",
-  "contracts/*",
+  "contracts/astroport-liquid-pooler",
+  "contracts/clock",
+  "contracts/clock-tester",
+  "contracts/ibc-forwarder",
+  "contracts/interchain-router",
+  "contracts/interchain-splitter",
+  "contracts/native-splitter",
+  "contracts/swap-covenant",
+  "contracts/swap-holder",
+  "contracts/two-party-pol-holder",
+  "contracts/two-party-pol-covenant",
 ]
 resolver = "2"
 
@@ -10,7 +20,7 @@ edition      = "2021"
 license      = "Apache-2.0"
 version      = "1.0.0"
 repository = "https://github.com/timewave-computer/covenants"
-rust-version = "1.70.0"
+# rust-version = "1.71.0"
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
@@ -53,7 +63,7 @@ covenant-utils = { path = "packages/covenant-utils" }
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
 # updated. to find cosmwasm_std's sha function:
 # ```cargo tree --package cosmwasm-std```
-sha2 = "0.10.6"
+sha2 = "0.10.8"
 neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk", branch = "feat/cw-dex-bindings" }
 cosmos-sdk-proto = { version = "0.14.0", default-features = false }
 protobuf = { version = "3.2.0", features = ["with-bytes"] }
@@ -79,7 +89,7 @@ syn               = "1"
 # dev-dependencies
 cw-multi-test   = "0.20.0"
 anyhow          = { version = "1.0.51" }
-cw1-whitelist = "1.1.2"
+cw1-whitelist = "1.1.0"
 astroport-token = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
 astroport-whitelist = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
 astroport-factory =  {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
