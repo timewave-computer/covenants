@@ -3,7 +3,9 @@ use crate::{
     suite_tests::mock_clock_deps_contract,
 };
 use cosmwasm_std::{Addr, Coin, Uint128};
-use covenant_clock::test_helpers::helpers::mock_clock_instantiate_message;
+use covenant_clock::test_helpers::helpers::{
+    mock_clock_deps_contract, mock_clock_instantiate_message,
+};
 use covenant_utils::{
     CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig, SwapCovenantTerms,
 };
