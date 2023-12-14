@@ -4,7 +4,7 @@ authors      = ["benskey bekauz@protonmail.com"]
 description  = "Liquid Staker module for stride covenant"
 edition      = { workspace = true }
 license      = { workspace = true }
-rust-version = { workspace = true }
+# rust-version = { workspace = true }
 version      = { workspace = true }
 
 [lib]

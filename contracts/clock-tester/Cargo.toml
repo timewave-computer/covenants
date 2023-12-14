@@ -3,7 +3,7 @@ name = "covenant-clock-tester"
 authors = ["ekez <ekez@withoutdoing.com>"]
 edition = { workspace = true }
 license = { workspace = true }
-rust-version = { workspace = true }
+# rust-version = { workspace = true }
 version = { workspace = true }
 
 [lib]
