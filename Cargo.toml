@@ -13,20 +13,14 @@ members = [
   "contracts/two-party-pol-holder",
   "contracts/two-party-pol-covenant",
 ]
-exclude = [
-  "contracts/covenant",
-  "contracts/depositor",
-  "contracts/ls",
-  "contracts/holder",
-  "contracts/lper",
-]
+resolver = "2"
 
 [workspace.package]
 edition      = "2021"
 license      = "Apache-2.0"
 version      = "1.0.0"
 repository = "https://github.com/timewave-computer/covenants"
-rust-version = "1.69.0"
+# rust-version = "1.71.0"
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
@@ -68,14 +62,14 @@ covenant-utils = { path = "packages/covenant-utils" }
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
 # updated. to find cosmwasm_std's sha function:
 # ```cargo tree --package cosmwasm-std```
-sha2 = "0.10.6"
+sha2 = "0.10.8"
 neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk", branch = "feat/cw-dex-bindings" }
 cosmos-sdk-proto = { version = "0.14.0", default-features = false }
 protobuf = { version = "3.2.0", features = ["with-bytes"] }
 serde-json-wasm = { version = "0.4.1" }
 base64 = "0.13.0"
 prost = "0.11"
-astroport = "2.9.0"
+astroport = "2.9.5"
 prost-types = "0.11"
 bech32 = "0.9.0"
 cosmwasm-schema = "1.2.1"
@@ -95,8 +89,8 @@ syn               = "1"
 cw-multi-test   = "0.16.2"
 anyhow          = { version = "1.0.51" }
 cw1-whitelist = "1.1.0"
-astroport-token = {git = "https://github.com/astroport-fi/astroport-core.git"}
-astroport-whitelist = {git = "https://github.com/astroport-fi/astroport-core.git"}
-astroport-factory =  {git = "https://github.com/astroport-fi/astroport-core.git"}
-astroport-native-coin-registry = {git = "https://github.com/astroport-fi/astroport-core.git"}
-astroport-pair-stable = {git = "https://github.com/astroport-fi/astroport-core.git"}
+astroport-token = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
+astroport-whitelist = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
+astroport-factory =  {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
+astroport-native-coin-registry = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
+astroport-pair-stable = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}

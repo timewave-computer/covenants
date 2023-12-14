@@ -4,7 +4,7 @@ authors = ["ekez <ekez@withoutdoing.com>"]
 description = "A clock that advances the covenant state machine."
 edition = { workspace = true }
 license = { workspace = true }
-rust-version = { workspace = true }
+# rust-version = { workspace = true }
 version = { workspace = true }
 
 [lib]

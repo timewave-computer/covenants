@@ -4,7 +4,7 @@ authors      = ["benskey bekauz@protonmail.com"]
 description  = "Two party POL holder module for covenants"
 edition      = { workspace = true }
 license      = { workspace = true }
-rust-version = { workspace = true }
+# rust-version = { workspace = true }
 version      = { workspace = true }
 
 [lib]
