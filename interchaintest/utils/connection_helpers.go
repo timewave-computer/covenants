@@ -512,7 +512,7 @@ func (testCtx *TestContext) QueryClockAddress(contract string) string {
 		err,
 		"failed to query clock address",
 	)
-	println("clock addr: ", response.Data)
+	println("clock address: ", response.Data)
 	return response.Data
 }
 
@@ -535,11 +535,24 @@ func (testCtx *TestContext) QueryHolderAddress(contract string) string {
 		err,
 		"failed to query holder address",
 	)
-	println("holder addr: ", response.Data)
+	println("holder address: ", response.Data)
 	return response.Data
 }
 
-func (testCtx *TestContext) QueryIbcForwarderAddress(contract string, party string) string {
+func (testCtx *TestContext) queryLiquidPoolerAddress(contract string) string {
+	var response CovenantAddressQueryResponse
+
+	err := testCtx.Neutron.QueryContract(testCtx.ctx, contract, LiquidPoolerQuery{}, &response)
+	require.NoError(
+		testCtx.t,
+		err,
+		"failed to query liquid pooler address",
+	)
+	println("liquid pooler address: ", response.Data)
+	return response.Data
+}
+
+func (testCtx *TestContext) queryIbcForwarderAddress(contract string, party string) string {
 	var response CovenantAddressQueryResponse
 	query := IbcForwarderQuery{
 		Party: Party{
@@ -552,7 +565,7 @@ func (testCtx *TestContext) QueryIbcForwarderAddress(contract string, party stri
 		err,
 		"failed to query ibc forwarder address",
 	)
-	println(party, " forwarder addr: ", response.Data)
+	println(party, " ibc forwarder address: ", response.Data)
 	return response.Data
 }
 
@@ -579,8 +592,7 @@ func (testCtx *TestContext) QueryInterchainRouterAddress(contract string, party 
 		err,
 		"failed to query interchain router address",
 	)
-	println(party, " router addr: ", response.Data)
-
+	println(party, " interchain router address: ", response.Data)
 	return response.Data
 }
 
@@ -651,6 +663,7 @@ func (testCtx *TestContext) queryDepositAddress(covenant string, party string) s
 		err,
 		fmt.Sprintf("failed to query %s deposit address", party),
 	)
+	println(party, " deposit address: ", depositAddressResponse.Data)
 	return depositAddressResponse.Data
 }
 
@@ -698,7 +711,15 @@ func (testCtx *TestContext) holderRagequit(contract string, from *ibc.Wallet, ke
 	require.NoError(testCtx.t, err, "ragequit failed")
 }
 
-func (testCtx *TestContext) manualInstantiate(codeId string, msg CovenantInstantiateMsg, from *ibc.Wallet, keyring string) string {
+func (testCtx *TestContext) getNeutronHeight() uint64 {
+	currentHeight, err := testCtx.Neutron.Height(testCtx.ctx)
+	require.NoError(testCtx.t, err, "failed to get neutron height")
+	println("neutron height: ", currentHeight)
+	return currentHeight
+}
+
+func (testCtx *TestContext) manualInstantiate(codeId uint64, msg CovenantInstantiateMsg, from *ibc.Wallet, keyring string) string {
+	codeIdStr := strconv.FormatUint(codeId, 10)
 
 	str, err := json.Marshal(msg)
 	require.NoError(testCtx.T, err, "Failed to marshall CovenantInstantiateMsg")
@@ -706,7 +727,7 @@ func (testCtx *TestContext) manualInstantiate(codeId string, msg CovenantInstant
 
 	cmd := []string{"neutrond", "tx", "wasm", "instantiate", codeIdStr,
 		instantiateMsg,
-		"--label", fmt.Sprintf("covenant-%s", codeIdStr),
+		"--label", fmt.Sprintf("two-party-pol-covenant-%s", codeIdStr),
 		"--no-admin",
 		"--from", from.KeyName,
 		"--output", "json",
