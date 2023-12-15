@@ -510,10 +510,9 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcTransferTimeout: "100", // sec
 				}
 
-				currentHeight, err := cosmosNeutron.Height(ctx)
-				require.NoError(t, err, "failed to get neutron height")
-				depositBlock = Block(currentHeight + 150)
-				lockupBlock = Block(currentHeight + 150)
+				currentHeight := testCtx.getNeutronHeight()
+				depositBlock = Block(currentHeight + 200)
+				lockupBlock = Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -633,19 +632,19 @@ func TestTwoPartyPol(t *testing.T) {
 					FallbackSplit:            nil,
 				}
 
-				covenantAddress = testCtx.ManualInstantiate(covenantCodeId, covenantMsg, neutronUser, keyring.BackendTest)
+				covenantAddress = testCtx.manualInstantiate(covenantCodeId, covenantMsg, neutronUser, keyring.BackendTest)
 
 				println("covenant address: ", covenantAddress)
 			})
 
 			t.Run("query covenant contracts", func(t *testing.T) {
-				clockAddress = testCtx.QueryClockAddress(covenantAddress)
-				holderAddress = testCtx.QueryHolderAddress(covenantAddress)
-				liquidPoolerAddress = testCtx.QueryLiquidPoolerAddress(covenantAddress)
-				partyARouterAddress = testCtx.QueryInterchainRouterAddress(covenantAddress, "party_a")
-				partyBRouterAddress = testCtx.QueryInterchainRouterAddress(covenantAddress, "party_b")
-				partyAIbcForwarderAddress = testCtx.QueryIbcForwarderAddress(covenantAddress, "party_a")
-				partyBIbcForwarderAddress = testCtx.QueryIbcForwarderAddress(covenantAddress, "party_b")
+				clockAddress = testCtx.queryClockAddress(covenantAddress)
+				holderAddress = testCtx.queryHolderAddress(covenantAddress)
+				liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
+				partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
+				partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
+				partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
+				partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
 			})
 
 			t.Run("fund contracts with neutron", func(t *testing.T) {
@@ -670,8 +669,6 @@ func TestTwoPartyPol(t *testing.T) {
 					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
 						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
 						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
-						println("partyADepositAddress", partyADepositAddress)
-						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -707,9 +704,7 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("tick until holder sends funds to LiquidPooler and receives LP tokens in return", func(t *testing.T) {
 				for {
-					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-
-					if holderLpTokenBal == 0 {
+					if testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress) == 0 {
 						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					} else {
 						break
@@ -731,22 +726,14 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("party A claims and router receives the funds", func(t *testing.T) {
-				holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-				println("holder lp token bal: ", holderLpTokenBal)
-				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-				testCtx.skipBlocks(5)
+				testCtx.skipBlocks(10)
 				testCtx.holderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
 				testCtx.skipBlocks(5)
-				println("party a router address: ", partyARouterAddress)
-				println("neutronAtomIbcDenom: ", neutronAtomIbcDenom)
-				println("neutronOsmoIbcDenom: ", neutronOsmoIbcDenom)
 				for {
 					routerOsmoBalA := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyARouterAddress)
 					routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
 					println("routerAtomBalA: ", routerAtomBalA)
 					println("routerOsmoBalA: ", routerOsmoBalA)
-					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-					println("holder lp token bal: ", holderLpTokenBal)
 					if routerAtomBalA != 0 && routerOsmoBalA != 0 {
 						break
 					} else {
@@ -807,7 +794,7 @@ func TestTwoPartyPol(t *testing.T) {
 					if atomBalPartyA != 0 && osmoBalPartyB != 0 {
 						break
 					} else {
-						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					}
 				}
 			})
@@ -821,10 +808,9 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcTransferTimeout: "100", // sec
 				}
 
-				currentHeight, err := cosmosNeutron.Height(ctx)
-				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 150)
-				lockupBlock := Block(currentHeight + 200)
+				currentHeight := testCtx.getNeutronHeight()
+				depositBlock := Block(currentHeight + 200)
+				lockupBlock := Block(currentHeight + 300)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -936,18 +922,18 @@ func TestTwoPartyPol(t *testing.T) {
 					FallbackSplit: nil,
 				}
 
-				covenantAddress = testCtx.ManualInstantiate(covenantRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
+				covenantAddress = testCtx.manualInstantiate(covenantRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
 				println("covenant address: ", covenantAddress)
 			})
 
 			t.Run("query covenant contracts", func(t *testing.T) {
-				clockAddress = testCtx.QueryClockAddress(covenantAddress)
-				holderAddress = testCtx.QueryHolderAddress(covenantAddress)
-				liquidPoolerAddress = testCtx.QueryLiquidPoolerAddress(covenantAddress)
-				partyARouterAddress = testCtx.QueryInterchainRouterAddress(covenantAddress, "party_a")
-				partyBRouterAddress = testCtx.QueryInterchainRouterAddress(covenantAddress, "party_b")
-				partyAIbcForwarderAddress = testCtx.QueryIbcForwarderAddress(covenantAddress, "party_a")
-				partyBIbcForwarderAddress = testCtx.QueryIbcForwarderAddress(covenantAddress, "party_b")
+				clockAddress = testCtx.queryClockAddress(covenantAddress)
+				holderAddress = testCtx.queryHolderAddress(covenantAddress)
+				liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
+				partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
+				partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
+				partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
+				partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
 			})
 
 			t.Run("fund contracts with neutron", func(t *testing.T) {
@@ -976,8 +962,6 @@ func TestTwoPartyPol(t *testing.T) {
 						testCtx.skipBlocks(3)
 						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
 						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
-						println("partyADepositAddress", partyADepositAddress)
-						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -1000,8 +984,11 @@ func TestTwoPartyPol(t *testing.T) {
 					println("holder osmo bal: ", holderOsmoBal)
 					println("holder state: ", holderState)
 
-					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount || holderState == "active" {
-						println("\nholder/liquidpooler received atom & osmo\n")
+					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
+						println("holder received atom & osmo")
+						break
+					} else if holderState == "active" {
+						println("holder is active")
 						break
 					} else {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -1011,26 +998,7 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("tick until holder sends funds to LPer and receives LP tokens in return", func(t *testing.T) {
 				for {
-					liquidPoolerOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, liquidPoolerAddress)
-					liquidPoolerAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
 					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-
-					println("liquid pooler atom bal: ", liquidPoolerAtomBal)
-					println("liquid pooler osmo bal: ", liquidPoolerOsmoBal)
-					println("holder lp token balance: ", holderLpTokenBal)
-
-					if liquidPoolerOsmoBal == osmoContributionAmount && liquidPoolerAtomBal == atomContributionAmount {
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("tick until holder receives LP tokens", func(t *testing.T) {
-				for {
-					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-					println("holder lp token balance: ", holderLpTokenBal)
 
 					if holderLpTokenBal == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -1130,10 +1098,9 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcTransferTimeout: "100", // sec
 				}
 
-				currentHeight, err := cosmosNeutron.Height(ctx)
-				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 150)
-				lockupBlock := Block(currentHeight + 200)
+				currentHeight := testCtx.getNeutronHeight()
+				depositBlock := Block(currentHeight + 200)
+				lockupBlock := Block(currentHeight + 300)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1245,18 +1212,18 @@ func TestTwoPartyPol(t *testing.T) {
 					FallbackSplit: nil,
 				}
 
-				covenantAddress = testCtx.ManualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
+				covenantAddress = testCtx.manualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
 				println("covenant address: ", covenantAddress)
 			})
 
 			t.Run("query covenant contracts", func(t *testing.T) {
-				clockAddress = testCtx.QueryClockAddress(covenantAddress)
-				holderAddress = testCtx.QueryHolderAddress(covenantAddress)
-				liquidPoolerAddress = testCtx.QueryLiquidPoolerAddress(covenantAddress)
-				partyARouterAddress = testCtx.QueryInterchainRouterAddress(covenantAddress, "party_a")
-				partyBRouterAddress = testCtx.QueryInterchainRouterAddress(covenantAddress, "party_b")
-				partyAIbcForwarderAddress = testCtx.QueryIbcForwarderAddress(covenantAddress, "party_a")
-				partyBIbcForwarderAddress = testCtx.QueryIbcForwarderAddress(covenantAddress, "party_b")
+				clockAddress = testCtx.queryClockAddress(covenantAddress)
+				holderAddress = testCtx.queryHolderAddress(covenantAddress)
+				liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
+				partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
+				partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
+				partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
+				partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
 			})
 
 			t.Run("fund contracts with neutron", func(t *testing.T) {
@@ -1285,8 +1252,6 @@ func TestTwoPartyPol(t *testing.T) {
 						testCtx.skipBlocks(5)
 						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
 						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
-						println("partyADepositAddress", partyADepositAddress)
-						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -1314,8 +1279,11 @@ func TestTwoPartyPol(t *testing.T) {
 					println("holder osmo bal: ", holderOsmoBal)
 					println("holder state: ", holderState)
 
-					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount || holderState == "active" {
-						println("\nholder/liquidpooler received atom & osmo\n")
+					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
+						println("holder received atom & osmo")
+						break
+					} else if holderState == "active" {
+						println("holderState: ", holderState)
 						break
 					} else {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -1324,24 +1292,6 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
-				for {
-					liquidPoolerOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, liquidPoolerAddress)
-					liquidPoolerAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
-					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-
-					println("liquid pooler atom bal: ", liquidPoolerAtomBal)
-					println("liquid pooler osmo bal: ", liquidPoolerOsmoBal)
-					println("holder lp token balance: ", holderLpTokenBal)
-
-					if liquidPoolerOsmoBal != osmoContributionAmount || liquidPoolerAtomBal != atomContributionAmount {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					} else {
-						break
-					}
-				}
-			})
-
-			t.Run("tick until holder receives LP tokens", func(t *testing.T) {
 				for {
 					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
 					println("holder lp token balance: ", holderLpTokenBal)
@@ -1407,10 +1357,9 @@ func TestTwoPartyPol(t *testing.T) {
 					IbcTransferTimeout: "100", // sec
 				}
 
-				currentHeight, err := cosmosNeutron.Height(ctx)
-				require.NoError(t, err, "failed to get neutron height")
-				depositBlock := Block(currentHeight + 150)
-				lockupBlock := Block(currentHeight + 150)
+				currentHeight := testCtx.getNeutronHeight()
+				depositBlock := Block(currentHeight + 200)
+				lockupBlock := Block(currentHeight + 200)
 				expirationHeight = lockupBlock
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1522,18 +1471,18 @@ func TestTwoPartyPol(t *testing.T) {
 					FallbackSplit: nil,
 				}
 
-				covenantAddress = testCtx.ManualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
+				covenantAddress = testCtx.manualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
 				println("covenant address: ", covenantAddress)
 			})
 
 			t.Run("query covenant contracts", func(t *testing.T) {
-				clockAddress = testCtx.QueryClockAddress(covenantAddress)
-				holderAddress = testCtx.QueryHolderAddress(covenantAddress)
-				liquidPoolerAddress = testCtx.QueryLiquidPoolerAddress(covenantAddress)
-				partyARouterAddress = testCtx.QueryInterchainRouterAddress(covenantAddress, "party_a")
-				partyBRouterAddress = testCtx.QueryInterchainRouterAddress(covenantAddress, "party_b")
-				partyAIbcForwarderAddress = testCtx.QueryIbcForwarderAddress(covenantAddress, "party_a")
-				partyBIbcForwarderAddress = testCtx.QueryIbcForwarderAddress(covenantAddress, "party_b")
+				clockAddress = testCtx.queryClockAddress(covenantAddress)
+				holderAddress = testCtx.queryHolderAddress(covenantAddress)
+				liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
+				partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
+				partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
+				partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
+				partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
 			})
 
 			t.Run("fund contracts with neutron", func(t *testing.T) {
@@ -1562,8 +1511,6 @@ func TestTwoPartyPol(t *testing.T) {
 						testCtx.skipBlocks(5)
 						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
 						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
-						println("partyADepositAddress", partyADepositAddress)
-						println("partyBDepositAddress", partyBDepositAddress)
 						break
 					}
 				}
@@ -1591,8 +1538,11 @@ func TestTwoPartyPol(t *testing.T) {
 					println("holder osmo bal: ", holderOsmoBal)
 					println("holder state: ", holderState)
 
-					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount || holderState == "active" {
-						println("\nholder/liquidpooler received atom & osmo\n")
+					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
+						println("holder/liquidpooler received atom & osmo")
+						break
+					} else if holderState == "active" {
+						println("holderState: ", holderState)
 						break
 					} else {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -1601,24 +1551,6 @@ func TestTwoPartyPol(t *testing.T) {
 			})
 
 			t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
-				for {
-					liquidPoolerOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, liquidPoolerAddress)
-					liquidPoolerAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
-					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-
-					println("liquid pooler atom bal: ", liquidPoolerAtomBal)
-					println("liquid pooler osmo bal: ", liquidPoolerOsmoBal)
-					println("holder lp token balance: ", holderLpTokenBal)
-
-					if liquidPoolerOsmoBal != osmoContributionAmount || liquidPoolerAtomBal != atomContributionAmount {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					} else {
-						break
-					}
-				}
-			})
-
-			t.Run("tick until holder receives LP tokens", func(t *testing.T) {
 				for {
 					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
 					println("holder lp token balance: ", holderLpTokenBal)
@@ -1633,8 +1565,8 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("lockup expires", func(t *testing.T) {
 				for {
-					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					if testCtx.GetNeutronHeight() >= uint64(expirationHeight) {
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+					if testCtx.getNeutronHeight() >= uint64(expirationHeight) {
 						break
 					}
 				}
