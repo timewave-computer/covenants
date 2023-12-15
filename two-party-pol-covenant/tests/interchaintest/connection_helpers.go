@@ -70,6 +70,7 @@ func (testCtx *TestContext) queryClockAddress(contract string) string {
 		err,
 		"failed to query clock address",
 	)
+	println("clock address: ", response.Data)
 	return response.Data
 }
 
@@ -82,6 +83,7 @@ func (testCtx *TestContext) queryHolderAddress(contract string) string {
 		err,
 		"failed to query holder address",
 	)
+	println("holder address: ", response.Data)
 	return response.Data
 }
 
@@ -94,6 +96,7 @@ func (testCtx *TestContext) queryLiquidPoolerAddress(contract string) string {
 		err,
 		"failed to query liquid pooler address",
 	)
+	println("liquid pooler address: ", response.Data)
 	return response.Data
 }
 
@@ -110,6 +113,7 @@ func (testCtx *TestContext) queryIbcForwarderAddress(contract string, party stri
 		err,
 		"failed to query ibc forwarder address",
 	)
+	println(party, " ibc forwarder address: ", response.Data)
 	return response.Data
 }
 
@@ -126,6 +130,7 @@ func (testCtx *TestContext) queryInterchainRouterAddress(contract string, party 
 		err,
 		"failed to query interchain router address",
 	)
+	println(party, " interchain router address: ", response.Data)
 	return response.Data
 }
 
@@ -169,6 +174,7 @@ func (testCtx *TestContext) queryDepositAddress(covenant string, party string) s
 		err,
 		fmt.Sprintf("failed to query %s deposit address", party),
 	)
+	println(party, " deposit address: ", depositAddressResponse.Data)
 	return depositAddressResponse.Data
 }
 
@@ -216,15 +222,23 @@ func (testCtx *TestContext) holderRagequit(contract string, from *ibc.Wallet, ke
 	require.NoError(testCtx.t, err, "ragequit failed")
 }
 
-func (testCtx *TestContext) manualInstantiate(codeId string, msg CovenantInstantiateMsg, from *ibc.Wallet, keyring string) string {
+func (testCtx *TestContext) getNeutronHeight() uint64 {
+	currentHeight, err := testCtx.Neutron.Height(testCtx.ctx)
+	require.NoError(testCtx.t, err, "failed to get neutron height")
+	println("neutron height: ", currentHeight)
+	return currentHeight
+}
+
+func (testCtx *TestContext) manualInstantiate(codeId uint64, msg CovenantInstantiateMsg, from *ibc.Wallet, keyring string) string {
+	codeIdStr := strconv.FormatUint(codeId, 10)
 
 	str, err := json.Marshal(msg)
 	require.NoError(testCtx.t, err, "Failed to marshall CovenantInstantiateMsg")
 	instantiateMsg := string(str)
 
-	cmd := []string{"neutrond", "tx", "wasm", "instantiate", codeId,
+	cmd := []string{"neutrond", "tx", "wasm", "instantiate", codeIdStr,
 		instantiateMsg,
-		"--label", fmt.Sprintf("two-party-pol-covenant-%s", codeId),
+		"--label", fmt.Sprintf("two-party-pol-covenant-%s", codeIdStr),
 		"--no-admin",
 		"--from", from.KeyName,
 		"--output", "json",
@@ -247,7 +261,7 @@ func (testCtx *TestContext) manualInstantiate(codeId string, msg CovenantInstant
 		testutil.WaitForBlocks(testCtx.ctx, 5, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
 
 	queryCmd := []string{"neutrond", "query", "wasm",
-		"list-contract-by-code", codeId,
+		"list-contract-by-code", codeIdStr,
 		"--output", "json",
 		"--home", testCtx.Neutron.HomeDir(),
 		"--node", testCtx.Neutron.GetRPCAddress(),
@@ -484,7 +498,7 @@ func (testCtx *TestContext) queryLpTokenBalance(token string, addr string) uint6
 	if err != nil {
 		panic(err)
 	}
-
+	println(addr, " lp token balance: ", lpBal)
 	return lpBal
 }
 
