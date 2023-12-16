@@ -74,8 +74,8 @@ func SetupNeutronGenesis(
 		}
 
 		out, err := json.Marshal(g)
-		println("neutron genesis:")
-		print(string(out))
+		// println("neutron genesis:")
+		// print(string(out))
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
 		}
@@ -173,6 +173,8 @@ func SetupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 		}
 
 		out, err := json.Marshal(g)
+		println("osmo genesis:")
+		print(string(out))
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
 		}
