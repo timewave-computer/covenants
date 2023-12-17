@@ -239,7 +239,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), atom, neutron, osmosis)
 	gaiaUser, neutronUser, osmoUser := users[0], users[1], users[2]
 
-	osmoHelperAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(1), osmosis)[0]
+	osmoHelperAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(600_000_000_000), osmosis)[0]
 
 	_, _, _ = gaiaUser, neutronUser, osmoUser
 	hubNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
@@ -298,6 +298,11 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
 			},
 			nativeOsmoDenom,
+		)
+		// 5. hub atom => osmosis
+		osmosisAtomIbcDenom = testCtx.getIbcDenom(
+			testCtx.OsmoTransferChannelIds[cosmosAtom.Config().Name],
+			nativeAtomDenom,
 		)
 	})
 
@@ -368,36 +373,67 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 
 			// fund an address on osmosis that will provide liquidity
 			// at 1:10 ratio of atom/osmo
-			_, err := atom.SendIBCTransfer(ctx,
-				testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+			_, err := cosmosAtom.SendIBCTransfer(
+				testCtx.ctx,
+				testCtx.GaiaTransferChannelIds[cosmosOsmosis.Config().Name],
 				gaiaUser.KeyName,
 				ibc.WalletAmount{
-					Address: osmoHelperAccount.Bech32Address(osmosis.Config().Bech32Prefix),
-					Denom:   cosmosAtom.Config().Denom,
-					Amount:  int64(atomContributionAmount),
+					Address: osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
+					Denom:   testCtx.Hub.Config().Denom,
+					Amount:  100 * int64(atomContributionAmount),
 				},
 				ibc.TransferOptions{})
 			require.NoError(t, err)
 
-			err = osmosis.SendFunds(ctx,
-				osmoUser.KeyName,
-				ibc.WalletAmount{
-					Address: osmoHelperAccount.Bech32Address(osmosis.Config().Bech32Prefix),
-					Denom:   osmosis.Config().Denom,
-					Amount:  int64(osmoContributionAmount),
-				})
-			require.NoError(t, err)
+			testCtx.skipBlocks(5)
 
-			testCtx.skipBlocks(2)
+			osmoBal, _ := testCtx.Osmosis.GetBalance(
+				testCtx.ctx,
+				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
+				"uosmo",
+			)
+			atomBal, _ := testCtx.Osmosis.GetBalance(
+				testCtx.ctx,
+				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
+				osmosisAtomIbcDenom,
+			)
+			println("osmoBal: ", osmoBal)
+			println("atomBal: ", atomBal)
 
-			// create osmo atom pool and fund it with some liquidity
+			osmosisPoolInitConfig := cosmos.OsmosisPoolParams{
+				Weights:        fmt.Sprintf("10%s,1%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
+				InitialDeposit: fmt.Sprintf("50000%s,500000%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
+				SwapFee:        "0.01",
+				ExitFee:        "0",
+				FutureGovernor: "",
+			}
+			println("osmo pool init deposit: ", osmosisPoolInitConfig.InitialDeposit)
+			poolId, err := cosmos.OsmosisCreatePool(
+				testCtx.Osmosis,
+				testCtx.ctx,
+				osmoHelperAccount.KeyName,
+				osmosisPoolInitConfig,
+			)
+			require.NoError(testCtx.t, err, err)
+			require.Equal(t, "1", poolId)
 
-			// get pool id
+			testCtx.skipBlocks(10)
 
-			poolId := "TODO"
-			_ = poolId
+			osmoBal, _ = testCtx.Osmosis.GetBalance(
+				testCtx.ctx,
+				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
+				"uosmo",
+			)
+			atomBal, _ = testCtx.Osmosis.GetBalance(
+				testCtx.ctx,
+				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
+				osmosisAtomIbcDenom,
+			)
 
-			testCtx.skipBlocks(2)
+			println("osmoBal: ", osmoBal)
+			println("atomBal: ", atomBal)
+
+			testCtx.skipBlocks(50)
 		})
 
 		t.Run("two party POL happy path", func(t *testing.T) {
