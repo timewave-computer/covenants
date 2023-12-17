@@ -37,6 +37,7 @@ var partyAIbcForwarderAddress, partyBIbcForwarderAddress string
 var partyADepositAddress, partyBDepositAddress string
 var holderAddress string
 var neutronAtomIbcDenom, neutronOsmoIbcDenom, osmoNeutronAtomIbcDenom, gaiaNeutronOsmoIbcDenom string
+var osmosisAtomIbcDenom string
 var atomNeutronICSConnectionId, neutronAtomICSConnectionId string
 var neutronOsmosisIBCConnId, osmosisNeutronIBCConnId string
 var atomNeutronIBCConnId, neutronAtomIBCConnId string
