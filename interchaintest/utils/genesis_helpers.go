@@ -172,6 +172,96 @@ func SetupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w. \ngenesis json: %s", err, g)
 		}
 
+		type Fee struct {
+			Amount string `json:"amount"`
+			Denom  string `json:"denom"`
+		}
+		zeroCreationFee := []Fee{
+			{
+				Amount: "10",
+				Denom:  "uosmo",
+			},
+		}
+
+		if err := dyno.Set(g, zeroCreationFee, "app_state", "poolmanager", "params", "pool_creation_fee"); err != nil {
+			return nil, fmt.Errorf("failed to set pool creation fee")
+		}
+
+		if err := dyno.Set(g, zeroCreationFee, "app_state", "gamm", "params", "pool_creation_fee"); err != nil {
+			return nil, fmt.Errorf("failed to set pool creation fee")
+		}
+
+		// Retrieve the params map
+		params, err := dyno.Get(g, "app_state", "concentratedliquidity", "params")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get params for concentratedliquidity: %w", err)
+		}
+
+		// Assert the type of the params to be map[string]interface{}
+		paramsMap, ok := params.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("params for concentratedliquidity is not a map")
+		}
+
+		// Update only the is_permissionless_pool_creation_enabled field
+		paramsMap["is_permissionless_pool_creation_enabled"] = true
+
+		// Set the modified params map back
+		if err := dyno.Set(g, paramsMap, "app_state", "concentratedliquidity", "params"); err != nil {
+			return nil, fmt.Errorf("failed to set modified params for concentratedliquidity: %w", err)
+		}
+
+		// Retrieve tokenfactory params map
+		tokenfactoryParams, err := dyno.Get(g, "app_state", "tokenfactory", "params")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get params for tokenfactory: %w", err)
+		}
+
+		// Assert the type of the params to be map[string]interface{}
+		tokenfactoryParamsMap, ok := tokenfactoryParams.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("params for tokenfactory is not a map")
+		}
+
+		// Update only the denom_creation_gas_consume field
+		tokenfactoryParamsMap["denom_creation_gas_consume"] = "1"
+
+		// Set the modified params map back
+		if err := dyno.Set(g, tokenfactoryParamsMap, "app_state", "tokenfactory", "params"); err != nil {
+			return nil, fmt.Errorf("failed to set modified params for tokenfactory: %w", err)
+		}
+
+		// genutil gas_limits
+		// Retrieve the gen_txs array
+		genTxs, err := dyno.Get(g, "app_state", "genutil", "gen_txs")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get gen_txs for genutil: %w", err)
+		}
+
+		genTxsSlice, ok := genTxs.([]interface{})
+		if !ok {
+			return nil, fmt.Errorf("gen_txs in genutil is not a slice")
+		}
+
+		// Update the gas_limit for each item in the slice
+		for _, genTx := range genTxsSlice {
+			genTxMap, ok := genTx.(map[string]interface{})
+			if !ok {
+				return nil, fmt.Errorf("gen_tx item is not a map")
+			}
+
+			if authInfo, ok := genTxMap["auth_info"].(map[string]interface{}); ok {
+				if fee, ok := authInfo["fee"].(map[string]interface{}); ok {
+					fee["gas_limit"] = "350000"
+				}
+			}
+		}
+
+		// Set the modified gen_txs slice back
+		if err := dyno.Set(g, genTxsSlice, "app_state", "genutil", "gen_txs"); err != nil {
+			return nil, fmt.Errorf("failed to set modified gen_txs for genutil: %w", err)
+		}
+
 		out, err := json.Marshal(g)
 		println("osmo genesis:")
 		print(string(out))
