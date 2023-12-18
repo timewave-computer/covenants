@@ -3,7 +3,9 @@ package ibc_test
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -86,7 +88,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 					append(getDefaultInterchainGenesisMessages(), "/ibc.applications.interchain_accounts.v1.InterchainAccount"),
 				),
 				GasPrices:           "0.005uosmo",
-				GasAdjustment:       1.3,
+				GasAdjustment:       2.0,
 				TrustingPeriod:      "336h",
 				NoHostMount:         false,
 				ConfigFileOverrides: configFileOverrides,
@@ -239,7 +241,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 	users := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), atom, neutron, osmosis)
 	gaiaUser, neutronUser, osmoUser := users[0], users[1], users[2]
 
-	osmoHelperAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(600_000_000_000), osmosis)[0]
+	osmoHelperAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(1_000_000_000_000), osmosis)[0]
 
 	_, _, _ = gaiaUser, neutronUser, osmoUser
 	hubNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
@@ -385,7 +387,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				ibc.TransferOptions{})
 			require.NoError(t, err)
 
-			testCtx.skipBlocks(5)
+			testCtx.skipBlocks(15)
 
 			osmoBal, _ := testCtx.Osmosis.GetBalance(
 				testCtx.ctx,
@@ -402,22 +404,48 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 
 			osmosisPoolInitConfig := cosmos.OsmosisPoolParams{
 				Weights:        fmt.Sprintf("10%s,1%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
-				InitialDeposit: fmt.Sprintf("50000%s,500000%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
-				SwapFee:        "0.01",
-				ExitFee:        "0",
+				InitialDeposit: fmt.Sprintf("5000000%s,55000000%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
+				SwapFee:        "0.003",
+				ExitFee:        "0.00",
 				FutureGovernor: "",
 			}
 			println("osmo pool init deposit: ", osmosisPoolInitConfig.InitialDeposit)
+
+			// this fails because of wrong gas being set in interchaintest
+			// underlying `ExecTx` call. we call this just to write the
+			// config file to the node.
 			poolId, err := cosmos.OsmosisCreatePool(
-				testCtx.Osmosis,
-				testCtx.ctx,
+				cosmosOsmosis,
+				ctx,
 				osmoHelperAccount.KeyName,
 				osmosisPoolInitConfig,
 			)
-			require.NoError(testCtx.t, err, err)
-			require.Equal(t, "1", poolId)
-
+			require.NoError(t, err, err)
+			require.Equal(t, "0", poolId)
 			testCtx.skipBlocks(10)
+
+			manualPoolCreationCmd := []string{
+				"osmosisd", "tx", "gamm", "create-pool",
+				"--pool-file", filepath.Join(cosmosOsmosis.HomeDir(), "pool.json"),
+				"--from", osmoHelperAccount.KeyName,
+				"--gas", "3502650",
+				"--keyring-backend", keyring.BackendTest,
+				"--output", "json",
+				"--chain-id", cosmosOsmosis.Config().ChainID,
+				"--node", cosmosOsmosis.GetRPCAddress(),
+				"--home", cosmosOsmosis.HomeDir(),
+				"--fees", "500000uosmo",
+				"-y",
+			}
+			println("test manualPoolCreationCmd: ", strings.Join(manualPoolCreationCmd, " "))
+			manualCreationStdout, _, err := cosmosOsmosis.Exec(ctx, manualPoolCreationCmd, nil)
+			if err != nil {
+				println("failed to exec manual command: %w", err)
+			}
+			println("manual creation stdout: ", string(manualCreationStdout))
+			if err != nil {
+				println("error: ", err)
+			}
 
 			osmoBal, _ = testCtx.Osmosis.GetBalance(
 				testCtx.ctx,
@@ -433,6 +461,9 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			println("osmoBal: ", osmoBal)
 			println("atomBal: ", atomBal)
 
+			println("pool id: ", 1)
+
+			require.NoError(t, err, err)
 			testCtx.skipBlocks(50)
 		})
 
