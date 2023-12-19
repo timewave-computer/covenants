@@ -2,10 +2,9 @@ package ibc_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -244,20 +243,20 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 	osmoHelperAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(1_000_000_000_000), osmosis)[0]
 
 	_, _, _ = gaiaUser, neutronUser, osmoUser
-	hubNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
-	osmoNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
+	// hubNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
+	// osmoNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
 
-	rqCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
-	rqCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount), osmosis)[0]
+	// rqCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
+	// rqCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount), osmosis)[0]
 
-	sideBasedRqCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
-	sideBasedRqCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount), osmosis)[0]
+	// sideBasedRqCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
+	// sideBasedRqCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount), osmosis)[0]
 
-	happyCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
-	happyCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount), osmosis)[0]
+	// happyCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
+	// happyCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount), osmosis)[0]
 
-	sideBasedHappyCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
-	sideBasedHappyCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount), osmosis)[0]
+	// sideBasedHappyCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
+	// sideBasedHappyCaseOsmoAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(osmoContributionAmount), osmosis)[0]
 
 	testCtx.skipBlocks(5)
 
@@ -331,6 +330,8 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 		var noteCodeId uint64
 		var voiceCodeId uint64
 		var proxyCodeId uint64
+		_, _, _, _, _ = clockCodeId, routerCodeId, ibcForwarderCodeId, holderCodeId, lperCodeId
+		_, _, _ = covenantCodeId, covenantRqCodeId, covenantSideBasedRqCodeId
 
 		t.Run("deploy covenant contracts", func(t *testing.T) {
 			// something was going wrong with instantiating the same code twice,
@@ -414,14 +415,13 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			// this fails because of wrong gas being set in interchaintest
 			// underlying `ExecTx` call. we call this just to write the
 			// config file to the node.
-			poolId, err := cosmos.OsmosisCreatePool(
+			_, err = cosmos.OsmosisCreatePool(
 				cosmosOsmosis,
 				ctx,
 				osmoHelperAccount.KeyName,
 				osmosisPoolInitConfig,
 			)
 			require.NoError(t, err, err)
-			require.Equal(t, "0", poolId)
 			testCtx.skipBlocks(10)
 
 			manualPoolCreationCmd := []string{
@@ -437,16 +437,23 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				"--fees", "500000uosmo",
 				"-y",
 			}
-			println("test manualPoolCreationCmd: ", strings.Join(manualPoolCreationCmd, " "))
-			manualCreationStdout, _, err := cosmosOsmosis.Exec(ctx, manualPoolCreationCmd, nil)
-			if err != nil {
-				println("failed to exec manual command: %w", err)
-			}
-			println("manual creation stdout: ", string(manualCreationStdout))
-			if err != nil {
-				println("error: ", err)
-			}
+			_, _, err = cosmosOsmosis.Exec(ctx, manualPoolCreationCmd, nil)
+			require.NoError(testCtx.t, err, err)
+			testCtx.skipBlocks(5)
 
+			queryPoolCmd := []string{"osmosisd", "q", "gamm", "num-pools",
+				"--node", cosmosOsmosis.GetRPCAddress(),
+				"--home", cosmosOsmosis.HomeDir(),
+				"--output", "json",
+				"--chain-id", cosmosOsmosis.Config().ChainID,
+			}
+			numPoolsQueryStdout, _, err := cosmosOsmosis.Exec(testCtx.ctx, queryPoolCmd, nil)
+			require.NoError(testCtx.t, err, err)
+			var res map[string]string
+			err = json.Unmarshal(numPoolsQueryStdout, &res)
+			require.NoError(testCtx.t, err, err)
+			poolId := res["num_pools"]
+			println("pool id: ", poolId)
 			osmoBal, _ = testCtx.Osmosis.GetBalance(
 				testCtx.ctx,
 				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
@@ -460,1123 +467,1165 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 
 			println("osmoBal: ", osmoBal)
 			println("atomBal: ", atomBal)
-
-			println("pool id: ", 1)
-
-			require.NoError(t, err, err)
-			testCtx.skipBlocks(50)
+			testCtx.skipBlocks(5)
 		})
 
-		t.Run("two party POL happy path", func(t *testing.T) {
-			var depositBlock Block
-			var lockupBlock Block
+		t.Run("instantiate polytone note on neutron", func(t *testing.T) {
+			noteInstantiateMsg := NoteInstantiate{
+				// Pair: &PolytonePair{
+				// 	ConnectionId: neutronOsmosisIBCConnId,
+				// 	RemotePort:   "",
+				// },
+				BlockMaxGas: "301000",
+			}
 
-			t.Run("instantiate covenant", func(t *testing.T) {
-				timeouts := Timeouts{
-					IcaTimeout:         "100", // sec
-					IbcTransferTimeout: "100", // sec
-				}
+			noteAddress := testCtx.instantiateCmdExecNeutron(noteCodeId, "note", noteInstantiateMsg, neutronUser, keyring.BackendTest)
+			println("note addres: ", noteAddress)
 
-				currentHeight := testCtx.getNeutronHeight()
-				depositBlock = Block(currentHeight + 200)
-				lockupBlock = Block(currentHeight + 200)
-
-				lockupConfig := Expiration{
-					AtHeight: &lockupBlock,
-				}
-				depositDeadline := Expiration{
-					AtHeight: &depositBlock,
-				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "10000",
-					TimeoutFee: "10000",
-				}
-
-				atomCoin := Coin{
-					Denom:  cosmosAtom.Config().Denom,
-					Amount: strconv.FormatUint(atomContributionAmount, 10),
-				}
-
-				osmoCoin := Coin{
-					Denom:  cosmosOsmosis.Config().Denom,
-					Amount: strconv.FormatUint(osmoContributionAmount, 10),
-				}
-
-				hubReceiverAddr := happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
-				osmoReceiverAddr := happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
-
-				partyAConfig := InterchainCovenantParty{
-					Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					NativeDenom:               neutronAtomIbcDenom,
-					RemoteChainDenom:          "uatom",
-					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
-					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyReceiverAddr:         hubReceiverAddr,
-					PartyChainConnectionId:    neutronAtomIBCConnId,
-					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-					Contribution:              atomCoin,
-				}
-				partyBConfig := InterchainCovenantParty{
-					Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					NativeDenom:               neutronOsmoIbcDenom,
-					RemoteChainDenom:          "uosmo",
-					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
-					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyReceiverAddr:         osmoReceiverAddr,
-					PartyChainConnectionId:    neutronOsmosisIBCConnId,
-					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-					Contribution:              osmoCoin,
-				}
-				codeIds := ContractCodeIds{
-					IbcForwarderCode:     ibcForwarderCodeId,
-					InterchainRouterCode: routerCodeId,
-					ClockCode:            clockCodeId,
-					HolderCode:           holderCodeId,
-					LiquidPoolerCode:     lperCodeId,
-				}
-
-				ragequitTerms := RagequitTerms{
-					Penalty: "0.1",
-				}
-
-				ragequitConfig := RagequitConfig{
-					Enabled: &ragequitTerms,
-				}
-
-				poolAddress := stableswapAddress
-				pairType := PairType{
-					Stable: struct{}{},
-				}
-
-				denomSplits := []DenomSplit{
-					{
-						Denom: neutronAtomIbcDenom,
-						Type: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:  "0.5",
-									osmoReceiverAddr: "0.5",
-								},
-							},
-						},
-					},
-					{
-						Denom: neutronOsmoIbcDenom,
-						Type: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:  "0.5",
-									osmoReceiverAddr: "0.5",
-								},
-							},
-						},
-					},
-				}
-
-				covenantMsg := CovenantInstantiateMsg{
-					Label:           "two-party-pol-covenant-happy",
-					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
-					ContractCodeIds: codeIds,
-					LockupConfig:    lockupConfig,
-					PartyAConfig: CovenantPartyConfig{
-						Interchain: &partyAConfig,
-					},
-					PartyBConfig: CovenantPartyConfig{
-						Interchain: &partyBConfig,
-					},
-					PoolAddress:              poolAddress,
-					RagequitConfig:           &ragequitConfig,
-					DepositDeadline:          depositDeadline,
-					PartyAShare:              "50",
-					PartyBShare:              "50",
-					ExpectedPoolRatio:        "0.1",
-					AcceptablePoolRatioDelta: "0.09",
-					CovenantType:             "share",
-					PairType:                 pairType,
-					Splits:                   denomSplits,
-					FallbackSplit:            nil,
-				}
-
-				covenantAddress = testCtx.manualInstantiate(covenantCodeId, covenantMsg, neutronUser, keyring.BackendTest)
-
-				println("covenant address: ", covenantAddress)
-			})
-
-			t.Run("query covenant contracts", func(t *testing.T) {
-				clockAddress = testCtx.queryClockAddress(covenantAddress)
-				holderAddress = testCtx.queryHolderAddress(covenantAddress)
-				liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
-				partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
-				partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
-				partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
-				partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
-			})
-
-			t.Run("fund contracts with neutron", func(t *testing.T) {
-				addrs := []string{
-					partyAIbcForwarderAddress,
-					partyBIbcForwarderAddress,
-					clockAddress,
-					partyARouterAddress,
-					partyBRouterAddress,
-					holderAddress,
-					liquidPoolerAddress,
-				}
-				testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
-			})
-
-			t.Run("tick until forwarders create ICA", func(t *testing.T) {
-				for {
-					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
-					forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
-
-					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
-						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
-						break
-					}
-				}
-			})
-
-			t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
-				testCtx.fundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, happyCaseOsmoAccount, int64(osmoContributionAmount))
-				testCtx.fundChainAddrs([]string{partyADepositAddress}, cosmosAtom, happyCaseHubAccount, int64(atomContributionAmount))
-
-				testCtx.skipBlocks(3)
-			})
-
-			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
-				for {
-					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-
-					holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
-					holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
-					holderState := testCtx.queryContractState(holderAddress)
-					println("holder ibc atom balance: ", holderAtomBal)
-					println("holder ibc osmo balance: ", holderOsmoBal)
-					println("holder state: ", holderState)
-
-					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
-						println("holder received atom & osmo")
-						break
-					} else if holderState == "active" {
-						println("holder: active")
-						break
-					}
-				}
-			})
-
-			t.Run("tick until holder sends funds to LiquidPooler and receives LP tokens in return", func(t *testing.T) {
-				for {
-					if testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress) == 0 {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					} else {
-						break
-					}
-				}
-			})
-
-			t.Run("tick until holder expires", func(t *testing.T) {
-				for {
-					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-
-					holderState := testCtx.queryContractState(holderAddress)
-					println("holder state: ", holderState)
-
-					if holderState == "expired" {
-						break
-					}
-				}
-			})
-
-			t.Run("party A claims and router receives the funds", func(t *testing.T) {
-				testCtx.skipBlocks(10)
-				testCtx.holderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
-				testCtx.skipBlocks(5)
-				for {
-					routerOsmoBalA := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyARouterAddress)
-					routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
-					println("routerAtomBalA: ", routerAtomBalA)
-					println("routerOsmoBalA: ", routerOsmoBalA)
-					if routerAtomBalA != 0 && routerOsmoBalA != 0 {
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("tick until party A claim is distributed", func(t *testing.T) {
-				for {
-					atomBalPartyA, _ := cosmosAtom.GetBalance(
-						ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom)
-					osmoBalPartyA, _ := cosmosAtom.GetBalance(
-						ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
-
-					println("party A atom bal: ", atomBalPartyA)
-					println("party A osmo bal: ", osmoBalPartyA)
-
-					if atomBalPartyA != 0 && osmoBalPartyA != 0 {
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("party B claims and router receives the funds", func(t *testing.T) {
-				testCtx.holderClaim(holderAddress, osmoNeutronAccount, keyring.BackendTest)
-				for {
-					routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
-					routerAtomBalB := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
-					println("routerAtomBalB: ", routerAtomBalB)
-					println("routerOsmoBalB: ", routerOsmoBalB)
-					if routerAtomBalB != 0 && routerOsmoBalB != 0 {
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
-				for {
-					osmoBalPartyA, _ := cosmosAtom.GetBalance(
-						ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
-					osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom)
-					atomBalPartyA, _ := cosmosAtom.GetBalance(
-						ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom)
-					atomBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom)
-
-					println("party A osmo bal: ", osmoBalPartyA)
-					println("party A atom bal: ", atomBalPartyA)
-					println("party B osmo bal: ", osmoBalPartyB)
-					println("party B atom bal: ", atomBalPartyB)
-
-					if atomBalPartyA != 0 && osmoBalPartyB != 0 {
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
+			testCtx.skipBlocks(5)
 		})
 
-		t.Run("two party share based POL ragequit path", func(t *testing.T) {
+		t.Run("instantiate polytone voice and proxy on osmosis", func(t *testing.T) {
 
-			t.Run("instantiate covenant", func(t *testing.T) {
-				timeouts := Timeouts{
-					IcaTimeout:         "100", // sec
-					IbcTransferTimeout: "100", // sec
-				}
+			voiceInstantiateMsg := VoiceInstantiate{
+				ProxyCodeId: proxyCodeId,
+				BlockMaxGas: 301000,
+			}
 
-				currentHeight := testCtx.getNeutronHeight()
-				depositBlock := Block(currentHeight + 200)
-				lockupBlock := Block(currentHeight + 300)
+			voiceAddr := testCtx.instantiateCmdExecOsmo(voiceCodeId, "voice", voiceInstantiateMsg, osmoUser, keyring.BackendTest)
+			// voiceInstantiateStr, err := json.Marshal(voiceInstantiateMsg)
+			// require.NoError(t, err, err)
+			// voiceStr := strconv.FormatUint(voiceCodeId, 10)
 
-				lockupConfig := Expiration{
-					AtHeight: &lockupBlock,
-				}
-				depositDeadline := Expiration{
-					AtHeight: &depositBlock,
-				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "10000",
-					TimeoutFee: "10000",
-				}
-
-				atomCoin := Coin{
-					Denom:  cosmosAtom.Config().Denom,
-					Amount: strconv.FormatUint(atomContributionAmount, 10),
-				}
-
-				osmoCoin := Coin{
-					Denom:  cosmosOsmosis.Config().Denom,
-					Amount: strconv.FormatUint(osmoContributionAmount, 10),
-				}
-				hubReceiverAddr := rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
-				osmoReceiverAddr := rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
-				partyAConfig := InterchainCovenantParty{
-					RemoteChainDenom:          "uatom",
-					PartyReceiverAddr:         hubReceiverAddr,
-					Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					Contribution:              atomCoin,
-					NativeDenom:               neutronAtomIbcDenom,
-					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
-					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyChainConnectionId:    neutronAtomIBCConnId,
-					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-				}
-				partyBConfig := InterchainCovenantParty{
-					RemoteChainDenom:          "uosmo",
-					PartyReceiverAddr:         osmoReceiverAddr,
-					Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					Contribution:              osmoCoin,
-					NativeDenom:               neutronOsmoIbcDenom,
-					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
-					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyChainConnectionId:    neutronOsmosisIBCConnId,
-					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-				}
-				codeIds := ContractCodeIds{
-					IbcForwarderCode:     ibcForwarderCodeId,
-					InterchainRouterCode: routerCodeId,
-					ClockCode:            clockCodeId,
-					HolderCode:           holderCodeId,
-					LiquidPoolerCode:     lperCodeId,
-				}
-
-				ragequitTerms := RagequitTerms{
-					Penalty: "0.1",
-				}
-
-				ragequitConfig := RagequitConfig{
-					Enabled: &ragequitTerms,
-				}
-
-				poolAddress := stableswapAddress
-				pairType := PairType{
-					Stable: struct{}{},
-				}
-
-				covenantMsg := CovenantInstantiateMsg{
-					Label:                    "two-party-pol-covenant-ragequit",
-					Timeouts:                 timeouts,
-					PresetIbcFee:             presetIbcFee,
-					ContractCodeIds:          codeIds,
-					LockupConfig:             lockupConfig,
-					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
-					PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
-					PoolAddress:              poolAddress,
-					RagequitConfig:           &ragequitConfig,
-					DepositDeadline:          depositDeadline,
-					PartyAShare:              "50",
-					PartyBShare:              "50",
-					ExpectedPoolRatio:        "0.1",
-					AcceptablePoolRatioDelta: "0.09",
-					CovenantType:             "share",
-					PairType:                 pairType,
-					Splits: []DenomSplit{
-						{
-							Denom: neutronAtomIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:  "0.5",
-										osmoReceiverAddr: "0.5",
-									},
-								},
-							},
-						},
-						{
-							Denom: neutronOsmoIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:  "0.5",
-										osmoReceiverAddr: "0.5",
-									},
-								},
-							},
-						},
-					},
-					FallbackSplit: nil,
-				}
-
-				covenantAddress = testCtx.manualInstantiate(covenantRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
-				println("covenant address: ", covenantAddress)
-			})
-
-			t.Run("query covenant contracts", func(t *testing.T) {
-				clockAddress = testCtx.queryClockAddress(covenantAddress)
-				holderAddress = testCtx.queryHolderAddress(covenantAddress)
-				liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
-				partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
-				partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
-				partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
-				partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
-			})
-
-			t.Run("fund contracts with neutron", func(t *testing.T) {
-				addrs := []string{
-					partyAIbcForwarderAddress,
-					partyBIbcForwarderAddress,
-					clockAddress,
-					partyARouterAddress,
-					partyBRouterAddress,
-					holderAddress,
-					liquidPoolerAddress,
-				}
-				println("funding addresses with 5000000000untrn")
-				testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
-			})
-
-			t.Run("tick until forwarders create ICA", func(t *testing.T) {
-				testCtx.skipBlocks(5)
-				for {
-					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-
-					forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
-					forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
-
-					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-						testCtx.skipBlocks(3)
-						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
-						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
-						break
-					}
-				}
-			})
-
-			t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
-				testCtx.fundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, rqCaseOsmoAccount, int64(osmoContributionAmount))
-				testCtx.fundChainAddrs([]string{partyADepositAddress}, cosmosAtom, rqCaseHubAccount, int64(atomContributionAmount))
-
-				testCtx.skipBlocks(3)
-			})
-
-			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
-				for {
-					holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
-					holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
-					holderState := testCtx.queryContractState(holderAddress)
-
-					println("holder atom bal: ", holderAtomBal)
-					println("holder osmo bal: ", holderOsmoBal)
-					println("holder state: ", holderState)
-
-					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
-						println("holder received atom & osmo")
-						break
-					} else if holderState == "active" {
-						println("holder is active")
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("tick until holder sends funds to LPer and receives LP tokens in return", func(t *testing.T) {
-				for {
-					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-
-					if holderLpTokenBal == 0 {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					} else {
-						break
-					}
-				}
-			})
-
-			t.Run("party A ragequits", func(t *testing.T) {
-				testCtx.skipBlocks(10)
-				testCtx.holderRagequit(holderAddress, hubNeutronAccount, keyring.BackendTest)
-				testCtx.skipBlocks(5)
-				for {
-					routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
-					routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
-
-					println("routerAtomBalA: ", routerAtomBalA)
-					println("routerOsmoBalB: ", routerOsmoBalB)
-
-					if routerAtomBalA != 0 {
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("tick until party A ragequit is distributed", func(t *testing.T) {
-				for {
-					osmoBalPartyA, _ := cosmosAtom.GetBalance(
-						ctx, rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
-					osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom)
-					atomBalPartyA, _ := cosmosAtom.GetBalance(
-						ctx, rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom)
-					atomBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom)
-
-					println("party A osmo bal: ", osmoBalPartyA)
-					println("party A atom bal: ", atomBalPartyA)
-					println("party B osmo bal: ", osmoBalPartyB)
-					println("party B atom bal: ", atomBalPartyB)
-
-					if atomBalPartyA != 0 && osmoBalPartyA != 0 {
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("party B claims and router receives the funds", func(t *testing.T) {
-				testCtx.holderClaim(holderAddress, osmoNeutronAccount, keyring.BackendTest)
-				for {
-					routerAtomBalB := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
-					routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
-
-					println("routerAtomBalB: ", routerAtomBalB)
-					println("routerOsmoBalB: ", routerOsmoBalB)
-
-					if routerOsmoBalB != 0 {
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
-				for {
-					osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom)
-					atomBalPartyA, _ := cosmosAtom.GetBalance(
-						ctx, rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom)
-					atomBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom)
-
-					println("party A atom bal: ", atomBalPartyA)
-					println("party B osmo bal: ", osmoBalPartyB)
-					println("party B atom bal: ", atomBalPartyB)
-
-					if atomBalPartyA != 0 && osmoBalPartyB != 0 && atomBalPartyB != 0 {
-						println("nice")
-						break
-					}
-					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-				}
-			})
+			// voiceAddr, err := cosmosOsmosis.InstantiateContract(
+			// 	testCtx.ctx,
+			// 	neutronUser.KeyName,
+			// 	voiceStr,
+			// 	string(voiceInstantiateStr),
+			// 	true,
+			// )
+			// require.NoError(t, err, err)
+			println("voice address: ", voiceAddr)
 		})
 
-		t.Run("two party POL side-based ragequit path", func(t *testing.T) {
-
-			t.Run("instantiate covenant", func(t *testing.T) {
-				timeouts := Timeouts{
-					IcaTimeout:         "100", // sec
-					IbcTransferTimeout: "100", // sec
-				}
-
-				currentHeight := testCtx.getNeutronHeight()
-				depositBlock := Block(currentHeight + 200)
-				lockupBlock := Block(currentHeight + 300)
-
-				lockupConfig := Expiration{
-					AtHeight: &lockupBlock,
-				}
-				depositDeadline := Expiration{
-					AtHeight: &depositBlock,
-				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "10000",
-					TimeoutFee: "10000",
-				}
-
-				atomCoin := Coin{
-					Denom:  cosmosAtom.Config().Denom,
-					Amount: strconv.FormatUint(atomContributionAmount, 10),
-				}
-
-				osmoCoin := Coin{
-					Denom:  cosmosOsmosis.Config().Denom,
-					Amount: strconv.FormatUint(osmoContributionAmount, 10),
-				}
-				hubReceiverAddr := sideBasedRqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
-				osmoReceiverAddr := sideBasedRqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
-				partyAConfig := InterchainCovenantParty{
-					RemoteChainDenom:          "uatom",
-					PartyReceiverAddr:         hubReceiverAddr,
-					Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					Contribution:              atomCoin,
-					NativeDenom:               neutronAtomIbcDenom,
-					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
-					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyChainConnectionId:    neutronAtomIBCConnId,
-					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-				}
-				partyBConfig := InterchainCovenantParty{
-					RemoteChainDenom:          "uosmo",
-					PartyReceiverAddr:         osmoReceiverAddr,
-					Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					Contribution:              osmoCoin,
-					NativeDenom:               neutronOsmoIbcDenom,
-					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
-					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyChainConnectionId:    neutronOsmosisIBCConnId,
-					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-				}
-				codeIds := ContractCodeIds{
-					IbcForwarderCode:     ibcForwarderCodeId,
-					InterchainRouterCode: routerCodeId,
-					ClockCode:            clockCodeId,
-					HolderCode:           holderCodeId,
-					LiquidPoolerCode:     lperCodeId,
-				}
-
-				ragequitTerms := RagequitTerms{
-					Penalty: "0.1",
-				}
-
-				ragequitConfig := RagequitConfig{
-					Enabled: &ragequitTerms,
-				}
-
-				poolAddress := stableswapAddress
-				pairType := PairType{
-					Stable: struct{}{},
-				}
-
-				covenantMsg := CovenantInstantiateMsg{
-					Label:                    "two-party-pol-covenant-side-ragequit",
-					Timeouts:                 timeouts,
-					PresetIbcFee:             presetIbcFee,
-					ContractCodeIds:          codeIds,
-					LockupConfig:             lockupConfig,
-					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
-					PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
-					PoolAddress:              poolAddress,
-					RagequitConfig:           &ragequitConfig,
-					DepositDeadline:          depositDeadline,
-					PartyAShare:              "50",
-					PartyBShare:              "50",
-					ExpectedPoolRatio:        "0.1",
-					AcceptablePoolRatioDelta: "0.09",
-					PairType:                 pairType,
-					CovenantType:             "side",
-					Splits: []DenomSplit{
-						{
-							Denom: neutronAtomIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:  "1.0",
-										osmoReceiverAddr: "0.0",
-									},
-								},
-							},
-						},
-						{
-							Denom: neutronOsmoIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:  "0.0",
-										osmoReceiverAddr: "1.0",
-									},
-								},
-							},
-						},
-					},
-					FallbackSplit: nil,
-				}
-
-				covenantAddress = testCtx.manualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
-				println("covenant address: ", covenantAddress)
-			})
-
-			t.Run("query covenant contracts", func(t *testing.T) {
-				clockAddress = testCtx.queryClockAddress(covenantAddress)
-				holderAddress = testCtx.queryHolderAddress(covenantAddress)
-				liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
-				partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
-				partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
-				partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
-				partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
-			})
-
-			t.Run("fund contracts with neutron", func(t *testing.T) {
-				addrs := []string{
-					partyAIbcForwarderAddress,
-					partyBIbcForwarderAddress,
-					clockAddress,
-					partyARouterAddress,
-					partyBRouterAddress,
-					holderAddress,
-					liquidPoolerAddress,
-				}
-				testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
-
-				testCtx.skipBlocks(2)
-			})
-
-			t.Run("tick until forwarders create ICA", func(t *testing.T) {
-				for {
-					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-
-					forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
-					forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
-
-					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-						testCtx.skipBlocks(5)
-						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
-						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
-						break
-					}
-				}
-			})
-
-			t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
-				testCtx.fundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, sideBasedRqCaseOsmoAccount, int64(osmoContributionAmount))
-				testCtx.fundChainAddrs([]string{partyADepositAddress}, cosmosAtom, sideBasedRqCaseHubAccount, int64(atomContributionAmount))
-
-				testCtx.skipBlocks(3)
-
-				atomBal, _ := cosmosAtom.GetBalance(ctx, partyADepositAddress, nativeAtomDenom)
-				require.Equal(t, int64(atomContributionAmount), atomBal)
-				osmoBal, _ := cosmosOsmosis.GetBalance(ctx, partyBDepositAddress, nativeOsmoDenom)
-				require.Equal(t, int64(osmoContributionAmount), osmoBal)
-			})
-
-			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
-				for {
-					holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
-					holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
-					holderState := testCtx.queryContractState(holderAddress)
-
-					println("holder atom bal: ", holderAtomBal)
-					println("holder osmo bal: ", holderOsmoBal)
-					println("holder state: ", holderState)
-
-					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
-						println("holder received atom & osmo")
-						break
-					} else if holderState == "active" {
-						println("holderState: ", holderState)
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
-				for {
-					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-					println("holder lp token balance: ", holderLpTokenBal)
-
-					if holderLpTokenBal == 0 {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					} else {
-						break
-					}
-				}
-			})
-
-			t.Run("party A ragequits", func(t *testing.T) {
-				testCtx.skipBlocks(10)
-				testCtx.holderRagequit(holderAddress, hubNeutronAccount, keyring.BackendTest)
-				testCtx.skipBlocks(5)
-				for {
-					routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
-					routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
-
-					println("routerAtomBalA: ", routerAtomBalA)
-					println("routerOsmoBalB: ", routerOsmoBalB)
-
-					if routerAtomBalA != 0 {
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
-				for {
-					osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, sideBasedRqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
-					)
-					atomBalPartyA, _ := cosmosAtom.GetBalance(
-						ctx, sideBasedRqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
-					)
-					atomBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, sideBasedRqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom,
-					)
-
-					println("party A atom bal: ", atomBalPartyA)
-					println("party B osmo bal: ", osmoBalPartyB)
-					println("party B atom bal: ", atomBalPartyB)
-
-					if atomBalPartyA != 0 && osmoBalPartyB != 0 && atomBalPartyB != 0 {
-						println("nice")
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
+		t.Run("fund the proxy account with funds", func(t *testing.T) {
+			// TODO
 		})
 
-		t.Run("two party POL side-based happy path", func(t *testing.T) {
-			var expirationHeight Block
-			t.Run("instantiate covenant", func(t *testing.T) {
-				timeouts := Timeouts{
-					IcaTimeout:         "100", // sec
-					IbcTransferTimeout: "100", // sec
-				}
-
-				currentHeight := testCtx.getNeutronHeight()
-				depositBlock := Block(currentHeight + 200)
-				lockupBlock := Block(currentHeight + 200)
-				expirationHeight = lockupBlock
-				lockupConfig := Expiration{
-					AtHeight: &lockupBlock,
-				}
-				depositDeadline := Expiration{
-					AtHeight: &depositBlock,
-				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "10000",
-					TimeoutFee: "10000",
-				}
-
-				atomCoin := Coin{
-					Denom:  cosmosAtom.Config().Denom,
-					Amount: strconv.FormatUint(atomContributionAmount, 10),
-				}
-
-				osmoCoin := Coin{
-					Denom:  cosmosOsmosis.Config().Denom,
-					Amount: strconv.FormatUint(osmoContributionAmount, 10),
-				}
-				hubReceiverAddr := sideBasedHappyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
-				osmoReceiverAddr := sideBasedHappyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
-				partyAConfig := InterchainCovenantParty{
-					RemoteChainDenom:          "uatom",
-					PartyReceiverAddr:         hubReceiverAddr,
-					Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					Contribution:              atomCoin,
-					NativeDenom:               neutronAtomIbcDenom,
-					PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
-					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-					PartyChainConnectionId:    neutronAtomIBCConnId,
-					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-				}
-				partyBConfig := InterchainCovenantParty{
-					RemoteChainDenom:          "uosmo",
-					PartyReceiverAddr:         osmoReceiverAddr,
-					Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					Contribution:              osmoCoin,
-					NativeDenom:               neutronOsmoIbcDenom,
-					PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
-					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-					PartyChainConnectionId:    neutronOsmosisIBCConnId,
-					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-				}
-				codeIds := ContractCodeIds{
-					IbcForwarderCode:     ibcForwarderCodeId,
-					InterchainRouterCode: routerCodeId,
-					ClockCode:            clockCodeId,
-					HolderCode:           holderCodeId,
-					LiquidPoolerCode:     lperCodeId,
-				}
-
-				ragequitTerms := RagequitTerms{
-					Penalty: "0.1",
-				}
-
-				ragequitConfig := RagequitConfig{
-					Enabled: &ragequitTerms,
-				}
-
-				poolAddress := stableswapAddress
-				pairType := PairType{
-					Stable: struct{}{},
-				}
-
-				covenantMsg := CovenantInstantiateMsg{
-					Label:                    "two-party-pol-covenant-side-happy",
-					Timeouts:                 timeouts,
-					PresetIbcFee:             presetIbcFee,
-					ContractCodeIds:          codeIds,
-					LockupConfig:             lockupConfig,
-					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
-					PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
-					PoolAddress:              poolAddress,
-					RagequitConfig:           &ragequitConfig,
-					DepositDeadline:          depositDeadline,
-					PartyAShare:              "50",
-					PartyBShare:              "50",
-					ExpectedPoolRatio:        "0.1",
-					AcceptablePoolRatioDelta: "0.09",
-					PairType:                 pairType,
-					CovenantType:             "side",
-					Splits: []DenomSplit{
-						{
-							Denom: neutronAtomIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:  "1.0",
-										osmoReceiverAddr: "0.0",
-									},
-								},
-							},
-						},
-						{
-							Denom: neutronOsmoIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:  "0.0",
-										osmoReceiverAddr: "1.0",
-									},
-								},
-							},
-						},
-					},
-					FallbackSplit: nil,
-				}
-
-				covenantAddress = testCtx.manualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
-				println("covenant address: ", covenantAddress)
-			})
-
-			t.Run("query covenant contracts", func(t *testing.T) {
-				clockAddress = testCtx.queryClockAddress(covenantAddress)
-				holderAddress = testCtx.queryHolderAddress(covenantAddress)
-				liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
-				partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
-				partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
-				partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
-				partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
-			})
-
-			t.Run("fund contracts with neutron", func(t *testing.T) {
-				addrs := []string{
-					partyAIbcForwarderAddress,
-					partyBIbcForwarderAddress,
-					clockAddress,
-					partyARouterAddress,
-					partyBRouterAddress,
-					holderAddress,
-					liquidPoolerAddress,
-				}
-				testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
-
-				testCtx.skipBlocks(2)
-			})
-
-			t.Run("tick until forwarders create ICA", func(t *testing.T) {
-				for {
-					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-
-					forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
-					forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
-
-					if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
-						testCtx.skipBlocks(5)
-						partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
-						partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
-						break
-					}
-				}
-			})
-
-			t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
-				testCtx.fundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, sideBasedHappyCaseOsmoAccount, int64(osmoContributionAmount))
-				testCtx.fundChainAddrs([]string{partyADepositAddress}, cosmosAtom, sideBasedHappyCaseHubAccount, int64(atomContributionAmount))
-
-				testCtx.skipBlocks(3)
-
-				atomBal, _ := cosmosAtom.GetBalance(ctx, partyADepositAddress, nativeAtomDenom)
-				require.Equal(t, int64(atomContributionAmount), atomBal)
-				osmoBal, _ := cosmosOsmosis.GetBalance(ctx, partyBDepositAddress, nativeOsmoDenom)
-				require.Equal(t, int64(osmoContributionAmount), osmoBal)
-			})
-
-			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
-				for {
-					holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
-					holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
-					holderState := testCtx.queryContractState(holderAddress)
-
-					println("holder atom bal: ", holderAtomBal)
-					println("holder osmo bal: ", holderOsmoBal)
-					println("holder state: ", holderState)
-
-					if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
-						println("holder/liquidpooler received atom & osmo")
-						break
-					} else if holderState == "active" {
-						println("holderState: ", holderState)
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
-
-			t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
-				for {
-					holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
-					println("holder lp token balance: ", holderLpTokenBal)
-
-					if holderLpTokenBal == 0 {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					} else {
-						break
-					}
-				}
-			})
-
-			t.Run("lockup expires", func(t *testing.T) {
-				for {
-					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					if testCtx.getNeutronHeight() >= uint64(expirationHeight) {
-						break
-					}
-				}
-			})
-
-			t.Run("party A claims", func(t *testing.T) {
-				for {
-					routerAtomBalB := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
-					routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
-					routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
-					routerOsmoBalA := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyARouterAddress)
-
-					println("routerAtomBalB: ", routerAtomBalB)
-					println("routerOsmoBalB: ", routerOsmoBalB)
-					println("routerAtomBalA: ", routerAtomBalA)
-					println("routerOsmoBalA: ", routerOsmoBalA)
-
-					if routerOsmoBalB != 0 {
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-						testCtx.holderClaim(holderAddress, osmoNeutronAccount, keyring.BackendTest)
-					}
-				}
-
-			})
-
-			t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
-				for {
-					osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
-						ctx, sideBasedHappyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
-					)
-					atomBalPartyA, _ := cosmosAtom.GetBalance(
-						ctx, sideBasedHappyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
-					)
-
-					println("party A atom bal: ", atomBalPartyA)
-					println("party B osmo bal: ", osmoBalPartyB)
-
-					if atomBalPartyA != 0 && osmoBalPartyB != 0 {
-						println("nice")
-						break
-					} else {
-						testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
-			})
+		t.Run("post message to enter the gamm pool on osmo to note", func(t *testing.T) {
+			// TODO
 		})
+
+		// t.Run("two party POL happy path", func(t *testing.T) {
+		// 	var depositBlock Block
+		// 	var lockupBlock Block
+
+		// 	t.Run("instantiate covenant", func(t *testing.T) {
+		// 		timeouts := Timeouts{
+		// 			IcaTimeout:         "100", // sec
+		// 			IbcTransferTimeout: "100", // sec
+		// 		}
+
+		// 		currentHeight := testCtx.getNeutronHeight()
+		// 		depositBlock = Block(currentHeight + 200)
+		// 		lockupBlock = Block(currentHeight + 200)
+
+		// 		lockupConfig := Expiration{
+		// 			AtHeight: &lockupBlock,
+		// 		}
+		// 		depositDeadline := Expiration{
+		// 			AtHeight: &depositBlock,
+		// 		}
+		// 		presetIbcFee := PresetIbcFee{
+		// 			AckFee:     "10000",
+		// 			TimeoutFee: "10000",
+		// 		}
+
+		// 		atomCoin := Coin{
+		// 			Denom:  cosmosAtom.Config().Denom,
+		// 			Amount: strconv.FormatUint(atomContributionAmount, 10),
+		// 		}
+
+		// 		osmoCoin := Coin{
+		// 			Denom:  cosmosOsmosis.Config().Denom,
+		// 			Amount: strconv.FormatUint(osmoContributionAmount, 10),
+		// 		}
+
+		// 		hubReceiverAddr := happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
+		// 		osmoReceiverAddr := happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
+
+		// 		partyAConfig := InterchainCovenantParty{
+		// 			Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+		// 			NativeDenom:               neutronAtomIbcDenom,
+		// 			RemoteChainDenom:          "uatom",
+		// 			PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+		// 			HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
+		// 			PartyReceiverAddr:         hubReceiverAddr,
+		// 			PartyChainConnectionId:    neutronAtomIBCConnId,
+		// 			IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+		// 			Contribution:              atomCoin,
+		// 		}
+		// 		partyBConfig := InterchainCovenantParty{
+		// 			Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+		// 			NativeDenom:               neutronOsmoIbcDenom,
+		// 			RemoteChainDenom:          "uosmo",
+		// 			PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
+		// 			HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
+		// 			PartyReceiverAddr:         osmoReceiverAddr,
+		// 			PartyChainConnectionId:    neutronOsmosisIBCConnId,
+		// 			IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+		// 			Contribution:              osmoCoin,
+		// 		}
+		// 		codeIds := ContractCodeIds{
+		// 			IbcForwarderCode:     ibcForwarderCodeId,
+		// 			InterchainRouterCode: routerCodeId,
+		// 			ClockCode:            clockCodeId,
+		// 			HolderCode:           holderCodeId,
+		// 			LiquidPoolerCode:     lperCodeId,
+		// 		}
+
+		// 		ragequitTerms := RagequitTerms{
+		// 			Penalty: "0.1",
+		// 		}
+
+		// 		ragequitConfig := RagequitConfig{
+		// 			Enabled: &ragequitTerms,
+		// 		}
+
+		// 		poolAddress := stableswapAddress
+		// 		pairType := PairType{
+		// 			Stable: struct{}{},
+		// 		}
+
+		// 		denomSplits := []DenomSplit{
+		// 			{
+		// 				Denom: neutronAtomIbcDenom,
+		// 				Type: SplitType{
+		// 					Custom: SplitConfig{
+		// 						Receivers: map[string]string{
+		// 							hubReceiverAddr:  "0.5",
+		// 							osmoReceiverAddr: "0.5",
+		// 						},
+		// 					},
+		// 				},
+		// 			},
+		// 			{
+		// 				Denom: neutronOsmoIbcDenom,
+		// 				Type: SplitType{
+		// 					Custom: SplitConfig{
+		// 						Receivers: map[string]string{
+		// 							hubReceiverAddr:  "0.5",
+		// 							osmoReceiverAddr: "0.5",
+		// 						},
+		// 					},
+		// 				},
+		// 			},
+		// 		}
+
+		// 		covenantMsg := CovenantInstantiateMsg{
+		// 			Label:           "two-party-pol-covenant-happy",
+		// 			Timeouts:        timeouts,
+		// 			PresetIbcFee:    presetIbcFee,
+		// 			ContractCodeIds: codeIds,
+		// 			LockupConfig:    lockupConfig,
+		// 			PartyAConfig: CovenantPartyConfig{
+		// 				Interchain: &partyAConfig,
+		// 			},
+		// 			PartyBConfig: CovenantPartyConfig{
+		// 				Interchain: &partyBConfig,
+		// 			},
+		// 			PoolAddress:              poolAddress,
+		// 			RagequitConfig:           &ragequitConfig,
+		// 			DepositDeadline:          depositDeadline,
+		// 			PartyAShare:              "50",
+		// 			PartyBShare:              "50",
+		// 			ExpectedPoolRatio:        "0.1",
+		// 			AcceptablePoolRatioDelta: "0.09",
+		// 			CovenantType:             "share",
+		// 			PairType:                 pairType,
+		// 			Splits:                   denomSplits,
+		// 			FallbackSplit:            nil,
+		// 		}
+
+		// 		covenantAddress = testCtx.manualInstantiate(covenantCodeId, covenantMsg, neutronUser, keyring.BackendTest)
+
+		// 		println("covenant address: ", covenantAddress)
+		// 	})
+
+		// 	t.Run("query covenant contracts", func(t *testing.T) {
+		// 		clockAddress = testCtx.queryClockAddress(covenantAddress)
+		// 		holderAddress = testCtx.queryHolderAddress(covenantAddress)
+		// 		liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
+		// 		partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
+		// 		partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
+		// 		partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
+		// 		partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
+		// 	})
+
+		// 	t.Run("fund contracts with neutron", func(t *testing.T) {
+		// 		addrs := []string{
+		// 			partyAIbcForwarderAddress,
+		// 			partyBIbcForwarderAddress,
+		// 			clockAddress,
+		// 			partyARouterAddress,
+		// 			partyBRouterAddress,
+		// 			holderAddress,
+		// 			liquidPoolerAddress,
+		// 		}
+		// 		testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
+		// 	})
+
+		// 	t.Run("tick until forwarders create ICA", func(t *testing.T) {
+		// 		for {
+		// 			testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
+		// 			forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
+
+		// 			if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
+		// 				partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+		// 				partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
+		// 		testCtx.fundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, happyCaseOsmoAccount, int64(osmoContributionAmount))
+		// 		testCtx.fundChainAddrs([]string{partyADepositAddress}, cosmosAtom, happyCaseHubAccount, int64(atomContributionAmount))
+
+		// 		testCtx.skipBlocks(3)
+		// 	})
+
+		// 	t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
+		// 		for {
+		// 			testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
+		// 			holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
+		// 			holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+		// 			holderState := testCtx.queryContractState(holderAddress)
+		// 			println("holder ibc atom balance: ", holderAtomBal)
+		// 			println("holder ibc osmo balance: ", holderOsmoBal)
+		// 			println("holder state: ", holderState)
+
+		// 			if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
+		// 				println("holder received atom & osmo")
+		// 				break
+		// 			} else if holderState == "active" {
+		// 				println("holder: active")
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("tick until holder sends funds to LiquidPooler and receives LP tokens in return", func(t *testing.T) {
+		// 		for {
+		// 			if testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress) == 0 {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			} else {
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("tick until holder expires", func(t *testing.T) {
+		// 		for {
+		// 			testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
+		// 			holderState := testCtx.queryContractState(holderAddress)
+		// 			println("holder state: ", holderState)
+
+		// 			if holderState == "expired" {
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("party A claims and router receives the funds", func(t *testing.T) {
+		// 		testCtx.skipBlocks(10)
+		// 		testCtx.holderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
+		// 		testCtx.skipBlocks(5)
+		// 		for {
+		// 			routerOsmoBalA := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyARouterAddress)
+		// 			routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
+		// 			println("routerAtomBalA: ", routerAtomBalA)
+		// 			println("routerOsmoBalA: ", routerOsmoBalA)
+		// 			if routerAtomBalA != 0 && routerOsmoBalA != 0 {
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("tick until party A claim is distributed", func(t *testing.T) {
+		// 		for {
+		// 			atomBalPartyA, _ := cosmosAtom.GetBalance(
+		// 				ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom)
+		// 			osmoBalPartyA, _ := cosmosAtom.GetBalance(
+		// 				ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
+
+		// 			println("party A atom bal: ", atomBalPartyA)
+		// 			println("party A osmo bal: ", osmoBalPartyA)
+
+		// 			if atomBalPartyA != 0 && osmoBalPartyA != 0 {
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("party B claims and router receives the funds", func(t *testing.T) {
+		// 		testCtx.holderClaim(holderAddress, osmoNeutronAccount, keyring.BackendTest)
+		// 		for {
+		// 			routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
+		// 			routerAtomBalB := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
+		// 			println("routerAtomBalB: ", routerAtomBalB)
+		// 			println("routerOsmoBalB: ", routerOsmoBalB)
+		// 			if routerAtomBalB != 0 && routerOsmoBalB != 0 {
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
+		// 		for {
+		// 			osmoBalPartyA, _ := cosmosAtom.GetBalance(
+		// 				ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
+		// 			osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
+		// 				ctx, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom)
+		// 			atomBalPartyA, _ := cosmosAtom.GetBalance(
+		// 				ctx, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom)
+		// 			atomBalPartyB, _ := cosmosOsmosis.GetBalance(
+		// 				ctx, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom)
+
+		// 			println("party A osmo bal: ", osmoBalPartyA)
+		// 			println("party A atom bal: ", atomBalPartyA)
+		// 			println("party B osmo bal: ", osmoBalPartyB)
+		// 			println("party B atom bal: ", atomBalPartyB)
+
+		// 			if atomBalPartyA != 0 && osmoBalPartyB != 0 {
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+		// })
+
+		// t.Run("two party share based POL ragequit path", func(t *testing.T) {
+
+		// 	t.Run("instantiate covenant", func(t *testing.T) {
+		// 		timeouts := Timeouts{
+		// 			IcaTimeout:         "100", // sec
+		// 			IbcTransferTimeout: "100", // sec
+		// 		}
+
+		// 		currentHeight := testCtx.getNeutronHeight()
+		// 		depositBlock := Block(currentHeight + 200)
+		// 		lockupBlock := Block(currentHeight + 300)
+
+		// 		lockupConfig := Expiration{
+		// 			AtHeight: &lockupBlock,
+		// 		}
+		// 		depositDeadline := Expiration{
+		// 			AtHeight: &depositBlock,
+		// 		}
+		// 		presetIbcFee := PresetIbcFee{
+		// 			AckFee:     "10000",
+		// 			TimeoutFee: "10000",
+		// 		}
+
+		// 		atomCoin := Coin{
+		// 			Denom:  cosmosAtom.Config().Denom,
+		// 			Amount: strconv.FormatUint(atomContributionAmount, 10),
+		// 		}
+
+		// 		osmoCoin := Coin{
+		// 			Denom:  cosmosOsmosis.Config().Denom,
+		// 			Amount: strconv.FormatUint(osmoContributionAmount, 10),
+		// 		}
+		// 		hubReceiverAddr := rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
+		// 		osmoReceiverAddr := rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
+		// 		partyAConfig := InterchainCovenantParty{
+		// 			RemoteChainDenom:          "uatom",
+		// 			PartyReceiverAddr:         hubReceiverAddr,
+		// 			Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+		// 			Contribution:              atomCoin,
+		// 			NativeDenom:               neutronAtomIbcDenom,
+		// 			PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+		// 			HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
+		// 			PartyChainConnectionId:    neutronAtomIBCConnId,
+		// 			IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+		// 		}
+		// 		partyBConfig := InterchainCovenantParty{
+		// 			RemoteChainDenom:          "uosmo",
+		// 			PartyReceiverAddr:         osmoReceiverAddr,
+		// 			Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+		// 			Contribution:              osmoCoin,
+		// 			NativeDenom:               neutronOsmoIbcDenom,
+		// 			PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
+		// 			HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
+		// 			PartyChainConnectionId:    neutronOsmosisIBCConnId,
+		// 			IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+		// 		}
+		// 		codeIds := ContractCodeIds{
+		// 			IbcForwarderCode:     ibcForwarderCodeId,
+		// 			InterchainRouterCode: routerCodeId,
+		// 			ClockCode:            clockCodeId,
+		// 			HolderCode:           holderCodeId,
+		// 			LiquidPoolerCode:     lperCodeId,
+		// 		}
+
+		// 		ragequitTerms := RagequitTerms{
+		// 			Penalty: "0.1",
+		// 		}
+
+		// 		ragequitConfig := RagequitConfig{
+		// 			Enabled: &ragequitTerms,
+		// 		}
+
+		// 		poolAddress := stableswapAddress
+		// 		pairType := PairType{
+		// 			Stable: struct{}{},
+		// 		}
+
+		// 		covenantMsg := CovenantInstantiateMsg{
+		// 			Label:                    "two-party-pol-covenant-ragequit",
+		// 			Timeouts:                 timeouts,
+		// 			PresetIbcFee:             presetIbcFee,
+		// 			ContractCodeIds:          codeIds,
+		// 			LockupConfig:             lockupConfig,
+		// 			PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
+		// 			PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
+		// 			PoolAddress:              poolAddress,
+		// 			RagequitConfig:           &ragequitConfig,
+		// 			DepositDeadline:          depositDeadline,
+		// 			PartyAShare:              "50",
+		// 			PartyBShare:              "50",
+		// 			ExpectedPoolRatio:        "0.1",
+		// 			AcceptablePoolRatioDelta: "0.09",
+		// 			CovenantType:             "share",
+		// 			PairType:                 pairType,
+		// 			Splits: []DenomSplit{
+		// 				{
+		// 					Denom: neutronAtomIbcDenom,
+		// 					Type: SplitType{
+		// 						Custom: SplitConfig{
+		// 							Receivers: map[string]string{
+		// 								hubReceiverAddr:  "0.5",
+		// 								osmoReceiverAddr: "0.5",
+		// 							},
+		// 						},
+		// 					},
+		// 				},
+		// 				{
+		// 					Denom: neutronOsmoIbcDenom,
+		// 					Type: SplitType{
+		// 						Custom: SplitConfig{
+		// 							Receivers: map[string]string{
+		// 								hubReceiverAddr:  "0.5",
+		// 								osmoReceiverAddr: "0.5",
+		// 							},
+		// 						},
+		// 					},
+		// 				},
+		// 			},
+		// 			FallbackSplit: nil,
+		// 		}
+
+		// 		covenantAddress = testCtx.manualInstantiate(covenantRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
+		// 		println("covenant address: ", covenantAddress)
+		// 	})
+
+		// 	t.Run("query covenant contracts", func(t *testing.T) {
+		// 		clockAddress = testCtx.queryClockAddress(covenantAddress)
+		// 		holderAddress = testCtx.queryHolderAddress(covenantAddress)
+		// 		liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
+		// 		partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
+		// 		partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
+		// 		partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
+		// 		partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
+		// 	})
+
+		// 	t.Run("fund contracts with neutron", func(t *testing.T) {
+		// 		addrs := []string{
+		// 			partyAIbcForwarderAddress,
+		// 			partyBIbcForwarderAddress,
+		// 			clockAddress,
+		// 			partyARouterAddress,
+		// 			partyBRouterAddress,
+		// 			holderAddress,
+		// 			liquidPoolerAddress,
+		// 		}
+		// 		println("funding addresses with 5000000000untrn")
+		// 		testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
+		// 	})
+
+		// 	t.Run("tick until forwarders create ICA", func(t *testing.T) {
+		// 		testCtx.skipBlocks(5)
+		// 		for {
+		// 			testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
+		// 			forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
+		// 			forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
+
+		// 			if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
+		// 				testCtx.skipBlocks(3)
+		// 				partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+		// 				partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
+		// 		testCtx.fundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, rqCaseOsmoAccount, int64(osmoContributionAmount))
+		// 		testCtx.fundChainAddrs([]string{partyADepositAddress}, cosmosAtom, rqCaseHubAccount, int64(atomContributionAmount))
+
+		// 		testCtx.skipBlocks(3)
+		// 	})
+
+		// 	t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
+		// 		for {
+		// 			holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
+		// 			holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+		// 			holderState := testCtx.queryContractState(holderAddress)
+
+		// 			println("holder atom bal: ", holderAtomBal)
+		// 			println("holder osmo bal: ", holderOsmoBal)
+		// 			println("holder state: ", holderState)
+
+		// 			if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
+		// 				println("holder received atom & osmo")
+		// 				break
+		// 			} else if holderState == "active" {
+		// 				println("holder is active")
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("tick until holder sends funds to LPer and receives LP tokens in return", func(t *testing.T) {
+		// 		for {
+		// 			holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
+
+		// 			if holderLpTokenBal == 0 {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			} else {
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("party A ragequits", func(t *testing.T) {
+		// 		testCtx.skipBlocks(10)
+		// 		testCtx.holderRagequit(holderAddress, hubNeutronAccount, keyring.BackendTest)
+		// 		testCtx.skipBlocks(5)
+		// 		for {
+		// 			routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
+		// 			routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
+
+		// 			println("routerAtomBalA: ", routerAtomBalA)
+		// 			println("routerOsmoBalB: ", routerOsmoBalB)
+
+		// 			if routerAtomBalA != 0 {
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("tick until party A ragequit is distributed", func(t *testing.T) {
+		// 		for {
+		// 			osmoBalPartyA, _ := cosmosAtom.GetBalance(
+		// 				ctx, rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
+		// 			osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
+		// 				ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom)
+		// 			atomBalPartyA, _ := cosmosAtom.GetBalance(
+		// 				ctx, rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom)
+		// 			atomBalPartyB, _ := cosmosOsmosis.GetBalance(
+		// 				ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom)
+
+		// 			println("party A osmo bal: ", osmoBalPartyA)
+		// 			println("party A atom bal: ", atomBalPartyA)
+		// 			println("party B osmo bal: ", osmoBalPartyB)
+		// 			println("party B atom bal: ", atomBalPartyB)
+
+		// 			if atomBalPartyA != 0 && osmoBalPartyA != 0 {
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("party B claims and router receives the funds", func(t *testing.T) {
+		// 		testCtx.holderClaim(holderAddress, osmoNeutronAccount, keyring.BackendTest)
+		// 		for {
+		// 			routerAtomBalB := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
+		// 			routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
+
+		// 			println("routerAtomBalB: ", routerAtomBalB)
+		// 			println("routerOsmoBalB: ", routerOsmoBalB)
+
+		// 			if routerOsmoBalB != 0 {
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
+		// 		for {
+		// 			osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
+		// 				ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom)
+		// 			atomBalPartyA, _ := cosmosAtom.GetBalance(
+		// 				ctx, rqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom)
+		// 			atomBalPartyB, _ := cosmosOsmosis.GetBalance(
+		// 				ctx, rqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom)
+
+		// 			println("party A atom bal: ", atomBalPartyA)
+		// 			println("party B osmo bal: ", osmoBalPartyB)
+		// 			println("party B atom bal: ", atomBalPartyB)
+
+		// 			if atomBalPartyA != 0 && osmoBalPartyB != 0 && atomBalPartyB != 0 {
+		// 				println("nice")
+		// 				break
+		// 			}
+		// 			testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 		}
+		// 	})
+		// })
+
+		// t.Run("two party POL side-based ragequit path", func(t *testing.T) {
+
+		// 	t.Run("instantiate covenant", func(t *testing.T) {
+		// 		timeouts := Timeouts{
+		// 			IcaTimeout:         "100", // sec
+		// 			IbcTransferTimeout: "100", // sec
+		// 		}
+
+		// 		currentHeight := testCtx.getNeutronHeight()
+		// 		depositBlock := Block(currentHeight + 200)
+		// 		lockupBlock := Block(currentHeight + 300)
+
+		// 		lockupConfig := Expiration{
+		// 			AtHeight: &lockupBlock,
+		// 		}
+		// 		depositDeadline := Expiration{
+		// 			AtHeight: &depositBlock,
+		// 		}
+		// 		presetIbcFee := PresetIbcFee{
+		// 			AckFee:     "10000",
+		// 			TimeoutFee: "10000",
+		// 		}
+
+		// 		atomCoin := Coin{
+		// 			Denom:  cosmosAtom.Config().Denom,
+		// 			Amount: strconv.FormatUint(atomContributionAmount, 10),
+		// 		}
+
+		// 		osmoCoin := Coin{
+		// 			Denom:  cosmosOsmosis.Config().Denom,
+		// 			Amount: strconv.FormatUint(osmoContributionAmount, 10),
+		// 		}
+		// 		hubReceiverAddr := sideBasedRqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
+		// 		osmoReceiverAddr := sideBasedRqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
+		// 		partyAConfig := InterchainCovenantParty{
+		// 			RemoteChainDenom:          "uatom",
+		// 			PartyReceiverAddr:         hubReceiverAddr,
+		// 			Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+		// 			Contribution:              atomCoin,
+		// 			NativeDenom:               neutronAtomIbcDenom,
+		// 			PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+		// 			HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
+		// 			PartyChainConnectionId:    neutronAtomIBCConnId,
+		// 			IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+		// 		}
+		// 		partyBConfig := InterchainCovenantParty{
+		// 			RemoteChainDenom:          "uosmo",
+		// 			PartyReceiverAddr:         osmoReceiverAddr,
+		// 			Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+		// 			Contribution:              osmoCoin,
+		// 			NativeDenom:               neutronOsmoIbcDenom,
+		// 			PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
+		// 			HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
+		// 			PartyChainConnectionId:    neutronOsmosisIBCConnId,
+		// 			IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+		// 		}
+		// 		codeIds := ContractCodeIds{
+		// 			IbcForwarderCode:     ibcForwarderCodeId,
+		// 			InterchainRouterCode: routerCodeId,
+		// 			ClockCode:            clockCodeId,
+		// 			HolderCode:           holderCodeId,
+		// 			LiquidPoolerCode:     lperCodeId,
+		// 		}
+
+		// 		ragequitTerms := RagequitTerms{
+		// 			Penalty: "0.1",
+		// 		}
+
+		// 		ragequitConfig := RagequitConfig{
+		// 			Enabled: &ragequitTerms,
+		// 		}
+
+		// 		poolAddress := stableswapAddress
+		// 		pairType := PairType{
+		// 			Stable: struct{}{},
+		// 		}
+
+		// 		covenantMsg := CovenantInstantiateMsg{
+		// 			Label:                    "two-party-pol-covenant-side-ragequit",
+		// 			Timeouts:                 timeouts,
+		// 			PresetIbcFee:             presetIbcFee,
+		// 			ContractCodeIds:          codeIds,
+		// 			LockupConfig:             lockupConfig,
+		// 			PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
+		// 			PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
+		// 			PoolAddress:              poolAddress,
+		// 			RagequitConfig:           &ragequitConfig,
+		// 			DepositDeadline:          depositDeadline,
+		// 			PartyAShare:              "50",
+		// 			PartyBShare:              "50",
+		// 			ExpectedPoolRatio:        "0.1",
+		// 			AcceptablePoolRatioDelta: "0.09",
+		// 			PairType:                 pairType,
+		// 			CovenantType:             "side",
+		// 			Splits: []DenomSplit{
+		// 				{
+		// 					Denom: neutronAtomIbcDenom,
+		// 					Type: SplitType{
+		// 						Custom: SplitConfig{
+		// 							Receivers: map[string]string{
+		// 								hubReceiverAddr:  "1.0",
+		// 								osmoReceiverAddr: "0.0",
+		// 							},
+		// 						},
+		// 					},
+		// 				},
+		// 				{
+		// 					Denom: neutronOsmoIbcDenom,
+		// 					Type: SplitType{
+		// 						Custom: SplitConfig{
+		// 							Receivers: map[string]string{
+		// 								hubReceiverAddr:  "0.0",
+		// 								osmoReceiverAddr: "1.0",
+		// 							},
+		// 						},
+		// 					},
+		// 				},
+		// 			},
+		// 			FallbackSplit: nil,
+		// 		}
+
+		// 		covenantAddress = testCtx.manualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
+		// 		println("covenant address: ", covenantAddress)
+		// 	})
+
+		// 	t.Run("query covenant contracts", func(t *testing.T) {
+		// 		clockAddress = testCtx.queryClockAddress(covenantAddress)
+		// 		holderAddress = testCtx.queryHolderAddress(covenantAddress)
+		// 		liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
+		// 		partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
+		// 		partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
+		// 		partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
+		// 		partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
+		// 	})
+
+		// 	t.Run("fund contracts with neutron", func(t *testing.T) {
+		// 		addrs := []string{
+		// 			partyAIbcForwarderAddress,
+		// 			partyBIbcForwarderAddress,
+		// 			clockAddress,
+		// 			partyARouterAddress,
+		// 			partyBRouterAddress,
+		// 			holderAddress,
+		// 			liquidPoolerAddress,
+		// 		}
+		// 		testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
+
+		// 		testCtx.skipBlocks(2)
+		// 	})
+
+		// 	t.Run("tick until forwarders create ICA", func(t *testing.T) {
+		// 		for {
+		// 			testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
+		// 			forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
+		// 			forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
+
+		// 			if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
+		// 				testCtx.skipBlocks(5)
+		// 				partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+		// 				partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
+		// 		testCtx.fundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, sideBasedRqCaseOsmoAccount, int64(osmoContributionAmount))
+		// 		testCtx.fundChainAddrs([]string{partyADepositAddress}, cosmosAtom, sideBasedRqCaseHubAccount, int64(atomContributionAmount))
+
+		// 		testCtx.skipBlocks(3)
+
+		// 		atomBal, _ := cosmosAtom.GetBalance(ctx, partyADepositAddress, nativeAtomDenom)
+		// 		require.Equal(t, int64(atomContributionAmount), atomBal)
+		// 		osmoBal, _ := cosmosOsmosis.GetBalance(ctx, partyBDepositAddress, nativeOsmoDenom)
+		// 		require.Equal(t, int64(osmoContributionAmount), osmoBal)
+		// 	})
+
+		// 	t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
+		// 		for {
+		// 			holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
+		// 			holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+		// 			holderState := testCtx.queryContractState(holderAddress)
+
+		// 			println("holder atom bal: ", holderAtomBal)
+		// 			println("holder osmo bal: ", holderOsmoBal)
+		// 			println("holder state: ", holderState)
+
+		// 			if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
+		// 				println("holder received atom & osmo")
+		// 				break
+		// 			} else if holderState == "active" {
+		// 				println("holderState: ", holderState)
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
+		// 		for {
+		// 			holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
+		// 			println("holder lp token balance: ", holderLpTokenBal)
+
+		// 			if holderLpTokenBal == 0 {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			} else {
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("party A ragequits", func(t *testing.T) {
+		// 		testCtx.skipBlocks(10)
+		// 		testCtx.holderRagequit(holderAddress, hubNeutronAccount, keyring.BackendTest)
+		// 		testCtx.skipBlocks(5)
+		// 		for {
+		// 			routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
+		// 			routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
+
+		// 			println("routerAtomBalA: ", routerAtomBalA)
+		// 			println("routerOsmoBalB: ", routerOsmoBalB)
+
+		// 			if routerAtomBalA != 0 {
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
+		// 		for {
+		// 			osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
+		// 				ctx, sideBasedRqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
+		// 			)
+		// 			atomBalPartyA, _ := cosmosAtom.GetBalance(
+		// 				ctx, sideBasedRqCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
+		// 			)
+		// 			atomBalPartyB, _ := cosmosOsmosis.GetBalance(
+		// 				ctx, sideBasedRqCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom,
+		// 			)
+
+		// 			println("party A atom bal: ", atomBalPartyA)
+		// 			println("party B osmo bal: ", osmoBalPartyB)
+		// 			println("party B atom bal: ", atomBalPartyB)
+
+		// 			if atomBalPartyA != 0 && osmoBalPartyB != 0 && atomBalPartyB != 0 {
+		// 				println("nice")
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+		// })
+
+		// t.Run("two party POL side-based happy path", func(t *testing.T) {
+		// 	var expirationHeight Block
+		// 	t.Run("instantiate covenant", func(t *testing.T) {
+		// 		timeouts := Timeouts{
+		// 			IcaTimeout:         "100", // sec
+		// 			IbcTransferTimeout: "100", // sec
+		// 		}
+
+		// 		currentHeight := testCtx.getNeutronHeight()
+		// 		depositBlock := Block(currentHeight + 200)
+		// 		lockupBlock := Block(currentHeight + 200)
+		// 		expirationHeight = lockupBlock
+		// 		lockupConfig := Expiration{
+		// 			AtHeight: &lockupBlock,
+		// 		}
+		// 		depositDeadline := Expiration{
+		// 			AtHeight: &depositBlock,
+		// 		}
+		// 		presetIbcFee := PresetIbcFee{
+		// 			AckFee:     "10000",
+		// 			TimeoutFee: "10000",
+		// 		}
+
+		// 		atomCoin := Coin{
+		// 			Denom:  cosmosAtom.Config().Denom,
+		// 			Amount: strconv.FormatUint(atomContributionAmount, 10),
+		// 		}
+
+		// 		osmoCoin := Coin{
+		// 			Denom:  cosmosOsmosis.Config().Denom,
+		// 			Amount: strconv.FormatUint(osmoContributionAmount, 10),
+		// 		}
+		// 		hubReceiverAddr := sideBasedHappyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
+		// 		osmoReceiverAddr := sideBasedHappyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
+		// 		partyAConfig := InterchainCovenantParty{
+		// 			RemoteChainDenom:          "uatom",
+		// 			PartyReceiverAddr:         hubReceiverAddr,
+		// 			Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+		// 			Contribution:              atomCoin,
+		// 			NativeDenom:               neutronAtomIbcDenom,
+		// 			PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+		// 			HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
+		// 			PartyChainConnectionId:    neutronAtomIBCConnId,
+		// 			IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+		// 		}
+		// 		partyBConfig := InterchainCovenantParty{
+		// 			RemoteChainDenom:          "uosmo",
+		// 			PartyReceiverAddr:         osmoReceiverAddr,
+		// 			Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+		// 			Contribution:              osmoCoin,
+		// 			NativeDenom:               neutronOsmoIbcDenom,
+		// 			PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
+		// 			HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
+		// 			PartyChainConnectionId:    neutronOsmosisIBCConnId,
+		// 			IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+		// 		}
+		// 		codeIds := ContractCodeIds{
+		// 			IbcForwarderCode:     ibcForwarderCodeId,
+		// 			InterchainRouterCode: routerCodeId,
+		// 			ClockCode:            clockCodeId,
+		// 			HolderCode:           holderCodeId,
+		// 			LiquidPoolerCode:     lperCodeId,
+		// 		}
+
+		// 		ragequitTerms := RagequitTerms{
+		// 			Penalty: "0.1",
+		// 		}
+
+		// 		ragequitConfig := RagequitConfig{
+		// 			Enabled: &ragequitTerms,
+		// 		}
+
+		// 		poolAddress := stableswapAddress
+		// 		pairType := PairType{
+		// 			Stable: struct{}{},
+		// 		}
+
+		// 		covenantMsg := CovenantInstantiateMsg{
+		// 			Label:                    "two-party-pol-covenant-side-happy",
+		// 			Timeouts:                 timeouts,
+		// 			PresetIbcFee:             presetIbcFee,
+		// 			ContractCodeIds:          codeIds,
+		// 			LockupConfig:             lockupConfig,
+		// 			PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
+		// 			PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
+		// 			PoolAddress:              poolAddress,
+		// 			RagequitConfig:           &ragequitConfig,
+		// 			DepositDeadline:          depositDeadline,
+		// 			PartyAShare:              "50",
+		// 			PartyBShare:              "50",
+		// 			ExpectedPoolRatio:        "0.1",
+		// 			AcceptablePoolRatioDelta: "0.09",
+		// 			PairType:                 pairType,
+		// 			CovenantType:             "side",
+		// 			Splits: []DenomSplit{
+		// 				{
+		// 					Denom: neutronAtomIbcDenom,
+		// 					Type: SplitType{
+		// 						Custom: SplitConfig{
+		// 							Receivers: map[string]string{
+		// 								hubReceiverAddr:  "1.0",
+		// 								osmoReceiverAddr: "0.0",
+		// 							},
+		// 						},
+		// 					},
+		// 				},
+		// 				{
+		// 					Denom: neutronOsmoIbcDenom,
+		// 					Type: SplitType{
+		// 						Custom: SplitConfig{
+		// 							Receivers: map[string]string{
+		// 								hubReceiverAddr:  "0.0",
+		// 								osmoReceiverAddr: "1.0",
+		// 							},
+		// 						},
+		// 					},
+		// 				},
+		// 			},
+		// 			FallbackSplit: nil,
+		// 		}
+
+		// 		covenantAddress = testCtx.manualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
+		// 		println("covenant address: ", covenantAddress)
+		// 	})
+
+		// 	t.Run("query covenant contracts", func(t *testing.T) {
+		// 		clockAddress = testCtx.queryClockAddress(covenantAddress)
+		// 		holderAddress = testCtx.queryHolderAddress(covenantAddress)
+		// 		liquidPoolerAddress = testCtx.queryLiquidPoolerAddress(covenantAddress)
+		// 		partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
+		// 		partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
+		// 		partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
+		// 		partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
+		// 	})
+
+		// 	t.Run("fund contracts with neutron", func(t *testing.T) {
+		// 		addrs := []string{
+		// 			partyAIbcForwarderAddress,
+		// 			partyBIbcForwarderAddress,
+		// 			clockAddress,
+		// 			partyARouterAddress,
+		// 			partyBRouterAddress,
+		// 			holderAddress,
+		// 			liquidPoolerAddress,
+		// 		}
+		// 		testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
+
+		// 		testCtx.skipBlocks(2)
+		// 	})
+
+		// 	t.Run("tick until forwarders create ICA", func(t *testing.T) {
+		// 		for {
+		// 			testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
+		// 			forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
+		// 			forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
+
+		// 			if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
+		// 				testCtx.skipBlocks(5)
+		// 				partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+		// 				partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
+		// 		testCtx.fundChainAddrs([]string{partyBDepositAddress}, cosmosOsmosis, sideBasedHappyCaseOsmoAccount, int64(osmoContributionAmount))
+		// 		testCtx.fundChainAddrs([]string{partyADepositAddress}, cosmosAtom, sideBasedHappyCaseHubAccount, int64(atomContributionAmount))
+
+		// 		testCtx.skipBlocks(3)
+
+		// 		atomBal, _ := cosmosAtom.GetBalance(ctx, partyADepositAddress, nativeAtomDenom)
+		// 		require.Equal(t, int64(atomContributionAmount), atomBal)
+		// 		osmoBal, _ := cosmosOsmosis.GetBalance(ctx, partyBDepositAddress, nativeOsmoDenom)
+		// 		require.Equal(t, int64(osmoContributionAmount), osmoBal)
+		// 	})
+
+		// 	t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
+		// 		for {
+		// 			holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
+		// 			holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+		// 			holderState := testCtx.queryContractState(holderAddress)
+
+		// 			println("holder atom bal: ", holderAtomBal)
+		// 			println("holder osmo bal: ", holderOsmoBal)
+		// 			println("holder state: ", holderState)
+
+		// 			if holderAtomBal == atomContributionAmount && holderOsmoBal == osmoContributionAmount {
+		// 				println("holder/liquidpooler received atom & osmo")
+		// 				break
+		// 			} else if holderState == "active" {
+		// 				println("holderState: ", holderState)
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
+		// 		for {
+		// 			holderLpTokenBal := testCtx.queryLpTokenBalance(liquidityTokenAddress, holderAddress)
+		// 			println("holder lp token balance: ", holderLpTokenBal)
+
+		// 			if holderLpTokenBal == 0 {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			} else {
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("lockup expires", func(t *testing.T) {
+		// 		for {
+		// 			testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			if testCtx.getNeutronHeight() >= uint64(expirationHeight) {
+		// 				break
+		// 			}
+		// 		}
+		// 	})
+
+		// 	t.Run("party A claims", func(t *testing.T) {
+		// 		for {
+		// 			routerAtomBalB := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
+		// 			routerOsmoBalB := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyBRouterAddress)
+		// 			routerAtomBalA := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
+		// 			routerOsmoBalA := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyARouterAddress)
+
+		// 			println("routerAtomBalB: ", routerAtomBalB)
+		// 			println("routerOsmoBalB: ", routerOsmoBalB)
+		// 			println("routerAtomBalA: ", routerAtomBalA)
+		// 			println("routerOsmoBalA: ", routerOsmoBalA)
+
+		// 			if routerOsmoBalB != 0 {
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 				testCtx.holderClaim(holderAddress, osmoNeutronAccount, keyring.BackendTest)
+		// 			}
+		// 		}
+
+		// 	})
+
+		// 	t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
+		// 		for {
+		// 			osmoBalPartyB, _ := cosmosOsmosis.GetBalance(
+		// 				ctx, sideBasedHappyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), cosmosOsmosis.Config().Denom,
+		// 			)
+		// 			atomBalPartyA, _ := cosmosAtom.GetBalance(
+		// 				ctx, sideBasedHappyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix), cosmosAtom.Config().Denom,
+		// 			)
+
+		// 			println("party A atom bal: ", atomBalPartyA)
+		// 			println("party B osmo bal: ", osmoBalPartyB)
+
+		// 			if atomBalPartyA != 0 && osmoBalPartyB != 0 {
+		// 				println("nice")
+		// 				break
+		// 			} else {
+		// 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+		// 			}
+		// 		}
+		// 	})
+		// 	})
 	})
 }
