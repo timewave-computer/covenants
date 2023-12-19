@@ -1108,3 +1108,35 @@ func (testCtx *TestContext) HolderRagequit(contract string, from *ibc.Wallet, ke
 	_, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
 	require.NoError(testCtx.T, err, "ragequit failed")
 }
+
+// polytone types
+type PolytonePair struct {
+	ConnectionId string `json:"connection_id"`
+	RemotePort   string `json:"remote_port"`
+}
+
+type NoteInstantiate struct {
+	Pair        *PolytonePair `json:"pair,omitempty"`
+	BlockMaxGas string        `json:"block_max_gas,omitempty"`
+}
+
+type VoiceInstantiate struct {
+	ProxyCodeId uint64 `json:"proxy_code_id,string"`
+	BlockMaxGas uint64 `json:"block_max_gas,string"`
+}
+
+type CallbackRequest struct {
+	Receiver string `json:"receiver"`
+	Msg      string `json:"msg"`
+}
+
+type CallbackMessage struct {
+	Initiator    string   `json:"initiator"`
+	InitiatorMsg string   `json:"initiator_msg"`
+	Result       Callback `json:"result"`
+}
+
+type Callback struct {
+	Success []string `json:"success,omitempty"`
+	Error   string   `json:"error,omitempty"`
+}
