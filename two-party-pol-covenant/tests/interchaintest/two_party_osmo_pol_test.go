@@ -483,6 +483,29 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			println("note addres: ", noteAddress)
 
 			testCtx.skipBlocks(5)
+
+			// query the remote address
+			type RemoteAddress struct {
+				LocalAddress string `json:"local_address"`
+			}
+			type NoteQuery struct {
+				RemoteAddressQuery RemoteAddress `json:"remote_address"`
+			}
+
+			remoteAddrQuery := NoteQuery{
+				RemoteAddressQuery: RemoteAddress{
+					LocalAddress: noteAddress,
+				},
+			}
+
+			type QueryResponse struct {
+				Data string `json:"data"`
+			}
+			var queryResponse QueryResponse
+			err := cosmosNeutron.QueryContract(ctx, noteAddress, remoteAddrQuery, &queryResponse)
+			require.NoError(t, err, err)
+			println("query response: ", queryResponse.Data)
+
 		})
 
 		t.Run("instantiate polytone voice and proxy on osmosis", func(t *testing.T) {
