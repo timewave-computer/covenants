@@ -1,17 +1,7 @@
 [workspace]
 members = [
   "packages/*",
-  "contracts/astroport-liquid-pooler",
-  "contracts/clock",
-  "contracts/clock-tester",
-  "contracts/ibc-forwarder",
-  "contracts/interchain-router",
-  "contracts/interchain-splitter",
-  "contracts/native-splitter",
-  "contracts/swap-covenant",
-  "contracts/swap-holder",
-  "contracts/two-party-pol-holder",
-  "contracts/two-party-pol-covenant",
+  "contracts/*",
 ]
 resolver = "2"
 
@@ -45,6 +35,7 @@ covenant-interchain-router = { path = "contracts/interchain-router" }
 covenant-two-party-pol-holder = { path = "contracts/two-party-pol-holder" }
 covenant-two-party-pol = { path = "contracts/two-party-pol-covenant" }
 covenant-astroport-liquid-pooler = { path = "contracts/astroport-liquid-pooler" }
+covenant-native-router = { path = "contracts/native-router" }
 
 # packages
 clock-derive = { path = "packages/clock-derive" }
