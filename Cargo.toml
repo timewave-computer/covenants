@@ -1,17 +1,7 @@
 [workspace]
 members = [
   "packages/*",
-  "contracts/astroport-liquid-pooler",
-  "contracts/clock",
-  "contracts/clock-tester",
-  "contracts/ibc-forwarder",
-  "contracts/interchain-router",
-  "contracts/interchain-splitter",
-  "contracts/native-splitter",
-  "contracts/swap-covenant",
-  "contracts/swap-holder",
-  "contracts/two-party-pol-holder",
-  "contracts/two-party-pol-covenant",
+  "contracts/*",
 ]
 resolver = "2"
 

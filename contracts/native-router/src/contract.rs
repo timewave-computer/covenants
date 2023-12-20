@@ -3,17 +3,13 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult, Uint128,
+    to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, CosmosMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::{get_default_ibc_fee_requirement, ReceiverConfig};
 use cw2::set_contract_version;
 
-use crate::{
-    error::ContractError,
-    state::{RECEIVER_CONFIG, TARGET_DENOMS},
-};
+use crate::{state::{RECEIVER_CONFIG, TARGET_DENOMS}, error::ContractError};
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::CLOCK_ADDRESS,
@@ -71,7 +67,7 @@ fn try_distribute_fallback(
     let receiver_config = RECEIVER_CONFIG.load(deps.storage)?;
     let explicit_denoms = TARGET_DENOMS.load(deps.storage)?;
 
-    for denom in denoms.clone() {
+    for denom in denoms {
         // we do not distribute the main covenant denoms
         // according to the fallback split
         if explicit_denoms.contains(&denom) {
@@ -85,46 +81,14 @@ fn try_distribute_fallback(
         available_balances.push(queried_coin);
     }
 
-    let messages: Vec<CosmosMsg> = match receiver_config {
-        ReceiverConfig::Native(addr) => {
-            let mut bank_sends: Vec<CosmosMsg> = vec![];
-            // we get the number of target denoms we have to reserve
-            // neutron fees for
-            let count = Uint128::from(denoms.len() as u128);
-
-            for coin in available_balances {
-                let send_coin = if coin.denom != "untrn" {
-                    Some(coin)
-                } else {
-                    // if its neutron we're distributing we need to keep a
-                    // reserve for ibc gas costs.
-                    // this is safe because we pass target denoms.
-                    let reserve_amount = count * get_default_ibc_fee_requirement();
-                    if coin.amount > reserve_amount {
-                        Some(Coin {
-                            denom: coin.denom,
-                            amount: coin.amount - reserve_amount,
-                        })
-                    } else {
-                        None
-                    }
-                };
-
-                if let Some(c) = send_coin {
-                    bank_sends.push(CosmosMsg::Bank(BankMsg::Send {
-                        to_address: addr.to_string(),
-                        amount: vec![c],
-                    }))
-                }
-            }
-            bank_sends
-        }
-        ReceiverConfig::Ibc(_destination_config) => vec![],
+    let fallback_distribution_messages: Vec<CosmosMsg> = match receiver_config {
+        covenant_utils::ReceiverConfig::Native(_addr) => vec![], // TODO
+        covenant_utils::ReceiverConfig::Ibc(destination_config) => vec![],
     };
 
     Ok(Response::default()
         .add_attribute("method", "try_distribute_fallback")
-        .add_messages(messages))
+        .add_messages(fallback_distribution_messages))
 }
 
 /// method that attempts to transfer out all available balances to the receiver
@@ -161,35 +125,8 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
 
     // get transfer messages for each denom
     let messages: Vec<CosmosMsg> = match receiver_config {
-        covenant_utils::ReceiverConfig::Native(addr) => {
-            let mut bank_sends: Vec<CosmosMsg> = vec![];
-            // we get the number of target denoms we have to reserve
-            // neutron fees for
-            let count = Uint128::from(1 + denom_balances.len() as u128);
-
-            for mut coin in denom_balances {
-                // if we distribute neutron, we need to keep a
-                // reserve for ibc gas costs.
-                // this is safe because we pass target denoms.
-                if coin.denom == "untrn" {
-                    let reserve_amount = count * get_default_ibc_fee_requirement();
-                    if coin.amount > reserve_amount {
-                        coin.amount -= reserve_amount
-                    } else {
-                        coin.amount = Uint128::zero();
-                    }
-                };
-
-                if !coin.amount.is_zero() {
-                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-                        to_address: addr.to_string(),
-                        amount: vec![coin],
-                    }))
-                }
-            }
-            bank_sends
-        }
-        covenant_utils::ReceiverConfig::Ibc(_destination_config) => vec![],
+        covenant_utils::ReceiverConfig::Native(_addr) => vec![], // TODO
+        covenant_utils::ReceiverConfig::Ibc(destination_config) => vec![]
     };
 
     Ok(Response::default()
@@ -210,7 +147,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(
+    deps: DepsMut,
+    _env: Env,
+    msg: MigrateMsg,
+) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
