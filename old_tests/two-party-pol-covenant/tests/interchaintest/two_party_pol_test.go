@@ -511,8 +511,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				currentHeight := testCtx.getNeutronHeight()
-				depositBlock = Block(currentHeight + 200)
-				lockupBlock = Block(currentHeight + 200)
+				depositBlock = Block(currentHeight + 180)
+				lockupBlock = Block(currentHeight + 180)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1358,8 +1358,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				currentHeight := testCtx.getNeutronHeight()
-				depositBlock := Block(currentHeight + 200)
-				lockupBlock := Block(currentHeight + 200)
+				depositBlock := Block(currentHeight + 180)
+				lockupBlock := Block(currentHeight + 180)
 				expirationHeight = lockupBlock
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,

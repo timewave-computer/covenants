@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, CosmosMsg,
+    StdResult, CosmosMsg, Coin, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use cw2::set_contract_version;
@@ -81,14 +81,39 @@ fn try_distribute_fallback(
         available_balances.push(queried_coin);
     }
 
-    let fallback_distribution_messages: Vec<CosmosMsg> = match receiver_config {
-        covenant_utils::ReceiverConfig::Native(_addr) => vec![], // TODO
-        covenant_utils::ReceiverConfig::Ibc(destination_config) => vec![],
+    let messages: Vec<CosmosMsg> = match receiver_config {
+        covenant_utils::ReceiverConfig::Native(addr) => {
+            let mut bank_sends: Vec<CosmosMsg> = vec![];
+
+            for coin in available_balances {
+                // non-neutron denoms are just distributed
+                if coin.denom != "untrn" {
+                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                        to_address: addr.to_string(),
+                        amount: vec![coin],
+                    }));
+                } else if coin.amount > Uint128::new(5) {
+                    // in case of neutron distribution we reserve some small
+                    // amount for gas fees.
+                    // if neutron_bal > 5, distribute neutron_bal - 5
+                    // otherwise do not distribute anything
+                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                        to_address: addr.to_string(),
+                        amount: vec![Coin {
+                            denom: coin.denom,
+                            amount: coin.amount - Uint128::new(5),
+                        }],
+                    }));
+                }
+            }
+            bank_sends
+        },
+        covenant_utils::ReceiverConfig::Ibc(_destination_config) => vec![]
     };
 
     Ok(Response::default()
         .add_attribute("method", "try_distribute_fallback")
-        .add_messages(fallback_distribution_messages))
+        .add_messages(messages))
 }
 
 /// method that attempts to transfer out all available balances to the receiver
@@ -125,8 +150,32 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
 
     // get transfer messages for each denom
     let messages: Vec<CosmosMsg> = match receiver_config {
-        covenant_utils::ReceiverConfig::Native(_addr) => vec![], // TODO
-        covenant_utils::ReceiverConfig::Ibc(destination_config) => vec![]
+        covenant_utils::ReceiverConfig::Native(addr) => {
+            let mut bank_sends: Vec<CosmosMsg> = vec![];
+
+            for coin in denom_balances {
+                if coin.denom != "untrn" {
+                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                        to_address: addr.to_string(),
+                        amount: vec![coin],
+                    }));
+                } else if coin.amount > Uint128::new(10) {
+                    // in case of neutron distribution we reserve some small
+                    // amount for gas fees.
+                    // if neutron_bal > 5, distribute neutron_bal - 5
+                    // otherwise do not distribute anything
+                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                        to_address: addr.to_string(),
+                        amount: vec![Coin {
+                            denom: coin.denom,
+                            amount: coin.amount - Uint128::new(5),
+                        }],
+                    }));
+                }
+            }
+            bank_sends
+        },
+        covenant_utils::ReceiverConfig::Ibc(_destination_config) => vec![]
     };
 
     Ok(Response::default()
