@@ -552,32 +552,23 @@ impl DestinationConfig {
         address: String,
     ) -> Vec<CosmosMsg<NeutronMsg>> {
         let mut messages: Vec<CosmosMsg<NeutronMsg>> = vec![];
-        // we get the number of target denoms we have to reserve
-        // neutron fees for. we pessimistically add 1 extra to
-        // the count to enable one additional transfer if needed.
-        let count = Uint128::from(1 + coins.len() as u128);
-
         for coin in coins {
-            // if denom is not neutron, we just distribute it entirely
+
             let send_coin = if coin.denom != "untrn" {
                 Some(coin)
             } else {
-                // if its neutron we're distributing we need to keep a
-                // reserve for ibc gas costs.
-                // this is safe because we pass target denoms.
-                let reserve_amount = count * get_default_ibc_fee_requirement();
-                if coin.amount > reserve_amount {
+                if coin.amount > get_default_ibc_fee_requirement() {
                     Some(Coin {
                         denom: coin.denom,
-                        amount: coin.amount - reserve_amount,
+                        amount: coin.amount - get_default_ibc_fee_requirement(),
                     })
                 } else {
                     None
                 }
             };
 
-            if let Some(c) = send_coin {
-                messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+            match send_coin {
+                Some(c) => messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
                     source_port: "transfer".to_string(),
                     source_channel: self.destination_chain_channel_id.to_string(),
                     token: c.clone(),
@@ -590,9 +581,10 @@ impl DestinationConfig {
                     timeout_timestamp: current_timestamp
                         .plus_seconds(self.ibc_transfer_timeout.u64())
                         .nanos(),
-                    memo: format!("ibc_distribution: {:?}:{:?}", c.denom, c.amount,).to_string(),
+                    memo: format!("{:?}:{:?} ibc_distribution @ {:?}", c.denom, c.amount, current_timestamp.to_string()).to_string(),
                     fee: default_ibc_fee(),
-                }))
+                })),
+                None => (),
             }
         }
 
