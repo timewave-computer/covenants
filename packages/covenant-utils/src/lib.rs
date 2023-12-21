@@ -518,11 +518,11 @@ pub struct DestinationConfig {
 }
 
 pub fn default_ibc_ack_fee_amount() -> Uint128 {
-    Uint128::new(1000)
+    Uint128::new(100000)
 }
 
 pub fn default_ibc_timeout_fee_amount() -> Uint128 {
-    Uint128::new(1000)
+    Uint128::new(100000)
 }
 
 pub fn default_ibc_fee() -> IbcFee {
@@ -540,6 +540,10 @@ pub fn default_ibc_fee() -> IbcFee {
     }
 }
 
+pub fn get_default_ibc_fee_requirement() -> Uint128 {
+    default_ibc_ack_fee_amount() + default_ibc_timeout_fee_amount()
+}
+
 impl DestinationConfig {
     pub fn get_ibc_transfer_messages_for_coins(
         &self,
@@ -548,28 +552,23 @@ impl DestinationConfig {
         address: String,
     ) -> Vec<CosmosMsg<NeutronMsg>> {
         let mut messages: Vec<CosmosMsg<NeutronMsg>> = vec![];
-        // TODO: what if neutron wants to tokenswap?
         for coin in coins {
-            // if denom is not neutron, we just distribute it entirely
+
             let send_coin = if coin.denom != "untrn" {
                 Some(coin)
             } else {
-                // if its neutron we're distributing we need to keep a
-                // reserve for ibc gas costs.
-                // this is safe because we pass target denoms.
-                let reserve_amount = count * get_default_ibc_fee_requirement();
-                if coin.amount > reserve_amount {
+                if coin.amount > get_default_ibc_fee_requirement() {
                     Some(Coin {
                         denom: coin.denom,
-                        amount: coin.amount - reserve_amount,
+                        amount: coin.amount - get_default_ibc_fee_requirement(),
                     })
                 } else {
                     None
                 }
             };
 
-            if let Some(c) = send_coin {
-                messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+            match send_coin {
+                Some(c) => messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
                     source_port: "transfer".to_string(),
                     source_channel: self.destination_chain_channel_id.to_string(),
                     token: c.clone(),
@@ -582,9 +581,10 @@ impl DestinationConfig {
                     timeout_timestamp: current_timestamp
                         .plus_seconds(self.ibc_transfer_timeout.u64())
                         .nanos(),
-                    memo: "hi".to_string(),
+                    memo: format!("{:?}:{:?} ibc_distribution @ {:?}", c.denom, c.amount, current_timestamp.to_string()).to_string(),
                     fee: default_ibc_fee(),
-                }));
+                })),
+                None => (),
             }
         }
 
