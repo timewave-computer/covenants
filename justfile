@@ -39,6 +39,13 @@ two-party-pol-covenant:
     ls two-party-pol-covenant/tests/interchaintest/wasms/
     cd two-party-pol-covenant/tests/interchaintest && go test --timeout 30m
 
+two-party-pol-covenant-native:
+    mkdir -p two-party-pol-covenant/tests/interchaintest/wasms
+    cp -R artifacts/*.wasm two-party-pol-covenant/tests/interchaintest/wasms
+    cp -R two-party-pol-covenant/astroport/*.wasm two-party-pol-covenant/tests/interchaintest/wasms
+    ls two-party-pol-covenant/tests/interchaintest/wasms/
+    cd two-party-pol-covenant/tests/interchaintest && go clean -testcache && go test --timeout 50m -v -run TestTwoPartyNativePartyPol
+
 local-e2e-rebuild TEST: optimize
     #!/usr/bin/env sh
     if [[ $(uname -m) =~ "arm64" ]]; then

@@ -141,7 +141,8 @@ pub struct CovenantContractCodeIds {
     pub ibc_forwarder_code: u64,
     pub holder_code: u64,
     pub clock_code: u64,
-    pub router_code: u64,
+    pub interchain_router_code: u64,
+    pub native_router_code: u64,
     pub liquid_pooler_code: u64,
 }
 
