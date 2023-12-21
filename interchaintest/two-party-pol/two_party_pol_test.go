@@ -374,8 +374,8 @@ func TestTwoPartyPol(t *testing.T) {
 			clockCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, clockContractPath)
 
 			// store routers and get code id
-			interchainRouterCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, interchainRouterContractPath)
-			nativeRouterCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, nativeRouterContractPath)
+			interchainRouterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, interchainRouterContractPath)
+			nativeRouterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, nativeRouterContractPath)
 
 			// store forwarder and get code id
 			ibcForwarderCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, ibcForwarderContractPath)
@@ -511,8 +511,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				currentHeight := testCtx.getNeutronHeight()
-				depositBlock = Block(currentHeight + 200)
-				lockupBlock = Block(currentHeight + 200)
+				depositBlock = Block(currentHeight + 180)
+				lockupBlock = Block(currentHeight + 180)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1358,8 +1358,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				currentHeight := testCtx.getNeutronHeight()
-				depositBlock := Block(currentHeight + 200)
-				lockupBlock := Block(currentHeight + 200)
+				depositBlock := Block(currentHeight + 180)
+				lockupBlock := Block(currentHeight + 180)
 				expirationHeight = lockupBlock
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
