@@ -552,22 +552,15 @@ impl DestinationConfig {
         address: String,
     ) -> Vec<CosmosMsg<NeutronMsg>> {
         let mut messages: Vec<CosmosMsg<NeutronMsg>> = vec![];
-        // we get the number of target denoms we have to reserve
-        // neutron fees for
-        let count = Uint128::from(1 + coins.len() as u128);
-
         for coin in coins {
+
             let send_coin = if coin.denom != "untrn" {
                 Some(coin)
             } else {
-                // if its neutron we're distributing we need to keep a
-                // reserve for ibc gas costs.
-                // this is safe because we pass target denoms.
-                let reserve_amount = count * get_default_ibc_fee_requirement();
-                if coin.amount > reserve_amount {
+                if coin.amount > get_default_ibc_fee_requirement() {
                     Some(Coin {
                         denom: coin.denom,
-                        amount: coin.amount - reserve_amount,
+                        amount: coin.amount - get_default_ibc_fee_requirement(),
                     })
                 } else {
                     None
@@ -588,7 +581,7 @@ impl DestinationConfig {
                     timeout_timestamp: current_timestamp
                         .plus_seconds(self.ibc_transfer_timeout.u64())
                         .nanos(),
-                    memo: format!("ibc_distribution: {:?}:{:?}", c.denom, c.amount,).to_string(),
+                    memo: format!("{:?}:{:?} ibc_distribution @ {:?}", c.denom, c.amount, current_timestamp.to_string()).to_string(),
                     fee: default_ibc_fee(),
                 })),
                 None => (),
