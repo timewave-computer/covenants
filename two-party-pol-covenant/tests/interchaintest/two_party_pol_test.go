@@ -343,7 +343,8 @@ func TestTwoPartyPol(t *testing.T) {
 		// Wasm code that we need to store on Neutron
 		const covenantContractPath = "wasms/covenant_two_party_pol.wasm"
 		const clockContractPath = "wasms/covenant_clock.wasm"
-		const routerContractPath = "wasms/covenant_interchain_router.wasm"
+		const interchainRouterContractPath = "wasms/covenant_interchain_router.wasm"
+		const nativeRouterContractPath = "wasms/covenant_native_router.wasm"
 		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
 		const holderContractPath = "wasms/covenant_two_party_pol_holder.wasm"
 		const liquidPoolerPath = "wasms/covenant_astroport_liquid_pooler.wasm"
@@ -352,7 +353,8 @@ func TestTwoPartyPol(t *testing.T) {
 		// We parse all the subcontracts into uint64
 		// The will be required when we instantiate the covenant.
 		var clockCodeId uint64
-		var routerCodeId uint64
+		var interchainRouterCodeId uint64
+		var nativeRouterCodeId uint64
 		var ibcForwarderCodeId uint64
 		var holderCodeId uint64
 		var lperCodeId uint64
@@ -370,8 +372,9 @@ func TestTwoPartyPol(t *testing.T) {
 			// store clock and get code id
 			clockCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, clockContractPath)
 
-			// store router and get code id
-			routerCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, routerContractPath)
+			// store routers and get code id
+			interchainRouterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, interchainRouterContractPath)
+			nativeRouterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, nativeRouterContractPath)
 
 			// store forwarder and get code id
 			ibcForwarderCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, ibcForwarderContractPath)
@@ -507,8 +510,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				currentHeight := testCtx.getNeutronHeight()
-				depositBlock = Block(currentHeight + 200)
-				lockupBlock = Block(currentHeight + 200)
+				depositBlock = Block(currentHeight + 180)
+				lockupBlock = Block(currentHeight + 180)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -558,7 +561,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 				codeIds := ContractCodeIds{
 					IbcForwarderCode:     ibcForwarderCodeId,
-					InterchainRouterCode: routerCodeId,
+					InterchainRouterCode: interchainRouterCodeId,
+					NativeRouterCode:     nativeRouterCodeId,
 					ClockCode:            clockCodeId,
 					HolderCode:           holderCodeId,
 					LiquidPoolerCode:     lperCodeId,
@@ -853,7 +857,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 				codeIds := ContractCodeIds{
 					IbcForwarderCode:     ibcForwarderCodeId,
-					InterchainRouterCode: routerCodeId,
+					InterchainRouterCode: interchainRouterCodeId,
+					NativeRouterCode:     nativeRouterCodeId,
 					ClockCode:            clockCodeId,
 					HolderCode:           holderCodeId,
 					LiquidPoolerCode:     lperCodeId,
@@ -1142,7 +1147,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 				codeIds := ContractCodeIds{
 					IbcForwarderCode:     ibcForwarderCodeId,
-					InterchainRouterCode: routerCodeId,
+					InterchainRouterCode: interchainRouterCodeId,
+					NativeRouterCode:     nativeRouterCodeId,
 					ClockCode:            clockCodeId,
 					HolderCode:           holderCodeId,
 					LiquidPoolerCode:     lperCodeId,
@@ -1351,8 +1357,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				currentHeight := testCtx.getNeutronHeight()
-				depositBlock := Block(currentHeight + 200)
-				lockupBlock := Block(currentHeight + 200)
+				depositBlock := Block(currentHeight + 180)
+				lockupBlock := Block(currentHeight + 180)
 				expirationHeight = lockupBlock
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1400,7 +1406,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 				codeIds := ContractCodeIds{
 					IbcForwarderCode:     ibcForwarderCodeId,
-					InterchainRouterCode: routerCodeId,
+					InterchainRouterCode: interchainRouterCodeId,
+					NativeRouterCode:     nativeRouterCodeId,
 					ClockCode:            clockCodeId,
 					HolderCode:           holderCodeId,
 					LiquidPoolerCode:     lperCodeId,

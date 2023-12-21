@@ -83,15 +83,27 @@ pub fn instantiate(
         &creator_address,
         &clock_salt,
     )?;
-    let party_a_interchain_router_address = get_precomputed_address(
+
+    let party_a_router_code = match msg.clone().party_a_config {
+        CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
+        CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
+    };
+
+    let party_b_router_code = match msg.clone().party_b_config {
+        CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
+        CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
+    };
+
+    let party_a_router_address = get_precomputed_address(
         deps.as_ref(),
-        msg.contract_codes.router_code,
+        party_a_router_code,
         &creator_address,
-        &party_a_router_salt,
+        &party_a_router_salt
     )?;
-    let party_b_interchain_router_address = get_precomputed_address(
+
+    let party_b_router_address = get_precomputed_address(
         deps.as_ref(),
-        msg.contract_codes.router_code,
+        party_b_router_code,
         &creator_address,
         &party_b_router_salt,
     )?;
@@ -122,14 +134,14 @@ pub fn instantiate(
 
     COVENANT_POL_HOLDER_ADDR.save(deps.storage, &holder_address)?;
     LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_address)?;
-    PARTY_B_ROUTER_ADDR.save(deps.storage, &party_b_interchain_router_address)?;
-    PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_interchain_router_address)?;
+    PARTY_B_ROUTER_ADDR.save(deps.storage, &party_b_router_address)?;
+    PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_router_address)?;
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
 
     let mut clock_whitelist = vec![
         holder_address.to_string(),
-        party_a_interchain_router_address.to_string(),
-        party_b_interchain_router_address.to_string(),
+        party_a_router_address.to_string(),
+        party_b_router_address.to_string(),
         liquid_pooler_address.to_string(),
     ];
 
@@ -202,14 +214,14 @@ pub fn instantiate(
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
         receiver_config: msg.party_a_config.to_receiver_config(),
-        label: format!("{}_party_a_interchain_router", msg.label),
-        code_id: msg.contract_codes.router_code,
+        label: format!("{}_party_a_router", msg.label),
+        code_id: party_a_router_code,
         denoms: covenant_denoms.clone(),
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
         receiver_config: msg.party_b_config.to_receiver_config(),
-        label: format!("{}_party_b_interchain_router", msg.label),
-        code_id: msg.contract_codes.router_code,
+        label: format!("{}_party_b_router", msg.label),
+        code_id: party_b_router_code,
         denoms: covenant_denoms,
     };
 
@@ -236,8 +248,8 @@ pub fn instantiate(
             holder_salt,
             clock_address.to_string(),
             liquid_pooler_address.to_string(),
-            party_a_interchain_router_address.to_string(),
-            party_b_interchain_router_address.to_string(),
+            party_a_router_address.to_string(),
+            party_b_router_address.to_string(),
         )?,
         preset_party_a_router_fields.to_instantiate2_msg(
             env.contract.address.to_string(),
