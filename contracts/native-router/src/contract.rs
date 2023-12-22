@@ -3,14 +3,17 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, CosmosMsg, Coin, Uint128,
+    to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Response, StdError, StdResult, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::{ReceiverConfig, get_default_ibc_fee_requirement};
+use covenant_utils::{get_default_ibc_fee_requirement, ReceiverConfig};
 use cw2::set_contract_version;
 
-use crate::{state::{RECEIVER_CONFIG, TARGET_DENOMS}, error::ContractError};
+use crate::{
+    error::ContractError,
+    state::{RECEIVER_CONFIG, TARGET_DENOMS},
+};
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::CLOCK_ADDRESS,
@@ -90,7 +93,6 @@ fn try_distribute_fallback(
             let count = Uint128::from(denoms.len() as u128);
 
             for coin in available_balances {
-
                 let send_coin = if coin.denom != "untrn" {
                     Some(coin)
                 } else {
@@ -117,8 +119,8 @@ fn try_distribute_fallback(
                 }
             }
             bank_sends
-        },
-        ReceiverConfig::Ibc(_destination_config) => vec![]
+        }
+        ReceiverConfig::Ibc(_destination_config) => vec![],
     };
 
     Ok(Response::default()
@@ -194,8 +196,8 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
                 }
             }
             bank_sends
-        },
-        covenant_utils::ReceiverConfig::Ibc(_destination_config) => vec![]
+        }
+        covenant_utils::ReceiverConfig::Ibc(_destination_config) => vec![],
     };
 
     Ok(Response::default()
@@ -216,11 +218,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(
-    deps: DepsMut,
-    _env: Env,
-    msg: MigrateMsg,
-) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {

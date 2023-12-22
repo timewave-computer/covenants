@@ -98,7 +98,7 @@ pub fn instantiate(
         deps.as_ref(),
         party_a_router_code,
         &creator_address,
-        &party_a_router_salt
+        &party_a_router_salt,
     )?;
 
     let party_b_router_address = get_precomputed_address(
