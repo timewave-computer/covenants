@@ -7,6 +7,7 @@ use cosmwasm_std::{
     StdResult, CosmosMsg, Coin, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
+use covenant_utils::{ReceiverConfig, get_default_ibc_fee_requirement};
 use cw2::set_contract_version;
 
 use crate::{state::{RECEIVER_CONFIG, TARGET_DENOMS}, error::ContractError};
@@ -67,7 +68,7 @@ fn try_distribute_fallback(
     let receiver_config = RECEIVER_CONFIG.load(deps.storage)?;
     let explicit_denoms = TARGET_DENOMS.load(deps.storage)?;
 
-    for denom in denoms {
+    for denom in denoms.clone() {
         // we do not distribute the main covenant denoms
         // according to the fallback split
         if explicit_denoms.contains(&denom) {
@@ -82,33 +83,42 @@ fn try_distribute_fallback(
     }
 
     let messages: Vec<CosmosMsg> = match receiver_config {
-        covenant_utils::ReceiverConfig::Native(addr) => {
+        ReceiverConfig::Native(addr) => {
             let mut bank_sends: Vec<CosmosMsg> = vec![];
+            // we get the number of target denoms we have to reserve
+            // neutron fees for
+            let count = Uint128::from(denoms.len() as u128);
 
             for coin in available_balances {
-                // non-neutron denoms are just distributed
-                if coin.denom != "untrn" {
-                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-                        to_address: addr.to_string(),
-                        amount: vec![coin],
-                    }));
-                } else if coin.amount > Uint128::new(5) {
-                    // in case of neutron distribution we reserve some small
-                    // amount for gas fees.
-                    // if neutron_bal > 5, distribute neutron_bal - 5
-                    // otherwise do not distribute anything
-                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-                        to_address: addr.to_string(),
-                        amount: vec![Coin {
+
+                let send_coin = if coin.denom != "untrn" {
+                    Some(coin)
+                } else {
+                    // if its neutron we're distributing we need to keep a
+                    // reserve for ibc gas costs.
+                    // this is safe because we pass target denoms.
+                    let reserve_amount = count * get_default_ibc_fee_requirement();
+                    if coin.amount > reserve_amount {
+                        Some(Coin {
                             denom: coin.denom,
-                            amount: coin.amount - Uint128::new(5),
-                        }],
-                    }));
+                            amount: coin.amount - reserve_amount,
+                        })
+                    } else {
+                        None
+                    }
+                };
+
+                match send_coin {
+                    Some(c) => bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                        to_address: addr.to_string(),
+                        amount: vec![c],
+                    })),
+                    None => (),
                 }
             }
             bank_sends
         },
-        covenant_utils::ReceiverConfig::Ibc(_destination_config) => vec![]
+        ReceiverConfig::Ibc(_destination_config) => vec![]
     };
 
     Ok(Response::default()
@@ -152,25 +162,35 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
     let messages: Vec<CosmosMsg> = match receiver_config {
         covenant_utils::ReceiverConfig::Native(addr) => {
             let mut bank_sends: Vec<CosmosMsg> = vec![];
+            // we get the number of target denoms we have to reserve
+            // neutron fees for
+            let count = Uint128::from(1 + denom_balances.len() as u128);
 
             for coin in denom_balances {
-                if coin.denom != "untrn" {
-                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-                        to_address: addr.to_string(),
-                        amount: vec![coin],
-                    }));
-                } else if coin.amount > Uint128::new(10) {
-                    // in case of neutron distribution we reserve some small
-                    // amount for gas fees.
-                    // if neutron_bal > 5, distribute neutron_bal - 5
-                    // otherwise do not distribute anything
-                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-                        to_address: addr.to_string(),
-                        amount: vec![Coin {
+                // non-neutron coins get distributed entirely
+                let send_coin = if coin.denom != "untrn" {
+                    Some(coin)
+                } else {
+                    // if its neutron we're distributing we need to keep a
+                    // reserve for ibc gas costs.
+                    // this is safe because we pass target denoms.
+                    let reserve_amount = count * get_default_ibc_fee_requirement();
+                    if coin.amount > reserve_amount {
+                        Some(Coin {
                             denom: coin.denom,
-                            amount: coin.amount - Uint128::new(5),
-                        }],
-                    }));
+                            amount: coin.amount - reserve_amount,
+                        })
+                    } else {
+                        None
+                    }
+                };
+
+                match send_coin {
+                    Some(c) => bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                        to_address: addr.to_string(),
+                        amount: vec![c],
+                    })),
+                    None => (),
                 }
             }
             bank_sends
