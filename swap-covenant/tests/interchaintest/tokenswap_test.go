@@ -39,9 +39,10 @@ var atomNeutronICSConnectionId, neutronAtomICSConnectionId string
 var neutronOsmosisIBCConnId, osmosisNeutronIBCConnId string
 var atomNeutronIBCConnId, neutronAtomIBCConnId string
 var gaiaOsmosisIBCConnId, osmosisGaiaIBCConnId string
+var hubNeutronIbcDenom string
 
 // PARTY_A
-const osmoContributionAmount uint64 = 100_000_000_000 // in uosmo
+const neutronContributionAmount uint64 = 100_000_000_000 // in untrn
 
 // PARTY_B
 const atomContributionAmount uint64 = 5_000_000_000 // in uatom
@@ -279,7 +280,10 @@ func TestTokenSwap(t *testing.T) {
 	_, _, _ = gaiaUser, neutronUser, osmoUser
 
 	hubNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
-	osmoNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
+	neutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(1), neutron)[0]
+
+	var neutronReceiverAddr string
+	var hubReceiverAddr string
 
 	testCtx.skipBlocks(10)
 
@@ -323,13 +327,19 @@ func TestTokenSwap(t *testing.T) {
 			},
 			nativeOsmoDenom,
 		)
+		// 2. neutron => hub
+		hubNeutronIbcDenom = testCtx.getIbcDenom(
+			testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+			cosmosNeutron.Config().Denom,
+		)
 	})
 
 	t.Run("tokenswap covenant setup", func(t *testing.T) {
 		// Wasm code that we need to store on Neutron
 		const covenantContractPath = "wasms/covenant_swap.wasm"
 		const clockContractPath = "wasms/covenant_clock.wasm"
-		const routerContractPath = "wasms/covenant_interchain_router.wasm"
+		const interchainRouterContractPath = "wasms/covenant_interchain_router.wasm"
+		const nativeRouterContractPath = "wasms/covenant_native_router.wasm"
 		const splitterContractPath = "wasms/covenant_interchain_splitter.wasm"
 		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
 		const swapHolderContractPath = "wasms/covenant_swap_holder.wasm"
@@ -338,7 +348,8 @@ func TestTokenSwap(t *testing.T) {
 		// We parse all the subcontracts into uint64
 		// The will be required when we instantiate the covenant.
 		var clockCodeId uint64
-		var routerCodeId uint64
+		var interchainRouterCodeId uint64
+		var nativeRouterCodeId uint64
 		var splitterCodeId uint64
 		var ibcForwarderCodeId uint64
 		var swapHolderCodeId uint64
@@ -347,7 +358,8 @@ func TestTokenSwap(t *testing.T) {
 		t.Run("deploy covenant contracts", func(t *testing.T) {
 			covenantCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, covenantContractPath)
 			clockCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, clockContractPath)
-			routerCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, routerContractPath)
+			interchainRouterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, interchainRouterContractPath)
+			nativeRouterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, nativeRouterContractPath)
 			splitterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, splitterContractPath)
 			ibcForwarderCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, ibcForwarderContractPath)
 			swapHolderCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, swapHolderContractPath)
@@ -361,7 +373,7 @@ func TestTokenSwap(t *testing.T) {
 
 			swapCovenantTerms := SwapCovenantTerms{
 				PartyAAmount: strconv.FormatUint(atomContributionAmount, 10),
-				PartyBAmount: strconv.FormatUint(osmoContributionAmount, 10),
+				PartyBAmount: strconv.FormatUint(neutronContributionAmount, 10),
 			}
 
 			currentHeight, err := cosmosNeutron.Height(ctx)
@@ -372,31 +384,32 @@ func TestTokenSwap(t *testing.T) {
 			}
 
 			presetIbcFee := PresetIbcFee{
-				AckFee:     "10000",
-				TimeoutFee: "10000",
+				AckFee:     "100000",
+				TimeoutFee: "100000",
 			}
-			hubReceiverAddr := gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix)
-			osmoReceiverAddr := osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
+
+			neutronReceiverAddr = neutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
+			hubReceiverAddr = gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 
 			splits := []DenomSplit{
-				{
-					Denom: neutronOsmoIbcDenom,
-					Type: SplitType{
-						Custom: SplitConfig{
-							Receivers: map[string]string{
-								hubReceiverAddr:  "1.0",
-								osmoReceiverAddr: "0.0",
-							},
-						},
-					},
-				},
 				{
 					Denom: neutronAtomIbcDenom,
 					Type: SplitType{
 						Custom: SplitConfig{
 							Receivers: map[string]string{
-								hubReceiverAddr:  "0.0",
-								osmoReceiverAddr: "1.0",
+								neutronReceiverAddr: "1.0",
+								hubReceiverAddr:     "0.0",
+							},
+						},
+					},
+				},
+				{
+					Denom: cosmosNeutron.Config().Denom,
+					Type: SplitType{
+						Custom: SplitConfig{
+							Receivers: map[string]string{
+								neutronReceiverAddr: "0.0",
+								hubReceiverAddr:     "1.0",
 							},
 						},
 					},
@@ -413,19 +426,15 @@ func TestTokenSwap(t *testing.T) {
 				PartyChainConnectionId:    neutronAtomIBCConnId,
 				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 			}
-			partyBConfig := InterchainCovenantParty{
-				Addr:                      osmoNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-				NativeDenom:               neutronOsmoIbcDenom,
-				RemoteChainDenom:          nativeOsmoDenom,
-				PartyToHostChainChannelId: testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
-				HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-				PartyReceiverAddr:         osmoReceiverAddr,
-				PartyChainConnectionId:    neutronOsmosisIBCConnId,
-				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+			partyBConfig := NativeCovenantParty{
+				Addr:              neutronReceiverAddr,
+				NativeDenom:       cosmosNeutron.Config().Denom,
+				PartyReceiverAddr: neutronReceiverAddr,
 			}
 			codeIds := SwapCovenantContractCodeIds{
 				IbcForwarderCode:       ibcForwarderCodeId,
-				InterchainRouterCode:   routerCodeId,
+				InterchainRouterCode:   interchainRouterCodeId,
+				NativeRouterCode:       nativeRouterCodeId,
 				InterchainSplitterCode: splitterCodeId,
 				ClockCode:              clockCodeId,
 				HolderCode:             swapHolderCodeId,
@@ -442,7 +451,7 @@ func TestTokenSwap(t *testing.T) {
 					Interchain: &partyAConfig,
 				},
 				PartyBConfig: CovenantPartyConfig{
-					Interchain: &partyBConfig,
+					Native: &partyBConfig,
 				},
 				Splits: splits,
 			}
@@ -463,13 +472,17 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("fund contracts with neutron", func(t *testing.T) {
 			addrs := []string{
-				partyAIbcForwarderAddress,
-				partyBIbcForwarderAddress,
 				clockAddress,
 				partyARouterAddress,
 				partyBRouterAddress,
 				holderAddress,
 				splitterAddress,
+			}
+			if partyAIbcForwarderAddress != "" {
+				addrs = append(addrs, partyAIbcForwarderAddress)
+			}
+			if partyBIbcForwarderAddress != "" {
+				addrs = append(addrs, partyBIbcForwarderAddress)
 			}
 			testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
 			testCtx.skipBlocks(2)
@@ -482,9 +495,8 @@ func TestTokenSwap(t *testing.T) {
 			for {
 				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
-				forwarderBState := testCtx.queryContractState(partyBIbcForwarderAddress)
 
-				if forwarderAState == forwarderBState && forwarderBState == "ica_created" {
+				if forwarderAState == "ica_created" {
 					partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
 					partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
 					println("partyADepositAddress", partyADepositAddress)
@@ -496,12 +508,12 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
 			require.NoError(t,
-				cosmosOsmosis.SendFunds(ctx, osmoUser.KeyName, ibc.WalletAmount{
+				cosmosNeutron.SendFunds(ctx, neutronUser.KeyName, ibc.WalletAmount{
 					Address: partyBDepositAddress,
-					Denom:   nativeOsmoDenom,
-					Amount:  int64(osmoContributionAmount),
+					Denom:   cosmosNeutron.Config().Denom,
+					Amount:  int64(neutronContributionAmount),
 				}),
-				"failed to fund osmo forwarder",
+				"failed to deposit neutron",
 			)
 
 			require.NoError(t,
@@ -517,13 +529,13 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
 			for {
-				holderOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
+				holderNeutronBal := testCtx.queryNeutronDenomBalance(cosmosNeutron.Config().Denom, holderAddress)
 				holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
 				holderState := testCtx.queryContractState(holderAddress)
 
-				if holderAtomBal != 0 && holderOsmoBal != 0 {
+				if holderAtomBal != 0 && holderNeutronBal != 0 {
 					println("holder atom bal: ", holderAtomBal)
-					println("holder osmo bal: ", holderOsmoBal)
+					println("holder neutron bal: ", holderNeutronBal)
 					break
 				} else if holderState == "complete" {
 					println("holder state: ", holderState)
@@ -535,11 +547,11 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("tick until holder sends the funds to splitter", func(t *testing.T) {
 			for {
-				splitterOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, splitterAddress)
+				splitterNeutronBal := testCtx.queryNeutronDenomBalance(cosmosNeutron.Config().Denom, splitterAddress)
 				splitterAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, splitterAddress)
-				println("splitterOsmoBal: ", splitterOsmoBal)
+				println("splitterOsmoBal: ", splitterNeutronBal)
 				println("splitterAtomBal: ", splitterAtomBal)
-				if splitterAtomBal != 0 && splitterOsmoBal != 0 {
+				if splitterAtomBal != 0 && splitterNeutronBal != 0 {
 					break
 				} else {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -549,12 +561,12 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("tick until splitter sends the funds to routers", func(t *testing.T) {
 			for {
-				partyARouterOsmoBal := testCtx.queryNeutronDenomBalance(neutronOsmoIbcDenom, partyARouterAddress)
+				partyARouterNeutronBal := testCtx.queryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyARouterAddress)
 				partyBRouterAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
-				println("partyARouter osmo bal: ", partyARouterOsmoBal)
+				println("partyARouterNeutronBal: ", partyARouterNeutronBal)
 				println("partyBRouterAtomBal: ", partyBRouterAtomBal)
 
-				if partyARouterOsmoBal != 0 && partyBRouterAtomBal != 0 {
+				if partyARouterNeutronBal != 0 && partyBRouterAtomBal != 0 {
 					break
 				} else {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -564,13 +576,11 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("tick until routers route the funds to final receivers", func(t *testing.T) {
 			for {
-				osmoBal, err := cosmosOsmosis.GetBalance(ctx, osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix), osmoNeutronAtomIbcDenom)
-				require.NoError(t, err, "failed to query osmoBal")
-				gaiaBal, err := cosmosAtom.GetBalance(ctx, gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix), gaiaNeutronOsmoIbcDenom)
-				require.NoError(t, err, "failed to query gaiaBal")
-				println("gaia user osmo bal: ", gaiaBal)
-				println("osmo user atom bal: ", osmoBal)
-				if osmoBal != 0 && gaiaBal != 0 {
+				neutronBal := testCtx.queryHubDenomBalance(hubNeutronIbcDenom, hubReceiverAddr)
+				atomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, neutronReceiverAddr)
+				println("gaia user neutronBal: ", neutronBal)
+				println("neutron user atomBal: ", atomBal)
+				if neutronBal != 0 && atomBal != 0 {
 					break
 				} else {
 					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
