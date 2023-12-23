@@ -21,8 +21,8 @@ use crate::{
     msg::{CovenantPartyConfig, InstantiateMsg, QueryMsg},
     state::{
         COVENANT_CLOCK_ADDR, COVENANT_INTERCHAIN_SPLITTER_ADDR, COVENANT_SWAP_HOLDER_ADDR,
-        PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_INTERCHAIN_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
-        PARTY_B_INTERCHAIN_ROUTER_ADDR,
+        PARTY_A_IBC_FORWARDER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
+        PARTY_B_ROUTER_ADDR, PARTY_A_ROUTER_ADDR,
     },
 };
 
@@ -76,21 +76,31 @@ pub fn instantiate(
     let party_b_forwarder_salt = generate_contract_salt(PARTY_B_FORWARDER_SALT);
     let splitter_salt = generate_contract_salt(SPLITTER_SALT);
 
+    let party_a_router_code = match msg.clone().party_a_config {
+        CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
+        CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
+    };
+    let party_b_router_code = match msg.clone().party_b_config {
+        CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
+        CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
+    };
+
     let clock_address = get_precomputed_address(
         deps.as_ref(),
         msg.contract_codes.clock_code,
         &creator_address,
         &clock_salt,
     )?;
-    let party_a_interchain_router_address = get_precomputed_address(
+
+    let party_a_router_address = get_precomputed_address(
         deps.as_ref(),
-        msg.contract_codes.interchain_router_code,
+        party_a_router_code,
         &creator_address,
         &party_a_router_salt,
     )?;
-    let party_b_interchain_router_address = get_precomputed_address(
+    let party_b_router_address = get_precomputed_address(
         deps.as_ref(),
-        msg.contract_codes.interchain_router_code,
+        party_b_router_code,
         &creator_address,
         &party_b_router_salt,
     )?;
@@ -120,15 +130,15 @@ pub fn instantiate(
     )?;
 
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
-    PARTY_A_INTERCHAIN_ROUTER_ADDR.save(deps.storage, &party_a_interchain_router_address)?;
-    PARTY_B_INTERCHAIN_ROUTER_ADDR.save(deps.storage, &party_b_interchain_router_address)?;
+    PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_router_address)?;
+    PARTY_B_ROUTER_ADDR.save(deps.storage, &party_b_router_address)?;
     COVENANT_INTERCHAIN_SPLITTER_ADDR.save(deps.storage, &splitter_address)?;
     COVENANT_SWAP_HOLDER_ADDR.save(deps.storage, &swap_holder_address)?;
 
     let mut clock_whitelist = vec![
         swap_holder_address.to_string(),
-        party_a_interchain_router_address.to_string(),
-        party_b_interchain_router_address.to_string(),
+        party_a_router_address.to_string(),
+        party_b_router_address.to_string(),
         splitter_address.to_string(),
     ];
     let preset_party_a_forwarder_fields = match msg.party_a_config.clone() {
@@ -177,14 +187,14 @@ pub fn instantiate(
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
         receiver_config: msg.party_a_config.to_receiver_config(),
-        label: format!("{}_party_a_interchain_router", msg.label),
-        code_id: msg.contract_codes.interchain_router_code,
+        label: format!("{}_party_a_router", msg.label),
+        code_id: party_a_router_code,
         denoms: covenant_denoms.clone(),
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
         receiver_config: msg.party_b_config.to_receiver_config(),
-        label: format!("{}_party_b_interchain_router", msg.label),
-        code_id: msg.contract_codes.interchain_router_code,
+        label: format!("{}_party_b_router", msg.label),
+        code_id: party_b_router_code,
         denoms: covenant_denoms,
     };
     let preset_splitter_fields = PresetInterchainSplitterFields {
@@ -255,8 +265,8 @@ pub fn instantiate(
         env.contract.address.to_string(),
         splitter_salt,
         clock_address.to_string(),
-        party_a_interchain_router_address.to_string(),
-        party_b_interchain_router_address.to_string(),
+        party_a_router_address.to_string(),
+        party_b_router_address.to_string(),
     )?);
 
     Ok(Response::default()
@@ -278,9 +288,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         )?),
         QueryMsg::InterchainRouterAddress { party } => {
             let resp = if party == "party_a" {
-                PARTY_A_INTERCHAIN_ROUTER_ADDR.may_load(deps.storage)?
+                PARTY_A_ROUTER_ADDR.may_load(deps.storage)?
             } else if party == "party_b" {
-                PARTY_B_INTERCHAIN_ROUTER_ADDR.may_load(deps.storage)?
+                PARTY_B_ROUTER_ADDR.may_load(deps.storage)?
             } else {
                 Some(Addr::unchecked("not found"))
             };

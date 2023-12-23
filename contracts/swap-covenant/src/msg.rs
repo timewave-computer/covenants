@@ -102,6 +102,7 @@ pub struct NativeCovenantParty {
 pub struct SwapCovenantContractCodeIds {
     pub ibc_forwarder_code: u64,
     pub interchain_router_code: u64,
+    pub native_router_code: u64,
     pub splitter_code: u64,
     pub holder_code: u64,
     pub clock_code: u64,
