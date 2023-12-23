@@ -44,6 +44,7 @@ type NativeCovenantParty struct {
 type SwapCovenantContractCodeIds struct {
 	IbcForwarderCode       uint64 `json:"ibc_forwarder_code"`
 	InterchainRouterCode   uint64 `json:"interchain_router_code"`
+	NativeRouterCode       uint64 `json:"native_router_code"`
 	InterchainSplitterCode uint64 `json:"splitter_code"`
 	ClockCode              uint64 `json:"clock_code"`
 	HolderCode             uint64 `json:"holder_code"`
