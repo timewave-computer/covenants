@@ -286,6 +286,9 @@ func TestTokenSwap(t *testing.T) {
 	var neutronReceiverAddr string
 	var hubReceiverAddr string
 
+	var neutronReceiverAddr string
+	var hubReceiverAddr string
+
 	testCtx.SkipBlocks(10)
 
 	t.Run("determine ibc channels", func(t *testing.T) {
@@ -329,7 +332,7 @@ func TestTokenSwap(t *testing.T) {
 			nativeOsmoDenom,
 		)
 		// 2. neutron => hub
-		hubNeutronIbcDenom = testCtx.GetIbcDenom(
+		hubNeutronIbcDenom = testCtx.getIbcDenom(
 			testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 			cosmosNeutron.Config().Denom,
 		)
@@ -357,13 +360,13 @@ func TestTokenSwap(t *testing.T) {
 		var covenantCodeId uint64
 
 		t.Run("deploy covenant contracts", func(t *testing.T) {
-			covenantCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, covenantContractPath)
-			clockCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, clockContractPath)
-			interchainRouterCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, interchainRouterContractPath)
-			nativeRouterCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, nativeRouterContractPath)
-			splitterCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, splitterContractPath)
-			ibcForwarderCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, ibcForwarderContractPath)
-			swapHolderCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, swapHolderContractPath)
+			covenantCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, covenantContractPath)
+			clockCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, clockContractPath)
+			interchainRouterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, interchainRouterContractPath)
+			nativeRouterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, nativeRouterContractPath)
+			splitterCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, splitterContractPath)
+			ibcForwarderCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, ibcForwarderContractPath)
+			swapHolderCodeId = testCtx.storeContract(cosmosNeutron, neutronUser, swapHolderContractPath)
 		})
 
 		t.Run("instantiate covenant", func(t *testing.T) {
@@ -485,8 +488,8 @@ func TestTokenSwap(t *testing.T) {
 			if partyBIbcForwarderAddress != "" {
 				addrs = append(addrs, partyBIbcForwarderAddress)
 			}
-			testCtx.FundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
-			testCtx.SkipBlocks(2)
+			testCtx.fundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
+			testCtx.skipBlocks(2)
 		})
 	})
 
@@ -494,12 +497,12 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("tick until forwarders create ICA", func(t *testing.T) {
 			for {
-				testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-				forwarderAState := testCtx.QueryContractState(partyAIbcForwarderAddress)
+				testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+				forwarderAState := testCtx.queryContractState(partyAIbcForwarderAddress)
 
 				if forwarderAState == "ica_created" {
-					partyADepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_a")
-					partyBDepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_b")
+					partyADepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_a")
+					partyBDepositAddress = testCtx.queryDepositAddress(covenantAddress, "party_b")
 					println("partyADepositAddress", partyADepositAddress)
 					println("partyBDepositAddress", partyBDepositAddress)
 					break
@@ -530,9 +533,9 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
 			for {
-				holderNeutronBal := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, holderAddress)
-				holderAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
-				holderState := testCtx.QueryContractState(holderAddress)
+				holderNeutronBal := testCtx.queryNeutronDenomBalance(cosmosNeutron.Config().Denom, holderAddress)
+				holderAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+				holderState := testCtx.queryContractState(holderAddress)
 
 				if holderAtomBal != 0 && holderNeutronBal != 0 {
 					println("holder atom bal: ", holderAtomBal)
@@ -548,8 +551,8 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("tick until holder sends the funds to splitter", func(t *testing.T) {
 			for {
-				splitterNeutronBal := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, splitterAddress)
-				splitterAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, splitterAddress)
+				splitterNeutronBal := testCtx.queryNeutronDenomBalance(cosmosNeutron.Config().Denom, splitterAddress)
+				splitterAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, splitterAddress)
 				println("splitterOsmoBal: ", splitterNeutronBal)
 				println("splitterAtomBal: ", splitterAtomBal)
 				if splitterAtomBal != 0 && splitterNeutronBal != 0 {
@@ -562,8 +565,8 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("tick until splitter sends the funds to routers", func(t *testing.T) {
 			for {
-				partyARouterNeutronBal := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyARouterAddress)
-				partyBRouterAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
+				partyARouterNeutronBal := testCtx.queryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyARouterAddress)
+				partyBRouterAtomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
 				println("partyARouterNeutronBal: ", partyARouterNeutronBal)
 				println("partyBRouterAtomBal: ", partyBRouterAtomBal)
 
@@ -577,8 +580,8 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("tick until routers route the funds to final receivers", func(t *testing.T) {
 			for {
-				neutronBal := testCtx.QueryHubDenomBalance(hubNeutronIbcDenom, hubReceiverAddr)
-				atomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, neutronReceiverAddr)
+				neutronBal := testCtx.queryHubDenomBalance(hubNeutronIbcDenom, hubReceiverAddr)
+				atomBal := testCtx.queryNeutronDenomBalance(neutronAtomIbcDenom, neutronReceiverAddr)
 				println("gaia user neutronBal: ", neutronBal)
 				println("neutron user atomBal: ", atomBal)
 				if neutronBal != 0 && atomBal != 0 {
