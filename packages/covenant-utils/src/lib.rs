@@ -590,13 +590,7 @@ impl DestinationConfig {
                     timeout_timestamp: current_timestamp
                         .plus_seconds(self.ibc_transfer_timeout.u64())
                         .nanos(),
-                    memo: format!(
-                        "{:?}:{:?}:ibc_distribution:{:?}",
-                        c.denom,
-                        c.amount,
-                        current_timestamp.to_string()
-                    )
-                    .to_string(),
+                    memo: format!("ibc_distribution: {:?}:{:?}", c.denom, c.amount,).to_string(),
                     fee: default_ibc_fee(),
                 }))
             }
