@@ -134,7 +134,7 @@ fn test_tick() {
             .time
             .plus_seconds(Uint64::new(10).u64())
             .nanos(),
-        memo: format!("ibc_distribution: denom1:{:?}", Uint128::new(100),),
+        memo: format!("ibc_distribution: denom1:{:?}", Uint128::new(100),).to_string(),
         fee: IbcFee {
             // must be empty
             recv_fee: vec![],
@@ -166,7 +166,6 @@ fn test_tick() {
     ];
 
     // assert the expected response attributes and messages
-    // assert_eq!(expected_messages, resp.messages);
     assert_eq!(expected_attributes, resp.attributes);
 
     // try to use the fallback method to distribute
@@ -215,11 +214,12 @@ fn test_tick() {
                         revision_height: None
                     },
                     timeout_timestamp: 1571797429879305533,
-                    memo: "hi".to_string(),
+                    memo: format!("ibc_distribution: {:?}:{:?}", "denom1", Uint128::new(100),)
+                        .to_string(),
                     fee: IbcFee {
                         recv_fee: vec![],
-                        ack_fee: vec![cosmwasm_std::coin(1000, "untrn".to_string())],
-                        timeout_fee: vec![cosmwasm_std::coin(1000, "untrn".to_string())],
+                        ack_fee: vec![cosmwasm_std::coin(100000, "untrn".to_string())],
+                        timeout_fee: vec![cosmwasm_std::coin(100000, "untrn".to_string())],
                     },
                 },),
                 gas_limit: None,
