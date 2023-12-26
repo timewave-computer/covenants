@@ -105,12 +105,8 @@ jobs:
         uses: extractions/setup-just@v1
 
       - name: two party POL native & interchain parties
-        run: mkdir -p interchaintest/two-party-pol/wasms && cp -R artifacts/*.wasm interchaintest/two-party-pol/wasms && cp -R interchaintest/wasms/astroport/*.wasm interchaintest/two-party-pol/wasms && just local-e2e two-party-pol TestTwoPartyNativePartyPol
-
-      - name: sleep for 30 seconds
-        run: sleep 30s
-        shell: bash
+        run: mkdir interchaintest/swap/wasms && cp -R artifacts/*.wasm interchaintest/swap/wasms && just local-e2e two-party-pol TestTwoPartyNativePartyPol
 
       - name: two party POL two interchain parties
-        run: mkdir -p interchaintest/two-party-pol/wasms && cp -R artifacts/*.wasm interchaintest/two-party-pol/wasms && cp -R interchaintest/wasms/astroport/*.wasm interchaintest/two-party-pol/wasms && just local-e2e two-party-pol TestTwoPartyPol
+        run: mkdir interchaintest/swap/wasms && cp -R artifacts/*.wasm interchaintest/swap/wasms && just local-e2e two-party-pol TestTwoPartyPol
 
