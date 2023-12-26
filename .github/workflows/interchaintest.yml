@@ -104,5 +104,9 @@ jobs:
       - name: setup just
         uses: extractions/setup-just@v1
 
-      - name: two party POL covenant
-        run: just two-party-pol-covenant
+      - name: two party POL native & interchain parties
+        run: mkdir interchaintest/swap/wasms && cp -R artifacts/*.wasm interchaintest/swap/wasms && just local-e2e two-party-pol TestTwoPartyNativePartyPol
+
+      - name: two party POL two interchain parties
+        run: mkdir interchaintest/swap/wasms && cp -R artifacts/*.wasm interchaintest/swap/wasms && just local-e2e two-party-pol TestTwoPartyPol
+
