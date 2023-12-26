@@ -1,4 +1,4 @@
-package covenant_swap
+package ibc_test
 
 import (
 	"context"
@@ -15,7 +15,6 @@ import (
 	"github.com/strangelove-ventures/interchaintest/v4/testreporter"
 	"github.com/strangelove-ventures/interchaintest/v4/testutil"
 	"github.com/stretchr/testify/require"
-	utils "github.com/timewave-computer/covenants/interchaintest/utils"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest"
 )
@@ -74,7 +73,7 @@ func TestTokenSwap(t *testing.T) {
 			ChainConfig: ibc.ChainConfig{
 				GasAdjustment:       1.3,
 				GasPrices:           "0.0atom",
-				ModifyGenesis:       utils.SetupGaiaGenesis(utils.GetDefaultInterchainGenesisMessages()),
+				ModifyGenesis:       setupGaiaGenesis(getDefaultInterchainGenesisMessages()),
 				ConfigFileOverrides: configFileOverrides,
 			},
 		},
@@ -97,11 +96,11 @@ func TestTokenSwap(t *testing.T) {
 				GasAdjustment:  1.3,
 				TrustingPeriod: "1197504s",
 				NoHostMount:    false,
-				ModifyGenesis: utils.SetupNeutronGenesis(
+				ModifyGenesis: setupNeutronGenesis(
 					"0.05",
 					[]string{nativeNtrnDenom},
 					[]string{nativeAtomDenom},
-					utils.GetDefaultNeutronInterchainGenesisMessages(),
+					getDefaultNeutronInterchainGenesisMessages(),
 				),
 				ConfigFileOverrides: configFileOverrides,
 			},
@@ -114,8 +113,8 @@ func TestTokenSwap(t *testing.T) {
 				Bin:          "osmosisd",
 				Bech32Prefix: "osmo",
 				Denom:        nativeOsmoDenom,
-				ModifyGenesis: utils.SetupOsmoGenesis(
-					append(utils.GetDefaultInterchainGenesisMessages(), "/ibc.applications.interchain_accounts.v1.InterchainAccount"),
+				ModifyGenesis: setupOsmoGenesis(
+					append(getDefaultInterchainGenesisMessages(), "/ibc.applications.interchain_accounts.v1.InterchainAccount"),
 				),
 				GasPrices:     "0.0uosmo",
 				GasAdjustment: 1.3,
@@ -202,7 +201,7 @@ func TestTokenSwap(t *testing.T) {
 	err = testutil.WaitForBlocks(ctx, 10, atom, neutron, osmosis)
 	require.NoError(t, err, "failed to wait for blocks")
 
-	testCtx := &utils.TestContext{
+	testCtx := &TestContext{
 		Neutron:                   cosmosNeutron,
 		Hub:                       cosmosAtom,
 		Osmosis:                   cosmosOsmosis,
@@ -217,21 +216,21 @@ func TestTokenSwap(t *testing.T) {
 		OsmoTransferChannelIds:    make(map[string]string),
 		GaiaIcsChannelIds:         make(map[string]string),
 		NeutronIcsChannelIds:      make(map[string]string),
-		T:                         t,
-		Ctx:                       ctx,
+		t:                         t,
+		ctx:                       ctx,
 	}
 
 	t.Run("generate IBC paths", func(t *testing.T) {
-		utils.GeneratePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosNeutron.Config().ChainID, gaiaNeutronIBCPath)
-		utils.GeneratePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosOsmosis.Config().ChainID, gaiaOsmosisIBCPath)
-		utils.GeneratePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosOsmosis.Config().ChainID, neutronOsmosisIBCPath)
-		utils.GeneratePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosAtom.Config().ChainID, gaiaNeutronICSPath)
+		generatePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosNeutron.Config().ChainID, gaiaNeutronIBCPath)
+		generatePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosOsmosis.Config().ChainID, gaiaOsmosisIBCPath)
+		generatePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosOsmosis.Config().ChainID, neutronOsmosisIBCPath)
+		generatePath(t, ctx, r, eRep, cosmosNeutron.Config().ChainID, cosmosAtom.Config().ChainID, gaiaNeutronICSPath)
 	})
 
 	t.Run("setup neutron-gaia ICS", func(t *testing.T) {
-		utils.GenerateClient(t, ctx, testCtx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
-		neutronClients := testCtx.GetChainClients(cosmosNeutron.Config().Name)
-		atomClients := testCtx.GetChainClients(cosmosAtom.Config().Name)
+		generateClient(t, ctx, testCtx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
+		neutronClients := testCtx.getChainClients(cosmosNeutron.Config().Name)
+		atomClients := testCtx.getChainClients(cosmosAtom.Config().Name)
 
 		require.NoError(t,
 			r.UpdatePath(ctx, eRep, gaiaNeutronICSPath, ibc.PathUpdateOptions{
@@ -240,24 +239,24 @@ func TestTokenSwap(t *testing.T) {
 			}),
 		)
 
-		atomNeutronICSConnectionId, neutronAtomICSConnectionId = utils.GenerateConnections(t, ctx, testCtx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
-		utils.GenerateICSChannel(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
-		utils.CreateValidator(t, ctx, r, eRep, atom, neutron)
-		testCtx.SkipBlocks(3)
+		atomNeutronICSConnectionId, neutronAtomICSConnectionId = generateConnections(t, ctx, testCtx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
+		generateICSChannel(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
+		createValidator(t, ctx, r, eRep, atom, neutron)
+		testCtx.skipBlocks(3)
 	})
 
 	t.Run("setup IBC interchain clients, connections, and links", func(t *testing.T) {
-		utils.GenerateClient(t, ctx, testCtx, r, eRep, neutronOsmosisIBCPath, cosmosNeutron, cosmosOsmosis)
-		neutronOsmosisIBCConnId, osmosisNeutronIBCConnId = utils.GenerateConnections(t, ctx, testCtx, r, eRep, neutronOsmosisIBCPath, cosmosNeutron, cosmosOsmosis)
-		utils.LinkPath(t, ctx, r, eRep, cosmosNeutron, cosmosOsmosis, neutronOsmosisIBCPath)
+		generateClient(t, ctx, testCtx, r, eRep, neutronOsmosisIBCPath, cosmosNeutron, cosmosOsmosis)
+		neutronOsmosisIBCConnId, osmosisNeutronIBCConnId = generateConnections(t, ctx, testCtx, r, eRep, neutronOsmosisIBCPath, cosmosNeutron, cosmosOsmosis)
+		linkPath(t, ctx, r, eRep, cosmosNeutron, cosmosOsmosis, neutronOsmosisIBCPath)
 
-		utils.GenerateClient(t, ctx, testCtx, r, eRep, gaiaOsmosisIBCPath, cosmosAtom, cosmosOsmosis)
-		gaiaOsmosisIBCConnId, osmosisGaiaIBCConnId = utils.GenerateConnections(t, ctx, testCtx, r, eRep, gaiaOsmosisIBCPath, cosmosAtom, cosmosOsmosis)
-		utils.LinkPath(t, ctx, r, eRep, cosmosAtom, cosmosOsmosis, gaiaOsmosisIBCPath)
+		generateClient(t, ctx, testCtx, r, eRep, gaiaOsmosisIBCPath, cosmosAtom, cosmosOsmosis)
+		gaiaOsmosisIBCConnId, osmosisGaiaIBCConnId = generateConnections(t, ctx, testCtx, r, eRep, gaiaOsmosisIBCPath, cosmosAtom, cosmosOsmosis)
+		linkPath(t, ctx, r, eRep, cosmosAtom, cosmosOsmosis, gaiaOsmosisIBCPath)
 
-		utils.GenerateClient(t, ctx, testCtx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
-		atomNeutronIBCConnId, neutronAtomIBCConnId = utils.GenerateConnections(t, ctx, testCtx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
-		utils.LinkPath(t, ctx, r, eRep, cosmosAtom, cosmosNeutron, gaiaNeutronIBCPath)
+		generateClient(t, ctx, testCtx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
+		atomNeutronIBCConnId, neutronAtomIBCConnId = generateConnections(t, ctx, testCtx, r, eRep, gaiaNeutronIBCPath, cosmosAtom, cosmosNeutron)
+		linkPath(t, ctx, r, eRep, cosmosAtom, cosmosNeutron, gaiaNeutronIBCPath)
 	})
 
 	// Start the relayer and clean it up when the test ends.
@@ -270,7 +269,7 @@ func TestTokenSwap(t *testing.T) {
 		}
 	})
 
-	testCtx.SkipBlocks(2)
+	testCtx.skipBlocks(2)
 
 	// Once the VSC packet has been relayed, x/bank transfers are
 	// enabled on Neutron and we can fund its account.
@@ -286,10 +285,7 @@ func TestTokenSwap(t *testing.T) {
 	var neutronReceiverAddr string
 	var hubReceiverAddr string
 
-	var neutronReceiverAddr string
-	var hubReceiverAddr string
-
-	testCtx.SkipBlocks(10)
+	testCtx.skipBlocks(10)
 
 	t.Run("determine ibc channels", func(t *testing.T) {
 		neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
@@ -297,26 +293,26 @@ func TestTokenSwap(t *testing.T) {
 		osmoChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosOsmosis.Config().ChainID)
 
 		// Find all pairwise channels
-		utils.GetPairwiseTransferChannelIds(testCtx, osmoChannelInfo, neutronChannelInfo, osmosisNeutronIBCConnId, neutronOsmosisIBCConnId, osmosis.Config().Name, neutron.Config().Name)
-		utils.GetPairwiseTransferChannelIds(testCtx, osmoChannelInfo, gaiaChannelInfo, osmosisGaiaIBCConnId, gaiaOsmosisIBCConnId, osmosis.Config().Name, cosmosAtom.Config().Name)
-		utils.GetPairwiseTransferChannelIds(testCtx, gaiaChannelInfo, neutronChannelInfo, atomNeutronIBCConnId, neutronAtomIBCConnId, cosmosAtom.Config().Name, neutron.Config().Name)
-		utils.GetPairwiseCCVChannelIds(testCtx, gaiaChannelInfo, neutronChannelInfo, atomNeutronICSConnectionId, neutronAtomICSConnectionId, cosmosAtom.Config().Name, cosmosNeutron.Config().Name)
+		getPairwiseTransferChannelIds(testCtx, osmoChannelInfo, neutronChannelInfo, osmosisNeutronIBCConnId, neutronOsmosisIBCConnId, osmosis.Config().Name, neutron.Config().Name)
+		getPairwiseTransferChannelIds(testCtx, osmoChannelInfo, gaiaChannelInfo, osmosisGaiaIBCConnId, gaiaOsmosisIBCConnId, osmosis.Config().Name, cosmosAtom.Config().Name)
+		getPairwiseTransferChannelIds(testCtx, gaiaChannelInfo, neutronChannelInfo, atomNeutronIBCConnId, neutronAtomIBCConnId, cosmosAtom.Config().Name, neutron.Config().Name)
+		getPairwiseCCVChannelIds(testCtx, gaiaChannelInfo, neutronChannelInfo, atomNeutronICSConnectionId, neutronAtomICSConnectionId, cosmosAtom.Config().Name, cosmosNeutron.Config().Name)
 	})
 
 	t.Run("determine ibc denoms", func(t *testing.T) {
 		// We can determine the ibc denoms of:
 		// 1. ATOM on Neutron
-		neutronAtomIbcDenom = testCtx.GetIbcDenom(
+		neutronAtomIbcDenom = testCtx.getIbcDenom(
 			testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 			nativeAtomDenom,
 		)
 		// 2. Osmo on neutron
-		neutronOsmoIbcDenom = testCtx.GetIbcDenom(
+		neutronOsmoIbcDenom = testCtx.getIbcDenom(
 			testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
 			nativeOsmoDenom,
 		)
 		// 3. hub atom => neutron => osmosis
-		osmoNeutronAtomIbcDenom = testCtx.GetMultihopIbcDenom(
+		osmoNeutronAtomIbcDenom = testCtx.getMultihopIbcDenom(
 			[]string{
 				testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
 				testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
@@ -324,7 +320,7 @@ func TestTokenSwap(t *testing.T) {
 			nativeAtomDenom,
 		)
 		// 4. osmosis osmo => neutron => hub
-		gaiaNeutronOsmoIbcDenom = testCtx.GetMultihopIbcDenom(
+		gaiaNeutronOsmoIbcDenom = testCtx.getMultihopIbcDenom(
 			[]string{
 				testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 				testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
@@ -460,18 +456,18 @@ func TestTokenSwap(t *testing.T) {
 				Splits: splits,
 			}
 
-			covenantAddress = testCtx.ManualInstantiate(covenantCodeId, covenantMsg, neutronUser, keyring.BackendTest)
+			covenantAddress = testCtx.manualInstantiate(strconv.FormatUint(covenantCodeId, 10), covenantMsg, neutronUser, keyring.BackendTest)
 			println("covenant address: ", covenantAddress)
 		})
 
 		t.Run("query covenant contracts", func(t *testing.T) {
-			clockAddress = testCtx.QueryClockAddress(covenantAddress)
-			holderAddress = testCtx.QueryHolderAddress(covenantAddress)
-			splitterAddress = testCtx.QueryInterchainSplitterAddress(covenantAddress)
-			partyARouterAddress = testCtx.QueryInterchainRouterAddress(covenantAddress, "party_a")
-			partyBRouterAddress = testCtx.QueryInterchainRouterAddress(covenantAddress, "party_b")
-			partyAIbcForwarderAddress = testCtx.QueryIbcForwarderAddress(covenantAddress, "party_a")
-			partyBIbcForwarderAddress = testCtx.QueryIbcForwarderAddress(covenantAddress, "party_b")
+			clockAddress = testCtx.queryClockAddress(covenantAddress)
+			holderAddress = testCtx.queryHolderAddress(covenantAddress)
+			splitterAddress = testCtx.queryInterchainSplitterAddress(covenantAddress)
+			partyARouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_a")
+			partyBRouterAddress = testCtx.queryInterchainRouterAddress(covenantAddress, "party_b")
+			partyAIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_a")
+			partyBIbcForwarderAddress = testCtx.queryIbcForwarderAddress(covenantAddress, "party_b")
 		})
 
 		t.Run("fund contracts with neutron", func(t *testing.T) {
@@ -528,7 +524,7 @@ func TestTokenSwap(t *testing.T) {
 				}),
 				"failed to fund gaia forwarder",
 			)
-			testCtx.SkipBlocks(5)
+			testCtx.skipBlocks(5)
 		})
 
 		t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
@@ -544,7 +540,7 @@ func TestTokenSwap(t *testing.T) {
 				} else if holderState == "complete" {
 					println("holder state: ", holderState)
 				} else {
-					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
 		})
@@ -558,7 +554,7 @@ func TestTokenSwap(t *testing.T) {
 				if splitterAtomBal != 0 && splitterNeutronBal != 0 {
 					break
 				} else {
-					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
 		})
@@ -573,7 +569,7 @@ func TestTokenSwap(t *testing.T) {
 				if partyARouterNeutronBal != 0 && partyBRouterAtomBal != 0 {
 					break
 				} else {
-					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
 		})
@@ -587,7 +583,7 @@ func TestTokenSwap(t *testing.T) {
 				if neutronBal != 0 && atomBal != 0 {
 					break
 				} else {
-					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+					testCtx.tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
 		})
