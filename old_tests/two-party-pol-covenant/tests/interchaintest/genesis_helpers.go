@@ -120,7 +120,7 @@ func GetDefaultInterchainGenesisMessages() []string {
 	}
 }
 
-func GetDefaultNeutronInterchainGenesisMessages() []string {
+func getDefaultNeutronInterchainGenesisMessages() []string {
 	return []string{
 		"/cosmos.bank.v1beta1.MsgSend",
 		"/cosmos.bank.v1beta1.MsgMultiSend",
@@ -134,13 +134,10 @@ func GetDefaultNeutronInterchainGenesisMessages() []string {
 		"/ibc.applications.transfer.v1.MsgTransfer",
 		"/ibc.lightclients.localhost.v2.ClientState",
 		"/ibc.core.client.v1.MsgCreateClient",
-		"/ibc.core.client.v1.Query/ClientState",
-		"/ibc.core.client.v1.Query/ConsensusState",
-		"/ibc.core.connection.v1.Query/Connection",
 	}
 }
 
-func SetupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
+func setupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
 		g := make(map[string]interface{})
 		if err := json.Unmarshal(genbz, &g); err != nil {

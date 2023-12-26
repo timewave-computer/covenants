@@ -520,8 +520,8 @@ func TestTwoPartyPol(t *testing.T) {
 					AtHeight: &depositBlock,
 				}
 				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
+					AckFee:     "10000",
+					TimeoutFee: "10000",
 				}
 
 				atomCoin := Coin{
@@ -808,7 +808,7 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				currentHeight := testCtx.GetNeutronHeight()
-				depositBlock := Block(currentHeight + 250)
+				depositBlock := Block(currentHeight + 200)
 				lockupBlock := Block(currentHeight + 300)
 
 				lockupConfig := Expiration{
@@ -818,8 +818,8 @@ func TestTwoPartyPol(t *testing.T) {
 					AtHeight: &depositBlock,
 				}
 				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
+					AckFee:     "10000",
+					TimeoutFee: "10000",
 				}
 
 				atomCoin := Coin{
@@ -1357,8 +1357,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				currentHeight := testCtx.GetNeutronHeight()
-				depositBlock := Block(currentHeight + 200)
-				lockupBlock := Block(currentHeight + 220)
+				depositBlock := Block(currentHeight + 180)
+				lockupBlock := Block(currentHeight + 180)
 				expirationHeight = lockupBlock
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1367,8 +1367,8 @@ func TestTwoPartyPol(t *testing.T) {
 					AtHeight: &depositBlock,
 				}
 				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
+					AckFee:     "10000",
+					TimeoutFee: "10000",
 				}
 
 				atomCoin := Coin{

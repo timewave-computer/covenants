@@ -65,16 +65,6 @@ func SetupNeutronGenesis(
 			return nil, fmt.Errorf("failed to set min gas entries in genesis json: %w", err)
 		}
 
-		out, err := json.Marshal(g)
-
-		minGasEntries := []interface{}{
-			map[string]string{"denom": "untrn", "amount": "0"},
-		}
-
-		if err := dyno.Set(g, minGasEntries, "app_state", "globalfee", "params", "minimum_gas_prices"); err != nil {
-			return nil, fmt.Errorf("failed to set min gas entries in genesis json: %w", err)
-		}
-
 		if err := dyno.Set(g, "neutron1ctnjk7an90lz5wjfvr3cf6x984a8cjnv8dpmztmlpcq4xteaa2xsj6vhez", "app_state", "tokenfactory", "params", "fee_collector_address"); err != nil {
 			return nil, fmt.Errorf("failed to set fee_collector_address in genesis json: %w", err)
 		}
