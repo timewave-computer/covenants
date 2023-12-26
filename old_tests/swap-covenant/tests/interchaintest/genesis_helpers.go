@@ -120,7 +120,7 @@ func GetDefaultInterchainGenesisMessages() []string {
 	}
 }
 
-func GetDefaultNeutronInterchainGenesisMessages() []string {
+func getDefaultNeutronInterchainGenesisMessages() []string {
 	return []string{
 		"/cosmos.bank.v1beta1.MsgSend",
 		"/cosmos.bank.v1beta1.MsgMultiSend",
@@ -140,7 +140,7 @@ func GetDefaultNeutronInterchainGenesisMessages() []string {
 	}
 }
 
-func SetupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
+func setupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
 	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
 		g := make(map[string]interface{})
 		if err := json.Unmarshal(genbz, &g); err != nil {
