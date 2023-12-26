@@ -81,7 +81,7 @@ jobs:
         uses: extractions/setup-just@v1
 
       - name: swap covenant
-        run: mkdir -p interchaintest/swap/wasms && cp -R artifacts/*.wasm interchaintest/swap/wasms && just local-e2e swap TestTokenSwap
+        run: cp -R artifacts/*.wasm interchaintest/swap/wasms && just local-e2e swap TestTokenSwap
 
 
   two-party-pol-covenant:

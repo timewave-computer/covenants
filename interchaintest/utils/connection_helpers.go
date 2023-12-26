@@ -54,11 +54,10 @@ func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
 		"-y",
 	}
 
-	tickResponse, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
-	require.NoError(testCtx.t, err)
-	println("tick response: ", string(tickResponse))
-	println("\n")
-	testCtx.skipBlocks(3)
+	tickresponse, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
+	require.NoError(testCtx.T, err)
+	println("tick reponse: ", string(tickresponse))
+	testCtx.SkipBlocks(3)
 }
 
 func (testCtx *TestContext) SkipBlocks(n uint64) {
@@ -512,7 +511,7 @@ func (testCtx *TestContext) QueryClockAddress(contract string) string {
 		err,
 		"failed to query clock address",
 	)
-	println("clock address: ", response.Data)
+	println("clock addr: ", response.Data)
 	return response.Data
 }
 
@@ -535,24 +534,11 @@ func (testCtx *TestContext) QueryHolderAddress(contract string) string {
 		err,
 		"failed to query holder address",
 	)
-	println("holder address: ", response.Data)
+	println("holder addr: ", response.Data)
 	return response.Data
 }
 
-func (testCtx *TestContext) queryLiquidPoolerAddress(contract string) string {
-	var response CovenantAddressQueryResponse
-
-	err := testCtx.Neutron.QueryContract(testCtx.ctx, contract, LiquidPoolerQuery{}, &response)
-	require.NoError(
-		testCtx.t,
-		err,
-		"failed to query liquid pooler address",
-	)
-	println("liquid pooler address: ", response.Data)
-	return response.Data
-}
-
-func (testCtx *TestContext) queryIbcForwarderAddress(contract string, party string) string {
+func (testCtx *TestContext) QueryIbcForwarderAddress(contract string, party string) string {
 	var response CovenantAddressQueryResponse
 	query := IbcForwarderQuery{
 		Party: Party{
@@ -565,7 +551,7 @@ func (testCtx *TestContext) queryIbcForwarderAddress(contract string, party stri
 		err,
 		"failed to query ibc forwarder address",
 	)
-	println(party, " ibc forwarder address: ", response.Data)
+	println(party, " forwarder addr: ", response.Data)
 	return response.Data
 }
 
@@ -592,7 +578,8 @@ func (testCtx *TestContext) QueryInterchainRouterAddress(contract string, party 
 		err,
 		"failed to query interchain router address",
 	)
-	println(party, " interchain router address: ", response.Data)
+	println(party, " router addr: ", response.Data)
+
 	return response.Data
 }
 
@@ -642,7 +629,11 @@ func (testCtx *TestContext) QueryContractState(contract string) string {
 	return response.Data
 }
 
-func (testCtx *TestContext) queryDepositAddress(covenant string, party string) string {
+type CovenantAddressQueryResponse struct {
+	Data string `json:"data"`
+}
+
+func (testCtx *TestContext) QueryDepositAddress(covenant string, party string) string {
 	var depositAddressResponse CovenantAddressQueryResponse
 
 	type PartyDepositAddress struct {
@@ -657,68 +648,16 @@ func (testCtx *TestContext) queryDepositAddress(covenant string, party string) s
 		},
 	}
 
-	err := testCtx.Neutron.QueryContract(testCtx.ctx, covenant, depositAddressQuery, &depositAddressResponse)
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, covenant, depositAddressQuery, &depositAddressResponse)
 	require.NoError(
 		testCtx.T,
 		err,
 		fmt.Sprintf("failed to query %s deposit address", party),
 	)
-	println(party, " deposit address: ", depositAddressResponse.Data)
 	return depositAddressResponse.Data
 }
 
-func (testCtx *TestContext) holderClaim(contract string, from *ibc.Wallet, keyring string) {
-
-	cmd := []string{"neutrond", "tx", "wasm", "execute", contract,
-		`{"claim":{}}`,
-		"--from", from.GetKeyName(),
-		"--gas-prices", "0.0untrn",
-		"--gas-adjustment", `1.5`,
-		"--output", "json",
-		"--node", testCtx.Neutron.GetRPCAddress(),
-		"--home", testCtx.Neutron.HomeDir(),
-		"--chain-id", testCtx.Neutron.Config().ChainID,
-		"--gas", "42069420",
-		"--keyring-backend", keyring,
-		"-y",
-	}
-
-	resp, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
-	require.NoError(testCtx.t, err, "claim failed")
-	println("claim response: ", string(resp))
-	require.NoError(testCtx.t,
-		testutil.WaitForBlocks(testCtx.ctx, 2, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
-
-}
-
-func (testCtx *TestContext) holderRagequit(contract string, from *ibc.Wallet, keyring string) {
-
-	cmd := []string{"neutrond", "tx", "wasm", "execute", contract,
-		`{"ragequit":{}}`,
-		"--from", from.GetKeyName(),
-		"--gas-prices", "0.0untrn",
-		"--gas-adjustment", `1.5`,
-		"--output", "json",
-		"--node", testCtx.Neutron.GetRPCAddress(),
-		"--home", testCtx.Neutron.HomeDir(),
-		"--chain-id", testCtx.Neutron.Config().ChainID,
-		"--gas", "42069420",
-		"--keyring-backend", keyring,
-		"-y",
-	}
-
-	_, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
-	require.NoError(testCtx.t, err, "ragequit failed")
-}
-
-func (testCtx *TestContext) getNeutronHeight() uint64 {
-	currentHeight, err := testCtx.Neutron.Height(testCtx.ctx)
-	require.NoError(testCtx.t, err, "failed to get neutron height")
-	println("neutron height: ", currentHeight)
-	return currentHeight
-}
-
-func (testCtx *TestContext) manualInstantiate(codeId uint64, msg CovenantInstantiateMsg, from *ibc.Wallet, keyring string) string {
+func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.Wallet, keyring string) string {
 	codeIdStr := strconv.FormatUint(codeId, 10)
 
 	str, err := json.Marshal(msg)
@@ -727,7 +666,7 @@ func (testCtx *TestContext) manualInstantiate(codeId uint64, msg CovenantInstant
 
 	cmd := []string{"neutrond", "tx", "wasm", "instantiate", codeIdStr,
 		instantiateMsg,
-		"--label", fmt.Sprintf("two-party-pol-covenant-%s", codeIdStr),
+		"--label", fmt.Sprintf("covenant-%s", codeIdStr),
 		"--no-admin",
 		"--from", from.KeyName,
 		"--output", "json",
@@ -743,11 +682,11 @@ func (testCtx *TestContext) manualInstantiate(codeId uint64, msg CovenantInstant
 	println("covenant instantiation message:")
 	fmt.Println(string(prettyJson))
 
-	covInstantiationResp, _, err := testCtx.Neutron.Exec(testCtx.ctx, cmd, nil)
-	require.NoError(testCtx.t, err, "manual instantiation failed")
+	covInstantiationResp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
+	require.NoError(testCtx.T, err, "manual instantiation failed")
 	println("covenant instantiation response: ", string(covInstantiationResp))
-	require.NoError(testCtx.t,
-		testutil.WaitForBlocks(testCtx.ctx, 5, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
+	require.NoError(testCtx.T,
+		testutil.WaitForBlocks(testCtx.Ctx, 5, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
 
 	queryCmd := []string{"neutrond", "query", "wasm",
 		"list-contract-by-code", codeIdStr,
@@ -1085,51 +1024,8 @@ func (testCtx *TestContext) QueryLpTokenBalance(token string, addr string) uint6
 	return lpBal
 }
 
-func (testCtx *TestContext) queryNeutronDenomBalance(denom string, addr string) uint64 {
-	queryCmd := []string{"neutrond", "query", "bank",
-		"balances", addr,
-		"--denom", denom,
-		"--output", "json",
-		"--home", testCtx.Neutron.HomeDir(),
-		"--node", testCtx.Neutron.GetRPCAddress(),
-		"--chain-id", testCtx.Neutron.Config().ChainID,
-	}
-	var nativeBalanceResponse NativeBalQueryResponse
-
-	queryResp, _, err := testCtx.Neutron.Exec(testCtx.ctx, queryCmd, nil)
-	require.NoError(testCtx.t, err, "failed to query")
-
-	require.NoError(
-		testCtx.t,
-		json.Unmarshal(queryResp, &nativeBalanceResponse),
-		"failed to unmarshal json",
-	)
-	parsedBalance, err := strconv.ParseUint(nativeBalanceResponse.Amount, 10, 64)
-	require.NoError(testCtx.t, err, "failed to parse balance response to uint64")
-	return parsedBalance
-}
-
-func (testCtx *TestContext) queryHubDenomBalance(denom string, addr string) uint64 {
-	bal, err := testCtx.Hub.GetBalance(testCtx.ctx, addr, denom)
-	require.NoError(testCtx.t, err, "failed to get hub denom balance")
-
-	uintBal := uint64(bal)
-	println(addr, " balance: (", denom, ",", uintBal, ")")
-	return uintBal
-}
-
-func (testCtx *TestContext) queryOsmosisDenomBalance(denom string, addr string) uint64 {
-	bal, err := testCtx.Osmosis.GetBalance(testCtx.ctx, addr, denom)
-	require.NoError(testCtx.t, err, "failed to get osmosis denom balance")
-
-	uintBal := uint64(bal)
-	return uintBal
-}
-
-func (testCtx *TestContext) getIbcDenom(channelId string, denom string) string {
-	prefixedDenom := transfertypes.GetPrefixedDenom("transfer", channelId, denom)
-	srcDenomTrace := transfertypes.ParseDenomTrace(prefixedDenom)
-	return srcDenomTrace.IBCDenom()
+type AllAccountsResponse struct {
+	Data []string `json:"all_accounts_response"`
 }
 
 type Cw20QueryMsg struct {
