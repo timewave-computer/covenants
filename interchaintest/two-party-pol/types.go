@@ -1,5 +1,9 @@
 package covenant_two_party_pol
 
+import (
+	cw "github.com/CosmWasm/wasmvm/types"
+)
+
 //////////////////////////////////////////////
 ///// Covenant contracts
 //////////////////////////////////////////////
@@ -407,4 +411,31 @@ type CallbackMessage struct {
 type Callback struct {
 	Success []string `json:"success,omitempty"`
 	Error   string   `json:"error,omitempty"`
+}
+
+type NoteExecuteMsg struct {
+	Msgs           []cw.CosmosMsg   `json:"msgs"`
+	TimeoutSeconds uint64           `json:"timeout_seconds,string"`
+	Callback       *CallbackRequest `json:"callback,omitempty"`
+}
+
+type NoteQuery struct {
+	Msgs           []cw.CosmosMsg  `json:"msgs"`
+	TimeoutSeconds uint64          `json:"timeout_seconds,string"`
+	Callback       CallbackRequest `json:"callback"`
+}
+
+type NoteExecute struct {
+	Query   *NoteQuery      `json:"query,omitempty"`
+	Execute *NoteExecuteMsg `json:"execute,omitempty"`
+}
+
+type RemoteAddress struct {
+	LocalAddress string `json:"local_address"`
+}
+type NoteQueryMsg struct {
+	RemoteAddressQuery RemoteAddress `json:"remote_address"`
+}
+
+type TesterInstantiate struct {
 }
