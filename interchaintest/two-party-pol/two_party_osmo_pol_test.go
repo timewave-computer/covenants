@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	cw "github.com/CosmWasm/wasmvm/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	ibctest "github.com/strangelove-ventures/interchaintest/v4"
 	"github.com/strangelove-ventures/interchaintest/v4/chain/cosmos"
@@ -180,6 +182,11 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 		Ctx:                       ctx,
 	}
 
+	var noteAddress string
+	var voiceAddress string
+	var testerAddress string
+	var listenerAddress string
+
 	testCtx.SkipBlocks(5)
 
 	t.Run("generate IBC paths", func(t *testing.T) {
@@ -330,6 +337,9 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 		var noteCodeId uint64
 		var voiceCodeId uint64
 		var proxyCodeId uint64
+		var testerCodeId uint64
+		var listenerCodeId uint64
+
 		_, _, _, _, _ = clockCodeId, routerCodeId, ibcForwarderCodeId, holderCodeId, lperCodeId
 		_, _, _ = covenantCodeId, covenantRqCodeId, covenantSideBasedRqCodeId
 
@@ -362,14 +372,20 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			const polytoneNotePath = "wasms/polytone_note.wasm"
 			const polytoneVoicePath = "wasms/polytone_voice.wasm"
 			const polytoneProxyPath = "wasms/polytone_proxy.wasm"
+			const polytoneTesterPath = "wasms/polytone_tester.wasm"
+			const polytoneListenerPath = "wasms/polytone_listener.wasm"
 
 			noteCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, polytoneNotePath)
+			listenerCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, polytoneListenerPath)
 			voiceCodeId = testCtx.StoreContract(cosmosOsmosis, osmoUser, polytoneVoicePath)
 			proxyCodeId = testCtx.StoreContract(cosmosOsmosis, osmoUser, polytoneProxyPath)
+			testerCodeId = testCtx.StoreContract(cosmosOsmosis, osmoUser, polytoneTesterPath)
 
 			println("noteCodeId: ", noteCodeId)
+			println("listenerCodeId: ", listenerCodeId)
 			println("voiceCodeId: ", voiceCodeId)
 			println("proxyCodeId: ", proxyCodeId)
+			println("testerCodeId: ", testerCodeId)
 		})
 
 		t.Run("add liquidity to osmo-atom pool", func(t *testing.T) {
@@ -400,8 +416,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
 				osmosisAtomIbcDenom,
 			)
-			println("osmoBal: ", osmoBal)
-			println("atomBal: ", atomBal)
 
 			osmosisPoolInitConfig := cosmos.OsmosisPoolParams{
 				Weights:        fmt.Sprintf("10%s,1%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
@@ -410,7 +424,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				ExitFee:        "0.00",
 				FutureGovernor: "",
 			}
-			println("osmo pool init deposit: ", osmosisPoolInitConfig.InitialDeposit)
 
 			// this fails because of wrong gas being set in interchaintest
 			// underlying `ExecTx` call. we call this just to write the
@@ -454,23 +467,23 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			require.NoError(testCtx.T, err, err)
 			poolId := res["num_pools"]
 			println("pool id: ", poolId)
-			osmoBal, _ = testCtx.Osmosis.GetBalance(
+			newOsmoBal, _ := testCtx.Osmosis.GetBalance(
 				testCtx.Ctx,
 				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
 				"uosmo",
 			)
-			atomBal, _ = testCtx.Osmosis.GetBalance(
+			newAtomBal, _ := testCtx.Osmosis.GetBalance(
 				testCtx.Ctx,
 				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
 				osmosisAtomIbcDenom,
 			)
 
-			println("osmoBal: ", osmoBal)
-			println("atomBal: ", atomBal)
+			println("deposited osmo: ", osmoBal-newOsmoBal)
+			println("deposited atom: ", atomBal-newAtomBal)
 			testCtx.SkipBlocks(5)
 		})
 
-		t.Run("instantiate polytone note on neutron", func(t *testing.T) {
+		t.Run("instantiate polytone note and listener on neutron", func(t *testing.T) {
 			noteInstantiateMsg := NoteInstantiate{
 				// Pair: &PolytonePair{
 				// 	ConnectionId: neutronOsmosisIBCConnId,
@@ -479,22 +492,91 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				BlockMaxGas: "301000",
 			}
 
-			noteAddress := testCtx.InstantiateCmdExecNeutron(noteCodeId, "note", noteInstantiateMsg, neutronUser, keyring.BackendTest)
-			println("note addres: ", noteAddress)
+			noteAddress = testCtx.InstantiateCmdExecNeutron(noteCodeId, "note", noteInstantiateMsg, neutronUser, keyring.BackendTest)
+			println("note address: ", noteAddress)
+
+			type ListenerInstantiateMsg struct {
+				Note string `json:"note"`
+			}
+			listenerInstantiateMsg := ListenerInstantiateMsg{
+				Note: noteAddress,
+			}
+			listenerAddress = testCtx.InstantiateCmdExecNeutron(listenerCodeId, "listener", listenerInstantiateMsg, neutronUser, keyring.BackendTest)
+			println("listener address: ", listenerAddress)
+		})
+
+		t.Run("instantiate polytone voice and tester on osmosis", func(t *testing.T) {
+
+			voiceInstantiateMsg := VoiceInstantiate{
+				ProxyCodeId: proxyCodeId,
+				BlockMaxGas: 301000,
+			}
+
+			voiceAddress = testCtx.InstantiateCmdExecOsmo(voiceCodeId, "voice", voiceInstantiateMsg, osmoUser, keyring.BackendTest)
+			println("voice address: ", voiceAddress)
+
+			testerAddress = testCtx.InstantiateCmdExecOsmo(testerCodeId, "tester", TesterInstantiate{}, osmoUser, keyring.BackendTest)
+			println("tester address: ", testerAddress)
+		})
+
+		t.Run("create polytone channel", func(t *testing.T) {
+			preCreationNeutronChannels, err := r.GetChannels(testCtx.Ctx, eRep, cosmosNeutron.Config().ChainID)
+			require.NoError(testCtx.T, err, err)
+			preCreationOsmosisChannels, err := r.GetChannels(testCtx.Ctx, eRep, cosmosOsmosis.Config().ChainID)
+			require.NoError(testCtx.T, err, err)
+			utils.PrintChannels(preCreationNeutronChannels, "neutron")
+			utils.PrintChannels(preCreationOsmosisChannels, "osmosis")
+
+			println("\n creating polytone channel \n")
+			err = r.CreateChannel(
+				testCtx.Ctx,
+				eRep,
+				neutronOsmosisIBCPath,
+				ibc.CreateChannelOptions{
+					SourcePortName: fmt.Sprintf("wasm.%s", noteAddress),
+					DestPortName:   fmt.Sprintf("wasm.%s", voiceAddress),
+					Order:          ibc.Unordered,
+					Version:        "polytone-1",
+					Override:       false,
+				},
+			)
+			require.NoError(testCtx.T, err, err)
+			testCtx.SkipBlocks(10)
+
+			// err = r.LinkPath(testCtx.Ctx, eRep, neutronOsmosisIBCPath,
+			// 	ibc.CreateChannelOptions{
+			// 		SourcePortName: fmt.Sprintf("wasm.%s", noteAddress),
+			// 		DestPortName:   fmt.Sprintf("wasm.%s", voiceAddress),
+			// 		Order:          ibc.Unordered,
+			// 		Version:        "polytone-1",
+			// 		Override:       false,
+			// 	},
+			// 	ibc.DefaultClientOpts(),
+			// )
+			// require.NoError(testCtx.T, err, err)
+			// testCtx.SkipBlocks(5)
+
+			postCreationNeutronChannels, err := r.GetChannels(testCtx.Ctx, eRep, cosmosNeutron.Config().ChainID)
+			require.NoError(testCtx.T, err, err)
+			postCreationOsmosisChannels, err := r.GetChannels(testCtx.Ctx, eRep, cosmosOsmosis.Config().ChainID)
+			require.NoError(testCtx.T, err, err)
+			utils.PrintChannels(preCreationNeutronChannels, "neutron")
+			utils.PrintChannels(preCreationOsmosisChannels, "osmosis")
 
 			testCtx.SkipBlocks(5)
 
-			// query the remote address
-			type RemoteAddress struct {
-				LocalAddress string `json:"local_address"`
-			}
-			type NoteQuery struct {
-				RemoteAddressQuery RemoteAddress `json:"remote_address"`
-			}
+			newNeutronChannels := utils.ChannelDifference(preCreationNeutronChannels, postCreationNeutronChannels)
+			newOsmosisChannels := utils.ChannelDifference(preCreationOsmosisChannels, postCreationOsmosisChannels)
 
-			remoteAddrQuery := NoteQuery{
+			println("new neutron channels: ", strings.Join(newNeutronChannels, " "))
+			println("new osmosis channels: ", strings.Join(newOsmosisChannels, " "))
+		})
+
+		t.Run("query proxy address", func(t *testing.T) {
+			// query the remote address
+			remoteAddrQuery := NoteQueryMsg{
 				RemoteAddressQuery: RemoteAddress{
-					LocalAddress: noteAddress,
+					LocalAddress: neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 				},
 			}
 
@@ -502,37 +584,85 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				Data string `json:"data"`
 			}
 			var queryResponse QueryResponse
-			err := cosmosNeutron.QueryContract(ctx, noteAddress, remoteAddrQuery, &queryResponse)
+			err := testCtx.Neutron.QueryContract(testCtx.Ctx, noteAddress, remoteAddrQuery, &queryResponse)
 			require.NoError(t, err, err)
 			println("query response: ", queryResponse.Data)
 
-		})
+			testCtx.SkipBlocks(5)
 
-		t.Run("instantiate polytone voice and proxy on osmosis", func(t *testing.T) {
-
-			voiceInstantiateMsg := VoiceInstantiate{
-				ProxyCodeId: proxyCodeId,
-				BlockMaxGas: 301000,
+			noteCreateAccountMessage := NoteExecuteMsg{
+				Msgs:           []cw.CosmosMsg{},
+				TimeoutSeconds: 100,
+				Callback: &CallbackRequest{
+					Receiver: listenerAddress,
+					Msg:      "aGVsbG8K",
+				},
+			}
+			noteExecute := NoteExecute{
+				Execute: &noteCreateAccountMessage,
 			}
 
-			voiceAddr := testCtx.InstantiateCmdExecOsmo(voiceCodeId, "voice", voiceInstantiateMsg, osmoUser, keyring.BackendTest)
-			// voiceInstantiateStr, err := json.Marshal(voiceInstantiateMsg)
-			// require.NoError(t, err, err)
-			// voiceStr := strconv.FormatUint(voiceCodeId, 10)
+			testCtx.ManualExecNeutron(noteAddress, noteExecute, neutronUser, keyring.BackendTest)
 
-			// voiceAddr, err := cosmosOsmosis.InstantiateContract(
-			// 	testCtx.ctx,
-			// 	neutronUser.KeyName,
-			// 	voiceStr,
-			// 	string(voiceInstantiateStr),
-			// 	true,
-			// )
-			// require.NoError(t, err, err)
-			println("voice address: ", voiceAddr)
+			testCtx.SkipBlocks(10)
+
+			err = testCtx.Neutron.QueryContract(testCtx.Ctx, noteAddress, remoteAddrQuery, &queryResponse)
+			require.NoError(testCtx.T, err, err)
+			println("query response: ", queryResponse.Data)
 		})
 
-		t.Run("fund the proxy account with funds", func(t *testing.T) {
-			// TODO
+		t.Run("test ping message", func(t *testing.T) {
+			testerMsg := `{"hello": { "data": "aGVsbG8K" }}`
+
+			ibcMessage := cw.CosmosMsg{
+				Wasm: &cw.WasmMsg{
+					Execute: &cw.ExecuteMsg{
+						ContractAddr: testerAddress,
+						Msg:          []byte(testerMsg),
+						Funds:        []cw.Coin{},
+					},
+				},
+			}
+
+			noteMessage := NoteExecuteMsg{
+				Msgs:           []cw.CosmosMsg{ibcMessage},
+				TimeoutSeconds: 100,
+				// Callback: &CallbackRequest{
+				// 	Receiver: noteAddress,
+				// 	Msg:      "aGVsbG8K",
+				// },
+			}
+
+			noteExecute := NoteExecute{
+				Execute: &noteMessage,
+			}
+
+			marshalled, err := json.Marshal(noteExecute)
+			require.NoError(t, err, err)
+
+			callback, err := cosmosNeutron.ExecuteContract(
+				testCtx.Ctx,
+				neutronUser.KeyName,
+				noteAddress,
+				string(marshalled),
+			)
+			require.NoError(t, err, err)
+			testCtx.SkipBlocks(10)
+
+			println("callback: ", callback)
+			testCtx.SkipBlocks(10)
+			println("exec again:")
+			callback, err = cosmosNeutron.ExecuteContract(
+				testCtx.Ctx,
+				neutronUser.KeyName,
+				noteAddress,
+				string(marshalled),
+			)
+			require.NoError(t, err, err)
+			testCtx.SkipBlocks(10)
+			println("callback: ", callback)
+			testCtx.SkipBlocks(200)
+
 		})
 
 		t.Run("post message to enter the gamm pool on osmo to note", func(t *testing.T) {
