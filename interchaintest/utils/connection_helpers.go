@@ -60,10 +60,10 @@ func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
 	testCtx.SkipBlocks(3)
 }
 
-func (testCtx *TestContext) SkipBlocks(n uint64) {
+func (testCtx *TestContext) SkipBlocks(n int) {
 	require.NoError(
 		testCtx.T,
-		testutil.WaitForBlocks(testCtx.Ctx, 3, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis),
+		testutil.WaitForBlocks(testCtx.Ctx, n, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis),
 		"failed to wait for blocks")
 }
 
@@ -1187,6 +1187,29 @@ func (testCtx *TestContext) InstantiateCmdExecNeutron(codeId uint64, label strin
 	instantiatedAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
 
 	return instantiatedAddress
+}
+
+func (testCtx *TestContext) ManualExecNeutron(contract string, msg any, from *ibc.Wallet, keyring string) {
+
+	executeJson, err := json.Marshal(msg)
+	require.NoError(testCtx.T, err, err)
+
+	cmd := []string{"neutrond", "tx", "wasm", "execute", contract,
+		string(executeJson),
+		"--from", from.KeyName,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--gas", "900090000",
+		"--fees", "500001untrn",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+	stdout, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
+	require.NoError(testCtx.T, err, "manual execution failed")
+	testCtx.SkipBlocks(5)
+	println("manual execution response: ", string(stdout))
 }
 
 func (testCtx *TestContext) InstantiateCmdExecOsmo(codeId uint64, label string, msg any, from *ibc.Wallet, keyring string) string {
