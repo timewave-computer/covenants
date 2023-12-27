@@ -1140,3 +1140,100 @@ type Callback struct {
 	Success []string `json:"success,omitempty"`
 	Error   string   `json:"error,omitempty"`
 }
+
+func (testCtx *TestContext) InstantiateCmdExecNeutron(codeId uint64, label string, msg any, from *ibc.Wallet, keyring string) string {
+	codeIdStr := strconv.FormatUint(codeId, 10)
+
+	instantiateJson, err := json.Marshal(msg)
+	require.NoError(testCtx.T, err, err)
+
+	cmd := []string{"neutrond", "tx", "wasm", "instantiate", codeIdStr,
+		string(instantiateJson),
+		"--label", label,
+		"--no-admin",
+		"--from", from.KeyName,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--gas", "900090000",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+	stdout, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
+	require.NoError(testCtx.T, err, "manual instantiation failed")
+	testCtx.SkipBlocks(5)
+	println("manual instantiation response: ", string(stdout))
+
+	queryCmd := []string{"neutrond", "query", "wasm",
+		"list-contract-by-code", codeIdStr,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+	}
+
+	queryResp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, queryCmd, nil)
+	require.NoError(testCtx.T, err, "failed to query")
+
+	type QueryContractResponse struct {
+		Contracts  []string `json:"contracts"`
+		Pagination any      `json:"pagination"`
+	}
+
+	contactsRes := QueryContractResponse{}
+	require.NoError(testCtx.T, json.Unmarshal(queryResp, &contactsRes), "failed to unmarshal contract response")
+
+	instantiatedAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
+
+	return instantiatedAddress
+}
+
+func (testCtx *TestContext) InstantiateCmdExecOsmo(codeId uint64, label string, msg any, from *ibc.Wallet, keyring string) string {
+	codeIdStr := strconv.FormatUint(codeId, 10)
+
+	instantiateJson, err := json.Marshal(msg)
+	require.NoError(testCtx.T, err, err)
+
+	cmd := []string{"osmosisd", "tx", "wasm", "instantiate", codeIdStr,
+		string(instantiateJson),
+		"--label", label,
+		"--no-admin",
+		"--from", from.KeyName,
+		"--output", "json",
+		"--home", testCtx.Osmosis.HomeDir(),
+		"--node", testCtx.Osmosis.GetRPCAddress(),
+		"--chain-id", testCtx.Osmosis.Config().ChainID,
+		"--gas", "25000000",
+		"--fees", "500000uosmo",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+	stdout, _, err := testCtx.Osmosis.Exec(testCtx.Ctx, cmd, nil)
+	require.NoError(testCtx.T, err, "manual instantiation failed")
+	testCtx.SkipBlocks(5)
+	println("manual instantiation response: ", string(stdout))
+
+	queryCmd := []string{"osmosisd", "query", "wasm",
+		"list-contract-by-code", codeIdStr,
+		"--output", "json",
+		"--home", testCtx.Osmosis.HomeDir(),
+		"--node", testCtx.Osmosis.GetRPCAddress(),
+		"--chain-id", testCtx.Osmosis.Config().ChainID,
+	}
+
+	queryResp, _, err := testCtx.Osmosis.Exec(testCtx.Ctx, queryCmd, nil)
+	require.NoError(testCtx.T, err, "failed to query")
+
+	type QueryContractResponse struct {
+		Contracts  []string `json:"contracts"`
+		Pagination any      `json:"pagination"`
+	}
+
+	contactsRes := QueryContractResponse{}
+	require.NoError(testCtx.T, json.Unmarshal(queryResp, &contactsRes), "failed to unmarshal contract response")
+
+	instantiatedAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
+
+	return instantiatedAddress
+}
