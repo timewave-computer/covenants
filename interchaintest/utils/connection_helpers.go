@@ -491,6 +491,15 @@ func (testCtx *TestContext) QueryHubDenomBalance(denom string, addr string) uint
 	return uintBal
 }
 
+func (testCtx *TestContext) QueryOsmoDenomBalance(denom string, addr string) uint64 {
+	bal, err := testCtx.Osmosis.GetBalance(testCtx.Ctx, addr, denom)
+	require.NoError(testCtx.T, err, "failed to get osmosis denom balance")
+
+	uintBal := uint64(bal)
+	println(addr, " balance: (", denom, ",", uintBal, ")")
+	return uintBal
+}
+
 func (testCtx *TestContext) FundChainAddrs(addrs []string, chain *cosmos.CosmosChain, from *ibc.Wallet, amount int64) {
 	for i := 0; i < len(addrs); i++ {
 		err := chain.SendFunds(testCtx.Ctx, from.KeyName, ibc.WalletAmount{
