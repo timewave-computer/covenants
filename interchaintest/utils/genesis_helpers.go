@@ -262,6 +262,10 @@ func SetupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 			return nil, fmt.Errorf("failed to set modified gen_txs for genutil: %w", err)
 		}
 
+		if err := dyno.Set(g, "100000000", "consensus_params", "block", "max_gas"); err != nil {
+			return nil, fmt.Errorf("failed to set block max gas: %w", err)
+		}
+
 		out, err := json.Marshal(g)
 		println("osmo genesis:")
 		print(string(out))
