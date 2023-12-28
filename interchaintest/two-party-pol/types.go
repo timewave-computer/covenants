@@ -439,3 +439,16 @@ type NoteQueryMsg struct {
 
 type TesterInstantiate struct {
 }
+
+type StargateMsg struct {
+	TypeUrl string `json:"type_url"`
+	Value   string `json:"value"`
+}
+
+// osmosis.gamm.v1beta1.MsgJoinPool
+type MsgJoinPool struct {
+	Sender         string    `json:"sender"`
+	PoolId         uint64    `json:"pool_id"`
+	ShareOutAmount string    `json:"share_out_amount"`
+	TokenInMaxs    []cw.Coin `json:"token_in_maxs"`
+}
