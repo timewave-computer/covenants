@@ -17,3 +17,7 @@ prost            = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
 cw20             = { workspace = true }
 astroport        = { workspace = true }
+# polytone-note    = { workspace = true }
+# polytone         = { workspace = true }
+polytone = "1.0.0"
+# polytone-note = "1.0.0"

@@ -452,3 +452,12 @@ type MsgJoinPool struct {
 	ShareOutAmount string    `json:"share_out_amount"`
 	TokenInMaxs    []cw.Coin `json:"token_in_maxs"`
 }
+
+type OsmoLiquidPoolerInstantiateMsg struct {
+	PoolAddress   string  `json:"pool_address"`
+	ClockAddress  string  `json:"clock_address"`
+	HolderAddress string  `json:"holder_address"`
+	NoteAddress   string  `json:"note_address"`
+	Coin1         cw.Coin `json:"coin_1"`
+	Coin2         cw.Coin `json:"coin_2"`
+}

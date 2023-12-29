@@ -43,7 +43,7 @@ func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
 	cmd := []string{"neutrond", "tx", "wasm", "execute", clock,
 		`{"tick":{}}`,
 		"--gas-prices", "0.0untrn",
-		"--gas-adjustment", `1.5`,
+		"--gas-adjustment", `2`,
 		"--output", "json",
 		"--node", testCtx.Neutron.GetRPCAddress(),
 		"--home", testCtx.Neutron.HomeDir(),
@@ -496,7 +496,7 @@ func (testCtx *TestContext) QueryOsmoDenomBalance(denom string, addr string) uin
 	require.NoError(testCtx.T, err, "failed to get osmosis denom balance")
 
 	uintBal := uint64(bal)
-	println(addr, " balance: (", denom, ",", uintBal, ")")
+	// println(addr, " balance: (", denom, ",", uintBal, ")")
 	return uintBal
 }
 
@@ -630,6 +630,25 @@ func (testCtx *TestContext) QueryContractState(contract string) string {
 	}
 
 	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, contractStateQuery, &response)
+	require.NoError(
+		testCtx.T,
+		err,
+		fmt.Sprintf("failed to query %s state", contract),
+	)
+	return response.Data
+}
+
+func (testCtx *TestContext) QueryProxyAddress(contract string) string {
+	var response CovenantAddressQueryResponse
+	type ProxyAddress struct{}
+	type ProxyAddressQuery struct {
+		ProxyAddress ProxyAddress `json:"proxy_address"`
+	}
+	proxyAddressQuery := ProxyAddressQuery{
+		ProxyAddress: ProxyAddress{},
+	}
+
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, proxyAddressQuery, &response)
 	require.NoError(
 		testCtx.T,
 		err,

@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Uint128, Uint64, QueryRequest, Empty, CosmosMsg, Coin};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 
 #[cw_serde]
@@ -7,6 +7,9 @@ pub struct InstantiateMsg {
     pub pool_address: String,
     pub clock_address: String,
     pub holder_address: String,
+    pub note_address: String,
+    pub coin_1: Coin,
+    pub coin_2: Coin,
 }
 
 #[clocked]
@@ -24,6 +27,8 @@ pub enum QueryMsg {
     HolderAddress {},
     #[returns(ProvidedLiquidityInfo)]
     ProvidedLiquidityInfo {},
+    #[returns(Option<String>)]
+    ProxyAddress {},
 }
 
 /// keeps track of provided asset liquidities in `Uint128`.
@@ -37,4 +42,8 @@ pub struct ProvidedLiquidityInfo {
 #[cw_serde]
 pub enum ContractState {
     Instantiated,
+    ProxyCreated,
+    ProxyFunded,
+    Active,
+    Complete,
 }
