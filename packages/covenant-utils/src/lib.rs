@@ -1,14 +1,15 @@
 use astroport::asset::PairInfo;
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, Decimal, Fraction, IbcMsg, IbcTimeout,
-    QuerierWrapper, StdError, Timestamp, Uint128, Uint64,
+    QuerierWrapper, StdError, Timestamp, Uint128, Uint64, to_json_binary, Binary, StdResult, Empty, QueryRequest,
 };
 use cw20::BalanceResponse;
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
     sudo::msg::RequestPacketTimeoutHeight,
 };
+use polytone::callbacks::CallbackRequest;
 use std::collections::BTreeMap;
 
 pub mod neutron_ica {
@@ -656,4 +657,57 @@ pub fn query_astro_pool_token(
 pub struct AstroportPoolTokenResponse {
     pub pair_info: PairInfo,
     pub balance_response: BalanceResponse,
+}
+
+
+
+#[cw_serde]
+pub enum PolytoneExecuteMsg {
+    Query {
+        msgs: Vec<QueryRequest<Empty>>,
+        callback: CallbackRequest,
+        timeout_seconds: Uint64,
+    },
+    Execute {
+        msgs: Vec<CosmosMsg<Empty>>,
+        callback: Option<CallbackRequest>,
+        timeout_seconds: Uint64,
+    },
+}
+
+#[cw_serde]
+#[derive(QueryResponses)]
+pub enum PolytoneQueryMsg {
+    #[returns(Option<String>)]
+    RemoteAddress { local_address: String },
+    #[returns(Uint64)]
+    BlockMaxGas,
+}
+
+pub fn get_polytone_execute_msg_binary(
+    msgs: Vec<CosmosMsg>,
+    callback: Option<CallbackRequest>,
+    timeout_seconds: Uint64,
+) -> StdResult<Binary> {
+    let execute_msg = PolytoneExecuteMsg::Execute {
+        msgs,
+        callback,
+        timeout_seconds,
+    };
+    to_json_binary(&execute_msg)
+}
+
+pub fn query_polytone_proxy_address(
+    local_address: String,
+    note_address: String,
+    querier: QuerierWrapper,
+) -> Result<Option<String>, StdError> {
+    let remote_address_query = PolytoneQueryMsg::RemoteAddress {
+        local_address,
+    };
+
+    querier.query_wasm_smart(
+        note_address,
+        &remote_address_query,
+    )
 }

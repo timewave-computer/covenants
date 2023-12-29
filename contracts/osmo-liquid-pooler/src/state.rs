@@ -1,4 +1,4 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Coin};
 use cw_storage_plus::Item;
 
 use crate::msg::{ContractState, ProvidedLiquidityInfo};
@@ -11,6 +11,12 @@ pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 /// holder module address to verify withdrawal requests
 pub const HOLDER_ADDRESS: Item<Addr> = Item::new("holder_address");
 
+pub const NOTE_ADDRESS: Item<Addr> = Item::new("note_address");
+pub const PROXY_ADDRESS: Item<String> = Item::new("proxy_address");
+
 /// keeps track of both token amounts we provided to the pool
 pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> =
     Item::new("provided_liquidity_info");
+
+pub const COIN_1: Item<Coin> = Item::new("coin_1");
+pub const COIN_2: Item<Coin> = Item::new("coin_2");
