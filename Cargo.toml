@@ -46,6 +46,7 @@ covenant-native-router = { path = "contracts/native-router" }
 covenant-osmo-liquid-pooler = { path = "contracts/osmo-liquid-pooler" }
 
 # packages
+polytone = "1.0.0"
 clock-derive = { path = "packages/clock-derive" }
 cw-fifo = { path = "packages/cw-fifo" }
 covenant-macros = { path = "packages/covenant-macros" }
