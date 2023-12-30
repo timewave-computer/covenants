@@ -18,4 +18,7 @@ pub enum ContractError {
 
     #[error("Unknown holder address. Migrate update to set it.")]
     MissingHolderError {},
+
+    #[error("Unauthorized")]
+    Unauthorized {},
 }
