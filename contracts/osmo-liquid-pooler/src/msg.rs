@@ -1,6 +1,8 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Uint64, QueryRequest, Empty, CosmosMsg, Coin};
+use cosmwasm_std::{Addr, Uint128, Coin, Binary};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
+use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
+use polytone::callbacks::CallbackMessage;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -14,7 +16,10 @@ pub struct InstantiateMsg {
 
 #[clocked]
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    // polytone callback listener
+    Callback(CallbackMessage),
+}
 
 #[covenant_clock_address]
 #[covenant_deposit_address]
@@ -29,6 +34,10 @@ pub enum QueryMsg {
     ProvidedLiquidityInfo {},
     #[returns(Option<String>)]
     ProxyAddress {},
+    #[returns(Vec<String>)]
+    Callbacks {},
+    #[returns(String)]
+    LatestPoolState {},
 }
 
 /// keeps track of provided asset liquidities in `Uint128`.
