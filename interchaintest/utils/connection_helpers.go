@@ -1093,6 +1093,24 @@ func (testCtx *TestContext) QueryLiquidPoolerAddress(contract string) string {
 	return response.Data
 }
 
+type LatestPoolState struct{}
+type LatestPoolStateQuery struct {
+	LatestPoolState LatestPoolState `json:"latest_pool_state"`
+}
+
+func (testCtx *TestContext) QueryLiquidPoolerLatestPoolState(contract string) string {
+	var response CovenantAddressQueryResponse
+
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, LatestPoolStateQuery{}, &response)
+	require.NoError(
+		testCtx.T,
+		err,
+		"failed to query liquid pooler pool query state",
+	)
+	println("pool query state: ", response.Data)
+	return response.Data
+}
+
 func (testCtx *TestContext) HolderClaim(contract string, from *ibc.Wallet, keyring string) {
 
 	cmd := []string{"neutrond", "tx", "wasm", "execute", contract,

@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::{Addr, Coin, Binary};
 use cw_storage_plus::Item;
 
 use crate::msg::{ContractState, ProvidedLiquidityInfo};
@@ -20,3 +20,8 @@ pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> =
 
 pub const COIN_1: Item<Coin> = Item::new("coin_1");
 pub const COIN_2: Item<Coin> = Item::new("coin_2");
+
+
+pub const CALLBACKS: Item<Vec<String>> = Item::new("callbacks");
+
+pub const LATEST_OSMO_POOL_RESPONSE: Item<Binary> = Item::new("osmo_pool");

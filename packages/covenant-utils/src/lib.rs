@@ -701,6 +701,21 @@ pub fn get_polytone_execute_msg_binary(
     to_json_binary(&execute_msg)
 }
 
+pub fn get_polytone_query_msg_binary(
+    msgs: Vec<QueryRequest<Empty>>,
+    callback: CallbackRequest,
+    timeout_seconds: Uint64,
+) -> StdResult<Binary> {
+    let query_msg = PolytoneExecuteMsg::Query {
+        msgs,
+        callback,
+        timeout_seconds,
+    };
+    to_json_binary(&query_msg)
+}
+
+
+
 pub fn query_polytone_proxy_address(
     local_address: String,
     note_address: String,
@@ -715,3 +730,5 @@ pub fn query_polytone_proxy_address(
         &remote_address_query,
     )
 }
+
+
