@@ -413,7 +413,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 
 			osmosisPoolInitConfig := cosmos.OsmosisPoolParams{
 				Weights:        fmt.Sprintf("10%s,1%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
-				InitialDeposit: fmt.Sprintf("50000000000%s,550000000000%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
+				InitialDeposit: fmt.Sprintf("50000000000%s,500000000000%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
 				SwapFee:        "0.003",
 				ExitFee:        "0.00",
 				FutureGovernor: "",
@@ -529,6 +529,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 					Denom:  testCtx.Osmosis.Config().Denom,
 					Amount: strconv.FormatUint(osmoContributionAmount, 10),
 				},
+				PoolId: "1",
 			}
 
 			osmoLiquidPoolerAddress = testCtx.ManualInstantiate(lperCodeId, instantiateMsg, neutronUser, keyring.BackendTest)
@@ -584,8 +585,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			for {
 				testCtx.Tick(osmoLiquidPoolerAddress, keyring.BackendTest, neutronUser.KeyName)
 
-				// poolState := testCtx.QueryLiquidPoolerLatestPoolState(osmoLiquidPoolerAddress)
-				// println("pool state: ", poolState)
 				liquidPoolerState := testCtx.QueryContractState(osmoLiquidPoolerAddress)
 				println("liquid pooler state: ", liquidPoolerState)
 				if liquidPoolerState == "proxy_funded" {

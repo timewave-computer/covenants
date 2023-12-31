@@ -8,14 +8,14 @@ use cosmwasm_std::{
 use covenant_utils::{get_polytone_execute_msg_binary, query_polytone_proxy_address, get_polytone_query_msg_binary};
 use cw2::set_contract_version;
 use osmosis_std::types::{
-    osmosis::gamm::v1beta1::{MsgJoinPool, Pool},
+    osmosis::gamm::v1beta1::{MsgJoinPool, Pool, QueryPoolResponse, GammQuerier},
     cosmos::base::v1beta1::Coin as OsmosisCoin,
 };
 
 use crate::{
     error::ContractError,
-    msg::{ContractState, ExecuteMsg, InstantiateMsg, ProvidedLiquidityInfo, QueryMsg},
-    state::{HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO, NOTE_ADDRESS, PROXY_ADDRESS, COIN_1, COIN_2, CALLBACKS, LATEST_OSMO_POOL_RESPONSE},
+    msg::{ContractState, ExecuteMsg, InstantiateMsg, ProvidedLiquidityInfo, QueryMsg, OsmoGammPoolQueryResponse},
+    state::{HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO, NOTE_ADDRESS, PROXY_ADDRESS, COIN_1, COIN_2, CALLBACKS, LATEST_OSMO_POOL_RESPONSE, POOL_ID},
 };
 
 use polytone::callbacks::{Callback as PolytoneCallback, CallbackMessage, ErrorResponse, ExecutionResponse, CallbackRequest};
@@ -52,7 +52,8 @@ pub fn instantiate(
     COIN_1.save(deps.storage, &msg.coin_1)?;
     COIN_2.save(deps.storage, &msg.coin_2)?;
     CALLBACKS.save(deps.storage, &Vec::new())?;
-    LATEST_OSMO_POOL_RESPONSE.save(deps.storage, &Binary::default())?;
+    LATEST_OSMO_POOL_RESPONSE.save(deps.storage, &None)?;
+    POOL_ID.save(deps.storage, &msg.pool_id)?;
 
     // we begin with no liquidity provided
     PROVIDED_LIQUIDITY_INFO.save(
@@ -102,8 +103,14 @@ fn process_query_callback(
 ) -> Result<Response, ContractError> {
     let entries = match query_callback_result {
         Ok(response) => {
-            if let Some(bin) = response.get(0) {
-                LATEST_OSMO_POOL_RESPONSE.save(deps.storage, &bin)?;
+            if let Some(query_response_b64) = response.last() {
+                let res: QueryPoolResponse = from_json(query_response_b64)?;
+                // todo: remove unwraps
+                let pool: Pool = res.pool
+                    .unwrap()
+                    .try_into()
+                    .unwrap();
+                LATEST_OSMO_POOL_RESPONSE.save(deps.storage, &Some(pool))?;
                 CONTRACT_STATE.save(deps.storage, &ContractState::ProxyFunded)?;
             };
 
@@ -173,8 +180,10 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 fn try_query_pool(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
+    let pool_id: u64 = POOL_ID.load(deps.storage)?.u64();
+
     let query_pool_request: QueryRequest<Empty> = osmosis_std::types::osmosis::gamm::v1beta1::QueryPoolRequest {
-        pool_id: 1,
+        pool_id,
     }
     .into();
 
@@ -257,12 +266,17 @@ fn try_lp(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     // this call means proxy is created, funded, and we are ready to LP
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
+    let pool_id: u64 = POOL_ID.load(deps.storage)?.u64();
 
     let coin_1 = COIN_1.load(deps.storage)?;
     let coin_2 = COIN_2.load(deps.storage)?;
 
-    let latest_osmo_pool_response = LATEST_OSMO_POOL_RESPONSE.load(deps.storage)?;
-    let pool = from_json::<osmosis_std::types::osmosis::gamm::v1beta1::Pool>(latest_osmo_pool_response)?;
+    let latest_osmo_pool_response_binary = LATEST_OSMO_POOL_RESPONSE.load(deps.storage)?;
+
+    let pool = match LATEST_OSMO_POOL_RESPONSE.load(deps.storage)? {
+        Some(val) => val,
+        None => return Err(ContractError::Std(StdError::generic_err("no pool found"))),
+    };
 
     let token_in_maxs = vec![
         OsmosisCoin::from(coin_1.clone()),
@@ -303,7 +317,7 @@ fn try_lp(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     let osmo_msg: CosmosMsg = MsgJoinPool {
         sender: proxy_address,
-        pool_id: 1,
+        pool_id,
         // exact number of shares we wish to receive
         share_out_amount: share_out_amount.to_string(),
         token_in_maxs,
@@ -345,8 +359,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ProxyAddress {} => Ok(to_json_binary(&PROXY_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::Callbacks {} => Ok(to_json_binary(&CALLBACKS.load(deps.storage)?)?),
         QueryMsg::LatestPoolState {} => {
-            let latest_pool_binary = LATEST_OSMO_POOL_RESPONSE.load(deps.storage)?;
-            Ok(latest_pool_binary)
+            Ok(to_json_binary(&LATEST_OSMO_POOL_RESPONSE.load(deps.storage)?)?)
         }
     }
 }
