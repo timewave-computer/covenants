@@ -1,5 +1,6 @@
-use cosmwasm_std::{Addr, Coin, Binary};
+use cosmwasm_std::{Addr, Coin, Uint64};
 use cw_storage_plus::Item;
+use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
 use crate::msg::{ContractState, ProvidedLiquidityInfo};
 
@@ -24,4 +25,5 @@ pub const COIN_2: Item<Coin> = Item::new("coin_2");
 
 pub const CALLBACKS: Item<Vec<String>> = Item::new("callbacks");
 
-pub const LATEST_OSMO_POOL_RESPONSE: Item<Binary> = Item::new("osmo_pool");
+pub const LATEST_OSMO_POOL_RESPONSE: Item<Option<Pool>> = Item::new("osmo_pool");
+pub const POOL_ID: Item<Uint64> = Item::new("pool_id");
