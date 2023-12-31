@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Coin, Binary};
+use cosmwasm_std::{Addr, Uint128, Coin, Uint64};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 use polytone::callbacks::CallbackMessage;
@@ -12,6 +12,7 @@ pub struct InstantiateMsg {
     pub note_address: String,
     pub coin_1: Coin,
     pub coin_2: Coin,
+    pub pool_id: Uint64,
 }
 
 #[clocked]
@@ -36,7 +37,7 @@ pub enum QueryMsg {
     ProxyAddress {},
     #[returns(Vec<String>)]
     Callbacks {},
-    #[returns(String)]
+    #[returns(Option<Pool>)]
     LatestPoolState {},
 }
 
@@ -55,4 +56,9 @@ pub enum ContractState {
     ProxyFunded,
     Active,
     Complete,
+}
+
+#[cw_serde]
+pub struct OsmoGammPoolQueryResponse {
+    pub pool: osmosis_std::types::osmosis::gamm::v1beta1::Pool,
 }
