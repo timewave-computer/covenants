@@ -45,7 +45,9 @@ bech32           = { workspace = true }
 cw20             = { workspace = true }
 polytone         = { workspace = true }
 # polytone-note    = { workspace = true }
-osmosis-std = "0.1.4"
+osmosis-std = "0.13.2"
+base64 = { workspace = true }
+prost = { workspace = true }
 
 # dev-dependencies
 [dev-dependencies]

@@ -460,4 +460,5 @@ type OsmoLiquidPoolerInstantiateMsg struct {
 	NoteAddress   string  `json:"note_address"`
 	Coin1         cw.Coin `json:"coin_1"`
 	Coin2         cw.Coin `json:"coin_2"`
+	PoolId        string  `json:"pool_id"`
 }
