@@ -454,11 +454,23 @@ type MsgJoinPool struct {
 }
 
 type OsmoLiquidPoolerInstantiateMsg struct {
-	PoolAddress   string  `json:"pool_address"`
-	ClockAddress  string  `json:"clock_address"`
-	HolderAddress string  `json:"holder_address"`
-	NoteAddress   string  `json:"note_address"`
-	Coin1         cw.Coin `json:"coin_1"`
-	Coin2         cw.Coin `json:"coin_2"`
-	PoolId        string  `json:"pool_id"`
+	PoolAddress            string         `json:"pool_address"`
+	ClockAddress           string         `json:"clock_address"`
+	HolderAddress          string         `json:"holder_address"`
+	NoteAddress            string         `json:"note_address"`
+	Coin1                  cw.Coin        `json:"coin_1"`
+	Coin2                  cw.Coin        `json:"coin_2"`
+	PoolId                 string         `json:"pool_id"`
+	IbcTimeout             string         `json:"ibc_timeout"`
+	Party1ChainInfo        PartyChainInfo `json:"party_1_chain_info"`
+	Party2ChainInfo        PartyChainInfo `json:"party_2_chain_info"`
+	OsmoToNeutronChannelId string         `json:"osmo_to_neutron_channel_id"`
+}
+
+type PartyChainInfo struct {
+	NeutronToPartyChainPort    string `json:"neutron_to_party_chain_port"`
+	NeutronToPartyChainChannel string `json:"neutron_to_party_chain_channel"`
+	PartyChainReceiverAddress  string `json:"party_chain_receiver_address"`
+	PartyChainToOsmoPort       string `json:"party_chain_to_osmo_port"`
+	PartyChainToOsmoChannel    string `json:"party_chain_to_osmo_channel"`
 }

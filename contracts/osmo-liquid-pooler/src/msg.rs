@@ -13,6 +13,10 @@ pub struct InstantiateMsg {
     pub coin_1: Coin,
     pub coin_2: Coin,
     pub pool_id: Uint64,
+    pub ibc_timeout: Uint64,
+    pub party_1_chain_info: PartyChainInfo,
+    pub party_2_chain_info: PartyChainInfo,
+    pub osmo_to_neutron_channel_id: String,
 }
 
 #[clocked]
@@ -54,11 +58,34 @@ pub enum ContractState {
     Instantiated,
     ProxyCreated,
     ProxyFunded,
-    Active,
     Complete,
 }
 
 #[cw_serde]
 pub struct OsmoGammPoolQueryResponse {
     pub pool: osmosis_std::types::osmosis::gamm::v1beta1::Pool,
+}
+
+#[cw_serde]
+pub struct PartyChainInfo {
+    pub neutron_to_party_chain_port: String,
+    pub neutron_to_party_chain_channel: String,
+    pub party_chain_receiver_address: String,
+    pub party_chain_to_osmo_port: String,
+    pub party_chain_to_osmo_channel: String,
+}
+
+// https://github.com/strangelove-ventures/packet-forward-middleware/blob/main/router/types/forward.go
+#[cw_serde]
+pub struct PacketMetadata {
+    pub forward: Option<ForwardMetadata>,
+}
+
+#[cw_serde]
+pub struct ForwardMetadata {
+    pub receiver: String,
+    pub port: String,
+    pub channel: String,
+    // pub timeout: Option<String>,
+    // pub retries: Option<u8>,
 }

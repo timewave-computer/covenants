@@ -3,22 +3,23 @@ use std::str::FromStr;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, CosmosMsg, WasmMsg, Uint64, QueryRequest, Empty, from_json, StdError,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, CosmosMsg, WasmMsg, QueryRequest, Empty, StdError, to_json_string, Coin, IbcTimeout,
 };
-use covenant_utils::{get_polytone_execute_msg_binary, query_polytone_proxy_address, get_polytone_query_msg_binary};
+use covenant_utils::{get_polytone_execute_msg_binary, query_polytone_proxy_address, get_polytone_query_msg_binary, default_ibc_fee};
 use cw2::set_contract_version;
+use neutron_sdk::{bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight, NeutronResult, NeutronError};
 use osmosis_std::types::{
-    osmosis::gamm::v1beta1::{MsgJoinPool, Pool, QueryPoolResponse, GammQuerier},
+    osmosis::gamm::v1beta1::{MsgJoinPool, Pool},
     cosmos::base::v1beta1::Coin as OsmosisCoin,
 };
 
 use crate::{
     error::ContractError,
-    msg::{ContractState, ExecuteMsg, InstantiateMsg, ProvidedLiquidityInfo, QueryMsg, OsmoGammPoolQueryResponse},
-    state::{HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO, NOTE_ADDRESS, PROXY_ADDRESS, COIN_1, COIN_2, CALLBACKS, LATEST_OSMO_POOL_RESPONSE, POOL_ID},
+    msg::{ContractState, ExecuteMsg, InstantiateMsg, ProvidedLiquidityInfo, QueryMsg, PacketMetadata, ForwardMetadata},
+    state::{HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO, NOTE_ADDRESS, PROXY_ADDRESS, COIN_1, COIN_2, CALLBACKS, LATEST_OSMO_POOL_SNAPSHOT, POOL_ID, IBC_TIMEOUT, PARTY_1_CHAIN_INFO, PARTY_2_CHAIN_INFO, OSMO_TO_NEUTRON_CHANNEL_ID}, polytone_handlers::{process_fatal_error_callback, process_execute_callback, process_query_callback},
 };
 
-use polytone::callbacks::{Callback as PolytoneCallback, CallbackMessage, ErrorResponse, ExecutionResponse, CallbackRequest};
+use polytone::callbacks::{Callback as PolytoneCallback, CallbackMessage, CallbackRequest};
 
 use crate::state::{CLOCK_ADDRESS, CONTRACT_STATE};
 
@@ -52,8 +53,12 @@ pub fn instantiate(
     COIN_1.save(deps.storage, &msg.coin_1)?;
     COIN_2.save(deps.storage, &msg.coin_2)?;
     CALLBACKS.save(deps.storage, &Vec::new())?;
-    LATEST_OSMO_POOL_RESPONSE.save(deps.storage, &None)?;
+    LATEST_OSMO_POOL_SNAPSHOT.save(deps.storage, &None)?;
     POOL_ID.save(deps.storage, &msg.pool_id)?;
+    IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
+    PARTY_1_CHAIN_INFO.save(deps.storage, &msg.party_1_chain_info)?;
+    PARTY_2_CHAIN_INFO.save(deps.storage, &msg.party_2_chain_info)?;
+    OSMO_TO_NEUTRON_CHANNEL_ID.save(deps.storage, &msg.osmo_to_neutron_channel_id)?;
 
     // we begin with no liquidity provided
     PROVIDED_LIQUIDITY_INFO.save(
@@ -66,7 +71,7 @@ pub fn instantiate(
 
     Ok(Response::default()
         // .add_message(enqueue_msg(clock_addr.as_str())?)
-        .add_attribute("method", "lp_instantiate")
+        .add_attribute("method", "osmosis_lp_instantiate")
         .add_attribute("clock_addr", clock_addr))
 }
 
@@ -76,7 +81,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> NeutronResult<Response<NeutronMsg>> {
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Callback(callback_msg) => try_handle_callback(deps, info, callback_msg),
@@ -84,10 +89,10 @@ pub fn execute(
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation.
-fn try_handle_callback(deps: DepsMut, info: MessageInfo, msg: CallbackMessage) -> Result<Response, ContractError> {
+fn try_handle_callback(deps: DepsMut, info: MessageInfo, msg: CallbackMessage) -> NeutronResult<Response<NeutronMsg>> {
     // only the note can submit a callback
     if info.sender != NOTE_ADDRESS.load(deps.storage)? {
-        return Err(ContractError::Unauthorized {});
+        return Err(ContractError::Unauthorized {}.to_neutron_std())
     }
 
     match msg.result {
@@ -97,96 +102,44 @@ fn try_handle_callback(deps: DepsMut, info: MessageInfo, msg: CallbackMessage) -
     }
 }
 
-fn process_query_callback(
-    deps: DepsMut,
-    query_callback_result: Result<Vec<Binary>, ErrorResponse>,
-) -> Result<Response, ContractError> {
-    let entries = match query_callback_result {
-        Ok(response) => {
-            if let Some(query_response_b64) = response.last() {
-                let res: QueryPoolResponse = from_json(query_response_b64)?;
-                // todo: remove unwraps
-                let pool: Pool = res.pool
-                    .unwrap()
-                    .try_into()
-                    .unwrap();
-                LATEST_OSMO_POOL_RESPONSE.save(deps.storage, &Some(pool))?;
-                CONTRACT_STATE.save(deps.storage, &ContractState::ProxyFunded)?;
-            };
-
-            response.into_iter().map(|resp| resp.to_string()).collect()
-        },
-        Err(err) => vec![format!("{:?} : {:?}", err.message_index, err.error)],
-    };
-
-    let mut callbacks = CALLBACKS.load(deps.storage)?;
-    callbacks.extend(entries);
-    CALLBACKS.save(deps.storage, &callbacks)?;
-
-    Ok(Response::default())
-}
-
-fn process_execute_callback(
-    deps: DepsMut,
-    execute_callback_result: Result<ExecutionResponse, String>,
-) -> Result<Response, ContractError> {
-    let entries = match execute_callback_result {
-        Ok(execution_response) => execution_response.result
-            .into_iter()
-            .map(|r| {
-                match r.data {
-                    Some(data) => data.to_string(),
-                    None => "none".to_string(),
-                }
-            })
-            .collect(),
-        Err(err) => vec![err],
-    };
-
-
-    let mut callbacks = CALLBACKS.load(deps.storage)?;
-    callbacks.extend(entries);
-    CALLBACKS.save(deps.storage, &callbacks)?;
-
-    Ok(Response::default())
-}
-
-fn process_fatal_error_callback(
-    deps: DepsMut,
-    response: String,
-) -> Result<Response, ContractError> {
-    let mut callbacks = CALLBACKS.load(deps.storage)?;
-    callbacks.push(response);
-    CALLBACKS.save(deps.storage, &callbacks)?;
-
-    Ok(Response::default())
-}
-
 /// attempts to advance the state machine. performs `info.sender` validation.
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
     // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
+        // create a proxy account
         ContractState::Instantiated => try_query_proxy_address(deps, env),
-        ContractState::ProxyCreated => try_query_pool(deps, env),
-        ContractState::ProxyFunded => try_lp(deps, env),
-        ContractState::Active => todo!(),
-        ContractState::Complete => todo!(),
+        // fund the proxy account
+        ContractState::ProxyCreated => try_fund_proxy(deps, env),
+        // attempt to provide liquidity
+        ContractState::ProxyFunded => {
+            match LATEST_OSMO_POOL_SNAPSHOT.load(deps.storage)? {
+                // if no pool snapshot is available, we query it.
+                // snapshots get reset to `None` after a successful
+                // `try_lp` call in order to refresh the price
+                // before attempting to provide liquidity again.
+                None => try_query_pool(deps, env),
+                // if pool snapshot is available, we use it for LP attempt
+                Some(pool) => try_lp(deps, env, pool),
+            }
+        },
+        // no longer accept any actions
+        ContractState::Complete => Err(ContractError::StateMachineError("complete".to_string()).to_neutron_std()),
     }
 }
 
-fn try_query_pool(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn try_query_pool(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
 
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let pool_id: u64 = POOL_ID.load(deps.storage)?.u64();
+    let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
 
     let query_pool_request: QueryRequest<Empty> = osmosis_std::types::osmosis::gamm::v1beta1::QueryPoolRequest {
         pool_id,
     }
     .into();
-
 
     let polytone_query_msg_binary = get_polytone_query_msg_binary(
         vec![query_pool_request],
@@ -194,7 +147,7 @@ fn try_query_pool(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             receiver: env.contract.address.to_string(),
             msg: to_json_binary(&"osmosis_std::types::osmosis::gamm::v1beta1::QueryPoolRequest")?,
         },
-        Uint64::new(200),
+        ibc_timeout,
     )?;
 
     let note_msg = CosmosMsg::Wasm(
@@ -211,14 +164,15 @@ fn try_query_pool(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 }
 
 
-fn try_create_proxy(deps: DepsMut, env: Env, note_address: String) -> Result<Response, ContractError> {
+fn try_create_proxy(deps: DepsMut, env: Env, note_address: String) -> NeutronResult<Response<NeutronMsg>> {
+    let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
     let polytone_execute_msg_binary = get_polytone_execute_msg_binary(
         vec![],
         Some(CallbackRequest {
             receiver: env.contract.address.to_string(),
             msg: to_json_binary("proxy_created")?,
         }),
-        Uint64::new(200),
+        ibc_timeout,
     )?;
 
     let note_msg = CosmosMsg::Wasm(
@@ -233,7 +187,7 @@ fn try_create_proxy(deps: DepsMut, env: Env, note_address: String) -> Result<Res
         .add_attribute("method", "try_create_proxy"))
 }
 
-fn try_query_proxy_address(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn try_query_proxy_address(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
 
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
 
@@ -258,34 +212,85 @@ fn try_query_proxy_address(deps: DepsMut, env: Env) -> Result<Response, Contract
     }
 }
 
-fn try_fund_proxy(_deps: DepsMut, _env: Env) -> Result<Response, ContractError> {
-    Ok(Response::default().add_attribute("method", "todo"))
+fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+    let target_coin_1 = COIN_1.load(deps.storage)?;
+    let target_coin_2 = COIN_2.load(deps.storage)?;
+    let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+
+    let coin_1_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        target_coin_1.denom.to_string(),
+    )?;
+
+    let coin_2_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        target_coin_2.denom.to_string(),
+    )?;
+
+    // if target_coin_1.amount < coin_1_bal.amount {
+    //     return Err(ContractError::FundsDepositError(target_coin_1.denom.to_string(), target_coin_1.amount.to_string(), coin_1_bal.amount.to_string()))
+    // }
+
+    // if target_coin_2.amount < coin_2_bal.amount {
+    //     return Err(ContractError::FundsDepositError(target_coin_2.denom.to_string(), target_coin_2.amount.to_string(), coin_2_bal.amount.to_string()))
+    // }
+
+    let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
+    // todo: remove this
+    CONTRACT_STATE.save(deps.storage, &ContractState::ProxyFunded)?;
+    // TODO: generate ibc transfer messages that use pfm in order
+    // to have denoms arriving to osmosis be clean
+    let party_1_chain_info = PARTY_1_CHAIN_INFO.load(deps.storage)?;
+
+    let pfm_packet_metadata = PacketMetadata {
+        forward: Some(ForwardMetadata {
+            // final receiver
+            receiver: proxy_address.to_string(),
+            // denom source chain to destination chain port
+            port: party_1_chain_info.party_chain_to_osmo_port,
+            // denom source chain to destination chain channel
+            channel: party_1_chain_info.party_chain_to_osmo_channel,
+        }),
+    };
+
+    let _party_1_transfer_msg = CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+        source_port: party_1_chain_info.neutron_to_party_chain_port,
+        source_channel: party_1_chain_info.neutron_to_party_chain_channel,
+        token: coin_1_bal,
+        sender: env.contract.address.to_string(),
+        receiver: party_1_chain_info.party_chain_receiver_address,
+        timeout_height: RequestPacketTimeoutHeight { revision_number: None, revision_height: None },
+        timeout_timestamp: env.block.time.plus_seconds(ibc_timeout.u64()).nanos(),
+        memo: to_json_string(&pfm_packet_metadata)?,
+        fee: default_ibc_fee(),
+    });
+
+    Ok(Response::default()
+        // .add_message(party_1_transfer_msg)
+        .add_attribute("method", "try_fund_proxy"))
 }
 
-fn try_lp(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<NeutronMsg>> {
+    // we invalidate the latest pool snapshot to force it to be queried
+    // for subsequent lp attempts
+    LATEST_OSMO_POOL_SNAPSHOT.save(deps.storage, &None)?;
+
     // this call means proxy is created, funded, and we are ready to LP
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
     let pool_id: u64 = POOL_ID.load(deps.storage)?.u64();
+    let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
 
     let coin_1 = COIN_1.load(deps.storage)?;
     let coin_2 = COIN_2.load(deps.storage)?;
 
-    let latest_osmo_pool_response_binary = LATEST_OSMO_POOL_RESPONSE.load(deps.storage)?;
+    let token_in_maxs: Vec<OsmosisCoin> = vec![coin_1.clone().into(), coin_2.clone().into()];
 
-    let pool = match LATEST_OSMO_POOL_RESPONSE.load(deps.storage)? {
-        Some(val) => val,
-        None => return Err(ContractError::Std(StdError::generic_err("no pool found"))),
-    };
-
-    let token_in_maxs = vec![
-        OsmosisCoin::from(coin_1.clone()),
-        OsmosisCoin::from(coin_2.clone()),
-    ];
-
-    let total_shares = match pool.total_shares {
-        Some(gamm_shares) => Uint128::from_str(&gamm_shares.amount)?,
-        None => return Err(ContractError::Std(StdError::generic_err("not good"))),
+    let gamm_shares_coin = match pool.total_shares {
+        Some(coin) => coin,
+        None => return Err(ContractError::OsmosisPoolError(
+            "expected Some(total_shares), found None".to_string()
+        ).to_neutron_std()),
     };
 
     let pool_assets: Vec<OsmosisCoin> = pool.pool_assets.into_iter()
@@ -300,16 +305,18 @@ fn try_lp(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 (pool_asset_2.amount.to_string(), pool_asset_1.amount.to_string())
             }
         },
-        _ => return Err(ContractError::Std(StdError::generic_err("not good"))),
+        _ => return Err(ContractError::OsmosisPoolError(
+            "osmosis pool assets mismatch".to_string()
+        ).to_neutron_std()),
     };
 
     let share_out_amount = std::cmp::min(
         coin_1.amount.multiply_ratio(
-            total_shares,
+            Uint128::from_str(&gamm_shares_coin.amount)?,
             Uint128::from_str(&pool_asset_1_amount)?.u128(),
         ),
         coin_2.amount.multiply_ratio(
-            total_shares,
+            Uint128::from_str(&gamm_shares_coin.amount)?,
             Uint128::from_str(&pool_asset_2_amount)?.u128(),
         ),
     );
@@ -323,14 +330,27 @@ fn try_lp(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         token_in_maxs,
     }
     .into();
+    let expected_gamm_coin = Coin {
+        denom: gamm_shares_coin.denom,
+        amount: share_out_amount,
+    };
+    let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
+    let osmo_to_neutron_channel_id = OSMO_TO_NEUTRON_CHANNEL_ID.load(deps.storage)?;
+    let transfer_gamm_msg: CosmosMsg = CosmosMsg::Ibc(cosmwasm_std::IbcMsg::Transfer {
+        channel_id: osmo_to_neutron_channel_id,
+        to_address: holder_addr.to_string(),
+        amount: expected_gamm_coin,
+        timeout: IbcTimeout::with_timestamp(env.block.time.plus_seconds(ibc_timeout.u64())),
+    });
 
     let polytone_execute_msg_binary = get_polytone_execute_msg_binary(
-        vec![osmo_msg],
+        // include gamm token transfer msg back to holder after osmo_msg
+        vec![osmo_msg, transfer_gamm_msg],
         Some(CallbackRequest {
             receiver: env.contract.address.to_string(),
             msg: to_json_binary(&tokens_string)?,
         }),
-        Uint64::new(200),
+        ibc_timeout,
     )?;
 
     let note_msg = CosmosMsg::Wasm(
@@ -359,7 +379,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ProxyAddress {} => Ok(to_json_binary(&PROXY_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::Callbacks {} => Ok(to_json_binary(&CALLBACKS.load(deps.storage)?)?),
         QueryMsg::LatestPoolState {} => {
-            Ok(to_json_binary(&LATEST_OSMO_POOL_RESPONSE.load(deps.storage)?)?)
+            Ok(to_json_binary(&LATEST_OSMO_POOL_SNAPSHOT.load(deps.storage)?)?)
         }
     }
 }
