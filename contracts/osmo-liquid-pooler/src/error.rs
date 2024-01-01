@@ -21,4 +21,24 @@ pub enum ContractError {
 
     #[error("Unauthorized")]
     Unauthorized {},
+
+    #[error("Osmosis pool error: {0}")]
+    OsmosisPoolError(String),
+
+    #[error("Fund deposit error: expected {0} bal {1}, got {2}")]
+    FundsDepositError(String, String, String),
+
+    #[error("state machine: {0}")]
+    StateMachineError(String),
+
+}
+
+impl ContractError {
+    pub fn to_std(&self) -> StdError {
+        StdError::GenericErr { msg: self.to_string() }
+    }
+
+    pub fn to_neutron_std(&self) -> NeutronError {
+        NeutronError::Std(self.to_std())
+    }
 }

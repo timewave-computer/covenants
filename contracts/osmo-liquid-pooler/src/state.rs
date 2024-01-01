@@ -2,7 +2,7 @@ use cosmwasm_std::{Addr, Coin, Uint64};
 use cw_storage_plus::Item;
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
-use crate::msg::{ContractState, ProvidedLiquidityInfo};
+use crate::msg::{ContractState, ProvidedLiquidityInfo, PartyChainInfo};
 
 /// contract state tracks the state machine progress
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
@@ -22,8 +22,11 @@ pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> =
 pub const COIN_1: Item<Coin> = Item::new("coin_1");
 pub const COIN_2: Item<Coin> = Item::new("coin_2");
 
-
 pub const CALLBACKS: Item<Vec<String>> = Item::new("callbacks");
 
-pub const LATEST_OSMO_POOL_RESPONSE: Item<Option<Pool>> = Item::new("osmo_pool");
+pub const LATEST_OSMO_POOL_SNAPSHOT: Item<Option<Pool>> = Item::new("osmo_pool");
 pub const POOL_ID: Item<Uint64> = Item::new("pool_id");
+pub const IBC_TIMEOUT: Item<Uint64> = Item::new("ibc_timeout");
+pub const PARTY_1_CHAIN_INFO: Item<PartyChainInfo> = Item::new("party_1_chain_info");
+pub const PARTY_2_CHAIN_INFO: Item<PartyChainInfo> = Item::new("party_2_chain_info");
+pub const OSMO_TO_NEUTRON_CHANNEL_ID: Item<String> = Item::new("osmo_to_neutron_channel_id");
