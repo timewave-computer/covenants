@@ -1,4 +1,5 @@
-use cosmwasm_std::{DepsMut, Binary, Response, from_json};
+use cosmwasm_std::{DepsMut, Binary, Response, from_json, Coin, to_json_binary};
+use cw_storage_plus::KeyDeserialize;
 use neutron_sdk::{NeutronResult, bindings::msg::NeutronMsg};
 use osmosis_std::types::osmosis::gamm::v1beta1::{QueryPoolResponse, Pool};
 use polytone::callbacks::{ErrorResponse, ExecutionResponse};
@@ -38,21 +39,33 @@ pub fn process_query_callback(
 pub fn process_execute_callback(
     deps: DepsMut,
     execute_callback_result: Result<ExecutionResponse, String>,
+    initiator_msg: Binary,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let entries = match execute_callback_result {
-        Ok(execution_response) => execution_response.result
-            .into_iter()
-            .map(|r| {
-                match r.data {
-                    Some(data) => data.to_string(),
+    let mut entries: Vec<String> = vec![];
+    let initiator_msg: String = from_json(initiator_msg)?;
+    match execute_callback_result {
+        Ok(execution_response) => {
+            for result in execution_response.result {
+                let decoded = match result.data {
+                    Some(data) => {
+                        if initiator_msg == "liquidity_provided" {
+                            entries.push("liquidity_provided".to_string());
+                        } else if initiator_msg == "proxy_created" {
+                            entries.push("proxy_created".to_string());
+                        }
+                        data.to_string()
+                    },
                     None => "none".to_string(),
-                }
-            })
-            .collect(),
-        Err(err) => vec![err],
+                };
+                entries.push(decoded);
+            };
+        },
+        Err(str) => entries.push(str),
     };
 
-
+    if entries.contains(&"liquidity_provided".to_string()) {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+    }
     let mut callbacks = CALLBACKS.load(deps.storage)?;
     callbacks.extend(entries);
     CALLBACKS.save(deps.storage, &callbacks)?;
