@@ -138,17 +138,12 @@ pub fn instantiate(
     PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_router_address)?;
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
 
-    let mut clock_whitelist = vec![
-        holder_address.to_string(),
-        party_a_router_address.to_string(),
-        party_b_router_address.to_string(),
-        liquid_pooler_address.to_string(),
-    ];
+    let mut clock_whitelist: Vec<String> = Vec::with_capacity(6);
 
     let preset_party_a_forwarder_fields = match msg.clone().party_a_config {
         CovenantPartyConfig::Interchain(config) => {
             PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &party_a_forwarder_address)?;
-            clock_whitelist.insert(0, party_a_forwarder_address.to_string());
+            clock_whitelist.push(party_a_forwarder_address.to_string());
             Some(PresetIbcForwarderFields {
                 remote_chain_connection_id: config.party_chain_connection_id,
                 remote_chain_channel_id: config.party_to_host_chain_channel_id,
@@ -167,7 +162,7 @@ pub fn instantiate(
     let preset_party_b_forwarder_fields = match msg.clone().party_b_config {
         CovenantPartyConfig::Interchain(config) => {
             PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_forwarder_address)?;
-            clock_whitelist.insert(1, party_b_forwarder_address.to_string());
+            clock_whitelist.push(party_b_forwarder_address.to_string());
             Some(PresetIbcForwarderFields {
                 remote_chain_connection_id: config.party_chain_connection_id,
                 remote_chain_channel_id: config.party_to_host_chain_channel_id,
@@ -182,6 +177,11 @@ pub fn instantiate(
         }
         CovenantPartyConfig::Native(_) => None,
     };
+
+    clock_whitelist.push(holder_address.to_string());
+    clock_whitelist.push(party_a_router_address.to_string());
+    clock_whitelist.push(party_b_router_address.to_string());
+    clock_whitelist.push(liquid_pooler_address.to_string());
 
     let covenant_denoms: BTreeSet<String> = msg
         .splits
