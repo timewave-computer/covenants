@@ -557,26 +557,20 @@ impl DestinationConfig {
         // the count to enable one additional transfer if needed.
         let count = Uint128::from(1 + coins.len() as u128);
 
-        for coin in coins {
-            // if denom is not neutron, we just distribute it entirely
-            let send_coin = if coin.denom != "untrn" {
-                Some(coin)
-            } else {
-                // if its neutron we're distributing we need to keep a
-                // reserve for ibc gas costs.
-                // this is safe because we pass target denoms.
+        for mut c in coins {
+            // if we distribute neutron, we need to keep a
+            // reserve for ibc gas costs.
+            // this is safe because we pass target denoms.
+            if c.denom == "untrn" {
                 let reserve_amount = count * get_default_ibc_fee_requirement();
-                if coin.amount > reserve_amount {
-                    Some(Coin {
-                        denom: coin.denom,
-                        amount: coin.amount - reserve_amount,
-                    })
+                if c.amount > reserve_amount {
+                    c.amount = c.amount - reserve_amount
                 } else {
-                    None
+                    c.amount = Uint128::zero();
                 }
             };
 
-            if let Some(c) = send_coin {
+            if !c.amount.is_zero() {
                 messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
                     source_port: "transfer".to_string(),
                     source_channel: self.destination_chain_channel_id.to_string(),
