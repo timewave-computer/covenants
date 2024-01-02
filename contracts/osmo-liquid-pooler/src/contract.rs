@@ -3,7 +3,7 @@ use std::str::FromStr;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, CosmosMsg, WasmMsg, QueryRequest, Empty, StdError, to_json_string, Coin, IbcTimeout,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, CosmosMsg, WasmMsg, QueryRequest, Empty, StdError, to_json_string, Coin, IbcTimeout, IbcMsg,
 };
 use covenant_utils::{get_polytone_execute_msg_binary, query_polytone_proxy_address, get_polytone_query_msg_binary, default_ibc_fee};
 use cw2::set_contract_version;
@@ -84,7 +84,9 @@ pub fn execute(
 ) -> NeutronResult<Response<NeutronMsg>> {
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Callback(callback_msg) => try_handle_callback(deps, info, callback_msg),
+        ExecuteMsg::Callback(
+            callback_msg
+        ) => try_handle_callback(deps, info, callback_msg),
     }
 }
 
@@ -96,9 +98,12 @@ fn try_handle_callback(deps: DepsMut, info: MessageInfo, msg: CallbackMessage) -
     }
 
     match msg.result {
-        PolytoneCallback::Query(resp) => process_query_callback(deps,resp),
-        PolytoneCallback::Execute(resp) => process_execute_callback(deps,resp),
-        PolytoneCallback::FatalError(resp) => process_fatal_error_callback(deps, resp),
+        PolytoneCallback::Query(resp) =>
+            process_query_callback(deps,resp),
+        PolytoneCallback::Execute(resp) =>
+            process_execute_callback(deps,resp, msg.initiator_msg),
+        PolytoneCallback::FatalError(resp) =>
+            process_fatal_error_callback(deps, resp),
     }
 }
 
@@ -320,7 +325,6 @@ fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<Neutron
             Uint128::from_str(&pool_asset_2_amount)?.u128(),
         ),
     );
-    let tokens_string = format!("{:?} + {:?}", coin_1.to_string(), coin_2.to_string());
 
     let osmo_msg: CosmosMsg = MsgJoinPool {
         sender: proxy_address,
@@ -336,19 +340,20 @@ fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<Neutron
     };
     let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
     let osmo_to_neutron_channel_id = OSMO_TO_NEUTRON_CHANNEL_ID.load(deps.storage)?;
-    let transfer_gamm_msg: CosmosMsg = CosmosMsg::Ibc(cosmwasm_std::IbcMsg::Transfer {
+    let transfer_gamm_msg: CosmosMsg = IbcMsg::Transfer {
         channel_id: osmo_to_neutron_channel_id,
         to_address: holder_addr.to_string(),
-        amount: expected_gamm_coin,
-        timeout: IbcTimeout::with_timestamp(env.block.time.plus_seconds(ibc_timeout.u64())),
-    });
-
+        amount: expected_gamm_coin.clone(),
+        timeout: IbcTimeout::with_timestamp(
+            env.block.time.plus_seconds(ibc_timeout.u64()),
+        ),
+    }.into();
     let polytone_execute_msg_binary = get_polytone_execute_msg_binary(
         // include gamm token transfer msg back to holder after osmo_msg
         vec![osmo_msg, transfer_gamm_msg],
         Some(CallbackRequest {
             receiver: env.contract.address.to_string(),
-            msg: to_json_binary(&tokens_string)?,
+            msg: to_json_binary(&"liquidity_provided")?,
         }),
         ibc_timeout,
     )?;
