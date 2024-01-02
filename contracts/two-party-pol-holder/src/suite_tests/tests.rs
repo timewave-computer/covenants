@@ -763,7 +763,7 @@ fn test_distribute_fallback_split() {
     // mint a bunch of coins to the holder and keep track of their denoms
     let mut denoms = Vec::new();
     for i in 1..=100 {
-        let token_denom = format!("shitcoin_{:?}", i);
+        let token_denom = format!("shitcoin_{i:?}");
         let shitcoin = suite.get_coin(token_denom.to_string(), Uint128::new(100));
         suite.fund_coin(shitcoin);
         denoms.push(token_denom);

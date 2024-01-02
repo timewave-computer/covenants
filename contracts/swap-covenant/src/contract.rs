@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps,
-    DepsMut, Env, MessageInfo, Response, StdResult,
+    DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg,
 };
 
 use covenant_clock::msg::PresetClockFields;
@@ -18,11 +18,13 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     error::ContractError,
-    msg::{CovenantPartyConfig, InstantiateMsg, QueryMsg},
+    msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         COVENANT_CLOCK_ADDR, COVENANT_INTERCHAIN_SPLITTER_ADDR, COVENANT_SWAP_HOLDER_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
-        PARTY_B_ROUTER_ADDR,
+        PARTY_B_ROUTER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
+        PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS,
+        PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PRESET_SPLITTER_FIELDS,
     },
 };
 
@@ -76,11 +78,11 @@ pub fn instantiate(
     let party_b_forwarder_salt = generate_contract_salt(PARTY_B_FORWARDER_SALT);
     let splitter_salt = generate_contract_salt(SPLITTER_SALT);
 
-    let party_a_router_code = match msg.clone().party_a_config {
+    let party_a_router_code = match msg.party_a_config {
         CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
         CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
     };
-    let party_b_router_code = match msg.clone().party_b_config {
+    let party_b_router_code = match msg.party_b_config {
         CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
         CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
     };
@@ -331,6 +333,106 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 Some(Addr::unchecked("not found"))
             };
             Ok(to_json_binary(&resp)?)
+        }
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: migrate");
+    match msg {
+        MigrateMsg::UpdateCovenant {
+            clock,
+            holder,
+            splitter,
+            party_a_router,
+            party_b_router,
+            party_a_forwarder,
+            party_b_forwarder,
+        } => {
+            let mut migrate_msgs = vec![];
+            let mut resp = Response::default().add_attribute("method", "migrate_contracts");
+
+            if let Some(clock) = clock {
+                let msg = to_json_binary(&clock)?;
+                let clock_fields = PRESET_CLOCK_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("clock_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: COVENANT_CLOCK_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: clock_fields.code_id,
+                    msg,
+                });
+            }
+
+            if let Some(router) = party_a_router {
+                let msg: Binary = to_json_binary(&router)?;
+                let router_fields = PRESET_PARTY_A_ROUTER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("party_a_router_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: PARTY_A_ROUTER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: router_fields.code_id,
+                    msg,
+                });
+            }
+
+            if let Some(router) = party_b_router {
+                let msg: Binary = to_json_binary(&router)?;
+                let router_fields = PRESET_PARTY_B_ROUTER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("party_b_router_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: PARTY_B_ROUTER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: router_fields.code_id,
+                    msg,
+                });
+            }
+
+            if let Some(forwarder) = party_a_forwarder {
+                let msg: Binary = to_json_binary(&forwarder)?;
+                let forwarder_fields = PRESET_PARTY_A_FORWARDER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("party_a_forwarder_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: PARTY_A_IBC_FORWARDER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: forwarder_fields.code_id,
+                    msg,
+                });
+            }
+
+            if let Some(forwarder) = party_b_forwarder {
+                let msg: Binary = to_json_binary(&forwarder)?;
+                let forwarder_fields = PRESET_PARTY_B_FORWARDER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("party_b_forwarder_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: PARTY_B_IBC_FORWARDER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: forwarder_fields.code_id,
+                    msg,
+                });
+            }
+
+            if let Some(holder) = holder {
+                let msg: Binary = to_json_binary(&holder)?;
+                let holder_fields = PRESET_HOLDER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("holder_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: COVENANT_SWAP_HOLDER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: holder_fields.code_id,
+                    msg,
+                });
+            }
+
+            if let Some(splitter) = splitter {
+                let msg = to_json_binary(&splitter)?;
+                let splitter_fields = PRESET_SPLITTER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("splitter_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: COVENANT_INTERCHAIN_SPLITTER_ADDR
+                        .load(deps.storage)?
+                        .to_string(),
+                    new_code_id: splitter_fields.code_id,
+                    msg,
+                });
+            }
+
+            Ok(resp.add_messages(migrate_msgs))
         }
     }
 }

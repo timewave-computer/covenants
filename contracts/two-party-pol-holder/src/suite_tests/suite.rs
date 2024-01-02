@@ -243,7 +243,7 @@ impl SuiteBuilder {
                 Some(ADMIN.to_string()),
             )
             .unwrap();
-        println!("holder address: {:?}", holder);
+        println!("holder address: {holder:?}");
 
         Suite {
             app,
@@ -285,7 +285,7 @@ impl Suite {
             &ExecuteMsg::Ragequit {},
             &[],
         );
-        println!("rq response: {:?}", resp);
+        println!("rq response: {resp:?}");
         resp
     }
 

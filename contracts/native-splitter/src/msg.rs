@@ -1,7 +1,7 @@
 use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, StdError, Uint128, Uint64};
+use cosmwasm_std::{Addr, Attribute, Binary, StdError, Uint128, Uint64};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
@@ -86,12 +86,7 @@ pub struct SplitReceiver {
 
 impl fmt::Display for SplitReceiver {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let str = "[";
-        fmt.write_str(str)?;
-        fmt.write_str(self.addr.as_str())?;
-        fmt.write_str(",")?;
-        fmt.write_str(self.share.to_string().as_str())?;
-        fmt.write_str("]")?;
+        fmt.write_str(format!("[{},{}]", self.addr, self.share).as_str())?;
         Ok(())
     }
 }
@@ -125,4 +120,16 @@ pub enum ContractState {
     Instantiated,
     IcaCreated,
     Completed,
+}
+
+#[cw_serde]
+pub enum MigrateMsg {
+    UpdateConfig {
+        clock_addr: Option<String>,
+        remote_chain_info: Option<RemoteChainInfo>,
+        splits: Option<Vec<NativeDenomSplit>>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
+    },
 }

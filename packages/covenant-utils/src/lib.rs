@@ -206,7 +206,7 @@ impl SplitConfig {
             Some(val) => new_receivers.insert(router_a, *val),
             None => {
                 return Err(StdError::NotFound {
-                    kind: format!("receiver {:?} not found", receiver_b),
+                    kind: format!("receiver {receiver_b:?} not found"),
                 })
             }
         };
@@ -214,7 +214,7 @@ impl SplitConfig {
             Some(val) => new_receivers.insert(router_b, *val),
             None => {
                 return Err(StdError::NotFound {
-                    kind: format!("receiver {:?} not found", receiver_b),
+                    kind: format!("receiver {receiver_b:?} not found"),
                 })
             }
         };

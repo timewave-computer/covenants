@@ -111,3 +111,17 @@ pub enum ContractState {
     /// underlying funds have been withdrawn.
     Complete,
 }
+
+#[cw_serde]
+pub enum MigrateMsg {
+    UpdateConfig {
+        clock_addr: Option<String>,
+        next_contract: Option<String>,
+        lockup_config: Option<Expiration>,
+        parites_config: Box<Option<CovenantPartiesConfig>>,
+        covenant_terms: Option<CovenantTerms>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
+    },
+}

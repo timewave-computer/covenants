@@ -162,7 +162,7 @@ fn test_covenant_query_endpoint() {
         )
         .unwrap();
 
-    println!("resp: {:?}", resp);
+    println!("resp: {resp:?}");
 }
 
 #[test]
