@@ -18,7 +18,7 @@ use neutron_sdk::interchain_txs::helpers::{
 use neutron_sdk::sudo::msg::{RequestPacket, SudoMsg};
 use neutron_sdk::NeutronError;
 
-use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, SplitReceiver};
+use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SplitReceiver};
 use crate::state::{
     add_error_to_queue, read_reply_payload, read_sudo_payload, save_reply_payload,
     save_sudo_payload, CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO,
@@ -380,11 +380,8 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
             }
             _ => {
                 deps.api.debug(
-                    format!(
-                        "This type of acknowledgement is not implemented: {:?}",
-                        payload
-                    )
-                    .as_str(),
+                    format!("This type of acknowledgement is not implemented: {payload:?}")
+                        .as_str(),
                 );
             }
         }
@@ -446,4 +443,60 @@ fn _prepare_sudo_payload(mut deps: DepsMut, _env: Env, msg: Reply) -> StdResult<
     let channel_id = resp.channel;
     save_sudo_payload(deps.branch().storage, channel_id, seq_id, payload)?;
     Ok(Response::new())
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: migrate");
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            remote_chain_info,
+            splits,
+        } => {
+            let mut resp = Response::default().add_attribute("method", "update_config");
+
+            if let Some(addr) = clock_addr {
+                let clock_address = deps.api.addr_validate(&addr)?;
+                CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
+                resp = resp.add_attribute("clock_addr", addr);
+            }
+
+            if let Some(remote_chain_info) = remote_chain_info {
+                REMOTE_CHAIN_INFO.save(deps.storage, &remote_chain_info)?;
+                resp = resp.add_attribute("remote_chain_info", format!("{remote_chain_info:?}"));
+            }
+
+            if let Some(splits) = splits {
+                let mut split_resp_attributes: Vec<Attribute> = Vec::new();
+                let mut encountered_denoms: HashSet<String> = HashSet::new();
+
+                for split in splits {
+                    // if denom had not yet been encountered we proceed, otherwise error
+                    if encountered_denoms.insert(split.denom.to_string()) {
+                        let validated_split = split.validate()?;
+                        split_resp_attributes.push(validated_split.to_response_attribute());
+                        SPLIT_CONFIG_MAP.save(
+                            deps.storage,
+                            validated_split.denom.clone(),
+                            &validated_split.receivers,
+                        )?;
+
+                        resp = resp.add_attribute(
+                            format!("split-{}", validated_split.denom),
+                            format!("{:?}", validated_split.receivers),
+                        );
+                    } else {
+                        return Err(StdError::generic_err(format!(
+                            "multiple {:?} entries",
+                            split.denom
+                        )));
+                    }
+                }
+            }
+
+            Ok(resp)
+        }
+        MigrateMsg::UpdateCodeId { data: _ } => todo!(),
+    }
 }

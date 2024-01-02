@@ -24,7 +24,7 @@ use crate::{
         COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
         PARTY_B_ROUTER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
-        PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS,
+        PRESET_LIQUID_POOLER_FIELDS, PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS,
         PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS,
     },
 };
@@ -84,12 +84,12 @@ pub fn instantiate(
         &clock_salt,
     )?;
 
-    let party_a_router_code = match msg.clone().party_a_config {
+    let party_a_router_code = match msg.party_a_config {
         CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
         CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
     };
 
-    let party_b_router_code = match msg.clone().party_b_config {
+    let party_b_router_code = match msg.party_b_config {
         CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
         CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
     };
@@ -358,9 +358,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
     match msg {
-        MigrateMsg::MigrateContracts {
+        MigrateMsg::UpdateCovenant {
             clock,
             holder,
+            liquid_pooler,
             party_a_router,
             party_b_router,
             party_a_forwarder,
@@ -431,6 +432,17 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_POL_HOLDER_ADDR.load(deps.storage)?.to_string(),
                     new_code_id: holder_fields.code_id,
+                    msg,
+                });
+            }
+
+            if let Some(liquid_pooler) = liquid_pooler {
+                let msg = to_json_binary(&liquid_pooler)?;
+                let liquid_pooler_fields = PRESET_LIQUID_POOLER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("liquid_pooler_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: LIQUID_POOLER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: liquid_pooler_fields.code_id,
                     msg,
                 });
             }

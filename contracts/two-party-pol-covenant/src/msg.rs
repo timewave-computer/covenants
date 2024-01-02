@@ -208,9 +208,10 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub enum MigrateMsg {
-    MigrateContracts {
+    UpdateCovenant {
         clock: Option<covenant_clock::msg::MigrateMsg>,
         holder: Option<covenant_two_party_pol_holder::msg::MigrateMsg>,
+        liquid_pooler: Option<covenant_astroport_liquid_pooler::msg::MigrateMsg>,
         party_a_router: Option<covenant_interchain_router::msg::MigrateMsg>,
         party_b_router: Option<covenant_interchain_router::msg::MigrateMsg>,
         party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
