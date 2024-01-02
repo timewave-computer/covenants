@@ -5,7 +5,7 @@ use cosmwasm_std::{
 
 use crate::{
     error::ContractError,
-    msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg},
+    msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_TERMS, LOCKUP_CONFIG, NEXT_CONTRACT, PARTIES_CONFIG,
     },
@@ -232,5 +232,54 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
             .add_attribute("contract_state", "complete"))
     } else {
         Err(ContractError::UnexpectedReplyId {})
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    deps.api.debug("WASMDEBUG: migrate");
+    match msg {
+        MigrateMsg::UpdateConfig {
+            clock_addr,
+            next_contract,
+            lockup_config,
+            parites_config,
+            covenant_terms,
+        } => {
+            let mut resp = Response::default().add_attribute("method", "update_config");
+
+            if let Some(addr) = clock_addr {
+                let clock_address = deps.api.addr_validate(&addr)?;
+                CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
+                resp = resp.add_attribute("clock_addr", addr);
+            }
+
+            if let Some(addr) = next_contract {
+                let next_contract_addr = deps.api.addr_validate(&addr)?;
+                NEXT_CONTRACT.save(deps.storage, &next_contract_addr)?;
+                resp = resp.add_attribute("next_contract", addr);
+            }
+
+            if let Some(expiry_config) = lockup_config {
+                if expiry_config.is_expired(&env.block) {
+                    return Err(StdError::generic_err("lockup config is already past"));
+                }
+                LOCKUP_CONFIG.save(deps.storage, &expiry_config)?;
+                resp = resp.add_attribute("lockup_config", expiry_config.to_string());
+            }
+
+            if let Some(parites_config) = *parites_config {
+                PARTIES_CONFIG.save(deps.storage, &parites_config)?;
+                resp = resp.add_attribute("parites_config", format!("{parites_config:?}"));
+            }
+
+            if let Some(covenant_terms) = covenant_terms {
+                COVENANT_TERMS.save(deps.storage, &covenant_terms)?;
+                resp = resp.add_attribute("covenant_terms", format!("{covenant_terms:?}"));
+            }
+
+            Ok(resp)
+        }
+        MigrateMsg::UpdateCodeId { data: _ } => todo!(),
     }
 }
