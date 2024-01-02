@@ -18,7 +18,7 @@ use neutron_sdk::interchain_txs::helpers::{
 use neutron_sdk::sudo::msg::{RequestPacket, SudoMsg};
 use neutron_sdk::NeutronError;
 
-use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SplitReceiver};
+use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{
     add_error_to_queue, read_reply_payload, read_sudo_payload, save_reply_payload,
     save_sudo_payload, CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO,
@@ -59,8 +59,8 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     // validate each split and store it in a map
-    let mut split_resp_attributes: Vec<Attribute> = Vec::new();
-    let mut encountered_denoms: HashSet<String> = HashSet::new();
+    let mut split_resp_attributes: Vec<Attribute> = Vec::with_capacity(msg.splits.len());
+    let mut encountered_denoms: HashSet<String> = HashSet::with_capacity(msg.splits.len());
 
     for split in msg.splits {
         // if denom had not yet been encountered we proceed, otherwise error
@@ -143,7 +143,7 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
             let splits =
                 SPLIT_CONFIG_MAP.load(deps.storage, remote_chain_info.denom.to_string())?;
 
-            let mut outputs: Vec<Output> = Vec::new();
+            let mut outputs: Vec<Output> = Vec::with_capacity(splits.len());
             for split_receiver in splits.iter() {
                 // get the fraction dedicated to this receiver
                 let amt = amount
@@ -232,13 +232,9 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
             Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?)
         }
         QueryMsg::SplitConfig {} => {
-            let mut vec: Vec<(String, Vec<SplitReceiver>)> = Vec::new();
-
-            for entry in
-                SPLIT_CONFIG_MAP.range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-            {
-                vec.push(entry?)
-            }
+            let vec = SPLIT_CONFIG_MAP
+                .range(deps.storage, None, None, cosmwasm_std::Order::Ascending)
+                .collect::<Result<Vec<_>, StdError>>()?;
 
             Ok(to_json_binary(&vec)?)
         }
@@ -468,8 +464,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             if let Some(splits) = splits {
-                let mut split_resp_attributes: Vec<Attribute> = Vec::new();
-                let mut encountered_denoms: HashSet<String> = HashSet::new();
+                let mut split_resp_attributes: Vec<Attribute> = Vec::with_capacity(splits.len());
+                let mut encountered_denoms: HashSet<String> = HashSet::with_capacity(splits.len());
 
                 for split in splits {
                     // if denom had not yet been encountered we proceed, otherwise error
