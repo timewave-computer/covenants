@@ -72,7 +72,7 @@ fn try_distribute_fallback(
     env: Env,
     denoms: Vec<String>,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let mut available_balances = Vec::new();
+    let mut available_balances = Vec::with_capacity(denoms.len());
     let receiver_config = RECEIVER_CONFIG.load(deps.storage)?;
     let explicit_denoms = TARGET_DENOMS.load(deps.storage)?;
 
@@ -111,7 +111,8 @@ fn try_distribute_fallback(
 fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let receiver_config = RECEIVER_CONFIG.load(deps.storage)?;
     let denoms_to_route = TARGET_DENOMS.load(deps.storage)?;
-    let mut denom_balances = Vec::new();
+    let mut denom_balances = Vec::with_capacity(denoms_to_route.len());
+
     for denom in denoms_to_route {
         let coin_to_route = deps
             .querier

@@ -130,7 +130,7 @@ fn try_distribute_fallback_split(
     env: Env,
     denoms: Vec<String>,
 ) -> Result<Response, ContractError> {
-    let mut available_balances = Vec::new();
+    let mut available_balances = Vec::with_capacity(denoms.len());
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
 
     for denom in denoms {
