@@ -174,7 +174,7 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
                 if coin.denom == "untrn" {
                     let reserve_amount = count * get_default_ibc_fee_requirement();
                     if coin.amount > reserve_amount {
-                        coin.amount = coin.amount - reserve_amount
+                        coin.amount -= reserve_amount
                     } else {
                         coin.amount = Uint128::zero();
                     }
