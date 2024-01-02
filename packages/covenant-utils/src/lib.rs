@@ -564,7 +564,7 @@ impl DestinationConfig {
             if c.denom == "untrn" {
                 let reserve_amount = count * get_default_ibc_fee_requirement();
                 if c.amount > reserve_amount {
-                    c.amount = c.amount - reserve_amount
+                    c.amount -= reserve_amount
                 } else {
                     c.amount = Uint128::zero();
                 }
