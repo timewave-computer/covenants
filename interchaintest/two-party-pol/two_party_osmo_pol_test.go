@@ -615,8 +615,20 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 					testCtx.Tick(osmoLiquidPoolerAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
-			testCtx.SkipBlocks(200)
+		})
 
+		t.Run("tick until liquid pooler is complete", func(t *testing.T) {
+			for {
+				testCtx.Tick(osmoLiquidPoolerAddress, keyring.BackendTest, neutronUser.KeyName)
+
+				contractState := testCtx.QueryContractState(osmoLiquidPoolerAddress)
+				println("contract state: ", contractState)
+
+				if contractState == "complete" {
+					testCtx.SkipBlocks(200)
+					break
+				}
+			}
 		})
 
 		// t.Run("enter LP pool via proxy", func(t *testing.T) {
