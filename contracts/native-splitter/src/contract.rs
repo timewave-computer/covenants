@@ -340,7 +340,9 @@ fn sudo_open_ack(
     Ok(Response::default().add_attribute("method", "sudo_open_ack"))
 }
 
-fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResult<Response> {
+fn sudo_response(mut deps: DepsMut, request: RequestPacket, data: Binary) -> StdResult<Response> {
+  let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+
     deps.api
         .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}",).as_str());
 
@@ -364,6 +366,8 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
 
     // Iterate over the messages, parse them depending on their type & process them.
     let mut item_types = vec![];
+    let mut complete_msg = vec![];
+
     for item in parsed_data {
         let item_type = item.msg_type.as_str();
         item_types.push(item_type.to_string());
@@ -372,7 +376,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
                 decode_message_response(&item.data)?;
                 // TODO: look into if this successful decoding is enough to assume multi
                 // send was successful
-                CONTRACT_STATE.save(deps.storage, &ContractState::Completed)?;
+                complete_msg.push(ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?)
             }
             _ => {
                 deps.api.debug(
@@ -383,7 +387,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
         }
     }
 
-    Ok(Response::default().add_attribute("method", "sudo_response"))
+    Ok(Response::default().add_messages(complete_msg).add_attribute("method", "sudo_response"))
 }
 
 fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<Response> {

@@ -1,8 +1,6 @@
-use std::borrow::BorrowMut;
-
 use cosmwasm_std::{
-    to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128, Addr,
+    to_json_binary, Addr, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, Uint128,
 };
 
 use crate::{
@@ -20,7 +18,6 @@ use cw2::set_contract_version;
 
 const CONTRACT_NAME: &str = "crates.io:covenant-swap-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const COMPLETION_REPLY_ID: u64 = 531;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -73,7 +70,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
-        ContractState::Instantiated => try_forward(deps, env),
+        ContractState::Instantiated => try_forward(deps, env, info.sender),
         ContractState::Expired => try_refund(deps, env, info.sender),
         ContractState::Complete => {
             Ok(Response::default().add_attribute("contract_state", "completed"))
@@ -81,7 +78,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     }
 }
 
-fn try_forward(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn try_forward(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response, ContractError> {
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
     // check if covenant is expired
     if lockup_config.is_expired(&env.block) {
@@ -138,15 +135,16 @@ fn try_forward(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         )));
     };
 
-    let multi_send_msg = CosmosMsg::Bank(BankMsg::Send {
+    let bank_msg = BankMsg::Send {
         to_address: deposit_address,
         amount,
-    });
+    };
 
-    Ok(Response::default().add_submessage(SubMsg::reply_on_success(
-        multi_send_msg,
-        COMPLETION_REPLY_ID,
-    )))
+    let dequeue_msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?;
+
+    Ok(Response::default()
+        .add_message(bank_msg)
+        .add_message(dequeue_msg))
 }
 
 fn try_refund(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response, ContractError> {
@@ -178,7 +176,7 @@ fn try_refund(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response,
         // 2. we have refunded both parties
         // either way, this indicates completion
         (true, true) => {
-            let msg = ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?;
+            let msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?;
 
             return Ok(Response::default()
                 .add_message(msg)
@@ -224,21 +222,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         // the deposit address for swap-holder is the contract itself
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&Some(env.contract.address))?),
-    }
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(mut deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
-    if msg.id == COMPLETION_REPLY_ID {
-      let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-        let msg = ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?;
-
-        Ok(Response::default()
-        .add_message(msg)
-            .add_attribute("method", "reply_complete")
-            .add_attribute("contract_state", "complete"))
-    } else {
-        Err(ContractError::UnexpectedReplyId {})
     }
 }
 
