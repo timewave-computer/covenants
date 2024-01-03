@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, StdError, WasmMsg, DepsMut};
+use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, DepsMut, StdError, WasmMsg};
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::{CovenantPartiesConfig, CovenantTerms};
