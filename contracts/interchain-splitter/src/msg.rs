@@ -116,7 +116,9 @@ impl PresetInterchainSplitterFields {
 
 #[clocked]
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+  DistributeFallback { denoms: Vec<String> },
+}
 
 #[cw_serde]
 pub enum SplitType {

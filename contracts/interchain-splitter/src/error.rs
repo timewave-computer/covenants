@@ -6,6 +6,9 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
+    #[error("Caller is not the clock, only clock can tick contracts")]
+    NotClock,
+
     #[error("misconfigured split")]
     SplitMisconfig {},
 
