@@ -1,3 +1,4 @@
+use std::borrow::BorrowMut;
 use std::collections::BTreeMap;
 
 use astroport::{asset::Asset, pair::Cw20HookMsg};
@@ -9,7 +10,7 @@ use cosmwasm_std::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use covenant_clock::helpers::enqueue_msg;
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::{query_astro_pool_token, AstroportPoolTokenResponse, SplitConfig, SplitType};
 use cw2::set_contract_version;
 use cw20::Cw20ExecuteMsg;
@@ -151,16 +152,19 @@ fn try_distribute_fallback_split(
         .add_messages(fallback_distribution_messages))
 }
 
-fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+fn try_claim(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
     let (claim_party, counterparty) = covenant_config.authorize_sender(info.sender.to_string())?;
     let pool = POOL_ADDRESS.load(deps.storage)?;
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
 
     // if both parties already claimed everything we complete early
     if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
-        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        let msg = ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?;
+
         return Ok(Response::default()
+            .add_message(msg)
             .add_attribute("method", "try_claim")
             .add_attribute("contract_state", "complete"));
     }
@@ -188,6 +192,7 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
             lp_token_info.pair_info.liquidity_token.to_string(),
             pool.to_string(),
             covenant_config,
+            clock_addr,
         ),
         CovenantType::Side => try_claim_side_based(
             deps,
@@ -197,18 +202,20 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
             lp_token_info.pair_info.liquidity_token.to_string(),
             pool.to_string(),
             covenant_config,
+            clock_addr,
         ),
     }
 }
 
 fn try_claim_share_based(
-    deps: DepsMut,
+    mut deps: DepsMut,
     mut claim_party: TwoPartyPolCovenantParty,
     mut counterparty: TwoPartyPolCovenantParty,
     lp_token_bal: Uint128,
     lp_token_addr: String,
     pool: String,
     mut covenant_config: TwoPartyPolCovenantConfig,
+    clock_addr: Addr,
 ) -> Result<Response, ContractError> {
     // we figure out the amounts of underlying tokens that claiming party could receive
     let claim_party_lp_token_amount = lp_token_bal
@@ -252,12 +259,14 @@ fn try_claim_share_based(
     claim_party.allocation = Decimal::zero();
 
     // if other party had not claimed yet, we assign it the full position
-    if !counterparty.allocation.is_zero() {
+    let msgs = if !counterparty.allocation.is_zero() {
         counterparty.allocation = Decimal::one();
+        vec![]
     } else {
         // otherwise both parties claimed everything and we can complete
-        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-    }
+        vec![ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?.into()]
+    };
+    messages.extend(msgs);
 
     covenant_config.update_parties(claim_party, counterparty);
 
@@ -269,13 +278,14 @@ fn try_claim_share_based(
 }
 
 fn try_claim_side_based(
-    deps: DepsMut,
+    mut deps: DepsMut,
     mut claim_party: TwoPartyPolCovenantParty,
     mut counterparty: TwoPartyPolCovenantParty,
     lp_token_bal: Uint128,
     lp_token_addr: String,
     pool: String,
     mut covenant_config: TwoPartyPolCovenantConfig,
+    clock_addr: Addr,
 ) -> Result<Response, ContractError> {
     // we figure out the amount of tokens to be expected
     let entitled_assets: Vec<Asset> = deps.querier.query_wasm_smart(
@@ -304,11 +314,16 @@ fn try_claim_side_based(
 
     // messages will contain the withdraw liquidity message followed
     // by transfer of underlying assets to the corresponding router
-    let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: lp_token_addr,
-        msg: to_json_binary(withdraw_msg)?,
-        funds: vec![],
-    })];
+    let mut messages = Vec::with_capacity(distribution_messages.len() + 2);
+
+    messages.push(
+        WasmMsg::Execute {
+            contract_addr: lp_token_addr,
+            msg: to_json_binary(withdraw_msg)?,
+            funds: vec![],
+        }
+        .into(),
+    );
 
     // Append distribution messages
     messages.extend(distribution_messages);
@@ -319,17 +334,23 @@ fn try_claim_side_based(
 
     // update the states
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+
+    messages
+        .push(ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?.into());
 
     Ok(Response::default()
         .add_attribute("method", "claim_side_based")
         .add_messages(messages))
 }
 
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let state = CONTRACT_STATE.load(deps.storage)?;
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+    verify_clock(&info.sender, &clock_addr)
+        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
+
     match state {
-        ContractState::Instantiated => try_deposit(deps, env, info),
+        ContractState::Instantiated => try_deposit(deps, env, info, clock_addr.as_str()),
         ContractState::Active => check_expiration(deps, env),
         ContractState::Complete => Ok(Response::default()
             .add_attribute("method", "tick")
@@ -343,13 +364,21 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
             )?
             .balance_response
             .balance;
-            let state = if lp_token_bal.is_zero() {
-                CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-                ContractState::Complete
+
+            let (state, msgs) = if lp_token_bal.is_zero() {
+                (
+                    ContractState::Complete,
+                    vec![ContractState::complete_and_dequeue(
+                        deps.borrow_mut(),
+                        clock_addr.as_str(),
+                    )?],
+                )
             } else {
-                state
+                (state, vec![])
             };
+
             Ok(Response::default()
+                .add_messages(msgs)
                 .add_attribute("method", "tick")
                 .add_attribute("lp_token_bal", lp_token_bal)
                 .add_attribute("contract_state", state.to_string()))
@@ -357,7 +386,12 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     }
 }
 
-fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
+fn try_deposit(
+    mut deps: DepsMut,
+    env: Env,
+    _info: MessageInfo,
+    clock_addr: &str,
+) -> Result<Response, ContractError> {
     let config = COVENANT_CONFIG.load(deps.storage)?;
     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
 
@@ -382,8 +416,10 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
             match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
                 // both balances empty, we complete
                 (true, true) => {
-                    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+                    let msg = ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr)?;
+
                     return Ok(Response::default()
+                        .add_message(msg)
                         .add_attribute("method", "try_deposit")
                         .add_attribute("state", "complete"));
                 }
@@ -521,7 +557,7 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
 /// after applying the penalty, all tokens are routed back to the
 /// covenant parties. the covenant then completes.
 pub fn try_handle_side_based_ragequit(
-    deps: DepsMut,
+    mut deps: DepsMut,
     mut ragequit_party: TwoPartyPolCovenantParty,
     mut counterparty: TwoPartyPolCovenantParty,
     pool: Addr,
@@ -529,6 +565,8 @@ pub fn try_handle_side_based_ragequit(
     mut rq_terms: RagequitTerms,
     mut covenant_config: TwoPartyPolCovenantConfig,
 ) -> Result<Response, ContractError> {
+    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+
     // apply the ragequit penalty and get the new splits
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
     let updated_denom_splits =
@@ -560,11 +598,16 @@ pub fn try_handle_side_based_ragequit(
 
     // messages will contain the withdraw liquidity message followed
     // by transfer of underlying assets to the corresponding router
-    let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: lp_token_response.pair_info.liquidity_token.to_string(),
-        msg: to_json_binary(withdraw_msg)?,
-        funds: vec![],
-    })];
+    let mut messages = Vec::with_capacity(distribution_messages.len() + 2);
+
+    messages.push(
+        WasmMsg::Execute {
+            contract_addr: lp_token_response.pair_info.liquidity_token.to_string(),
+            msg: to_json_binary(withdraw_msg)?,
+            funds: vec![],
+        }
+        .into(),
+    );
 
     // Append distribution messages
     messages.extend(distribution_messages);
@@ -576,7 +619,9 @@ pub fn try_handle_side_based_ragequit(
     // update the states
     RAGEQUIT_CONFIG.save(deps.storage, &RagequitConfig::Enabled(rq_terms))?;
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+
+    messages
+        .push(ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?.into());
 
     Ok(Response::default()
         .add_attribute("method", "ragequit_side_based")

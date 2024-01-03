@@ -1,8 +1,11 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, StdError, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, StdError, WasmMsg, DepsMut};
+use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::{CovenantPartiesConfig, CovenantTerms};
 use cw_utils::Expiration;
+
+use crate::state::CONTRACT_STATE;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -110,6 +113,13 @@ pub enum ContractState {
     Expired,
     /// underlying funds have been withdrawn.
     Complete,
+}
+
+impl ContractState {
+    pub fn complete_and_dequeue(deps: &mut DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        dequeue_msg(clock_addr)
+    }
 }
 
 #[cw_serde]

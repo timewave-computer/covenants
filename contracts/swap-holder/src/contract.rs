@@ -1,6 +1,8 @@
+use std::borrow::BorrowMut;
+
 use cosmwasm_std::{
     to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult, SubMsg, Uint128,
+    Response, StdError, StdResult, SubMsg, Uint128, Addr,
 };
 
 use crate::{
@@ -72,7 +74,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
         ContractState::Instantiated => try_forward(deps, env),
-        ContractState::Expired => try_refund(deps, env),
+        ContractState::Expired => try_refund(deps, env, info.sender),
         ContractState::Complete => {
             Ok(Response::default().add_attribute("contract_state", "completed"))
         }
@@ -147,7 +149,7 @@ fn try_forward(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     )))
 }
 
-fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn try_refund(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response, ContractError> {
     let parties = PARTIES_CONFIG.load(deps.storage)?;
 
     let mut party_a_coin = Coin {
@@ -176,8 +178,10 @@ fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         // 2. we have refunded both parties
         // either way, this indicates completion
         (true, true) => {
-            CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+            let msg = ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?;
+
             return Ok(Response::default()
+                .add_message(msg)
                 .add_attribute("method", "try_refund")
                 .add_attribute("result", "nothing_to_refund")
                 .add_attribute("contract_state", "complete"));
@@ -224,10 +228,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+pub fn reply(mut deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     if msg.id == COMPLETION_REPLY_ID {
-        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+      let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
+        let msg = ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?;
+
         Ok(Response::default()
+        .add_message(msg)
             .add_attribute("method", "reply_complete")
             .add_attribute("contract_state", "complete"))
     } else {
