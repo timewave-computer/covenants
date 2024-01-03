@@ -14,8 +14,7 @@ pub fn swap_holder_contract() -> Box<dyn Contract<Empty>> {
         crate::contract::execute,
         crate::contract::instantiate,
         crate::contract::query,
-    )
-    .with_reply(crate::contract::reply);
+    );
     Box::new(contract)
 }
 

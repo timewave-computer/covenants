@@ -1,4 +1,3 @@
-use std::borrow::BorrowMut;
 use std::collections::BTreeMap;
 
 use astroport::{asset::Asset, pair::Cw20HookMsg};
@@ -161,7 +160,7 @@ fn try_claim(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response,
 
     // if both parties already claimed everything we complete early
     if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
-        let msg = ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?;
+        let msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?;
 
         return Ok(Response::default()
             .add_message(msg)
@@ -264,7 +263,7 @@ fn try_claim_share_based(
         vec![]
     } else {
         // otherwise both parties claimed everything and we can complete
-        vec![ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?.into()]
+        vec![ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?.into()]
     };
     messages.extend(msgs);
 
@@ -335,8 +334,7 @@ fn try_claim_side_based(
     // update the states
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
 
-    messages
-        .push(ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?.into());
+    messages.push(ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?.into());
 
     Ok(Response::default()
         .add_attribute("method", "claim_side_based")
@@ -369,7 +367,7 @@ fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
                 (
                     ContractState::Complete,
                     vec![ContractState::complete_and_dequeue(
-                        deps.borrow_mut(),
+                        deps.branch(),
                         clock_addr.as_str(),
                     )?],
                 )
@@ -416,7 +414,7 @@ fn try_deposit(
             match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
                 // both balances empty, we complete
                 (true, true) => {
-                    let msg = ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr)?;
+                    let msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr)?;
 
                     return Ok(Response::default()
                         .add_message(msg)
@@ -620,8 +618,7 @@ pub fn try_handle_side_based_ragequit(
     RAGEQUIT_CONFIG.save(deps.storage, &RagequitConfig::Enabled(rq_terms))?;
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
 
-    messages
-        .push(ContractState::complete_and_dequeue(deps.borrow_mut(), clock_addr.as_str())?.into());
+    messages.push(ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?.into());
 
     Ok(Response::default()
         .add_attribute("method", "ragequit_side_based")
