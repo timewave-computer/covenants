@@ -465,6 +465,8 @@ type OsmoLiquidPoolerInstantiateMsg struct {
 	Party1ChainInfo        PartyChainInfo `json:"party_1_chain_info"`
 	Party2ChainInfo        PartyChainInfo `json:"party_2_chain_info"`
 	OsmoToNeutronChannelId string         `json:"osmo_to_neutron_channel_id"`
+	Coin1NativeDenom       string         `json:"coin_1_native_denom"`
+	Coin2NativeDenom       string         `json:"coin_2_native_denom"`
 }
 
 type PartyChainInfo struct {

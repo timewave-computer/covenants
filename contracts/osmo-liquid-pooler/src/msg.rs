@@ -17,6 +17,8 @@ pub struct InstantiateMsg {
     pub party_1_chain_info: PartyChainInfo,
     pub party_2_chain_info: PartyChainInfo,
     pub osmo_to_neutron_channel_id: String,
+    pub coin_1_native_denom: String,
+    pub coin_2_native_denom: String,
 }
 
 #[clocked]

@@ -19,8 +19,15 @@ pub const PROXY_ADDRESS: Item<String> = Item::new("proxy_address");
 pub const PROVIDED_LIQUIDITY_INFO: Item<ProvidedLiquidityInfo> =
     Item::new("provided_liquidity_info");
 
+// on osmosis
 pub const COIN_1: Item<Coin> = Item::new("coin_1");
+// on osmosis
 pub const COIN_2: Item<Coin> = Item::new("coin_2");
+
+// coin_1 neutron denom
+pub const COIN_1_NATIVE_DENOM: Item<String> = Item::new("coin_1_native_denom");
+// coin_2 neutron denom
+pub const COIN_2_NATIVE_DENOM: Item<String> = Item::new("coin_2_native_denom");
 
 pub const CALLBACKS: Item<Vec<String>> = Item::new("callbacks");
 
