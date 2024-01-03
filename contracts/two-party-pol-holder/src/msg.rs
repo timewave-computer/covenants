@@ -3,15 +3,17 @@ use std::{collections::BTreeMap, fmt};
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, StdError, WasmMsg,
+    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError,
+    WasmMsg,
 };
+use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract,
 };
 use covenant_utils::{DenomSplit, SplitConfig, SplitType};
 use cw_utils::Expiration;
 
-use crate::error::ContractError;
+use crate::{error::ContractError, state::CONTRACT_STATE};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -499,6 +501,11 @@ impl ContractState {
             ContractState::Expired => Ok(()),
             _ => Err(ContractError::ClaimError {}),
         }
+    }
+
+    pub fn complete_and_dequeue(deps: &mut DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        dequeue_msg(clock_addr)
     }
 }
 
