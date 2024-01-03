@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, Addr, BankMsg, Binary, Coin, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128,
+    to_json_binary, Addr, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Uint128,
 };
 
 use crate::{
@@ -92,24 +92,17 @@ fn try_forward(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response
     let parties = PARTIES_CONFIG.load(deps.storage)?;
     let CovenantTerms::TokenSwap(covenant_terms) = COVENANT_TERMS.load(deps.storage)?;
 
-    let mut party_a_coin = Coin {
-        denom: parties.party_a.native_denom,
-        amount: Uint128::zero(),
-    };
-    let mut party_b_coin = Coin {
-        denom: parties.party_b.native_denom,
-        amount: Uint128::zero(),
-    };
+    let mut party_a_coin = deps
+        .querier
+        .query_balance(env.contract.address.clone(), parties.party_a.native_denom)?;
+    let mut party_b_coin = deps
+        .querier
+        .query_balance(env.contract.address, parties.party_b.native_denom)?;
 
-    // query holder balances
-    let balances = deps.querier.query_all_balances(env.contract.address)?;
-    // find the existing balances of covenant coins
-    for coin in balances {
-        if coin.denom == party_a_coin.denom && coin.amount >= covenant_terms.party_a_amount {
-            party_a_coin.amount = coin.amount;
-        } else if coin.denom == party_b_coin.denom && coin.amount >= covenant_terms.party_b_amount {
-            party_b_coin.amount = coin.amount;
-        }
+    if party_a_coin.amount < covenant_terms.party_a_amount {
+        party_a_coin.amount = Uint128::zero();
+    } else if party_b_coin.amount < covenant_terms.party_b_amount {
+        party_b_coin.amount = Uint128::zero();
     }
 
     // if either of the coin amounts did not get updated to non-zero,
@@ -150,25 +143,14 @@ fn try_forward(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response
 fn try_refund(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response, ContractError> {
     let parties = PARTIES_CONFIG.load(deps.storage)?;
 
-    let mut party_a_coin = Coin {
-        denom: parties.clone().party_a.native_denom,
-        amount: Uint128::zero(),
-    };
-    let mut party_b_coin = Coin {
-        denom: parties.clone().party_b.native_denom,
-        amount: Uint128::zero(),
-    };
-
-    // query holder balances
-    let balances = deps.querier.query_all_balances(env.contract.address)?;
-    // find the existing balances of covenant coins
-    for coin in balances {
-        if coin.denom == party_a_coin.denom {
-            party_a_coin.amount = coin.amount;
-        } else if coin.denom == party_b_coin.denom {
-            party_b_coin.amount = coin.amount;
-        }
-    }
+    // Query balance for the parties
+    let party_a_coin = deps.querier.query_balance(
+        env.contract.address.clone(),
+        parties.party_a.native_denom.clone(),
+    )?;
+    let party_b_coin = deps
+        .querier
+        .query_balance(env.contract.address, parties.party_b.native_denom.clone())?;
 
     let messages = match (party_a_coin.amount.is_zero(), party_b_coin.amount.is_zero()) {
         // both balances being zero means that either:

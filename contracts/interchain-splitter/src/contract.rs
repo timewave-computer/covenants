@@ -77,35 +77,38 @@ pub fn execute(
 
 pub fn try_distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     // first we query the contract balances
-    let mut balances = deps.querier.query_all_balances(env.contract.address)?;
     let mut distribution_messages: Vec<CosmosMsg> = vec![];
 
     // then we iterate over our split config and try to match the entries to available balances
     for entry in SPLIT_CONFIG_MAP.range(deps.storage, None, None, Order::Ascending) {
         let (denom, config) = entry?;
+        let balance = deps
+            .querier
+            .query_balance(env.contract.address.clone(), denom.to_string())?;
 
-        // we try to find the index of matching coin in available balances
-        let balances_index = balances.iter().position(|coin| coin.denom == denom);
-        if let Some(index) = balances_index {
+        if !balance.amount.is_zero() {
             // pop the relevant coin and build the transfer messages
-            let coin = balances.remove(index);
+
             let mut transfer_messages =
-                config.get_transfer_messages(coin.amount, coin.denom.to_string(), None)?;
+                config.get_transfer_messages(balance.amount, balance.denom.to_string(), None)?;
             distribution_messages.append(&mut transfer_messages);
         }
     }
 
+    // TODO: Move this functionality to tis own message
+
     // by now all explicitly defined denom splits have been removed from the
     // balances vector so we can take the remaining balances and distribute
     // them according to the fallback split (if provided)
-    if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
-        // get the distribution messages and add them to the list
-        for leftover_bal in balances {
-            let mut fallback_messages =
-                split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom, None)?;
-            distribution_messages.append(&mut fallback_messages);
-        }
-    }
+
+    // if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
+    //     // get the distribution messages and add them to the list
+    //     for leftover_bal in balances {
+    //         let mut fallback_messages =
+    //             split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom, None)?;
+    //         distribution_messages.append(&mut fallback_messages);
+    //     }
+    // }
 
     Ok(Response::default()
         .add_attribute("method", "try_distribute")

@@ -206,6 +206,7 @@ fn try_claim(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response,
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn try_claim_share_based(
     mut deps: DepsMut,
     mut claim_party: TwoPartyPolCovenantParty,
@@ -276,6 +277,7 @@ fn try_claim_share_based(
         .add_messages(messages))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn try_claim_side_based(
     mut deps: DepsMut,
     mut claim_party: TwoPartyPolCovenantParty,
