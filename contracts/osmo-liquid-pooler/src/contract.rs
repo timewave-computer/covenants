@@ -3,11 +3,11 @@ use std::str::FromStr;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, CosmosMsg, WasmMsg, QueryRequest, Empty, StdError, to_json_string, Coin, IbcTimeout, IbcMsg,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, CosmosMsg, WasmMsg, QueryRequest, Empty, StdError, to_json_string, Coin, IbcTimeout, IbcMsg, SubMsg,
 };
 use covenant_utils::{get_polytone_execute_msg_binary, query_polytone_proxy_address, get_polytone_query_msg_binary, default_ibc_fee};
 use cw2::set_contract_version;
-use neutron_sdk::{bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight, NeutronResult, NeutronError};
+use neutron_sdk::{bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight, NeutronResult};
 use osmosis_std::types::{
     osmosis::gamm::v1beta1::{MsgJoinPool, Pool},
     cosmos::base::v1beta1::Coin as OsmosisCoin,
@@ -16,7 +16,7 @@ use osmosis_std::types::{
 use crate::{
     error::ContractError,
     msg::{ContractState, ExecuteMsg, InstantiateMsg, ProvidedLiquidityInfo, QueryMsg, PacketMetadata, ForwardMetadata},
-    state::{HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO, NOTE_ADDRESS, PROXY_ADDRESS, COIN_1, COIN_2, CALLBACKS, LATEST_OSMO_POOL_SNAPSHOT, POOL_ID, IBC_TIMEOUT, PARTY_1_CHAIN_INFO, PARTY_2_CHAIN_INFO, OSMO_TO_NEUTRON_CHANNEL_ID}, polytone_handlers::{process_fatal_error_callback, process_execute_callback, process_query_callback},
+    state::{HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO, NOTE_ADDRESS, PROXY_ADDRESS, COIN_1, COIN_2, CALLBACKS, LATEST_OSMO_POOL_SNAPSHOT, POOL_ID, IBC_TIMEOUT, PARTY_1_CHAIN_INFO, PARTY_2_CHAIN_INFO, OSMO_TO_NEUTRON_CHANNEL_ID, COIN_2_NATIVE_DENOM, COIN_1_NATIVE_DENOM}, polytone_handlers::{process_fatal_error_callback, process_execute_callback, process_query_callback},
 };
 
 use polytone::callbacks::{Callback as PolytoneCallback, CallbackMessage, CallbackRequest};
@@ -59,6 +59,9 @@ pub fn instantiate(
     PARTY_1_CHAIN_INFO.save(deps.storage, &msg.party_1_chain_info)?;
     PARTY_2_CHAIN_INFO.save(deps.storage, &msg.party_2_chain_info)?;
     OSMO_TO_NEUTRON_CHANNEL_ID.save(deps.storage, &msg.osmo_to_neutron_channel_id)?;
+
+    COIN_1_NATIVE_DENOM.save(deps.storage, &msg.coin_1_native_denom)?;
+    COIN_2_NATIVE_DENOM.save(deps.storage, &msg.coin_2_native_denom)?;
 
     // we begin with no liquidity provided
     PROVIDED_LIQUIDITY_INFO.save(
@@ -221,31 +224,39 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
     let target_coin_1 = COIN_1.load(deps.storage)?;
     let target_coin_2 = COIN_2.load(deps.storage)?;
     let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+    let coin_1_native_denom = COIN_1_NATIVE_DENOM.load(deps.storage)?;
+    let coin_2_native_denom = COIN_2_NATIVE_DENOM.load(deps.storage)?;
+
+    let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
+    let party_1_chain_info = PARTY_1_CHAIN_INFO.load(deps.storage)?;
+    let party_2_chain_info = PARTY_2_CHAIN_INFO.load(deps.storage)?;
 
     let coin_1_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        target_coin_1.denom.to_string(),
+        coin_1_native_denom,
     )?;
 
     let coin_2_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        target_coin_2.denom.to_string(),
+        coin_2_native_denom,
     )?;
 
-    // if target_coin_1.amount < coin_1_bal.amount {
-    //     return Err(ContractError::FundsDepositError(target_coin_1.denom.to_string(), target_coin_1.amount.to_string(), coin_1_bal.amount.to_string()))
-    // }
+    if target_coin_1.amount < coin_1_bal.amount {
+        return Err(ContractError::FundsDepositError(
+            target_coin_1.denom.to_string(),
+            target_coin_1.amount.to_string(),
+            coin_1_bal.amount.to_string()
+        ).to_neutron_std())
+    }
 
-    // if target_coin_2.amount < coin_2_bal.amount {
-    //     return Err(ContractError::FundsDepositError(target_coin_2.denom.to_string(), target_coin_2.amount.to_string(), coin_2_bal.amount.to_string()))
-    // }
+    if target_coin_2.amount < coin_2_bal.amount {
+        return Err(ContractError::FundsDepositError(
+            target_coin_2.denom.to_string(),
+            target_coin_2.amount.to_string(),
+            coin_2_bal.amount.to_string()
+        ).to_neutron_std())
+    }
 
-    let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
-    // todo: remove this
-    CONTRACT_STATE.save(deps.storage, &ContractState::ProxyFunded)?;
-    // TODO: generate ibc transfer messages that use pfm in order
-    // to have denoms arriving to osmosis be clean
-    let party_1_chain_info = PARTY_1_CHAIN_INFO.load(deps.storage)?;
 
     let pfm_packet_metadata = PacketMetadata {
         forward: Some(ForwardMetadata {
@@ -258,7 +269,9 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
         }),
     };
 
-    let _party_1_transfer_msg = CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+    // using pfm, the initial transfer goes to the intermediary chain
+    // the memo forward metadata specifies the final receiver.
+    let party_1_transfer_msg = CosmosMsg::Custom(NeutronMsg::IbcTransfer {
         source_port: party_1_chain_info.neutron_to_party_chain_port,
         source_channel: party_1_chain_info.neutron_to_party_chain_channel,
         token: coin_1_bal,
@@ -270,8 +283,23 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
         fee: default_ibc_fee(),
     });
 
+    let party_2_transfer_msg = CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+        source_port: party_2_chain_info.neutron_to_party_chain_port,
+        source_channel: party_2_chain_info.neutron_to_party_chain_channel,
+        token: coin_2_bal,
+        sender: env.contract.address.to_string(),
+        receiver: proxy_address,
+        timeout_height: RequestPacketTimeoutHeight { revision_number: None, revision_height: None },
+        timeout_timestamp: env.block.time.plus_seconds(ibc_timeout.u64()).nanos(),
+        memo: "".to_string(),
+        fee: default_ibc_fee(),
+    });
+
+    CONTRACT_STATE.save(deps.storage, &ContractState::ProxyFunded)?;
+
     Ok(Response::default()
-        // .add_message(party_1_transfer_msg)
+        .add_message(party_1_transfer_msg)
+        .add_message(party_2_transfer_msg)
         .add_attribute("method", "try_fund_proxy"))
 }
 
