@@ -167,29 +167,23 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
             // neutron fees for
             let count = Uint128::from(1 + denom_balances.len() as u128);
 
-            for coin in denom_balances {
-                // non-neutron coins get distributed entirely
-                let send_coin = if coin.denom != "untrn" {
-                    Some(coin)
-                } else {
-                    // if its neutron we're distributing we need to keep a
-                    // reserve for ibc gas costs.
-                    // this is safe because we pass target denoms.
+            for mut coin in denom_balances {
+                // if we distribute neutron, we need to keep a
+                // reserve for ibc gas costs.
+                // this is safe because we pass target denoms.
+                if coin.denom == "untrn" {
                     let reserve_amount = count * get_default_ibc_fee_requirement();
                     if coin.amount > reserve_amount {
-                        Some(Coin {
-                            denom: coin.denom,
-                            amount: coin.amount - reserve_amount,
-                        })
+                        coin.amount -= reserve_amount
                     } else {
-                        None
+                        coin.amount = Uint128::zero();
                     }
                 };
 
-                if let Some(c) = send_coin {
+                if !coin.amount.is_zero() {
                     bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
                         to_address: addr.to_string(),
-                        amount: vec![c],
+                        amount: vec![coin],
                     }))
                 }
             }
