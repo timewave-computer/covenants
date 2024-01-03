@@ -1,10 +1,9 @@
-use cosmwasm_std::{DepsMut, Binary, Response, from_json, Coin, to_json_binary};
-use cw_storage_plus::KeyDeserialize;
+use cosmwasm_std::{DepsMut, Binary, Response, from_json};
 use neutron_sdk::{NeutronResult, bindings::msg::NeutronMsg};
 use osmosis_std::types::osmosis::gamm::v1beta1::{QueryPoolResponse, Pool};
 use polytone::callbacks::{ErrorResponse, ExecutionResponse};
 
-use crate::{error::ContractError, state::{LATEST_OSMO_POOL_SNAPSHOT, CONTRACT_STATE, CALLBACKS}, msg::ContractState};
+use crate::{state::{LATEST_OSMO_POOL_SNAPSHOT, CONTRACT_STATE, CALLBACKS}, msg::ContractState};
 
 
 pub fn process_query_callback(
