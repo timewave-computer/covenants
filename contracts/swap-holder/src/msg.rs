@@ -116,7 +116,7 @@ pub enum ContractState {
 }
 
 impl ContractState {
-    pub fn complete_and_dequeue(deps: &mut DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
+    pub fn complete_and_dequeue(deps: DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
         CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
         dequeue_msg(clock_addr)
     }

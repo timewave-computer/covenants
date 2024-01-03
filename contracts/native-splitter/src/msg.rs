@@ -1,7 +1,8 @@
 use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, Binary, StdError, Uint128, Uint64};
+use cosmwasm_std::{Addr, Attribute, Binary, StdError, Uint128, Uint64, DepsMut, WasmMsg};
+use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
@@ -10,6 +11,8 @@ use covenant_macros::{
 use covenant_utils::neutron_ica::RemoteChainInfo;
 use neutron_sdk::bindings::msg::IbcFee;
 use schemars::Map;
+
+use crate::state::CONTRACT_STATE;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -120,6 +123,13 @@ pub enum ContractState {
     Instantiated,
     IcaCreated,
     Completed,
+}
+
+impl ContractState {
+    pub fn complete_and_dequeue(deps: DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Completed)?;
+        dequeue_msg(clock_addr)
+    }
 }
 
 #[cw_serde]

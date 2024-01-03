@@ -10,10 +10,10 @@ use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::{ReceiverConfig, get_default_ibc_fee_requirement};
 use cw2::set_contract_version;
 
-use crate::{state::{RECEIVER_CONFIG, TARGET_DENOMS}, error::ContractError};
 use crate::{
+    error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::CLOCK_ADDRESS,
+    state::{CLOCK_ADDRESS, RECEIVER_CONFIG, TARGET_DENOMS},
 };
 
 const CONTRACT_NAME: &str = "crates.io:covenant-native-router";
