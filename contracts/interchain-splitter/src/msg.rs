@@ -117,7 +117,7 @@ impl PresetInterchainSplitterFields {
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {
-  DistributeFallback { denoms: Vec<String> },
+    DistributeFallback { denoms: Vec<String> },
 }
 
 #[cw_serde]
