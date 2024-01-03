@@ -6,7 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
     StdResult,
 };
-use covenant_clock::helpers::enqueue_msg;
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::SplitConfig;
 use cw2::set_contract_version;
 
@@ -65,13 +65,15 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     deps.api
         .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
-    // Verify caller is the clock
-    if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
-        return Err(ContractError::Unauthorized {});
-    }
 
     match msg {
-        ExecuteMsg::Tick {} => try_distribute(deps, env),
+        ExecuteMsg::Tick {} => {
+            verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
+                .map_err(|_| ContractError::NotClock)?;
+
+            try_distribute(deps, env)
+        }
+        ExecuteMsg::DistributeFallback { denoms } => try_distribute_fallback(deps, env, denoms),
     }
 }
 
@@ -87,31 +89,52 @@ pub fn try_distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError
             .query_balance(env.contract.address.clone(), denom.to_string())?;
 
         if !balance.amount.is_zero() {
-            // pop the relevant coin and build the transfer messages
-
             let mut transfer_messages =
                 config.get_transfer_messages(balance.amount, balance.denom.to_string(), None)?;
             distribution_messages.append(&mut transfer_messages);
         }
     }
 
-    // TODO: Move this functionality to tis own message
-
-    // by now all explicitly defined denom splits have been removed from the
-    // balances vector so we can take the remaining balances and distribute
-    // them according to the fallback split (if provided)
-
-    // if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
-    //     // get the distribution messages and add them to the list
-    //     for leftover_bal in balances {
-    //         let mut fallback_messages =
-    //             split.get_transfer_messages(leftover_bal.amount, leftover_bal.denom, None)?;
-    //         distribution_messages.append(&mut fallback_messages);
-    //     }
-    // }
-
     Ok(Response::default()
         .add_attribute("method", "try_distribute")
+        .add_messages(distribution_messages))
+}
+
+fn try_distribute_fallback(
+    deps: DepsMut,
+    env: Env,
+    denoms: Vec<String>,
+) -> Result<Response, ContractError> {
+    let mut distribution_messages: Vec<CosmosMsg> = vec![];
+
+    if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
+        let explicit_denoms = SPLIT_CONFIG_MAP
+            .range(deps.storage, None, None, Order::Ascending)
+            .map(|split| Ok(split?.0))
+            .collect::<Result<Vec<String>, ContractError>>()?;
+
+        for denom in denoms {
+            // we do not distribute the main covenant denoms
+            // according to the fallback split
+            if explicit_denoms.contains(&denom) {
+                return Err(StdError::generic_err("unauthorized denom distribution").into());
+            }
+
+            let balance = deps
+                .querier
+                .query_balance(env.contract.address.to_string(), denom)?;
+            if !balance.amount.is_zero() {
+                let mut fallback_messages =
+                    split.get_transfer_messages(balance.amount, balance.denom, None)?;
+                distribution_messages.append(&mut fallback_messages);
+            }
+        }
+    } else {
+        return Err(StdError::generic_err("no fallback split defined").into());
+    }
+
+    Ok(Response::default()
+        .add_attribute("method", "try_distribute_fallback")
         .add_messages(distribution_messages))
 }
 
