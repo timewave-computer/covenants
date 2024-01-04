@@ -5,7 +5,7 @@ use neutron_sdk::{NeutronResult, bindings::msg::NeutronMsg};
 use osmosis_std::types::{osmosis::gamm::v1beta1::{QueryPoolResponse, Pool}, cosmos::{bank::v1beta1::QueryBalanceResponse}};
 use polytone::callbacks::{ErrorResponse, ExecutionResponse};
 
-use crate::{state::{LATEST_OSMO_POOL_SNAPSHOT, CONTRACT_STATE, CALLBACKS, LATEST_PROXY_BALANCES, PENDING_QUERIES}, msg::ContractState};
+use crate::{state::{LATEST_OSMO_POOL_SNAPSHOT, CONTRACT_STATE, CALLBACKS, LATEST_PROXY_BALANCES}, msg::ContractState};
 
 
 pub fn process_query_callback(
@@ -48,7 +48,6 @@ pub fn process_query_callback(
 
     if coin_balances.len() > 0 {
         LATEST_PROXY_BALANCES.save(deps.storage, &Some(coin_balances))?;
-        // PENDING_QUERIES.save(deps.storage, &Uint64::zero())?;
     }
 
     let mut callbacks = CALLBACKS.load(deps.storage)?;
