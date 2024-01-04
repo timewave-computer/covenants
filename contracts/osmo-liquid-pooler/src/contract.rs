@@ -3,20 +3,36 @@ use std::str::FromStr;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint128, CosmosMsg, WasmMsg, QueryRequest, Empty, StdError, to_json_string, Coin, IbcTimeout, IbcMsg, SubMsg, Uint64,
+    to_json_binary, to_json_string, Binary, Coin, CosmosMsg, Deps, DepsMut, Empty, Env, IbcMsg,
+    IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, WasmMsg,
 };
-use covenant_utils::{get_polytone_execute_msg_binary, query_polytone_proxy_address, get_polytone_query_msg_binary, default_ibc_fee};
+use covenant_utils::{
+    default_ibc_fee, get_polytone_execute_msg_binary, get_polytone_query_msg_binary,
+    query_polytone_proxy_address,
+};
 use cw2::set_contract_version;
-use neutron_sdk::{bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight, NeutronResult};
+use neutron_sdk::{
+    bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight, NeutronResult,
+};
 use osmosis_std::types::{
-    osmosis::gamm::v1beta1::{MsgJoinPool, Pool},
     cosmos::base::v1beta1::Coin as OsmosisCoin,
+    osmosis::gamm::v1beta1::{MsgJoinPool, Pool},
 };
 
 use crate::{
     error::ContractError,
-    msg::{ContractState, ExecuteMsg, InstantiateMsg, ProvidedLiquidityInfo, QueryMsg, PacketMetadata, ForwardMetadata, PartyChainInfo},
-    state::{HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO, NOTE_ADDRESS, PROXY_ADDRESS, CALLBACKS, LATEST_OSMO_POOL_SNAPSHOT, POOL_ID, PARTY_1_CHAIN_INFO, PARTY_2_CHAIN_INFO, OSMO_TO_NEUTRON_CHANNEL_ID, LATEST_PROXY_BALANCES, PARTY_1_DENOM_INFO, PARTY_2_DENOM_INFO, OSMOSIS_IBC_TIMEOUT}, polytone_handlers::{process_fatal_error_callback, process_execute_callback, process_query_callback},
+    msg::{
+        ContractState, ExecuteMsg, ForwardMetadata, InstantiateMsg, PacketMetadata, PartyChainInfo,
+        ProvidedLiquidityInfo, QueryMsg,
+    },
+    polytone_handlers::{
+        process_execute_callback, process_fatal_error_callback, process_query_callback,
+    },
+    state::{
+        CALLBACKS, HOLDER_ADDRESS, LATEST_OSMO_POOL_SNAPSHOT, LATEST_PROXY_BALANCES, NOTE_ADDRESS,
+        OSMOSIS_IBC_TIMEOUT, OSMO_TO_NEUTRON_CHANNEL_ID, PARTY_1_CHAIN_INFO, PARTY_1_DENOM_INFO,
+        PARTY_2_CHAIN_INFO, PARTY_2_DENOM_INFO, POOL_ID, PROVIDED_LIQUIDITY_INFO, PROXY_ADDRESS,
+    },
 };
 
 use polytone::callbacks::{Callback as PolytoneCallback, CallbackMessage, CallbackRequest};
@@ -85,31 +101,30 @@ pub fn execute(
 ) -> NeutronResult<Response<NeutronMsg>> {
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Callback(
-            callback_msg
-        ) => try_handle_callback(deps, info, callback_msg),
+        ExecuteMsg::Callback(callback_msg) => try_handle_callback(deps, info, callback_msg),
     }
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation.
-fn try_handle_callback(deps: DepsMut, info: MessageInfo, msg: CallbackMessage) -> NeutronResult<Response<NeutronMsg>> {
+fn try_handle_callback(
+    deps: DepsMut,
+    info: MessageInfo,
+    msg: CallbackMessage,
+) -> NeutronResult<Response<NeutronMsg>> {
     // only the note can submit a callback
     if info.sender != NOTE_ADDRESS.load(deps.storage)? {
-        return Err(ContractError::Unauthorized {}.to_neutron_std())
+        return Err(ContractError::Unauthorized {}.to_neutron_std());
     }
 
     match msg.result {
-        PolytoneCallback::Query(resp) =>
-            process_query_callback(deps,resp, msg.initiator_msg),
-        PolytoneCallback::Execute(resp) =>
-            process_execute_callback(deps,resp, msg.initiator_msg),
-        PolytoneCallback::FatalError(resp) =>
-            process_fatal_error_callback(deps, resp),
+        PolytoneCallback::Query(resp) => process_query_callback(deps, resp, msg.initiator_msg),
+        PolytoneCallback::Execute(resp) => process_execute_callback(deps, resp, msg.initiator_msg),
+        PolytoneCallback::FatalError(resp) => process_fatal_error_callback(deps, resp),
     }
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation.
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: DepsMut, env: Env, _info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
     // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
@@ -131,17 +146,17 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
                     // we assume coins are not funded and try to prove otherwise
                     let mut coin_1_funded = false;
                     let mut coin_2_funded = false;
-                    balances.iter()
-                        .for_each(|b| {
-                            if b.denom == party_1_denom_info.osmosis_coin.denom
-                            && b.amount >= party_1_denom_info.osmosis_coin.amount {
-                                coin_1_funded = true;
-                            }
-                            else if b.denom == party_2_denom_info.osmosis_coin.denom
-                            && b.amount >= party_2_denom_info.osmosis_coin.amount {
-                                coin_2_funded = true;
-                            }
-                        });
+                    balances.iter().for_each(|b| {
+                        if b.denom == party_1_denom_info.osmosis_coin.denom
+                            && b.amount >= party_1_denom_info.osmosis_coin.amount
+                        {
+                            coin_1_funded = true;
+                        } else if b.denom == party_2_denom_info.osmosis_coin.denom
+                            && b.amount >= party_2_denom_info.osmosis_coin.amount
+                        {
+                            coin_2_funded = true;
+                        }
+                    });
 
                     // if either coin is not funded, we attempt to do so
                     if !coin_1_funded || !coin_2_funded {
@@ -154,10 +169,9 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
                             .add_attribute("method", "try_tick")
                             .add_attribute("contract_state", "proxy_funded"))
                     }
-                },
-
+                }
             }
-        },
+        }
         // attempt to provide liquidity
         ContractState::ProxyFunded => {
             match LATEST_OSMO_POOL_SNAPSHOT.load(deps.storage)? {
@@ -169,9 +183,11 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
                 // if pool snapshot is available, we use it for LP attempt
                 Some(pool) => try_lp(deps, env, pool),
             }
-        },
+        }
         // no longer accept any actions
-        ContractState::Complete => Err(ContractError::StateMachineError("complete".to_string()).to_neutron_std()),
+        ContractState::Complete => {
+            Err(ContractError::StateMachineError("complete".to_string()).to_neutron_std())
+        }
     }
 }
 
@@ -183,17 +199,18 @@ fn query_proxy_balances(deps: DepsMut, env: Env) -> NeutronResult<Response<Neutr
     let party_1_denom_info = PARTY_1_DENOM_INFO.load(deps.storage)?;
     let party_2_denom_info = PARTY_2_DENOM_INFO.load(deps.storage)?;
 
-
-    let proxy_coin_1_balance_request: QueryRequest<Empty> = osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
-        address: proxy_address.to_string(),
-        denom: party_1_denom_info.osmosis_coin.denom,
-    }
-    .into();
-    let proxy_coin_2_balance_request: QueryRequest<Empty> = osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
-        address: proxy_address,
-        denom: party_2_denom_info.osmosis_coin.denom,
-    }
-    .into();
+    let proxy_coin_1_balance_request: QueryRequest<Empty> =
+        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
+            address: proxy_address.to_string(),
+            denom: party_1_denom_info.osmosis_coin.denom,
+        }
+        .into();
+    let proxy_coin_2_balance_request: QueryRequest<Empty> =
+        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
+            address: proxy_address,
+            denom: party_2_denom_info.osmosis_coin.denom,
+        }
+        .into();
 
     let polytone_query_msg_binary = get_polytone_query_msg_binary(
         vec![proxy_coin_1_balance_request, proxy_coin_2_balance_request],
@@ -204,28 +221,23 @@ fn query_proxy_balances(deps: DepsMut, env: Env) -> NeutronResult<Response<Neutr
         osmo_ibc_timeout,
     )?;
 
-    let note_msg = CosmosMsg::Wasm(
-        WasmMsg::Execute {
-            contract_addr: note_address.to_string(),
-            msg: polytone_query_msg_binary,
-            funds: vec![],
-        }
-    );
+    let note_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: note_address.to_string(),
+        msg: polytone_query_msg_binary,
+        funds: vec![],
+    });
     Ok(Response::default()
         .add_message(note_msg)
         .add_attribute("method", "try_query_proxy_balances"))
 }
 
 fn try_query_pool(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let pool_id: u64 = POOL_ID.load(deps.storage)?.u64();
     let osmo_ibc_timeout = OSMOSIS_IBC_TIMEOUT.load(deps.storage)?;
 
-    let query_pool_request: QueryRequest<Empty> = osmosis_std::types::osmosis::gamm::v1beta1::QueryPoolRequest {
-        pool_id,
-    }
-    .into();
+    let query_pool_request: QueryRequest<Empty> =
+        osmosis_std::types::osmosis::gamm::v1beta1::QueryPoolRequest { pool_id }.into();
 
     let polytone_query_msg_binary = get_polytone_query_msg_binary(
         vec![query_pool_request],
@@ -236,21 +248,22 @@ fn try_query_pool(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
         osmo_ibc_timeout,
     )?;
 
-    let note_msg = CosmosMsg::Wasm(
-        WasmMsg::Execute {
-            contract_addr: note_address.to_string(),
-            msg: polytone_query_msg_binary,
-            funds: vec![],
-        }
-    );
+    let note_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: note_address.to_string(),
+        msg: polytone_query_msg_binary,
+        funds: vec![],
+    });
 
     Ok(Response::default()
         .add_message(note_msg)
         .add_attribute("method", "try_query_pool"))
 }
 
-
-fn try_create_proxy(deps: DepsMut, env: Env, note_address: String) -> NeutronResult<Response<NeutronMsg>> {
+fn try_create_proxy(
+    deps: DepsMut,
+    env: Env,
+    note_address: String,
+) -> NeutronResult<Response<NeutronMsg>> {
     let osmo_ibc_timeout = OSMOSIS_IBC_TIMEOUT.load(deps.storage)?;
     let polytone_execute_msg_binary = get_polytone_execute_msg_binary(
         vec![],
@@ -261,20 +274,17 @@ fn try_create_proxy(deps: DepsMut, env: Env, note_address: String) -> NeutronRes
         osmo_ibc_timeout,
     )?;
 
-    let note_msg = CosmosMsg::Wasm(
-        WasmMsg::Execute {
-            contract_addr: note_address.to_string(),
-            msg: polytone_execute_msg_binary,
-            funds: vec![],
-        }
-    );
+    let note_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: note_address.to_string(),
+        msg: polytone_execute_msg_binary,
+        funds: vec![],
+    });
     Ok(Response::default()
         .add_message(note_msg)
         .add_attribute("method", "try_create_proxy"))
 }
 
 fn try_query_proxy_address(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
 
     let proxy_address = query_polytone_proxy_address(
@@ -292,7 +302,7 @@ fn try_query_proxy_address(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
             Ok(Response::default()
                 .add_attribute("method", "try_query_proxy_address")
                 .add_attribute("proxy_address", addr))
-        },
+        }
         // if proxy is not created, try to create it
         None => try_create_proxy(deps, env, note_address.to_string()),
     }
@@ -319,13 +329,15 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
     // if either available balance is not sufficient,
     // we reset the latest proxy balance to `None`.
     // this will trigger a query on following tick.
-    if party_1_denom_info.osmosis_coin.amount > coin_1_bal.amount || party_2_denom_info.osmosis_coin.amount > coin_2_bal.amount {
+    if party_1_denom_info.osmosis_coin.amount > coin_1_bal.amount
+        || party_2_denom_info.osmosis_coin.amount > coin_2_bal.amount
+    {
         // first we reset the latest proxy balance to `None`.
         // this will trigger a query on following tick.
         LATEST_PROXY_BALANCES.save(deps.storage, &None)?;
         return Ok(Response::default()
             .add_attribute("method", "try_fund_proxy")
-            .add_attribute("result", "insufficient_balances"))
+            .add_attribute("result", "insufficient_balances"));
     }
 
     let party_1_transfer_msg = get_ibc_transfer_message(
@@ -335,12 +347,8 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
         proxy_address.to_string(),
     )?;
 
-    let party_2_transfer_msg = get_ibc_transfer_message(
-        party_2_chain_info,
-        env,
-        coin_2_bal,
-        proxy_address,
-    )?;
+    let party_2_transfer_msg =
+        get_ibc_transfer_message(party_2_chain_info, env, coin_2_bal, proxy_address)?;
 
     Ok(Response::default()
         .add_message(CosmosMsg::Custom(party_1_transfer_msg))
@@ -364,8 +372,15 @@ fn get_ibc_transfer_message(
             token: coin,
             sender: env.contract.address.to_string(),
             receiver: forward_metadata.receiver,
-            timeout_height: RequestPacketTimeoutHeight { revision_number: None, revision_height: None },
-            timeout_timestamp: env.block.time.plus_seconds(party_chain_info.ibc_timeout.u64()).nanos(),
+            timeout_height: RequestPacketTimeoutHeight {
+                revision_number: None,
+                revision_height: None,
+            },
+            timeout_timestamp: env
+                .block
+                .time
+                .plus_seconds(party_chain_info.ibc_timeout.u64())
+                .nanos(),
             memo: to_json_string(&PacketMetadata {
                 forward: Some(ForwardMetadata {
                     receiver: proxy_address.to_string(),
@@ -382,8 +397,15 @@ fn get_ibc_transfer_message(
             token: coin,
             sender: env.contract.address.to_string(),
             receiver: proxy_address.to_string(),
-            timeout_height: RequestPacketTimeoutHeight { revision_number: None, revision_height: None },
-            timeout_timestamp: env.block.time.plus_seconds(party_chain_info.ibc_timeout.u64()).nanos(),
+            timeout_height: RequestPacketTimeoutHeight {
+                revision_number: None,
+                revision_height: None,
+            },
+            timeout_timestamp: env
+                .block
+                .time
+                .plus_seconds(party_chain_info.ibc_timeout.u64())
+                .nanos(),
             memo: "".to_string(),
             fee: default_ibc_fee(),
         }),
@@ -404,35 +426,50 @@ fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<Neutron
     let party_1_denom_info = PARTY_1_DENOM_INFO.load(deps.storage)?;
     let party_2_denom_info = PARTY_2_DENOM_INFO.load(deps.storage)?;
 
-
-
     let token_in_maxs: Vec<OsmosisCoin> = vec![
         party_1_denom_info.osmosis_coin.clone().into(),
-        party_2_denom_info.osmosis_coin.clone().into()];
+        party_2_denom_info.osmosis_coin.clone().into(),
+    ];
 
     let gamm_shares_coin = match pool.total_shares {
         Some(coin) => coin,
-        None => return Err(ContractError::OsmosisPoolError(
-            "expected Some(total_shares), found None".to_string()
-        ).to_neutron_std()),
+        None => {
+            return Err(ContractError::OsmosisPoolError(
+                "expected Some(total_shares), found None".to_string(),
+            )
+            .to_neutron_std())
+        }
     };
 
-    let pool_assets: Vec<OsmosisCoin> = pool.pool_assets.into_iter()
+    let pool_assets: Vec<OsmosisCoin> = pool
+        .pool_assets
+        .into_iter()
         .filter_map(|asset| asset.token)
         .collect();
 
-    let (pool_asset_1_amount, pool_asset_2_amount) = match (pool_assets.get(0), pool_assets.get(1)) {
+    let (pool_asset_1_amount, pool_asset_2_amount) = match (pool_assets.get(0), pool_assets.get(1))
+    {
         (Some(pool_asset_1), Some(pool_asset_2)) => {
             if pool_asset_1.denom == party_1_denom_info.osmosis_coin.denom
-            && pool_asset_2.denom == party_2_denom_info.osmosis_coin.denom {
-                (pool_asset_1.amount.to_string(), pool_asset_2.amount.to_string())
+                && pool_asset_2.denom == party_2_denom_info.osmosis_coin.denom
+            {
+                (
+                    pool_asset_1.amount.to_string(),
+                    pool_asset_2.amount.to_string(),
+                )
             } else {
-                (pool_asset_2.amount.to_string(), pool_asset_1.amount.to_string())
+                (
+                    pool_asset_2.amount.to_string(),
+                    pool_asset_1.amount.to_string(),
+                )
             }
-        },
-        _ => return Err(ContractError::OsmosisPoolError(
-            "osmosis pool assets mismatch".to_string()
-        ).to_neutron_std()),
+        }
+        _ => {
+            return Err(
+                ContractError::OsmosisPoolError("osmosis pool assets mismatch".to_string())
+                    .to_neutron_std(),
+            )
+        }
     };
 
     let share_out_amount = std::cmp::min(
@@ -464,10 +501,9 @@ fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<Neutron
         channel_id: osmo_to_neutron_channel_id,
         to_address: holder_addr.to_string(),
         amount: expected_gamm_coin.clone(),
-        timeout: IbcTimeout::with_timestamp(
-            env.block.time.plus_seconds(osmo_ibc_timeout.u64()),
-        ),
-    }.into();
+        timeout: IbcTimeout::with_timestamp(env.block.time.plus_seconds(osmo_ibc_timeout.u64())),
+    }
+    .into();
     let polytone_execute_msg_binary = get_polytone_execute_msg_binary(
         // include gamm token transfer msg back to holder after osmo_msg
         vec![osmo_msg, transfer_gamm_msg],
@@ -478,13 +514,11 @@ fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<Neutron
         osmo_ibc_timeout,
     )?;
 
-    let note_msg = CosmosMsg::Wasm(
-        WasmMsg::Execute {
-            contract_addr: note_address.to_string(),
-            msg: polytone_execute_msg_binary,
-            funds: vec![],
-        }
-    );
+    let note_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: note_address.to_string(),
+        msg: polytone_execute_msg_binary,
+        funds: vec![],
+    });
 
     Ok(Response::default()
         .add_message(note_msg)
@@ -503,8 +537,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&env.contract.address)?),
         QueryMsg::ProxyAddress {} => Ok(to_json_binary(&PROXY_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::Callbacks {} => Ok(to_json_binary(&CALLBACKS.load(deps.storage)?)?),
-        QueryMsg::LatestPoolState {} => {
-            Ok(to_json_binary(&LATEST_OSMO_POOL_SNAPSHOT.load(deps.storage)?)?)
-        }
+        QueryMsg::LatestPoolState {} => Ok(to_json_binary(
+            &LATEST_OSMO_POOL_SNAPSHOT.load(deps.storage)?,
+        )?),
     }
 }
