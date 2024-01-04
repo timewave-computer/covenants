@@ -31,11 +31,15 @@ pub enum ContractError {
     #[error("state machine: {0}")]
     StateMachineError(String),
 
+    #[error("polyone error: {0}")]
+    PolytoneError(String),
 }
 
 impl ContractError {
     pub fn to_std(&self) -> StdError {
-        StdError::GenericErr { msg: self.to_string() }
+        StdError::GenericErr {
+            msg: self.to_string(),
+        }
     }
 
     pub fn to_neutron_std(&self) -> NeutronError {

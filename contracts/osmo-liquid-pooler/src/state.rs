@@ -2,7 +2,7 @@ use cosmwasm_std::{Addr, Coin, Uint64};
 use cw_storage_plus::Item;
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
-use crate::msg::{ContractState, ProvidedLiquidityInfo, PartyChainInfo, PartyDenomInfo};
+use crate::msg::{ContractState, PartyChainInfo, PartyDenomInfo, ProvidedLiquidityInfo};
 
 /// contract state tracks the state machine progress
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
