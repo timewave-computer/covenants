@@ -454,25 +454,38 @@ type MsgJoinPool struct {
 }
 
 type OsmoLiquidPoolerInstantiateMsg struct {
-	PoolAddress            string         `json:"pool_address"`
 	ClockAddress           string         `json:"clock_address"`
 	HolderAddress          string         `json:"holder_address"`
 	NoteAddress            string         `json:"note_address"`
-	Coin1                  cw.Coin        `json:"coin_1"`
-	Coin2                  cw.Coin        `json:"coin_2"`
 	PoolId                 string         `json:"pool_id"`
-	IbcTimeout             string         `json:"ibc_timeout"`
+	OsmoIbcTimeout         string         `json:"osmo_ibc_timeout"`
 	Party1ChainInfo        PartyChainInfo `json:"party_1_chain_info"`
 	Party2ChainInfo        PartyChainInfo `json:"party_2_chain_info"`
 	OsmoToNeutronChannelId string         `json:"osmo_to_neutron_channel_id"`
-	Coin1NativeDenom       string         `json:"coin_1_native_denom"`
-	Coin2NativeDenom       string         `json:"coin_2_native_denom"`
+	Party1DenomInfo        PartyDenomInfo `json:"party_1_denom_info"`
+	Party2DenomInfo        PartyDenomInfo `json:"party_2_denom_info"`
+}
+
+type PartyDenomInfo struct {
+	OsmosisCoin  cw.Coin `json:"osmosis_coin"`
+	NeutronDenom string  `json:"neutron_denom"`
 }
 
 type PartyChainInfo struct {
-	NeutronToPartyChainPort    string `json:"neutron_to_party_chain_port"`
-	NeutronToPartyChainChannel string `json:"neutron_to_party_chain_channel"`
-	PartyChainReceiverAddress  string `json:"party_chain_receiver_address"`
-	PartyChainToOsmoPort       string `json:"party_chain_to_osmo_port"`
-	PartyChainToOsmoChannel    string `json:"party_chain_to_osmo_channel"`
+	NeutronToPartyChainPort    string           `json:"neutron_to_party_chain_port"`
+	NeutronToPartyChainChannel string           `json:"neutron_to_party_chain_channel"`
+	Pfm                        *ForwardMetadata `json:"pfm,omitempty"`
+	IbcTimeout                 string           `json:"ibc_timeout"`
+}
+
+type PacketMetadata struct {
+	ForwardMetadata *ForwardMetadata `json:"forward,omitempty"`
+}
+
+type ForwardMetadata struct {
+	Receiver string `json:"receiver"`
+	Port     string `json:"port"`
+	Channel  string `json:"channel"`
+	// Timeout  string `json:"timeout,omitempty"`
+	// Retries  uint8  `json:"retries,omitempty"`
 }

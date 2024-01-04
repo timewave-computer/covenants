@@ -517,33 +517,38 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 		})
 
 		t.Run("create osmo liquid pooler", func(t *testing.T) {
+			hubPfm := ForwardMetadata{
+				Receiver: gaiaUser.Bech32Address(testCtx.Hub.Config().Bech32Prefix),
+				Port:     "transfer",
+				Channel:  testCtx.GaiaTransferChannelIds[testCtx.Osmosis.Config().Name],
+			}
 
 			instantiateMsg := OsmoLiquidPoolerInstantiateMsg{
-				PoolAddress:   noteAddress,
-				ClockAddress:  noteAddress,
-				HolderAddress: holderAddress,
-				NoteAddress:   noteAddress,
-				Coin1:         cw.Coin{Denom: osmosisAtomIbcDenom, Amount: strconv.FormatUint(atomContributionAmount, 10)},
-				Coin2:         cw.Coin{Denom: testCtx.Osmosis.Config().Denom, Amount: strconv.FormatUint(osmoContributionAmount, 10)},
-				PoolId:        "1",
-				IbcTimeout:    "200",
+				ClockAddress:   noteAddress,
+				HolderAddress:  holderAddress,
+				NoteAddress:    noteAddress,
+				PoolId:         "1",
+				OsmoIbcTimeout: "200",
 				Party1ChainInfo: PartyChainInfo{
 					NeutronToPartyChainPort:    "transfer",
 					NeutronToPartyChainChannel: testCtx.NeutronTransferChannelIds[testCtx.Hub.Config().Name],
-					PartyChainReceiverAddress:  gaiaUser.Bech32Address(testCtx.Hub.Config().Bech32Prefix),
-					PartyChainToOsmoPort:       "transfer",
-					PartyChainToOsmoChannel:    testCtx.GaiaTransferChannelIds[testCtx.Osmosis.Config().Name],
+					Pfm:                        &hubPfm,
+					IbcTimeout:                 "200",
 				},
 				Party2ChainInfo: PartyChainInfo{
 					NeutronToPartyChainPort:    "transfer",
 					NeutronToPartyChainChannel: testCtx.NeutronTransferChannelIds[testCtx.Osmosis.Config().Name],
-					PartyChainReceiverAddress:  osmoUser.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
-					PartyChainToOsmoPort:       "transfer",
-					PartyChainToOsmoChannel:    "todo",
+					IbcTimeout:                 "200",
 				},
 				OsmoToNeutronChannelId: testCtx.OsmoTransferChannelIds[testCtx.Neutron.Config().Name],
-				Coin1NativeDenom:       neutronAtomIbcDenom,
-				Coin2NativeDenom:       neutronOsmoIbcDenom,
+				Party1DenomInfo: PartyDenomInfo{
+					OsmosisCoin:  cw.Coin{Denom: osmosisAtomIbcDenom, Amount: strconv.FormatUint(atomContributionAmount, 10)},
+					NeutronDenom: neutronAtomIbcDenom,
+				},
+				Party2DenomInfo: PartyDenomInfo{
+					OsmosisCoin:  cw.Coin{Denom: testCtx.Osmosis.Config().Denom, Amount: strconv.FormatUint(osmoContributionAmount, 10)},
+					NeutronDenom: neutronOsmoIbcDenom,
+				},
 			}
 
 			osmoLiquidPoolerAddress = testCtx.ManualInstantiate(lperCodeId, instantiateMsg, neutronUser, keyring.BackendTest)

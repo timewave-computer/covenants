@@ -15,8 +15,8 @@ use osmosis_std::types::{
 
 use crate::{
     error::ContractError,
-    msg::{ContractState, ExecuteMsg, InstantiateMsg, ProvidedLiquidityInfo, QueryMsg, PacketMetadata, ForwardMetadata},
-    state::{HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO, NOTE_ADDRESS, PROXY_ADDRESS, COIN_1, COIN_2, CALLBACKS, LATEST_OSMO_POOL_SNAPSHOT, POOL_ID, IBC_TIMEOUT, PARTY_1_CHAIN_INFO, PARTY_2_CHAIN_INFO, OSMO_TO_NEUTRON_CHANNEL_ID, COIN_2_NATIVE_DENOM, COIN_1_NATIVE_DENOM, LATEST_PROXY_BALANCES, PENDING_QUERIES}, polytone_handlers::{process_fatal_error_callback, process_execute_callback, process_query_callback},
+    msg::{ContractState, ExecuteMsg, InstantiateMsg, ProvidedLiquidityInfo, QueryMsg, PacketMetadata, ForwardMetadata, PartyChainInfo},
+    state::{HOLDER_ADDRESS, PROVIDED_LIQUIDITY_INFO, NOTE_ADDRESS, PROXY_ADDRESS, CALLBACKS, LATEST_OSMO_POOL_SNAPSHOT, POOL_ID, PARTY_1_CHAIN_INFO, PARTY_2_CHAIN_INFO, OSMO_TO_NEUTRON_CHANNEL_ID, LATEST_PROXY_BALANCES, PARTY_1_DENOM_INFO, PARTY_2_DENOM_INFO, OSMOSIS_IBC_TIMEOUT}, polytone_handlers::{process_fatal_error_callback, process_execute_callback, process_query_callback},
 };
 
 use polytone::callbacks::{Callback as PolytoneCallback, CallbackMessage, CallbackRequest};
@@ -37,7 +37,6 @@ pub fn instantiate(
 
     // validate the contract addresses
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-    let _pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     let holder_addr = deps.api.addr_validate(&msg.holder_address)?;
     let note_addr = deps.api.addr_validate(&msg.note_address)?;
 
@@ -50,20 +49,18 @@ pub fn instantiate(
     HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
 
     NOTE_ADDRESS.save(deps.storage, &note_addr)?;
-    COIN_1.save(deps.storage, &msg.coin_1)?;
-    COIN_2.save(deps.storage, &msg.coin_2)?;
     CALLBACKS.save(deps.storage, &Vec::new())?;
     LATEST_OSMO_POOL_SNAPSHOT.save(deps.storage, &None)?;
     LATEST_PROXY_BALANCES.save(deps.storage, &None)?;
     POOL_ID.save(deps.storage, &msg.pool_id)?;
-    IBC_TIMEOUT.save(deps.storage, &msg.ibc_timeout)?;
+    OSMOSIS_IBC_TIMEOUT.save(deps.storage, &msg.osmo_ibc_timeout)?;
     PARTY_1_CHAIN_INFO.save(deps.storage, &msg.party_1_chain_info)?;
     PARTY_2_CHAIN_INFO.save(deps.storage, &msg.party_2_chain_info)?;
     OSMO_TO_NEUTRON_CHANNEL_ID.save(deps.storage, &msg.osmo_to_neutron_channel_id)?;
 
-    COIN_1_NATIVE_DENOM.save(deps.storage, &msg.coin_1_native_denom)?;
-    COIN_2_NATIVE_DENOM.save(deps.storage, &msg.coin_2_native_denom)?;
-    PENDING_QUERIES.save(deps.storage, &Uint64::zero())?;
+    PARTY_1_DENOM_INFO.save(deps.storage, &msg.party_1_denom_info)?;
+    PARTY_2_DENOM_INFO.save(deps.storage, &msg.party_2_denom_info)?;
+
     // we begin with no liquidity provided
     PROVIDED_LIQUIDITY_INFO.save(
         deps.storage,
@@ -128,17 +125,20 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
                 // otherwise we attempt to advance
                 Some(balances) => {
                     // we validate the proxy balances
-                    let coin_1 = COIN_1.load(deps.storage)?;
-                    let coin_2 = COIN_2.load(deps.storage)?;
+                    let party_1_denom_info = PARTY_1_DENOM_INFO.load(deps.storage)?;
+                    let party_2_denom_info = PARTY_2_DENOM_INFO.load(deps.storage)?;
 
                     // we assume coins are not funded and try to prove otherwise
                     let mut coin_1_funded = false;
                     let mut coin_2_funded = false;
                     balances.iter()
                         .for_each(|b| {
-                            if b.denom == coin_1.denom && b.amount >= coin_1.amount{
+                            if b.denom == party_1_denom_info.osmosis_coin.denom
+                            && b.amount >= party_1_denom_info.osmosis_coin.amount {
                                 coin_1_funded = true;
-                            } else if b.denom == coin_2.denom && b.amount >= coin_2.amount{
+                            }
+                            else if b.denom == party_2_denom_info.osmosis_coin.denom
+                            && b.amount >= party_2_denom_info.osmosis_coin.amount {
                                 coin_2_funded = true;
                             }
                         });
@@ -177,19 +177,21 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 
 fn query_proxy_balances(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
-    let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+    let osmo_ibc_timeout = OSMOSIS_IBC_TIMEOUT.load(deps.storage)?;
     let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
-    let coin_1 = COIN_1.load(deps.storage)?;
-    let coin_2 = COIN_2.load(deps.storage)?;
+
+    let party_1_denom_info = PARTY_1_DENOM_INFO.load(deps.storage)?;
+    let party_2_denom_info = PARTY_2_DENOM_INFO.load(deps.storage)?;
+
 
     let proxy_coin_1_balance_request: QueryRequest<Empty> = osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
         address: proxy_address.to_string(),
-        denom: coin_1.denom,
+        denom: party_1_denom_info.osmosis_coin.denom,
     }
     .into();
     let proxy_coin_2_balance_request: QueryRequest<Empty> = osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
         address: proxy_address,
-        denom: coin_2.denom,
+        denom: party_2_denom_info.osmosis_coin.denom,
     }
     .into();
 
@@ -199,7 +201,7 @@ fn query_proxy_balances(deps: DepsMut, env: Env) -> NeutronResult<Response<Neutr
             receiver: env.contract.address.to_string(),
             msg: to_json_binary(&"proxy_balances")?,
         },
-        ibc_timeout,
+        osmo_ibc_timeout,
     )?;
 
     let note_msg = CosmosMsg::Wasm(
@@ -218,7 +220,7 @@ fn try_query_pool(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
 
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let pool_id: u64 = POOL_ID.load(deps.storage)?.u64();
-    let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+    let osmo_ibc_timeout = OSMOSIS_IBC_TIMEOUT.load(deps.storage)?;
 
     let query_pool_request: QueryRequest<Empty> = osmosis_std::types::osmosis::gamm::v1beta1::QueryPoolRequest {
         pool_id,
@@ -231,7 +233,7 @@ fn try_query_pool(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
             receiver: env.contract.address.to_string(),
             msg: to_json_binary(&"query_pool")?,
         },
-        ibc_timeout,
+        osmo_ibc_timeout,
     )?;
 
     let note_msg = CosmosMsg::Wasm(
@@ -249,14 +251,14 @@ fn try_query_pool(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
 
 
 fn try_create_proxy(deps: DepsMut, env: Env, note_address: String) -> NeutronResult<Response<NeutronMsg>> {
-    let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+    let osmo_ibc_timeout = OSMOSIS_IBC_TIMEOUT.load(deps.storage)?;
     let polytone_execute_msg_binary = get_polytone_execute_msg_binary(
         vec![],
         Some(CallbackRequest {
             receiver: env.contract.address.to_string(),
             msg: to_json_binary("proxy_created")?,
         }),
-        ibc_timeout,
+        osmo_ibc_timeout,
     )?;
 
     let note_msg = CosmosMsg::Wasm(
@@ -297,11 +299,8 @@ fn try_query_proxy_address(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
 }
 
 fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-    let target_coin_1 = COIN_1.load(deps.storage)?;
-    let target_coin_2 = COIN_2.load(deps.storage)?;
-    let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
-    let coin_1_native_denom = COIN_1_NATIVE_DENOM.load(deps.storage)?;
-    let coin_2_native_denom = COIN_2_NATIVE_DENOM.load(deps.storage)?;
+    let party_1_denom_info = PARTY_1_DENOM_INFO.load(deps.storage)?;
+    let party_2_denom_info = PARTY_2_DENOM_INFO.load(deps.storage)?;
 
     let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
     let party_1_chain_info = PARTY_1_CHAIN_INFO.load(deps.storage)?;
@@ -309,18 +308,18 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
 
     let coin_1_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        coin_1_native_denom,
+        party_1_denom_info.neutron_denom,
     )?;
 
     let coin_2_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        coin_2_native_denom,
+        party_2_denom_info.neutron_denom,
     )?;
 
     // if either available balance is not sufficient,
     // we reset the latest proxy balance to `None`.
     // this will trigger a query on following tick.
-    if target_coin_1.amount > coin_1_bal.amount || target_coin_2.amount > coin_2_bal.amount {
+    if party_1_denom_info.osmosis_coin.amount > coin_1_bal.amount || party_2_denom_info.osmosis_coin.amount > coin_2_bal.amount {
         // first we reset the latest proxy balance to `None`.
         // this will trigger a query on following tick.
         LATEST_PROXY_BALANCES.save(deps.storage, &None)?;
@@ -329,47 +328,66 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
             .add_attribute("result", "insufficient_balances"))
     }
 
-    let pfm_packet_metadata = PacketMetadata {
-        forward: Some(ForwardMetadata {
-            // final receiver
-            receiver: proxy_address.to_string(),
-            // denom source chain to destination chain port
-            port: party_1_chain_info.party_chain_to_osmo_port,
-            // denom source chain to destination chain channel
-            channel: party_1_chain_info.party_chain_to_osmo_channel,
-        }),
-    };
+    let party_1_transfer_msg = get_ibc_transfer_message(
+        party_1_chain_info,
+        env.clone(),
+        coin_1_bal,
+        proxy_address.to_string(),
+    )?;
 
-    // using pfm, the initial transfer goes to the intermediary chain
-    // the memo forward metadata specifies the final receiver.
-    let party_1_transfer_msg = CosmosMsg::Custom(NeutronMsg::IbcTransfer {
-        source_port: party_1_chain_info.neutron_to_party_chain_port,
-        source_channel: party_1_chain_info.neutron_to_party_chain_channel,
-        token: coin_1_bal,
-        sender: env.contract.address.to_string(),
-        receiver: party_1_chain_info.party_chain_receiver_address,
-        timeout_height: RequestPacketTimeoutHeight { revision_number: None, revision_height: None },
-        timeout_timestamp: env.block.time.plus_seconds(ibc_timeout.u64()).nanos(),
-        memo: to_json_string(&pfm_packet_metadata)?,
-        fee: default_ibc_fee(),
-    });
-
-    let party_2_transfer_msg = CosmosMsg::Custom(NeutronMsg::IbcTransfer {
-        source_port: party_2_chain_info.neutron_to_party_chain_port,
-        source_channel: party_2_chain_info.neutron_to_party_chain_channel,
-        token: coin_2_bal,
-        sender: env.contract.address.to_string(),
-        receiver: proxy_address,
-        timeout_height: RequestPacketTimeoutHeight { revision_number: None, revision_height: None },
-        timeout_timestamp: env.block.time.plus_seconds(ibc_timeout.u64()).nanos(),
-        memo: "".to_string(),
-        fee: default_ibc_fee(),
-    });
+    let party_2_transfer_msg = get_ibc_transfer_message(
+        party_2_chain_info,
+        env,
+        coin_2_bal,
+        proxy_address,
+    )?;
 
     Ok(Response::default()
-        .add_message(party_1_transfer_msg)
-        .add_message(party_2_transfer_msg)
+        .add_message(CosmosMsg::Custom(party_1_transfer_msg))
+        .add_message(CosmosMsg::Custom(party_2_transfer_msg))
         .add_attribute("method", "try_fund_proxy"))
+}
+
+fn get_ibc_transfer_message(
+    party_chain_info: PartyChainInfo,
+    env: Env,
+    coin: Coin,
+    proxy_address: String,
+) -> StdResult<NeutronMsg> {
+    // depending on whether pfm is configured,
+    // we return a ibc transfer message
+    match party_chain_info.pfm {
+        // pfm necesary, we configure the memo
+        Some(forward_metadata) => Ok(NeutronMsg::IbcTransfer {
+            source_port: party_chain_info.neutron_to_party_chain_port,
+            source_channel: party_chain_info.neutron_to_party_chain_channel,
+            token: coin,
+            sender: env.contract.address.to_string(),
+            receiver: forward_metadata.receiver,
+            timeout_height: RequestPacketTimeoutHeight { revision_number: None, revision_height: None },
+            timeout_timestamp: env.block.time.plus_seconds(party_chain_info.ibc_timeout.u64()).nanos(),
+            memo: to_json_string(&PacketMetadata {
+                forward: Some(ForwardMetadata {
+                    receiver: proxy_address.to_string(),
+                    port: forward_metadata.port,
+                    channel: forward_metadata.channel,
+                }),
+            })?,
+            fee: default_ibc_fee(),
+        }),
+        // no pfm necessary, we do a regular transfer
+        None => Ok(NeutronMsg::IbcTransfer {
+            source_port: party_chain_info.neutron_to_party_chain_port,
+            source_channel: party_chain_info.neutron_to_party_chain_channel,
+            token: coin,
+            sender: env.contract.address.to_string(),
+            receiver: proxy_address.to_string(),
+            timeout_height: RequestPacketTimeoutHeight { revision_number: None, revision_height: None },
+            timeout_timestamp: env.block.time.plus_seconds(party_chain_info.ibc_timeout.u64()).nanos(),
+            memo: "".to_string(),
+            fee: default_ibc_fee(),
+        }),
+    }
 }
 
 fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<NeutronMsg>> {
@@ -381,12 +399,16 @@ fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<Neutron
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
     let pool_id: u64 = POOL_ID.load(deps.storage)?.u64();
-    let ibc_timeout = IBC_TIMEOUT.load(deps.storage)?;
+    let osmo_ibc_timeout = OSMOSIS_IBC_TIMEOUT.load(deps.storage)?;
 
-    let coin_1 = COIN_1.load(deps.storage)?;
-    let coin_2 = COIN_2.load(deps.storage)?;
+    let party_1_denom_info = PARTY_1_DENOM_INFO.load(deps.storage)?;
+    let party_2_denom_info = PARTY_2_DENOM_INFO.load(deps.storage)?;
 
-    let token_in_maxs: Vec<OsmosisCoin> = vec![coin_1.clone().into(), coin_2.clone().into()];
+
+
+    let token_in_maxs: Vec<OsmosisCoin> = vec![
+        party_1_denom_info.osmosis_coin.clone().into(),
+        party_2_denom_info.osmosis_coin.clone().into()];
 
     let gamm_shares_coin = match pool.total_shares {
         Some(coin) => coin,
@@ -401,7 +423,8 @@ fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<Neutron
 
     let (pool_asset_1_amount, pool_asset_2_amount) = match (pool_assets.get(0), pool_assets.get(1)) {
         (Some(pool_asset_1), Some(pool_asset_2)) => {
-            if pool_asset_1.denom == coin_1.denom && pool_asset_2.denom == coin_2.denom {
+            if pool_asset_1.denom == party_1_denom_info.osmosis_coin.denom
+            && pool_asset_2.denom == party_2_denom_info.osmosis_coin.denom {
                 (pool_asset_1.amount.to_string(), pool_asset_2.amount.to_string())
             } else {
                 (pool_asset_2.amount.to_string(), pool_asset_1.amount.to_string())
@@ -413,11 +436,11 @@ fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<Neutron
     };
 
     let share_out_amount = std::cmp::min(
-        coin_1.amount.multiply_ratio(
+        party_1_denom_info.osmosis_coin.amount.multiply_ratio(
             Uint128::from_str(&gamm_shares_coin.amount)?,
             Uint128::from_str(&pool_asset_1_amount)?.u128(),
         ),
-        coin_2.amount.multiply_ratio(
+        party_2_denom_info.osmosis_coin.amount.multiply_ratio(
             Uint128::from_str(&gamm_shares_coin.amount)?,
             Uint128::from_str(&pool_asset_2_amount)?.u128(),
         ),
@@ -442,7 +465,7 @@ fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<Neutron
         to_address: holder_addr.to_string(),
         amount: expected_gamm_coin.clone(),
         timeout: IbcTimeout::with_timestamp(
-            env.block.time.plus_seconds(ibc_timeout.u64()),
+            env.block.time.plus_seconds(osmo_ibc_timeout.u64()),
         ),
     }.into();
     let polytone_execute_msg_binary = get_polytone_execute_msg_binary(
@@ -452,7 +475,7 @@ fn try_lp(deps: DepsMut, env: Env, pool: Pool) -> NeutronResult<Response<Neutron
             receiver: env.contract.address.to_string(),
             msg: to_json_binary(&"liquidity_provided")?,
         }),
-        ibc_timeout,
+        osmo_ibc_timeout,
     )?;
 
     let note_msg = CosmosMsg::Wasm(

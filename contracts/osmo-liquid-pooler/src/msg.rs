@@ -6,19 +6,24 @@ use polytone::callbacks::CallbackMessage;
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub pool_address: String,
     pub clock_address: String,
     pub holder_address: String,
     pub note_address: String,
-    pub coin_1: Coin,
-    pub coin_2: Coin,
     pub pool_id: Uint64,
-    pub ibc_timeout: Uint64,
+    pub osmo_ibc_timeout: Uint64,
     pub party_1_chain_info: PartyChainInfo,
     pub party_2_chain_info: PartyChainInfo,
     pub osmo_to_neutron_channel_id: String,
-    pub coin_1_native_denom: String,
-    pub coin_2_native_denom: String,
+    pub party_1_denom_info: PartyDenomInfo,
+    pub party_2_denom_info: PartyDenomInfo,
+}
+
+#[cw_serde]
+pub struct PartyDenomInfo {
+    /// coin as denominated on osmosis
+    pub osmosis_coin: Coin,
+    /// ibc denom on liquid pooler chain
+    pub neutron_denom: String,
 }
 
 #[clocked]
@@ -72,9 +77,11 @@ pub struct OsmoGammPoolQueryResponse {
 pub struct PartyChainInfo {
     pub neutron_to_party_chain_port: String,
     pub neutron_to_party_chain_channel: String,
-    pub party_chain_receiver_address: String,
-    pub party_chain_to_osmo_port: String,
-    pub party_chain_to_osmo_channel: String,
+    // pub party_chain_receiver_address: String,
+    // pub party_chain_to_osmo_port: String,
+    // pub party_chain_to_osmo_channel: String,
+    pub pfm: Option<ForwardMetadata>,
+    pub ibc_timeout: Uint64,
 }
 
 // https://github.com/strangelove-ventures/packet-forward-middleware/blob/main/router/types/forward.go
