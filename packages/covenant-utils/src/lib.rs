@@ -1,8 +1,9 @@
 use astroport::asset::PairInfo;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, Decimal, Fraction, IbcMsg, IbcTimeout,
-    QuerierWrapper, StdError, Timestamp, Uint128, Uint64, to_json_binary, Binary, StdResult, Empty, QueryRequest,
+    to_json_binary, Addr, Attribute, BankMsg, Binary, BlockInfo, Coin, CosmosMsg, Decimal, Empty,
+    Fraction, IbcMsg, IbcTimeout, QuerierWrapper, QueryRequest, StdError, StdResult, Timestamp,
+    Uint128, Uint64,
 };
 use cw20::BalanceResponse;
 use neutron_sdk::{
@@ -659,8 +660,6 @@ pub struct AstroportPoolTokenResponse {
     pub balance_response: BalanceResponse,
 }
 
-
-
 #[cw_serde]
 pub enum PolytoneExecuteMsg {
     Query {
@@ -710,21 +709,12 @@ pub fn get_polytone_query_msg_binary(
     to_json_binary(&query_msg)
 }
 
-
-
 pub fn query_polytone_proxy_address(
     local_address: String,
     note_address: String,
     querier: QuerierWrapper,
 ) -> Result<Option<String>, StdError> {
-    let remote_address_query = PolytoneQueryMsg::RemoteAddress {
-        local_address,
-    };
+    let remote_address_query = PolytoneQueryMsg::RemoteAddress { local_address };
 
-    querier.query_wasm_smart(
-        note_address,
-        &remote_address_query,
-    )
+    querier.query_wasm_smart(note_address, &remote_address_query)
 }
-
-

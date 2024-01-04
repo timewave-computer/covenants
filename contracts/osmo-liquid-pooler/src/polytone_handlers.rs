@@ -1,12 +1,21 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{DepsMut, Binary, Response, from_json, Uint128, Coin, Uint64};
-use neutron_sdk::{NeutronResult, bindings::msg::NeutronMsg};
-use osmosis_std::types::{osmosis::gamm::v1beta1::{QueryPoolResponse, Pool}, cosmos::{bank::v1beta1::QueryBalanceResponse}};
+use cosmwasm_std::{from_json, Binary, Coin, DepsMut, Response, Uint128};
+use neutron_sdk::{bindings::msg::NeutronMsg, NeutronError, NeutronResult};
+use osmosis_std::{
+    shim::Any,
+    types::{
+        cosmos::bank::v1beta1::QueryBalanceResponse,
+        osmosis::gamm::v1beta1::{Pool, QueryPoolResponse},
+    },
+};
 use polytone::callbacks::{ErrorResponse, ExecutionResponse};
 
-use crate::{state::{LATEST_OSMO_POOL_SNAPSHOT, CONTRACT_STATE, CALLBACKS, LATEST_PROXY_BALANCES}, msg::ContractState};
-
+use crate::{
+    error::ContractError,
+    msg::ContractState,
+    state::{CALLBACKS, CONTRACT_STATE, LATEST_OSMO_POOL_SNAPSHOT, LATEST_PROXY_BALANCES},
+};
 
 pub fn process_query_callback(
     deps: DepsMut,
@@ -23,11 +32,7 @@ pub fn process_query_callback(
             for resp in response {
                 if initiator_msg == "query_pool" {
                     let res: QueryPoolResponse = from_json(resp.clone())?;
-                    // todo: remove unwraps
-                    let pool: Pool = res.pool
-                        .unwrap()
-                        .try_into()
-                        .unwrap();
+                    let pool = decode_osmo_pool_binary(res.pool)?;
                     LATEST_OSMO_POOL_SNAPSHOT.save(deps.storage, &Some(pool))?;
                 } else if initiator_msg == "proxy_balances" {
                     let res: QueryBalanceResponse = from_json(resp.clone())?;
@@ -42,11 +47,11 @@ pub fn process_query_callback(
                 responses.push(resp.to_string());
             }
             responses
-        },
+        }
         Err(err) => vec![format!("{:?} : {:?}", err.message_index, err.error)],
     };
 
-    if coin_balances.len() > 0 {
+    if !coin_balances.is_empty() {
         LATEST_PROXY_BALANCES.save(deps.storage, &Some(coin_balances))?;
     }
 
@@ -56,6 +61,25 @@ pub fn process_query_callback(
     CALLBACKS.save(deps.storage, &callbacks)?;
 
     Ok(Response::default())
+}
+
+fn decode_osmo_pool_binary(pool: Option<Any>) -> Result<Pool, NeutronError> {
+    let osmo_shim = match pool {
+        Some(shim) => shim,
+        None => {
+            return Err(
+                ContractError::PolytoneError("failed to decode osmo shim".to_string())
+                    .to_neutron_std(),
+            )
+        }
+    };
+
+    let pool: Pool = match osmo_shim.try_into() {
+        Ok(result) => result,
+        Err(err) => return Err(ContractError::PolytoneError(err.to_string()).to_neutron_std()),
+    };
+
+    Ok(pool)
 }
 
 pub fn process_execute_callback(
@@ -76,12 +100,12 @@ pub fn process_execute_callback(
                             entries.push("proxy_created".to_string());
                         }
                         data.to_string()
-                    },
+                    }
                     None => "none".to_string(),
                 };
                 entries.push(decoded);
-            };
-        },
+            }
+        }
         Err(str) => entries.push(str),
     };
 

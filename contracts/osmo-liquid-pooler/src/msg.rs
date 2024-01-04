@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Coin, Uint64};
+use cosmwasm_std::{Addr, Coin, Uint128, Uint64};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 use polytone::callbacks::CallbackMessage;
