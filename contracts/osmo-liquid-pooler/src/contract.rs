@@ -59,21 +59,25 @@ pub fn instantiate(
     // contract starts at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
-    // store the relevant module addresses
+    // pool we wish to provide liquidity to
+    POOL_ID.save(deps.storage, &msg.pool_id)?;
+
+    // store the relevant contract addresses
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
-
     HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
-
     NOTE_ADDRESS.save(deps.storage, &note_addr)?;
+
+    // initialize polytone state sync related items
     CALLBACKS.save(deps.storage, &Vec::new())?;
     LATEST_OSMO_POOL_SNAPSHOT.save(deps.storage, &None)?;
     LATEST_PROXY_BALANCES.save(deps.storage, &None)?;
-    POOL_ID.save(deps.storage, &msg.pool_id)?;
+
+    // neutron to osmosis timeout and channel id (for polytone)
     OSMOSIS_IBC_TIMEOUT.save(deps.storage, &msg.osmo_ibc_timeout)?;
-    PARTY_1_CHAIN_INFO.save(deps.storage, &msg.party_1_chain_info)?;
-    PARTY_2_CHAIN_INFO.save(deps.storage, &msg.party_2_chain_info)?;
     OSMO_TO_NEUTRON_CHANNEL_ID.save(deps.storage, &msg.osmo_to_neutron_channel_id)?;
 
+    PARTY_1_CHAIN_INFO.save(deps.storage, &msg.party_1_chain_info)?;
+    PARTY_2_CHAIN_INFO.save(deps.storage, &msg.party_2_chain_info)?;
     PARTY_1_DENOM_INFO.save(deps.storage, &msg.party_1_denom_info)?;
     PARTY_2_DENOM_INFO.save(deps.storage, &msg.party_2_denom_info)?;
 
