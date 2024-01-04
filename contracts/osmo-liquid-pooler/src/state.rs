@@ -32,8 +32,12 @@ pub const COIN_2_NATIVE_DENOM: Item<String> = Item::new("coin_2_native_denom");
 pub const CALLBACKS: Item<Vec<String>> = Item::new("callbacks");
 
 pub const LATEST_OSMO_POOL_SNAPSHOT: Item<Option<Pool>> = Item::new("osmo_pool");
+pub const LATEST_PROXY_BALANCES: Item<Option<Vec<Coin>>> = Item::new("proxy_balances");
+
 pub const POOL_ID: Item<Uint64> = Item::new("pool_id");
 pub const IBC_TIMEOUT: Item<Uint64> = Item::new("ibc_timeout");
 pub const PARTY_1_CHAIN_INFO: Item<PartyChainInfo> = Item::new("party_1_chain_info");
 pub const PARTY_2_CHAIN_INFO: Item<PartyChainInfo> = Item::new("party_2_chain_info");
 pub const OSMO_TO_NEUTRON_CHANNEL_ID: Item<String> = Item::new("osmo_to_neutron_channel_id");
+
+pub const PENDING_QUERIES: Item<Uint64> = Item::new("pending_queries");

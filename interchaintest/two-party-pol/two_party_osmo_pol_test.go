@@ -574,6 +574,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				ibc.TransferOptions{},
 			)
 			require.NoError(testCtx.T, err, err)
+			testCtx.SkipBlocks(10)
 
 			_, err = testCtx.Hub.SendIBCTransfer(
 				testCtx.Ctx,
@@ -588,7 +589,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			)
 			require.NoError(testCtx.T, err, err)
 
-			testCtx.SkipBlocks(8)
+			testCtx.SkipBlocks(10)
 
 			liquidPoolerAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, osmoLiquidPoolerAddress)
 			liquidPoolerOsmoBal := testCtx.QueryNeutronDenomBalance(neutronOsmoIbcDenom, osmoLiquidPoolerAddress)
@@ -651,147 +652,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 		t.Run("holder exits pool", func(t *testing.T) {
 
 		})
-
-		// t.Run("enter LP pool via proxy", func(t *testing.T) {
-
-		// 	msgJoinPool := MsgJoinPool{
-		// 		Sender:         proxyAddress,
-		// 		PoolId:         1,
-		// 		ShareOutAmount: "1",
-		// 		// this should be v1beta1 Coin instead of cw
-		// 		TokenInMaxs: []cw.Coin{
-		// 			{
-		// 				Denom:  testCtx.Osmosis.Config().Denom,
-		// 				Amount: strconv.FormatUint(osmoContributionAmount, 10),
-		// 			},
-		// 			{
-		// 				Denom:  osmosisAtomIbcDenom,
-		// 				Amount: strconv.FormatUint(atomContributionAmount, 10),
-		// 			},
-		// 		},
-		// 	}
-		// 	marshalled, err := json.Marshal(msgJoinPool)
-		// 	require.NoError(t, err, err)
-
-		// 	osmoJoinPoolMsg := cw.CosmosMsg{
-		// 		Stargate: &cw.StargateMsg{
-		// 			TypeURL: "osmosis.gamm.v1beta1.MsgJoinPool",
-		// 			Value:   marshalled,
-		// 		},
-		// 	}
-
-		// 	noteMessage := NoteExecuteMsg{
-		// 		Msgs:           []cw.CosmosMsg{osmoJoinPoolMsg},
-		// 		TimeoutSeconds: 200,
-		// 		Callback: &CallbackRequest{
-		// 			Receiver: listenerAddress,
-		// 			Msg:      "YWxsZ29vZA", // allgood
-		// 		},
-		// 	}
-
-		// 	noteExecute := NoteExecute{
-		// 		Execute: &noteMessage,
-		// 	}
-
-		// 	marshalled, err = json.Marshal(noteExecute)
-		// 	require.NoError(t, err, err)
-
-		// 	testCtx.ManualExecNeutron(
-		// 		noteAddress,
-		// 		string(marshalled),
-		// 		neutronUser,
-		// 		keyring.BackendTest,
-		// 	)
-		// 	osmoBal := testCtx.QueryOsmoDenomBalance(testCtx.Osmosis.Config().Denom, proxyAddress)
-		// 	atomBal := testCtx.QueryOsmoDenomBalance(osmosisAtomIbcDenom, proxyAddress)
-		// 	println("proxy osmo bal: ", osmoBal)
-		// 	println("proxy atom bal: ", atomBal)
-
-		// 	testCtx.SkipBlocks(10)
-
-		// 	marshalledStargateMsg, _ := json.Marshal(osmoJoinPoolMsg)
-
-		// 	wasmWrappedStargateMsg := cw.CosmosMsg{
-		// 		Wasm: &cw.WasmMsg{
-		// 			Execute: &cw.ExecuteMsg{
-		// 				ContractAddr: proxyAddress,
-		// 				Msg:          []byte(marshalledStargateMsg),
-		// 				Funds:        []cw.Coin{},
-		// 			},
-		// 		},
-		// 	}
-
-		// 	noteMessage = NoteExecuteMsg{
-		// 		Msgs:           []cw.CosmosMsg{wasmWrappedStargateMsg},
-		// 		TimeoutSeconds: 200,
-		// 		Callback: &CallbackRequest{
-		// 			Receiver: listenerAddress,
-		// 			Msg:      "YWxsZ29vZA", // allgood
-		// 		},
-		// 	}
-
-		// 	noteExecute = NoteExecute{
-		// 		Execute: &noteMessage,
-		// 	}
-
-		// 	marshalled, err = json.Marshal(noteExecute)
-		// 	require.NoError(t, err, err)
-
-		// 	testCtx.ManualExecNeutron(
-		// 		noteAddress,
-		// 		string(marshalled),
-		// 		neutronUser,
-		// 		keyring.BackendTest,
-		// 	)
-		// 	osmoBal = testCtx.QueryOsmoDenomBalance(testCtx.Osmosis.Config().Denom, proxyAddress)
-		// 	atomBal = testCtx.QueryOsmoDenomBalance(osmosisAtomIbcDenom, proxyAddress)
-		// 	println("proxy osmo bal: ", osmoBal)
-		// 	println("proxy atom bal: ", atomBal)
-
-		// 	testCtx.SkipBlocks(200)
-
-		// })
-
-		// t.Run("query proxy address", func(t *testing.T) {
-		// 	// query the remote address
-		// 	remoteAddrQuery := NoteQueryMsg{
-		// 		RemoteAddressQuery: RemoteAddress{
-		// 			LocalAddress: neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-		// 		},
-		// 	}
-
-		// 	type QueryResponse struct {
-		// 		Data string `json:"data"`
-		// 	}
-		// 	var queryResponse QueryResponse
-		// 	err := testCtx.Neutron.QueryContract(testCtx.Ctx, noteAddress, remoteAddrQuery, &queryResponse)
-		// 	require.NoError(t, err, err)
-		// 	require.Equal(t, "", queryResponse.Data, "no proxy should exist before first execute msg")
-
-		// 	testCtx.SkipBlocks(3)
-
-		// 	noteCreateAccountMessage := NoteExecuteMsg{
-		// 		Msgs:           []cw.CosmosMsg{},
-		// 		TimeoutSeconds: 100,
-		// 		Callback: &CallbackRequest{
-		// 			Receiver: listenerAddress,
-		// 			Msg:      "aGVsbG8K",
-		// 		},
-		// 	}
-		// 	noteExecute := NoteExecute{
-		// 		Execute: &noteCreateAccountMessage,
-		// 	}
-
-		// 	testCtx.ManualExecNeutron(noteAddress, noteExecute, neutronUser, keyring.BackendTest)
-
-		// 	testCtx.SkipBlocks(15)
-
-		// 	err = testCtx.Neutron.QueryContract(testCtx.Ctx, noteAddress, remoteAddrQuery, &queryResponse)
-		// 	require.NoError(testCtx.T, err, err)
-		// 	require.NotEmpty(testCtx.T, queryResponse.Data, "proxy account failed to be created")
-		// 	proxyAddress = queryResponse.Data
-		// 	println("proxy address: ", proxyAddress)
-		// })
 
 		// t.Run("two party POL happy path", func(t *testing.T) {
 		// 	var depositBlock Block
