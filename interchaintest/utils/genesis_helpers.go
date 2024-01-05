@@ -180,6 +180,30 @@ func SetupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 	}
 }
 
+func SetupStrideGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) ([]byte, error) {
+	return func(chainConfig ibc.ChainConfig, genbz []byte) ([]byte, error) {
+		g := make(map[string]interface{})
+		if err := json.Unmarshal(genbz, &g); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal genesis file: %w", err)
+		}
+
+		if err := dyno.Set(g, true, "app_state", "autopilot", "params", "stakeibc_active"); err != nil {
+			return nil, fmt.Errorf("failed to set autopilot stakeibc in genesis json: %w", err)
+		}
+
+		if err := dyno.Set(g, allowed_messages, "app_state", "interchainaccounts", "host_genesis_state", "params", "allow_messages"); err != nil {
+			return nil, fmt.Errorf("failed to set allow_messages for interchainaccount host in genesis json: %w", err)
+		}
+
+		out, err := json.Marshal(g)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal genesis bytes to json: %w", err)
+		}
+
+		return out, nil
+	}
+}
+
 func GetCreateValidatorCmd(chain ibc.Chain) []string {
 	// Before receiving a validator set change (VSC) packet,
 	// consumer chains disallow bank transfers. To trigger a VSC
