@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,6 +58,8 @@ func TestSinglePartyPol(t *testing.T) {
 		t.Skip("skipping in short mode")
 	}
 
+	os.Setenv("IBCTEST_CONFIGURED_CHAINS", "./chains.yaml")
+
 	ctx := context.Background()
 
 	// Modify the the timeout_commit in the config.toml node files
@@ -104,13 +109,20 @@ func TestSinglePartyPol(t *testing.T) {
 			},
 		},
 		{
-			Name:    "stride",
-			Version: "v14.0.0",
 			ChainConfig: ibc.ChainConfig{
 				Type:    "cosmos",
 				Name:    "stride",
 				ChainID: "stride-3",
-				Denom:   "ustrd",
+				Images: []ibc.DockerImage{
+					{
+						Repository: "stride",
+						Version:    "non-ics",
+						UidGid:     "1025:1025",
+					},
+				},
+				Bin:          "strided",
+				Bech32Prefix: "stride",
+				Denom:        "ustrd",
 				ModifyGenesis: utils.SetupStrideGenesis([]string{
 					"/cosmos.bank.v1beta1.MsgSend",
 					"/cosmos.bank.v1beta1.MsgMultiSend",
@@ -123,15 +135,8 @@ func TestSinglePartyPol(t *testing.T) {
 					"/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
 					"/ibc.applications.transfer.v1.MsgTransfer",
 				}),
-				GasPrices:     "0.0ustrd",
-				GasAdjustment: 1.3,
-				Images: []ibc.DockerImage{
-					{
-						Repository: "ghcr.io/strangelove-ventures/heighliner/stride",
-						Version:    "v14.0.0",
-						UidGid:     "1025:1025",
-					},
-				},
+				GasPrices:           "0.0ustrd",
+				GasAdjustment:       1.3,
 				TrustingPeriod:      "336h",
 				NoHostMount:         false,
 				ConfigFileOverrides: configFileOverrides,
@@ -224,7 +229,7 @@ func TestSinglePartyPol(t *testing.T) {
 		Ctx:                       ctx,
 	}
 
-	testCtx.SkipBlocks(5)
+	testCtx.SkipBlocksStride(5)
 
 	t.Run("generate IBC paths", func(t *testing.T) {
 		utils.GeneratePath(t, ctx, r, eRep, cosmosAtom.Config().ChainID, cosmosNeutron.Config().ChainID, gaiaNeutronIBCPath)
@@ -249,7 +254,7 @@ func TestSinglePartyPol(t *testing.T) {
 		utils.GenerateICSChannel(t, ctx, r, eRep, gaiaNeutronICSPath, cosmosAtom, cosmosNeutron)
 
 		utils.CreateValidator(t, ctx, r, eRep, atom, neutron)
-		testCtx.SkipBlocks(2)
+		testCtx.SkipBlocksStride(2)
 	})
 
 	t.Run("setup IBC interchain clients, connections, and links", func(t *testing.T) {
@@ -275,7 +280,7 @@ func TestSinglePartyPol(t *testing.T) {
 			t.Logf("failed to stop relayer: %s", err)
 		}
 	})
-	testCtx.SkipBlocks(2)
+	testCtx.SkipBlocksStride(2)
 
 	// Once the VSC packet has been relayed, x/bank transfers are
 	// enabled on Neutron and we can fund its account.
@@ -285,7 +290,16 @@ func TestSinglePartyPol(t *testing.T) {
 	gaiaUser, neutronUser, strideUser := users[0], users[1], users[2]
 	_, _, _ = gaiaUser, neutronUser, strideUser
 
-	testCtx.SkipBlocks(5)
+	strideAdminMnemonic := "tone cause tribe this switch near host damage idle fragile antique tail soda alien depth write wool they rapid unfold body scan pledge soft"
+	strideAdmin, _ := ibctest.GetAndFundTestUserWithMnemonic(ctx, "default", strideAdminMnemonic, (100_000_000), cosmosStride)
+
+	cosmosStride.SendFunds(ctx, strideUser.KeyName, ibc.WalletAmount{
+		Address: strideAdmin.Bech32Address(stride.Config().Bech32Prefix),
+		Denom:   "ustrd",
+		Amount:  10000000,
+	})
+
+	testCtx.SkipBlocksStride(5)
 
 	t.Run("determine ibc channels", func(t *testing.T) {
 		neutronChannelInfo, _ := r.GetChannels(ctx, eRep, cosmosNeutron.Config().ChainID)
@@ -318,6 +332,138 @@ func TestSinglePartyPol(t *testing.T) {
 		)
 	})
 
+	// Stride is a liquid staking platform. We need to register Gaia (ATOM)
+	// as a host zone in order to redeem stATOM in exchange for ATOM
+	// stATOM is stride's liquid staked ATOM vouchers.
+	t.Run("register stride host zone", func(t *testing.T) {
+
+		cmd := []string{"strided", "tx", "stakeibc", "register-host-zone",
+			strideGaiaIBCConnId,
+			cosmosAtom.Config().Denom,
+			cosmosAtom.Config().Bech32Prefix,
+			strideAtomIbcDenom,
+			testCtx.StrideTransferChannelIds[cosmosAtom.Config().Name],
+			"1",
+			"--from", strideAdmin.KeyName,
+			"--gas", "auto",
+			"--gas-adjustment", `1.3`,
+			"--output", "json",
+			"--chain-id", cosmosStride.Config().ChainID,
+			"--node", cosmosStride.GetRPCAddress(),
+			"--home", cosmosStride.HomeDir(),
+			"--keyring-backend", keyring.BackendTest,
+			"-y",
+		}
+
+		_, _, err = cosmosStride.Exec(ctx, cmd, nil)
+		require.NoError(t, err, "failed to register host zone on stride")
+
+		testCtx.SkipBlocksStride(8)
+	})
+	// Stride needs validators that it can stake ATOM with to issue us stATOM
+	t.Run("register gaia validators on stride", func(t *testing.T) {
+
+		type Validator struct {
+			Name    string `json:"name"`
+			Address string `json:"address"`
+			Weight  int    `json:"weight"`
+		}
+
+		type Data struct {
+			BlockHeight string      `json:"block_height"`
+			Total       string      `json:"total"`
+			Validators  []Validator `json:"validators"`
+		}
+
+		valcmd := []string{"gaiad", "query", "tendermint-validator-set",
+			"50",
+			"--chain-id", cosmosAtom.Config().ChainID,
+			"--node", cosmosAtom.GetRPCAddress(),
+			"--home", cosmosAtom.HomeDir(),
+		}
+		resp, _, err := cosmosAtom.Exec(ctx, valcmd, nil)
+		require.NoError(t, err, "Failed to query valset")
+		testCtx.SkipBlocksStride(2)
+
+		var addresses []string
+		var votingPowers []string
+
+		lines := strings.Split(string(resp), "\n")
+
+		for _, line := range lines {
+			if strings.HasPrefix(line, "- address: ") {
+				address := strings.TrimPrefix(line, "- address: ")
+				addresses = append(addresses, address)
+			} else if strings.HasPrefix(line, "  voting_power: ") {
+				votingPower := strings.TrimPrefix(line, "  voting_power: ")
+				votingPowers = append(votingPowers, votingPower)
+			}
+		}
+
+		// Create validators slice
+		var validators []Validator
+
+		for i := 1; i <= len(addresses); i++ {
+			votingPowStr := strings.ReplaceAll(votingPowers[i-1], "\"", "")
+			valWeight, err := strconv.Atoi(votingPowStr)
+			require.NoError(t, err, "failed to parse voting power")
+
+			validator := Validator{
+				Name:    fmt.Sprintf("val%d", i),
+				Address: addresses[i-1],
+				Weight:  valWeight,
+			}
+			validators = append(validators, validator)
+		}
+
+		// Create JSON object
+		data := map[string][]Validator{
+			"validators": validators,
+		}
+
+		// Convert to JSON
+		jsonData, err := json.Marshal(data)
+		require.NoError(t, err, "failed to marshall data")
+
+		fullPath := filepath.Join(cosmosStride.HomeDir(), "vals.json")
+		bashCommand := "echo '" + string(jsonData) + "' > " + fullPath
+		fullPathCmd := []string{"/bin/sh", "-c", bashCommand}
+
+		_, _, err = cosmosStride.Exec(ctx, fullPathCmd, nil)
+		require.NoError(t, err, "failed to create json with gaia LS validator set on stride")
+		testCtx.SkipBlocksStride(5)
+
+		cmd := []string{"strided", "tx", "stakeibc", "add-validators",
+			cosmosAtom.Config().ChainID,
+			fullPath,
+			"--from", strideAdmin.KeyName,
+			"--gas", "auto",
+			"--gas-adjustment", `1.3`,
+			"--output", "json",
+			"--chain-id", cosmosStride.Config().ChainID,
+			"--node", cosmosStride.GetRPCAddress(),
+			"--home", cosmosStride.HomeDir(),
+			"--keyring-backend", keyring.BackendTest,
+			"-y",
+		}
+
+		_, _, err = cosmosStride.Exec(ctx, cmd, nil)
+		require.NoError(t, err, "failed to register host zone on stride")
+
+		testCtx.SkipBlocksStride(5)
+
+		queryCmd := []string{"strided", "query", "stakeibc",
+			"show-validators",
+			cosmosAtom.Config().ChainID,
+			"--chain-id", cosmosStride.Config().ChainID,
+			"--node", cosmosStride.GetRPCAddress(),
+			"--home", cosmosStride.HomeDir(),
+		}
+
+		_, _, err = cosmosStride.Exec(ctx, queryCmd, nil)
+		require.NoError(t, err, "failed to query host validators")
+	})
+
 	t.Run("two party pol covenant setup", func(t *testing.T) {
 		// Wasm code that we need to store on Neutron
 		const covenantContractPath = "wasms/covenant_two_party_pol.wasm"
@@ -325,8 +471,9 @@ func TestSinglePartyPol(t *testing.T) {
 		const interchainRouterContractPath = "wasms/covenant_interchain_router.wasm"
 		const nativeRouterContractPath = "wasms/covenant_native_router.wasm"
 		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
-		const holderContractPath = "wasms/covenant_two_party_pol_holder.wasm"
+		const holderContractPath = "wasms/covenant_single_party_pol_holder.wasm"
 		const liquidPoolerPath = "wasms/covenant_astroport_liquid_pooler.wasm"
+		const remoteChainSplitterPath = "wasms/covenant_remote_chain_splitter.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64
@@ -338,7 +485,8 @@ func TestSinglePartyPol(t *testing.T) {
 		var holderCodeId uint64
 		var lperCodeId uint64
 		var covenantCodeId uint64
-		_, _, _, _, _, _, _ = clockCodeId, interchainRouterCodeId, nativeRouterCodeId, ibcForwarderCodeId, holderCodeId, lperCodeId, covenantCodeId
+		var remoteChainSplitterCodeId uint64
+		_, _, _, _, _, _, _, _ = clockCodeId, interchainRouterCodeId, nativeRouterCodeId, ibcForwarderCodeId, holderCodeId, lperCodeId, covenantCodeId, remoteChainSplitterCodeId
 
 		t.Run("deploy covenant contracts", func(t *testing.T) {
 			covenantCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, covenantContractPath)
@@ -359,7 +507,10 @@ func TestSinglePartyPol(t *testing.T) {
 			// store holder and get code id
 			holderCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, holderContractPath)
 
-			testCtx.SkipBlocks(5)
+			// store remote chain splitter and get code id
+			// remoteChainSplitterCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, remoteChainSplitterPath)
+
+			testCtx.SkipBlocksStride(5)
 		})
 
 		t.Run("deploy astroport contracts", func(t *testing.T) {
@@ -422,14 +573,14 @@ func TestSinglePartyPol(t *testing.T) {
 					neutronStatomIbcDenom)
 				_, err = cosmosNeutron.ExecuteContract(ctx, neutronUser.KeyName, coinRegistryAddress, addMessage)
 				require.NoError(t, err, err)
-				testCtx.SkipBlocks(2)
+				testCtx.SkipBlocksStride(2)
 			})
 
 			t.Run("factory", func(t *testing.T) {
 				factoryAddress = testCtx.InstantiateAstroportFactory(
 					stablePairCodeId, tokenCodeId, whitelistCodeId, factoryCodeId, coinRegistryAddress, neutronUser)
 				println("astroport factory: ", factoryAddress)
-				testCtx.SkipBlocks(2)
+				testCtx.SkipBlocksStride(2)
 			})
 
 			t.Run("create pair on factory", func(t *testing.T) {
@@ -454,7 +605,7 @@ func TestSinglePartyPol(t *testing.T) {
 			_, _, err = cosmosAtom.Exec(ctx, cmd, nil)
 			require.NoError(t, err)
 
-			testCtx.SkipBlocks(10)
+			testCtx.SkipBlocksStride(10)
 
 			// ibc transfer statom on stride to neutron user
 			transferStAtomNeutron := ibc.WalletAmount{
@@ -465,7 +616,7 @@ func TestSinglePartyPol(t *testing.T) {
 			_, err = cosmosStride.SendIBCTransfer(ctx, testCtx.StrideTransferChannelIds[cosmosNeutron.Config().Name], strideUser.KeyName, transferStAtomNeutron, ibc.TransferOptions{})
 			require.NoError(t, err)
 
-			testCtx.SkipBlocks(10)
+			testCtx.SkipBlocksStride(10)
 		})
 
 		t.Run("add liquidity to the atom-statom stableswap pool", func(t *testing.T) {
@@ -483,12 +634,12 @@ func TestSinglePartyPol(t *testing.T) {
 				ibc.TransferOptions{})
 			require.NoError(t, err)
 
-			testCtx.SkipBlocks(2)
+			testCtx.SkipBlocksStride(2)
 
 			testCtx.ProvideAstroportLiquidity(
 				neutronAtomIbcDenom, neutronStatomIbcDenom, atomContributionAmount/2, atomContributionAmount/2, neutronUser, stableswapAddress)
 
-			testCtx.SkipBlocks(2)
+			testCtx.SkipBlocksStride(2)
 			neutronUserLPTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, neutronUser.Bech32Address(neutron.Config().Bech32Prefix))
 			println("neutronUser lp token bal: ", neutronUserLPTokenBal)
 		})
