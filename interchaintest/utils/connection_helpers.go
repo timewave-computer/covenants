@@ -19,22 +19,30 @@ import (
 )
 
 type TestContext struct {
-	Neutron                   *cosmos.CosmosChain
-	Hub                       *cosmos.CosmosChain
-	Osmosis                   *cosmos.CosmosChain
-	OsmoClients               []*ibc.ClientOutput
-	GaiaClients               []*ibc.ClientOutput
-	NeutronClients            []*ibc.ClientOutput
-	OsmoConnections           []*ibc.ConnectionOutput
-	GaiaConnections           []*ibc.ConnectionOutput
-	NeutronConnections        []*ibc.ConnectionOutput
+	Neutron *cosmos.CosmosChain
+	Hub     *cosmos.CosmosChain
+	Osmosis *cosmos.CosmosChain
+	Stride  *cosmos.CosmosChain
+
+	OsmoClients    []*ibc.ClientOutput
+	GaiaClients    []*ibc.ClientOutput
+	NeutronClients []*ibc.ClientOutput
+	StrideClients  []*ibc.ClientOutput
+
+	OsmoConnections    []*ibc.ConnectionOutput
+	GaiaConnections    []*ibc.ConnectionOutput
+	NeutronConnections []*ibc.ConnectionOutput
+	StrideConnections  []*ibc.ConnectionOutput
+
 	NeutronTransferChannelIds map[string]string
 	GaiaTransferChannelIds    map[string]string
 	OsmoTransferChannelIds    map[string]string
-	GaiaIcsChannelIds         map[string]string
-	NeutronIcsChannelIds      map[string]string
-	T                         *testing.T
-	Ctx                       context.Context
+	StrideTransferChannelIds  map[string]string
+
+	GaiaIcsChannelIds    map[string]string
+	NeutronIcsChannelIds map[string]string
+	T                    *testing.T
+	Ctx                  context.Context
 }
 
 func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
