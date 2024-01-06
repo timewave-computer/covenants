@@ -19,22 +19,30 @@ import (
 )
 
 type TestContext struct {
-	Neutron                   *cosmos.CosmosChain
-	Hub                       *cosmos.CosmosChain
-	Osmosis                   *cosmos.CosmosChain
-	OsmoClients               []*ibc.ClientOutput
-	GaiaClients               []*ibc.ClientOutput
-	NeutronClients            []*ibc.ClientOutput
-	OsmoConnections           []*ibc.ConnectionOutput
-	GaiaConnections           []*ibc.ConnectionOutput
-	NeutronConnections        []*ibc.ConnectionOutput
+	Neutron *cosmos.CosmosChain
+	Hub     *cosmos.CosmosChain
+	Osmosis *cosmos.CosmosChain
+	Stride  *cosmos.CosmosChain
+
+	OsmoClients    []*ibc.ClientOutput
+	GaiaClients    []*ibc.ClientOutput
+	NeutronClients []*ibc.ClientOutput
+	StrideClients  []*ibc.ClientOutput
+
+	OsmoConnections    []*ibc.ConnectionOutput
+	GaiaConnections    []*ibc.ConnectionOutput
+	NeutronConnections []*ibc.ConnectionOutput
+	StrideConnections  []*ibc.ConnectionOutput
+
 	NeutronTransferChannelIds map[string]string
 	GaiaTransferChannelIds    map[string]string
 	OsmoTransferChannelIds    map[string]string
-	GaiaIcsChannelIds         map[string]string
-	NeutronIcsChannelIds      map[string]string
-	T                         *testing.T
-	Ctx                       context.Context
+	StrideTransferChannelIds  map[string]string
+
+	GaiaIcsChannelIds    map[string]string
+	NeutronIcsChannelIds map[string]string
+	T                    *testing.T
+	Ctx                  context.Context
 }
 
 func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
@@ -64,6 +72,13 @@ func (testCtx *TestContext) SkipBlocks(n uint64) {
 	require.NoError(
 		testCtx.T,
 		testutil.WaitForBlocks(testCtx.Ctx, 3, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis),
+		"failed to wait for blocks")
+}
+
+func (testCtx *TestContext) SkipBlocksStride(n uint64) {
+	require.NoError(
+		testCtx.T,
+		testutil.WaitForBlocks(testCtx.Ctx, 3, testCtx.Hub, testCtx.Neutron, testCtx.Stride),
 		"failed to wait for blocks")
 }
 
@@ -98,6 +113,8 @@ func (testCtx *TestContext) GetChainClients(chain string) []*ibc.ClientOutput {
 		return testCtx.GaiaClients
 	case "osmosis-3":
 		return testCtx.OsmoClients
+	case "stride-3":
+		return testCtx.StrideClients
 	default:
 		return ibc.ClientOutputs{}
 	}
@@ -111,6 +128,8 @@ func (testCtx *TestContext) SetTransferChannelId(chain string, destChain string,
 		testCtx.GaiaTransferChannelIds[destChain] = channelId
 	case "osmosis-3":
 		testCtx.OsmoTransferChannelIds[destChain] = channelId
+	case "stride-3":
+		testCtx.StrideTransferChannelIds[destChain] = channelId
 	default:
 	}
 }
@@ -133,6 +152,8 @@ func (testCtx *TestContext) UpdateChainClients(chain string, clients []*ibc.Clie
 		testCtx.GaiaClients = clients
 	case "osmosis-3":
 		testCtx.OsmoClients = clients
+	case "stride-3":
+		testCtx.StrideClients = clients
 	default:
 	}
 }
@@ -145,6 +166,8 @@ func (testCtx *TestContext) GetChainConnections(chain string) []*ibc.ConnectionO
 		return testCtx.GaiaConnections
 	case "osmosis-3":
 		return testCtx.OsmoConnections
+	case "stride-3":
+		return testCtx.StrideConnections
 	default:
 		println("error finding connections for chain ", chain)
 		return []*ibc.ConnectionOutput{}
@@ -159,6 +182,8 @@ func (testCtx *TestContext) UpdateChainConnections(chain string, connections []*
 		testCtx.GaiaConnections = connections
 	case "osmosis-3":
 		testCtx.OsmoConnections = connections
+	case "stride-3":
+		testCtx.StrideConnections = connections
 	default:
 	}
 }
