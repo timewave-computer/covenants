@@ -41,6 +41,7 @@ prost            = { workspace = true }
 prost-types      = { workspace = true }
 bech32           = { workspace = true }
 covenant-utils   = { workspace = true }
+osmosis-std = "0.21.0"
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
