@@ -20,6 +20,7 @@ optimize:
     fi
 
 local-e2e-rebuild TEST PATTERN='.*': optimize
+    rm -r interchaintest/{{TEST}}/wasms
     mkdir interchaintest/{{TEST}}/wasms
     cp -R artifacts/*.wasm interchaintest/{{TEST}}/wasms
     cp -R interchaintest/wasms/polytone/*.wasm interchaintest/{{TEST}}/wasms

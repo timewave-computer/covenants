@@ -36,6 +36,8 @@ covenant-two-party-pol-holder = { path = "contracts/two-party-pol-holder" }
 covenant-two-party-pol = { path = "contracts/two-party-pol-covenant" }
 covenant-astroport-liquid-pooler = { path = "contracts/astroport-liquid-pooler" }
 covenant-native-router = { path = "contracts/native-router" }
+covenant-single-party-pol-holder = { path = "contracts/single-party-pol-holder"}
+covenant-stride-liquid-staker = { path = "contracts/stride-liquid-staker" }
 
 # packages
 clock-derive = { path = "packages/clock-derive" }

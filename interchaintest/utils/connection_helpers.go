@@ -1025,6 +1025,55 @@ func (testCtx *TestContext) CreateAstroportFactoryPair(amp uint64, denom1 string
 	testCtx.SkipBlocks(3)
 }
 
+func (testCtx *TestContext) CreateAstroportFactoryPairStride(amp uint64, denom1 string, denom2 string, factory string, from *ibc.Wallet, keyring string) {
+	initParams := StablePoolParams{
+		Amp: amp,
+	}
+	binaryData, _ := json.Marshal(initParams)
+
+	createPairMsg := CreatePairMsg{
+		CreatePair: CreatePair{
+			PairType: PairType{
+				Stable: struct{}{},
+			},
+			AssetInfos: []AssetInfo{
+				{
+					NativeToken: &NativeToken{
+						Denom: denom1,
+					},
+				},
+				{
+					NativeToken: &NativeToken{
+						Denom: denom2,
+					},
+				},
+			},
+			InitParams: binaryData,
+		},
+	}
+
+	str, _ := json.Marshal(createPairMsg)
+
+	createCmd := []string{"neutrond", "tx", "wasm", "execute",
+		factory,
+		string(str),
+		"--gas-prices", "0.0untrn",
+		"--gas-adjustment", `1.5`,
+		"--output", "json",
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--home", testCtx.Neutron.HomeDir(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--from", from.KeyName,
+		"--gas", "auto",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+
+	_, _, err := testCtx.Neutron.Exec(testCtx.Ctx, createCmd, nil)
+	require.NoError(testCtx.T, err, err)
+	testCtx.SkipBlocksStride(3)
+}
+
 func (testCtx *TestContext) QueryLpTokenBalance(token string, addr string) uint64 {
 	bal := Balance{
 		Address: addr,
