@@ -305,6 +305,18 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "chrono"
 version = "0.4.31"
+<<<<<<< HEAD
+=======
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f2c685bad3eb3d45a01354cedb7d5faa66194d1d58ba6e267a8de788f79db38"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "const-oid"
+version = "0.9.5"
+>>>>>>> e6ad7b6 (started migration of V1 to V2)
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f2c685bad3eb3d45a01354cedb7d5faa66194d1d58ba6e267a8de788f79db38"
 dependencies = [
@@ -494,7 +506,11 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "neutron-sdk",
+<<<<<<< HEAD
  "osmosis-std 0.21.0",
+=======
+ "osmosis-std",
+>>>>>>> e6ad7b6 (started migration of V1 to V2)
  "prost 0.11.9",
  "prost-types 0.11.9",
  "protobuf 3.3.0",
@@ -604,6 +620,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "covenant-osmo-liquid-pooler"
 version = "1.0.0"
 dependencies = [
@@ -656,6 +673,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> e6ad7b6 (started migration of V1 to V2)
 name = "covenant-single-party-pol"
 version = "1.0.0"
 dependencies = [
@@ -671,9 +690,13 @@ dependencies = [
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
  "covenant-interchain-splitter",
+<<<<<<< HEAD
  "covenant-native-splitter",
  "covenant-single-party-pol-holder",
  "covenant-stride-liquid-staker",
+=======
+ "covenant-two-party-pol-holder",
+>>>>>>> e6ad7b6 (started migration of V1 to V2)
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
@@ -691,6 +714,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "covenant-single-party-pol-holder"
 version = "1.0.0"
 dependencies = [
@@ -713,6 +737,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> e6ad7b6 (started migration of V1 to V2)
 name = "covenant-stride-liquid-staker"
 version = "1.0.0"
 dependencies = [
@@ -1432,6 +1458,7 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "osmosis-std"
+<<<<<<< HEAD
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10d6fe6ac7fcba45ed61d738091d33c838c4cabbcf4892dc7aa56d19d39cc976"
@@ -1448,13 +1475,19 @@ dependencies = [
 
 [[package]]
 name = "osmosis-std"
+=======
+>>>>>>> e6ad7b6 (started migration of V1 to V2)
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e87adf61f03306474ce79ab322d52dfff6b0bcf3aed1e12d8864ac0400dec1bf"
 dependencies = [
  "chrono",
  "cosmwasm-std",
+<<<<<<< HEAD
  "osmosis-std-derive 0.20.1",
+=======
+ "osmosis-std-derive",
+>>>>>>> e6ad7b6 (started migration of V1 to V2)
  "prost 0.12.3",
  "prost-types 0.12.3",
  "schemars",
@@ -1464,6 +1497,7 @@ dependencies = [
 
 [[package]]
 name = "osmosis-std-derive"
+<<<<<<< HEAD
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a455e262a6fdfd3914f3a4e11e6bc0ce491901cb9d507d7856d7ef6e129e90c6"
@@ -1476,6 +1510,8 @@ dependencies = [
 
 [[package]]
 name = "osmosis-std-derive"
+=======
+>>>>>>> e6ad7b6 (started migration of V1 to V2)
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5ebdfd1bc8ed04db596e110c6baa9b174b04f6ed1ec22c666ddc5cb3fa91bd7"
