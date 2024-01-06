@@ -1,0 +1,10 @@
+{
+  "autopilot": {
+    "receiver": "stride123",
+    "stakeibc": {
+      "action": "LiquidStake",
+      "ibc_receiver": "neutron123",
+      "transfer_channel": "STRIDE_NEUTRON_CHANNEL"
+    }
+  }
+}
