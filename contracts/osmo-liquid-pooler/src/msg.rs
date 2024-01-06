@@ -16,6 +16,7 @@ pub struct InstantiateMsg {
     pub osmo_to_neutron_channel_id: String,
     pub party_1_denom_info: PartyDenomInfo,
     pub party_2_denom_info: PartyDenomInfo,
+    pub osmo_outpost: String,
 }
 
 #[cw_serde]

@@ -464,6 +464,7 @@ type OsmoLiquidPoolerInstantiateMsg struct {
 	OsmoToNeutronChannelId string         `json:"osmo_to_neutron_channel_id"`
 	Party1DenomInfo        PartyDenomInfo `json:"party_1_denom_info"`
 	Party2DenomInfo        PartyDenomInfo `json:"party_2_denom_info"`
+	OsmoOutpost            string         `json:"osmo_outpost"`
 }
 
 type PartyDenomInfo struct {
