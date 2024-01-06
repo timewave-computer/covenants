@@ -715,10 +715,17 @@ dependencies = [
 
 [[package]]
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> f570937 (instantiating liquid staker on ictests)
 name = "covenant-single-party-pol-holder"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+<<<<<<< HEAD
+=======
+ "astroport 2.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+>>>>>>> f570937 (instantiating liquid staker on ictests)
  "astroport-factory 1.6.0",
  "astroport-native-coin-registry 1.0.1 (git+https://github.com/astroport-fi/astroport-core.git)",
  "astroport-pair-stable 3.4.0",
@@ -726,19 +733,29 @@ dependencies = [
  "astroport-whitelist 1.0.1 (git+https://github.com/astroport-fi/astroport-core.git)",
  "cosmwasm-schema",
  "cosmwasm-std",
+<<<<<<< HEAD
  "covenant-macros",
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
+=======
+ "cw-multi-test",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "cw20 0.15.1",
+>>>>>>> f570937 (instantiating liquid staker on ictests)
  "serde",
  "thiserror",
 ]
 
 [[package]]
+<<<<<<< HEAD
 =======
 >>>>>>> e6ad7b6 (started migration of V1 to V2)
+=======
+>>>>>>> f570937 (instantiating liquid staker on ictests)
 name = "covenant-stride-liquid-staker"
 version = "1.0.0"
 dependencies = [

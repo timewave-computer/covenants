@@ -487,7 +487,7 @@ func TestSinglePartyPol(t *testing.T) {
 		_, _, _, _, _, _, _, _, _ = clockCodeId, interchainRouterCodeId, nativeRouterCodeId, ibcForwarderCodeId, holderCodeId, lperCodeId, covenantCodeId, remoteChainSplitterCodeId, liquidStakerCodeId
 
 		t.Run("deploy covenant contracts", func(t *testing.T) {
-			covenantCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, covenantContractPath)
+			// covenantCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, covenantContractPath)
 
 			// store clock and get code id
 			clockCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, clockContractPath)
