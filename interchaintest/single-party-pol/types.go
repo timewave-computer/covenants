@@ -28,7 +28,7 @@ type NativeToken struct {
 
 type CwCoin struct {
 	Denom  string `json:"denom"`
-	Amount uint64 `json:"amount"`
+	Amount string `json:"amount"`
 }
 
 // astroport factory
@@ -199,4 +199,109 @@ type Balance struct {
 type NativeBalQueryResponse struct {
 	Amount string `json:"amount"`
 	Denom  string `json:"denom"`
+}
+
+// single party POL types
+
+type CovenantInstantiationMsg struct {
+	Label                    string          `json:"label"`
+	Timeouts                 Timeouts        `json:"timeouts"`
+	PresetIbcFee             PresetIbcFee    `json:"preset_ibc_fee"`
+	ContractCodeIds          ContractCodeIds `json:"contract_codes"`
+	TickMaxGas               string          `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig             Expiration      `json:"lockup_config"`
+	PoolAddress              string          `json:"pool_address"`
+	DepositDeadline          Expiration      `json:"deposit_deadline"`
+	CovenantType             string          `json:"covenant_type"`
+	PartyAShare              string          `json:"a_share"`
+	PartyBShare              string          `json:"b_share"`
+	ExpectedPoolRatio        string          `json:"expected_pool_ratio"`
+	AcceptablePoolRatioDelta string          `json:"acceptable_pool_ratio_delta"`
+	PairType                 PairType        `json:"pool_pair_type"`
+	Splits                   []DenomSplit    `json:"splits"`
+	FallbackSplit            *SplitConfig    `json:"fallback_split,omitempty"`
+}
+
+type Timeouts struct {
+	IcaTimeout         string `json:"ica_timeout"`
+	IbcTransferTimeout string `json:"ibc_transfer_timeout"`
+}
+
+type PresetIbcFee struct {
+	AckFee     string `json:"ack_fee"`
+	TimeoutFee string `json:"timeout_fee"`
+}
+
+type Timestamp string
+type Block uint64
+
+type Expiration struct {
+	Never    string     `json:"none,omitempty"`
+	AtHeight *Block     `json:"at_height,omitempty"`
+	AtTime   *Timestamp `json:"at_time,omitempty"`
+}
+
+type ContractCodeIds struct {
+	IbcForwarderCode     uint64 `json:"ibc_forwarder_code"`
+	InterchainRouterCode uint64 `json:"interchain_router_code"`
+	NativeRouterCode     uint64 `json:"native_router_code"`
+	ClockCode            uint64 `json:"clock_code"`
+	HolderCode           uint64 `json:"holder_code"`
+	LiquidPoolerCode     uint64 `json:"liquid_pooler_code"`
+}
+
+type SplitType struct {
+	Custom SplitConfig `json:"custom"`
+}
+
+type DenomSplit struct {
+	Denom string    `json:"denom"`
+	Type  SplitType `json:"split"`
+}
+
+type SplitConfig struct {
+	Receivers map[string]string `json:"receivers"`
+}
+
+type LiquidStakerInstantiateMsg struct {
+	ClockAddress                      string `json:"clock_address"`
+	StrideNeutronIbcTransferChannelID string `json:"stride_neutron_ibc_transfer_channel_id"`
+	NeutronStrideIbcConnectionID      string `json:"neutron_stride_ibc_connection_id"`
+	NextContract                      string `json:"next_contract"`
+	LsDenom                           string `json:"ls_denom"`
+	IbcFee                            IbcFee `json:"ibc_fee"` // Assuming IbcFee is defined elsewhere
+	IcaTimeout                        string `json:"ica_timeout"`
+	IbcTransferTimeout                string `json:"ibc_transfer_timeout"`
+	AutopilotFormat                   string `json:"autopilot_format"`
+}
+
+type IbcFee struct {
+	RecvFee    []CwCoin `json:"recv_fee"`
+	AckFee     []CwCoin `json:"ack_fee"`
+	TimeoutFee []CwCoin `json:"timeout_fee"`
+}
+
+//////////////////////////////////////////////
+///// Ls contract
+//////////////////////////////////////////////
+
+// Execute
+type TransferExecutionMsg struct {
+	Transfer TransferAmount `json:"transfer"`
+}
+
+// Rust type here is Uint128 which can't safely be serialized
+// to json int. It needs to go as a string over the wire.
+type TransferAmount struct {
+	Amount uint64 `json:"amount,string"`
+}
+
+// Queries
+type LsIcaQuery struct {
+	StrideIca StrideIcaQuery `json:"stride_i_c_a"`
+}
+type StrideIcaQuery struct{}
+
+type StrideIcaQueryResponse struct {
+	Addr string `json:"data"`
 }
