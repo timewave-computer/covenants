@@ -466,14 +466,15 @@ func TestSinglePartyPol(t *testing.T) {
 
 	t.Run("two party pol covenant setup", func(t *testing.T) {
 		// Wasm code that we need to store on Neutron
-		const covenantContractPath = "wasms/covenant_two_party_pol.wasm"
+		// const covenantContractPath = "wasms/covenant_two_party_pol.wasm"
 		const clockContractPath = "wasms/covenant_clock.wasm"
 		const interchainRouterContractPath = "wasms/covenant_interchain_router.wasm"
 		const nativeRouterContractPath = "wasms/covenant_native_router.wasm"
 		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
 		const holderContractPath = "wasms/covenant_single_party_pol_holder.wasm"
 		const liquidPoolerPath = "wasms/covenant_astroport_liquid_pooler.wasm"
-		const remoteChainSplitterPath = "wasms/covenant_remote_chain_splitter.wasm"
+		// const remoteChainSplitterPath = "wasms/covenant_remote_chain_splitter.wasm"
+		const liquidStakerContractPath = "wasms/covenant_stride_liquid_staker.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64
@@ -484,12 +485,13 @@ func TestSinglePartyPol(t *testing.T) {
 		var ibcForwarderCodeId uint64
 		var holderCodeId uint64
 		var lperCodeId uint64
+		var liquidStakerCodeId uint64
 		var covenantCodeId uint64
 		var remoteChainSplitterCodeId uint64
-		_, _, _, _, _, _, _, _ = clockCodeId, interchainRouterCodeId, nativeRouterCodeId, ibcForwarderCodeId, holderCodeId, lperCodeId, covenantCodeId, remoteChainSplitterCodeId
+		_, _, _, _, _, _, _, _, _ = clockCodeId, interchainRouterCodeId, nativeRouterCodeId, ibcForwarderCodeId, holderCodeId, lperCodeId, covenantCodeId, remoteChainSplitterCodeId, liquidStakerCodeId
 
 		t.Run("deploy covenant contracts", func(t *testing.T) {
-			covenantCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, covenantContractPath)
+			// covenantCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, covenantContractPath)
 
 			// store clock and get code id
 			clockCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, clockContractPath)
@@ -507,6 +509,7 @@ func TestSinglePartyPol(t *testing.T) {
 			// store holder and get code id
 			holderCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, holderContractPath)
 
+			liquidStakerCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, liquidStakerContractPath)
 			// store remote chain splitter and get code id
 			// remoteChainSplitterCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, remoteChainSplitterPath)
 
@@ -584,7 +587,7 @@ func TestSinglePartyPol(t *testing.T) {
 			})
 
 			t.Run("create pair on factory", func(t *testing.T) {
-				testCtx.CreateAstroportFactoryPair(3, neutronStatomIbcDenom, neutronAtomIbcDenom, factoryAddress, neutronUser, keyring.BackendTest)
+				testCtx.CreateAstroportFactoryPairStride(3, neutronStatomIbcDenom, neutronAtomIbcDenom, factoryAddress, neutronUser, keyring.BackendTest)
 			})
 		})
 
@@ -642,6 +645,45 @@ func TestSinglePartyPol(t *testing.T) {
 			testCtx.SkipBlocksStride(2)
 			neutronUserLPTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, neutronUser.Bech32Address(neutron.Config().Bech32Prefix))
 			println("neutronUser lp token bal: ", neutronUserLPTokenBal)
+		})
+
+		neutronTesterAddr := neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
+
+		t.Run("init liquid staker", func(t *testing.T) {
+			neutronCoin := CwCoin{
+				Denom:  "untrn",
+				Amount: "100000",
+			}
+			ibcFee := IbcFee{
+				RecvFee:    []CwCoin{},
+				AckFee:     []CwCoin{neutronCoin},
+				TimeoutFee: []CwCoin{neutronCoin},
+			}
+
+			lsInstantiateMsg := LiquidStakerInstantiateMsg{
+				ClockAddress:                      neutronTesterAddr,
+				StrideNeutronIbcTransferChannelID: testCtx.StrideTransferChannelIds[cosmosNeutron.Config().Name],
+				NeutronStrideIbcConnectionID:      neutronStrideIBCConnId,
+				NextContract:                      neutronTesterAddr,
+				LsDenom:                           "stuatom",
+				IbcFee:                            ibcFee,
+				IcaTimeout:                        "200",
+				IbcTransferTimeout:                "200",
+				AutopilotFormat:                   "",
+			}
+
+			str, _ := json.Marshal(lsInstantiateMsg)
+
+			liquidStakerAddress, err := cosmosNeutron.InstantiateContract(
+				testCtx.Ctx,
+				neutronUser.KeyName,
+				strconv.FormatUint(liquidStakerCodeId, 10),
+				string(str),
+				true,
+			)
+			require.NoError(t, err, err)
+
+			println("liquid staker addr: ", liquidStakerAddress)
 		})
 
 	})
