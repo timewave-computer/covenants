@@ -186,6 +186,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 	var voiceAddress string
 	var proxyAddress string
 	var osmoLiquidPoolerAddress string
+	var osmoOutpost string
 
 	testCtx.SkipBlocks(5)
 
@@ -324,6 +325,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
 		const holderContractPath = "wasms/covenant_two_party_pol_holder.wasm"
 		const liquidPoolerPath = "wasms/covenant_osmo_liquid_pooler.wasm"
+		const osmoOutpostPath = "wasms/covenant_outpost_osmo_liquid_pooler.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64
@@ -339,6 +341,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 		var noteCodeId uint64
 		var voiceCodeId uint64
 		var proxyCodeId uint64
+		var osmoOutpostCodeId uint64
 
 		_, _, _, _, _ = clockCodeId, routerCodeId, ibcForwarderCodeId, holderCodeId, lperCodeId
 		_, _, _ = covenantCodeId, covenantRqCodeId, covenantSideBasedRqCodeId
@@ -377,9 +380,13 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			voiceCodeId = testCtx.StoreContract(cosmosOsmosis, osmoUser, polytoneVoicePath)
 			proxyCodeId = testCtx.StoreContract(cosmosOsmosis, osmoUser, polytoneProxyPath)
 
+			// store lper, get code
+			osmoOutpostCodeId = testCtx.StoreContract(cosmosOsmosis, neutronUser, liquidPoolerPath)
+
 			println("noteCodeId: ", noteCodeId)
 			println("voiceCodeId: ", voiceCodeId)
 			println("proxyCodeId: ", proxyCodeId)
+			println("osmoOutpostCodeId: ", osmoOutpostCodeId)
 		})
 
 		t.Run("add liquidity to osmo-atom pool", func(t *testing.T) {
@@ -549,6 +556,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 					OsmosisCoin:  cw.Coin{Denom: testCtx.Osmosis.Config().Denom, Amount: strconv.FormatUint(osmoContributionAmount, 10)},
 					NeutronDenom: neutronOsmoIbcDenom,
 				},
+				OsmoOutpost: osmoOutpost,
 			}
 
 			osmoLiquidPoolerAddress = testCtx.ManualInstantiate(lperCodeId, instantiateMsg, neutronUser, keyring.BackendTest)

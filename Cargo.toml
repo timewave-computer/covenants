@@ -37,6 +37,7 @@ covenant-two-party-pol = { path = "contracts/two-party-pol-covenant" }
 covenant-astroport-liquid-pooler = { path = "contracts/astroport-liquid-pooler" }
 covenant-native-router = { path = "contracts/native-router" }
 covenant-osmo-liquid-pooler = { path = "contracts/osmo-liquid-pooler" }
+covenant-outpost-osmo-liquid-pooler = { path = "contracts/outpost-osmo-liquid-pooler" }
 
 # packages
 polytone = "1.0.0"
