@@ -32,3 +32,5 @@ pub const OSMO_TO_NEUTRON_CHANNEL_ID: Item<String> = Item::new("osmo_to_neutron_
 
 pub const PARTY_1_DENOM_INFO: Item<PartyDenomInfo> = Item::new("party_1_denom_info");
 pub const PARTY_2_DENOM_INFO: Item<PartyDenomInfo> = Item::new("party_2_denom_info");
+
+pub const OSMO_OUTPOST: Item<String> = Item::new("osmo_outpost");

@@ -1,7 +1,7 @@
 [package]
-name        = "covenant-osmo-liquid-pooler"
+name        = "covenant-outpost-osmo-liquid-pooler"
 authors     = ["benskey bekauz@protonmail.com"]
-description = "Osmosis liquid pooler contract for covenants"
+description = "Osmosis outpost for liquid pooler contract for covenants"
 license     = { workspace = true }
 repository  = { workspace = true }
 version     = { workspace = true }
@@ -48,7 +48,6 @@ polytone         = { workspace = true }
 osmosis-std = "0.13.2"
 base64 = { workspace = true }
 prost = { workspace = true }
-covenant-outpost-osmo-liquid-pooler = { workspace = true }
 
 # dev-dependencies
 [dev-dependencies]
