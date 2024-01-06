@@ -202,6 +202,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "chrono"
+version = "0.4.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f2c685bad3eb3d45a01354cedb7d5faa66194d1d58ba6e267a8de788f79db38"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -225,7 +234,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32560304ab4c365791fd307282f76637213d8083c1a98490c35159cd67852237"
 dependencies = [
  "prost 0.12.3",
- "prost-types 0.12.1",
+ "prost-types 0.12.3",
  "tendermint-proto 0.34.0",
 ]
 
@@ -383,6 +392,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "neutron-sdk",
+ "osmosis-std",
  "prost 0.11.9",
  "prost-types 0.11.9",
  "protobuf 3.3.0",
@@ -473,6 +483,59 @@ dependencies = [
 
 [[package]]
 name = "covenant-native-splitter"
+version = "1.0.0"
+dependencies = [
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-clock",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "protobuf 3.3.0",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "thiserror",
+]
+
+[[package]]
+name = "covenant-single-party-pol"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "astroport 2.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "base64 0.13.1",
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-astroport-liquid-pooler",
+ "covenant-clock",
+ "covenant-ibc-forwarder",
+ "covenant-interchain-router",
+ "covenant-interchain-splitter",
+ "covenant-two-party-pol-holder",
+ "covenant-utils",
+ "cw-multi-test",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types 0.11.9",
+ "protobuf 3.3.0",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "sha2 0.10.8",
+ "thiserror",
+]
+
+[[package]]
+name = "covenant-stride-liquid-staker"
 version = "1.0.0"
 dependencies = [
  "cosmos-sdk-proto 0.14.0",
@@ -1171,6 +1234,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
+name = "osmosis-std"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e87adf61f03306474ce79ab322d52dfff6b0bcf3aed1e12d8864ac0400dec1bf"
+dependencies = [
+ "chrono",
+ "cosmwasm-std",
+ "osmosis-std-derive",
+ "prost 0.12.3",
+ "prost-types 0.12.3",
+ "schemars",
+ "serde",
+ "serde-cw-value",
+]
+
+[[package]]
+name = "osmosis-std-derive"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5ebdfd1bc8ed04db596e110c6baa9b174b04f6ed1ec22c666ddc5cb3fa91bd7"
+dependencies = [
+ "itertools 0.10.5",
+ "proc-macro2",
+ "prost-types 0.11.9",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "paste"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1252,9 +1344,9 @@ dependencies = [
 
 [[package]]
 name = "prost-types"
-version = "0.12.1"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e081b29f63d83a4bc75cfc9f3fe424f9156cf92d8a4f0c9407cce9a1b67327cf"
+checksum = "193898f59edcf43c26227dcd4c8427f00d99d61e95dcde58dabd49fa291d470e"
 dependencies = [
  "prost 0.12.3",
 ]
@@ -1380,6 +1472,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25dd9975e68d0cb5aa1120c288333fc98731bd1dd12f561e468ea4728c042b89"
 dependencies = [
  "serde_derive",
+]
+
+[[package]]
+name = "serde-cw-value"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a75d32da6b8ed758b7d850b6c3c08f1d7df51a4df3cb201296e63e34a78e99d4"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -1599,7 +1700,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "prost 0.12.3",
- "prost-types 0.12.1",
+ "prost-types 0.12.3",
  "serde",
  "serde_bytes",
  "subtle-encoding",
