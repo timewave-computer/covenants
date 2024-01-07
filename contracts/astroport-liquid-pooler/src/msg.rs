@@ -200,7 +200,9 @@ pub struct SingleSideLpLimits {
 #[clocked]
 #[covenant_lper_withdraw]
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    Withdraw { percent: Option<Decimal> },
+}
 
 #[covenant_clock_address]
 #[covenant_deposit_address]
