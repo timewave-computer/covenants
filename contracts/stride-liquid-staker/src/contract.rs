@@ -5,7 +5,7 @@ use cosmwasm_std::{
     coins, to_json_binary, to_json_string, Binary, Coin, CosmosMsg, CustomQuery, Deps, DepsMut,
     Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128,
 };
-use covenant_clock::helpers::verify_clock;
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::neutron_ica::{
     self, get_proto_coin, OpenAckVersion, RemoteChainInfo, SudoPayload,
 };
@@ -14,8 +14,8 @@ use cw2::set_contract_version;
 use crate::helpers::Autopilot;
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{
-    read_reply_payload, save_reply_payload, save_sudo_payload, AUTOPILOT_FORMAT, CLOCK_ADDRESS,
-    CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
+    read_reply_payload, save_reply_payload, save_sudo_payload, CLOCK_ADDRESS, CONTRACT_STATE,
+    INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
 };
 use neutron_sdk::{
     bindings::{
@@ -62,6 +62,7 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     Ok(Response::default()
+        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "ls_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attribute("next_contract", next_contract)
@@ -240,7 +241,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
                 &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
             )?;
 
-            // if query returns None, then we error and wait
+            // if query returns None, then we return empty memo (equivalent to error)
             let Some(deposit_address) = deposit_address_query else {
               return Ok(to_json_binary("")?)
             };
@@ -251,7 +252,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
                 receiver: env.contract.address.to_string(),
                 stakeibc: crate::helpers::Stakeibc {
                     action: "LiquidStake".to_string(),
-                    ibc_receiver: deposit_address.to_string(),
+                    ibc_receiver: deposit_address,
                     transfer_channel: remote_chain_info.channel_id,
                 },
             };
@@ -265,25 +266,9 @@ fn query_deposit_address(deps: Deps<NeutronQuery>, env: Env) -> Result<Option<St
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
 
     // here we cover three cases:
-    match INTERCHAIN_ACCOUNTS.may_load(deps.storage, key)? {
-        Some(entry) => {
-            // 1. ICA had been created -> fetch the autopilot string and return Some(autopilot)
-            if let Some((addr, _)) = entry {
-                let autopilot_receiver = AUTOPILOT_FORMAT
-                    .load(deps.storage)?
-                    .replace("{st_ica}", &addr);
-
-                Ok(Some(autopilot_receiver))
-            }
-            // 2. ICA creation request had been submitted but did not receive
-            //    the channel_open_ack yet -> None
-            else {
-                Ok(None)
-            }
-        }
-        // 3. ICA creation request hadn't been submitted yet -> None
-        None => Ok(None),
-    }
+    INTERCHAIN_ACCOUNTS
+        .may_load(deps.storage, key)
+        .map(|entry| entry.flatten().map(|x| x.0))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

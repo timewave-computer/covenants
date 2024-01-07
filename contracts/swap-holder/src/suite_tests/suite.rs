@@ -97,7 +97,7 @@ impl SuiteBuilder {
             .unwrap();
         self.instantiate.clock_address = clock_address.to_string();
 
-        println!("clock address: {:?}", clock_address);
+        println!("clock address: {clock_address:?}");
 
         let mock_deposit = app
             .instantiate_contract(

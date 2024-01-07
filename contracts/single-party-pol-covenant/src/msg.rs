@@ -2,7 +2,7 @@ use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128, Uint64};
 use covenant_two_party_pol_holder::msg::PresetPolParty;
-use covenant_utils::{CovenantParty, DenomSplit, DestinationConfig, ReceiverConfig, SplitConfig};
+use covenant_utils::{CovenantParty, DestinationConfig, ReceiverConfig};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -18,18 +18,22 @@ pub struct InstantiateMsg {
     pub clock_tick_max_gas: Option<Uint64>,
     pub lockup_config: Expiration,
     pub pool_address: String,
+    pub ls_info: LsInfo,
     // TODO: Should be a ragequit
     // pub ragequit_config: Option<RagequitConfig>,
-    pub deposit_deadline: Expiration,
     pub forwarder_a_config: CovenantPartyConfig,
     pub forwarder_b_config: CovenantPartyConfig,
-    pub a_share: Uint64,
-    pub b_share: Uint64,
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
     pub pool_pair_type: PairType,
-    pub splits: Vec<DenomSplit>,
-    pub fallback_split: Option<SplitConfig>,
+}
+
+#[cw_serde]
+pub struct LsInfo {
+    pub ls_denom: String,
+    pub ls_denom_on_neutron: String,
+    pub ls_chain_to_neutron_channel_id: String,
+    pub ls_neutron_connection_id: String,
 }
 
 impl CovenantPartyConfig {
@@ -187,7 +191,12 @@ impl PresetIbcFee {
 }
 
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    /// Withdraw from the LPer
+    Withdraw {},
+    ///
+    Claim {},
+}
 
 #[cw_serde]
 #[derive(QueryResponses)]

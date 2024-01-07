@@ -21,10 +21,6 @@ pub const REMOTE_CHAIN_INFO: Item<RemoteChainInfo> = Item::new("r_c_info");
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
 
-/// formatting of stride autopilot message.
-/// we use string match & replace with relevant fields to obtain the valid message.
-pub const AUTOPILOT_FORMAT: Item<String> = Item::new("autopilot_format");
-
 /// interchain transaction responses - ack/err/timeout state to query later
 // pub const ACKNOWLEDGEMENT_RESULTS: Map<(String, u64), AcknowledgementResult> =
 //     Map::new("acknowledgement_results");
