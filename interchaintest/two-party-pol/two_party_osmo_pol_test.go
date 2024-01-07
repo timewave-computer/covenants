@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -251,6 +252,8 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 	// initialPoolOsmoAmount := int64(600_000_000_000)
 	initialPoolAtomAmount := int64(60_000_000_000)
 	osmoHelperAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(999_000_000_000), osmosis)[0]
+	// hubHelperAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(999_000_000_000), atom)[0]
+
 	holderAddress := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(100), neutron)[0].Bech32Address(cosmosNeutron.Config().Bech32Prefix)
 
 	// hubNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(500_000_000_000), neutron)[0]
@@ -381,7 +384,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			proxyCodeId = testCtx.StoreContract(cosmosOsmosis, osmoUser, polytoneProxyPath)
 
 			// store lper, get code
-			osmoOutpostCodeId = testCtx.StoreContract(cosmosOsmosis, neutronUser, liquidPoolerPath)
+			osmoOutpostCodeId = testCtx.StoreContract(cosmosOsmosis, osmoUser, osmoOutpostPath)
 
 			println("noteCodeId: ", noteCodeId)
 			println("voiceCodeId: ", voiceCodeId)
@@ -421,8 +424,8 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			println("osmo helper account osmo balance: ", osmoBal)
 
 			osmosisPoolInitConfig := cosmos.OsmosisPoolParams{
-				Weights:        fmt.Sprintf("10%s,1%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
-				InitialDeposit: fmt.Sprintf("50000000000%s,500000000000%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
+				Weights:        fmt.Sprintf("50%s,50%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
+				InitialDeposit: fmt.Sprintf("40000000000%s,400000000000%s", osmosisAtomIbcDenom, osmosis.Config().Denom),
 				SwapFee:        "0.003",
 				ExitFee:        "0.00",
 				FutureGovernor: "",
@@ -484,6 +487,86 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			println("deposited osmo: ", osmoBal-newOsmoBal)
 			println("deposited atom: ", atomBal-newAtomBal)
 			testCtx.SkipBlocks(5)
+		})
+
+		t.Run("instantiate osmosis outpost", func(t *testing.T) {
+			osmoOutpost = testCtx.InstantiateOsmoOutpost(osmoOutpostCodeId, osmoUser)
+			println(osmoOutpost)
+		})
+
+		t.Run("outpost", func(t *testing.T) {
+			println("\n\n")
+			testCtx.SkipBlocks(5)
+			// tx, err := testCtx.Hub.SendIBCTransfer(
+			// 	testCtx.Ctx,
+			// 	testCtx.GaiaTransferChannelIds[cosmosOsmosis.Config().Name],
+			// 	hubHelperAccount.KeyName,
+			// 	ibc.WalletAmount{
+			// 		Address: osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
+			// 		Denom:   testCtx.Hub.Config().Denom,
+			// 		Amount:  100000,
+			// 	},
+			// 	ibc.TransferOptions{})
+			// println("tx: ", tx)
+			// // require.NoError(testCtx.T, err, err)
+			// testCtx.SkipBlocks(10)
+
+			osmoBal := testCtx.QueryOsmoDenomBalance(
+				"uosmo",
+				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
+			atomBal := testCtx.QueryOsmoDenomBalance(
+				osmosisAtomIbcDenom,
+				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
+			println("initial osmo bal: ", osmoBal)
+			println("initial atom bal: ", atomBal)
+
+			type ProvideLiquidity struct {
+				PoolId string `json:"pool_id"`
+			}
+			provideLiquidityMessage := ProvideLiquidity{
+				PoolId: "1",
+			}
+			type OutpostExecuteMsg struct {
+				ProvideLiquidity ProvideLiquidity `json:"provide_liquidity"`
+			}
+			msg := OutpostExecuteMsg{
+				ProvideLiquidity: provideLiquidityMessage,
+			}
+			jsonMsg, _ := json.Marshal(msg)
+			feeString := "2000000000" + osmosisAtomIbcDenom + "," + "200000000uosmo"
+
+			cmd := []string{
+				"osmosisd", "tx", "wasm", "execute", osmoOutpost,
+				string(jsonMsg),
+				"--from", osmoHelperAccount.KeyName,
+				"--gas-adjustment", "1.3",
+				"--keyring-backend", keyring.BackendTest,
+				"--output", "json",
+				"--amount", feeString,
+				"--fees", "500000uosmo",
+				"-y",
+				"--home", cosmosOsmosis.HomeDir(),
+				"--node", cosmosOsmosis.GetRPCAddress(),
+				"--chain-id", cosmosOsmosis.Config().ChainID,
+			}
+
+			println("outpost join command: ", strings.Join(cmd, " "))
+
+			stdout, _, err := cosmosOsmosis.Exec(testCtx.Ctx, cmd, nil)
+
+			println("stdout: ", string(stdout))
+			require.NoError(t, err, err)
+
+			osmoBal = testCtx.QueryOsmoDenomBalance(
+				"uosmo",
+				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
+			atomBal = testCtx.QueryOsmoDenomBalance(
+				osmosisAtomIbcDenom,
+				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
+			println("new osmo bal: ", osmoBal)
+			println("new atom bal: ", atomBal)
+
+			println("\n\n")
 		})
 
 		t.Run("instantiate polytone note and listener on neutron", func(t *testing.T) {

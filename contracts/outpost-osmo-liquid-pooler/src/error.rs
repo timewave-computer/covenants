@@ -1,5 +1,4 @@
-use cosmwasm_std::{OverflowError, StdError};
-use neutron_sdk::NeutronError;
+use cosmwasm_std::StdError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -7,32 +6,20 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("{0}")]
-    NeutronError(#[from] NeutronError),
-
-    #[error("{0}")]
-    OverflowError(#[from] OverflowError),
-
-    #[error("Not clock")]
-    ClockVerificationError {},
-
-    #[error("Unknown holder address. Migrate update to set it.")]
-    MissingHolderError {},
-
-    #[error("Unauthorized")]
-    Unauthorized {},
+    #[error("only 50:50 pools are supported, got {0}")]
+    PoolRatioError(String),
 
     #[error("Osmosis pool error: {0}")]
     OsmosisPoolError(String),
 
+    #[error("liquidity provision error: {0}")]
+    LiquidityProvisionError(String),
+
     #[error("Fund deposit error: expected {0} bal {1}, got {2}")]
     FundsDepositError(String, String, String),
 
-    #[error("state machine: {0}")]
-    StateMachineError(String),
-
-    #[error("polyone error: {0}")]
-    PolytoneError(String),
+    #[error("Price range error")]
+    PriceRangeError {},
 }
 
 impl ContractError {
@@ -40,9 +27,5 @@ impl ContractError {
         StdError::GenericErr {
             msg: self.to_string(),
         }
-    }
-
-    pub fn to_neutron_std(&self) -> NeutronError {
-        NeutronError::Std(self.to_std())
     }
 }
