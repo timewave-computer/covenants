@@ -691,10 +691,14 @@ dependencies = [
  "covenant-interchain-router",
  "covenant-interchain-splitter",
 <<<<<<< HEAD
+<<<<<<< HEAD
  "covenant-native-splitter",
  "covenant-single-party-pol-holder",
  "covenant-stride-liquid-staker",
 =======
+=======
+ "covenant-stride-liquid-staker",
+>>>>>>> 79feab7 (started working on the withdraw functionlity on the LPer)
  "covenant-two-party-pol-holder",
 >>>>>>> e6ad7b6 (started migration of V1 to V2)
  "covenant-utils",
@@ -723,9 +727,12 @@ version = "1.0.0"
 dependencies = [
  "anyhow",
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
  "astroport 2.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
 >>>>>>> f570937 (instantiating liquid staker on ictests)
+=======
+>>>>>>> 79feab7 (started working on the withdraw functionlity on the LPer)
  "astroport-factory 1.6.0",
  "astroport-native-coin-registry 1.0.1 (git+https://github.com/astroport-fi/astroport-core.git)",
  "astroport-pair-stable 3.4.0",
@@ -743,9 +750,13 @@ dependencies = [
 =======
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
  "cw2 1.1.2",
+<<<<<<< HEAD
  "cw20 0.15.1",
 >>>>>>> f570937 (instantiating liquid staker on ictests)
+=======
+>>>>>>> 79feab7 (started working on the withdraw functionlity on the LPer)
  "serde",
  "thiserror",
 ]
@@ -886,7 +897,10 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
+<<<<<<< HEAD
  "covenant-macros",
+=======
+>>>>>>> 79feab7 (started working on the withdraw functionlity on the LPer)
  "cw-utils 1.0.3",
  "cw20 1.1.2",
  "neutron-sdk",
