@@ -6,9 +6,9 @@ members = [
 resolver = "2"
 
 [workspace.package]
-edition      = "2021"
-license      = "BSD-3"
-version      = "1.0.0"
+edition    = "2021"
+license    = "BSD-3"
+version    = "1.0.0"
 repository = "https://github.com/timewave-computer/covenants"
 # rust-version = "1.71.0"
 
@@ -24,16 +24,16 @@ panic            = 'abort'
 rpath            = false
 
 [workspace.dependencies]
-covenant-clock = { path = "contracts/clock" }
-covenant-clock-tester = { path = "contracts/clock-tester" }
-covenant-ibc-forwarder = { path = "contracts/ibc-forwarder" }
-covenant-native-splitter = { path = "contracts/native-splitter" }
-covenant-interchain-splitter = { path = "contracts/interchain-splitter" }
-covenant-swap-holder = { path = "contracts/swap-holder" }
-swap-covenant = { path = "contracts/swap-covenant" }
-covenant-interchain-router = { path = "contracts/interchain-router" }
-covenant-two-party-pol-holder = { path = "contracts/two-party-pol-holder" }
-covenant-two-party-pol = { path = "contracts/two-party-pol-covenant" }
+covenant-clock                   = { path = "contracts/clock" }
+covenant-clock-tester            = { path = "contracts/clock-tester" }
+covenant-ibc-forwarder           = { path = "contracts/ibc-forwarder" }
+covenant-native-splitter         = { path = "contracts/native-splitter" }
+covenant-interchain-splitter     = { path = "contracts/interchain-splitter" }
+covenant-swap-holder             = { path = "contracts/swap-holder" }
+swap-covenant                    = { path = "contracts/swap-covenant" }
+covenant-interchain-router       = { path = "contracts/interchain-router" }
+covenant-two-party-pol-holder    = { path = "contracts/two-party-pol-holder" }
+covenant-two-party-pol           = { path = "contracts/two-party-pol-covenant" }
 covenant-astroport-liquid-pooler = { path = "contracts/astroport-liquid-pooler" }
 covenant-native-router = { path = "contracts/native-router" }
 covenant-osmo-liquid-pooler = { path = "contracts/osmo-liquid-pooler" }
@@ -46,41 +46,41 @@ polytone = "1.0.0"
 clock-derive = { path = "packages/clock-derive" }
 cw-fifo = { path = "packages/cw-fifo" }
 covenant-macros = { path = "packages/covenant-macros" }
-covenant-utils = { path = "packages/covenant-utils" }
+covenant-utils  = { path = "packages/covenant-utils" }
 # the sha2 version here is the same as the one used by
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
 # updated. to find cosmwasm_std's sha function:
 # ```cargo tree --package cosmwasm-std```
-sha2 = "0.10.8"
-neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk", branch = "feat/cw-dex-bindings" }
+sha2             = "0.10.8"
+neutron-sdk      = { git = "https://github.com/neutron-org/neutron-sdk", branch = "feat/cw-dex-bindings" }
 cosmos-sdk-proto = { version = "0.14.0", default-features = false }
-protobuf = { version = "3.2.0", features = ["with-bytes"] }
-serde-json-wasm = { version = "0.4.1" }
-base64 = "0.13.0"
-prost = "0.11"
-astroport = "2.9.5"
-prost-types = "0.11"
-bech32 = "0.9.0"
-cosmwasm-schema = "1.5.0"
-cosmwasm-std    = { version = "1.5.0", features = ["ibc3", "cosmwasm_1_1", "cosmwasm_1_2"] }
-cw-storage-plus = "1.2.0"
-cw-utils        = "1.0.3"
-getrandom = { version = "0.2", features = ["js"] }
-cw2             = "1.0.1"
-serde     = { version = "1.0.145", default-features = false, features = ["derive"] }
-thiserror = "1.0.31"
-schemars = "0.8.10"
+protobuf         = { version = "3.2.0", features = ["with-bytes"] }
+serde-json-wasm  = { version = "0.4.1" }
+base64           = "0.13.0"
+prost            = "0.11"
+astroport        = "2.9.5"
+prost-types      = "0.11"
+bech32           = "0.9.0"
+cosmwasm-schema  = "1.5.0"
+cosmwasm-std     = { version = "1.5.0", features = ["ibc3", "cosmwasm_1_1", "cosmwasm_1_2"] }
+cw-storage-plus  = "1.2.0"
+cw-utils         = "1.0.3"
+getrandom        = { version = "0.2", features = ["js"] }
+cw2              = "1.0.1"
+serde            = { version = "1.0.145", default-features = false, features = ["derive"] }
+thiserror        = "1.0.31"
+schemars         = "0.8.10"
 cw20             = { version = "1.1.2" }
-proc-macro2       = "1"
-quote             = "1"
-syn               = "1"
+proc-macro2      = "1"
+quote            = "1"
+syn              = "1"
 
 # dev-dependencies
-cw-multi-test   = "0.20.0"
-anyhow          = { version = "1.0.51" }
-cw1-whitelist = "1.1.2"
-astroport-token = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
-astroport-whitelist = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
-astroport-factory =  {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
-astroport-native-coin-registry = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
-astroport-pair-stable = {git = "https://github.com/astroport-fi/astroport-core.git", rev="700f66d"}
+cw-multi-test                  = "0.20.0"
+anyhow                         = { version = "1.0.51" }
+cw1-whitelist                  = "1.1.2"
+astroport-token                = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-whitelist            = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-factory              = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }

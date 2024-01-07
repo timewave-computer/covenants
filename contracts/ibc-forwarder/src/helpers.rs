@@ -21,11 +21,17 @@ pub(crate) fn get_next_memo(
         NextMemo {},
     }
 
-    let memo = querier.query_wasm_smart::<String>(addr.to_string(), &Query::NextMemo {})?;
+    // We check that the query was successful, if not, we return empty string
+    let Ok(memo) = querier.query_wasm_smart::<String>(addr.to_string(), &Query::NextMemo {}) else {
+        return Ok("".to_string());
+    };
+
+    // If the query was successful, we expect the memo to be non-empty
+    // If memo is empty, something went wrong in the query, so we should error and retry later
     if memo.is_empty() {
-        return Err(cosmwasm_std::StdError::generic_err(
+        Err(cosmwasm_std::StdError::generic_err(
             "NextMemo query returned empty string",
-        ));
+        ))
     } else {
         Ok(memo)
     }

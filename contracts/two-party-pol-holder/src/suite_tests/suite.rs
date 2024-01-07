@@ -243,7 +243,7 @@ impl SuiteBuilder {
                 Some(ADMIN.to_string()),
             )
             .unwrap();
-        println!("holder address: {:?}", holder);
+        println!("holder address: {holder:?}");
 
         Suite {
             app,

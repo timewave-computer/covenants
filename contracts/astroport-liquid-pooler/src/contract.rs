@@ -94,7 +94,21 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
+        ExecuteMsg::Withdraw { percent} => try_withdraw(deps, env, info, percent),
     }
+}
+
+fn try_withdraw(deps: DepsMut, env: Env, info: MessageInfo, percent: Option<Decimal>) -> Result<Response, ContractError> {
+  let percent = percent.unwrap_or(Decimal::one());
+    // is the withdrawer the holder
+
+    // is the holder sent us the lp tokens
+
+    // exit pool
+
+    // send liquidity with a message to the holder
+
+    Ok(Response::default())
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation.
