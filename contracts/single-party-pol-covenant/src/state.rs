@@ -4,6 +4,7 @@ use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 
 use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
+use covenant_stride_liquid_staker::msg::PresetStrideLsFields;
 use covenant_two_party_pol_holder::msg::PresetTwoPartyPolHolderFields;
 use cw_storage_plus::Item;
 
@@ -19,8 +20,7 @@ pub const PRESET_FORWARDER_B_FIELDS: Item<PresetIbcForwarderFields> =
     Item::new("preset_forwarder_b_fields");
 pub const PRESET_LIQUID_POOLER_FIELDS: Item<PresetAstroLiquidPoolerFields> =
     Item::new("preset_lp_fields");
-// pub const PRESET_LIQUID_STAKER_FIELDS: Item<PresetAstroLiquidPoolerFields> =
-// Item::new("preset_ls_fields");
+pub const PRESET_LIQUID_STAKER_FIELDS: Item<PresetStrideLsFields> = Item::new("preset_ls_fields");
 
 pub const COVENANT_CLOCK_ADDR: Item<Addr> = Item::new("covenant_clock_addr");
 pub const HOLDER_ADDR: Item<Addr> = Item::new("holder_addr");

@@ -84,12 +84,12 @@ pub fn instantiate(
         &clock_salt,
     )?;
 
-    let party_a_router_code = match msg.clone().party_a_config {
+    let party_a_router_code = match msg.party_a_config {
         CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
         CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
     };
 
-    let party_b_router_code = match msg.clone().party_b_config {
+    let party_b_router_code = match msg.party_b_config {
         CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
         CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
     };

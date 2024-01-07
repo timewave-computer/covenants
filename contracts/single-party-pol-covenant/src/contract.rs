@@ -10,6 +10,7 @@ use covenant_astroport_liquid_pooler::msg::{
 };
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
+use covenant_stride_liquid_staker::msg::PresetStrideLsFields;
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
 
@@ -19,8 +20,8 @@ use crate::{
     state::{
         COVENANT_CLOCK_ADDR, HOLDER_ADDR, IBC_FORWARDER_A_ADDR, IBC_FORWARDER_B_ADDR,
         LIQUID_POOLER_ADDR, LIQUID_STAKER_ADDR, PRESET_CLOCK_FIELDS, PRESET_FORWARDER_A_FIELDS,
-        PRESET_FORWARDER_B_FIELDS, PRESET_LIQUID_POOLER_FIELDS, PRESET_SPLITTER_FIELDS,
-        SPLITTER_ADDR,
+        PRESET_FORWARDER_B_FIELDS, PRESET_LIQUID_POOLER_FIELDS, PRESET_LIQUID_STAKER_FIELDS,
+        PRESET_SPLITTER_FIELDS, SPLITTER_ADDR,
     },
 };
 
@@ -180,13 +181,6 @@ pub fn instantiate(
     clock_whitelist.push(splitter_address.to_string());
     clock_whitelist.push(holder_address.to_string());
 
-    // TODO: Whats that?
-    // let covenant_denoms: BTreeSet<String> = msg
-    //     .splits
-    //     .iter()
-    //     .map(|split| split.denom.to_string())
-    //     .collect();
-
     let preset_clock_fields = PresetClockFields {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: clock_whitelist,
@@ -214,12 +208,24 @@ pub fn instantiate(
     // };
     // PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
 
-    // TODO: Liquid staker
+    // Liquid staker
+    let preset_liquid_staker_fields = PresetStrideLsFields {
+        label: format!("{}_stride_liquid_staker", msg.label),
+        ls_denom: msg.ls_info.ls_denom,
+        stride_neutron_ibc_transfer_channel_id: msg.ls_info.ls_chain_to_neutron_channel_id,
+        neutron_stride_ibc_connection_id: msg.ls_info.ls_neutron_connection_id,
+        ica_timeout: msg.timeouts.ica_timeout,
+        ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+        code_id: msg.contract_codes.liquid_staker_code,
+    };
+    PRESET_LIQUID_STAKER_FIELDS.save(deps.storage, &preset_liquid_staker_fields)?;
 
+    // Liquid pooler
     let preset_liquid_pooler_fields = PresetAstroLiquidPoolerFields {
         slippage_tolerance: None,
         assets: AssetData {
-            asset_a_denom: msg.forwarder_a_config.get_native_denom(),
+            asset_a_denom: msg.ls_info.ls_denom_on_neutron,
             asset_b_denom: msg.forwarder_b_config.get_native_denom(),
         },
         single_side_lp_limits: SingleSideLpLimits {
@@ -236,6 +242,12 @@ pub fn instantiate(
 
     let mut messages = vec![
         preset_clock_fields.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?,
+        preset_liquid_staker_fields.to_instantiate2_msg(
+            env.contract.address.to_string(),
+            liquid_staker_salt,
+            clock_address.to_string(),
+            liquid_pooler_address.to_string(),
+        )?,
         // preset_holder_fields.to_instantiate2_msg(
         //     env.contract.address.to_string(),
         //     holder_salt,
@@ -272,8 +284,8 @@ pub fn instantiate(
     };
 
     Ok(Response::default()
-        .add_attribute("method", "instantiate")
-        .add_messages(messages))
+        .add_messages(messages)
+        .add_attribute("method", "instantiate"))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

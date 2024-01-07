@@ -1,3 +1,5 @@
+pub mod deadline;
+
 use astroport::asset::PairInfo;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{

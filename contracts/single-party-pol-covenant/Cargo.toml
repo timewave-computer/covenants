@@ -46,6 +46,7 @@ covenant-interchain-router       = { workspace = true, features = ["library"] }
 covenant-two-party-pol-holder    = { workspace = true, features = ["library"] }
 covenant-astroport-liquid-pooler = { workspace = true, features = ["library"] }
 covenant-interchain-splitter     = { workspace = true, features = ["library"] }
+covenant-stride-liquid-staker    = { workspace = true, features = ["library"] }
 astroport                        = { workspace = true }
 
 [dev-dependencies]

@@ -1,14 +1,20 @@
+use std::error::Error;
+
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Coin};
+use cosmwasm_std::{Addr, Binary, WasmMsg, StdError, to_json_binary};
+use cw_utils::Expiration;
 
 #[cw_serde]
 pub struct InstantiateMsg {
     /// A withdrawer is the only authorized address that can withdraw
     /// from the contract.
     pub withdrawer: Option<String>,
-    /// pool address is the address of the pool where liquidity has been provided
-    /// The holder holds LP tokens associated with this pool
-    pub pool_address: String,
+    /// Withdraw the funds to this address
+    pub withdraw_to: Option<String>,
+    /// the neutron address of the liquid pooler
+    pub pooler_address: String,
+    /// The lockup period for the covenant
+    pub lockup_period: Expiration,
 }
 
 /// Preset fields are set by the user when instantiating the covenant.
@@ -16,32 +22,49 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub struct PresetHolderFields {
     pub withdrawer: Option<String>,
-    pub holder_code: u64,
+    pub withdraw_to: Option<String>,
+    pub lockup_period: Expiration,
+    pub code_id: u64,
     pub label: String,
 }
 
 impl PresetHolderFields {
     /// takes in the `pool_address` from which the funds would be withdrawn
     /// and returns an `InstantiateMsg`.
-    pub fn to_instantiate_msg(self, pool_address: String) -> InstantiateMsg {
+    pub fn to_instantiate_msg(&self, pooler_address: String) -> InstantiateMsg {
         InstantiateMsg {
             withdrawer: self.withdrawer,
-            pool_address,
+            withdraw_to: self.withdraw_to,
+            pooler_address,
+            lockup_period: self.lockup_period,
         }
+    }
+
+    pub fn to_instantiate2_msg(
+        &self,
+        admin_addr: String,
+        salt: Binary,
+        pooler_address: String,
+    ) -> Result<WasmMsg, StdError> {
+        let instantiate_msg = self.to_instantiate_msg(pooler_address);
+
+        Ok(WasmMsg::Instantiate2 {
+            admin: Some(admin_addr),
+            code_id: self.code_id,
+            label: self.label.to_string(),
+            msg: to_json_binary(&instantiate_msg)?,
+            funds: vec![],
+            salt,
+        })
     }
 }
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    /// The withdraw message can only be called by the withdrawer
-    /// The withdraw can specify a quanity to be withdrawn. If no
-    /// quantity is specified, the full balance is withdrawn
-    /// into withdrawer account
-    Withdraw { quantity: Option<Vec<Coin>> },
-    /// The WithdrawLiqudity message can only be called by the withdrawer
-    /// When it is called, the LP tokens are burned and the liquity is withdrawn
-    /// from the pool and lands in the holder
-    WithdrawLiquidity {},
+    /// This is called by the withdrawer to start the withdraw process
+    Claim {},
+    /// Is called from the LPer, sending the withdrawn assets with it.
+    Distribute {},
 }
 
 #[cw_serde]
@@ -50,9 +73,11 @@ pub enum QueryMsg {
     // Queries the withdrawer address
     #[returns(Option<Addr>)]
     Withdrawer {},
-    // Queries the pool address
+    #[returns(Option<Addr>)]
+    WithdrawTo {},
+    // Queries the pooler address
     #[returns(Addr)]
-    PoolAddress {},
+    PoolerAddress {},
 }
 
 #[cw_serde]
