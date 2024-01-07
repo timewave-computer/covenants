@@ -842,6 +842,18 @@ type PairType struct {
 	// Custom struct{} `json:"custom,omitempty"`
 }
 
+func (testCtx *TestContext) InstantiateOsmoOutpost(outpostCode uint64, from *ibc.Wallet) string {
+	outpostAddress, err := testCtx.Osmosis.InstantiateContract(
+		testCtx.Ctx,
+		from.KeyName,
+		strconv.FormatUint(outpostCode, 10),
+		"{}",
+		true,
+	)
+	require.NoError(testCtx.T, err, "Failed to instantiate outpost")
+	return outpostAddress
+}
+
 func (testCtx *TestContext) InstantiateAstroportFactory(pairCodeId uint64, tokenCodeId uint64, whitelistCodeId uint64, factoryCodeId uint64, coinRegistryAddr string, from *ibc.Wallet) string {
 	msg := FactoryInstantiateMsg{
 		PairConfigs: []PairConfig{
