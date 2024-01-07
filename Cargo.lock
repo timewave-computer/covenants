@@ -603,6 +603,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "covenant-single-party-pol"
 version = "1.0.0"
 dependencies = [
@@ -619,11 +620,24 @@ dependencies = [
  "covenant-interchain-router",
  "covenant-interchain-splitter",
  "covenant-stride-liquid-staker",
+=======
+name = "covenant-osmo-liquid-pooler"
+version = "1.0.0"
+dependencies = [
+ "base64 0.13.1",
+ "bech32",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-clock",
+ "covenant-macros",
+ "covenant-outpost-osmo-liquid-pooler",
+>>>>>>> benskey/osmo-liquid-pooler
  "covenant-two-party-pol-holder",
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
+<<<<<<< HEAD
  "cw2 1.1.2",
  "neutron-sdk",
  "prost 0.11.9",
@@ -632,11 +646,24 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
+=======
+ "cw1-whitelist 1.1.2",
+ "cw2 1.1.2",
+ "cw20 1.1.2",
+ "neutron-sdk",
+ "osmosis-std",
+ "polytone",
+ "prost 0.11.9",
+ "protobuf 3.3.0",
+ "schemars",
+ "serde",
+>>>>>>> benskey/osmo-liquid-pooler
  "sha2 0.10.8",
  "thiserror",
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "covenant-single-party-pol-holder"
 version = "1.0.0"
 dependencies = [
@@ -646,11 +673,18 @@ dependencies = [
  "astroport-pair-stable 3.4.0",
  "astroport-token 1.1.1 (git+https://github.com/astroport-fi/astroport-core.git)",
  "astroport-whitelist 1.0.1 (git+https://github.com/astroport-fi/astroport-core.git)",
+=======
+name = "covenant-outpost-osmo-liquid-pooler"
+version = "1.0.0"
+dependencies = [
+ "base64 0.13.1",
+>>>>>>> benskey/osmo-liquid-pooler
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
+<<<<<<< HEAD
  "cw2 1.1.2",
  "serde",
  "thiserror",
@@ -673,6 +707,17 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
+=======
+ "cw1-whitelist 1.1.2",
+ "cw2 1.1.2",
+ "cw20 1.1.2",
+ "osmosis-std",
+ "polytone",
+ "prost 0.11.9",
+ "protobuf 3.3.0",
+ "schemars",
+ "serde",
+>>>>>>> benskey/osmo-liquid-pooler
  "thiserror",
 ]
 
@@ -790,6 +835,7 @@ dependencies = [
  "cw-utils 1.0.3",
  "cw20 1.1.2",
  "neutron-sdk",
+ "polytone",
  "prost 0.11.9",
 ]
 
@@ -1373,15 +1419,26 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "osmosis-std"
+<<<<<<< HEAD
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e87adf61f03306474ce79ab322d52dfff6b0bcf3aed1e12d8864ac0400dec1bf"
+=======
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10d6fe6ac7fcba45ed61d738091d33c838c4cabbcf4892dc7aa56d19d39cc976"
+>>>>>>> benskey/osmo-liquid-pooler
 dependencies = [
  "chrono",
  "cosmwasm-std",
  "osmosis-std-derive",
+<<<<<<< HEAD
  "prost 0.12.3",
  "prost-types 0.12.3",
+=======
+ "prost 0.11.9",
+ "prost-types 0.11.9",
+>>>>>>> benskey/osmo-liquid-pooler
  "schemars",
  "serde",
  "serde-cw-value",
@@ -1389,6 +1446,7 @@ dependencies = [
 
 [[package]]
 name = "osmosis-std-derive"
+<<<<<<< HEAD
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5ebdfd1bc8ed04db596e110c6baa9b174b04f6ed1ec22c666ddc5cb3fa91bd7"
@@ -1396,6 +1454,14 @@ dependencies = [
  "itertools 0.10.5",
  "proc-macro2",
  "prost-types 0.11.9",
+=======
+version = "0.13.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a455e262a6fdfd3914f3a4e11e6bc0ce491901cb9d507d7856d7ef6e129e90c6"
+dependencies = [
+ "itertools 0.10.5",
+ "proc-macro2",
+>>>>>>> benskey/osmo-liquid-pooler
  "quote",
  "syn 1.0.109",
 ]
@@ -1414,6 +1480,18 @@ checksum = "f950b2377845cebe5cf8b5165cb3cc1a5e0fa5cfa3e1f7f55707d8fd82e0a7b7"
 dependencies = [
  "der",
  "spki",
+]
+
+[[package]]
+name = "polytone"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc2f16d20da9144fdf0658e785fc9108b86cecee517335ff531745029dd56088"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 1.2.0",
+ "thiserror",
 ]
 
 [[package]]

@@ -1,5 +1,9 @@
 package covenant_two_party_pol
 
+import (
+	cw "github.com/CosmWasm/wasmvm/types"
+)
+
 //////////////////////////////////////////////
 ///// Covenant contracts
 //////////////////////////////////////////////
@@ -375,4 +379,114 @@ type Balance struct {
 type NativeBalQueryResponse struct {
 	Amount string `json:"amount"`
 	Denom  string `json:"denom"`
+}
+
+// polytone types
+type PolytonePair struct {
+	ConnectionId string `json:"connection_id"`
+	RemotePort   string `json:"remote_port"`
+}
+
+type NoteInstantiate struct {
+	Pair        *PolytonePair `json:"pair,omitempty"`
+	BlockMaxGas string        `json:"block_max_gas,omitempty"`
+}
+
+type VoiceInstantiate struct {
+	ProxyCodeId uint64 `json:"proxy_code_id,string"`
+	BlockMaxGas uint64 `json:"block_max_gas,string"`
+}
+
+type CallbackRequest struct {
+	Receiver string `json:"receiver"`
+	Msg      string `json:"msg"`
+}
+
+type CallbackMessage struct {
+	Initiator    string   `json:"initiator"`
+	InitiatorMsg string   `json:"initiator_msg"`
+	Result       Callback `json:"result"`
+}
+
+type Callback struct {
+	Success []string `json:"success,omitempty"`
+	Error   string   `json:"error,omitempty"`
+}
+
+type NoteExecuteMsg struct {
+	Msgs           []cw.CosmosMsg   `json:"msgs"`
+	TimeoutSeconds uint64           `json:"timeout_seconds,string"`
+	Callback       *CallbackRequest `json:"callback,omitempty"`
+}
+
+type NoteQuery struct {
+	Msgs           []cw.CosmosMsg  `json:"msgs"`
+	TimeoutSeconds uint64          `json:"timeout_seconds,string"`
+	Callback       CallbackRequest `json:"callback"`
+}
+
+type NoteExecute struct {
+	Query   *NoteQuery      `json:"query,omitempty"`
+	Execute *NoteExecuteMsg `json:"execute,omitempty"`
+}
+
+type RemoteAddress struct {
+	LocalAddress string `json:"local_address"`
+}
+type NoteQueryMsg struct {
+	RemoteAddressQuery RemoteAddress `json:"remote_address"`
+}
+
+type TesterInstantiate struct {
+}
+
+type StargateMsg struct {
+	TypeUrl string `json:"type_url"`
+	Value   string `json:"value"`
+}
+
+// osmosis.gamm.v1beta1.MsgJoinPool
+type MsgJoinPool struct {
+	Sender         string    `json:"sender"`
+	PoolId         uint64    `json:"pool_id"`
+	ShareOutAmount string    `json:"share_out_amount"`
+	TokenInMaxs    []cw.Coin `json:"token_in_maxs"`
+}
+
+type OsmoLiquidPoolerInstantiateMsg struct {
+	ClockAddress           string         `json:"clock_address"`
+	HolderAddress          string         `json:"holder_address"`
+	NoteAddress            string         `json:"note_address"`
+	PoolId                 string         `json:"pool_id"`
+	OsmoIbcTimeout         string         `json:"osmo_ibc_timeout"`
+	Party1ChainInfo        PartyChainInfo `json:"party_1_chain_info"`
+	Party2ChainInfo        PartyChainInfo `json:"party_2_chain_info"`
+	OsmoToNeutronChannelId string         `json:"osmo_to_neutron_channel_id"`
+	Party1DenomInfo        PartyDenomInfo `json:"party_1_denom_info"`
+	Party2DenomInfo        PartyDenomInfo `json:"party_2_denom_info"`
+	OsmoOutpost            string         `json:"osmo_outpost"`
+}
+
+type PartyDenomInfo struct {
+	OsmosisCoin  cw.Coin `json:"osmosis_coin"`
+	NeutronDenom string  `json:"neutron_denom"`
+}
+
+type PartyChainInfo struct {
+	NeutronToPartyChainPort    string           `json:"neutron_to_party_chain_port"`
+	NeutronToPartyChainChannel string           `json:"neutron_to_party_chain_channel"`
+	Pfm                        *ForwardMetadata `json:"pfm,omitempty"`
+	IbcTimeout                 string           `json:"ibc_timeout"`
+}
+
+type PacketMetadata struct {
+	ForwardMetadata *ForwardMetadata `json:"forward,omitempty"`
+}
+
+type ForwardMetadata struct {
+	Receiver string `json:"receiver"`
+	Port     string `json:"port"`
+	Channel  string `json:"channel"`
+	// Timeout  string `json:"timeout,omitempty"`
+	// Retries  uint8  `json:"retries,omitempty"`
 }

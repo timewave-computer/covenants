@@ -37,6 +37,7 @@ var partyAIbcForwarderAddress, partyBIbcForwarderAddress string
 var partyADepositAddress, partyBDepositAddress string
 var holderAddress string
 var neutronAtomIbcDenom, neutronOsmoIbcDenom, osmoNeutronAtomIbcDenom, gaiaNeutronOsmoIbcDenom string
+var osmosisAtomIbcDenom string
 var atomNeutronICSConnectionId, neutronAtomICSConnectionId string
 var neutronOsmosisIBCConnId, osmosisNeutronIBCConnId string
 var atomNeutronIBCConnId, neutronAtomIBCConnId string
@@ -49,10 +50,10 @@ var stableswapAddress string
 var liquidityTokenAddress string
 
 // PARTY_A
-const atomContributionAmount uint64 = 5_000_000_000 // in uatom
+const atomContributionAmount uint64 = 500_000_000 // in uatom
 
 // PARTY_B
-const osmoContributionAmount uint64 = 50_000_000_000 // in uosmo
+const osmoContributionAmount uint64 = 5_000_000_000 // in uosmo
 
 // sets up and tests a two party pol between hub and osmo facilitated by neutron
 func TestTwoPartyPol(t *testing.T) {

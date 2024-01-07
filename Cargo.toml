@@ -38,10 +38,13 @@ covenant-astroport-liquid-pooler = { path = "contracts/astroport-liquid-pooler" 
 covenant-native-router           = { path = "contracts/native-router" }
 covenant-single-party-pol-holder = { path = "contracts/single-party-pol-holder" }
 covenant-stride-liquid-staker    = { path = "contracts/stride-liquid-staker" }
+covenant-osmo-liquid-pooler = { path = "contracts/osmo-liquid-pooler" }
+covenant-outpost-osmo-liquid-pooler = { path = "contracts/outpost-osmo-liquid-pooler" }
 
 # packages
-clock-derive    = { path = "packages/clock-derive" }
-cw-fifo         = { path = "packages/cw-fifo" }
+polytone = "1.0.0"
+clock-derive = { path = "packages/clock-derive" }
+cw-fifo = { path = "packages/cw-fifo" }
 covenant-macros = { path = "packages/covenant-macros" }
 covenant-utils  = { path = "packages/covenant-utils" }
 # the sha2 version here is the same as the one used by

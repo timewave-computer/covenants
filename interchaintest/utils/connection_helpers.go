@@ -51,7 +51,7 @@ func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
 	cmd := []string{"neutrond", "tx", "wasm", "execute", clock,
 		`{"tick":{}}`,
 		"--gas-prices", "0.0untrn",
-		"--gas-adjustment", `1.5`,
+		"--gas-adjustment", `2`,
 		"--output", "json",
 		"--node", testCtx.Neutron.GetRPCAddress(),
 		"--home", testCtx.Neutron.HomeDir(),
@@ -68,10 +68,10 @@ func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
 	testCtx.SkipBlocks(3)
 }
 
-func (testCtx *TestContext) SkipBlocks(n uint64) {
+func (testCtx *TestContext) SkipBlocks(n int) {
 	require.NoError(
 		testCtx.T,
-		testutil.WaitForBlocks(testCtx.Ctx, 3, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis),
+		testutil.WaitForBlocks(testCtx.Ctx, n, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis),
 		"failed to wait for blocks")
 }
 
@@ -516,6 +516,15 @@ func (testCtx *TestContext) QueryHubDenomBalance(denom string, addr string) uint
 	return uintBal
 }
 
+func (testCtx *TestContext) QueryOsmoDenomBalance(denom string, addr string) uint64 {
+	bal, err := testCtx.Osmosis.GetBalance(testCtx.Ctx, addr, denom)
+	require.NoError(testCtx.T, err, "failed to get osmosis denom balance")
+
+	uintBal := uint64(bal)
+	// println(addr, " balance: (", denom, ",", uintBal, ")")
+	return uintBal
+}
+
 func (testCtx *TestContext) FundChainAddrs(addrs []string, chain *cosmos.CosmosChain, from *ibc.Wallet, amount int64) {
 	for i := 0; i < len(addrs); i++ {
 		err := chain.SendFunds(testCtx.Ctx, from.KeyName, ibc.WalletAmount{
@@ -646,6 +655,25 @@ func (testCtx *TestContext) QueryContractState(contract string) string {
 	}
 
 	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, contractStateQuery, &response)
+	require.NoError(
+		testCtx.T,
+		err,
+		fmt.Sprintf("failed to query %s state", contract),
+	)
+	return response.Data
+}
+
+func (testCtx *TestContext) QueryProxyAddress(contract string) string {
+	var response CovenantAddressQueryResponse
+	type ProxyAddress struct{}
+	type ProxyAddressQuery struct {
+		ProxyAddress ProxyAddress `json:"proxy_address"`
+	}
+	proxyAddressQuery := ProxyAddressQuery{
+		ProxyAddress: ProxyAddress{},
+	}
+
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, proxyAddressQuery, &response)
 	require.NoError(
 		testCtx.T,
 		err,
@@ -837,6 +865,18 @@ type PairType struct {
 	// Xyk    struct{} `json:"xyk,omitempty"`
 	Stable struct{} `json:"stable,omitempty"`
 	// Custom struct{} `json:"custom,omitempty"`
+}
+
+func (testCtx *TestContext) InstantiateOsmoOutpost(outpostCode uint64, from *ibc.Wallet) string {
+	outpostAddress, err := testCtx.Osmosis.InstantiateContract(
+		testCtx.Ctx,
+		from.KeyName,
+		strconv.FormatUint(outpostCode, 10),
+		"{}",
+		true,
+	)
+	require.NoError(testCtx.T, err, "Failed to instantiate outpost")
+	return outpostAddress
 }
 
 func (testCtx *TestContext) InstantiateAstroportFactory(pairCodeId uint64, tokenCodeId uint64, whitelistCodeId uint64, factoryCodeId uint64, coinRegistryAddr string, from *ibc.Wallet) string {
@@ -1139,6 +1179,24 @@ func (testCtx *TestContext) QueryLiquidPoolerAddress(contract string) string {
 	return response.Data
 }
 
+type LatestPoolState struct{}
+type LatestPoolStateQuery struct {
+	LatestPoolState LatestPoolState `json:"latest_pool_state"`
+}
+
+func (testCtx *TestContext) QueryLiquidPoolerLatestPoolState(contract string) string {
+	var response CovenantAddressQueryResponse
+
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, LatestPoolStateQuery{}, &response)
+	require.NoError(
+		testCtx.T,
+		err,
+		"failed to query liquid pooler pool query state",
+	)
+	println("pool query state: ", response.Data)
+	return response.Data
+}
+
 func (testCtx *TestContext) HolderClaim(contract string, from *ibc.Wallet, keyring string) {
 
 	cmd := []string{"neutrond", "tx", "wasm", "execute", contract,
@@ -1181,4 +1239,156 @@ func (testCtx *TestContext) HolderRagequit(contract string, from *ibc.Wallet, ke
 
 	_, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
 	require.NoError(testCtx.T, err, "ragequit failed")
+}
+
+// polytone types
+type PolytonePair struct {
+	ConnectionId string `json:"connection_id"`
+	RemotePort   string `json:"remote_port"`
+}
+
+type NoteInstantiate struct {
+	Pair        *PolytonePair `json:"pair,omitempty"`
+	BlockMaxGas string        `json:"block_max_gas,omitempty"`
+}
+
+type VoiceInstantiate struct {
+	ProxyCodeId uint64 `json:"proxy_code_id,string"`
+	BlockMaxGas uint64 `json:"block_max_gas,string"`
+}
+
+type CallbackRequest struct {
+	Receiver string `json:"receiver"`
+	Msg      string `json:"msg"`
+}
+
+type CallbackMessage struct {
+	Initiator    string   `json:"initiator"`
+	InitiatorMsg string   `json:"initiator_msg"`
+	Result       Callback `json:"result"`
+}
+
+type Callback struct {
+	Success []string `json:"success,omitempty"`
+	Error   string   `json:"error,omitempty"`
+}
+
+func (testCtx *TestContext) InstantiateCmdExecNeutron(codeId uint64, label string, msg any, from *ibc.Wallet, keyring string) string {
+	codeIdStr := strconv.FormatUint(codeId, 10)
+
+	instantiateJson, err := json.Marshal(msg)
+	require.NoError(testCtx.T, err, err)
+
+	cmd := []string{"neutrond", "tx", "wasm", "instantiate", codeIdStr,
+		string(instantiateJson),
+		"--label", label,
+		"--no-admin",
+		"--from", from.KeyName,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--gas", "900090000",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+	stdout, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
+	require.NoError(testCtx.T, err, "manual instantiation failed")
+	testCtx.SkipBlocks(5)
+	println("manual instantiation response: ", string(stdout))
+
+	queryCmd := []string{"neutrond", "query", "wasm",
+		"list-contract-by-code", codeIdStr,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+	}
+
+	queryResp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, queryCmd, nil)
+	require.NoError(testCtx.T, err, "failed to query")
+
+	type QueryContractResponse struct {
+		Contracts  []string `json:"contracts"`
+		Pagination any      `json:"pagination"`
+	}
+
+	contactsRes := QueryContractResponse{}
+	require.NoError(testCtx.T, json.Unmarshal(queryResp, &contactsRes), "failed to unmarshal contract response")
+
+	instantiatedAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
+
+	return instantiatedAddress
+}
+
+func (testCtx *TestContext) ManualExecNeutron(contract string, msg any, from *ibc.Wallet, keyring string) {
+
+	executeJson, err := json.Marshal(msg)
+	require.NoError(testCtx.T, err, err)
+
+	cmd := []string{"neutrond", "tx", "wasm", "execute", contract,
+		string(executeJson),
+		"--from", from.KeyName,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--gas", "900090000",
+		"--fees", "500001untrn",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+	stdout, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
+	require.NoError(testCtx.T, err, "manual execution failed")
+	testCtx.SkipBlocks(5)
+	println("manual execution response: ", string(stdout))
+}
+
+func (testCtx *TestContext) InstantiateCmdExecOsmo(codeId uint64, label string, msg any, from *ibc.Wallet, keyring string) string {
+	codeIdStr := strconv.FormatUint(codeId, 10)
+
+	instantiateJson, err := json.Marshal(msg)
+	require.NoError(testCtx.T, err, err)
+
+	cmd := []string{"osmosisd", "tx", "wasm", "instantiate", codeIdStr,
+		string(instantiateJson),
+		"--label", label,
+		"--no-admin",
+		"--from", from.KeyName,
+		"--output", "json",
+		"--home", testCtx.Osmosis.HomeDir(),
+		"--node", testCtx.Osmosis.GetRPCAddress(),
+		"--chain-id", testCtx.Osmosis.Config().ChainID,
+		"--gas", "25000000",
+		"--fees", "500000uosmo",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+	stdout, _, err := testCtx.Osmosis.Exec(testCtx.Ctx, cmd, nil)
+	require.NoError(testCtx.T, err, "manual instantiation failed")
+	testCtx.SkipBlocks(5)
+	println("manual instantiation response: ", string(stdout))
+
+	queryCmd := []string{"osmosisd", "query", "wasm",
+		"list-contract-by-code", codeIdStr,
+		"--output", "json",
+		"--home", testCtx.Osmosis.HomeDir(),
+		"--node", testCtx.Osmosis.GetRPCAddress(),
+		"--chain-id", testCtx.Osmosis.Config().ChainID,
+	}
+
+	queryResp, _, err := testCtx.Osmosis.Exec(testCtx.Ctx, queryCmd, nil)
+	require.NoError(testCtx.T, err, "failed to query")
+
+	type QueryContractResponse struct {
+		Contracts  []string `json:"contracts"`
+		Pagination any      `json:"pagination"`
+	}
+
+	contactsRes := QueryContractResponse{}
+	require.NoError(testCtx.T, json.Unmarshal(queryResp, &contactsRes), "failed to unmarshal contract response")
+
+	instantiatedAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
+
+	return instantiatedAddress
 }
