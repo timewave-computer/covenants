@@ -134,7 +134,7 @@ fn test_tick() {
             .time
             .plus_seconds(Uint64::new(10).u64())
             .nanos(),
-        memo: format!("ibc_distribution: denom1:{:?}", Uint128::new(100),).to_string(),
+        memo: format!("ibc_distribution: denom1:{:?}", Uint128::new(100)),
         fee: IbcFee {
             // must be empty
             recv_fee: vec![],

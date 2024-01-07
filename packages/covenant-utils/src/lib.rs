@@ -1,3 +1,5 @@
+pub mod deadline;
+
 use astroport::asset::PairInfo;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
@@ -206,7 +208,7 @@ impl SplitConfig {
             Some(val) => new_receivers.insert(router_a, *val),
             None => {
                 return Err(StdError::NotFound {
-                    kind: format!("receiver {:?} not found", receiver_b),
+                    kind: format!("receiver {receiver_b:?} not found"),
                 })
             }
         };
@@ -214,7 +216,7 @@ impl SplitConfig {
             Some(val) => new_receivers.insert(router_b, *val),
             None => {
                 return Err(StdError::NotFound {
-                    kind: format!("receiver {:?} not found", receiver_b),
+                    kind: format!("receiver {receiver_b:?} not found"),
                 })
             }
         };

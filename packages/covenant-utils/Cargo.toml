@@ -1,11 +1,10 @@
 [package]
-name = "covenant-utils"
-version = { workspace = true }
-edition = { workspace = true }
-authors = ["benskey bekauz@protonmail.com"]
+name        = "covenant-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = ["benskey bekauz@protonmail.com"]
 description = "A package for common utils for covenants"
-license = { workspace = true }
-
+license     = { workspace = true }
 
 [lib]
 
@@ -16,4 +15,5 @@ cosmwasm-std     = { workspace = true }
 prost            = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
 cw20             = { workspace = true }
+cw-utils         = { workspace = true }
 astroport        = { workspace = true }

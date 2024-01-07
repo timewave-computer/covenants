@@ -260,10 +260,9 @@ fn query_deposit_address(deps: Deps<NeutronQuery>, env: Env) -> Result<Option<St
            the channel_open_ack yet -> None
        - 3. ICA creation request hadn't been submitted yet -> None
     */
-    match INTERCHAIN_ACCOUNTS.may_load(deps.storage, key)? {
-        Some(Some((addr, _))) => Ok(Some(addr)), // case 1
-        _ => Ok(None),                           // cases 2 and 3
-    }
+    INTERCHAIN_ACCOUNTS
+        .may_load(deps.storage, key)
+        .map(|entry| entry.flatten().map(|x| x.0))
 }
 
 fn get_ica(
@@ -380,11 +379,8 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
             }
             _ => {
                 deps.api.debug(
-                    format!(
-                        "This type of acknowledgement is not implemented: {:?}",
-                        payload
-                    )
-                    .as_str(),
+                    format!("This type of acknowledgement is not implemented: {payload:?}")
+                        .as_str(),
                 );
             }
         }

@@ -76,11 +76,11 @@ pub fn instantiate(
     let party_b_forwarder_salt = generate_contract_salt(PARTY_B_FORWARDER_SALT);
     let splitter_salt = generate_contract_salt(SPLITTER_SALT);
 
-    let party_a_router_code = match msg.clone().party_a_config {
+    let party_a_router_code = match msg.party_a_config {
         CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
         CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
     };
-    let party_b_router_code = match msg.clone().party_b_config {
+    let party_b_router_code = match msg.party_b_config {
         CovenantPartyConfig::Interchain(_) => msg.contract_codes.interchain_router_code,
         CovenantPartyConfig::Native(_) => msg.contract_codes.native_router_code,
     };

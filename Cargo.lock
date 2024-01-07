@@ -618,6 +618,7 @@ dependencies = [
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
  "covenant-interchain-splitter",
+ "covenant-stride-liquid-staker",
  "covenant-two-party-pol-holder",
  "covenant-utils",
  "cw-multi-test",
@@ -640,7 +641,6 @@ name = "covenant-single-party-pol-holder"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "astroport 2.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "astroport-factory 1.6.0",
  "astroport-native-coin-registry 1.0.1 (git+https://github.com/astroport-fi/astroport-core.git)",
  "astroport-pair-stable 3.4.0",
@@ -650,8 +650,8 @@ dependencies = [
  "cosmwasm-std",
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
  "cw2 1.1.2",
- "cw20 0.15.1",
  "serde",
  "thiserror",
 ]
@@ -787,6 +787,7 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw-utils 1.0.3",
  "cw20 1.1.2",
  "neutron-sdk",
  "prost 0.11.9",
