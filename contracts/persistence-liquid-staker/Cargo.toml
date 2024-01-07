@@ -1,0 +1,33 @@
+[package]
+name        = "persistence-stride-liquid-staker"
+authors     = ["benskey bekauz@protonmail.com"]
+description = "Liquid Staker module for persistence covenant"
+edition     = { workspace = true }
+license     = { workspace = true }
+# rust-version = { workspace = true }
+version = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+# disables #[entry_point] (i.e. instantiate/execute/query) export
+library = []
+
+[dependencies]
+covenant-macros  = { workspace = true }
+covenant-clock   = { workspace = true, features = ["library"] }
+covenant-utils   = { workspace = true }
+cosmwasm-schema  = { workspace = true }
+cosmwasm-std     = { workspace = true }
+cw-storage-plus  = { workspace = true }
+cw2              = { workspace = true }
+thiserror        = { workspace = true }
+schemars         = { workspace = true }
+serde-json-wasm  = { workspace = true }
+serde            = { workspace = true }
+neutron-sdk      = { workspace = true }
+cosmos-sdk-proto = { workspace = true }
+protobuf         = { workspace = true }
