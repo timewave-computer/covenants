@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, WasmMsg};
 use covenant_macros::covenant_holder_distribute;
