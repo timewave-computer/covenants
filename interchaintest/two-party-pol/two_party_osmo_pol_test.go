@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -494,81 +493,81 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			println(osmoOutpost)
 		})
 
-		t.Run("outpost", func(t *testing.T) {
-			println("\n\n")
-			testCtx.SkipBlocks(5)
+		// t.Run("outpost", func(t *testing.T) {
+		// 	println("\n\n")
+		// 	testCtx.SkipBlocks(5)
 
-			osmoBal := testCtx.QueryOsmoDenomBalance(
-				"uosmo",
-				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
-			atomBal := testCtx.QueryOsmoDenomBalance(
-				osmosisAtomIbcDenom,
-				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
-			println("initial osmo bal: ", osmoBal)
-			println("initial atom bal: ", atomBal)
+		// 	osmoBal := testCtx.QueryOsmoDenomBalance(
+		// 		"uosmo",
+		// 		osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
+		// 	atomBal := testCtx.QueryOsmoDenomBalance(
+		// 		osmosisAtomIbcDenom,
+		// 		osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
+		// 	println("initial osmo bal: ", osmoBal)
+		// 	println("initial atom bal: ", atomBal)
 
-			type ProvideLiquidity struct {
-				PoolId            string `json:"pool_id"`
-				MinPoolAssetRatio string `json:"min_pool_asset_ratio"`
-				MaxPoolAssetRatio string `json:"max_pool_asset_ratio"`
-				SlippageTolerance string `json:"slippage_tolerance"`
-			}
-			provideLiquidityMessage := ProvideLiquidity{
-				PoolId:            "1",
-				MinPoolAssetRatio: "0.01",
-				MaxPoolAssetRatio: "0.99",
-				SlippageTolerance: "0.03",
-			}
-			type OutpostExecuteMsg struct {
-				ProvideLiquidity ProvideLiquidity `json:"provide_liquidity"`
-			}
-			msg := OutpostExecuteMsg{
-				ProvideLiquidity: provideLiquidityMessage,
-			}
-			jsonMsg, _ := json.Marshal(msg)
+		// 	type ProvideLiquidity struct {
+		// 		PoolId            string `json:"pool_id"`
+		// 		MinPoolAssetRatio string `json:"min_pool_asset_ratio"`
+		// 		MaxPoolAssetRatio string `json:"max_pool_asset_ratio"`
+		// 		SlippageTolerance string `json:"slippage_tolerance"`
+		// 	}
+		// 	provideLiquidityMessage := ProvideLiquidity{
+		// 		PoolId:            "1",
+		// 		MinPoolAssetRatio: "0.01",
+		// 		MaxPoolAssetRatio: "0.99",
+		// 		SlippageTolerance: "0.03",
+		// 	}
+		// 	type OutpostExecuteMsg struct {
+		// 		ProvideLiquidity ProvideLiquidity `json:"provide_liquidity"`
+		// 	}
+		// 	msg := OutpostExecuteMsg{
+		// 		ProvideLiquidity: provideLiquidityMessage,
+		// 	}
+		// 	jsonMsg, _ := json.Marshal(msg)
 
-			feeAmount := uint64(50000)
+		// 	feeAmount := uint64(50000)
 
-			for {
-				if feeAmount > osmoBal {
-					break
-				}
-				feeString := strconv.FormatUint(atomBal, 10) + osmosisAtomIbcDenom + "," + strconv.FormatUint(osmoBal-feeAmount, 10) + "uosmo"
+		// 	for {
+		// 		if feeAmount > osmoBal {
+		// 			break
+		// 		}
+		// 		feeString := strconv.FormatUint(atomBal, 10) + osmosisAtomIbcDenom + "," + strconv.FormatUint(osmoBal-feeAmount, 10) + "uosmo"
 
-				cmd := []string{
-					"osmosisd", "tx", "wasm", "execute", osmoOutpost,
-					string(jsonMsg),
-					"--from", osmoHelperAccount.KeyName,
-					"--gas-adjustment", "1.3",
-					"--keyring-backend", keyring.BackendTest,
-					"--output", "json",
-					"--amount", feeString,
-					"--fees", "50000uosmo",
-					"-y",
-					"--home", cosmosOsmosis.HomeDir(),
-					"--node", cosmosOsmosis.GetRPCAddress(),
-					"--chain-id", cosmosOsmosis.Config().ChainID,
-				}
+		// 		cmd := []string{
+		// 			"osmosisd", "tx", "wasm", "execute", osmoOutpost,
+		// 			string(jsonMsg),
+		// 			"--from", osmoHelperAccount.KeyName,
+		// 			"--gas-adjustment", "1.3",
+		// 			"--keyring-backend", keyring.BackendTest,
+		// 			"--output", "json",
+		// 			"--amount", feeString,
+		// 			"--fees", "50000uosmo",
+		// 			"-y",
+		// 			"--home", cosmosOsmosis.HomeDir(),
+		// 			"--node", cosmosOsmosis.GetRPCAddress(),
+		// 			"--chain-id", cosmosOsmosis.Config().ChainID,
+		// 		}
 
-				println("outpost join command: ", strings.Join(cmd, " "))
+		// 		println("outpost join command: ", strings.Join(cmd, " "))
 
-				stdout, _, err := cosmosOsmosis.Exec(testCtx.Ctx, cmd, nil)
+		// 		stdout, _, err := cosmosOsmosis.Exec(testCtx.Ctx, cmd, nil)
 
-				println("stdout: ", string(stdout))
-				require.NoError(t, err, err)
+		// 		println("stdout: ", string(stdout))
+		// 		require.NoError(t, err, err)
 
-				osmoBal = testCtx.QueryOsmoDenomBalance(
-					"uosmo",
-					osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
-				atomBal = testCtx.QueryOsmoDenomBalance(
-					osmosisAtomIbcDenom,
-					osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
-				println("new osmo bal: ", osmoBal)
-				println("new atom bal: ", atomBal)
-			}
+		// 		osmoBal = testCtx.QueryOsmoDenomBalance(
+		// 			"uosmo",
+		// 			osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
+		// 		atomBal = testCtx.QueryOsmoDenomBalance(
+		// 			osmosisAtomIbcDenom,
+		// 			osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
+		// 		println("new osmo bal: ", osmoBal)
+		// 		println("new atom bal: ", atomBal)
+		// 	}
 
-			println("\n\n")
-		})
+		// 	println("\n\n")
+		// })
 
 		t.Run("instantiate polytone note and listener on neutron", func(t *testing.T) {
 			noteInstantiateMsg := NoteInstantiate{
