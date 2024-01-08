@@ -497,19 +497,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 		t.Run("outpost", func(t *testing.T) {
 			println("\n\n")
 			testCtx.SkipBlocks(5)
-			// tx, err := testCtx.Hub.SendIBCTransfer(
-			// 	testCtx.Ctx,
-			// 	testCtx.GaiaTransferChannelIds[cosmosOsmosis.Config().Name],
-			// 	hubHelperAccount.KeyName,
-			// 	ibc.WalletAmount{
-			// 		Address: osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix),
-			// 		Denom:   testCtx.Hub.Config().Denom,
-			// 		Amount:  100000,
-			// 	},
-			// 	ibc.TransferOptions{})
-			// println("tx: ", tx)
-			// // require.NoError(testCtx.T, err, err)
-			// testCtx.SkipBlocks(10)
 
 			osmoBal := testCtx.QueryOsmoDenomBalance(
 				"uosmo",
@@ -533,38 +520,46 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				ProvideLiquidity: provideLiquidityMessage,
 			}
 			jsonMsg, _ := json.Marshal(msg)
-			feeString := "2000000000" + osmosisAtomIbcDenom + "," + "200000000uosmo"
 
-			cmd := []string{
-				"osmosisd", "tx", "wasm", "execute", osmoOutpost,
-				string(jsonMsg),
-				"--from", osmoHelperAccount.KeyName,
-				"--gas-adjustment", "1.3",
-				"--keyring-backend", keyring.BackendTest,
-				"--output", "json",
-				"--amount", feeString,
-				"--fees", "500000uosmo",
-				"-y",
-				"--home", cosmosOsmosis.HomeDir(),
-				"--node", cosmosOsmosis.GetRPCAddress(),
-				"--chain-id", cosmosOsmosis.Config().ChainID,
+			feeAmount := uint64(50000)
+
+			for {
+				if feeAmount > osmoBal {
+					break
+				}
+				feeString := strconv.FormatUint(atomBal, 10) + osmosisAtomIbcDenom + "," + strconv.FormatUint(osmoBal-feeAmount, 10) + "uosmo"
+
+				cmd := []string{
+					"osmosisd", "tx", "wasm", "execute", osmoOutpost,
+					string(jsonMsg),
+					"--from", osmoHelperAccount.KeyName,
+					"--gas-adjustment", "1.3",
+					"--keyring-backend", keyring.BackendTest,
+					"--output", "json",
+					"--amount", feeString,
+					"--fees", "50000uosmo",
+					"-y",
+					"--home", cosmosOsmosis.HomeDir(),
+					"--node", cosmosOsmosis.GetRPCAddress(),
+					"--chain-id", cosmosOsmosis.Config().ChainID,
+				}
+
+				println("outpost join command: ", strings.Join(cmd, " "))
+
+				stdout, _, err := cosmosOsmosis.Exec(testCtx.Ctx, cmd, nil)
+
+				println("stdout: ", string(stdout))
+				require.NoError(t, err, err)
+
+				osmoBal = testCtx.QueryOsmoDenomBalance(
+					"uosmo",
+					osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
+				atomBal = testCtx.QueryOsmoDenomBalance(
+					osmosisAtomIbcDenom,
+					osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
+				println("new osmo bal: ", osmoBal)
+				println("new atom bal: ", atomBal)
 			}
-
-			println("outpost join command: ", strings.Join(cmd, " "))
-
-			stdout, _, err := cosmosOsmosis.Exec(testCtx.Ctx, cmd, nil)
-
-			println("stdout: ", string(stdout))
-			require.NoError(t, err, err)
-
-			osmoBal = testCtx.QueryOsmoDenomBalance(
-				"uosmo",
-				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
-			atomBal = testCtx.QueryOsmoDenomBalance(
-				osmosisAtomIbcDenom,
-				osmoHelperAccount.Bech32Address(testCtx.Osmosis.Config().Bech32Prefix))
-			println("new osmo bal: ", osmoBal)
-			println("new atom bal: ", atomBal)
 
 			println("\n\n")
 		})
