@@ -14,7 +14,7 @@ use polytone::callbacks::{ErrorResponse, ExecutionResponse};
 use crate::{
     error::ContractError,
     msg::ContractState,
-    state::{CALLBACKS, CONTRACT_STATE, LATEST_OSMO_POOL_SNAPSHOT, LATEST_PROXY_BALANCES},
+    state::{CALLBACKS, CONTRACT_STATE, LATEST_OSMO_POOL_SNAPSHOT, DENOM_CONFIG},
 };
 
 pub fn process_query_callback(
@@ -52,7 +52,14 @@ pub fn process_query_callback(
     };
 
     if !coin_balances.is_empty() {
-        LATEST_PROXY_BALANCES.save(deps.storage, &Some(coin_balances))?;
+        let mut denom_config = DENOM_CONFIG.load(deps.storage)?;
+        coin_balances.iter().for_each(
+            |c| {
+                denom_config.latest_balances.insert(c.denom.to_string(), c.clone());
+            }
+        );
+
+        DENOM_CONFIG.save(deps.storage, &denom_config)?;
     }
 
     let mut callbacks = CALLBACKS.load(deps.storage)?;

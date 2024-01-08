@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Coin, Uint128, Uint64};
+use cosmwasm_std::{Addr, Coin, Uint128, Uint64, StdResult, StdError};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 use polytone::callbacks::CallbackMessage;
@@ -17,6 +19,32 @@ pub struct InstantiateMsg {
     pub party_1_denom_info: PartyDenomInfo,
     pub party_2_denom_info: PartyDenomInfo,
     pub osmo_outpost: String,
+}
+
+
+#[cw_serde]
+pub struct LiquidPoolerDenomConfig {
+    pub latest_balances: HashMap<String, Coin>,
+    pub party_1_denom_info: PartyDenomInfo,
+    pub party_2_denom_info: PartyDenomInfo,
+}
+
+impl LiquidPoolerDenomConfig {
+    pub fn get_party_1_denom_balance(&self) -> Option<&Coin> {
+        self.latest_balances.get(&self.party_1_denom_info.osmosis_coin.denom)
+        // match self.latest_balances.get(&self.party_1_denom_info.osmosis_coin.denom) {
+        //     Some(coin) => Ok(coin.clone()),
+        //     None => Err(StdError::not_found("denom entry not found")),
+        // }
+    }
+
+    pub fn get_party_2_denom_balance(&self) -> Option<&Coin> {
+        // match self.latest_balances.get(&self.party_2_denom_info.osmosis_coin.denom) {
+        //     Some(coin) => Ok(coin.clone()),
+        //     None => Err(StdError::not_found("denom entry not found")),
+        // }
+        self.latest_balances.get(&self.party_2_denom_info.osmosis_coin.denom)
+    }
 }
 
 #[cw_serde]

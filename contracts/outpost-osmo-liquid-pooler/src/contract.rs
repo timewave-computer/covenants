@@ -155,6 +155,7 @@ fn provide_double_sided_liquidity(
             pool_assets[1].amount,
         ),
     );
+
     let token_in_maxs: Vec<ProtoCoin> = vec![asset_1_paid.clone().into(), asset_2_paid.clone().into()];
 
     let osmo_msg: CosmosMsg = MsgJoinPool {
