@@ -129,3 +129,42 @@ pub fn covenant_next_contract(metadata: TokenStream, input: TokenStream) -> Toke
         .into(),
     )
 }
+
+#[proc_macro_attribute]
+pub fn covenant_lper_withdraw(metadata: TokenStream, input: TokenStream) -> TokenStream {
+    merge_variants(
+        metadata,
+        input,
+        quote!(
+            enum WithdrawMsgs {
+                /// Tells the LPer to withdraw his position
+                /// Should only be called by the holder of the covenant
+                Withdraw { percentage: Option<Decimal> },
+            }
+        )
+        .into(),
+    )
+}
+
+#[proc_macro_attribute]
+pub fn covenant_holder_distribute(metadata: TokenStream, input: TokenStream) -> TokenStream {
+    merge_variants(
+        metadata,
+        input,
+        quote!(
+            enum DistributeMsgs {
+                /// After LPer finished withdrawing from LP, it sends the funds to the holder
+                /// and the holder distributes them based on its logic
+                /// Should only be called by the LPer of the covenant
+                Distribute {},
+                /// This message is sent in case we do an IBC withdraw
+                /// The withdraw can fail in async way, in case that happens we want the holder to be notified on that.
+                /// In case of astroport, the withdraww + distribution is atomic, so nothing to worry there
+                /// But in case  of osmosis, the withdraw is async, so the "claim" will successful happen,
+                /// while the withdraw can fail, in case the withdraw fails here, we execute this message on the holder
+                WithdrawFailed {}
+            }
+        )
+        .into(),
+    )
+}
