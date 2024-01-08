@@ -508,10 +508,16 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			println("initial atom bal: ", atomBal)
 
 			type ProvideLiquidity struct {
-				PoolId string `json:"pool_id"`
+				PoolId            string `json:"pool_id"`
+				MinPoolAssetRatio string `json:"min_pool_asset_ratio"`
+				MaxPoolAssetRatio string `json:"max_pool_asset_ratio"`
+				SlippageTolerance string `json:"slippage_tolerance"`
 			}
 			provideLiquidityMessage := ProvideLiquidity{
-				PoolId: "1",
+				PoolId:            "1",
+				MinPoolAssetRatio: "0.01",
+				MaxPoolAssetRatio: "0.99",
+				SlippageTolerance: "0.03",
 			}
 			type OutpostExecuteMsg struct {
 				ProvideLiquidity ProvideLiquidity `json:"provide_liquidity"`

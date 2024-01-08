@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Uint64, Coin, Uint128};
+use cosmwasm_std::{Uint64, Coin, Uint128, Decimal};
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
 use crate::error::ContractError;
@@ -11,7 +11,12 @@ pub struct InstantiateMsg {}
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    ProvideLiquidity { pool_id: Uint64 },
+    ProvideLiquidity {
+        pool_id: Uint64,
+        min_pool_asset_ratio: Decimal,
+        max_pool_asset_ratio: Decimal,
+        slippage_tolerance: Decimal,
+    },
 }
 
 #[cw_serde]

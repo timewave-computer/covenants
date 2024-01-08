@@ -18,6 +18,9 @@ pub enum ContractError {
     #[error("Fund deposit error: expected {0} bal {1}, got {2}")]
     FundsDepositError(String, String, String),
 
+    #[error("Slippage tolerance cannot be >= 1.0")]
+    SlippageError {},
+
     #[error("Price range error")]
     PriceRangeError {},
 }
