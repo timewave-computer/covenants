@@ -162,7 +162,7 @@ pub fn covenant_holder_distribute(metadata: TokenStream, input: TokenStream) -> 
                 /// In case of astroport, the withdraww + distribution is atomic, so nothing to worry there
                 /// But in case  of osmosis, the withdraw is async, so the "claim" will successful happen,
                 /// while the withdraw can fail, in case the withdraw fails here, we execute this message on the holder
-                WithdrawFailed {}
+                WithdrawFailed {},
             }
         )
         .into(),

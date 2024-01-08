@@ -1,5 +1,5 @@
-use cosmwasm_std::Empty;
-use cw_multi_test::{Contract, ContractWrapper};
+// use cosmwasm_std::Empty;
+// use cw_multi_test::{Contract, ContractWrapper};
 
 mod suite;
 mod tests;
@@ -14,11 +14,11 @@ mod tests;
 // }
 // pub(crate) use is_error;
 
-pub fn holder_contract() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(
-        crate::contract::execute,
-        crate::contract::instantiate,
-        crate::contract::query,
-    );
-    Box::new(contract)
-}
+// pub fn holder_contract() -> Box<dyn Contract<Empty>> {
+//     let contract = ContractWrapper::new(
+//         crate::contract::execute,
+//         crate::contract::instantiate,
+//         crate::contract::query,
+//     );
+//     Box::new(contract)
+// }
