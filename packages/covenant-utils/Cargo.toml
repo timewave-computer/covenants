@@ -17,7 +17,5 @@ cosmos-sdk-proto = { workspace = true }
 cw20             = { workspace = true }
 cw-utils         = { workspace = true }
 astroport        = { workspace = true }
-# polytone-note    = { workspace = true }
-# polytone         = { workspace = true }
-polytone = "1.0.0"
-# polytone-note = "1.0.0"
+polytone         = "1.0.0"
+covenant-macros  = { workspace = true }

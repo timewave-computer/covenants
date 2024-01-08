@@ -4,7 +4,7 @@ use astroport::{
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, Decimal, StdError, Uint128, WasmMsg};
-use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
+use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw};
 
 use crate::error::ContractError;
 
@@ -196,10 +196,9 @@ pub struct SingleSideLpLimits {
 }
 
 #[clocked]
+#[covenant_lper_withdraw]
 #[cw_serde]
-pub enum ExecuteMsg {
-    Withdraw { percent: Option<Decimal> },
-}
+pub enum ExecuteMsg {}
 
 #[covenant_clock_address]
 #[covenant_deposit_address]

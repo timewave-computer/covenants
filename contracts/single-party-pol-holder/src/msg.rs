@@ -1,7 +1,6 @@
-use std::error::Error;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, WasmMsg, StdError, to_json_binary};
+use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, WasmMsg};
+use covenant_macros::covenant_holder_distribute;
 use cw_utils::Expiration;
 
 #[cw_serde]
@@ -33,8 +32,8 @@ impl PresetHolderFields {
     /// and returns an `InstantiateMsg`.
     pub fn to_instantiate_msg(&self, pooler_address: String) -> InstantiateMsg {
         InstantiateMsg {
-            withdrawer: self.withdrawer,
-            withdraw_to: self.withdraw_to,
+            withdrawer: self.withdrawer.clone(),
+            withdraw_to: self.withdraw_to.clone(),
             pooler_address,
             lockup_period: self.lockup_period,
         }
@@ -59,12 +58,11 @@ impl PresetHolderFields {
     }
 }
 
+#[covenant_holder_distribute]
 #[cw_serde]
 pub enum ExecuteMsg {
     /// This is called by the withdrawer to start the withdraw process
     Claim {},
-    /// Is called from the LPer, sending the withdrawn assets with it.
-    Distribute {},
 }
 
 #[cw_serde]
@@ -84,7 +82,9 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateConfig {
         withdrawer: Option<String>,
-        pool_address: Option<String>,
+        withdraw_to: Option<String>,
+        pooler_address: Option<String>,
+        lockup_period: Option<Expiration>,
     },
     UpdateCodeId {
         data: Option<Binary>,

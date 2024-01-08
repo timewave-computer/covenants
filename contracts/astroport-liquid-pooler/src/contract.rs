@@ -1,18 +1,20 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     QuerierWrapper, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
+use covenant_utils::{query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
 use cw2::set_contract_version;
 
 use astroport::{
     asset::{Asset, PairInfo},
     factory::PairType,
-    pair::{ExecuteMsg::ProvideLiquidity, PoolResponse},
+    pair::{Cw20HookMsg, ExecuteMsg::ProvideLiquidity, PoolResponse},
     DecimalCheckedOps,
 };
+use cw20::Cw20ExecuteMsg;
 use cw_utils::parse_reply_instantiate_data;
 
 use crate::{
@@ -94,21 +96,78 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Withdraw { percent} => try_withdraw(deps, env, info, percent),
+        ExecuteMsg::Withdraw { percentage } => try_withdraw(deps, env, info, percentage),
     }
 }
 
-fn try_withdraw(deps: DepsMut, env: Env, info: MessageInfo, percent: Option<Decimal>) -> Result<Response, ContractError> {
-  let percent = percent.unwrap_or(Decimal::one());
-    // is the withdrawer the holder
+fn try_withdraw(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    percent: Option<Decimal>,
+) -> Result<Response, ContractError> {
+    let percent = percent.unwrap_or(Decimal::one());
+    // Verify percentage is < 1 and > 0
+    let holder_addr = HOLDER_ADDRESS
+        .load(deps.storage)
+        .map_err(|_| ContractError::MissingHolderError {})?;
 
-    // is the holder sent us the lp tokens
+    ensure!(info.sender == holder_addr, ContractError::NotHolder {});
 
-    // exit pool
+    // Query LP position of the LPer
+    let lp_config = LP_CONFIG.load(deps.storage)?;
+    let lp_token_info = query_astro_pool_token(
+        deps.querier,
+        lp_config.pool_address.to_string(),
+        env.contract.address.to_string(),
+    )?;
 
-    // send liquidity with a message to the holder
+    // If percentage is 100%, use the whole balance
+    // If percentage is less than 100%, calculate the percentage of share we want to withdraw
+    let withdraw_shares_amount = if percent == Decimal::one() {
+        lp_token_info.balance_response.balance
+    } else {
+        Decimal::from_atomics(lp_token_info.balance_response.balance, 0)?
+            .checked_mul(percent)?
+            .to_uint_floor()
+    };
 
-    Ok(Response::default())
+    // Clculate the withdrawn amount of A and B tokens from the shares we have
+    let withdrawn_coins = deps
+        .querier
+        .query_wasm_smart::<Vec<Asset>>(
+            lp_config.pool_address.to_string(),
+            &astroport::pair::QueryMsg::Share {
+                amount: withdraw_shares_amount,
+            },
+        )?
+        .iter()
+        .map(|asset| asset.to_coin())
+        .collect::<Result<Vec<Coin>, _>>()?;
+
+    // exit pool and withdraw funds with the shares calculated
+    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
+    let withdraw_msg = WasmMsg::Execute {
+        contract_addr: lp_token_info.pair_info.liquidity_token.to_string(),
+        msg: to_json_binary(&Cw20ExecuteMsg::Send {
+            contract: lp_config.pool_address.to_string(),
+            amount: withdraw_shares_amount,
+            msg: to_json_binary(withdraw_liquidity_hook)?,
+        })?,
+        funds: vec![],
+    };
+
+    // send message to holder that we finished with the withdrawal
+    // with the funds we withdrew from the pool
+    let to_holder_msg = WasmMsg::Execute {
+        contract_addr: holder_addr.to_string(),
+        msg: to_json_binary(&WithdrawLPMsgs::Distribute {})?,
+        funds: withdrawn_coins,
+    };
+
+    Ok(Response::default()
+        .add_message(withdraw_msg)
+        .add_message(to_holder_msg))
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation.
