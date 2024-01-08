@@ -741,6 +741,9 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 37e3085 (Finished with astro lper withdraw change and isngle party holder)
  "covenant-macros",
  "covenant-utils",
  "cw-multi-test",
@@ -898,9 +901,13 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
 <<<<<<< HEAD
+<<<<<<< HEAD
  "covenant-macros",
 =======
 >>>>>>> 79feab7 (started working on the withdraw functionlity on the LPer)
+=======
+ "covenant-macros",
+>>>>>>> 37e3085 (Finished with astro lper withdraw change and isngle party holder)
  "cw-utils 1.0.3",
  "cw20 1.1.2",
  "neutron-sdk",
