@@ -13,7 +13,6 @@ exclude = [
   "hash.txt",
 ]
 
-
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -25,7 +24,7 @@ library = []
 
 [dependencies]
 covenant-macros = { workspace = true }
-covenant-clock        = { workspace = true, features=["library"] }
+covenant-clock  = { workspace = true, features = ["library"] }
 
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
@@ -38,22 +37,23 @@ thiserror       = { workspace = true }
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
 # updated. to find cosmwasm_std's sha function:
 # ```cargo tree --package cosmwasm-std```
-sha2             = { workspace = true }
-neutron-sdk      = { workspace = true }
-protobuf         = { workspace = true }
-schemars         = { workspace = true }
-bech32           = { workspace = true }
-astroport        = { workspace = true }
-cw20             = { workspace = true }
+sha2           = { workspace = true }
+neutron-sdk    = { workspace = true }
+protobuf       = { workspace = true }
+schemars       = { workspace = true }
+bech32         = { workspace = true }
+astroport      = { workspace = true }
+cw20           = { workspace = true }
+covenant-utils = { workspace = true }
 
 # dev-dependencies
 [dev-dependencies]
-cw-multi-test = { workspace = true }
-astroport = { workspace = true }
-cw1-whitelist = { workspace = true }
-covenant-two-party-pol-holder = { workspace = true }
-astroport-token = { workspace = true }
-astroport-whitelist = { workspace = true }
-astroport-factory = { workspace = true }
+cw-multi-test                  = { workspace = true }
+astroport                      = { workspace = true }
+cw1-whitelist                  = { workspace = true }
+covenant-two-party-pol-holder  = { workspace = true }
+astroport-token                = { workspace = true }
+astroport-whitelist            = { workspace = true }
+astroport-factory              = { workspace = true }
 astroport-native-coin-registry = { workspace = true }
-astroport-pair-stable = { workspace = true }
+astroport-pair-stable          = { workspace = true }

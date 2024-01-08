@@ -24,6 +24,8 @@ cw2             = { workspace = true }
 serde           = { workspace = true }
 thiserror       = { workspace = true }
 cw-utils        = { workspace = true }
+covenant-macros = { workspace = true }
+covenant-utils  = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test                  = { workspace = true }

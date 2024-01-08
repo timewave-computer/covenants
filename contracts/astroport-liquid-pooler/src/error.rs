@@ -1,4 +1,4 @@
-use cosmwasm_std::{OverflowError, StdError};
+use cosmwasm_std::{DecimalRangeExceeded, OverflowError, StdError};
 use neutron_sdk::NeutronError;
 use thiserror::Error;
 
@@ -7,11 +7,14 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     NeutronError(#[from] NeutronError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     OverflowError(#[from] OverflowError),
+
+    #[error(transparent)]
+    DecimalRangeExceeded(#[from] DecimalRangeExceeded),
 
     #[error("Not clock")]
     ClockVerificationError {},
@@ -42,4 +45,7 @@ pub enum ContractError {
 
     #[error("Pair type mismatch")]
     PairTypeMismatch {},
+
+    #[error("Only holder can withdraw the position")]
+    NotHolder {},
 }
