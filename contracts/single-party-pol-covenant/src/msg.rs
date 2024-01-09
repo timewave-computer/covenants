@@ -1,7 +1,6 @@
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128, Uint64};
-use covenant_two_party_pol_holder::msg::PresetPolParty;
+use cosmwasm_std::{Addr, Coin, Decimal, Uint128, Uint64};
 use covenant_utils::{CovenantParty, DestinationConfig, ReceiverConfig};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -16,7 +15,7 @@ pub struct InstantiateMsg {
     pub preset_ibc_fee: PresetIbcFee,
     pub contract_codes: CovenantContractCodeIds,
     pub clock_tick_max_gas: Option<Uint64>,
-    pub lockup_config: Expiration,
+    pub lockup_period: Expiration,
     pub pool_address: String,
     pub ls_info: LsInfo,
     // TODO: Should be a ragequit
@@ -68,26 +67,6 @@ impl CovenantPartyConfig {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
                 receiver_config: self.to_receiver_config(),
-            },
-        }
-    }
-
-    pub fn to_preset_pol_party(&self, party_share: Uint64) -> PresetPolParty {
-        match self {
-            CovenantPartyConfig::Interchain(config) => PresetPolParty {
-                contribution: coin(
-                    config.contribution.amount.u128(),
-                    config.native_denom.to_string(),
-                ),
-                host_addr: config.addr.to_string(),
-                controller_addr: config.party_receiver_addr.to_string(),
-                allocation: Decimal::from_ratio(party_share, Uint128::new(100)),
-            },
-            CovenantPartyConfig::Native(config) => PresetPolParty {
-                contribution: config.contribution.clone(),
-                host_addr: config.addr.to_string(),
-                controller_addr: config.party_receiver_addr.to_string(),
-                allocation: Decimal::from_ratio(party_share, Uint128::new(100)),
             },
         }
     }
@@ -219,7 +198,7 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     MigrateContracts {
         clock: Option<covenant_clock::msg::MigrateMsg>,
-        holder: Option<covenant_two_party_pol_holder::msg::MigrateMsg>,
+        holder: Option<covenant_single_party_pol_holder::msg::MigrateMsg>,
         forwarder_a: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
         forwarder_b: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
         splitter: Option<covenant_interchain_splitter::msg::MigrateMsg>,
