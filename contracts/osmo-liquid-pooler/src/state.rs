@@ -23,5 +23,3 @@ pub const LIQUIDITY_PROVISIONING_CONFIG: Item<LiquidityProvisionConfig> = Item::
 // ibc-related fields
 pub const IBC_CONFIG: Item<IbcConfig> = Item::new("ibc_config");
 
-// for debugging
-pub const CALLBACKS: Item<Vec<String>> = Item::new("callbacks");
