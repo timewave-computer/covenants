@@ -9,12 +9,14 @@ use cosmwasm_std::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
+use covenant_clock::helpers::enqueue_msg;
+use covenant_utils::withdraw_lp_helper::WithdrawLPMsgs;
 use covenant_utils::{query_astro_pool_token, AstroportPoolTokenResponse, SplitConfig, SplitType};
 use cw2::set_contract_version;
 use cw20::Cw20ExecuteMsg;
 
 use crate::msg::CovenantType;
+use crate::state::{WithdrawState, POOLER_ADDRESS, WITHDRAW_STATE};
 use crate::{
     error::ContractError,
     msg::{
@@ -24,7 +26,7 @@ use crate::{
     },
     state::{
         CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_CONFIG, DENOM_SPLITS, DEPOSIT_DEADLINE,
-        LOCKUP_CONFIG, NEXT_CONTRACT, POOL_ADDRESS, RAGEQUIT_CONFIG,
+        LOCKUP_CONFIG, NEXT_CONTRACT, RAGEQUIT_CONFIG,
     },
 };
 
@@ -40,7 +42,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
+    let pooler_addr = deps.api.addr_validate(&msg.pooler_address)?;
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
@@ -93,7 +95,7 @@ pub fn instantiate(
             fallback_split: msg.fallback_split.clone(),
         },
     )?;
-    POOL_ADDRESS.save(deps.storage, &pool_addr)?;
+    POOLER_ADDRESS.save(deps.storage, &pooler_addr)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     LOCKUP_CONFIG.save(deps.storage, &msg.lockup_config)?;
@@ -117,8 +119,10 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Ragequit {} => try_ragequit(deps, env, info),
-        ExecuteMsg::Claim {} => try_claim(deps, env, info),
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
+        ExecuteMsg::Claim {} => try_claim(deps, info),
+        ExecuteMsg::Distribute {} => try_distribute(deps, env, info),
+        ExecuteMsg::WithdrawFailed {} => try_withdraw_failed(deps, info),
         ExecuteMsg::DistributeFallbackSplit { denoms } => {
             try_distribute_fallback_split(deps, env, denoms)
         }
@@ -151,12 +155,14 @@ fn try_distribute_fallback_split(
         .add_messages(fallback_distribution_messages))
 }
 
-fn try_claim(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+/// On claim, we should simply ask the LPer to withdraw the liquidity and execute a Distribute msg on the holder
+fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    if WITHDRAW_STATE.load(deps.storage).is_ok() {
+        return Err(ContractError::WithdrawAlreadyStarted {});
+    }
+
     let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
     let (claim_party, counterparty) = covenant_config.authorize_sender(info.sender.to_string())?;
-    let pool = POOL_ADDRESS.load(deps.storage)?;
-    let contract_state = CONTRACT_STATE.load(deps.storage)?;
-    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
 
     // if both parties already claimed everything we complete early
     if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
@@ -169,41 +175,88 @@ fn try_claim(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response,
     }
 
     // we exit early if contract is not in ragequit or expired state
+    let contract_state = CONTRACT_STATE.load(deps.storage)?;
     contract_state.validate_claim_state()?;
 
-    // find the liquidity token balance
-    let lp_token_info = query_astro_pool_token(
-        deps.querier,
-        pool.to_string(),
-        env.contract.address.to_string(),
+    // set WithdrawState to include original data
+    WITHDRAW_STATE.save(
+        deps.storage,
+        &WithdrawState::Processing {
+            claimer_addr: claim_party.host_addr,
+            claimer_allocation: claim_party.allocation,
+        },
     )?;
-    // if no lp tokens are available, no point to ragequit
-    if lp_token_info.balance_response.balance.is_zero() {
-        return Err(ContractError::NoLpTokensAvailable {});
-    }
 
-    match covenant_config.covenant_type {
-        CovenantType::Share => try_claim_share_based(
-            deps,
-            claim_party,
-            counterparty,
-            lp_token_info.balance_response.balance,
-            lp_token_info.pair_info.liquidity_token.to_string(),
-            pool.to_string(),
-            covenant_config,
-            clock_addr,
-        ),
-        CovenantType::Side => try_claim_side_based(
-            deps,
-            claim_party,
-            counterparty,
-            lp_token_info.balance_response.balance,
-            lp_token_info.pair_info.liquidity_token.to_string(),
-            pool.to_string(),
-            covenant_config,
-            clock_addr,
-        ),
-    }
+    // If type is share we only withdraw the claim party allocation
+    // if type is side, we withdraw 100% of funds
+    let withdraw_percentage = match covenant_config.covenant_type {
+        CovenantType::Share => Some(claim_party.allocation),
+        CovenantType::Side => None,
+    };
+
+    let lper = POOLER_ADDRESS.load(deps.storage)?;
+    let withdraw_msg = WasmMsg::Execute {
+        contract_addr: lper.to_string(),
+        msg: to_json_binary(&WithdrawLPMsgs::Withdraw {
+            percentage: withdraw_percentage,
+        })?,
+        funds: vec![],
+    };
+
+    Ok(Response::default().add_message(withdraw_msg))
+}
+
+fn try_distribute(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    let pooler_addr = POOLER_ADDRESS.load(deps.storage)?;
+    ensure!(info.sender == pooler_addr, ContractError::Unauthorized {});
+
+    let Ok(WithdrawState::Processing {
+        claimer_addr,
+        claimer_allocation
+    }) = WITHDRAW_STATE.load(deps.storage) else {
+      return Err(ContractError::WithdrawStateNotStarted {});
+    };
+
+    // TODO: assert received funds are correct
+
+    let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
+    let (claim_party, counterparty) = covenant_config.authorize_sender(claimer_addr)?;
+
+    // TODO:
+    // match covenant_config.covenant_type {
+    //     CovenantType::Share => try_claim_share_based(
+    //         deps,
+    //         claim_party,
+    //         counterparty,
+    //         Uint128::zero(),
+    //         "".to_string(),
+    //         "".to_string(),
+    //         covenant_config,
+    //     ),
+    //     CovenantType::Side => try_claim_side_based(
+    //         deps,
+    //         claim_party,
+    //         counterparty,
+    //         Uint128::zero(),
+    //         "".to_string(),
+    //         "".to_string(),
+    //         covenant_config,
+    //     ),
+    // }
+
+    Ok(Response::default())
+}
+
+/// We don't do much on failed withdraw, as nothing changed so far.
+/// We only change state on distribute msg.
+fn try_withdraw_failed(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    // Assert the caller is the pooler
+    let pooler_addr = POOLER_ADDRESS.load(deps.storage)?;
+    ensure!(info.sender == pooler_addr, ContractError::Unauthorized {});
+
+    WITHDRAW_STATE.remove(deps.storage);
+
+    Ok(Response::default())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -380,7 +433,7 @@ fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
             Ok(Response::default()
                 .add_messages(msgs)
                 .add_attribute("method", "tick")
-                .add_attribute("lp_token_bal", lp_token_bal)
+                // .add_attribute("lp_token_bal", lp_token_bal)
                 .add_attribute("contract_state", state.to_string()))
         }
     }
@@ -496,8 +549,8 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
     };
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
-    let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
-    let pool = POOL_ADDRESS.load(deps.storage)?;
+    let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
+    // let pool = POOL_ADDRESS.load(deps.storage)?;
 
     // ragequit is only possible when contract is in Active state.
     if current_state != ContractState::Active {
@@ -510,42 +563,38 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
     }
 
     // we query our own liquidity token balance and address
-    let lp_token_info = query_astro_pool_token(
-        deps.querier,
-        pool.to_string(),
-        env.contract.address.to_string(),
-    )?;
-
-    // if no lp tokens are available, no point to ragequit
-    if lp_token_info.balance_response.balance.is_zero() {
-        return Err(ContractError::NoLpTokensAvailable {});
-    }
+    // let lp_token_info = query_astro_pool_token(
+    //     deps.querier,
+    //     pool.to_string(),
+    //     env.contract.address.to_string(),
+    // )?;
 
     // authorize the message sender
     let (rq_party, counterparty) = covenant_config.authorize_sender(info.sender.to_string())?;
 
     // depending on the type of ragequit configuration,
     // different logic we execute
-    match covenant_config.covenant_type {
-        CovenantType::Share => try_handle_share_based_ragequit(
-            deps,
-            rq_party,
-            counterparty,
-            pool,
-            lp_token_info,
-            rq_config,
-            covenant_config,
-        ),
-        CovenantType::Side => try_handle_side_based_ragequit(
-            deps,
-            rq_party,
-            counterparty,
-            pool,
-            lp_token_info,
-            rq_config,
-            covenant_config,
-        ),
-    }
+    // match covenant_config.covenant_type {
+    //     CovenantType::Share => try_handle_share_based_ragequit(
+    //         deps,
+    //         rq_party,
+    //         counterparty,
+    //         pool,
+    //         lp_token_info,
+    //         rq_config,
+    //         covenant_config,
+    //     ),
+    //     CovenantType::Side => try_handle_side_based_ragequit(
+    //         deps,
+    //         rq_party,
+    //         counterparty,
+    //         pool,
+    //         lp_token_info,
+    //         rq_config,
+    //         covenant_config,
+    //     ),
+    // }
+    Ok(Response::default())
 }
 
 /// in a side-based situation, each party owns the denom that
@@ -722,7 +771,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LockupConfig {} => Ok(to_json_binary(&LOCKUP_CONFIG.load(deps.storage)?)?),
         QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.load(deps.storage)?)?),
         QueryMsg::NextContract {} => Ok(to_json_binary(&NEXT_CONTRACT.load(deps.storage)?)?),
-        QueryMsg::PoolAddress {} => Ok(to_json_binary(&POOL_ADDRESS.load(deps.storage)?)?),
+        QueryMsg::PoolerAddress {} => Ok(to_json_binary(&POOLER_ADDRESS.load(deps.storage)?)?),
         QueryMsg::ConfigPartyA {} => Ok(to_json_binary(
             &COVENANT_CONFIG.load(deps.storage)?.party_a,
         )?),
@@ -744,7 +793,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             next_contract,
             lockup_config,
             deposit_deadline,
-            pool_address,
+            pooler_address,
             ragequit_config,
             covenant_config,
             denom_splits,
@@ -780,9 +829,9 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
                 resp = resp.add_attribute("deposit_deadline", expiry_config.to_string());
             }
 
-            if let Some(addr) = pool_address {
+            if let Some(addr) = pooler_address {
                 let pool_addr = deps.api.addr_validate(&addr)?;
-                POOL_ADDRESS.save(deps.storage, &pool_addr)?;
+                POOLER_ADDRESS.save(deps.storage, &pool_addr)?;
                 resp = resp.add_attribute("pool_addr", pool_addr);
             }
 

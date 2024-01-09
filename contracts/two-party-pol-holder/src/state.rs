@@ -1,4 +1,5 @@
-use cosmwasm_std::Addr;
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{Addr, Decimal};
 use cw_storage_plus::Item;
 use cw_utils::Expiration;
 
@@ -13,7 +14,7 @@ pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");
 
 /// address of the liquidity pool to which we provide liquidity
-pub const POOL_ADDRESS: Item<Addr> = Item::new("pool_address");
+pub const POOLER_ADDRESS: Item<Addr> = Item::new("pooler_address");
 
 /// configuration describing the lockup period after which parties are
 /// no longer subject to ragequit penalties in order to exit their position
@@ -32,3 +33,13 @@ pub const COVENANT_CONFIG: Item<TwoPartyPolCovenantConfig> = Item::new("covenant
 
 /// stores the configuration describing how to distribute every denom
 pub const DENOM_SPLITS: Item<DenomSplits> = Item::new("denom_splits");
+
+pub const WITHDRAW_STATE: Item<WithdrawState> = Item::new("withdraw_state");
+
+#[cw_serde]
+pub enum WithdrawState {
+    Processing {
+        claimer_addr: String,
+        claimer_allocation: Decimal,
+    },
+}
