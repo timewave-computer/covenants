@@ -60,9 +60,12 @@ pub enum ContractError {
     #[error("ragequit already active")]
     RagequitInProgress {},
 
-    #[error("no lp tokens available")]
-    NoLpTokensAvailable {},
-
     #[error("unauthorized to distribute explicitly defined denom")]
     UnauthorizedDenomDistribution {},
+
+    #[error("A withdraw process already started")]
+    WithdrawAlreadyStarted {},
+
+    #[error("A withdraw process wasn't started yet")]
+    WithdrawStateNotStarted {},
 }
