@@ -1,20 +1,14 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{from_json, Binary, Coin, DepsMut, Response, Uint128};
-use neutron_sdk::{bindings::msg::NeutronMsg, NeutronError, NeutronResult};
-use osmosis_std::{
-    shim::Any,
-    types::{
-        cosmos::bank::v1beta1::QueryBalanceResponse,
-        osmosis::gamm::v1beta1::{Pool, QueryPoolResponse},
-    },
-};
+use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
+use osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse;
 use polytone::callbacks::{ErrorResponse, ExecutionResponse};
 
 use crate::{
-    error::ContractError,
     msg::ContractState,
-    state::{CALLBACKS, CONTRACT_STATE, DENOM_CONFIG, LATEST_OSMO_POOL_SNAPSHOT},
+    state::{CALLBACKS, CONTRACT_STATE, LIQUIDITY_PROVISIONING_CONFIG},
+    contract::{PROXY_BALANCES_CALLBACK_ID, LIQUIDITY_PROVIDED_CALLBACK_ID, PROXY_CREATED_CALLBACK_ID},
 };
 
 // TODO: clean this up
@@ -24,18 +18,14 @@ pub fn process_query_callback(
     initiator_msg: Binary,
 ) -> NeutronResult<Response<NeutronMsg>> {
     // either query_pool or proxy_balances
-    let initiator_msg: String = from_json(initiator_msg)?;
+    let initiator_msg: u8 = from_json(initiator_msg)?;
     let mut coin_balances = vec![];
 
     let entries = match query_callback_result {
         Ok(response) => {
             let mut responses = vec![];
             for resp in response {
-                if initiator_msg == "query_pool" {
-                    let res: QueryPoolResponse = from_json(resp.clone())?;
-                    let pool = decode_osmo_pool_binary(res.pool)?;
-                    LATEST_OSMO_POOL_SNAPSHOT.save(deps.storage, &Some(pool))?;
-                } else if initiator_msg == "proxy_balances" {
+                if initiator_msg == PROXY_BALANCES_CALLBACK_ID {
                     let res: QueryBalanceResponse = from_json(resp.clone())?;
                     if let Some(balance) = res.balance {
                         let cw_coin = Coin {
@@ -53,41 +43,22 @@ pub fn process_query_callback(
     };
 
     if !coin_balances.is_empty() {
-        let mut denom_config = DENOM_CONFIG.load(deps.storage)?;
+        let mut denom_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
         coin_balances.iter().for_each(|c| {
             denom_config
                 .latest_balances
                 .insert(c.denom.to_string(), c.clone());
         });
 
-        DENOM_CONFIG.save(deps.storage, &denom_config)?;
+        LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &denom_config)?;
     }
 
     let mut callbacks = CALLBACKS.load(deps.storage)?;
     callbacks.extend(entries);
-    callbacks.push(initiator_msg);
+    callbacks.push(initiator_msg.to_string());
     CALLBACKS.save(deps.storage, &callbacks)?;
 
     Ok(Response::default())
-}
-
-fn decode_osmo_pool_binary(pool: Option<Any>) -> Result<Pool, NeutronError> {
-    let osmo_shim = match pool {
-        Some(shim) => shim,
-        None => {
-            return Err(
-                ContractError::PolytoneError("failed to decode osmo shim".to_string())
-                    .to_neutron_std(),
-            )
-        }
-    };
-
-    let pool: Pool = match osmo_shim.try_into() {
-        Ok(result) => result,
-        Err(err) => return Err(ContractError::PolytoneError(err.to_string()).to_neutron_std()),
-    };
-
-    Ok(pool)
 }
 
 pub fn process_execute_callback(
@@ -96,15 +67,15 @@ pub fn process_execute_callback(
     initiator_msg: Binary,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let mut entries: Vec<String> = vec![];
-    let initiator_msg: String = from_json(initiator_msg)?;
+    let initiator_msg: u8 = from_json(initiator_msg)?;
     match execute_callback_result {
         Ok(execution_response) => {
             for result in execution_response.result {
                 let decoded = match result.data {
                     Some(data) => {
-                        if initiator_msg == "liquidity_provided" {
+                        if initiator_msg == LIQUIDITY_PROVIDED_CALLBACK_ID {
                             entries.push("liquidity_provided".to_string());
-                        } else if initiator_msg == "proxy_created" {
+                        } else if initiator_msg == PROXY_CREATED_CALLBACK_ID {
                             entries.push("proxy_created".to_string());
                         }
                         data.to_string()

@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Coin, Uint128, Uint64};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
-use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 use polytone::callbacks::CallbackMessage;
 
 #[cw_serde]
@@ -22,27 +21,29 @@ pub struct InstantiateMsg {
 }
 
 #[cw_serde]
-pub struct LiquidPoolerDenomConfig {
+pub struct LiquidityProvisionConfig {
     pub latest_balances: HashMap<String, Coin>,
     pub party_1_denom_info: PartyDenomInfo,
     pub party_2_denom_info: PartyDenomInfo,
+    pub pool_id: Uint64,
+    pub outpost: String,
 }
 
-impl LiquidPoolerDenomConfig {
+#[cw_serde]
+pub struct IbcConfig {
+    pub party_1_chain_info: PartyChainInfo,
+    pub party_2_chain_info: PartyChainInfo,
+    pub osmo_to_neutron_channel_id: String,
+    pub osmo_ibc_timeout: Uint64,
+}
+
+impl LiquidityProvisionConfig {
     pub fn get_party_1_denom_balance(&self) -> Option<&Coin> {
         self.latest_balances
             .get(&self.party_1_denom_info.osmosis_coin.denom)
-        // match self.latest_balances.get(&self.party_1_denom_info.osmosis_coin.denom) {
-        //     Some(coin) => Ok(coin.clone()),
-        //     None => Err(StdError::not_found("denom entry not found")),
-        // }
     }
 
     pub fn get_party_2_denom_balance(&self) -> Option<&Coin> {
-        // match self.latest_balances.get(&self.party_2_denom_info.osmosis_coin.denom) {
-        //     Some(coin) => Ok(coin.clone()),
-        //     None => Err(StdError::not_found("denom entry not found")),
-        // }
         self.latest_balances
             .get(&self.party_2_denom_info.osmosis_coin.denom)
     }
@@ -72,14 +73,10 @@ pub enum QueryMsg {
     ContractState {},
     #[returns(Addr)]
     HolderAddress {},
-    #[returns(ProvidedLiquidityInfo)]
-    ProvidedLiquidityInfo {},
     #[returns(Option<String>)]
     ProxyAddress {},
     #[returns(Vec<String>)]
     Callbacks {},
-    #[returns(Option<Pool>)]
-    LatestPoolState {},
 }
 
 /// keeps track of provided asset liquidities in `Uint128`.
@@ -99,17 +96,9 @@ pub enum ContractState {
 }
 
 #[cw_serde]
-pub struct OsmoGammPoolQueryResponse {
-    pub pool: osmosis_std::types::osmosis::gamm::v1beta1::Pool,
-}
-
-#[cw_serde]
 pub struct PartyChainInfo {
     pub neutron_to_party_chain_port: String,
     pub neutron_to_party_chain_channel: String,
-    // pub party_chain_receiver_address: String,
-    // pub party_chain_to_osmo_port: String,
-    // pub party_chain_to_osmo_channel: String,
     pub pfm: Option<ForwardMetadata>,
     pub ibc_timeout: Uint64,
 }
@@ -125,6 +114,4 @@ pub struct ForwardMetadata {
     pub receiver: String,
     pub port: String,
     pub channel: String,
-    // pub timeout: Option<String>,
-    // pub retries: Option<u8>,
 }
