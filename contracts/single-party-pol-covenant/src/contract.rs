@@ -10,6 +10,7 @@ use covenant_astroport_liquid_pooler::msg::{
 };
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
+use covenant_single_party_pol_holder::msg::PresetHolderFields;
 use covenant_stride_liquid_staker::msg::PresetStrideLsFields;
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
@@ -20,8 +21,8 @@ use crate::{
     state::{
         COVENANT_CLOCK_ADDR, HOLDER_ADDR, IBC_FORWARDER_A_ADDR, IBC_FORWARDER_B_ADDR,
         LIQUID_POOLER_ADDR, LIQUID_STAKER_ADDR, PRESET_CLOCK_FIELDS, PRESET_FORWARDER_A_FIELDS,
-        PRESET_FORWARDER_B_FIELDS, PRESET_LIQUID_POOLER_FIELDS, PRESET_LIQUID_STAKER_FIELDS,
-        PRESET_SPLITTER_FIELDS, SPLITTER_ADDR,
+        PRESET_FORWARDER_B_FIELDS, PRESET_HOLDER_FIELDS, PRESET_LIQUID_POOLER_FIELDS,
+        PRESET_LIQUID_STAKER_FIELDS, PRESET_SPLITTER_FIELDS, SPLITTER_ADDR,
     },
 };
 
@@ -189,24 +190,15 @@ pub fn instantiate(
     };
     PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
 
-    // TODO: Holder
-    // let preset_holder_fields = PresetTwoPartyPolHolderFields {
-    //     lockup_config: msg.lockup_config,
-    //     pool_address: msg.pool_address,
-    //     ragequit_config: msg.ragequit_config.unwrap_or(RagequitConfig::Disabled),
-    //     deposit_deadline: msg.deposit_deadline,
-    //     party_a: msg.party_a_config.to_preset_pol_party(msg.party_a_share),
-    //     party_b: msg
-    //         .party_b_config
-    //         .clone()
-    //         .to_preset_pol_party(msg.party_b_share),
-    //     code_id: msg.contract_codes.holder_code,
-    //     label: format!("{}-holder", msg.label),
-    //     splits: msg.splits,
-    //     fallback_split: msg.fallback_split,
-    //     covenant_type: msg.covenant_type,
-    // };
-    // PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
+    // Holder
+    let preset_holder_fields = PresetHolderFields {
+        code_id: msg.contract_codes.holder_code,
+        label: format!("{}-holder", msg.label),
+        withdrawer: None,
+        withdraw_to: None,
+        lockup_period: msg.lockup_period,
+    };
+    PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
 
     // Liquid staker
     let preset_liquid_staker_fields = PresetStrideLsFields {
@@ -248,14 +240,11 @@ pub fn instantiate(
             clock_address.to_string(),
             liquid_pooler_address.to_string(),
         )?,
-        // preset_holder_fields.to_instantiate2_msg(
-        //     env.contract.address.to_string(),
-        //     holder_salt,
-        //     clock_address.to_string(),
-        //     liquid_pooler_address.to_string(),
-        //     party_a_router_address.to_string(),
-        //     party_b_router_address.to_string(),
-        // )?,
+        preset_holder_fields.to_instantiate2_msg(
+            env.contract.address.to_string(),
+            holder_salt,
+            liquid_pooler_address.to_string(),
+        )?,
         preset_liquid_pooler_fields.to_instantiate2_msg(
             env.contract.address.to_string(),
             liquid_pooler_salt,

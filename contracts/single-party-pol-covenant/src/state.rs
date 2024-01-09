@@ -5,12 +5,12 @@ use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 
 use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
 use covenant_stride_liquid_staker::msg::PresetStrideLsFields;
-use covenant_two_party_pol_holder::msg::PresetTwoPartyPolHolderFields;
+use covenant_single_party_pol_holder::msg::PresetHolderFields;
 use cw_storage_plus::Item;
 
 // fields related to the contracts known prior to their.
 pub const PRESET_CLOCK_FIELDS: Item<PresetClockFields> = Item::new("preset_clock_fields");
-pub const PRESET_HOLDER_FIELDS: Item<PresetTwoPartyPolHolderFields> =
+pub const PRESET_HOLDER_FIELDS: Item<PresetHolderFields> =
     Item::new("preset_holder_fields");
 pub const PRESET_SPLITTER_FIELDS: Item<PresetInterchainSplitterFields> =
     Item::new("preset_splitter_fields");
