@@ -122,6 +122,10 @@ fn try_withdraw(
         env.contract.address.to_string(),
     )?;
 
+    if lp_token_info.balance_response.balance.is_zero() {
+        return Err(ContractError::NoLpTokensAvailable {});
+    }
+
     // If percentage is 100%, use the whole balance
     // If percentage is less than 100%, calculate the percentage of share we want to withdraw
     let withdraw_shares_amount = if percent == Decimal::one() {

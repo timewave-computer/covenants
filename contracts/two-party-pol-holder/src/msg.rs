@@ -8,7 +8,7 @@ use cosmwasm_std::{
 };
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
-    clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract,
+    clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract, covenant_holder_distribute,
 };
 use covenant_utils::{DenomSplit, SplitConfig, SplitType};
 use cw_utils::Expiration;
@@ -19,8 +19,8 @@ use crate::{error::ContractError, state::CONTRACT_STATE};
 pub struct InstantiateMsg {
     /// address of authorized clock
     pub clock_address: String,
-    /// address of the target liquidity pool
-    pub pool_address: String,
+    /// address of the target liquidity pooler
+    pub pooler_address: String,
     /// liquid pooler address
     pub next_contract: String,
     /// config describing the agreed upon duration of POL
@@ -56,7 +56,7 @@ impl InstantiateMsg {
 
         let mut attrs = vec![
             Attribute::new("clock_addr", self.clock_address.to_string()),
-            Attribute::new("pool_address", self.pool_address.to_string()),
+            Attribute::new("pooler_address", self.pooler_address.to_string()),
             Attribute::new("next_contract", self.next_contract.to_string()),
             Attribute::new("lockup_config", self.lockup_config.to_string()),
             Attribute::new("deposit_deadline", self.deposit_deadline.to_string()),
@@ -245,7 +245,7 @@ impl DenomSplits {
 
 #[cw_serde]
 pub struct PresetTwoPartyPolHolderFields {
-    pub pool_address: String,
+    pub pooler_address: String,
     pub lockup_config: Expiration,
     pub ragequit_config: RagequitConfig,
     pub deposit_deadline: Expiration,
@@ -304,7 +304,7 @@ impl PresetTwoPartyPolHolderFields {
 
         Ok(InstantiateMsg {
             clock_address,
-            pool_address: self.pool_address.to_string(),
+            pooler_address: self.pooler_address.to_string(),
             next_contract,
             lockup_config: self.lockup_config,
             ragequit_config: self.ragequit_config.clone(),
@@ -444,6 +444,7 @@ impl TwoPartyPolCovenantConfig {
 }
 
 #[clocked]
+#[covenant_holder_distribute]
 #[cw_serde]
 pub enum ExecuteMsg {
     /// initiate the ragequit
@@ -465,7 +466,7 @@ pub enum MigrateMsg {
         next_contract: Option<String>,
         lockup_config: Option<Expiration>,
         deposit_deadline: Option<Expiration>,
-        pool_address: Option<String>,
+        pooler_address: Option<String>,
         ragequit_config: Box<Option<RagequitConfig>>,
         covenant_config: Box<Option<TwoPartyPolCovenantConfig>>,
         denom_splits: Option<BTreeMap<String, SplitConfig>>,
@@ -534,7 +535,7 @@ pub enum QueryMsg {
     #[returns(Expiration)]
     LockupConfig {},
     #[returns(Addr)]
-    PoolAddress {},
+    PoolerAddress {},
     #[returns(TwoPartyPolCovenantParty)]
     ConfigPartyA {},
     #[returns(TwoPartyPolCovenantParty)]
