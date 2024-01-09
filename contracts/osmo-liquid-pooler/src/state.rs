@@ -1,10 +1,8 @@
-use std::collections::HashMap;
-
 use cosmwasm_std::{Addr, Coin, Uint64};
 use cw_storage_plus::Item;
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
-use crate::msg::{ContractState, PartyChainInfo, PartyDenomInfo, ProvidedLiquidityInfo, LiquidPoolerDenomConfig};
+use crate::msg::{ContractState, LiquidPoolerDenomConfig, PartyChainInfo, ProvidedLiquidityInfo};
 
 /// contract state tracks the state machine progress
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
@@ -28,7 +26,6 @@ pub const LATEST_OSMO_POOL_SNAPSHOT: Item<Option<Pool>> = Item::new("osmo_pool")
 // pub const LATEST_PROXY_BALANCES: Item<HashMap<String, Coin>> = Item::new("proxy_balances");
 
 pub const DENOM_CONFIG: Item<LiquidPoolerDenomConfig> = Item::new("denom_config");
-
 
 pub const POOL_ID: Item<Uint64> = Item::new("pool_id");
 pub const OSMOSIS_IBC_TIMEOUT: Item<Uint64> = Item::new("ibc_timeout");
