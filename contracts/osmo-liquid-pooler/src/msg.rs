@@ -18,6 +18,7 @@ pub struct InstantiateMsg {
     pub party_1_denom_info: PartyDenomInfo,
     pub party_2_denom_info: PartyDenomInfo,
     pub osmo_outpost: String,
+    pub lp_token_denom: String,
 }
 
 #[cw_serde]
@@ -27,6 +28,7 @@ pub struct LiquidityProvisionConfig {
     pub party_2_denom_info: PartyDenomInfo,
     pub pool_id: Uint64,
     pub outpost: String,
+    pub lp_token_denom: String,
 }
 
 #[cw_serde]
@@ -75,8 +77,8 @@ pub enum QueryMsg {
     HolderAddress {},
     #[returns(Option<String>)]
     ProxyAddress {},
-    #[returns(Vec<String>)]
-    Callbacks {},
+    #[returns(Vec<Coin>)]
+    ProxyBalances {},
 }
 
 /// keeps track of provided asset liquidities in `Uint128`.
