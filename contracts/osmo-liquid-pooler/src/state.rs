@@ -1,7 +1,7 @@
 use cosmwasm_std::Addr;
-use cw_storage_plus::Item;
+use cw_storage_plus::{Item, Map};
 
-use crate::msg::{ContractState, LiquidityProvisionConfig, IbcConfig};
+use crate::msg::{ContractState, IbcConfig, LiquidityProvisionConfig};
 
 /// contract state tracks the state machine progress
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
@@ -23,3 +23,5 @@ pub const LIQUIDITY_PROVISIONING_CONFIG: Item<LiquidityProvisionConfig> = Item::
 // ibc-related fields
 pub const IBC_CONFIG: Item<IbcConfig> = Item::new("ibc_config");
 
+
+pub const POLYTONE_CALLBACKS: Map<String, String> = Map::new("callbacks");
