@@ -95,10 +95,12 @@ impl LiquidityProvisionConfig {
             msg: to_json_binary(
                 &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity {
                     pool_id: Uint64::new(self.pool_id.u64()),
-                    min_pool_asset_ratio: self.expected_spot_price - self.acceptable_price_spread,
-                    max_pool_asset_ratio: self.expected_spot_price + self.acceptable_price_spread,
+                    expected_spot_price: self.expected_spot_price,
+                    acceptable_price_spread: self.acceptable_price_spread,
                     // if no slippage tolerance is passed, we use 0
                     slippage_tolerance: self.slippage_tolerance.unwrap_or_default(),
+                    asset_1_single_side_lp_limit: self.party_1_denom_info.single_side_lp_limit,
+                    asset_2_single_side_lp_limit: self.party_2_denom_info.single_side_lp_limit,
                 },
             )?,
             funds,
@@ -160,6 +162,8 @@ pub struct PartyDenomInfo {
     pub osmosis_coin: Coin,
     /// ibc denom on liquid pooler chain
     pub neutron_denom: String,
+    /// the max amount of tokens allow to be single-side lp'd
+    pub single_side_lp_limit: Uint128,
 }
 
 impl PartyDenomInfo {
@@ -176,6 +180,10 @@ impl PartyDenomInfo {
             Attribute {
                 key: format!("{:?}_osmosis_coin", party),
                 value: self.osmosis_coin.to_string(),
+            },
+            Attribute {
+                key: format!("{:?}_single_side_lp_limit", party),
+                value: self.single_side_lp_limit.to_string(),
             },
         ]
     }

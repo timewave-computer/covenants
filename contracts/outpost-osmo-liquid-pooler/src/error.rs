@@ -23,6 +23,9 @@ pub enum ContractError {
 
     #[error("Price range error")]
     PriceRangeError {},
+
+    #[error("single side lp error: limit = {0}, got = {1}")]
+    SingleSideLiquidityProvisionError(String, String),
 }
 
 impl ContractError {

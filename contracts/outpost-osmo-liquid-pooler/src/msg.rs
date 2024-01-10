@@ -12,10 +12,17 @@ pub struct InstantiateMsg {}
 #[cw_serde]
 pub enum ExecuteMsg {
     ProvideLiquidity {
+        /// id of the pool we wish to provide liquidity to
         pool_id: Uint64,
-        min_pool_asset_ratio: Decimal,
-        max_pool_asset_ratio: Decimal,
+        /// the price which we expect to provide liquidity at
+        expected_spot_price: Decimal,
+        /// acceptable delta (both ways) of the expected price
+        acceptable_price_spread: Decimal,
+        /// slippage tolerance
         slippage_tolerance: Decimal,
+        /// limits for single-side liquidity provision
+        asset_1_single_side_lp_limit: Uint128,
+        asset_2_single_side_lp_limit: Uint128,
     },
 }
 
