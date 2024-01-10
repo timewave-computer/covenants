@@ -1,24 +1,30 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    from_json, Binary, Coin, CosmosMsg, DepsMut, Env, IbcMsg, IbcTimeout, MessageInfo, Response,
-    Uint128, WasmMsg, StdResult, Addr, Uint64, coin,
+    coin, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, DepsMut, Empty, Env, IbcMsg,
+    IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg,
 };
-use covenant_utils::{get_polytone_execute_msg_binary, query_polytone_proxy_address};
+use covenant_utils::{
+    get_polytone_execute_msg_binary, get_polytone_query_msg_binary, query_polytone_proxy_address,
+};
 use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
 use osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse;
 
 use crate::{
-    contract::{PROXY_BALANCES_QUERY_CALLBACK_ID, PROVIDE_LIQUIDITY_CALLBACK_ID, CREATE_PROXY_CALLBACK_ID
-
+    contract::{
+        CREATE_PROXY_CALLBACK_ID, PROVIDE_LIQUIDITY_CALLBACK_ID, PROXY_BALANCES_QUERY_CALLBACK_ID,
     },
     error::ContractError,
-    msg::ContractState,
-    state::{CONTRACT_STATE, IBC_CONFIG, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS, HOLDER_ADDRESS, POLYTONE_CALLBACKS, PROXY_ADDRESS},
+    msg::{ContractState, IbcConfig, LiquidityProvisionConfig},
+    state::{
+        CONTRACT_STATE, IBC_CONFIG, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS,
+        POLYTONE_CALLBACKS, PROXY_ADDRESS,
+    },
 };
 
 use polytone::callbacks::{
-    Callback as PolytoneCallback, CallbackMessage, ErrorResponse, ExecutionResponse, CallbackRequest,
+    Callback as PolytoneCallback, CallbackMessage, CallbackRequest, ErrorResponse,
+    ExecutionResponse,
 };
 
 /// attempts to advance the state machine. performs `info.sender` validation.
@@ -35,8 +41,10 @@ pub fn try_handle_callback(
 
     match msg.result {
         PolytoneCallback::Query(resp) => process_query_callback(env, deps, resp, msg.initiator_msg),
-        PolytoneCallback::Execute(resp) => process_execute_callback(env, deps, resp, msg.initiator_msg),
-        PolytoneCallback::FatalError(resp) => process_fatal_error_callback(deps, resp),
+        PolytoneCallback::Execute(resp) => {
+            process_execute_callback(env, deps, resp, msg.initiator_msg)
+        }
+        PolytoneCallback::FatalError(resp) => process_fatal_error_callback(env, deps, resp),
     }
 }
 
@@ -50,17 +58,22 @@ fn process_query_callback(
     let initiator_msg: u8 = from_json(initiator_msg)?;
 
     match initiator_msg {
-        PROXY_BALANCES_QUERY_CALLBACK_ID => handle_proxy_balances_callback(deps, env, query_callback_result),
-        _ => {
-            return Err(ContractError::PolytoneError(format!(
-                "unexpected callback id: {:?}",
-                initiator_msg
-            ))
-            .to_neutron_std())
+        PROXY_BALANCES_QUERY_CALLBACK_ID => {
+            POLYTONE_CALLBACKS.save(
+                deps.storage,
+                env.block.time.to_string(),
+                &"proxy_balances_callback".to_string(),
+            )?;
+
+            handle_proxy_balances_callback(deps, env, query_callback_result)
         }
+        _ => Err(ContractError::PolytoneError(format!(
+            "unexpected callback id: {:?}",
+            initiator_msg
+        ))
+        .to_neutron_std()),
     }
 }
-
 
 fn process_execute_callback(
     env: Env,
@@ -76,10 +89,17 @@ fn process_execute_callback(
 
     match initiator_msg {
         PROVIDE_LIQUIDITY_CALLBACK_ID => {
+            POLYTONE_CALLBACKS.save(
+                deps.storage,
+                env.block.time.to_string(),
+                &"provide_liquidity_callback".to_string(),
+            )?;
+
             for submsg_response in callback_result.result {
                 if submsg_response.data.is_some() {
                     if let Some(response_binary) = submsg_response.data {
-                        POLYTONE_CALLBACKS.save(deps.storage,
+                        POLYTONE_CALLBACKS.save(
+                            deps.storage,
                             response_binary.to_string(),
                             &response_binary.to_base64(),
                         )?;
@@ -96,10 +116,22 @@ fn process_execute_callback(
                 note_address.to_string(),
                 deps.querier,
             )?;
-
+            POLYTONE_CALLBACKS.save(
+                deps.storage,
+                env.block.time.to_string(),
+                &"create_proxy_callback".to_string(),
+            )?;
             if let Some(addr) = proxy_address {
                 PROXY_ADDRESS.save(deps.storage, &addr)?;
-                CONTRACT_STATE.save(deps.storage, &ContractState::ProxyCreated)?;
+                CONTRACT_STATE.update(deps.storage, |state| -> StdResult<_> {
+                    // little sanity check. should not end up in catchall arm,
+                    // but if for some reason we receive a proxy created callback
+                    // when we are not in Instantiated state, we do not update
+                    match state {
+                        ContractState::Instantiated => Ok(ContractState::ProxyCreated),
+                        _ => Ok(state),
+                    }
+                })?;
             }
         }
         _ => (),
@@ -109,12 +141,17 @@ fn process_execute_callback(
 }
 
 fn process_fatal_error_callback(
-    _deps: DepsMut,
-    _response: String,
+    env: Env,
+    deps: DepsMut,
+    response: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
+    POLYTONE_CALLBACKS.save(
+        deps.storage,
+        env.block.time.to_string(),
+        &format!("fatal_error: {:?}", response),
+    )?;
     Ok(Response::default())
 }
-
 
 fn handle_proxy_balances_callback(
     deps: DepsMut,
@@ -129,22 +166,22 @@ fn handle_proxy_balances_callback(
     };
 
     // store the latest prices in lp config
-    let lp_config = LIQUIDITY_PROVISIONING_CONFIG.update(deps.storage, |mut lp_config| -> StdResult<_> {
-        // process the balance responses one by one
-        for response_binary in response_binaries {
-            // parse binary into an osmosis QueryBalanceResponse
-            let balance_response: QueryBalanceResponse = from_json(response_binary.clone())?;
-            if let Some(balance) = balance_response.balance {
-                // update the latest balances map with the processed balance
-                lp_config.latest_balances.insert(
-                    balance.denom.to_string(),
-                    coin(Uint128::from_str(&balance.amount)?.u128(), balance.denom),
-                );
+    let lp_config =
+        LIQUIDITY_PROVISIONING_CONFIG.update(deps.storage, |mut lp_config| -> StdResult<_> {
+            // process the balance responses one by one
+            for response_binary in response_binaries {
+                // parse binary into an osmosis QueryBalanceResponse
+                let balance_response: QueryBalanceResponse = from_json(response_binary.clone())?;
+                if let Some(balance) = balance_response.balance {
+                    // update the latest balances map with the processed balance
+                    lp_config.latest_balances.insert(
+                        balance.denom.to_string(),
+                        coin(Uint128::from_str(&balance.amount)?.u128(), balance.denom),
+                    );
+                }
             }
-        }
-        Ok(lp_config)
-    })?;
-
+            Ok(lp_config)
+        })?;
 
     // if latest balances contain any gamm tokens,
     // we withdraw them to this contract
@@ -183,11 +220,7 @@ pub fn get_note_execute_neutron_msg(
     note_address: Addr,
     callback: Option<CallbackRequest>,
 ) -> NeutronResult<CosmosMsg<NeutronMsg>> {
-    let polytone_msg = get_polytone_execute_msg_binary(
-        msgs,
-        callback,
-        ibc_timeout,
-    )?;
+    let polytone_msg = get_polytone_execute_msg_binary(msgs, callback, ibc_timeout)?;
 
     Ok(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: note_address.to_string(),
@@ -209,4 +242,50 @@ fn get_withdraw_lp_tokens_message(
         timeout,
     };
     CosmosMsg::Ibc(withdraw_lp_msg)
+}
+
+pub fn get_proxy_query_balances_message(
+    env: Env,
+    proxy_address: String,
+    note_address: String,
+    lp_config: LiquidityProvisionConfig,
+    ibc_config: IbcConfig,
+) -> StdResult<WasmMsg> {
+    let proxy_coin_1_balance_request: QueryRequest<Empty> =
+        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
+            address: proxy_address.to_string(),
+            denom: lp_config.party_1_denom_info.osmosis_coin.denom,
+        }
+        .into();
+    let proxy_coin_2_balance_request: QueryRequest<Empty> =
+        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
+            address: proxy_address.to_string(),
+            denom: lp_config.party_2_denom_info.osmosis_coin.denom,
+        }
+        .into();
+    let proxy_gamm_balance_request: QueryRequest<Empty> =
+        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
+            address: proxy_address,
+            denom: lp_config.lp_token_denom,
+        }
+        .into();
+
+    let polytone_query_msg_binary = get_polytone_query_msg_binary(
+        vec![
+            proxy_coin_1_balance_request,
+            proxy_coin_2_balance_request,
+            proxy_gamm_balance_request,
+        ],
+        CallbackRequest {
+            receiver: env.contract.address.to_string(),
+            msg: to_json_binary(&PROXY_BALANCES_QUERY_CALLBACK_ID)?,
+        },
+        ibc_config.osmo_ibc_timeout,
+    )?;
+
+    Ok(WasmMsg::Execute {
+        contract_addr: note_address.to_string(),
+        msg: polytone_query_msg_binary,
+        funds: vec![],
+    })
 }
