@@ -209,6 +209,7 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
     // if either available balance is not sufficient,
     // we reset the latest proxy balance to `None`.
     // this will trigger a query on following tick.
+    // TODO: look if this check can cause issues
     if lp_config.party_1_denom_info.osmosis_coin.amount > coin_1_bal.amount
         || lp_config.party_2_denom_info.osmosis_coin.amount > coin_2_bal.amount
     {

@@ -472,8 +472,9 @@ type OsmoLiquidPoolerInstantiateMsg struct {
 }
 
 type PartyDenomInfo struct {
-	OsmosisCoin  cw.Coin `json:"osmosis_coin"`
-	NeutronDenom string  `json:"neutron_denom"`
+	OsmosisCoin       cw.Coin `json:"osmosis_coin"`
+	NeutronDenom      string  `json:"neutron_denom"`
+	SingleSideLpLimit string  `json:"single_side_lp_limit"`
 }
 
 type PartyChainInfo struct {

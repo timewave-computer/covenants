@@ -47,9 +47,11 @@ pub fn execute(
     match msg {
         ExecuteMsg::ProvideLiquidity {
             pool_id,
-            min_pool_asset_ratio,
-            max_pool_asset_ratio,
+            expected_spot_price,
+            acceptable_price_spread,
             slippage_tolerance,
+            asset_1_single_side_lp_limit,
+            asset_2_single_side_lp_limit,
         } => {
             ensure!(
                 slippage_tolerance < Decimal::one(),
@@ -57,10 +59,7 @@ pub fn execute(
             );
             // first we query the pool for validation and info
             let query_response: QueryPoolResponse = deps.querier.query(
-                &QueryPoolRequest {
-                    pool_id: pool_id.u64(),
-                }
-                .into(),
+                &QueryPoolRequest { pool_id: pool_id.u64() }.into(),
             )?;
             let osmo_pool: Pool = decode_osmo_pool_binary(query_response.pool)?;
 
@@ -78,10 +77,11 @@ pub fn execute(
             let gamm_shares_coin = osmo_pool.get_gamm_cw_coin()?;
 
             // validate the price against our expectations
-            let pool_assets_ratio =
-                Decimal::from_ratio(pool_assets[0].amount, pool_assets[1].amount);
+            let pool_spot_price = Decimal::from_ratio(pool_assets[0].amount, pool_assets[1].amount);
+            let min_acceptable_spot_price = expected_spot_price - acceptable_price_spread;
+            let max_acceptable_spot_price = expected_spot_price + acceptable_price_spread;
 
-            if min_pool_asset_ratio > pool_assets_ratio || max_pool_asset_ratio < pool_assets_ratio
+            if min_acceptable_spot_price > pool_spot_price || max_acceptable_spot_price < pool_spot_price
             {
                 return Err(ContractError::PriceRangeError {});
             }
@@ -123,6 +123,7 @@ pub fn execute(
                     info.sender.to_string(),
                     gamm_shares_coin,
                     slippage_tolerance,
+                    asset_1_single_side_lp_limit,
                 ),
                 // only asset 2 is provided, attempt to provide single sided
                 (false, true) => provide_single_sided_liquidity(
@@ -133,6 +134,7 @@ pub fn execute(
                     info.sender.to_string(),
                     gamm_shares_coin,
                     slippage_tolerance,
+                    asset_2_single_side_lp_limit,
                 ),
                 // no funds provided, error out
                 (false, false) => Err(ContractError::LiquidityProvisionError(
@@ -152,6 +154,8 @@ fn provide_double_sided_liquidity(
     gamm_coin: Coin,
     slippage_tolerance: Decimal,
 ) -> Result<Response, ContractError> {
+    // we compare the assets that were paid against the pool balances
+    // to derive the amount of gamm tokens we can expect
     let expected_gamm_shares = std::cmp::min(
         assets_paid[0]
             .amount
@@ -161,6 +165,12 @@ fn provide_double_sided_liquidity(
             .multiply_ratio(gamm_coin.amount, pool_assets[1].amount),
     );
 
+    // use that amount to get a cw coin
+    let expected_coin =  Coin { denom: gamm_coin.denom.to_string(), amount: expected_gamm_shares };
+
+    // apply the slippage
+    let expected_gamm_slippaged = apply_slippage(slippage_tolerance, expected_coin)?;
+
     let token_in_maxs: Vec<ProtoCoin> =
         vec![assets_paid[0].clone().into(), assets_paid[1].clone().into()];
 
@@ -168,21 +178,14 @@ fn provide_double_sided_liquidity(
         sender: outpost,
         pool_id: pool.id,
         // exact number of shares we wish to receive
-        share_out_amount: expected_gamm_shares.to_string(),
+        share_out_amount: expected_gamm_slippaged.amount.to_string(),
         token_in_maxs,
     }
     .into();
 
-    let response_gamm_coin = Coin {
-        denom: gamm_coin.denom,
-        amount: expected_gamm_shares,
-    };
-
-    let expected_gamm_coin = apply_slippage(slippage_tolerance, response_gamm_coin)?;
-
     let gamm_transfer: CosmosMsg = BankMsg::Send {
         to_address: sender,
-        amount: vec![expected_gamm_coin],
+        amount: vec![expected_gamm_slippaged],
     }
     .into();
 
@@ -202,7 +205,15 @@ fn provide_single_sided_liquidity(
     sender: String,
     gamm_coin: Coin,
     slippage_tolerance: Decimal,
+    single_side_limit: Uint128,
 ) -> Result<Response, ContractError> {
+    ensure!(
+        asset_paid.amount <= single_side_limit,
+        ContractError::SingleSideLiquidityProvisionError(
+            single_side_limit.to_string(),
+            asset_paid.amount.to_string(),
+        )
+    );
     // first we query the expected gamm amount
     let query_response: QueryCalcJoinPoolSharesResponse = deps.querier.query(
         &QueryCalcJoinPoolSharesRequest {
