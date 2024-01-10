@@ -639,8 +639,11 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 					OsmosisCoin:  cw.Coin{Denom: testCtx.Osmosis.Config().Denom, Amount: strconv.FormatUint(osmoContributionAmount, 10)},
 					NeutronDenom: neutronOsmoIbcDenom,
 				},
-				OsmoOutpost:  osmoOutpost,
-				LpTokenDenom: "gamm/pool/1",
+				OsmoOutpost:           osmoOutpost,
+				LpTokenDenom:          "gamm/pool/1",
+				SlippageTolerance:     "0.03",
+				ExpectedSpotPrice:     "0.1",
+				AcceptablePriceSpread: "0.05",
 			}
 
 			osmoLiquidPoolerAddress = testCtx.ManualInstantiate(lperCodeId, instantiateMsg, neutronUser, keyring.BackendTest)

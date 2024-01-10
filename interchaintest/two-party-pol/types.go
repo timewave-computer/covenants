@@ -466,6 +466,9 @@ type OsmoLiquidPoolerInstantiateMsg struct {
 	Party2DenomInfo        PartyDenomInfo `json:"party_2_denom_info"`
 	OsmoOutpost            string         `json:"osmo_outpost"`
 	LpTokenDenom           string         `json:"lp_token_denom"`
+	SlippageTolerance      string         `json:"slippage_tolerance"`
+	ExpectedSpotPrice      string         `json:"expected_spot_price"`
+	AcceptablePriceSpread  string         `json:"acceptable_price_spread"`
 }
 
 type PartyDenomInfo struct {
