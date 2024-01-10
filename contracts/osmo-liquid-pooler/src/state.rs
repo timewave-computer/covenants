@@ -23,5 +23,5 @@ pub const LIQUIDITY_PROVISIONING_CONFIG: Item<LiquidityProvisionConfig> = Item::
 // ibc-related fields
 pub const IBC_CONFIG: Item<IbcConfig> = Item::new("ibc_config");
 
-
+// timestamp to message
 pub const POLYTONE_CALLBACKS: Map<String, String> = Map::new("callbacks");
