@@ -58,15 +58,7 @@ fn process_query_callback(
     let initiator_msg: u8 = from_json(initiator_msg)?;
 
     match initiator_msg {
-        PROXY_BALANCES_QUERY_CALLBACK_ID => {
-            POLYTONE_CALLBACKS.save(
-                deps.storage,
-                env.block.time.to_string(),
-                &"proxy_balances_callback".to_string(),
-            )?;
-
-            handle_proxy_balances_callback(deps, env, query_callback_result)
-        }
+        PROXY_BALANCES_QUERY_CALLBACK_ID => handle_proxy_balances_callback(deps, env, query_callback_result),
         _ => Err(ContractError::PolytoneError(format!(
             "unexpected callback id: {:?}",
             initiator_msg
@@ -91,8 +83,8 @@ fn process_execute_callback(
         PROVIDE_LIQUIDITY_CALLBACK_ID => {
             POLYTONE_CALLBACKS.save(
                 deps.storage,
-                env.block.time.to_string(),
-                &"provide_liquidity_callback".to_string(),
+                format!("provide_liquidity_callback : {:?}", env.block.time.to_string()),
+                &to_json_binary(&callback_result)?.to_string(),
             )?;
 
             for submsg_response in callback_result.result {
@@ -116,10 +108,11 @@ fn process_execute_callback(
                 note_address.to_string(),
                 deps.querier,
             )?;
+            // result contains nothing
             POLYTONE_CALLBACKS.save(
                 deps.storage,
-                env.block.time.to_string(),
-                &"create_proxy_callback".to_string(),
+                format!("create_proxy_callback : {:?}", env.block.time.to_string()),
+                &to_json_binary(&callback_result)?.to_string(),
             )?;
             if let Some(addr) = proxy_address {
                 PROXY_ADDRESS.save(deps.storage, &addr)?;
@@ -147,8 +140,8 @@ fn process_fatal_error_callback(
 ) -> NeutronResult<Response<NeutronMsg>> {
     POLYTONE_CALLBACKS.save(
         deps.storage,
-        env.block.time.to_string(),
-        &format!("fatal_error: {:?}", response),
+        format!("fatal_error : {:?}", env.block.time.to_string()),
+        &response,
     )?;
     Ok(Response::default())
 }
@@ -164,6 +157,15 @@ fn handle_proxy_balances_callback(
         Ok(val) => val,
         Err(err) => return Err(ContractError::PolytoneError(err.error).to_neutron_std()),
     };
+
+    for bin in response_binaries.clone() {
+        POLYTONE_CALLBACKS.save(
+            deps.storage,
+            format!("proxy_balances_callback : {:?}", env.block.time.to_string()),
+            &bin.to_base64(),
+        )?;
+    }
+
 
     // store the latest prices in lp config
     let lp_config =
