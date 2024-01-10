@@ -3,12 +3,12 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Empty, Env,
-    MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg,
+    to_json_binary, to_json_string, Binary, Coin, CosmosMsg, Deps, DepsMut, Empty, Env,
+    MessageInfo, QueryRequest, Response, StdResult, Uint128, WasmMsg,
 };
+use covenant_clock::helpers::verify_clock;
 use covenant_utils::{
     default_ibc_fee, get_polytone_execute_msg_binary, get_polytone_query_msg_binary,
-    query_polytone_proxy_address,
 };
 use cw2::set_contract_version;
 use neutron_sdk::{
@@ -19,24 +19,23 @@ use polytone::callbacks::CallbackRequest;
 use crate::{
     error::ContractError,
     msg::{
-        ContractState, ExecuteMsg, ForwardMetadata, InstantiateMsg,
-        PacketMetadata, PartyChainInfo, QueryMsg, LiquidityProvisionConfig, IbcConfig,
+        ContractState, ExecuteMsg, ForwardMetadata, IbcConfig, InstantiateMsg,
+        LiquidityProvisionConfig, PacketMetadata, PartyChainInfo, QueryMsg,
     },
+    polytone_handlers::{try_handle_callback, get_note_execute_neutron_msg},
     state::{
-        HOLDER_ADDRESS, NOTE_ADDRESS,
-        PROXY_ADDRESS, LIQUIDITY_PROVISIONING_CONFIG, IBC_CONFIG,
-    }, polytone_handlers::try_handle_callback,
+        HOLDER_ADDRESS, IBC_CONFIG, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS, PROXY_ADDRESS, POLYTONE_CALLBACKS,
+    },
 };
-
 
 use crate::state::{CLOCK_ADDRESS, CONTRACT_STATE};
 
 const CONTRACT_NAME: &str = "crates.io:covenant-osmo-liquid-pooler";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub(crate) const LIQUIDITY_PROVIDED_CALLBACK_ID: u8 = 1;
-pub(crate) const PROXY_BALANCES_CALLBACK_ID: u8 = 2;
-pub(crate) const PROXY_CREATED_CALLBACK_ID: u8 = 3;
+pub(crate) const PROVIDE_LIQUIDITY_CALLBACK_ID: u8 = 1;
+pub(crate) const PROXY_BALANCES_QUERY_CALLBACK_ID: u8 = 2;
+pub(crate) const CREATE_PROXY_CALLBACK_ID: u8 = 3;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -62,15 +61,18 @@ pub fn instantiate(
 
     // initialize polytone state sync related items
     let latest_balances: HashMap<String, Coin> = HashMap::new();
-    let denom_config = LiquidityProvisionConfig {
+    let lp_config = LiquidityProvisionConfig {
         latest_balances,
         party_1_denom_info: msg.party_1_denom_info,
         party_2_denom_info: msg.party_2_denom_info,
         pool_id: msg.pool_id,
         outpost: msg.osmo_outpost,
         lp_token_denom: msg.lp_token_denom,
+        slippage_tolerance: msg.slippage_tolerance,
+        expected_spot_price: msg.expected_spot_price,
+        acceptable_price_spread: msg.acceptable_price_spread,
     };
-    LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &denom_config)?;
+    LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &lp_config)?;
 
     let ibc_config = IbcConfig {
         party_1_chain_info: msg.party_1_chain_info,
@@ -81,6 +83,7 @@ pub fn instantiate(
     IBC_CONFIG.save(deps.storage, &ibc_config)?;
 
     Ok(Response::default()
+        // TODO: reenable when integrating holder
         // .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "osmosis_lp_instantiate")
         .add_attribute("clock_addr", clock_addr))
@@ -100,52 +103,17 @@ pub fn execute(
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation.
-fn try_tick(deps: DepsMut, env: Env, _info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
     // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
-    let current_state = CONTRACT_STATE.load(deps.storage)?;
-    match current_state {
+    match CONTRACT_STATE.load(deps.storage)? {
         // create a proxy account
-        ContractState::Instantiated => try_query_proxy_address(deps, env),
+        ContractState::Instantiated => try_create_proxy(deps, env),
         // fund the proxy account
-        ContractState::ProxyCreated => {
-            let denom_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
-
-            // if coin balance is stored, get it.
-            // otherwise return default which we assert below.
-            let proxy_party_1_coin = match denom_config.get_party_1_denom_balance() {
-                Some(c) => c.clone(),
-                None => Coin::default(),
-            };
-            let proxy_party_2_coin = match denom_config.get_party_2_denom_balance() {
-                Some(c) => c.clone(),
-                None => Coin::default(),
-            };
-
-            // if no balances are stored, we query them
-            if proxy_party_1_coin == Coin::default() && proxy_party_2_coin == Coin::default() {
-                query_proxy_balances(deps, env)
-            } else {
-                // check if proxy contains balances that both parties should deliver
-                let coin_1_funded = proxy_party_1_coin.amount
-                    >= denom_config.party_1_denom_info.osmosis_coin.amount;
-                let coin_2_funded = proxy_party_2_coin.amount
-                    >= denom_config.party_2_denom_info.osmosis_coin.amount;
-                // if either coin is not funded, we attempt to do so
-                if !coin_1_funded || !coin_2_funded {
-                    try_fund_proxy(deps, env)
-                } else {
-                    // otherwise we advance the state machine
-                    CONTRACT_STATE.save(deps.storage, &ContractState::ProxyFunded)?;
-                    Ok(Response::default()
-                        .add_attribute("method", "try_tick")
-                        .add_attribute("contract_state", "proxy_funded"))
-                }
-            }
-        }
+        ContractState::ProxyCreated => try_deliver_funds(deps, env),
         // attempt to provide liquidity
-        ContractState::ProxyFunded => try_lp_outpost(deps, env),
+        ContractState::ProxyFunded => try_provide_liquidity(deps, env),
         // no longer accept any actions
         ContractState::Complete => {
             Err(ContractError::StateMachineError("complete".to_string()).to_neutron_std())
@@ -153,29 +121,50 @@ fn try_tick(deps: DepsMut, env: Env, _info: MessageInfo) -> NeutronResult<Respon
     }
 }
 
-fn try_lp_outpost(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_deliver_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+    let mut lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
+
+    // check if both balances have a recent query
+    match (lp_config.get_party_1_proxy_balance(), lp_config.get_party_2_proxy_balance()) {
+        (Some(proxy_party_1_coin), Some(proxy_party_2_coin)) => {
+            // if either coin is not funded, we attempt to do so
+            if proxy_party_1_coin.amount < lp_config.party_1_denom_info.get_osmo_bal()
+            || proxy_party_2_coin.amount < lp_config.party_2_denom_info.get_osmo_bal() {
+                try_fund_proxy(deps, env)
+            } else {
+                // otherwise we advance the state machine
+                CONTRACT_STATE.save(deps.storage, &ContractState::ProxyFunded)?;
+                Ok(Response::default()
+                    .add_attribute("method", "try_tick")
+                    .add_attribute("contract_state", "proxy_funded"))
+                }
+        },
+        // if either balance is unknown, we requery
+        _ => {
+            // reset the balances and submit the query
+            lp_config.reset_latest_proxy_balances();
+            LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &lp_config)?;
+            query_proxy_balances(deps, env)
+        }
+    }
+}
+
+fn try_provide_liquidity(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     // this call means proxy is created, funded, and we are ready to LP
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
-    // let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
     let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
+    let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
 
     let mut funds_to_send = vec![];
-    if let Some(c) = lp_config.get_party_1_denom_balance() {
+    if let Some(c) = lp_config.get_party_1_proxy_balance() {
         funds_to_send.push(c.clone());
     }
-    if let Some(c) = lp_config.get_party_2_denom_balance() {
+    if let Some(c) = lp_config.get_party_2_proxy_balance() {
         funds_to_send.push(c.clone());
     }
 
-    let outpost_provide_liquidity_msg =
-        covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity {
-            pool_id: Uint64::new(lp_config.pool_id.u64()),
-            min_pool_asset_ratio: Decimal::zero(),
-            max_pool_asset_ratio: Decimal::one(),
-            slippage_tolerance: Decimal::from_ratio(Uint128::new(5), Uint128::new(100)),
-        };
-
+    let outpost_provide_liquidity_msg = lp_config.get_osmo_outpost_provide_liquidity_message();
     let outpost_msg: CosmosMsg = WasmMsg::Execute {
         contract_addr: lp_config.outpost.to_string(),
         msg: to_json_binary(&outpost_provide_liquidity_msg)?,
@@ -183,24 +172,15 @@ fn try_lp_outpost(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
     }
     .into();
 
-
-    let polytone_execute_msg_binary = get_polytone_execute_msg_binary(
-        // include gamm token transfer msg back to holder after osmo_msg
+    let note_msg = get_note_execute_neutron_msg(
         vec![outpost_msg],
+        ibc_config.osmo_ibc_timeout,
+        note_address.clone(),
         Some(CallbackRequest {
             receiver: env.contract.address.to_string(),
-            msg: to_json_binary(&LIQUIDITY_PROVIDED_CALLBACK_ID)?,
+            msg: to_json_binary(&PROVIDE_LIQUIDITY_CALLBACK_ID)?,
         }),
-        ibc_config.osmo_ibc_timeout,
     )?;
-
-    let note_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: note_address.to_string(),
-        msg: polytone_execute_msg_binary,
-        funds: vec![],
-    });
-
-    let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
 
     let note_query_balances_message = get_proxy_query_balances_message(
         env,
@@ -223,13 +203,12 @@ fn get_proxy_query_balances_message(
     lp_config: LiquidityProvisionConfig,
     ibc_config: IbcConfig,
 ) -> StdResult<WasmMsg> {
-
     let proxy_coin_1_balance_request: QueryRequest<Empty> =
-    osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
-        address: proxy_address.to_string(),
-        denom: lp_config.party_1_denom_info.osmosis_coin.denom,
-    }
-    .into();
+        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
+            address: proxy_address.to_string(),
+            denom: lp_config.party_1_denom_info.osmosis_coin.denom,
+        }
+        .into();
     let proxy_coin_2_balance_request: QueryRequest<Empty> =
         osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
             address: proxy_address.to_string(),
@@ -244,10 +223,14 @@ fn get_proxy_query_balances_message(
         .into();
 
     let polytone_query_msg_binary = get_polytone_query_msg_binary(
-        vec![proxy_coin_1_balance_request, proxy_coin_2_balance_request, proxy_gamm_balance_request],
+        vec![
+            proxy_coin_1_balance_request,
+            proxy_coin_2_balance_request,
+            proxy_gamm_balance_request,
+        ],
         CallbackRequest {
             receiver: env.contract.address.to_string(),
-            msg: to_json_binary(&PROXY_BALANCES_CALLBACK_ID)?,
+            msg: to_json_binary(&PROXY_BALANCES_QUERY_CALLBACK_ID)?,
         },
         ibc_config.osmo_ibc_timeout,
     )?;
@@ -277,17 +260,15 @@ fn query_proxy_balances(deps: DepsMut, env: Env) -> NeutronResult<Response<Neutr
         .add_attribute("method", "try_query_proxy_balances"))
 }
 
-fn try_create_proxy(
-    deps: DepsMut,
-    env: Env,
-    note_address: String,
-) -> NeutronResult<Response<NeutronMsg>> {
+fn try_create_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+    let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
+
     let polytone_execute_msg_binary = get_polytone_execute_msg_binary(
         vec![],
         Some(CallbackRequest {
             receiver: env.contract.address.to_string(),
-            msg: to_json_binary(&PROXY_CREATED_CALLBACK_ID)?,
+            msg: to_json_binary(&CREATE_PROXY_CALLBACK_ID)?,
         }),
         ibc_config.osmo_ibc_timeout,
     )?;
@@ -302,69 +283,32 @@ fn try_create_proxy(
         .add_attribute("method", "try_create_proxy"))
 }
 
-// TODO: remake this into something like `try_create_proxy`
-fn try_query_proxy_address(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-    let note_address = NOTE_ADDRESS.load(deps.storage)?;
-
-    let proxy_address = query_polytone_proxy_address(
-        env.contract.address.to_string(),
-        note_address.to_string(),
-        deps.querier,
-    )?;
-
-    match proxy_address {
-        // if proxy is created, we save it and advance the state machine
-        Some(addr) => {
-            PROXY_ADDRESS.save(deps.storage, &addr)?;
-            CONTRACT_STATE.save(deps.storage, &ContractState::ProxyCreated)?;
-
-            Ok(Response::default()
-                .add_attribute("method", "try_query_proxy_address")
-                .add_attribute("proxy_address", addr))
-        }
-        // if proxy is not created, try to create it
-        None => try_create_proxy(deps, env, note_address.to_string()),
-    }
-}
-
 fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-    let mut denom_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
+    let mut lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
     let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
 
     let coin_1_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        denom_config.party_1_denom_info.neutron_denom.to_string(),
+        lp_config.party_1_denom_info.neutron_denom.to_string(),
     )?;
 
     let coin_2_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        denom_config.party_2_denom_info.neutron_denom.to_string(),
+        lp_config.party_2_denom_info.neutron_denom.to_string(),
     )?;
 
     // if either available balance is not sufficient,
     // we reset the latest proxy balance to `None`.
     // this will trigger a query on following tick.
-    if denom_config.party_1_denom_info.osmosis_coin.amount > coin_1_bal.amount
-        || denom_config.party_2_denom_info.osmosis_coin.amount > coin_2_bal.amount
+    if lp_config.party_1_denom_info.osmosis_coin.amount > coin_1_bal.amount
+        || lp_config.party_2_denom_info.osmosis_coin.amount > coin_2_bal.amount
     {
         // remove party denom entries from the balances map.
         // this will trigger a proxy balance query on the following tick.
-        denom_config.latest_balances.remove(
-            &denom_config
-                .party_1_denom_info
-                .osmosis_coin
-                .denom
-                .to_string(),
-        );
-        denom_config.latest_balances.remove(
-            &denom_config
-                .party_2_denom_info
-                .osmosis_coin
-                .denom
-                .to_string(),
-        );
-        LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &denom_config)?;
+        lp_config.reset_latest_proxy_balances();
+
+        LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &lp_config)?;
         return Ok(Response::default()
             .add_attribute("method", "try_fund_proxy")
             .add_attribute("result", "insufficient_balances"));
@@ -460,10 +404,29 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ProxyAddress {} => Ok(to_json_binary(&PROXY_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ProxyBalances {} => {
             let config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
-            let vec: Vec<Coin> = config.latest_balances.iter()
-                .map(|(_, coin)| coin.to_owned())
+            let vec: Vec<Coin> = config
+                .latest_balances
+                .values()
+                .map(|coin| coin.to_owned())
                 .collect();
             Ok(to_json_binary(&vec)?)
+        },
+        QueryMsg::Callbacks {} => {
+            let mut vals = vec![];
+            POLYTONE_CALLBACKS.range(
+                deps.storage,
+                None,
+                None, cosmwasm_std::Order::Ascending,
+            )
+            .into_iter()
+            .for_each(|c| {
+                match c {
+                    Ok((k, v)) => vals.push(v),
+                    Err(e) => (),
+                }
+            });
+
+            Ok(to_json_binary(&vals)?)
         }
     }
 }
