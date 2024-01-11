@@ -564,7 +564,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				Party2DenomInfo: PartyDenomInfo{
 					OsmosisCoin:       cw.Coin{Denom: testCtx.Osmosis.Config().Denom, Amount: strconv.FormatUint(osmoContributionAmount, 10)},
 					NeutronDenom:      neutronOsmoIbcDenom,
-					SingleSideLpLimit: "100000",
+					SingleSideLpLimit: "975000004",
 				},
 				OsmoOutpost:           osmoOutpost,
 				LpTokenDenom:          "gamm/pool/1",
@@ -670,13 +670,23 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				proxyGammBalance := testCtx.QueryOsmoDenomBalance("gamm/pool/1", proxyAddress)
 				proxyAtomBal := testCtx.QueryOsmoDenomBalance(osmosisAtomIbcDenom, proxyAddress)
 				proxyOsmoBal := testCtx.QueryOsmoDenomBalance(testCtx.Osmosis.Config().Denom, proxyAddress)
+				outpostAtomBal := testCtx.QueryOsmoDenomBalance(osmosisAtomIbcDenom, osmoOutpost)
+				outpostOsmoBal := testCtx.QueryOsmoDenomBalance(testCtx.Osmosis.Config().Denom, osmoOutpost)
+				outpostGammBalance := testCtx.QueryOsmoDenomBalance("gamm/pool/1", osmoOutpost)
+
 				println("proxy atom bal: ", proxyAtomBal)
 				println("proxy osmo bal: ", proxyOsmoBal)
+				println("outpost atom bal: ", outpostAtomBal)
+				println("outpost osmo bal: ", outpostOsmoBal)
+				println("outpost gamm token balance: ", outpostGammBalance)
 				println("proxy gamm token balance: ", proxyGammBalance)
 				println("osmo liquid pooler gamm token balance: ", osmoLiquidPoolerGammBalance)
 				if proxyAtomBal == 0 && proxyOsmoBal == 0 {
 					break
 				} else {
+					if outpostAtomBal != 0 {
+						testCtx.SkipBlocks(100)
+					}
 					testCtx.Tick(osmoLiquidPoolerAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}

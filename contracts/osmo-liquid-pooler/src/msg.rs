@@ -6,6 +6,7 @@ use cosmwasm_std::{
     WasmMsg,
 };
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
+use covenant_utils::OutpostExecuteMsg;
 use polytone::callbacks::CallbackMessage;
 
 #[cw_serde]
@@ -90,18 +91,20 @@ impl LiquidityProvisionConfig {
             funds.push(c.clone());
         }
 
+        let outpost_config = covenant_utils::OutpostProvideLiquidityConfig {
+            pool_id: Uint64::new(self.pool_id.u64()),
+            expected_spot_price: self.expected_spot_price,
+            acceptable_price_spread: self.acceptable_price_spread,
+            // if no slippage tolerance is passed, we use 0
+            slippage_tolerance: self.slippage_tolerance.unwrap_or_default(),
+            asset_1_single_side_lp_limit: self.party_1_denom_info.single_side_lp_limit,
+            asset_2_single_side_lp_limit: self.party_2_denom_info.single_side_lp_limit,
+        };
+
         Ok(WasmMsg::Execute {
             contract_addr: self.outpost.to_string(),
             msg: to_json_binary(
-                &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity {
-                    pool_id: Uint64::new(self.pool_id.u64()),
-                    expected_spot_price: self.expected_spot_price,
-                    acceptable_price_spread: self.acceptable_price_spread,
-                    // if no slippage tolerance is passed, we use 0
-                    slippage_tolerance: self.slippage_tolerance.unwrap_or_default(),
-                    asset_1_single_side_lp_limit: self.party_1_denom_info.single_side_lp_limit,
-                    asset_2_single_side_lp_limit: self.party_2_denom_info.single_side_lp_limit,
-                },
+                &OutpostExecuteMsg::ProvideLiquidity { config: outpost_config },
             )?,
             funds,
         }
