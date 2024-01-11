@@ -2,13 +2,14 @@ use std::str::FromStr;
 
 use crate::{
     error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, OsmosisPool, QueryMsg},
+    msg::{InstantiateMsg, OsmosisPool, QueryMsg, JoinPoolMsgContext, ExecuteMsg}, state::{PENDING_REPLY},
 };
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     ensure, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    Fraction, MessageInfo, Response, StdError, StdResult, Uint128,
+    Fraction, MessageInfo, Response, StdError, StdResult, Uint128, Reply, SubMsg, SubMsgResult, from_json, to_json_string, Order,
 };
 use cw2::set_contract_version;
 use osmosis_std::{
@@ -17,13 +18,15 @@ use osmosis_std::{
         cosmos::base::v1beta1::Coin as ProtoCoin,
         osmosis::gamm::v1beta1::{
             MsgJoinPool, MsgJoinSwapExternAmountIn, Pool, QueryCalcJoinPoolSharesRequest,
-            QueryCalcJoinPoolSharesResponse, QueryPoolRequest, QueryPoolResponse,
+            QueryCalcJoinPoolSharesResponse, QueryPoolRequest, QueryPoolResponse, QueryCalcJoinPoolNoSwapSharesRequest, QueryCalcJoinPoolNoSwapSharesResponse,
         },
     },
 };
 
+
 const CONTRACT_NAME: &str = "crates.io:covenant-outpost-osmo-liquid-pooler";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+const PROVIDE_LIQUIDITY_REPLY_ID: u64 = 1;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -33,7 +36,6 @@ pub fn instantiate(
     _msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
     Ok(Response::default().add_attribute("outpost", env.contract.address.to_string()))
 }
 
@@ -45,21 +47,14 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::ProvideLiquidity {
-            pool_id,
-            expected_spot_price,
-            acceptable_price_spread,
-            slippage_tolerance,
-            asset_1_single_side_lp_limit,
-            asset_2_single_side_lp_limit,
-        } => {
+        ExecuteMsg::ProvideLiquidity { config } => {
             ensure!(
-                slippage_tolerance < Decimal::one(),
+                config.slippage_tolerance < Decimal::one(),
                 ContractError::SlippageError {}
             );
             // first we query the pool for validation and info
             let query_response: QueryPoolResponse = deps.querier.query(
-                &QueryPoolRequest { pool_id: pool_id.u64() }.into(),
+                &QueryPoolRequest { pool_id: config.pool_id.u64() }.into(),
             )?;
             let osmo_pool: Pool = decode_osmo_pool_binary(query_response.pool)?;
 
@@ -78,8 +73,8 @@ pub fn execute(
 
             // validate the price against our expectations
             let pool_spot_price = Decimal::from_ratio(pool_assets[0].amount, pool_assets[1].amount);
-            let min_acceptable_spot_price = expected_spot_price - acceptable_price_spread;
-            let max_acceptable_spot_price = expected_spot_price + acceptable_price_spread;
+            let min_acceptable_spot_price = config.expected_spot_price - config.acceptable_price_spread;
+            let max_acceptable_spot_price = config.expected_spot_price + config.acceptable_price_spread;
 
             if min_acceptable_spot_price > pool_spot_price || max_acceptable_spot_price < pool_spot_price
             {
@@ -106,13 +101,13 @@ pub fn execute(
             ) {
                 // both assets provided, attempt to provide two sided liquidity
                 (true, true) => provide_double_sided_liquidity(
+                    deps,
+                    env,
                     osmo_pool,
                     vec![asset_1_received, asset_2_received],
-                    pool_assets,
                     info.sender.to_string(),
-                    env.contract.address.to_string(),
                     gamm_shares_coin,
-                    slippage_tolerance,
+                    config.slippage_tolerance,
                 ),
                 // only asset 1 is provided, attempt to provide single sided
                 (true, false) => provide_single_sided_liquidity(
@@ -122,8 +117,8 @@ pub fn execute(
                     env.contract.address.to_string(),
                     info.sender.to_string(),
                     gamm_shares_coin,
-                    slippage_tolerance,
-                    asset_1_single_side_lp_limit,
+                    config.slippage_tolerance,
+                    config.asset_1_single_side_lp_limit,
                 ),
                 // only asset 2 is provided, attempt to provide single sided
                 (false, true) => provide_single_sided_liquidity(
@@ -133,8 +128,8 @@ pub fn execute(
                     env.contract.address.to_string(),
                     info.sender.to_string(),
                     gamm_shares_coin,
-                    slippage_tolerance,
-                    asset_2_single_side_lp_limit,
+                    config.slippage_tolerance,
+                    config.asset_2_single_side_lp_limit,
                 ),
                 // no funds provided, error out
                 (false, false) => Err(ContractError::LiquidityProvisionError(
@@ -146,55 +141,112 @@ pub fn execute(
 }
 
 fn provide_double_sided_liquidity(
+    deps: DepsMut,
+    env: Env,
     pool: Pool,
     assets_paid: Vec<Coin>,
-    pool_assets: Vec<Coin>,
     sender: String,
-    outpost: String,
     gamm_coin: Coin,
     slippage_tolerance: Decimal,
 ) -> Result<Response, ContractError> {
-    // we compare the assets that were paid against the pool balances
-    // to derive the amount of gamm tokens we can expect
-    let expected_gamm_shares = std::cmp::min(
-        assets_paid[0]
-            .amount
-            .multiply_ratio(gamm_coin.amount, pool_assets[0].amount),
-        assets_paid[1]
-            .amount
-            .multiply_ratio(gamm_coin.amount, pool_assets[1].amount),
-    );
+    let token_in_maxs: Vec<ProtoCoin> = vec![
+        assets_paid[0].clone().into(),
+        assets_paid[1].clone().into(),
+    ];
 
-    // use that amount to get a cw coin
-    let expected_coin =  Coin { denom: gamm_coin.denom.to_string(), amount: expected_gamm_shares };
+    // first we query the expected gamm amount
+    let query_response: QueryCalcJoinPoolNoSwapSharesResponse = deps.querier.query(
+        &QueryCalcJoinPoolNoSwapSharesRequest {
+            pool_id: pool.id,
+            tokens_in: token_in_maxs.clone(),
+        }
+        .into(),
+    )?;
 
-    // apply the slippage
-    let expected_gamm_slippaged = apply_slippage(slippage_tolerance, expected_coin)?;
-
-    let token_in_maxs: Vec<ProtoCoin> =
-        vec![assets_paid[0].clone().into(), assets_paid[1].clone().into()];
+    // expected gamm tokens
+    let response_gamm_coin = Coin {
+        denom: gamm_coin.denom.to_string(),
+        amount: Uint128::from_str(&query_response.shares_out)?,
+    };
+    let expected_gamm_coin = apply_slippage(slippage_tolerance, response_gamm_coin)?;
 
     let osmo_msg: CosmosMsg = MsgJoinPool {
-        sender: outpost,
+        sender: env.contract.address.to_string(),
         pool_id: pool.id,
         // exact number of shares we wish to receive
-        share_out_amount: expected_gamm_slippaged.amount.to_string(),
+        share_out_amount: expected_gamm_coin.amount.to_string(),
         token_in_maxs,
     }
     .into();
 
-    let gamm_transfer: CosmosMsg = BankMsg::Send {
-        to_address: sender,
-        amount: vec![expected_gamm_slippaged],
-    }
-    .into();
+    // we build a context helper that will be used to
+    // return the resulting funds to the sender
+    let callback_context = JoinPoolMsgContext {
+        sender,
+        assets_paid,
+        gamm_denom: gamm_coin.denom,
+    };
+
+    // store the callback context to be loaded in the callback
+    PENDING_REPLY.save(deps.storage, &callback_context)?;
 
     Ok(Response::default()
-        .add_messages(vec![osmo_msg, gamm_transfer])
-        .add_attribute("method", "provide_double_sided_liquidity")
-        .add_attribute("pool", to_json_binary(&pool)?.to_string())
-        .add_attribute("asset_1_paid", to_json_binary(&assets_paid[0])?.to_string())
-        .add_attribute("asset_2_paid", to_json_binary(&assets_paid[1])?.to_string()))
+        .add_attribute("method", "try_join_pool")
+        .add_submessage(SubMsg::reply_always(osmo_msg, PROVIDE_LIQUIDITY_REPLY_ID))
+        .set_data(to_json_binary(&callback_context)?)
+    )
+}
+
+fn handle_provide_liquidity_reply(
+    deps: DepsMut, env: Env, msg: Reply, callback_context: JoinPoolMsgContext,
+) -> Result<Response, ContractError> {
+
+    let mut refund_tokens = vec![];
+
+    let available_gamm = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        callback_context.gamm_denom.to_string(),
+    )?;
+
+    if available_gamm.amount > Uint128::zero() {
+        refund_tokens.push(available_gamm.clone());
+    }
+    // we iterate over assets that were sent to this contract
+    // and include all available assets after providing liquidity
+    for asset_paid in callback_context.clone().assets_paid {
+        let leftover_asset = deps.querier.query_balance(
+            env.contract.address.to_string(),
+            asset_paid.denom.to_string(),
+        )?;
+        if leftover_asset.amount > Uint128::zero() {
+            refund_tokens.push(leftover_asset);
+        }
+    }
+
+    let mut response = Response::default()
+        .add_attribute("method", "handle_provide_liquidity_reply")
+        .add_attribute("refund_tokens", to_json_string(&refund_tokens)?);
+
+    response = match msg.result {
+        SubMsgResult::Ok(r) => {
+            if let Some(submsg_response_data) = r.clone().data {
+                response = response.add_attribute("submsg_response_data", submsg_response_data.to_string())
+            }
+            response.add_attribute("submsg_response", to_json_string(&r)?)
+        },
+        SubMsgResult::Err(e) => response.add_attribute("submsg_error", e),
+    };
+
+    if !refund_tokens.is_empty() {
+        response = response.add_message(BankMsg::Send {
+            to_address: callback_context.sender,
+            amount: refund_tokens,
+        });
+    }
+
+    PENDING_REPLY.remove(deps.storage);
+
+    Ok(response)
 }
 
 fn provide_single_sided_liquidity(
@@ -223,31 +275,31 @@ fn provide_single_sided_liquidity(
         .into(),
     )?;
 
-    let expected_gamm_shares = Uint128::from_str(&query_response.share_out_amount)?;
     let response_gamm_coin = Coin {
         denom: gamm_coin.denom,
-        amount: expected_gamm_shares,
+        amount: Uint128::from_str(&query_response.share_out_amount)?,
     };
     let expected_gamm_coin = apply_slippage(slippage_tolerance, response_gamm_coin)?;
 
-    let join_pool_msg = MsgJoinSwapExternAmountIn {
+    let join_pool_msg: CosmosMsg = MsgJoinSwapExternAmountIn {
         sender: outpost,
         pool_id: pool.id,
         token_in: Some(asset_paid.clone().into()),
         share_out_min_amount: expected_gamm_coin.amount.to_string(),
-    };
-
-    let gamm_transfer: CosmosMsg = BankMsg::Send {
-        to_address: sender,
-        amount: vec![expected_gamm_coin],
     }
     .into();
 
+    let callback_context = JoinPoolMsgContext {
+        sender,
+        assets_paid: vec![asset_paid],
+        gamm_denom: expected_gamm_coin.denom,
+    };
+
     Ok(Response::default()
-        .add_messages(vec![join_pool_msg.into(), gamm_transfer])
-        .add_attribute("method", "provide_single_sided_liquidity")
-        .add_attribute("pool", to_json_binary(&pool)?.to_string())
-        .add_attribute("asset_paid", to_json_binary(&asset_paid)?.to_string()))
+        .add_attribute("method", "try_join_pool")
+        .set_data(to_json_binary(&callback_context)?)
+        .add_submessage(SubMsg::reply_always(join_pool_msg, PROVIDE_LIQUIDITY_REPLY_ID))
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -255,6 +307,22 @@ pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
     Err(cosmwasm_std::StdError::NotFound {
         kind: "not implemented".to_string(),
     })
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
+    // load reply here
+    let pending_reply = PENDING_REPLY.load(deps.storage)?;
+    match msg.id {
+        PROVIDE_LIQUIDITY_REPLY_ID => handle_provide_liquidity_reply(deps, env, msg, pending_reply),
+        _ => {
+            // Err(ContractError::from(StdError::generic_err(format!("unknown msg reply id: {:?}", msg.id))))
+            Ok(Response::default()
+                .add_attribute("status", "unknown_reply_id".to_string())
+                .add_attribute("reply_id", msg.id.to_string())
+            )
+        },
+    }
 }
 
 /// cw-utils must pay requires specifically one coin, this is a helper

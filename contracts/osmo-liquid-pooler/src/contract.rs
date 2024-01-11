@@ -250,7 +250,7 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
 fn try_provide_liquidity(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
-    let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
+    let mut lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
     let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
 
     // we generate a provide_liquidity message for the outpost
@@ -273,9 +273,13 @@ fn try_provide_liquidity(deps: DepsMut, env: Env) -> NeutronResult<Response<Neut
         env,
         proxy_address,
         note_address.to_string(),
-        lp_config,
+        lp_config.clone(),
         ibc_config,
     )?;
+
+    // reset the prices as they have expired
+    lp_config.reset_latest_proxy_balances();
+    LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &lp_config)?;
 
     Ok(Response::default()
         .add_message(note_outpost_liquidity_msg)
