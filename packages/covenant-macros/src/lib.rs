@@ -168,3 +168,21 @@ pub fn covenant_holder_distribute(metadata: TokenStream, input: TokenStream) -> 
         .into(),
     )
 }
+
+#[proc_macro_attribute]
+pub fn covenant_holder_emergency_withdraw(
+    metadata: TokenStream,
+    input: TokenStream,
+) -> TokenStream {
+    merge_variants(
+        metadata,
+        input,
+        quote!(
+            enum EmergencyWithdrawMsgs {
+                /// Allows for the emergency committee to withdraw the funds on case of an emergency
+                EmergencyWithdraw {},
+            }
+        )
+        .into(),
+    )
+}

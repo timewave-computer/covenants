@@ -1,6 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, WasmMsg};
-use covenant_macros::covenant_holder_distribute;
+use covenant_macros::{covenant_holder_distribute, covenant_holder_emergency_withdraw};
 use cw_utils::Expiration;
 
 #[cw_serde]
@@ -10,6 +10,8 @@ pub struct InstantiateMsg {
     pub withdrawer: Option<String>,
     /// Withdraw the funds to this address
     pub withdraw_to: Option<String>,
+    /// The address that is allowed to do emergency pull out
+    pub emergency_committee_addr: Option<String>,
     /// the neutron address of the liquid pooler
     pub pooler_address: String,
     /// The lockup period for the covenant
@@ -22,6 +24,7 @@ pub struct InstantiateMsg {
 pub struct PresetHolderFields {
     pub withdrawer: Option<String>,
     pub withdraw_to: Option<String>,
+    pub emergency_committee_addr: Option<String>,
     pub lockup_period: Expiration,
     pub code_id: u64,
     pub label: String,
@@ -36,6 +39,7 @@ impl PresetHolderFields {
             withdraw_to: self.withdraw_to.clone(),
             pooler_address,
             lockup_period: self.lockup_period,
+            emergency_committee_addr: self.emergency_committee_addr.clone(),
         }
     }
 
@@ -59,6 +63,7 @@ impl PresetHolderFields {
 }
 
 #[covenant_holder_distribute]
+#[covenant_holder_emergency_withdraw]
 #[cw_serde]
 pub enum ExecuteMsg {
     /// This is called by the withdrawer to start the withdraw process
@@ -83,6 +88,7 @@ pub enum MigrateMsg {
     UpdateConfig {
         withdrawer: Option<String>,
         withdraw_to: Option<String>,
+        emergency_committee: Option<String>,
         pooler_address: Option<String>,
         lockup_period: Option<Expiration>,
     },

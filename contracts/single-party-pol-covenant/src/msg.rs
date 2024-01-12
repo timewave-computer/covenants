@@ -26,6 +26,9 @@ pub struct InstantiateMsg {
     pub acceptable_pool_ratio_delta: Decimal,
     pub pool_pair_type: PairType,
     pub native_splitter_config: NativeSplitterConfig,
+    pub withdrawer: Option<String>,
+    pub withdraw_to: Option<String>,
+    pub emerrgency_committee: Option<String>,
 }
 
 #[cw_serde]

@@ -8,7 +8,8 @@ use cosmwasm_std::{
 };
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
-    clocked, covenant_clock_address, covenant_deposit_address, covenant_next_contract, covenant_holder_distribute,
+    clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
+    covenant_holder_emergency_withdraw, covenant_next_contract,
 };
 use covenant_utils::{DenomSplit, SplitConfig, SplitType};
 use cw_utils::Expiration;
@@ -36,6 +37,8 @@ pub struct InstantiateMsg {
     /// a split for all denoms that are not covered in the
     /// regular `splits` list
     pub fallback_split: Option<SplitConfig>,
+    /// address of the emergency committee
+    pub emergency_committee_addr: Option<String>,
 }
 
 impl InstantiateMsg {
@@ -256,6 +259,7 @@ pub struct PresetTwoPartyPolHolderFields {
     pub splits: Vec<DenomSplit>,
     pub fallback_split: Option<SplitConfig>,
     pub covenant_type: CovenantType,
+    pub emergency_committee: Option<String>,
 }
 
 #[cw_serde]
@@ -328,6 +332,7 @@ impl PresetTwoPartyPolHolderFields {
             },
             splits: remapped_splits,
             fallback_split: remapped_fallback,
+            emergency_committee_addr: self.emergency_committee.clone(),
         })
     }
 
@@ -433,18 +438,25 @@ impl TwoPartyPolCovenantConfig {
     ) -> Result<(TwoPartyPolCovenantParty, TwoPartyPolCovenantParty), ContractError> {
         let party_a = self.party_a.clone();
         let party_b = self.party_b.clone();
-        if party_a.host_addr == sender {
-            Ok((party_a, party_b))
+        let parties = if party_a.host_addr == sender {
+            (party_a, party_b)
         } else if party_b.host_addr == sender {
-            Ok((party_b, party_a))
+            (party_b, party_a)
         } else {
-            Err(ContractError::Unauthorized {})
+            return Err(ContractError::Unauthorized {});
+        };
+
+        if parties.0.allocation == Decimal::zero() {
+            return Err(ContractError::PartyAllocationIsZero {});
         }
+
+        Ok(parties)
     }
 }
 
 #[clocked]
 #[covenant_holder_distribute]
+#[covenant_holder_emergency_withdraw]
 #[cw_serde]
 pub enum ExecuteMsg {
     /// initiate the ragequit
@@ -453,10 +465,6 @@ pub enum ExecuteMsg {
     Claim {},
     /// distribute any unspecified denoms
     DistributeFallbackSplit { denoms: Vec<String> },
-    // / pulls out all the liquidity without rq penalty.
-    // / the funds are then distributed in the expected
-    // / manner.
-    // EmergencyShutdown {},
 }
 
 #[cw_serde]
@@ -464,6 +472,7 @@ pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
         next_contract: Option<String>,
+        emergency_committee: Option<String>,
         lockup_config: Option<Expiration>,
         deposit_deadline: Option<Expiration>,
         pooler_address: Option<String>,
