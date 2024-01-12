@@ -26,6 +26,9 @@ pub enum ContractError {
 
     #[error("single side lp error: limit = {0}, got = {1}")]
     SingleSideLiquidityProvisionError(String, String),
+
+    #[error("unknown reply id: {0}")]
+    UnknownReplyId(u64),
 }
 
 impl ContractError {

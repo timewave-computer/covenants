@@ -103,9 +103,9 @@ impl LiquidityProvisionConfig {
 
         Ok(WasmMsg::Execute {
             contract_addr: self.outpost.to_string(),
-            msg: to_json_binary(
-                &OutpostExecuteMsg::ProvideLiquidity { config: outpost_config },
-            )?,
+            msg: to_json_binary(&OutpostExecuteMsg::ProvideLiquidity {
+                config: outpost_config,
+            })?,
             funds,
         }
         .into())

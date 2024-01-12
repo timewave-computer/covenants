@@ -58,7 +58,9 @@ fn process_query_callback(
     let initiator_msg: u8 = from_json(initiator_msg)?;
 
     match initiator_msg {
-        PROXY_BALANCES_QUERY_CALLBACK_ID => handle_proxy_balances_callback(deps, env, query_callback_result),
+        PROXY_BALANCES_QUERY_CALLBACK_ID => {
+            handle_proxy_balances_callback(deps, env, query_callback_result)
+        }
         _ => Err(ContractError::PolytoneError(format!(
             "unexpected callback id: {:?}",
             initiator_msg
@@ -83,7 +85,10 @@ fn process_execute_callback(
         PROVIDE_LIQUIDITY_CALLBACK_ID => {
             POLYTONE_CALLBACKS.save(
                 deps.storage,
-                format!("provide_liquidity_callback : {:?}", env.block.time.to_string()),
+                format!(
+                    "provide_liquidity_callback : {:?}",
+                    env.block.time.to_string()
+                ),
                 &to_json_binary(&callback_result)?.to_string(),
             )?;
 
@@ -165,7 +170,6 @@ fn handle_proxy_balances_callback(
             &bin.to_base64(),
         )?;
     }
-
 
     // store the latest prices in lp config
     let lp_config =

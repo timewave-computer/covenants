@@ -723,8 +723,6 @@ pub fn query_polytone_proxy_address(
     querier.query_wasm_smart(note_address, &remote_address_query)
 }
 
-
-
 #[cw_serde]
 pub struct OutpostProvideLiquidityConfig {
     /// id of the pool we wish to provide liquidity to
@@ -742,5 +740,7 @@ pub struct OutpostProvideLiquidityConfig {
 
 #[cw_serde]
 pub enum OutpostExecuteMsg {
-    ProvideLiquidity { config: OutpostProvideLiquidityConfig },
+    ProvideLiquidity {
+        config: OutpostProvideLiquidityConfig,
+    },
 }

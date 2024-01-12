@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Coin, Uint128, Uint64, Decimal};
+use cosmwasm_std::{Coin, Decimal, Uint128, Uint64};
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
 use crate::error::ContractError;
@@ -11,7 +11,9 @@ pub struct InstantiateMsg {}
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    ProvideLiquidity { config: OutpostProvideLiquidityConfig },
+    ProvideLiquidity {
+        config: OutpostProvideLiquidityConfig,
+    },
 }
 
 // TODO: remove duplicate from here/covenant_utils
@@ -33,7 +35,8 @@ pub struct OutpostProvideLiquidityConfig {
 #[cw_serde]
 pub struct JoinPoolMsgContext {
     pub sender: String,
-    pub assets_paid: Vec<Coin>,
+    pub pool_denom_1: String,
+    pub pool_denom_2: String,
     pub gamm_denom: String,
 }
 

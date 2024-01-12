@@ -681,12 +681,9 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				println("outpost gamm token balance: ", outpostGammBalance)
 				println("proxy gamm token balance: ", proxyGammBalance)
 				println("osmo liquid pooler gamm token balance: ", osmoLiquidPoolerGammBalance)
-				if proxyAtomBal == 0 && proxyOsmoBal == 0 {
+				if proxyAtomBal == 0 && proxyOsmoBal == 0 && proxyGammBalance == 0 {
 					break
 				} else {
-					if outpostAtomBal != 0 {
-						testCtx.SkipBlocks(100)
-					}
 					testCtx.Tick(osmoLiquidPoolerAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
