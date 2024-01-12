@@ -2,9 +2,8 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     ensure, to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    WasmMsg,
 };
-use covenant_utils::withdraw_lp_helper::WithdrawLPMsgs;
+use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
@@ -36,6 +35,11 @@ pub fn instantiate(
         resp = resp.add_attribute("withdraw_to", addr);
     };
 
+    if let Some(addr) = msg.emergency_committee_addr {
+        EMERGENCY_COMMITTEE_ADDR.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
+        resp = resp.add_attribute("emergency_committee", addr);
+    };
+
     LOCKUP_PERIOD.save(deps.storage, &msg.lockup_period)?;
     POOLER_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.pooler_address)?)?;
 
@@ -62,6 +66,7 @@ pub fn execute(
         ExecuteMsg::Claim {} => try_claim(deps, env, info),
         ExecuteMsg::Distribute {} => try_distribute(deps, info),
         ExecuteMsg::WithdrawFailed {} => try_withdraw_failed(deps, info),
+        ExecuteMsg::EmergencyWithdraw {} => try_emergency_withdraw(deps, info),
     }
 }
 
@@ -87,13 +92,27 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
 
     let pooler_address = POOLER_ADDRESS.load(deps.storage)?;
 
-    let withdraw_msg = WasmMsg::Execute {
-        contract_addr: pooler_address.to_string(),
-        msg: to_json_binary(&WithdrawLPMsgs::Withdraw { percentage: None })?,
-        funds: vec![],
-    };
+    let withdraw_msg = generate_withdraw_msg(pooler_address.to_string(), None)?;
 
     WITHDRAW_STATE.save(deps.storage, &true)?;
+
+    Ok(Response::default().add_message(withdraw_msg))
+}
+
+fn try_emergency_withdraw(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    // Make sure we are not withdrawing already
+    if WITHDRAW_STATE.load(deps.storage).is_ok() {
+        return Err(ContractError::WithdrawAlreadyStarted {});
+    }
+
+    let committee_addr = EMERGENCY_COMMITTEE_ADDR.load(deps.storage)?;
+    ensure!(
+        info.sender == committee_addr,
+        ContractError::Unauthorized {}
+    );
+
+    let pooler_address = POOLER_ADDRESS.load(deps.storage)?;
+    let withdraw_msg = generate_withdraw_msg(pooler_address.to_string(), None)?;
 
     Ok(Response::default().add_message(withdraw_msg))
 }
@@ -140,6 +159,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, Con
             withdraw_to,
             pooler_address,
             lockup_period,
+            emergency_committee,
         } => {
             let mut response = Response::default().add_attribute("method", "update_withdrawer");
 
@@ -151,6 +171,11 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, Con
             if let Some(addr) = withdraw_to {
                 WITHDRAW_TO.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
                 response = response.add_attribute("withdraw_to", addr);
+            }
+
+            if let Some(addr) = emergency_committee {
+                EMERGENCY_COMMITTEE_ADDR.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
+                response = response.add_attribute("emergency_committee", addr);
             }
 
             if let Some(addr) = pooler_address {

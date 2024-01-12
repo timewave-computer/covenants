@@ -210,6 +210,7 @@ pub fn instantiate(
         splits: msg.splits,
         fallback_split: msg.fallback_split,
         covenant_type: msg.covenant_type,
+        emergency_committee: msg.emergency_committee,
     };
 
     let preset_party_a_router_fields = PresetInterchainRouterFields {
