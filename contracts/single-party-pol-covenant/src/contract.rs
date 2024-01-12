@@ -162,8 +162,9 @@ pub fn instantiate(
     let preset_holder_fields = PresetHolderFields {
         code_id: msg.contract_codes.holder_code,
         label: format!("{}-holder", msg.label),
-        withdrawer: Some(info.sender.to_string()),
-        withdraw_to: Some(info.sender.to_string()),
+        withdrawer: msg.withdrawer,
+        withdraw_to: msg.withdraw_to,
+        emergency_committee_addr: msg.emerrgency_committee,
         lockup_period: msg.lockup_period,
     };
     PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
@@ -324,6 +325,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             liquid_pooler,
             liquid_staker,
             splitter,
+            liquid_staker,
         } => {
             let mut migrate_msgs = vec![];
             let mut resp = Response::default().add_attribute("method", "migrate_contracts");
@@ -368,6 +370,17 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: LIQUID_POOLER_ADDR.load(deps.storage)?.to_string(),
                     new_code_id: liquid_pooler_fields.code_id,
+                    msg,
+                });
+            }
+
+            if let Some(liquid_staker) = liquid_staker {
+                let msg: Binary = to_json_binary(&liquid_staker)?;
+                let liquid_staker_fields = PRESET_LIQUID_STAKER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("liquid_staker_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: LIQUID_STAKER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: liquid_staker_fields.code_id,
                     msg,
                 });
             }

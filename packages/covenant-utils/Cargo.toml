@@ -10,6 +10,7 @@ license     = { workspace = true }
 
 [dependencies]
 cosmwasm-schema  = { workspace = true }
+cw-storage-plus  = { workspace = true }
 neutron-sdk      = { workspace = true }
 cosmwasm-std     = { workspace = true }
 prost            = { workspace = true }

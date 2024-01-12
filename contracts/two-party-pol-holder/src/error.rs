@@ -68,4 +68,7 @@ pub enum ContractError {
 
     #[error("A withdraw process wasn't started yet")]
     WithdrawStateNotStarted {},
+
+    #[error("Claimer already claimed his share")]
+    PartyAllocationIsZero {},
 }

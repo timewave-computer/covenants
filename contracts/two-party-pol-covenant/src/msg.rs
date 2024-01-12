@@ -30,6 +30,7 @@ pub struct InstantiateMsg {
     pub pool_pair_type: PairType,
     pub splits: Vec<DenomSplit>,
     pub fallback_split: Option<SplitConfig>,
+    pub emergency_committee: Option<String>,
 }
 
 impl CovenantPartyConfig {

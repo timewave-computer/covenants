@@ -409,27 +409,21 @@ fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
             .add_attribute("method", "tick")
             .add_attribute("contract_state", state.to_string())),
         ContractState::Expired | ContractState::Ragequit => {
-            let pool = POOL_ADDRESS.load(deps.storage)?;
-            let lp_token_bal = query_astro_pool_token(
-                deps.querier,
-                pool.to_string(),
-                env.contract.address.to_string(),
-            )?
-            .balance_response
-            .balance;
-
-            let (state, msgs) = if lp_token_bal.is_zero() {
-                (
-                    ContractState::Complete,
-                    vec![ContractState::complete_and_dequeue(
-                        deps.branch(),
-                        clock_addr.as_str(),
-                    )?],
-                )
-            } else {
-                (state, vec![])
-            };
-
+            // TODO: what we do here?
+            // let pool = POOL_ADDRESS.load(deps.storage)?;
+            // let lp_token_bal = query_astro_pool_token(
+            //     deps.querier,
+            //     pool.to_string(),
+            //     env.contract.address.to_string(),
+            // )?
+            // .balance_response
+            // .balance;
+            // let state = if lp_token_bal.is_zero() {
+            //     CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+            //     ContractState::Complete
+            // } else {
+            //     state
+            // };
             Ok(Response::default()
                 .add_messages(msgs)
                 .add_attribute("method", "tick")
@@ -798,6 +792,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             covenant_config,
             denom_splits,
             fallback_split,
+            emergency_committee,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 

@@ -457,7 +457,7 @@ dependencies = [
  "protobuf 3.3.0",
  "schemars",
  "serde",
- "sha2 0.10.8",
+ "sha2 0.9.9",
  "thiserror",
 ]
 
@@ -517,7 +517,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
- "sha2 0.10.8",
+ "sha2 0.9.9",
  "thiserror",
 ]
 
@@ -542,7 +542,7 @@ dependencies = [
  "protobuf 3.3.0",
  "schemars",
  "serde",
- "sha2 0.10.8",
+ "sha2 0.9.9",
  "thiserror",
 ]
 
@@ -595,7 +595,7 @@ dependencies = [
  "protobuf 3.3.0",
  "schemars",
  "serde",
- "sha2 0.10.8",
+ "sha2 0.9.9",
  "thiserror",
 ]
 
@@ -713,7 +713,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
- "sha2 0.10.8",
+ "sha2 0.9.9",
  "thiserror",
 ]
 
@@ -816,7 +816,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
- "sha2 0.10.8",
+ "sha2 0.9.9",
  "thiserror",
 ]
 
@@ -867,7 +867,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
- "sha2 0.10.8",
+ "sha2 0.9.9",
  "thiserror",
 ]
 
@@ -903,11 +903,15 @@ dependencies = [
 <<<<<<< HEAD
 <<<<<<< HEAD
  "covenant-macros",
+<<<<<<< HEAD
 =======
 >>>>>>> 79feab7 (started working on the withdraw functionlity on the LPer)
 =======
  "covenant-macros",
 >>>>>>> 37e3085 (Finished with astro lper withdraw change and isngle party holder)
+=======
+ "cw-storage-plus 1.2.0",
+>>>>>>> 631fe8c (did the emergency pull out, and distribution for regular claim, left to do the rage quit distribution)
  "cw-utils 1.0.3",
  "cw20 1.1.2",
  "neutron-sdk",

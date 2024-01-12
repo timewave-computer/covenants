@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::Addr;
 use cw_storage_plus::Item;
 use cw_utils::Expiration;
 
@@ -38,8 +38,6 @@ pub const WITHDRAW_STATE: Item<WithdrawState> = Item::new("withdraw_state");
 
 #[cw_serde]
 pub enum WithdrawState {
-    Processing {
-        claimer_addr: String,
-        claimer_allocation: Decimal,
-    },
+    Processing { claimer_addr: String },
+    Emergency {},
 }
