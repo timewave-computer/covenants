@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use astroport::{asset::Asset, pair::Cw20HookMsg};
 use cosmwasm_std::{
-    to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg, ensure,
+    ensure, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
 #[cfg(not(feature = "library"))]
@@ -44,8 +44,14 @@ pub fn instantiate(
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
-    ensure!(!msg.deposit_deadline.is_expired(&env.block), ContractError::DepositDeadlineValidationError {});
-    ensure!(!msg.lockup_config.is_expired(&env.block), ContractError::LockupValidationError {});
+    ensure!(
+        !msg.deposit_deadline.is_expired(&env.block),
+        ContractError::DepositDeadlineValidationError {}
+    );
+    ensure!(
+        !msg.lockup_config.is_expired(&env.block),
+        ContractError::LockupValidationError {}
+    );
 
     msg.covenant_config.validate(deps.api)?;
     msg.ragequit_config.validate(

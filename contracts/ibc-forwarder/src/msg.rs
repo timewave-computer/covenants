@@ -118,7 +118,7 @@ pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
         next_contract: Option<String>,
-        remote_chain_info: Option<RemoteChainInfo>,
+        remote_chain_info: Box<Option<RemoteChainInfo>>,
         transfer_amount: Option<Uint128>,
     },
     UpdateCodeId {
