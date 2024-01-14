@@ -418,6 +418,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             clock_addr,
             next_contract,
             remote_chain_info,
+            transfer_amount,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
@@ -437,6 +438,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 let validated_rci = rci.validate()?;
                 REMOTE_CHAIN_INFO.save(deps.storage, &validated_rci)?;
                 resp = resp.add_attributes(validated_rci.get_response_attributes());
+            }
+
+            if let Some(amount) = transfer_amount {
+                TRANSFER_AMOUNT.save(deps.storage, &amount)?;
+                resp = resp.add_attribute("transfer_amount", amount.to_string());
             }
 
             Ok(resp)

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use astroport::{asset::Asset, pair::Cw20HookMsg};
 use cosmwasm_std::{
     to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
+    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg, ensure,
 };
 
 #[cfg(not(feature = "library"))]
@@ -44,12 +44,8 @@ pub fn instantiate(
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
-    if msg.deposit_deadline.is_expired(&env.block) {
-        return Err(ContractError::DepositDeadlineValidationError {});
-    }
-    if msg.lockup_config.is_expired(&env.block) {
-        return Err(ContractError::LockupValidationError {});
-    }
+    ensure!(!msg.deposit_deadline.is_expired(&env.block), ContractError::DepositDeadlineValidationError {});
+    ensure!(!msg.lockup_config.is_expired(&env.block), ContractError::LockupValidationError {});
 
     msg.covenant_config.validate(deps.api)?;
     msg.ragequit_config.validate(
@@ -701,6 +697,8 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             pool_address,
             ragequit_config,
             covenant_config,
+            denom_splits,
+            fallback_split,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
@@ -746,6 +744,20 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             if let Some(config) = *covenant_config {
                 COVENANT_CONFIG.save(deps.storage, &config)?;
                 resp = resp.add_attribute("todo", "todo");
+            }
+
+            if let Some(splits) = denom_splits {
+                DENOM_SPLITS.update(deps.storage, |mut current_splits| -> StdResult<_> {
+                    current_splits.explicit_splits = splits;
+                    Ok(current_splits)
+                })?;
+            }
+
+            if let Some(split) = fallback_split {
+                DENOM_SPLITS.update(deps.storage, |mut current_splits| -> StdResult<_> {
+                    current_splits.fallback_split = Some(split);
+                    Ok(current_splits)
+                })?;
             }
 
             Ok(resp)

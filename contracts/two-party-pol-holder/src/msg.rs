@@ -466,8 +466,8 @@ pub enum MigrateMsg {
         pool_address: Option<String>,
         ragequit_config: Box<Option<RagequitConfig>>,
         covenant_config: Box<Option<TwoPartyPolCovenantConfig>>,
-        // TODO: Do we want to allow this?
-        // denom_splits: Option<BTreeMap<String, SplitType>>,
+        denom_splits: Option<BTreeMap<String, SplitConfig>>,
+        fallback_split: Option<SplitConfig>,
     },
     UpdateCodeId {
         data: Option<Binary>,
