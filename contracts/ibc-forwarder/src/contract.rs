@@ -434,7 +434,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 resp = resp.add_attribute("next_contract", addr);
             }
 
-            if let Some(rci) = remote_chain_info {
+            if let Some(rci) = *remote_chain_info {
                 let validated_rci = rci.validate()?;
                 REMOTE_CHAIN_INFO.save(deps.storage, &validated_rci)?;
                 resp = resp.add_attributes(validated_rci.get_response_attributes());
