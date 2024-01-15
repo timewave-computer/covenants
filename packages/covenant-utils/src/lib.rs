@@ -574,8 +574,8 @@ impl DestinationConfig {
                 }
             };
 
-            match send_coin {
-                Some(c) => messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+            if let Some(c) = send_coin {
+                messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
                     source_port: "transfer".to_string(),
                     source_channel: self.destination_chain_channel_id.to_string(),
                     token: c.clone(),
@@ -590,8 +590,7 @@ impl DestinationConfig {
                         .nanos(),
                     memo: format!("ibc_distribution: {:?}:{:?}", c.denom, c.amount,).to_string(),
                     fee: default_ibc_fee(),
-                })),
-                None => (),
+                }));
             }
         }
 

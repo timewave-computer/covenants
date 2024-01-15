@@ -3,11 +3,11 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, CosmosMsg, Coin, Uint128,
+    to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Response, StdError, StdResult, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::{ReceiverConfig, get_default_ibc_fee_requirement};
+use covenant_utils::{get_default_ibc_fee_requirement, ReceiverConfig};
 use cw2::set_contract_version;
 
 use crate::{
@@ -90,7 +90,6 @@ fn try_distribute_fallback(
             let count = Uint128::from(denoms.len() as u128);
 
             for coin in available_balances {
-
                 let send_coin = if coin.denom != "untrn" {
                     Some(coin)
                 } else {
@@ -108,17 +107,16 @@ fn try_distribute_fallback(
                     }
                 };
 
-                match send_coin {
-                    Some(c) => bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                if let Some(c) = send_coin {
+                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
                         to_address: addr.to_string(),
                         amount: vec![c],
-                    })),
-                    None => (),
+                    }));
                 }
             }
             bank_sends
-        },
-        ReceiverConfig::Ibc(_destination_config) => vec![]
+        }
+        ReceiverConfig::Ibc(_destination_config) => vec![],
     };
 
     Ok(Response::default()
@@ -186,17 +184,16 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
                     }
                 };
 
-                match send_coin {
-                    Some(c) => bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                if let Some(c) = send_coin {
+                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
                         to_address: addr.to_string(),
                         amount: vec![c],
-                    })),
-                    None => (),
+                    }));
                 }
             }
             bank_sends
-        },
-        covenant_utils::ReceiverConfig::Ibc(_destination_config) => vec![]
+        }
+        covenant_utils::ReceiverConfig::Ibc(_destination_config) => vec![],
     };
 
     Ok(Response::default()
@@ -217,11 +214,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(
-    deps: DepsMut,
-    _env: Env,
-    msg: MigrateMsg,
-) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
