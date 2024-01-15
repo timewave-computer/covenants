@@ -24,8 +24,8 @@ use crate::{
         COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
         PARTY_B_ROUTER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
-        PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS,
-        PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS, PRESET_LIQUID_POOLER_FIELDS,
+        PRESET_LIQUID_POOLER_FIELDS, PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS,
+        PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS,
     },
 };
 
@@ -98,7 +98,7 @@ pub fn instantiate(
         deps.as_ref(),
         party_a_router_code,
         &creator_address,
-        &party_a_router_salt
+        &party_a_router_salt,
     )?;
 
     let party_b_router_address = get_precomputed_address(

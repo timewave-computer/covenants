@@ -61,9 +61,7 @@ pub fn execute(
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
             try_route_balances(deps, env)
         }
-        ExecuteMsg::DistributeFallback { denoms } => {
-            try_distribute_fallback(deps, env, denoms)
-        }
+        ExecuteMsg::DistributeFallback { denoms } => try_distribute_fallback(deps, env, denoms),
     }
 }
 
