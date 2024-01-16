@@ -3,18 +3,17 @@ use cosmwasm_std::Addr;
 use cw_storage_plus::Item;
 use cw_utils::Expiration;
 
-use crate::msg::{ContractState, DenomSplits, RagequitConfig, TwoPartyPolCovenantConfig};
+use crate::msg::{
+    ContractState, DenomSplits, RagequitConfig, RagequitTerms, TwoPartyPolCovenantConfig,
+};
 
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
 /// authorized clock contract
 pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 
-/// the LP module that we send the deposited funds to
-pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");
-
 /// address of the liquidity pool to which we provide liquidity
-pub const POOLER_ADDRESS: Item<Addr> = Item::new("pooler_address");
+pub const LIQUID_POOLER_ADDRESS: Item<Addr> = Item::new("pooler_address");
 
 /// configuration describing the lockup period after which parties are
 /// no longer subject to ragequit penalties in order to exit their position
@@ -38,6 +37,12 @@ pub const WITHDRAW_STATE: Item<WithdrawState> = Item::new("withdraw_state");
 
 #[cw_serde]
 pub enum WithdrawState {
-    Processing { claimer_addr: String },
+    Processing {
+        claimer_addr: String,
+    },
+    ProcessingRagequit {
+        claimer_addr: String,
+        terms: RagequitTerms,
+    },
     Emergency {},
 }
