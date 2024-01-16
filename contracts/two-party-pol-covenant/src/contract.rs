@@ -197,7 +197,6 @@ pub fn instantiate(
     };
     let preset_holder_fields = PresetTwoPartyPolHolderFields {
         lockup_config: msg.lockup_config,
-        pooler_address: liquid_pooler_address.to_string(),
         ragequit_config: msg.ragequit_config.unwrap_or(RagequitConfig::Disabled),
         deposit_deadline: msg.deposit_deadline,
         party_a: msg.party_a_config.to_preset_pol_party(msg.party_a_share),
