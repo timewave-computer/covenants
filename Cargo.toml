@@ -51,7 +51,7 @@ covenant-utils  = { path = "packages/covenant-utils" }
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
 # updated. to find cosmwasm_std's sha function:
 # ```cargo tree --package cosmwasm-std```
-sha2             = "0.10.8"
+sha2             = "0.10"
 neutron-sdk      = { git = "https://github.com/neutron-org/neutron-sdk", branch = "feat/cw-dex-bindings" }
 cosmos-sdk-proto = { version = "0.14.0", default-features = false }
 protobuf         = { version = "3.2.0", features = ["with-bytes"] }
