@@ -20,8 +20,6 @@ use crate::{error::ContractError, state::CONTRACT_STATE};
 pub struct InstantiateMsg {
     /// address of authorized clock
     pub clock_address: String,
-    /// address of the target liquidity pooler
-    pub pooler_address: String,
     /// liquid pooler address
     pub next_contract: String,
     /// config describing the agreed upon duration of POL
@@ -59,7 +57,6 @@ impl InstantiateMsg {
 
         let mut attrs = vec![
             Attribute::new("clock_addr", self.clock_address.to_string()),
-            Attribute::new("pooler_address", self.pooler_address.to_string()),
             Attribute::new("next_contract", self.next_contract.to_string()),
             Attribute::new("lockup_config", self.lockup_config.to_string()),
             Attribute::new("deposit_deadline", self.deposit_deadline.to_string()),
@@ -248,7 +245,6 @@ impl DenomSplits {
 
 #[cw_serde]
 pub struct PresetTwoPartyPolHolderFields {
-    pub pooler_address: String,
     pub lockup_config: Expiration,
     pub ragequit_config: RagequitConfig,
     pub deposit_deadline: Expiration,
@@ -308,7 +304,6 @@ impl PresetTwoPartyPolHolderFields {
 
         Ok(InstantiateMsg {
             clock_address,
-            pooler_address: self.pooler_address.to_string(),
             next_contract,
             lockup_config: self.lockup_config,
             ragequit_config: self.ragequit_config.clone(),
@@ -475,7 +470,6 @@ pub enum MigrateMsg {
         emergency_committee: Option<String>,
         lockup_config: Option<Expiration>,
         deposit_deadline: Option<Expiration>,
-        pooler_address: Option<String>,
         ragequit_config: Box<Option<RagequitConfig>>,
         covenant_config: Box<Option<TwoPartyPolCovenantConfig>>,
         denom_splits: Option<BTreeMap<String, SplitConfig>>,
@@ -543,8 +537,6 @@ pub enum QueryMsg {
     RagequitConfig {},
     #[returns(Expiration)]
     LockupConfig {},
-    #[returns(Addr)]
-    PoolerAddress {},
     #[returns(TwoPartyPolCovenantParty)]
     ConfigPartyA {},
     #[returns(TwoPartyPolCovenantParty)]
