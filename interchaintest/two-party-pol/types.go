@@ -18,10 +18,10 @@ type CovenantInstantiateMsg struct {
 	LockupConfig             Expiration          `json:"lockup_config"`
 	PartyAConfig             CovenantPartyConfig `json:"party_a_config"`
 	PartyBConfig             CovenantPartyConfig `json:"party_b_config"`
-	PoolAddress              string              `json:"pool_address"`
 	RagequitConfig           *RagequitConfig     `json:"ragequit_config,omitempty"`
 	DepositDeadline          Expiration          `json:"deposit_deadline"`
 	CovenantType             string              `json:"covenant_type"`
+	PoolAddress              string              `json:"pool_address"`
 	PartyAShare              string              `json:"party_a_share"`
 	PartyBShare              string              `json:"party_b_share"`
 	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
@@ -29,6 +29,7 @@ type CovenantInstantiateMsg struct {
 	PairType                 PairType            `json:"pool_pair_type"`
 	Splits                   []DenomSplit        `json:"splits"`
 	FallbackSplit            *SplitConfig        `json:"fallback_split,omitempty"`
+	EmergencyCommittee       string        		 `json:"emergency_committee,omitempty"`
 }
 
 type SplitType struct {
