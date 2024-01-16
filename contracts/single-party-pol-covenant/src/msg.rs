@@ -18,10 +18,10 @@ pub struct InstantiateMsg {
     pub lockup_period: Expiration,
     pub pool_address: String,
     pub ls_info: LsInfo,
-    // TODO: Should be a ragequit
-    // pub ragequit_config: Option<RagequitConfig>,
-    pub forwarder_a_config: CovenantPartyConfig,
-    pub forwarder_b_config: CovenantPartyConfig,
+    pub party_a_single_side_limit: Uint128,
+    pub party_b_single_side_limit: Uint128,
+    pub ls_forwarder_config: CovenantPartyConfig,
+    pub holder_forwarder_config: CovenantPartyConfig,
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
     pub pool_pair_type: PairType,
@@ -185,7 +185,7 @@ pub enum QueryMsg {
     #[returns(Addr)]
     HolderAddress {},
     #[returns(Addr)]
-    IbcForwarderAddress { party: String },
+    IbcForwarderAddress { ty: String },
     #[returns(Addr)]
     LiquidPoolerAddress {},
     #[returns(Addr)]
@@ -199,8 +199,8 @@ pub enum MigrateMsg {
     MigrateContracts {
         clock: Option<covenant_clock::msg::MigrateMsg>,
         holder: Option<covenant_single_party_pol_holder::msg::MigrateMsg>,
-        forwarder_a: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        forwarder_b: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
+        ls_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
+        holder_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
         splitter: Option<covenant_interchain_splitter::msg::MigrateMsg>,
         liquid_pooler: Option<covenant_astroport_liquid_pooler::msg::MigrateMsg>,
         // liquid_staker: Option<covenant_astroport_liquid_pooler::msg::MigrateMsg>,

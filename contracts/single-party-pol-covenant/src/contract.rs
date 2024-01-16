@@ -15,25 +15,25 @@ use covenant_stride_liquid_staker::msg::PresetStrideLsFields;
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
 
+
 use crate::{
     error::ContractError,
     msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        COVENANT_CLOCK_ADDR, HOLDER_ADDR, IBC_FORWARDER_A_ADDR, IBC_FORWARDER_B_ADDR,
-        LIQUID_POOLER_ADDR, LIQUID_STAKER_ADDR, PRESET_CLOCK_FIELDS, PRESET_FORWARDER_A_FIELDS,
-        PRESET_FORWARDER_B_FIELDS, PRESET_HOLDER_FIELDS, PRESET_LIQUID_POOLER_FIELDS,
-        PRESET_LIQUID_STAKER_FIELDS, PRESET_SPLITTER_FIELDS, SPLITTER_ADDR,
+        COVENANT_CLOCK_ADDR, HOLDER_ADDR,
+        LIQUID_POOLER_ADDR, LIQUID_STAKER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS, PRESET_LIQUID_POOLER_FIELDS,
+        PRESET_LIQUID_STAKER_FIELDS, PRESET_SPLITTER_FIELDS, SPLITTER_ADDR, HOLDER_FORWARDER_ADDR, LS_FORWARDER_ADDR, PRESET_LS_FORWARDER_FIELDS, PRESET_HOLDER_FORWARDER_FIELDS,
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol";
+const CONTRACT_NAME: &str = "crates.io:covenant-single-party-pol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const CLOCK_SALT: &[u8] = b"clock";
 pub const HOLDER_SALT: &[u8] = b"pol_holder";
 pub const NATIVE_SPLITTER: &[u8] = b"native_splitter";
-pub const FORWARDER_A_SALT: &[u8] = b"forwarder_a";
-pub const FORWARDER_B_SALT: &[u8] = b"forwarder_b";
+pub const LS_FORWARDER_SALT: &[u8] = b"ls_forwarder";
+pub const HOLDER_FORWARDER_SALT: &[u8] = b"holder_forwarder";
 pub const LIQUID_POOLER_SALT: &[u8] = b"liquid_pooler";
 pub const LIQUID_STAKER_SALT: &[u8] = b"liquid_staker";
 
@@ -50,7 +50,7 @@ fn get_precomputed_address(
     Ok(deps.api.addr_humanize(&precomputed_address)?)
 }
 
-pub fn generate_contract_salt(salt_str: &[u8]) -> cosmwasm_std::Binary {
+pub fn generate_contract_salt(salt_str: &[u8]) -> Binary {
     let mut hasher = Sha256::new();
     hasher.update(salt_str);
     hasher.finalize().to_vec().into()
@@ -66,8 +66,8 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let clock_salt = generate_contract_salt(CLOCK_SALT);
     let native_splitter_salt = generate_contract_salt(NATIVE_SPLITTER);
-    let forwarder_a_salt = generate_contract_salt(FORWARDER_A_SALT);
-    let forwarder_b_salt = generate_contract_salt(FORWARDER_B_SALT);
+    let ls_forwarder_salt = generate_contract_salt(LS_FORWARDER_SALT);
+    let holder_forwarder_salt = generate_contract_salt(HOLDER_FORWARDER_SALT);
     let liquid_staker_salt = generate_contract_salt(LIQUID_STAKER_SALT);
     let liquid_pooler_salt = generate_contract_salt(LIQUID_POOLER_SALT);
     let holder_salt = generate_contract_salt(HOLDER_SALT);
@@ -88,18 +88,18 @@ pub fn instantiate(
         &native_splitter_salt,
     )?;
 
-    let forwarder_a_address = get_precomputed_address(
+    let ls_forwarder_address = get_precomputed_address(
         deps.as_ref(),
         msg.contract_codes.ibc_forwarder_code,
         &creator_address,
-        &forwarder_a_salt,
+        &ls_forwarder_salt,
     )?;
 
-    let forwarder_b_address = get_precomputed_address(
+    let holder_forwarder_address = get_precomputed_address(
         deps.as_ref(),
         msg.contract_codes.ibc_forwarder_code,
         &creator_address,
-        &forwarder_b_salt,
+        &holder_forwarder_salt,
     )?;
 
     let liquid_staker_address = get_precomputed_address(
@@ -131,46 +131,46 @@ pub fn instantiate(
 
     let mut clock_whitelist = Vec::with_capacity(6);
 
-    let preset_forwarder_a_fields = match msg.clone().forwarder_a_config {
+    let preset_ls_forwarder_fields = match msg.clone().ls_forwarder_config {
         CovenantPartyConfig::Interchain(config) => {
-            IBC_FORWARDER_A_ADDR.save(deps.storage, &forwarder_a_address)?;
-            clock_whitelist.push(forwarder_a_address.to_string());
+            LS_FORWARDER_ADDR.save(deps.storage, &ls_forwarder_address)?;
+            clock_whitelist.push(ls_forwarder_address.to_string());
 
             let preset = PresetIbcForwarderFields {
                 remote_chain_connection_id: config.party_chain_connection_id,
                 remote_chain_channel_id: config.party_to_host_chain_channel_id,
                 denom: config.remote_chain_denom,
                 amount: config.contribution.amount,
-                label: format!("{}_ibc_forwarder_a", msg.label),
+                label: format!("{}_ls_ibc_forwarder", msg.label),
                 code_id: msg.contract_codes.ibc_forwarder_code,
                 ica_timeout: msg.timeouts.ica_timeout,
                 ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
                 ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
             };
-            PRESET_FORWARDER_B_FIELDS.save(deps.storage, &preset)?;
+            PRESET_LS_FORWARDER_FIELDS.save(deps.storage, &preset)?;
 
             Some(preset)
         }
         CovenantPartyConfig::Native(_) => None,
     };
 
-    let preset_forwarder_b_fields = match msg.clone().forwarder_b_config {
+    let preset_holder_forwarder_fields = match msg.clone().holder_forwarder_config {
         CovenantPartyConfig::Interchain(config) => {
-            IBC_FORWARDER_B_ADDR.save(deps.storage, &forwarder_b_address)?;
-            clock_whitelist.push(forwarder_b_address.to_string());
+            HOLDER_FORWARDER_ADDR.save(deps.storage, &holder_forwarder_address)?;
+            clock_whitelist.push(holder_forwarder_address.to_string());
 
             let preset = PresetIbcForwarderFields {
                 remote_chain_connection_id: config.party_chain_connection_id,
                 remote_chain_channel_id: config.party_to_host_chain_channel_id,
                 denom: config.remote_chain_denom,
                 amount: config.contribution.amount,
-                label: format!("{}_ibc_forwarder_b", msg.label),
+                label: format!("{}_holder_ibc_forwarder", msg.label),
                 code_id: msg.contract_codes.ibc_forwarder_code,
                 ica_timeout: msg.timeouts.ica_timeout,
                 ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
                 ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
             };
-            PRESET_FORWARDER_A_FIELDS.save(deps.storage, &preset)?;
+            PRESET_HOLDER_FORWARDER_FIELDS.save(deps.storage, &preset)?;
 
             Some(preset)
         }
@@ -218,11 +218,11 @@ pub fn instantiate(
         slippage_tolerance: None,
         assets: AssetData {
             asset_a_denom: msg.ls_info.ls_denom_on_neutron,
-            asset_b_denom: msg.forwarder_b_config.get_native_denom(),
+            asset_b_denom: msg.holder_forwarder_config.get_native_denom(),
         },
         single_side_lp_limits: SingleSideLpLimits {
-            asset_a_limit: Uint128::new(10000),
-            asset_b_limit: Uint128::new(100000),
+            asset_a_limit: msg.party_a_single_side_limit,
+            asset_b_limit: msg.party_b_single_side_limit,
         },
         label: format!("{}_liquid_pooler", msg.label),
         code_id: msg.contract_codes.liquid_pooler_code,
@@ -254,19 +254,19 @@ pub fn instantiate(
         )?,
     ];
 
-    if let Some(fields) = preset_forwarder_a_fields {
+    if let Some(fields) = preset_ls_forwarder_fields {
         messages.push(fields.to_instantiate2_msg(
             env.contract.address.to_string(),
-            forwarder_a_salt,
+            ls_forwarder_salt,
             clock_address.to_string(),
-            holder_address.to_string(),
+            liquid_staker_address.to_string(),
         )?);
     }
 
-    if let Some(fields) = preset_forwarder_b_fields {
+    if let Some(fields) = preset_holder_forwarder_fields {
         messages.push(fields.to_instantiate2_msg(
             env.contract.address.to_string(),
-            forwarder_b_salt,
+            holder_forwarder_salt,
             clock_address.to_string(),
             holder_address.to_string(),
         )?);
@@ -284,11 +284,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &COVENANT_CLOCK_ADDR.may_load(deps.storage)?,
         )?),
         QueryMsg::HolderAddress {} => Ok(to_json_binary(&HOLDER_ADDR.may_load(deps.storage)?)?),
-        QueryMsg::IbcForwarderAddress { party } => {
-            let resp = if party == "party_a" {
-                IBC_FORWARDER_A_ADDR.may_load(deps.storage)?
-            } else if party == "party_b" {
-                IBC_FORWARDER_B_ADDR.may_load(deps.storage)?
+        QueryMsg::IbcForwarderAddress { ty } => {
+            let resp = if ty == "holder" {
+                HOLDER_FORWARDER_ADDR.may_load(deps.storage)?
+            } else if ty == "ls" {
+                LS_FORWARDER_ADDR.may_load(deps.storage)?
             } else {
                 Some(Addr::unchecked("not found"))
             };
@@ -310,8 +310,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
     match msg {
         MigrateMsg::MigrateContracts {
             clock,
-            forwarder_a,
-            forwarder_b,
+            ls_forwarder,
+            holder_forwarder,
             holder: _, // TODO: Holder
             liquid_pooler,
             splitter,
@@ -330,23 +330,23 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-            if let Some(forwarder) = forwarder_a {
+            if let Some(forwarder) = ls_forwarder {
                 let msg: Binary = to_json_binary(&forwarder)?;
-                let forwarder_fields = PRESET_FORWARDER_A_FIELDS.load(deps.storage)?;
-                resp = resp.add_attribute("party_a_forwarder_migrate", msg.to_base64());
+                let forwarder_fields = PRESET_LS_FORWARDER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("ls_forwarder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
-                    contract_addr: IBC_FORWARDER_A_ADDR.load(deps.storage)?.to_string(),
+                    contract_addr: LS_FORWARDER_ADDR.load(deps.storage)?.to_string(),
                     new_code_id: forwarder_fields.code_id,
                     msg,
                 });
             }
 
-            if let Some(forwarder) = forwarder_b {
+            if let Some(forwarder) = holder_forwarder {
                 let msg: Binary = to_json_binary(&forwarder)?;
-                let forwarder_fields = PRESET_FORWARDER_B_FIELDS.load(deps.storage)?;
-                resp = resp.add_attribute("party_b_forwarder_migrate", msg.to_base64());
+                let forwarder_fields = PRESET_HOLDER_FORWARDER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("holder_forwarder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
-                    contract_addr: IBC_FORWARDER_B_ADDR.load(deps.storage)?.to_string(),
+                    contract_addr: HOLDER_FORWARDER_ADDR.load(deps.storage)?.to_string(),
                     new_code_id: forwarder_fields.code_id,
                     msg,
                 });

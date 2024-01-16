@@ -765,6 +765,61 @@ func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.
 	return covenantAddress
 }
 
+func (testCtx *TestContext) ManualInstantiateLS(codeId uint64, msg any, from *ibc.Wallet, keyring string) string {
+	codeIdStr := strconv.FormatUint(codeId, 10)
+
+	str, err := json.Marshal(msg)
+	require.NoError(testCtx.T, err, "Failed to marshall CovenantInstantiateMsg")
+	instantiateMsg := string(str)
+
+	cmd := []string{"neutrond", "tx", "wasm", "instantiate", codeIdStr,
+		instantiateMsg,
+		"--label", fmt.Sprintf("covenant-%s", codeIdStr),
+		"--no-admin",
+		"--from", from.KeyName,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--gas", "900090000",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+
+	prettyJson, _ := json.MarshalIndent(msg, "", "    ")
+	println("covenant instantiation message:")
+	fmt.Println(string(prettyJson))
+
+	covInstantiationResp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
+	require.NoError(testCtx.T, err, "manual instantiation failed")
+	println("covenant instantiation response: ", string(covInstantiationResp))
+	require.NoError(testCtx.T,
+		testutil.WaitForBlocks(testCtx.Ctx, 100, testCtx.Hub, testCtx.Neutron, testCtx.Stride))
+
+	queryCmd := []string{"neutrond", "query", "wasm",
+		"list-contract-by-code", codeIdStr,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+	}
+
+	queryResp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, queryCmd, nil)
+	require.NoError(testCtx.T, err, "failed to query")
+
+	type QueryContractResponse struct {
+		Contracts  []string `json:"contracts"`
+		Pagination any      `json:"pagination"`
+	}
+
+	contactsRes := QueryContractResponse{}
+	require.NoError(testCtx.T, json.Unmarshal(queryResp, &contactsRes), "failed to unmarshal contract response")
+
+	covenantAddress := contactsRes.Contracts[len(contactsRes.Contracts)-1]
+
+	return covenantAddress
+}
+
 // astroport whitelist
 type WhitelistInstantiateMsg struct {
 	Admins  []string `json:"admins"`
