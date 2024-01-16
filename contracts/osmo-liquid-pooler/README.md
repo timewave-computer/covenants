@@ -1,9 +1,13 @@
 # osmo liquid pooler
 
-Contract responsible for providing liquidity to a specified pool on osmosis dex.
+Contract responsible for providing liquidity to a specified pool on the Osmosis dex.
+Currently we only support GAMM pools where both tokens have equal weights.
 
 The contract receives the target denoms, provides liquidity to the specified
-pool, and forwards the LP tokens to the holder.
+pool, and withdraws the liquidity tokens from osmosis to this contract. The
+holder is then responsible for calling this contract to redeem the LP tokens
+for the underlying assets, which are then forwarder to the holder.
+
 Works in tandem with the [osmosis liquid pooler outpost](../outpost-osmo-liquid-pooler/README.md),
 in order to ensure atomic liquidity provision given the ibc nature of this design.
 
@@ -13,7 +17,8 @@ The expected state transitions are as follows:
 
 ### 1. `Instantiated`
 
-Ticks incoming to a contract in instantiated state will attempt to create a proxy.
+Ticks incoming to a contract in instantiated state will attempt to create a
+proxy account on Osmosis via [Polytone](https://github.com/DA0-DA0/polytone).
 This means submitting an empty wasm `Execute` message to the note contract.
 Note then relays this message to voice, which will in turn instantiate a proxy
 associated with the original caller (this contract).
@@ -43,8 +48,8 @@ attempt providing liquidity if we have delivered all of our funds.
 
 Because of the async nature of IBC, we need to keep things relevant for providing
 liquidity up to date. One of such things are balances of our proxy account. Upon
-contract instantiation, we do not store any balances, because we do not even have
-a proxy.
+contract instantiation, we do not store balances of the proxy account, because
+we do not even have a proxy.
 
 After proxy is created, the first attempt to deliver funds will find that proxy
 balances are unknown. This triggers a proxy denom query. Via polytone, we submit

@@ -198,12 +198,12 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
     // we get our target denom balances which we should transfer to the proxy
     let coin_1_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        lp_config.party_1_denom_info.neutron_denom.to_string(),
+        lp_config.party_1_denom_info.local_denom.to_string(),
     )?;
 
     let coin_2_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        lp_config.party_2_denom_info.neutron_denom.to_string(),
+        lp_config.party_2_denom_info.local_denom.to_string(),
     )?;
 
     // if either available balance is not sufficient,

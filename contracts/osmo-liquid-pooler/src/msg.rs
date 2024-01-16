@@ -164,7 +164,7 @@ pub struct PartyDenomInfo {
     /// coin as denominated on osmosis
     pub osmosis_coin: Coin,
     /// ibc denom on liquid pooler chain
-    pub neutron_denom: String,
+    pub local_denom: String,
     /// the max amount of tokens allow to be single-side lp'd
     pub single_side_lp_limit: Uint128,
 }
@@ -178,7 +178,7 @@ impl PartyDenomInfo {
         vec![
             Attribute {
                 key: format!("{:?}_neutron_denom", party),
-                value: self.neutron_denom.to_string(),
+                value: self.local_denom.to_string(),
             },
             Attribute {
                 key: format!("{:?}_osmosis_coin", party),
