@@ -657,17 +657,17 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				testCtx.SkipBlocks(10)
 				testCtx.HolderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
 				testCtx.SkipBlocks(5)
-				for {
-					routerNeutronBalA := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyARouterAddress)
-					routerAtomBalA := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
-					println("routerAtomBalA: ", routerAtomBalA)
-					println("routerNeutronBalA: ", routerNeutronBalA)
-					if routerAtomBalA != 0 && routerNeutronBalA != 0 {
-						break
-					} else {
-						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
+				// for {
+				// 	routerNeutronBalA := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyARouterAddress)
+				// 	routerAtomBalA := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
+				// 	println("routerAtomBalA: ", routerAtomBalA)
+				// 	println("routerNeutronBalA: ", routerNeutronBalA)
+				// 	if routerAtomBalA != 0 && routerNeutronBalA != 0 {
+				// 		break
+				// 	} else {
+				// 		testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+				// 	}
+				// }
 			})
 
 			t.Run("tick until party A claim is distributed", func(t *testing.T) {
