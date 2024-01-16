@@ -23,7 +23,7 @@ use crate::{
     },
     state::{
         CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_CONFIG, DENOM_SPLITS, DEPOSIT_DEADLINE,
-        LOCKUP_CONFIG,  RAGEQUIT_CONFIG,
+        LOCKUP_CONFIG, RAGEQUIT_CONFIG,
     },
 };
 
@@ -536,7 +536,7 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
     // set WithdrawState to include original data
     WITHDRAW_STATE.save(
         deps.storage,
-        &&WithdrawState::ProcessingRagequit {
+        &WithdrawState::ProcessingRagequit {
             claimer_addr: rq_party.host_addr,
             terms: rq_terms,
         },
@@ -584,7 +584,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::RagequitConfig {} => Ok(to_json_binary(&RAGEQUIT_CONFIG.load(deps.storage)?)?),
         QueryMsg::LockupConfig {} => Ok(to_json_binary(&LOCKUP_CONFIG.load(deps.storage)?)?),
         QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.load(deps.storage)?)?),
-        QueryMsg::NextContract {} => Ok(to_json_binary(&LIQUID_POOLER_ADDRESS.load(deps.storage)?)?),
+        QueryMsg::NextContract {} => {
+            Ok(to_json_binary(&LIQUID_POOLER_ADDRESS.load(deps.storage)?)?)
+        }
         QueryMsg::ConfigPartyA {} => Ok(to_json_binary(
             &COVENANT_CONFIG.load(deps.storage)?.party_a,
         )?),
