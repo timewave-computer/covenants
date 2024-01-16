@@ -204,22 +204,57 @@ type NativeBalQueryResponse struct {
 // single party POL types
 
 type CovenantInstantiationMsg struct {
-	Label                    string          `json:"label"`
-	Timeouts                 Timeouts        `json:"timeouts"`
-	PresetIbcFee             PresetIbcFee    `json:"preset_ibc_fee"`
-	ContractCodeIds          ContractCodeIds `json:"contract_codes"`
-	TickMaxGas               string          `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig             Expiration      `json:"lockup_config"`
-	PoolAddress              string          `json:"pool_address"`
-	DepositDeadline          Expiration      `json:"deposit_deadline"`
-	CovenantType             string          `json:"covenant_type"`
-	PartyAShare              string          `json:"a_share"`
-	PartyBShare              string          `json:"b_share"`
-	ExpectedPoolRatio        string          `json:"expected_pool_ratio"`
-	AcceptablePoolRatioDelta string          `json:"acceptable_pool_ratio_delta"`
-	PairType                 PairType        `json:"pool_pair_type"`
-	Splits                   []DenomSplit    `json:"splits"`
-	FallbackSplit            *SplitConfig    `json:"fallback_split,omitempty"`
+	Label                    string              `json:"label"`
+	Timeouts                 Timeouts            `json:"timeouts"`
+	PresetIbcFee             PresetIbcFee        `json:"preset_ibc_fee"`
+	ContractCodeIds          ContractCodeIds     `json:"contract_codes"`
+	TickMaxGas               string              `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig             Expiration          `json:"lockup_period"`
+	PoolAddress              string              `json:"pool_address"`
+	LsInfo                   LsInfo              `json:"ls_info"`
+	PartyASingleSideLimit    string              `json:"party_a_single_side_limit"`
+	PartyBSingleSideLimit    string              `json:"party_b_single_side_limit"`
+	LsForwarderConfig        CovenantPartyConfig `json:"ls_forwarder_config"`
+	HolderForwarderConfig    CovenantPartyConfig `json:"holder_forwarder_config"`
+	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
+	AcceptablePoolRatioDelta string              `json:"acceptable_pool_ratio_delta"`
+	PairType                 PairType            `json:"pool_pair_type"`
+}
+
+type CovenantPartyConfig struct {
+	Interchain *InterchainCovenantParty `json:"interchain,omitempty"`
+	Native     *NativeCovenantParty     `json:"native,omitempty"`
+}
+
+type Coin struct {
+	Denom  string `json:"denom"`
+	Amount string `json:"amount"`
+}
+
+type InterchainCovenantParty struct {
+	Addr                      string `json:"addr"`
+	NativeDenom               string `json:"native_denom"`
+	RemoteChainDenom          string `json:"remote_chain_denom"`
+	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
+	HostToPartyChainChannelId string `json:"host_to_party_chain_channel_id"`
+	PartyReceiverAddr         string `json:"party_receiver_addr"`
+	PartyChainConnectionId    string `json:"party_chain_connection_id"`
+	IbcTransferTimeout        string `json:"ibc_transfer_timeout"`
+	Contribution              Coin   `json:"contribution"`
+}
+
+type NativeCovenantParty struct {
+	Addr              string `json:"addr"`
+	NativeDenom       string `json:"native_denom"`
+	PartyReceiverAddr string `json:"party_receiver_addr"`
+	Contribution      Coin   `json:"contribution"`
+}
+
+type LsInfo struct {
+	LsDenom                   string `json:"ls_denom"`
+	LsDenomOnNeutron          string `json:"ls_denom_on_neutron"`
+	LsChainToNeutronChannelId string `json:"ls_chain_to_neutron_channel_id"`
+	LsNeutronConnectionId     string `json:"ls_neutron_connection_id"`
 }
 
 type Timeouts struct {
@@ -242,12 +277,12 @@ type Expiration struct {
 }
 
 type ContractCodeIds struct {
-	IbcForwarderCode     uint64 `json:"ibc_forwarder_code"`
-	InterchainRouterCode uint64 `json:"interchain_router_code"`
-	NativeRouterCode     uint64 `json:"native_router_code"`
-	ClockCode            uint64 `json:"clock_code"`
-	HolderCode           uint64 `json:"holder_code"`
-	LiquidPoolerCode     uint64 `json:"liquid_pooler_code"`
+	IbcForwarderCode   uint64 `json:"ibc_forwarder_code"`
+	ClockCode          uint64 `json:"clock_code"`
+	HolderCode         uint64 `json:"holder_code"`
+	LiquidPoolerCode   uint64 `json:"liquid_pooler_code"`
+	LiquidStakerCode   uint64 `json:"liquid_staker_code"`
+	NativeSplitterCode uint64 `json:"native_splitter_code"`
 }
 
 type SplitType struct {
