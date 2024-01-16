@@ -31,7 +31,7 @@ pub enum ContractError {
     #[error("state machine: {0}")]
     StateMachineError(String),
 
-    #[error("polyone error: {0}")]
+    #[error("polytone error: {0}")]
     PolytoneError(String),
 }
 
