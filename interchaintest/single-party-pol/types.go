@@ -204,21 +204,29 @@ type NativeBalQueryResponse struct {
 // single party POL types
 
 type CovenantInstantiationMsg struct {
-	Label                    string              `json:"label"`
-	Timeouts                 Timeouts            `json:"timeouts"`
-	PresetIbcFee             PresetIbcFee        `json:"preset_ibc_fee"`
-	ContractCodeIds          ContractCodeIds     `json:"contract_codes"`
-	TickMaxGas               string              `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig             Expiration          `json:"lockup_period"`
-	PoolAddress              string              `json:"pool_address"`
-	LsInfo                   LsInfo              `json:"ls_info"`
-	PartyASingleSideLimit    string              `json:"party_a_single_side_limit"`
-	PartyBSingleSideLimit    string              `json:"party_b_single_side_limit"`
-	LsForwarderConfig        CovenantPartyConfig `json:"ls_forwarder_config"`
-	HolderForwarderConfig    CovenantPartyConfig `json:"holder_forwarder_config"`
-	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
-	AcceptablePoolRatioDelta string              `json:"acceptable_pool_ratio_delta"`
-	PairType                 PairType            `json:"pool_pair_type"`
+	Label                    string               `json:"label"`
+	Timeouts                 Timeouts             `json:"timeouts"`
+	PresetIbcFee             PresetIbcFee         `json:"preset_ibc_fee"`
+	ContractCodeIds          ContractCodeIds      `json:"contract_codes"`
+	TickMaxGas               string               `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig             Expiration           `json:"lockup_period"`
+	PoolAddress              string               `json:"pool_address"`
+	LsInfo                   LsInfo               `json:"ls_info"`
+	PartyASingleSideLimit    string               `json:"party_a_single_side_limit"`
+	PartyBSingleSideLimit    string               `json:"party_b_single_side_limit"`
+	LsForwarderConfig        CovenantPartyConfig  `json:"ls_forwarder_config"`
+	HolderForwarderConfig    CovenantPartyConfig  `json:"holder_forwarder_config"`
+	ExpectedPoolRatio        string               `json:"expected_pool_ratio"`
+	AcceptablePoolRatioDelta string               `json:"acceptable_pool_ratio_delta"`
+	PairType                 PairType             `json:"pool_pair_type"`
+	NativeSplitterConfig     NativeSplitterConfig `json:"native_splitter_config"`
+}
+
+type NativeSplitterConfig struct {
+	ChannelId    string `json:"channel_id"`
+	ConnectionId string `json:"connection_id"`
+	Denom        string `json:"denom"`
+	Amount       string `json:"amount"`
 }
 
 type CovenantPartyConfig struct {
