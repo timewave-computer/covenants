@@ -229,6 +229,7 @@ fn try_distribute(mut deps: DepsMut, info: MessageInfo) -> Result<Response, Cont
     let (claim_party, counterparty, denom_splits, is_rq) = match withdraw_state {
         WithdrawState::Processing { claimer_addr } => {
             let (claim_party, counterparty) = covenant_config.authorize_sender(claimer_addr)?;
+            
             (claim_party, counterparty, denom_splits, false)
         }
         WithdrawState::ProcessingRagequit {
@@ -238,6 +239,7 @@ fn try_distribute(mut deps: DepsMut, info: MessageInfo) -> Result<Response, Cont
             let (rq_party, counterparty) = covenant_config.authorize_sender(claimer_addr)?;
             let new_denom_split =
                 denom_splits.apply_penalty(terms.penalty, &rq_party, &counterparty)?;
+
             (rq_party, counterparty, new_denom_split, true)
         }
         WithdrawState::Emergency {} => {
@@ -251,6 +253,8 @@ fn try_distribute(mut deps: DepsMut, info: MessageInfo) -> Result<Response, Cont
             )
         }
     };
+
+    WITHDRAW_STATE.remove(deps.storage);
 
     match covenant_config.covenant_type {
         CovenantType::Share => {

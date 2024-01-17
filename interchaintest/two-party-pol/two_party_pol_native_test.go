@@ -393,7 +393,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				println("astroport factory: ", factoryAddress)
 				testCtx.SkipBlocks(2)
 			})
-
 			t.Run("create pair on factory", func(t *testing.T) {
 				testCtx.CreateAstroportFactoryPair(3, cosmosNeutron.Config().Denom, neutronAtomIbcDenom, factoryAddress, neutronUser, keyring.BackendTest)
 			})
@@ -626,9 +625,9 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("tick until holder sends funds to LiquidPooler and receives LP tokens in return", func(t *testing.T) {
+			t.Run("tick until holder sends funds to LiquidPooler and LPer receives LP tokens", func(t *testing.T) {
 				for {
-					if testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress) == 0 {
+					if testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress) == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					} else {
 						break
@@ -664,7 +663,7 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				println("holderAtomBal: ", holderAtomBal)
 
 				testCtx.SkipBlocks(10)
-				res := testCtx.HolderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
+				testCtx.HolderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
 				testCtx.SkipBlocks(5)
 
 				routerNeutronBalA = testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyARouterAddress)
@@ -739,17 +738,17 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				testCtx.SkipBlocks(5)
 				testCtx.HolderClaim(holderAddress, happyCaseNeutronAccount, keyring.BackendTest)
 				testCtx.SkipBlocks(5)
-				for {
-					routerNeutronBalB := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyBRouterAddress)
-					routerAtomBalB := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
-					println("routerAtomBalB: ", routerAtomBalB)
-					println("routerNeutronBalB: ", routerNeutronBalB)
-					if routerAtomBalB != 0 && routerNeutronBalB != 0 {
-						break
-					} else {
-						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-					}
-				}
+				// for {
+				// 	routerNeutronBalB := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyBRouterAddress)
+				// 	routerAtomBalB := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
+				// 	println("routerAtomBalB: ", routerAtomBalB)
+				// 	println("routerNeutronBalB: ", routerNeutronBalB)
+				// 	if routerAtomBalB != 0 && routerNeutronBalB != 0 {
+				// 		break
+				// 	} else {
+				// 		testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+				// 	}
+				// }
 			})
 
 			t.Run("tick routers until both parties receive their funds", func(t *testing.T) {
@@ -971,7 +970,7 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 
 			t.Run("tick until holder sends funds to LPer and receives LP tokens in return", func(t *testing.T) {
 				for {
-					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress)
+					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
 
 					if holderLpTokenBal == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -1257,7 +1256,7 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 
 			t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
 				for {
-					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress)
+					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
 					println("holder lp token balance: ", holderLpTokenBal)
 
 					if holderLpTokenBal == 0 {
@@ -1521,7 +1520,7 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 
 			t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
 				for {
-					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress)
+					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
 					println("holder lp token balance: ", holderLpTokenBal)
 
 					if holderLpTokenBal == 0 {
