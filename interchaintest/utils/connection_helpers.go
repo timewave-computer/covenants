@@ -68,17 +68,40 @@ func (testCtx *TestContext) Tick(clock string, keyring string, from string) {
 	testCtx.SkipBlocks(3)
 }
 
-func (testCtx *TestContext) SkipBlocks(n int) {
+func (testCtx *TestContext) TickStride(clock string, keyring string, from string) {
+	neutronHeight, _ := testCtx.Neutron.Height(testCtx.Ctx)
+	println("tick neutron@", neutronHeight)
+	cmd := []string{"neutrond", "tx", "wasm", "execute", clock,
+		`{"tick":{}}`,
+		"--gas-prices", "0.0untrn",
+		"--gas-adjustment", `1.5`,
+		"--output", "json",
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--home", testCtx.Neutron.HomeDir(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--from", from,
+		"--gas", "1500000",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+
+	tickresponse, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
+	require.NoError(testCtx.T, err)
+	println("tick reponse: ", string(tickresponse))
+	testCtx.SkipBlocksStride(3)
+}
+
+func (testCtx *TestContext) SkipBlocks(n uint64) {
 	require.NoError(
 		testCtx.T,
-		testutil.WaitForBlocks(testCtx.Ctx, n, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis),
+		testutil.WaitForBlocks(testCtx.Ctx, int(n), testCtx.Hub, testCtx.Neutron, testCtx.Osmosis),
 		"failed to wait for blocks")
 }
 
 func (testCtx *TestContext) SkipBlocksStride(n uint64) {
 	require.NoError(
 		testCtx.T,
-		testutil.WaitForBlocks(testCtx.Ctx, 3, testCtx.Hub, testCtx.Neutron, testCtx.Stride),
+		testutil.WaitForBlocks(testCtx.Ctx, int(n), testCtx.Hub, testCtx.Neutron, testCtx.Stride),
 		"failed to wait for blocks")
 }
 
@@ -589,6 +612,48 @@ func (testCtx *TestContext) QueryIbcForwarderAddress(contract string, party stri
 	return response.Data
 }
 
+func (testCtx *TestContext) QueryIbcForwarderTyAddress(contract string, ty string) string {
+	var response CovenantAddressQueryResponse
+
+	type Type struct {
+		Type string `json:"ty"`
+	}
+	type IbcForwarderQuery struct {
+		Type Type `json:"ibc_forwarder_address"`
+	}
+	query := IbcForwarderQuery{
+		Type: Type{
+			Type: ty,
+		},
+	}
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, query, &response)
+	require.NoError(
+		testCtx.T,
+		err,
+		"failed to query ibc forwarder address",
+	)
+	println(ty, " forwarder addr: ", response.Data)
+	return response.Data
+}
+
+func (testCtx *TestContext) QueryRemoteChainSplitterAddress(contract string) string {
+	var response CovenantAddressQueryResponse
+
+	type SplitterAddress struct{}
+	type SplitterAddressQuery struct {
+		SplitterAddress SplitterAddress `json:"splitter_address"`
+	}
+	query := SplitterAddressQuery{}
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, query, &response)
+	require.NoError(
+		testCtx.T,
+		err,
+		"failed to query splitter address",
+	)
+	println("splitter addr: ", response.Data)
+	return response.Data
+}
+
 type Party struct {
 	Party string `json:"party"`
 }
@@ -710,6 +775,27 @@ func (testCtx *TestContext) QueryDepositAddress(covenant string, party string) s
 	return depositAddressResponse.Data
 }
 
+func (testCtx *TestContext) QueryDepositAddressSingleParty(covenant string) string {
+	var depositAddressResponse CovenantAddressQueryResponse
+
+	type PartyDepositAddress struct{}
+	type PartyDepositAddressQuery struct {
+		PartyDepositAddress PartyDepositAddress `json:"party_deposit_address"`
+	}
+	depositAddressQuery := PartyDepositAddressQuery{
+		PartyDepositAddress: PartyDepositAddress{},
+	}
+
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, covenant, depositAddressQuery, &depositAddressResponse)
+	require.NoError(
+		testCtx.T,
+		err,
+		"failed to query party deposit address",
+	)
+	println("party deposit address: ", depositAddressResponse.Data)
+	return depositAddressResponse.Data
+}
+
 func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.Wallet, keyring string) string {
 	codeIdStr := strconv.FormatUint(codeId, 10)
 
@@ -794,7 +880,7 @@ func (testCtx *TestContext) ManualInstantiateLS(codeId uint64, msg any, from *ib
 	require.NoError(testCtx.T, err, "manual instantiation failed")
 	println("covenant instantiation response: ", string(covInstantiationResp))
 	require.NoError(testCtx.T,
-		testutil.WaitForBlocks(testCtx.Ctx, 100, testCtx.Hub, testCtx.Neutron, testCtx.Stride))
+		testutil.WaitForBlocks(testCtx.Ctx, 10, testCtx.Hub, testCtx.Neutron, testCtx.Stride))
 
 	queryCmd := []string{"neutrond", "query", "wasm",
 		"list-contract-by-code", codeIdStr,
@@ -1234,21 +1320,20 @@ func (testCtx *TestContext) QueryLiquidPoolerAddress(contract string) string {
 	return response.Data
 }
 
-type LatestPoolState struct{}
-type LatestPoolStateQuery struct {
-	LatestPoolState LatestPoolState `json:"latest_pool_state"`
-}
-
-func (testCtx *TestContext) QueryLiquidPoolerLatestPoolState(contract string) string {
+func (testCtx *TestContext) QueryLiquidStakerAddress(contract string) string {
 	var response CovenantAddressQueryResponse
+	type LiquidStakerAddress struct{}
+	type LiquidStakerQuery struct {
+		LiquidStakerAddress LiquidStakerAddress `json:"liquid_staker_address"`
+	}
 
-	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, LatestPoolStateQuery{}, &response)
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, LiquidStakerQuery{}, &response)
 	require.NoError(
 		testCtx.T,
 		err,
-		"failed to query liquid pooler pool query state",
+		"failed to query liquid staker address",
 	)
-	println("pool query state: ", response.Data)
+	println("liquid staker address: ", response.Data)
 	return response.Data
 }
 

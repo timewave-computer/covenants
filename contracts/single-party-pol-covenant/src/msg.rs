@@ -25,6 +25,15 @@ pub struct InstantiateMsg {
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
     pub pool_pair_type: PairType,
+    pub native_splitter_config: NativeSplitterConfig,
+}
+
+#[cw_serde]
+pub struct NativeSplitterConfig {
+    pub channel_id: String,
+    pub connection_id: String,
+    pub denom: String,
+    pub amount: Uint128,
 }
 
 #[cw_serde]
@@ -192,6 +201,8 @@ pub enum QueryMsg {
     LiquidStakerAddress {},
     #[returns(Addr)]
     SplitterAddress {},
+    #[returns(Addr)]
+    PartyDepositAddress {},
 }
 
 #[cw_serde]

@@ -8,7 +8,8 @@ use cosmwasm_std::{
     to_json_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo,
     Reply, Response, StdError, StdResult, SubMsg, Uint128,
 };
-use covenant_clock::helpers::verify_clock;
+use covenant_clock::helpers::{verify_clock, enqueue_msg};
+use covenant_utils::get_default_ica_fee;
 use covenant_utils::neutron_ica::{self, OpenAckVersion, RemoteChainInfo, SudoPayload};
 use cw2::set_contract_version;
 use neutron_sdk::bindings::msg::MsgSubmitTxResponse;
@@ -80,6 +81,7 @@ pub fn instantiate(
     }
 
     Ok(Response::default()
+        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "native_splitter_instantiate")
         .add_attribute("clock_address", clock_addr)
         .add_attributes(remote_chain_info.get_response_attributes())
@@ -105,8 +107,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
     // Verify caller is the clock
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
-    let current_state = CONTRACT_STATE.load(deps.storage)?;
-    match current_state {
+    match CONTRACT_STATE.load(deps.storage)? {
         ContractState::Instantiated => try_register_ica(deps, env),
         ContractState::IcaCreated => try_split_funds(deps, env),
         ContractState::Completed => {
@@ -120,7 +121,7 @@ fn try_register_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMs
     let register: NeutronMsg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
         INTERCHAIN_ACCOUNT_ID.to_string(),
-        None,
+        Some(vec![get_default_ica_fee()]),
     );
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
 
@@ -150,13 +151,25 @@ fn try_split_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg
                     .checked_multiply_ratio(split_receiver.share, Uint128::new(100))
                     .map_err(|e| NeutronError::Std(StdError::GenericErr { msg: e.to_string() }))?;
 
-                outputs.push(Output {
-                    address: split_receiver.addr.to_string(),
-                    coins: vec![Coin {
-                        denom: remote_chain_info.denom.to_string(),
-                        amount: amt.to_string(),
-                    }],
-                });
+                // query the ibc forwarders for their ICA addresses
+                // if either does not exist yet, error out
+                let forwarder_deposit_address: Option<String> = deps.querier.query_wasm_smart(
+                    split_receiver.addr.to_string(),
+                    &covenant_utils::neutron_ica::CovenantQueryMsg::DepositAddress {},
+                )?;
+
+                match forwarder_deposit_address {
+                    Some(ica) => outputs.push(Output {
+                        address: ica,
+                        coins: vec![Coin {
+                            denom: remote_chain_info.denom.to_string(),
+                            amount: amt.to_string(),
+                        }],
+                    }),
+                    None => return Err(NeutronError::Std(
+                        StdError::NotFound { kind: "forwarder ica not created".to_string() }),
+                    ),
+                }
             }
 
             // todo: make sure output amounts add up to the input amount here
