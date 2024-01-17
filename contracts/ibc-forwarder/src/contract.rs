@@ -5,7 +5,7 @@ use cosmwasm_std::{
     DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::neutron_ica::{self, get_proto_coin, RemoteChainInfo};
+use covenant_utils::{neutron_ica::{self, get_proto_coin, RemoteChainInfo}, get_default_ica_fee};
 use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::{
@@ -97,7 +97,7 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 /// tries to register an ICA on the remote chain
 fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-    let register_fee: Option<Vec<Coin>> = Some(vec![coin(1000001, "untrn")]);
+    let register_fee: Option<Vec<Coin>> = Some(vec![get_default_ica_fee()]);
     let register_msg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
         INTERCHAIN_ACCOUNT_ID.to_string(),

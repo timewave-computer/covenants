@@ -1,7 +1,7 @@
 use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, Binary, DepsMut, StdError, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{Addr, Binary, DepsMut, WasmMsg, StdError, Uint128, Attribute, to_json_binary, Uint64};
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
@@ -43,6 +43,57 @@ pub struct InstantiateMsg {
     /// if the ICA times out, the destination chain receiving the funds
     /// will also receive the IBC packet with an expired timestamp.
     pub ibc_transfer_timeout: Uint64,
+}
+
+
+#[cw_serde]
+pub struct PresetNativeSplitterFields {
+    pub code_id: u64,
+    pub label: String,
+    pub remote_chain_connection_id: String,
+    pub remote_chain_channel_id: String,
+    pub denom: String,
+    pub amount: Uint128,
+    pub ibc_fee: IbcFee,
+    pub ica_timeout: Uint64,
+    pub ibc_transfer_timeout: Uint64,
+}
+
+impl PresetNativeSplitterFields {
+    pub fn to_instantiate_msg(
+        &self,
+        clock_address: String,
+        splits: Vec<NativeDenomSplit>,
+    ) -> InstantiateMsg {
+        InstantiateMsg {
+            clock_address,
+            remote_chain_connection_id: self.remote_chain_connection_id.to_string(),
+            remote_chain_channel_id: self.remote_chain_channel_id.to_string(),
+            denom: self.denom.to_string(),
+            amount: self.amount,
+            splits,
+            ibc_fee: self.ibc_fee.clone(),
+            ica_timeout: self.ica_timeout,
+            ibc_transfer_timeout: self.ibc_transfer_timeout,
+        }
+    }
+
+    pub fn to_instantiate2_msg(
+        &self,
+        admin_addr: String,
+        salt: Binary,
+        clock_address: String,
+        splits: Vec<NativeDenomSplit>,
+    ) -> Result<WasmMsg, StdError> {
+        Ok(WasmMsg::Instantiate2 {
+            admin: Some(admin_addr),
+            code_id: self.code_id,
+            label: self.label.to_string(),
+            msg: to_json_binary(&self.to_instantiate_msg(clock_address, splits))?,
+            funds: vec![],
+            salt,
+        })
+    }
 }
 
 #[cw_serde]

@@ -10,6 +10,7 @@ use covenant_astroport_liquid_pooler::msg::{
 };
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
+use covenant_native_splitter::msg::{NativeDenomSplit, SplitReceiver, PresetNativeSplitterFields};
 use covenant_single_party_pol_holder::msg::PresetHolderFields;
 use covenant_stride_liquid_staker::msg::PresetStrideLsFields;
 use cw2::set_contract_version;
@@ -32,8 +33,10 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const CLOCK_SALT: &[u8] = b"clock";
 pub const HOLDER_SALT: &[u8] = b"pol_holder";
 pub const NATIVE_SPLITTER: &[u8] = b"native_splitter";
+
 pub const LS_FORWARDER_SALT: &[u8] = b"ls_forwarder";
 pub const HOLDER_FORWARDER_SALT: &[u8] = b"holder_forwarder";
+
 pub const LIQUID_POOLER_SALT: &[u8] = b"liquid_pooler";
 pub const LIQUID_STAKER_SALT: &[u8] = b"liquid_staker";
 
@@ -60,7 +63,7 @@ pub fn generate_contract_salt(salt_str: &[u8]) -> Binary {
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -129,12 +132,16 @@ pub fn instantiate(
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
     SPLITTER_ADDR.save(deps.storage, &splitter_address)?;
 
-    let mut clock_whitelist = Vec::with_capacity(6);
+    let mut clock_whitelist = Vec::with_capacity(7);
+    clock_whitelist.push(splitter_address.to_string());
+    clock_whitelist.push(liquid_pooler_address.to_string());
+    clock_whitelist.push(liquid_staker_address.to_string());
+    clock_whitelist.push(holder_address.to_string());
 
     let preset_ls_forwarder_fields = match msg.clone().ls_forwarder_config {
         CovenantPartyConfig::Interchain(config) => {
             LS_FORWARDER_ADDR.save(deps.storage, &ls_forwarder_address)?;
-            clock_whitelist.push(ls_forwarder_address.to_string());
+            clock_whitelist.insert(0, ls_forwarder_address.to_string());
 
             let preset = PresetIbcForwarderFields {
                 remote_chain_connection_id: config.party_chain_connection_id,
@@ -157,7 +164,7 @@ pub fn instantiate(
     let preset_holder_forwarder_fields = match msg.clone().holder_forwarder_config {
         CovenantPartyConfig::Interchain(config) => {
             HOLDER_FORWARDER_ADDR.save(deps.storage, &holder_forwarder_address)?;
-            clock_whitelist.push(holder_forwarder_address.to_string());
+            clock_whitelist.insert(0, holder_forwarder_address.to_string());
 
             let preset = PresetIbcForwarderFields {
                 remote_chain_connection_id: config.party_chain_connection_id,
@@ -177,10 +184,7 @@ pub fn instantiate(
         CovenantPartyConfig::Native(_) => None,
     };
 
-    clock_whitelist.push(liquid_pooler_address.to_string());
-    clock_whitelist.push(liquid_staker_address.to_string());
-    clock_whitelist.push(splitter_address.to_string());
-    clock_whitelist.push(holder_address.to_string());
+
 
     let preset_clock_fields = PresetClockFields {
         tick_max_gas: msg.clock_tick_max_gas,
@@ -194,8 +198,8 @@ pub fn instantiate(
     let preset_holder_fields = PresetHolderFields {
         code_id: msg.contract_codes.holder_code,
         label: format!("{}-holder", msg.label),
-        withdrawer: None,
-        withdraw_to: None,
+        withdrawer: Some(info.sender.to_string()),
+        withdraw_to: Some(info.sender.to_string()),
         lockup_period: msg.lockup_period,
     };
     PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
@@ -232,6 +236,19 @@ pub fn instantiate(
     };
     PRESET_LIQUID_POOLER_FIELDS.save(deps.storage, &preset_liquid_pooler_fields)?;
 
+    let preset_splitter_fields = PresetNativeSplitterFields {
+        remote_chain_channel_id: msg.native_splitter_config.channel_id,
+        remote_chain_connection_id: msg.native_splitter_config.connection_id,
+        code_id: msg.contract_codes.native_splitter_code,
+        label: format!("{}_remote_chain_splitter", msg.label),
+        denom: msg.native_splitter_config.denom,
+        amount: msg.native_splitter_config.amount,
+        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+        ica_timeout: msg.timeouts.ica_timeout,
+        ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+    };
+    PRESET_SPLITTER_FIELDS.save(deps.storage, &preset_splitter_fields)?;
+
     let mut messages = vec![
         preset_clock_fields.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?,
         preset_liquid_staker_fields.to_instantiate2_msg(
@@ -251,6 +268,26 @@ pub fn instantiate(
             msg.pool_address,
             clock_address.to_string(),
             holder_address.to_string(),
+        )?,
+        preset_splitter_fields.to_instantiate2_msg(
+            env.contract.address.to_string(),
+            native_splitter_salt,
+            clock_address.to_string(),
+            vec![
+                NativeDenomSplit {
+                    denom: "uatom".to_string(),
+                    receivers: vec![
+                        SplitReceiver {
+                            addr: ls_forwarder_address.to_string(),
+                            share: Uint128::new(50),
+                        },
+                        SplitReceiver {
+                            addr: holder_forwarder_address.to_string(),
+                            share: Uint128::new(50),
+                        },
+                    ]
+                },
+            ],
         )?,
     ];
 
@@ -301,6 +338,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             Ok(to_json_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?)
         }
         QueryMsg::SplitterAddress {} => Ok(to_json_binary(&SPLITTER_ADDR.load(deps.storage)?)?),
+        QueryMsg::PartyDepositAddress {} => {
+            let splitter_address = SPLITTER_ADDR.load(deps.storage)?;
+            let ica: Option<Addr> = deps.querier.query_wasm_smart(
+                splitter_address,
+                &covenant_utils::neutron_ica::CovenantQueryMsg::DepositAddress {},
+            )?;
+
+            Ok(to_json_binary(&ica)?)
+        }
     }
 }
 

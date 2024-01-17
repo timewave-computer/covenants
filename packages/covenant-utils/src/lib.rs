@@ -129,6 +129,15 @@ pub mod neutron_ica {
         DepositAddress {},
     }
 
+    #[cw_serde]
+    #[derive(QueryResponses)]
+    pub enum CovenantQueryMsg {
+        /// Returns the associated remote chain information
+        #[returns(Option<String>)]
+        DepositAddress {},
+    }
+
+
     /// helper that serializes a MsgTransfer to protobuf
     pub fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
         // Serialize the Transfer message
@@ -547,6 +556,10 @@ pub fn default_ibc_fee() -> IbcFee {
 
 pub fn get_default_ibc_fee_requirement() -> Uint128 {
     default_ibc_ack_fee_amount() + default_ibc_timeout_fee_amount()
+}
+
+pub fn get_default_ica_fee() -> Coin {
+    Coin { denom: "untrn".to_string(), amount: Uint128::new(1000000) }
 }
 
 impl DestinationConfig {

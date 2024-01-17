@@ -671,6 +671,7 @@ dependencies = [
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
  "covenant-interchain-splitter",
+ "covenant-native-splitter",
  "covenant-single-party-pol-holder",
  "covenant-stride-liquid-staker",
  "covenant-utils",
