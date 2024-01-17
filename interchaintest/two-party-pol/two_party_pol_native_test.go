@@ -667,16 +667,16 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				res := testCtx.HolderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
 				testCtx.SkipBlocks(5)
 
-				routerNeutronBalA := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyARouterAddress)
-				routerAtomBalA := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
+				routerNeutronBalA = testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyARouterAddress)
+				routerAtomBalA = testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
 				println("routerAtomBalA: ", routerAtomBalA)
 				println("routerNeutronBalA: ", routerNeutronBalA)
-				routerNeutronBalB := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyBRouterAddress)
-				routerAtomBalB := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
+				routerNeutronBalB = testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyBRouterAddress)
+				routerAtomBalB = testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyBRouterAddress)
 				println("routerAtomBalB: ", routerAtomBalB)
 				println("routerNeutronBalB: ", routerNeutronBalB)
-				holderNtrnBal := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, holderAddress)
-				holderAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+				holderNtrnBal = testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, holderAddress)
+				holderAtomBal = testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
 				println("holderNtrnBal: ", holderNtrnBal)
 				println("holderAtomBal: ", holderAtomBal)
 
@@ -714,11 +714,14 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					atomBalPartyA := testCtx.QueryHubDenomBalance(cosmosAtom.Config().Denom, hubReceiverAddr)
 					neutronBalPartyA := testCtx.QueryHubDenomBalance(hubNeutronIbcDenom, hubReceiverAddr)
 
+					println("party A router atom bal: ", routerAtomBalA)
+					println("party A router neutron bal: ", routerNeutronBalA)
+
 					atomBalPartyB := testCtx.QueryNeutronDenomBalance(cosmosAtom.Config().Denom, neutronReceiverAddr)
 					neutronBalPartyB := testCtx.QueryNeutronDenomBalance(hubNeutronIbcDenom, neutronReceiverAddr)
 
-					println("party A router atom bal: ", routerAtomBalA)
-					println("party A router neutron bal: ", routerNeutronBalA)
+					println("party B router atom bal: ", atomBalPartyB)
+					println("party B router neutron bal: ", neutronBalPartyB)
 
 					if atomBalPartyA != 0 && neutronBalPartyA != 0 {
 						break
