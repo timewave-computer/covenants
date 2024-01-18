@@ -11,7 +11,7 @@ use covenant_utils::neutron_ica::{
 };
 use cw2::set_contract_version;
 
-use crate::helpers::Autopilot;
+use crate::helpers::{Autopilot, AutopilotConfig};
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{
     read_reply_payload, save_reply_payload, save_sudo_payload, CLOCK_ADDRESS, CONTRACT_STATE,
@@ -227,37 +227,43 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
         )?),
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => {
-            let ica = query_deposit_address(deps, env)?;
-            // up to the querying module to make sense of the response
-            Ok(to_json_binary(&ica)?)
+            let ica = get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0;
+
+            let autopilot = Autopilot {
+                autopilot: AutopilotConfig {
+                    receiver: ica.to_string(),
+                    stakeibc: crate::helpers::Stakeibc {
+                        action: "LiquidStake".to_string(),
+                        stride_address: ica,
+                    },
+                }
+            };
+
+            let autopilot_str = to_json_string(&autopilot)?;
+
+            Ok(to_json_binary(&autopilot_str)?)
         }
         QueryMsg::RemoteChainInfo {} => {
             Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?)
         }
         QueryMsg::NextMemo {} => {
-            let next_contract = NEXT_CONTRACT.load(deps.storage)?;
-            let deposit_address_query: Option<String> = deps.querier.query_wasm_smart(
-                next_contract,
-                &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
-            )?;
-
-            // if query returns None, then we return empty memo (equivalent to error)
-            let Some(deposit_address) = deposit_address_query else {
-              return Ok(to_json_binary("")?)
-            };
-
-            let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
+            // let next_contract = NEXT_CONTRACT.load(deps.storage)?;
+            // 1. receiver = query ICA
+            let ica = get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0;
 
             let autopilot = Autopilot {
-                receiver: env.contract.address.to_string(),
-                stakeibc: crate::helpers::Stakeibc {
-                    action: "LiquidStake".to_string(),
-                    ibc_receiver: deposit_address,
-                    transfer_channel: remote_chain_info.channel_id,
-                },
+                autopilot: AutopilotConfig {
+                    receiver: ica.to_string(),
+                    stakeibc: crate::helpers::Stakeibc {
+                        action: "LiquidStake".to_string(),
+                        stride_address: ica,
+                    },
+                }
             };
 
-            Ok(to_json_binary(&to_json_string(&autopilot)?)?)
+            let autopilot_str = to_json_string(&autopilot)?;
+
+            Ok(to_json_binary(&autopilot_str)?)
         }
     }
 }
