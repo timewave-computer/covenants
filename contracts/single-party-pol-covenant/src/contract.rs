@@ -305,7 +305,7 @@ pub fn instantiate(
             env.contract.address.to_string(),
             holder_forwarder_salt,
             clock_address.to_string(),
-            holder_address.to_string(),
+            liquid_pooler_address.to_string(),
         )?);
     };
 

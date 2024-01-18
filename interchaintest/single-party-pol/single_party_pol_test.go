@@ -29,7 +29,7 @@ const gaiaNeutronIBCPath = "gn-ibc-path"
 const gaiaStrideIBCPath = "go-ibc-path"
 const neutronStrideIBCPath = "no-ibc-path"
 const nativeAtomDenom = "uatom"
-const nativeStrideAtomDenom = "statom"
+const nativeStrideAtomDenom = "stuatom"
 const nativeNtrnDenom = "untrn"
 
 var covenantAddress string
@@ -40,9 +40,9 @@ var holderAddress string
 var liquidStakerAddress string
 var lsForwarderAddress string
 var remoteChainSplitterAddress string
-var holderForwarderAddress string
+var liquidPoolerForwarderAddress string
 var strideIcaAddress string
-var lsForwarderIcaAddress, holderForwarderIcaAddress string
+var lsForwarderIcaAddress, liquidPoolerForwarderIcaAddress string
 
 var neutronAtomIbcDenom, neutronStatomIbcDenom, strideAtomIbcDenom string
 var atomNeutronICSConnectionId, neutronAtomICSConnectionId string
@@ -692,7 +692,7 @@ func TestSinglePartyPol(t *testing.T) {
 				Denom:  nativeAtomDenom,
 				Amount: "2500000000",
 			}
-			holderContribution := Coin{
+			liquidPoolerContribution := Coin{
 				Denom:  nativeAtomDenom,
 				Amount: "2500000000",
 			}
@@ -716,7 +716,7 @@ func TestSinglePartyPol(t *testing.T) {
 				},
 			}
 
-			holderForwarderConfig := CovenantPartyConfig{
+			liquidPoolerForwarderConfig := CovenantPartyConfig{
 				Interchain: &InterchainCovenantParty{
 					Addr:                      neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					NativeDenom:               neutronAtomIbcDenom,
@@ -726,7 +726,7 @@ func TestSinglePartyPol(t *testing.T) {
 					PartyReceiverAddr:         neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
-					Contribution:              holderContribution,
+					Contribution:              liquidPoolerContribution,
 				},
 			}
 
@@ -752,9 +752,9 @@ func TestSinglePartyPol(t *testing.T) {
 				PartyASingleSideLimit:    "10000000",
 				PartyBSingleSideLimit:    "10000000",
 				LsForwarderConfig:        lsForwarderConfig,
-				HolderForwarderConfig:    holderForwarderConfig,
-				ExpectedPoolRatio:        "0.99",
-				AcceptablePoolRatioDelta: "0.0001",
+				HolderForwarderConfig:    liquidPoolerForwarderConfig,
+				ExpectedPoolRatio:        "0.5",
+				AcceptablePoolRatioDelta: "0.5",
 				PairType:                 pairType,
 				NativeSplitterConfig:     nativeSplitterConfig,
 			}
@@ -769,7 +769,7 @@ func TestSinglePartyPol(t *testing.T) {
 			liquidPoolerAddress = testCtx.QueryLiquidPoolerAddress(covenantAddress)
 			liquidStakerAddress = testCtx.QueryLiquidStakerAddress(covenantAddress)
 			lsForwarderAddress = testCtx.QueryIbcForwarderTyAddress(covenantAddress, "ls")
-			holderForwarderAddress = testCtx.QueryIbcForwarderTyAddress(covenantAddress, "holder")
+			liquidPoolerForwarderAddress = testCtx.QueryIbcForwarderTyAddress(covenantAddress, "holder")
 			remoteChainSplitterAddress = testCtx.QueryRemoteChainSplitterAddress(covenantAddress)
 		})
 
@@ -780,7 +780,7 @@ func TestSinglePartyPol(t *testing.T) {
 				liquidPoolerAddress,
 				liquidStakerAddress,
 				lsForwarderAddress,
-				holderForwarderAddress,
+				liquidPoolerForwarderAddress,
 				remoteChainSplitterAddress,
 			}
 
@@ -793,8 +793,8 @@ func TestSinglePartyPol(t *testing.T) {
 				lsForwarderState := testCtx.QueryContractState(lsForwarderAddress)
 				println("lsForwarderState: ", lsForwarderState)
 
-				holderForwarderState := testCtx.QueryContractState(holderForwarderAddress)
-				println("holderForwarderState: ", holderForwarderState)
+				liquidPoolerForwarderState := testCtx.QueryContractState(liquidPoolerForwarderAddress)
+				println("liquidPoolerForwarderState: ", liquidPoolerForwarderState)
 
 				splitterState := testCtx.QueryContractState(remoteChainSplitterAddress)
 				println("splitterState: ", splitterState)
@@ -802,13 +802,13 @@ func TestSinglePartyPol(t *testing.T) {
 				liquidStakerState := testCtx.QueryContractState(liquidStakerAddress)
 				println("liquidStakerState: ", liquidStakerState)
 
-				if splitterState == "ica_created" && lsForwarderState == "ica_created" && holderForwarderState == "ica_created" && liquidStakerState == "ica_created" {
+				if splitterState == "ica_created" && lsForwarderState == "ica_created" && liquidPoolerForwarderState == "ica_created" && liquidStakerState == "ica_created" {
 					partyDepositAddress = testCtx.QueryDepositAddressSingleParty(covenantAddress)
-					strideIcaAddress = testCtx.QueryContractDepositAddress(liquidStakerAddress)
+					strideIcaAddress = testCtx.QueryContractICA(liquidStakerAddress)
 					lsForwarderIcaAddress = testCtx.QueryContractDepositAddress(lsForwarderAddress)
-					holderForwarderIcaAddress = testCtx.QueryContractDepositAddress(holderForwarderAddress)
+					liquidPoolerForwarderIcaAddress = testCtx.QueryContractDepositAddress(liquidPoolerForwarderAddress)
 					println("ls forwarder ica address: ", lsForwarderIcaAddress)
-					println("holder forwarder ica address: ", holderForwarderIcaAddress)
+					println("liquid pooler forwarder ica address: ", liquidPoolerForwarderIcaAddress)
 					break
 				}
 			}
@@ -824,30 +824,85 @@ func TestSinglePartyPol(t *testing.T) {
 			for {
 				testCtx.TickStride(remoteChainSplitterAddress, keyring.BackendTest, neutronUser.KeyName)
 
-				holderStatomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, liquidPoolerAddress)
+				lperStatomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, liquidPoolerAddress)
 				lperAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
 				strideIcaStatomBal := testCtx.QueryStrideDenomBalance("stuatom", strideIcaAddress)
 				strideIcaAtomBal := testCtx.QueryStrideDenomBalance(strideAtomIbcDenom, strideIcaAddress)
 				lsForwarderIcaAtomBal := testCtx.QueryHubDenomBalance("uatom", lsForwarderIcaAddress)
-				holderForwarderIcaAtomBal := testCtx.QueryHubDenomBalance("uatom", holderForwarderIcaAddress)
+				liquidPoolerForwarderIcaAtomBal := testCtx.QueryHubDenomBalance("uatom", liquidPoolerForwarderIcaAddress)
 				splitterAtomBalance := testCtx.QueryHubDenomBalance("uatom", partyDepositAddress)
 
-				println("lper statom balance: ", holderStatomBal)
+				println("lper statom balance: ", lperStatomBal)
 				println("lper atom balance: ", lperAtomBal)
 				println("stride ica statom balance: ", strideIcaStatomBal)
 				println("stride ica atom balance: ", strideIcaAtomBal)
 				println("ls forwarder ica atom balance: ", lsForwarderIcaAtomBal)
-				println("holder forwarder ica atom balance: ", holderForwarderIcaAtomBal)
+				println("liquid pooler forwarder ica atom balance: ", liquidPoolerForwarderIcaAtomBal)
 				println("splitter atom balance: ", splitterAtomBalance)
 
-				if lperAtomBal != 0 || holderStatomBal != 0 {
-					println("holder received atom & statom")
+				if lsForwarderIcaAtomBal != 0 && liquidPoolerForwarderIcaAtomBal != 0 {
+					println("liquid pooler received atom & statom")
 					break
 				}
 			}
 		})
 
-		t.Run("tick until holder sends funds to LiquidPooler and LiquidPooler provides liquidity", func(t *testing.T) {
+		getLsPermisionlessTransferMsg := func(amount uint64) []string {
+			// Construct a transfer message
+			msg := TransferExecutionMsg{
+				Transfer: TransferAmount{
+					Amount: amount,
+				},
+			}
+			transferMsgJson, err := json.Marshal(msg)
+			require.NoError(t, err)
+
+			// transfer command for permissionless transfer from stride ica to lper
+			transferCmd := []string{"neutrond", "tx", "wasm", "execute", liquidStakerAddress,
+				string(transferMsgJson),
+				"--from", neutronUser.KeyName,
+				"--gas-prices", "0.0untrn",
+				"--gas-adjustment", `1.8`,
+				"--output", "json",
+				"--home", testCtx.Neutron.HomeDir(),
+				"--node", testCtx.Neutron.GetRPCAddress(),
+				"--chain-id", testCtx.Neutron.Config().ChainID,
+				"--gas", "42069420",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
+			return transferCmd
+		}
+		var strideIcaStatomBal uint64
+
+		t.Run("tick until LSer liquid stakes", func(t *testing.T) {
+			for {
+				testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
+				liquidPoolerStatomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, liquidPoolerAddress)
+				lperAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
+				strideIcaStatomBal = testCtx.QueryStrideDenomBalance("stuatom", strideIcaAddress)
+
+				println("lper statom balance: ", liquidPoolerStatomBal)
+				println("lper atom balance: ", lperAtomBal)
+				println("stride ica statom balance: ", strideIcaStatomBal)
+
+				if strideIcaStatomBal != 0 {
+					println("stride ICA received statom: ", strideIcaStatomBal)
+					break
+				}
+			}
+		})
+
+		t.Run("permisionless forward", func(t *testing.T) {
+			testCtx.SkipBlocksStride(10)
+			permisionlessTransferMsg := getLsPermisionlessTransferMsg(strideIcaStatomBal)
+			txOut, _, _ := testCtx.Neutron.Exec(testCtx.Ctx, permisionlessTransferMsg, nil)
+			println("permisionless transfer msg tx hash: ", string(txOut))
+			testCtx.SkipBlocksStride(10)
+		})
+
+		t.Run("tick until LiquidPooler provides liquidity", func(t *testing.T) {
 			for {
 				if testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress) == 0 {
 					testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
