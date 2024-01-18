@@ -21,7 +21,7 @@ pub struct InstantiateMsg {
     pub party_a_single_side_limit: Uint128,
     pub party_b_single_side_limit: Uint128,
     pub ls_forwarder_config: CovenantPartyConfig,
-    pub holder_forwarder_config: CovenantPartyConfig,
+    pub lp_forwarder_config: CovenantPartyConfig,
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
     pub pool_pair_type: PairType,
@@ -34,6 +34,8 @@ pub struct NativeSplitterConfig {
     pub connection_id: String,
     pub denom: String,
     pub amount: Uint128,
+    pub ls_share: Decimal,
+    pub native_share: Decimal,
 }
 
 #[cw_serde]
@@ -211,7 +213,7 @@ pub enum MigrateMsg {
         clock: Option<covenant_clock::msg::MigrateMsg>,
         holder: Option<covenant_single_party_pol_holder::msg::MigrateMsg>,
         ls_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        holder_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
+        lp_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
         splitter: Option<covenant_interchain_splitter::msg::MigrateMsg>,
         liquid_pooler: Option<covenant_astroport_liquid_pooler::msg::MigrateMsg>,
         // liquid_staker: Option<covenant_astroport_liquid_pooler::msg::MigrateMsg>,
