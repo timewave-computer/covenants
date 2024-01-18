@@ -1,13 +1,13 @@
-use cosmwasm_std::{Env, DepsMut, Deps, StdResult, Response, StdError, Binary, Storage, to_json_vec};
+use cosmwasm_std::{to_json_vec, Binary, DepsMut, Env, Response, StdError, StdResult, Storage};
 use covenant_utils::neutron_ica;
 use neutron_sdk::{bindings::query::NeutronQuery, sudo::msg::RequestPacket};
 
-use crate::{state::{INTERCHAIN_ACCOUNTS, CONTRACT_STATE, REPLY_ID_STORAGE}, msg::ContractState};
+use crate::{
+    msg::ContractState,
+    state::{CONTRACT_STATE, INTERCHAIN_ACCOUNTS, REPLY_ID_STORAGE},
+};
 
-
-type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
-
 
 // handler
 pub fn sudo_open_ack(
@@ -42,7 +42,11 @@ pub fn sudo_open_ack(
     Ok(Response::default().add_attribute("method", "sudo_open_ack"))
 }
 
-pub fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response> {
+pub fn sudo_response(
+    deps: ExecuteDeps,
+    request: RequestPacket,
+    data: Binary,
+) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}").as_str());
 
@@ -69,7 +73,11 @@ pub fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> Std
     Ok(Response::default())
 }
 
-pub fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> StdResult<Response> {
+pub fn sudo_error(
+    deps: ExecuteDeps,
+    request: RequestPacket,
+    details: String,
+) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
 

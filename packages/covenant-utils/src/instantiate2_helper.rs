@@ -1,6 +1,7 @@
-use cosmwasm_std::{Deps, CanonicalAddr, Addr, StdResult, CodeInfoResponse, instantiate2_address, Binary, StdError};
+use cosmwasm_std::{
+    instantiate2_address, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps, StdError, StdResult,
+};
 use sha2::{Digest, Sha256};
-
 
 fn get_precomputed_address(
     deps: Deps,
@@ -28,15 +29,10 @@ pub fn get_instantiate2_salt_and_address(
     creator_address: &CanonicalAddr,
     code_id: u64,
 ) -> StdResult<(Binary, Addr)> {
-
     let salt_binary = generate_contract_salt(salt_bytes);
 
-    let contract_instantiate2_address = get_precomputed_address(
-        deps,
-        code_id,
-        creator_address,
-        &salt_binary,
-    )?;
+    let contract_instantiate2_address =
+        get_precomputed_address(deps, code_id, creator_address, &salt_binary)?;
 
     Ok((salt_binary, contract_instantiate2_address))
 }

@@ -236,7 +236,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
                         action: "LiquidStake".to_string(),
                         stride_address: ica,
                     },
-                }
+                },
             };
 
             let autopilot_str = to_json_string(&autopilot)?;
@@ -258,7 +258,7 @@ pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult
                         action: "LiquidStake".to_string(),
                         stride_address: ica,
                     },
-                }
+                },
             };
 
             let autopilot_str = to_json_string(&autopilot)?;

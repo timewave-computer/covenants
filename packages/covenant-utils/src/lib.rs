@@ -1,6 +1,6 @@
 pub mod deadline;
-pub mod withdraw_lp_helper;
 pub mod instantiate2_helper;
+pub mod withdraw_lp_helper;
 
 use astroport::asset::PairInfo;
 use cosmwasm_schema::{cw_serde, QueryResponses};
@@ -137,7 +137,6 @@ pub mod neutron_ica {
         #[returns(Option<String>)]
         DepositAddress {},
     }
-
 
     /// helper that serializes a MsgTransfer to protobuf
     pub fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
@@ -560,7 +559,10 @@ pub fn get_default_ibc_fee_requirement() -> Uint128 {
 }
 
 pub fn get_default_ica_fee() -> Coin {
-    Coin { denom: "untrn".to_string(), amount: Uint128::new(1000000) }
+    Coin {
+        denom: "untrn".to_string(),
+        amount: Uint128::new(1000000),
+    }
 }
 
 impl DestinationConfig {

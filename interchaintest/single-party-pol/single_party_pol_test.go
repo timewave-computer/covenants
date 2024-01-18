@@ -819,7 +819,7 @@ func TestSinglePartyPol(t *testing.T) {
 
 		t.Run("tick until forwarders forward the funds to liquid pooler", func(t *testing.T) {
 			for {
-				testCtx.TickStride(remoteChainSplitterAddress, keyring.BackendTest, neutronUser.KeyName)
+				testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 
 				lsForwarderIcaAtomBal := testCtx.QueryHubDenomBalance(nativeAtomDenom, lsForwarderIcaAddress)
 				liquidPoolerForwarderIcaAtomBal := testCtx.QueryHubDenomBalance(nativeAtomDenom, liquidPoolerForwarderIcaAddress)
@@ -901,7 +901,7 @@ func TestSinglePartyPol(t *testing.T) {
 				println("neutronUserLpTokenBal: ", neutronUserLpTokenBal)
 
 				if liquidPoolerLpTokenBal == 0 {
-					testCtx.TickStride(liquidPoolerAddress, keyring.BackendTest, neutronUser.KeyName)
+					testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				} else {
 					break
 				}

@@ -4,14 +4,13 @@ use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 
 use covenant_native_splitter::msg::PresetNativeSplitterFields;
-use covenant_stride_liquid_staker::msg::PresetStrideLsFields;
 use covenant_single_party_pol_holder::msg::PresetHolderFields;
+use covenant_stride_liquid_staker::msg::PresetStrideLsFields;
 use cw_storage_plus::Item;
 
 // fields related to the contracts known prior to their.
 pub const PRESET_CLOCK_FIELDS: Item<PresetClockFields> = Item::new("preset_clock_fields");
-pub const PRESET_HOLDER_FIELDS: Item<PresetHolderFields> =
-    Item::new("preset_holder_fields");
+pub const PRESET_HOLDER_FIELDS: Item<PresetHolderFields> = Item::new("preset_holder_fields");
 pub const PRESET_SPLITTER_FIELDS: Item<PresetNativeSplitterFields> =
     Item::new("preset_splitter_fields");
 pub const PRESET_LS_FORWARDER_FIELDS: Item<PresetIbcForwarderFields> =

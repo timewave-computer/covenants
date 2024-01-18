@@ -45,7 +45,6 @@ pub struct InstantiateMsg {
     pub ibc_transfer_timeout: Uint64,
 }
 
-
 #[cw_serde]
 pub struct PresetNativeSplitterFields {
     pub code_id: u64,

@@ -173,7 +173,7 @@ fn try_withdraw(
 /// attempts to advance the state machine. performs `info.sender` validation.
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
-    // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -505,8 +505,7 @@ fn handle_double_sided_reply_id(
     _env: Env,
     msg: Reply,
 ) -> Result<Response, ContractError> {
-    let parsed_data = parse_reply_instantiate_data(msg);
-    match parsed_data {
+    match parse_reply_instantiate_data(msg) {
         Ok(response) => Ok(Response::default()
             .add_attribute("method", "handle_double_sided_reply_id")
             .add_attribute(

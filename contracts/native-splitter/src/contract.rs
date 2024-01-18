@@ -6,10 +6,10 @@ use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo,
-    Reply, Response, StdError, StdResult, SubMsg, Fraction,
+    to_json_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, Fraction,
+    MessageInfo, Reply, Response, StdError, StdResult, SubMsg,
 };
-use covenant_clock::helpers::{verify_clock, enqueue_msg};
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::get_default_ica_fee;
 use covenant_utils::neutron_ica::{RemoteChainInfo, SudoPayload};
 use cw2::set_contract_version;
@@ -23,7 +23,7 @@ use crate::state::{
     save_reply_payload, CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO,
     SPLIT_CONFIG_MAP, TRANSFER_AMOUNT,
 };
-use crate::sudo::{sudo_open_ack, prepare_sudo_payload, sudo_response, sudo_error, sudo_timeout};
+use crate::sudo::{prepare_sudo_payload, sudo_error, sudo_open_ack, sudo_response, sudo_timeout};
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
     NeutronResult,
@@ -108,7 +108,7 @@ pub fn execute(
 /// attempts to advance the state machine. performs `info.sender` validation
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
-    // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     match CONTRACT_STATE.load(deps.storage)? {
         ContractState::Instantiated => try_register_ica(deps, env),
@@ -159,15 +159,22 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
 
                 let receiver_ica = match forwarder_deposit_address {
                     Some(ica) => ica,
-                    None => return Err(NeutronError::Std(
-                        StdError::NotFound { kind: "forwarder ica not created".to_string() }),
-                    ),
+                    None => {
+                        return Err(NeutronError::Std(StdError::NotFound {
+                            kind: "forwarder ica not created".to_string(),
+                        }))
+                    }
                 };
 
                 // get the fraction dedicated to this receiver
                 let amt = amount
-                    .checked_multiply_ratio(split_receiver.share.numerator(), split_receiver.share.denominator())
-                    .map_err(|e: cosmwasm_std::CheckedMultiplyRatioError| NeutronError::Std(StdError::GenericErr { msg: e.to_string() }))?;
+                    .checked_multiply_ratio(
+                        split_receiver.share.numerator(),
+                        split_receiver.share.denominator(),
+                    )
+                    .map_err(|e: cosmwasm_std::CheckedMultiplyRatioError| {
+                        NeutronError::Std(StdError::GenericErr { msg: e.to_string() })
+                    })?;
 
                 let coin = Coin {
                     denom: remote_chain_info.denom.to_string(),
@@ -191,19 +198,17 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
             };
             inputs.push(input);
 
-
-
-            let multi_send_msg = MsgMultiSend {
-                inputs,
-                outputs,
-            };
+            let multi_send_msg = MsgMultiSend { inputs, outputs };
 
             // Serialize the Delegate message.
             let mut buf = Vec::new();
             buf.reserve(multi_send_msg.encoded_len());
 
             if let Err(e) = multi_send_msg.encode(&mut buf) {
-                return Err(NeutronError::Std(StdError::generic_err(format!("Encode error: {}", e))));
+                return Err(NeutronError::Std(StdError::generic_err(format!(
+                    "Encode error: {}",
+                    e
+                ))));
             }
 
             let any_msg = ProtobufAny {
@@ -333,7 +338,6 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response> {
         _ => Ok(Response::default()),
     }
 }
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {

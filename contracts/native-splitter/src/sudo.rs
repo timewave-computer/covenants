@@ -1,8 +1,14 @@
-use cosmwasm_std::{DepsMut, Env, StdResult, Response, StdError, Binary, Reply};
+use cosmwasm_std::{Binary, DepsMut, Env, Reply, Response, StdError, StdResult};
 use covenant_utils::neutron_ica::OpenAckVersion;
-use neutron_sdk::{bindings::{query::NeutronQuery, msg::MsgSubmitTxResponse}, sudo::msg::RequestPacket};
+use neutron_sdk::{
+    bindings::{msg::MsgSubmitTxResponse, query::NeutronQuery},
+    sudo::msg::RequestPacket,
+};
 
-use crate::{state::{INTERCHAIN_ACCOUNTS, CONTRACT_STATE, read_reply_payload, save_sudo_payload}, msg::ContractState};
+use crate::{
+    msg::ContractState,
+    state::{read_reply_payload, save_sudo_payload, CONTRACT_STATE, INTERCHAIN_ACCOUNTS},
+};
 
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
@@ -39,7 +45,11 @@ pub fn sudo_open_ack(
     Ok(Response::default().add_attribute("method", "sudo_open_ack"))
 }
 
-pub fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response> {
+pub fn sudo_response(
+    deps: ExecuteDeps,
+    request: RequestPacket,
+    data: Binary,
+) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}").as_str());
 
@@ -55,7 +65,6 @@ pub fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) ->
     Ok(Response::default().add_attribute("method", "sudo_response"))
 }
 
-
 pub fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
@@ -67,7 +76,11 @@ pub fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> Std
     Ok(Response::default())
 }
 
-pub fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> StdResult<Response> {
+pub fn sudo_error(
+    deps: ExecuteDeps,
+    request: RequestPacket,
+    details: String,
+) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
     deps.api
