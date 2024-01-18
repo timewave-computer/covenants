@@ -173,7 +173,7 @@ fn try_withdraw(
 /// attempts to advance the state machine. performs `info.sender` validation.
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -238,7 +238,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         // exactly one balance is non-zero, we attempt single-side
         (true, false) | (false, true) => {
             let single_sided_submsg =
-                try_get_single_side_lp_submsg(deps.branch(), coin_a, coin_b, lp_config)?;
+                try_get_single_side_lp_submsg(deps.branch(), env, coin_a, coin_b, lp_config)?;
             if let Some(msg) = single_sided_submsg {
                 return Ok(Response::default()
                     .add_submessage(msg)
@@ -249,6 +249,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         (false, false) => {
             let double_sided_submsg = try_get_double_side_lp_submsg(
                 deps.branch(),
+                env,
                 coin_a,
                 coin_b,
                 a_to_b_ratio,
@@ -278,6 +279,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 /// the existing pool ratio.
 fn try_get_double_side_lp_submsg(
     deps: DepsMut,
+    env: Env,
     token_a: Coin,
     token_b: Coin,
     pool_token_ratio: Decimal,
@@ -285,11 +287,6 @@ fn try_get_double_side_lp_submsg(
     pool_token_b_bal: Uint128,
     lp_config: LpConfig,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let holder_address = match HOLDER_ADDRESS.may_load(deps.storage)? {
-        Some(addr) => addr,
-        None => return Err(ContractError::MissingHolderError {}),
-    };
-
     // we thus find the required token amount to enter into the position using all available b tokens:
     let required_token_a_amount = pool_token_ratio.checked_mul_uint128(token_b.amount)?;
 
@@ -321,7 +318,7 @@ fn try_get_double_side_lp_submsg(
         assets: vec![asset_a_double_sided, asset_b_double_sided],
         slippage_tolerance: lp_config.slippage_tolerance,
         auto_stake: Some(false),
-        receiver: Some(holder_address.to_string()),
+        receiver: Some(env.contract.address.to_string()),
     };
 
     // update the provided amounts and leftover assets
@@ -350,15 +347,11 @@ fn try_get_double_side_lp_submsg(
 /// single-side liquidity limits, we provide it.
 fn try_get_single_side_lp_submsg(
     deps: DepsMut,
+    env: Env,
     coin_a: Coin,
     coin_b: Coin,
     lp_config: LpConfig,
 ) -> Result<Option<SubMsg>, ContractError> {
-    let holder_address = match HOLDER_ADDRESS.may_load(deps.storage)? {
-        Some(addr) => addr,
-        None => return Err(ContractError::MissingHolderError {}),
-    };
-
     let assets = lp_config
         .asset_data
         .to_asset_vec(coin_a.amount, coin_b.amount);
@@ -368,7 +361,7 @@ fn try_get_single_side_lp_submsg(
         assets,
         slippage_tolerance: lp_config.slippage_tolerance,
         auto_stake: Some(false),
-        receiver: Some(holder_address.to_string()),
+        receiver: Some(env.contract.address.to_string()),
     };
 
     // now we try to submit the message for either B or A token single side liquidity

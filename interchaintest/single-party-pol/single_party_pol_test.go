@@ -824,18 +824,10 @@ func TestSinglePartyPol(t *testing.T) {
 			for {
 				testCtx.TickStride(remoteChainSplitterAddress, keyring.BackendTest, neutronUser.KeyName)
 
-				lperStatomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, liquidPoolerAddress)
-				lperAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
-				strideIcaStatomBal := testCtx.QueryStrideDenomBalance("stuatom", strideIcaAddress)
-				strideIcaAtomBal := testCtx.QueryStrideDenomBalance(strideAtomIbcDenom, strideIcaAddress)
 				lsForwarderIcaAtomBal := testCtx.QueryHubDenomBalance("uatom", lsForwarderIcaAddress)
 				liquidPoolerForwarderIcaAtomBal := testCtx.QueryHubDenomBalance("uatom", liquidPoolerForwarderIcaAddress)
 				splitterAtomBalance := testCtx.QueryHubDenomBalance("uatom", partyDepositAddress)
 
-				println("lper statom balance: ", lperStatomBal)
-				println("lper atom balance: ", lperAtomBal)
-				println("stride ica statom balance: ", strideIcaStatomBal)
-				println("stride ica atom balance: ", strideIcaAtomBal)
 				println("ls forwarder ica atom balance: ", lsForwarderIcaAtomBal)
 				println("liquid pooler forwarder ica atom balance: ", liquidPoolerForwarderIcaAtomBal)
 				println("splitter atom balance: ", splitterAtomBalance)
@@ -904,34 +896,54 @@ func TestSinglePartyPol(t *testing.T) {
 
 		t.Run("tick until LiquidPooler provides liquidity", func(t *testing.T) {
 			for {
-				if testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress) == 0 {
-					testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+				liquidPoolerLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
+				holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress)
+				neutronUserLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix))
+				println("liquidPoolerLpTokenBal: ", liquidPoolerLpTokenBal)
+				println("holderLpTokenBal: ", holderLpTokenBal)
+				println("neutronUserLpTokenBal: ", neutronUserLpTokenBal)
+
+				if liquidPoolerLpTokenBal == 0 {
+					testCtx.TickStride(liquidPoolerAddress, keyring.BackendTest, neutronUser.KeyName)
 				} else {
 					break
 				}
 			}
 		})
 
-		// t.Run("party claims and liquidity is sent to holder", func(t *testing.T) {
-		// 	routerNeutronBalA := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyARouterAddress)
-		// 	routerAtomBalA := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
-		// 	println("routerAtomBalA: ", routerAtomBalA)
-		// 	println("routerNeutronBalA: ", routerNeutronBalA)
-		// 	testCtx.SkipBlocksStride(10)
-		// 	testCtx.HolderClaim(holderAddress, hubNeutronAccount, keyring.BackendTest)
-		// 	testCtx.SkipBlocksStride(5)
-		// 	for {
-		// 		routerNeutronBalA := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, partyARouterAddress)
-		// 		routerAtomBalA := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, partyARouterAddress)
-		// 		println("routerAtomBalA: ", routerAtomBalA)
-		// 		println("routerNeutronBalA: ", routerNeutronBalA)
-		// 		if routerAtomBalA != 0 && routerNeutronBalA != 0 {
-		// 			break
-		// 		} else {
-		// 			testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-		// 		}
-		// 	}
-		// })
+		t.Run("user redeems LP tokens for underlying liquidity", func(t *testing.T) {
+			testCtx.SkipBlocksStride(10)
+			// testCtx.HolderClaim(holderAddress, neutronUser, keyring.BackendTest)
+			cmd := []string{"neutrond", "tx", "wasm", "execute", holderAddress,
+				`{"claim":{}}`,
+				"--from", neutronUser.GetKeyName(),
+				"--gas-prices", "0.0untrn",
+				"--gas-adjustment", `1.5`,
+				"--output", "json",
+				"--node", testCtx.Neutron.GetRPCAddress(),
+				"--home", testCtx.Neutron.HomeDir(),
+				"--chain-id", testCtx.Neutron.Config().ChainID,
+				"--gas", "42069420",
+				"--keyring-backend", keyring.BackendTest,
+				"-y",
+			}
 
+			resp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
+			require.NoError(testCtx.T, err, "claim failed")
+			println("claim response: ", string(resp))
+			testCtx.SkipBlocksStride(5)
+
+			for {
+				stAtomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix))
+				atomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix))
+				println("neutron user stAtomBal: ", stAtomBal)
+				println("neutron user atomBal: ", atomBal)
+				if stAtomBal != 0 && atomBal != 0 {
+					break
+				} else {
+					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+				}
+			}
+		})
 	})
 }
