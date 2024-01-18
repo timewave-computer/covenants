@@ -101,6 +101,7 @@ pub struct NativeDenomSplit {
     /// denom to be distributed
     pub denom: String,
     /// denom receivers and their respective shares
+    // TODO: convert to map of ibc forwarder -> decimal?
     pub receivers: Vec<SplitReceiver>,
 }
 

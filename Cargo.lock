@@ -849,6 +849,7 @@ dependencies = [
  "neutron-sdk",
  "polytone",
  "prost 0.11.9",
+ "sha2 0.10.8",
 ]
 
 [[package]]
