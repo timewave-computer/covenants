@@ -215,7 +215,7 @@ type CovenantInstantiationMsg struct {
 	PartyASingleSideLimit    string               `json:"party_a_single_side_limit"`
 	PartyBSingleSideLimit    string               `json:"party_b_single_side_limit"`
 	LsForwarderConfig        CovenantPartyConfig  `json:"ls_forwarder_config"`
-	HolderForwarderConfig    CovenantPartyConfig  `json:"holder_forwarder_config"`
+	LpForwarderConfig        CovenantPartyConfig  `json:"lp_forwarder_config"`
 	ExpectedPoolRatio        string               `json:"expected_pool_ratio"`
 	AcceptablePoolRatioDelta string               `json:"acceptable_pool_ratio_delta"`
 	PairType                 PairType             `json:"pool_pair_type"`
@@ -227,6 +227,8 @@ type NativeSplitterConfig struct {
 	ConnectionId string `json:"connection_id"`
 	Denom        string `json:"denom"`
 	Amount       string `json:"amount"`
+	LsShare      string `json:"ls_share"`
+	NativeShare  string `json:"native_share"`
 }
 
 type CovenantPartyConfig struct {

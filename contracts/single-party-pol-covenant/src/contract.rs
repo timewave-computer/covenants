@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps,
-    DepsMut, Env, MessageInfo, Response, StdResult, Uint128, WasmMsg, Decimal,
+    DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg,
 };
 
 use covenant_astroport_liquid_pooler::msg::{
@@ -13,6 +13,7 @@ use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_native_splitter::msg::{NativeDenomSplit, SplitReceiver, PresetNativeSplitterFields};
 use covenant_single_party_pol_holder::msg::PresetHolderFields;
 use covenant_stride_liquid_staker::msg::PresetStrideLsFields;
+use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
 
@@ -23,7 +24,7 @@ use crate::{
     state::{
         COVENANT_CLOCK_ADDR, HOLDER_ADDR,
         LIQUID_POOLER_ADDR, LIQUID_STAKER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS, PRESET_LIQUID_POOLER_FIELDS,
-        PRESET_LIQUID_STAKER_FIELDS, PRESET_SPLITTER_FIELDS, SPLITTER_ADDR, HOLDER_FORWARDER_ADDR, LS_FORWARDER_ADDR, PRESET_LS_FORWARDER_FIELDS, PRESET_HOLDER_FORWARDER_FIELDS,
+        PRESET_LIQUID_STAKER_FIELDS, PRESET_SPLITTER_FIELDS, SPLITTER_ADDR, LS_FORWARDER_ADDR, PRESET_LS_FORWARDER_FIELDS, LP_FORWARDER_ADDR, PRESET_LP_FORWARDER_FIELDS,
     },
 };
 
@@ -35,7 +36,7 @@ pub const HOLDER_SALT: &[u8] = b"pol_holder";
 pub const NATIVE_SPLITTER: &[u8] = b"native_splitter";
 
 pub const LS_FORWARDER_SALT: &[u8] = b"ls_forwarder";
-pub const HOLDER_FORWARDER_SALT: &[u8] = b"holder_forwarder";
+pub const LP_FORWARDER_SALT: &[u8] = b"lp_forwarder";
 
 pub const LIQUID_POOLER_SALT: &[u8] = b"liquid_pooler";
 pub const LIQUID_STAKER_SALT: &[u8] = b"liquid_staker";
@@ -67,22 +68,24 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    let clock_salt = generate_contract_salt(CLOCK_SALT);
+    // let clock_salt = generate_contract_salt(CLOCK_SALT);
     let native_splitter_salt = generate_contract_salt(NATIVE_SPLITTER);
     let ls_forwarder_salt = generate_contract_salt(LS_FORWARDER_SALT);
-    let holder_forwarder_salt = generate_contract_salt(HOLDER_FORWARDER_SALT);
+    let lp_forwarder_salt = generate_contract_salt(LP_FORWARDER_SALT);
     let liquid_staker_salt = generate_contract_salt(LIQUID_STAKER_SALT);
     let liquid_pooler_salt = generate_contract_salt(LIQUID_POOLER_SALT);
     let holder_salt = generate_contract_salt(HOLDER_SALT);
 
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
 
-    let clock_address = get_precomputed_address(
-        deps.as_ref(),
-        msg.contract_codes.clock_code,
-        &creator_address,
-        &clock_salt,
-    )?;
+    let (clock_salt, clock_address) = get_instantiate2_salt_and_address(deps.as_ref(), CLOCK_SALT, &creator_address, msg.contract_codes.clock_code)?;
+
+    // let clock_address = get_precomputed_address(
+    //     deps.as_ref(),
+    //     msg.contract_codes.clock_code,
+    //     &creator_address,
+    //     &clock_salt,
+    // )?;
 
     let splitter_address = get_precomputed_address(
         deps.as_ref(),
@@ -98,11 +101,11 @@ pub fn instantiate(
         &ls_forwarder_salt,
     )?;
 
-    let holder_forwarder_address = get_precomputed_address(
+    let lp_forwarder_address = get_precomputed_address(
         deps.as_ref(),
         msg.contract_codes.ibc_forwarder_code,
         &creator_address,
-        &holder_forwarder_salt,
+        &lp_forwarder_salt,
     )?;
 
     let liquid_staker_address = get_precomputed_address(
@@ -161,30 +164,28 @@ pub fn instantiate(
         CovenantPartyConfig::Native(_) => None,
     };
 
-    let preset_holder_forwarder_fields = match msg.clone().holder_forwarder_config {
+    let preset_lp_forwarder_fields = match msg.clone().lp_forwarder_config {
         CovenantPartyConfig::Interchain(config) => {
-            HOLDER_FORWARDER_ADDR.save(deps.storage, &holder_forwarder_address)?;
-            clock_whitelist.insert(0, holder_forwarder_address.to_string());
+            LP_FORWARDER_ADDR.save(deps.storage, &lp_forwarder_address)?;
+            clock_whitelist.insert(0, lp_forwarder_address.to_string());
 
             let preset = PresetIbcForwarderFields {
                 remote_chain_connection_id: config.party_chain_connection_id,
                 remote_chain_channel_id: config.party_to_host_chain_channel_id,
                 denom: config.remote_chain_denom,
                 amount: config.contribution.amount,
-                label: format!("{}_holder_ibc_forwarder", msg.label),
+                label: format!("{}_lp_ibc_forwarder", msg.label),
                 code_id: msg.contract_codes.ibc_forwarder_code,
                 ica_timeout: msg.timeouts.ica_timeout,
                 ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
                 ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
             };
-            PRESET_HOLDER_FORWARDER_FIELDS.save(deps.storage, &preset)?;
+            PRESET_LP_FORWARDER_FIELDS.save(deps.storage, &preset)?;
 
             Some(preset)
         }
         CovenantPartyConfig::Native(_) => None,
     };
-
-
 
     let preset_clock_fields = PresetClockFields {
         tick_max_gas: msg.clock_tick_max_gas,
@@ -222,7 +223,7 @@ pub fn instantiate(
         slippage_tolerance: None,
         assets: AssetData {
             asset_a_denom: msg.ls_info.ls_denom_on_neutron,
-            asset_b_denom: msg.holder_forwarder_config.get_native_denom(),
+            asset_b_denom: msg.lp_forwarder_config.get_native_denom(),
         },
         single_side_lp_limits: SingleSideLpLimits {
             asset_a_limit: msg.party_a_single_side_limit,
@@ -241,7 +242,7 @@ pub fn instantiate(
         remote_chain_connection_id: msg.native_splitter_config.connection_id,
         code_id: msg.contract_codes.native_splitter_code,
         label: format!("{}_remote_chain_splitter", msg.label),
-        denom: msg.native_splitter_config.denom,
+        denom: msg.native_splitter_config.denom.to_string(),
         amount: msg.native_splitter_config.amount,
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         ica_timeout: msg.timeouts.ica_timeout,
@@ -275,15 +276,15 @@ pub fn instantiate(
             clock_address.to_string(),
             vec![
                 NativeDenomSplit {
-                    denom: "uatom".to_string(),
+                    denom: msg.native_splitter_config.denom.to_string(),
                     receivers: vec![
                         SplitReceiver {
                             addr: ls_forwarder_address.to_string(),
-                            share: Decimal::from_ratio(Uint128::new(1), Uint128::new(2)),
+                            share: msg.native_splitter_config.ls_share,
                         },
                         SplitReceiver {
-                            addr: holder_forwarder_address.to_string(),
-                            share: Decimal::from_ratio(Uint128::new(1), Uint128::new(2)),
+                            addr: lp_forwarder_address.to_string(),
+                            share: msg.native_splitter_config.native_share,
                         },
                     ]
                 },
@@ -300,10 +301,10 @@ pub fn instantiate(
         )?);
     }
 
-    if let Some(fields) = preset_holder_forwarder_fields {
+    if let Some(fields) = preset_lp_forwarder_fields {
         messages.push(fields.to_instantiate2_msg(
             env.contract.address.to_string(),
-            holder_forwarder_salt,
+            lp_forwarder_salt,
             clock_address.to_string(),
             liquid_pooler_address.to_string(),
         )?);
@@ -322,8 +323,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         )?),
         QueryMsg::HolderAddress {} => Ok(to_json_binary(&HOLDER_ADDR.may_load(deps.storage)?)?),
         QueryMsg::IbcForwarderAddress { ty } => {
-            let resp = if ty == "holder" {
-                HOLDER_FORWARDER_ADDR.may_load(deps.storage)?
+            let resp = if ty == "lp" {
+                LP_FORWARDER_ADDR.may_load(deps.storage)?
             } else if ty == "ls" {
                 LS_FORWARDER_ADDR.may_load(deps.storage)?
             } else {
@@ -357,7 +358,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
         MigrateMsg::MigrateContracts {
             clock,
             ls_forwarder,
-            holder_forwarder,
+            lp_forwarder,
             holder: _, // TODO: Holder
             liquid_pooler,
             splitter,
@@ -387,12 +388,12 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-            if let Some(forwarder) = holder_forwarder {
+            if let Some(forwarder) = lp_forwarder {
                 let msg: Binary = to_json_binary(&forwarder)?;
-                let forwarder_fields = PRESET_HOLDER_FORWARDER_FIELDS.load(deps.storage)?;
-                resp = resp.add_attribute("holder_forwarder_migrate", msg.to_base64());
+                let forwarder_fields = PRESET_LP_FORWARDER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("lp_forwarder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
-                    contract_addr: HOLDER_FORWARDER_ADDR.load(deps.storage)?.to_string(),
+                    contract_addr: LP_FORWARDER_ADDR.load(deps.storage)?.to_string(),
                     new_code_id: forwarder_fields.code_id,
                     msg,
                 });

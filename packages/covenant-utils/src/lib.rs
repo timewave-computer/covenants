@@ -1,5 +1,6 @@
 pub mod deadline;
 pub mod withdraw_lp_helper;
+pub mod instantiate2_helper;
 
 use astroport::asset::PairInfo;
 use cosmwasm_schema::{cw_serde, QueryResponses};

@@ -535,7 +535,7 @@ func (testCtx *TestContext) QueryHubDenomBalance(denom string, addr string) uint
 	require.NoError(testCtx.T, err, "failed to get hub denom balance")
 
 	uintBal := uint64(bal)
-	println(addr, " balance: (", denom, ",", uintBal, ")")
+	// println(addr, " balance: (", denom, ",", uintBal, ")")
 	return uintBal
 }
 
