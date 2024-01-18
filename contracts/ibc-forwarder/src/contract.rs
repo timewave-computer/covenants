@@ -118,7 +118,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
     // first we verify whether the next contract is ready for receiving the funds
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
     let deposit_address_query: Option<String> = deps.querier.query_wasm_smart(
-        next_contract,
+        next_contract.to_string(),
         &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
     )?;
 
@@ -137,7 +137,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
             let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
             let amount = TRANSFER_AMOUNT.load(deps.storage)?;
 
-            let memo = get_next_memo(deps.querier, deposit_address.as_str())?;
+            let memo = get_next_memo(deps.querier, next_contract.as_str())?;
 
             let transfer_msg = MsgTransfer {
                 source_port: "transfer".to_string(),

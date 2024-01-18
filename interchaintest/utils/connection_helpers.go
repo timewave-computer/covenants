@@ -824,6 +824,27 @@ func (testCtx *TestContext) QueryContractDepositAddress(contract string) string 
 	return depositAddressResponse.Data
 }
 
+func (testCtx *TestContext) QueryContractICA(contract string) string {
+	var icaAddressResponse CovenantAddressQueryResponse
+
+	type IcaAddress struct{}
+	type IcaAddressQuery struct {
+		IcaAddress IcaAddress `json:"ica_address"`
+	}
+	icaAddressQuery := IcaAddressQuery{
+		IcaAddress: IcaAddress{},
+	}
+
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, icaAddressQuery, &icaAddressResponse)
+	require.NoError(
+		testCtx.T,
+		err,
+		"failed to query contract ica address",
+	)
+	println("contract deposit address: ", icaAddressResponse.Data)
+	return icaAddressResponse.Data
+}
+
 func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.Wallet, keyring string) string {
 	codeIdStr := strconv.FormatUint(codeId, 10)
 
