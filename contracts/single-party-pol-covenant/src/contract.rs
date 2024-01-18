@@ -320,8 +320,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             clock,
             ls_forwarder,
             lp_forwarder,
-            holder: _, // TODO: Holder
+            holder,
             liquid_pooler,
+            liquid_staker,
             splitter,
         } => {
             let mut migrate_msgs = vec![];
@@ -382,16 +383,27 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-            // if let Some(holder) = holder {
-            //     let msg: Binary = to_json_binary(&holder)?;
-            //     let holder_fields = PRESET_HOLDER_FIELDS.load(deps.storage)?;
-            //     resp = resp.add_attribute("holder_migrate", msg.to_base64());
-            //     migrate_msgs.push(WasmMsg::Migrate {
-            //         contract_addr: COVENANT_POL_HOLDER_ADDR.load(deps.storage)?.to_string(),
-            //         new_code_id: holder_fields.code_id,
-            //         msg,
-            //     });
-            // }
+            if let Some(holder) = holder {
+                let msg: Binary = to_json_binary(&holder)?;
+                let holder_fields = PRESET_HOLDER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("holder_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: HOLDER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: holder_fields.code_id,
+                    msg,
+                });
+            }
+
+            if let Some(liquid_staker) = liquid_staker {
+                let msg: Binary = to_json_binary(&liquid_staker)?;
+                let liquid_staker_fields = PRESET_LIQUID_STAKER_FIELDS.load(deps.storage)?;
+                resp = resp.add_attribute("liquid_staker_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: LIQUID_STAKER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: liquid_staker_fields.code_id,
+                    msg,
+                });
+            }
 
             Ok(resp.add_messages(migrate_msgs))
         }
