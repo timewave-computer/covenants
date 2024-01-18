@@ -216,6 +216,6 @@ pub enum MigrateMsg {
         lp_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
         splitter: Option<covenant_interchain_splitter::msg::MigrateMsg>,
         liquid_pooler: Option<covenant_astroport_liquid_pooler::msg::MigrateMsg>,
-        // liquid_staker: Option<covenant_astroport_liquid_pooler::msg::MigrateMsg>,
+        liquid_staker: Option<covenant_stride_liquid_staker::msg::MigrateMsg>,
     },
 }
