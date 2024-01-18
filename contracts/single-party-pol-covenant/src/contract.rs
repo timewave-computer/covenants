@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps,
-    DepsMut, Env, MessageInfo, Response, StdResult, Uint128, WasmMsg,
+    DepsMut, Env, MessageInfo, Response, StdResult, Uint128, WasmMsg, Decimal,
 };
 
 use covenant_astroport_liquid_pooler::msg::{
@@ -279,11 +279,11 @@ pub fn instantiate(
                     receivers: vec![
                         SplitReceiver {
                             addr: ls_forwarder_address.to_string(),
-                            share: Uint128::new(50),
+                            share: Decimal::from_ratio(Uint128::new(1), Uint128::new(2)),
                         },
                         SplitReceiver {
                             addr: holder_forwarder_address.to_string(),
-                            share: Uint128::new(50),
+                            share: Decimal::from_ratio(Uint128::new(1), Uint128::new(2)),
                         },
                     ]
                 },
