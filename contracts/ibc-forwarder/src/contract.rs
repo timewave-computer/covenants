@@ -1,11 +1,14 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_json, to_json_binary, to_json_vec, Binary, Coin, CosmosMsg, CustomQuery, Deps,
-    DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
+    from_json, to_json_binary, to_json_vec, Binary, Coin, CosmosMsg, CustomQuery, Deps, DepsMut,
+    Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::{neutron_ica::{self, get_proto_coin, RemoteChainInfo}, get_default_ica_fee};
+use covenant_utils::{
+    get_default_ica_fee,
+    neutron_ica::{self, get_proto_coin, RemoteChainInfo},
+};
 use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::{
@@ -23,7 +26,8 @@ use crate::{
     state::{
         CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
         REPLY_ID_STORAGE, SUDO_PAYLOAD, TRANSFER_AMOUNT,
-    }, sudo::{save_reply_payload, sudo_response, sudo_error, sudo_timeout, sudo_open_ack},
+    },
+    sudo::{save_reply_payload, sudo_error, sudo_open_ack, sudo_response, sudo_timeout},
 };
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ibc-forwarder";
@@ -280,7 +284,6 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response> {
         _ => Ok(Response::default()),
     }
 }
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
