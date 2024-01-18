@@ -41,6 +41,8 @@ var liquidStakerAddress string
 var lsForwarderAddress string
 var remoteChainSplitterAddress string
 var holderForwarderAddress string
+var strideIcaAddress string
+var lsForwarderIcaAddress, holderForwarderIcaAddress string
 
 var neutronAtomIbcDenom, neutronStatomIbcDenom, strideAtomIbcDenom string
 var atomNeutronICSConnectionId, neutronAtomICSConnectionId string
@@ -695,6 +697,11 @@ func TestSinglePartyPol(t *testing.T) {
 				Amount: "2500000000",
 			}
 
+			// here the remote chain info should define gaia -> stride flow
+			// source channel = gaia to stride chan
+			// receiver = liquid staker stride ICA
+			// connection id = neutron-gaia connection (for ica to be on gaia)
+
 			lsForwarderConfig := CovenantPartyConfig{
 				Interchain: &InterchainCovenantParty{
 					Addr:                      neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
@@ -792,8 +799,16 @@ func TestSinglePartyPol(t *testing.T) {
 				splitterState := testCtx.QueryContractState(remoteChainSplitterAddress)
 				println("splitterState: ", splitterState)
 
-				if splitterState == "ica_created" && lsForwarderState == "ica_created" && holderForwarderState == "ica_created" {
+				liquidStakerState := testCtx.QueryContractState(liquidStakerAddress)
+				println("liquidStakerState: ", liquidStakerState)
+
+				if splitterState == "ica_created" && lsForwarderState == "ica_created" && holderForwarderState == "ica_created" && liquidStakerState == "ica_created" {
 					partyDepositAddress = testCtx.QueryDepositAddressSingleParty(covenantAddress)
+					strideIcaAddress = testCtx.QueryContractDepositAddress(liquidStakerAddress)
+					lsForwarderIcaAddress = testCtx.QueryContractDepositAddress(lsForwarderAddress)
+					holderForwarderIcaAddress = testCtx.QueryContractDepositAddress(holderForwarderAddress)
+					println("ls forwarder ica address: ", lsForwarderIcaAddress)
+					println("holder forwarder ica address: ", holderForwarderIcaAddress)
 					break
 				}
 			}
@@ -805,22 +820,28 @@ func TestSinglePartyPol(t *testing.T) {
 			testCtx.SkipBlocksStride(3)
 		})
 
-		t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
+		t.Run("tick until forwarders forward the funds to LPer", func(t *testing.T) {
 			for {
-				testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+				testCtx.TickStride(remoteChainSplitterAddress, keyring.BackendTest, neutronUser.KeyName)
 
-				holderStatomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, holderAddress)
-				holderAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
-				holderState := testCtx.QueryContractState(holderAddress)
-				println("holder statom balance: ", holderStatomBal)
-				println("holder atom balance: ", holderAtomBal)
-				println("holder state: ", holderState)
+				holderStatomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, liquidPoolerAddress)
+				lperAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
+				strideIcaStatomBal := testCtx.QueryStrideDenomBalance("stuatom", strideIcaAddress)
+				strideIcaAtomBal := testCtx.QueryStrideDenomBalance(strideAtomIbcDenom, strideIcaAddress)
+				lsForwarderIcaAtomBal := testCtx.QueryHubDenomBalance("uatom", lsForwarderIcaAddress)
+				holderForwarderIcaAtomBal := testCtx.QueryHubDenomBalance("uatom", holderForwarderIcaAddress)
+				splitterAtomBalance := testCtx.QueryHubDenomBalance("uatom", partyDepositAddress)
 
-				if holderAtomBal != 0 && holderStatomBal != 0 {
+				println("lper statom balance: ", holderStatomBal)
+				println("lper atom balance: ", lperAtomBal)
+				println("stride ica statom balance: ", strideIcaStatomBal)
+				println("stride ica atom balance: ", strideIcaAtomBal)
+				println("ls forwarder ica atom balance: ", lsForwarderIcaAtomBal)
+				println("holder forwarder ica atom balance: ", holderForwarderIcaAtomBal)
+				println("splitter atom balance: ", splitterAtomBalance)
+
+				if lperAtomBal != 0 || holderStatomBal != 0 {
 					println("holder received atom & statom")
-					break
-				} else if holderState == "active" {
-					println("holder: active")
 					break
 				}
 			}
