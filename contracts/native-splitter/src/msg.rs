@@ -1,7 +1,7 @@
 use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, DepsMut, WasmMsg, StdError, Uint128, Attribute, to_json_binary, Uint64};
+use cosmwasm_std::{Addr, Binary, DepsMut, WasmMsg, StdError, Uint128, Attribute, to_json_binary, Uint64, Decimal};
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
@@ -107,9 +107,11 @@ pub struct NativeDenomSplit {
 impl NativeDenomSplit {
     pub fn validate(self) -> Result<NativeDenomSplit, StdError> {
         // here we validate that all receiver shares add up to 100 (%)
-        let sum: Uint128 = self.receivers.iter().map(|r| r.share).sum();
+        let mut total_share = Decimal::zero();
 
-        if sum != Uint128::new(100) {
+        self.receivers.iter().for_each(|r| total_share += r.share);
+
+        if total_share != Decimal::one() {
             Err(StdError::generic_err(format!(
                 "failed to validate split config for denom: {}",
                 self.denom
@@ -134,8 +136,7 @@ pub struct SplitReceiver {
     /// address of the receiver on remote chain
     pub addr: String,
     /// percentage share that the address is entitled to
-    // TODO: convert to cw Fraction
-    pub share: Uint128,
+    pub share: Decimal,
 }
 
 impl fmt::Display for SplitReceiver {

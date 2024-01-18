@@ -80,7 +80,7 @@ func (testCtx *TestContext) TickStride(clock string, keyring string, from string
 		"--home", testCtx.Neutron.HomeDir(),
 		"--chain-id", testCtx.Neutron.Config().ChainID,
 		"--from", from,
-		"--gas", "1500000",
+		"--gas", "4500000",
 		"--keyring-backend", keyring,
 		"-y",
 	}
@@ -544,7 +544,14 @@ func (testCtx *TestContext) QueryOsmoDenomBalance(denom string, addr string) uin
 	require.NoError(testCtx.T, err, "failed to get osmosis denom balance")
 
 	uintBal := uint64(bal)
-	// println(addr, " balance: (", denom, ",", uintBal, ")")
+	return uintBal
+}
+
+func (testCtx *TestContext) QueryStrideDenomBalance(denom string, addr string) uint64 {
+	bal, err := testCtx.Stride.GetBalance(testCtx.Ctx, addr, denom)
+	require.NoError(testCtx.T, err, "failed to get stride denom balance")
+
+	uintBal := uint64(bal)
 	return uintBal
 }
 
@@ -793,6 +800,27 @@ func (testCtx *TestContext) QueryDepositAddressSingleParty(covenant string) stri
 		"failed to query party deposit address",
 	)
 	println("party deposit address: ", depositAddressResponse.Data)
+	return depositAddressResponse.Data
+}
+
+func (testCtx *TestContext) QueryContractDepositAddress(contract string) string {
+	var depositAddressResponse CovenantAddressQueryResponse
+
+	type DepositAddress struct{}
+	type DepositAddressQuery struct {
+		DepositAddress DepositAddress `json:"deposit_address"`
+	}
+	depositAddressQuery := DepositAddressQuery{
+		DepositAddress: DepositAddress{},
+	}
+
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, depositAddressQuery, &depositAddressResponse)
+	require.NoError(
+		testCtx.T,
+		err,
+		"failed to query contract deposit address",
+	)
+	println("contract deposit address: ", depositAddressResponse.Data)
 	return depositAddressResponse.Data
 }
 
