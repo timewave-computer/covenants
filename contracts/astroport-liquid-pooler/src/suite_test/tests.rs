@@ -46,7 +46,8 @@ fn test_double_sided_lp() {
         suite.query_addr_balances(Addr::unchecked(suite.liquid_pooler.1.to_string()));
     assert_eq!(0usize, liquid_pooler_balances.len());
 
-    let liquid_pooler_balances = suite.query_cw20_bal(liquidity_token_addr, suite.liquid_pooler.1.to_string());
+    let liquid_pooler_balances =
+        suite.query_cw20_bal(liquidity_token_addr, suite.liquid_pooler.1.to_string());
     assert_ne!(Uint128::zero(), liquid_pooler_balances.balance);
 }
 
