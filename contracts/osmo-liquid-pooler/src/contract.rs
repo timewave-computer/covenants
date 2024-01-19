@@ -6,7 +6,7 @@ use cosmwasm_std::{
     to_json_binary, to_json_string, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, Uint128, WasmMsg,
 };
-use covenant_utils::{default_ibc_fee, get_polytone_execute_msg_binary};
+use covenant_utils::{neutron_ica::default_ibc_fee, polytone::get_polytone_execute_msg_binary};
 use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight, NeutronResult,

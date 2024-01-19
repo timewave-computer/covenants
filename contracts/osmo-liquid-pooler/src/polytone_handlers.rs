@@ -4,7 +4,7 @@ use cosmwasm_std::{
     coin, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, DepsMut, Empty, Env, IbcMsg,
     IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg,
 };
-use covenant_utils::{
+use covenant_utils::polytone::{
     get_polytone_execute_msg_binary, get_polytone_query_msg_binary, query_polytone_proxy_address,
 };
 use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};

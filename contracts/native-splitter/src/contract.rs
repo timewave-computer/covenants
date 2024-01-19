@@ -10,8 +10,7 @@ use cosmwasm_std::{
     MessageInfo, Reply, Response, StdError, StdResult, SubMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::get_default_ica_fee;
-use covenant_utils::neutron_ica::{RemoteChainInfo, SudoPayload};
+use covenant_utils::neutron_ica::{get_default_ica_fee, RemoteChainInfo, SudoPayload};
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_txs::helpers::get_port_id;

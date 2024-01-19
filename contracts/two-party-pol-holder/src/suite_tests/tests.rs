@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{Decimal, Timestamp, Uint128};
-use covenant_utils::{SplitConfig, SplitType};
+use covenant_utils::split::{SplitConfig, SplitType};
 use cw_utils::Expiration;
 
 use crate::{

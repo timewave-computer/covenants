@@ -10,7 +10,8 @@ use cosmwasm_std::{
 use cosmwasm_std::entry_point;
 
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::{query_astro_pool_token, AstroportPoolTokenResponse, SplitConfig, SplitType};
+use covenant_utils::astroport::{query_astro_pool_token, AstroportPoolTokenResponse};
+use covenant_utils::split::{SplitConfig, SplitType};
 use cw2::set_contract_version;
 use cw20::Cw20ExecuteMsg;
 

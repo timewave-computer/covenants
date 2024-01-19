@@ -5,10 +5,7 @@ use cosmwasm_std::{
     Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::{
-    get_default_ica_fee,
-    neutron_ica::{self, get_proto_coin, RemoteChainInfo},
-};
+use covenant_utils::neutron_ica::{self, get_default_ica_fee, get_proto_coin, RemoteChainInfo};
 use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::{

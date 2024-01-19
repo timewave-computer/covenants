@@ -9,7 +9,7 @@ use crate::{
 };
 use cosmwasm_std::{Addr, BlockInfo, Coin, Decimal, Timestamp, Uint128};
 use covenant_clock::test_helpers::helpers::mock_clock_instantiate_message;
-use covenant_utils::{SplitConfig, SplitType};
+use covenant_utils::split::{SplitConfig, SplitType};
 use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 use cw_utils::Expiration;
 

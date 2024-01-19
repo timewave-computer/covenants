@@ -7,7 +7,7 @@ use cosmwasm_std::{
     Response, StdError, StdResult, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::{get_default_ibc_fee_requirement, ReceiverConfig};
+use covenant_utils::{neutron_ica::get_default_ibc_fee_requirement, ReceiverConfig};
 use cw2::set_contract_version;
 
 use crate::{

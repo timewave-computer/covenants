@@ -2,7 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128, Uint64};
 use covenant_interchain_splitter::msg::DenomSplit;
 use covenant_utils::{
-    CovenantParty, DestinationConfig, ReceiverConfig, SplitConfig, SwapCovenantTerms,
+    split::SplitConfig, CovenantParty, DestinationConfig, ReceiverConfig, SwapCovenantTerms,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
