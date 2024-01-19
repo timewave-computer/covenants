@@ -30,10 +30,6 @@ cw-utils        = { workspace = true }
 cw2             = { workspace = true }
 serde           = { workspace = true }
 thiserror       = { workspace = true }
-# the sha2 version here is the same as the one used by
-# cosmwasm-std. when bumping cosmwasm-std, this should also be
-# updated. to find cosmwasm_std's sha function:
-# ```cargo tree --package cosmwasm-std```
 protobuf         = { workspace = true }
 schemars         = { workspace = true }
 cw20             = { workspace = true }
