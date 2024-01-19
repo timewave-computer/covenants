@@ -38,6 +38,7 @@ pub fn instantiate(
         // split.get_split_config()?.validate()?;
         match split {
             SplitType::Custom(config) => {
+                config.validate_shares()?;
                 SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &config)?;
             }
         }

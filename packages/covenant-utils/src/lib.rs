@@ -257,6 +257,23 @@ impl SplitConfig {
         Ok(())
     }
 
+    /// Validate that all shares are added to one
+    pub fn validate_shares(&self) -> Result<(), StdError> {
+        let mut total_shares = Decimal::zero();
+
+        for (_, share) in self.receivers.clone() {
+            total_shares += share;
+        }
+
+        if total_shares != Decimal::one() {
+            return Err(StdError::generic_err(
+                "shares must add up to 1.0".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
     pub fn get_transfer_messages(
         &self,
         amount: Uint128,
