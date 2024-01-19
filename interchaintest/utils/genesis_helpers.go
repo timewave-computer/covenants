@@ -187,26 +187,6 @@ func SetupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 			return nil, fmt.Errorf("failed to set poolmanager pool creation fee")
 		}
 
-		// Retrieve the params map
-		params, err := dyno.Get(g, "app_state", "concentratedliquidity", "params")
-		if err != nil {
-			return nil, fmt.Errorf("failed to get params for concentratedliquidity: %w", err)
-		}
-
-		// Assert the type of the params to be map[string]interface{}
-		paramsMap, ok := params.(map[string]interface{})
-		if !ok {
-			return nil, fmt.Errorf("params for concentratedliquidity is not a map")
-		}
-
-		// Update only the is_permissionless_pool_creation_enabled field
-		paramsMap["is_permissionless_pool_creation_enabled"] = true
-
-		// Set the modified params map back
-		if err := dyno.Set(g, paramsMap, "app_state", "concentratedliquidity", "params"); err != nil {
-			return nil, fmt.Errorf("failed to set modified params for concentratedliquidity: %w", err)
-		}
-
 		// Retrieve tokenfactory params map
 		tokenfactoryParams, err := dyno.Get(g, "app_state", "tokenfactory", "params")
 		if err != nil {
