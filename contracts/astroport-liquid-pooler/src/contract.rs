@@ -238,7 +238,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         // exactly one balance is non-zero, we attempt single-side
         (true, false) | (false, true) => {
             let single_sided_submsg =
-                try_get_single_side_lp_submsg(deps.branch(), env, coin_a, coin_b, lp_config)?;
+                try_get_single_side_lp_submsg(deps.branch(), env, (coin_a, coin_b), lp_config)?;
             if let Some(msg) = single_sided_submsg {
                 return Ok(Response::default()
                     .add_submessage(msg)
@@ -250,11 +250,9 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             let double_sided_submsg = try_get_double_side_lp_submsg(
                 deps.branch(),
                 env,
-                coin_a,
-                coin_b,
+                (coin_a, coin_b),
                 a_to_b_ratio,
-                pool_token_a_bal,
-                pool_token_b_bal,
+                (pool_token_a_bal, pool_token_b_bal),
                 lp_config,
             )?;
             if let Some(msg) = double_sided_submsg {
@@ -280,11 +278,9 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 fn try_get_double_side_lp_submsg(
     deps: DepsMut,
     env: Env,
-    token_a: Coin,
-    token_b: Coin,
+    (token_a, token_b): (Coin, Coin),
     pool_token_ratio: Decimal,
-    pool_token_a_bal: Uint128,
-    pool_token_b_bal: Uint128,
+    (pool_token_a_bal, pool_token_b_bal): (Uint128, Uint128),
     lp_config: LpConfig,
 ) -> Result<Option<SubMsg>, ContractError> {
     // we thus find the required token amount to enter into the position using all available b tokens:
@@ -348,8 +344,7 @@ fn try_get_double_side_lp_submsg(
 fn try_get_single_side_lp_submsg(
     deps: DepsMut,
     env: Env,
-    coin_a: Coin,
-    coin_b: Coin,
+    (coin_a, coin_b): (Coin, Coin),
     lp_config: LpConfig,
 ) -> Result<Option<SubMsg>, ContractError> {
     let assets = lp_config

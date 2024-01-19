@@ -371,18 +371,6 @@ func TestSinglePartyPol(t *testing.T) {
 	// Stride needs validators that it can stake ATOM with to issue us stATOM
 	t.Run("register gaia validators on stride", func(t *testing.T) {
 
-		type Validator struct {
-			Name    string `json:"name"`
-			Address string `json:"address"`
-			Weight  int    `json:"weight"`
-		}
-
-		type Data struct {
-			BlockHeight string      `json:"block_height"`
-			Total       string      `json:"total"`
-			Validators  []Validator `json:"validators"`
-		}
-
 		valcmd := []string{"gaiad", "query", "tendermint-validator-set",
 			"50",
 			"--chain-id", cosmosAtom.Config().ChainID,
@@ -817,19 +805,19 @@ func TestSinglePartyPol(t *testing.T) {
 			testCtx.SkipBlocksStride(3)
 		})
 
-		t.Run("tick until forwarders forward the funds to liquid pooler", func(t *testing.T) {
+		t.Run("tick until splitter splits the funds to ls and lp forwarders", func(t *testing.T) {
 			for {
-				testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+				testCtx.TickStride(remoteChainSplitterAddress, keyring.BackendTest, neutronUser.KeyName)
 
 				lsForwarderIcaAtomBal := testCtx.QueryHubDenomBalance(nativeAtomDenom, lsForwarderIcaAddress)
-				liquidPoolerForwarderIcaAtomBal := testCtx.QueryHubDenomBalance(nativeAtomDenom, liquidPoolerForwarderIcaAddress)
+				lpForwarderIcaAtomBal := testCtx.QueryHubDenomBalance(nativeAtomDenom, liquidPoolerForwarderIcaAddress)
 				splitterAtomBalance := testCtx.QueryHubDenomBalance(nativeAtomDenom, partyDepositAddress)
 
 				println("ls forwarder ica atom balance: ", lsForwarderIcaAtomBal)
-				println("liquid pooler forwarder ica atom balance: ", liquidPoolerForwarderIcaAtomBal)
+				println("lp forwarder ica atom balance: ", lpForwarderIcaAtomBal)
 				println("splitter atom balance: ", splitterAtomBalance)
 
-				if lsForwarderIcaAtomBal != 0 && liquidPoolerForwarderIcaAtomBal != 0 {
+				if lsForwarderIcaAtomBal != 0 && lpForwarderIcaAtomBal != 0 {
 					println("liquid pooler received atom & statom")
 					break
 				}
@@ -937,7 +925,7 @@ func TestSinglePartyPol(t *testing.T) {
 				if stAtomBal != 0 && atomBal != 0 {
 					break
 				} else {
-					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+					testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
 		})

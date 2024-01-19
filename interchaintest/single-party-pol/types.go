@@ -1,5 +1,17 @@
 package covenant_single_party_pol
 
+type Validator struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+	Weight  int    `json:"weight"`
+}
+
+type Data struct {
+	BlockHeight string      `json:"block_height"`
+	Total       string      `json:"total"`
+	Validators  []Validator `json:"validators"`
+}
+
 // astroport stableswap
 type StableswapInstantiateMsg struct {
 	TokenCodeId uint64      `json:"token_code_id"`
