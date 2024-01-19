@@ -83,6 +83,29 @@ jobs:
       - name: swap covenant
         run: mkdir interchaintest/swap/wasms && cp -R artifacts/*.wasm interchaintest/swap/wasms && just local-e2e swap TestTokenSwap
 
+  single-party-pol-covenant:
+    needs: compile-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: contracts
+          path: artifacts/
+
+      - name: Set up Go  ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v4
+        with:
+          go-version:  ${{ env.GO_VERSION }}
+
+      - name: setup just
+        uses: extractions/setup-just@v1
+
+      - name: single party pol covenant
+        run: mkdir interchaintest/single-party-pol/wasms && cp -R artifacts/*.wasm interchaintest/single-party-pol/wasms && cp -R interchaintest/wasms/astroport/*.wasm interchaintest/single-party-pol/wasms && just local-e2e single-party-pol
+
 
   two-party-pol-covenant:
     needs: compile-contracts
