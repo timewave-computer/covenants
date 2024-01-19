@@ -92,9 +92,6 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
     match current_state {
         ContractState::Instantiated => try_register_ica(deps, env),
         ContractState::IcaCreated => try_forward_funds(env, deps),
-        ContractState::Complete => {
-            Ok(Response::default().add_attribute("contract_state", "completed"))
-        }
     }
 }
 
