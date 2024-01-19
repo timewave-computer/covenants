@@ -183,10 +183,6 @@ func SetupOsmoGenesis(allowed_messages []string) func(ibc.ChainConfig, []byte) (
 			},
 		}
 
-		if err := dyno.Set(g, zeroCreationFee, "app_state", "poolmanager", "params", "pool_creation_fee"); err != nil {
-			return nil, fmt.Errorf("failed to set poolmanager pool creation fee")
-		}
-
 		if err := dyno.Set(g, zeroCreationFee, "app_state", "gamm", "params", "pool_creation_fee"); err != nil {
 			return nil, fmt.Errorf("failed to set poolmanager pool creation fee")
 		}
