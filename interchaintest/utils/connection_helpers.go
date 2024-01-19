@@ -1581,3 +1581,38 @@ func (testCtx *TestContext) InstantiateCmdExecOsmo(codeId uint64, label string, 
 
 	return instantiatedAddress
 }
+
+func (testCtx *TestContext) GetPermisionlessLsTransferMessage(amount uint64, liquidStakerAddress string, user *ibc.Wallet, keyring string) []string {
+	type TransferAmount struct {
+		Amount uint64 `json:"amount,string"`
+	}
+
+	type TransferExecutionMsg struct {
+		Transfer TransferAmount `json:"transfer"`
+	}
+
+	// Construct a transfer message
+	msg := TransferExecutionMsg{
+		Transfer: TransferAmount{
+			Amount: amount,
+		},
+	}
+	transferMsgJson, err := json.Marshal(msg)
+	require.NoError(testCtx.T, err)
+
+	// transfer command for permissionless transfer from stride ica to lper
+	transferCmd := []string{"neutrond", "tx", "wasm", "execute", liquidStakerAddress,
+		string(transferMsgJson),
+		"--from", user.KeyName,
+		"--gas-prices", "0.0untrn",
+		"--gas-adjustment", `1.8`,
+		"--output", "json",
+		"--home", testCtx.Neutron.HomeDir(),
+		"--node", testCtx.Neutron.GetRPCAddress(),
+		"--chain-id", testCtx.Neutron.Config().ChainID,
+		"--gas", "42069420",
+		"--keyring-backend", keyring,
+		"-y",
+	}
+	return transferCmd
+}
