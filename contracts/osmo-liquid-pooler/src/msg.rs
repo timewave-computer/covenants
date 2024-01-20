@@ -5,7 +5,7 @@ use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, StdResult, Uint128, Uint64,
     WasmMsg,
 };
-use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
+use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw};
 use covenant_utils::OutpostExecuteMsg;
 use polytone::callbacks::CallbackMessage;
 
@@ -193,6 +193,7 @@ impl PartyDenomInfo {
 }
 
 #[clocked]
+#[covenant_lper_withdraw]
 #[cw_serde]
 pub enum ExecuteMsg {
     // polytone callback listener
