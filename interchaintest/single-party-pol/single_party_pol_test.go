@@ -487,7 +487,7 @@ func TestSinglePartyPol(t *testing.T) {
 		_, _, _, _, _, _, _, _, _ = clockCodeId, interchainRouterCodeId, nativeRouterCodeId, ibcForwarderCodeId, holderCodeId, lperCodeId, covenantCodeId, remoteChainSplitterCodeId, liquidStakerCodeId
 
 		t.Run("deploy covenant contracts", func(t *testing.T) {
-			// covenantCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, covenantContractPath)
+			covenantCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, covenantContractPath)
 
 			// store clock and get code id
 			clockCodeId = testCtx.StoreContract(cosmosNeutron, neutronUser, clockContractPath)
@@ -807,7 +807,7 @@ func TestSinglePartyPol(t *testing.T) {
 
 		t.Run("tick until splitter splits the funds to ls and lp forwarders", func(t *testing.T) {
 			for {
-				testCtx.TickStride(remoteChainSplitterAddress, keyring.BackendTest, neutronUser.KeyName)
+				testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 
 				lsForwarderIcaAtomBal := testCtx.QueryHubDenomBalance(nativeAtomDenom, lsForwarderIcaAddress)
 				lpForwarderIcaAtomBal := testCtx.QueryHubDenomBalance(nativeAtomDenom, liquidPoolerForwarderIcaAddress)
