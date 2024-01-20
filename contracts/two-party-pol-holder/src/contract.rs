@@ -8,7 +8,7 @@ use cosmwasm_std::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use covenant_clock::helpers::enqueue_msg;
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
 use covenant_utils::{SplitConfig, SplitType};
 use cw2::set_contract_version;
@@ -116,11 +116,12 @@ pub fn execute(
         ExecuteMsg::Ragequit {} => try_ragequit(deps, env, info),
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Claim {} => try_claim(deps, info),
-        ExecuteMsg::Distribute {} => try_distribute(deps, env, info),
+        ExecuteMsg::Distribute {} => try_distribute(deps, info),
         ExecuteMsg::WithdrawFailed {} => try_withdraw_failed(deps, info),
         ExecuteMsg::DistributeFallbackSplit { denoms } => {
             try_distribute_fallback_split(deps, env, denoms)
-        }
+        },
+        ExecuteMsg::EmergencyWithdraw {} => try_emergency_withdraw(deps, info),
     }
 }
 
@@ -161,10 +162,8 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
 
     // if both parties already claimed everything we complete early
     if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
-        let msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?;
-
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
         return Ok(Response::default()
-            .add_message(msg)
             .add_attribute("method", "try_claim")
             .add_attribute("contract_state", "complete"));
     }
@@ -178,7 +177,6 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
         deps.storage,
         &WithdrawState::Processing {
             claimer_addr: claim_party.host_addr,
-            claimer_allocation: claim_party.allocation,
         },
     )?;
 
@@ -229,7 +227,7 @@ fn try_distribute(mut deps: DepsMut, info: MessageInfo) -> Result<Response, Cont
     let (claim_party, counterparty, denom_splits, is_rq) = match withdraw_state {
         WithdrawState::Processing { claimer_addr } => {
             let (claim_party, counterparty) = covenant_config.authorize_sender(claimer_addr)?;
-            
+
             (claim_party, counterparty, denom_splits, false)
         }
         WithdrawState::ProcessingRagequit {
@@ -302,12 +300,10 @@ fn try_withdraw_failed(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
 
 #[allow(clippy::too_many_arguments)]
 fn try_claim_share_based(
-    mut deps: DepsMut,
+    deps: DepsMut,
     mut claim_party: TwoPartyPolCovenantParty,
     mut counterparty: TwoPartyPolCovenantParty,
-    lp_token_bal: Uint128,
-    lp_token_addr: String,
-    pool: String,
+    funds: Vec<Coin>,
     mut covenant_config: TwoPartyPolCovenantConfig,
     denom_splits: DenomSplits,
 ) -> Result<Response, ContractError> {
@@ -317,14 +313,12 @@ fn try_claim_share_based(
     claim_party.allocation = Decimal::zero();
 
     // if other party had not claimed yet, we assign it the full position
-    let msgs = if !counterparty.allocation.is_zero() {
+    if !counterparty.allocation.is_zero() {
         counterparty.allocation = Decimal::one();
-        vec![]
     } else {
         // otherwise both parties claimed everything and we can complete
-        vec![ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?.into()]
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
     };
-    messages.extend(msgs);
 
     covenant_config.update_parties(claim_party, counterparty);
 
@@ -337,12 +331,10 @@ fn try_claim_share_based(
 
 #[allow(clippy::too_many_arguments)]
 fn try_claim_side_based(
-    mut deps: DepsMut,
+    deps: DepsMut,
     mut claim_party: TwoPartyPolCovenantParty,
     mut counterparty: TwoPartyPolCovenantParty,
-    lp_token_bal: Uint128,
-    lp_token_addr: String,
-    pool: String,
+    funds: Vec<Coin>,
     mut covenant_config: TwoPartyPolCovenantConfig,
     denom_splits: DenomSplits,
 ) -> Result<Response, ContractError> {
@@ -354,8 +346,7 @@ fn try_claim_side_based(
 
     // update the states
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-
-    messages.push(ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?.into());
+    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
 
     Ok(Response::default()
         .add_attribute("method", "claim_side_based")
@@ -376,7 +367,6 @@ fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
             .add_attribute("contract_state", state.to_string())),
         ContractState::Expired | ContractState::Ragequit => {
             Ok(Response::default()
-                .add_messages(msgs)
                 .add_attribute("method", "tick")
                 // .add_attribute("lp_token_bal", lp_token_bal)
                 .add_attribute("contract_state", state.to_string()))
