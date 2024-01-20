@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, to_json_string, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, Uint128, WasmMsg,
+    Response, StdResult, Uint128, WasmMsg, Decimal,
 };
 use covenant_utils::{default_ibc_fee, get_polytone_execute_msg_binary};
 use cw2::set_contract_version;
@@ -104,7 +104,19 @@ pub fn execute(
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Callback(callback_msg) => try_handle_callback(env, deps, info, callback_msg),
+        ExecuteMsg::Withdraw { percentage } => try_withdraw(deps, env, info, percentage),
     }
+}
+
+
+fn try_withdraw(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    percent: Option<Decimal>,
+) -> NeutronResult<Response<NeutronMsg>> {
+    // TODO
+    Ok(Response::default())
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation.
