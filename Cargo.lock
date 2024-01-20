@@ -50,12 +50,13 @@ dependencies = [
 
 [[package]]
 name = "astroport"
-version = "3.8.0"
-source = "git+https://github.com/astroport-fi/astroport-core.git#80595f1e7a4967e3d606efef2111d0ac67747f9f"
+version = "3.9.0"
+source = "git+https://github.com/astroport-fi/astroport-core.git#b08b4d86050f0c473673b363aa9a4e8e30cf7082"
 dependencies = [
  "astroport-circular-buffer",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw-asset",
  "cw-storage-plus 0.15.1",
  "cw-utils 1.0.3",
  "cw20 0.15.1",
@@ -67,7 +68,7 @@ dependencies = [
 [[package]]
 name = "astroport-circular-buffer"
 version = "0.1.0"
-source = "git+https://github.com/astroport-fi/astroport-core.git#80595f1e7a4967e3d606efef2111d0ac67747f9f"
+source = "git+https://github.com/astroport-fi/astroport-core.git#b08b4d86050f0c473673b363aa9a4e8e30cf7082"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -93,9 +94,9 @@ dependencies = [
 [[package]]
 name = "astroport-factory"
 version = "1.6.0"
-source = "git+https://github.com/astroport-fi/astroport-core.git#80595f1e7a4967e3d606efef2111d0ac67747f9f"
+source = "git+https://github.com/astroport-fi/astroport-core.git#b08b4d86050f0c473673b363aa9a4e8e30cf7082"
 dependencies = [
- "astroport 3.8.0",
+ "astroport 3.9.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus 0.15.1",
@@ -123,9 +124,9 @@ dependencies = [
 [[package]]
 name = "astroport-native-coin-registry"
 version = "1.0.1"
-source = "git+https://github.com/astroport-fi/astroport-core.git#80595f1e7a4967e3d606efef2111d0ac67747f9f"
+source = "git+https://github.com/astroport-fi/astroport-core.git#b08b4d86050f0c473673b363aa9a4e8e30cf7082"
 dependencies = [
- "astroport 3.8.0",
+ "astroport 3.9.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
@@ -153,9 +154,9 @@ dependencies = [
 [[package]]
 name = "astroport-pair-stable"
 version = "3.4.0"
-source = "git+https://github.com/astroport-fi/astroport-core.git#80595f1e7a4967e3d606efef2111d0ac67747f9f"
+source = "git+https://github.com/astroport-fi/astroport-core.git#b08b4d86050f0c473673b363aa9a4e8e30cf7082"
 dependencies = [
- "astroport 3.8.0",
+ "astroport 3.9.0",
  "astroport-circular-buffer",
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -184,9 +185,9 @@ dependencies = [
 [[package]]
 name = "astroport-token"
 version = "1.1.1"
-source = "git+https://github.com/astroport-fi/astroport-core.git#80595f1e7a4967e3d606efef2111d0ac67747f9f"
+source = "git+https://github.com/astroport-fi/astroport-core.git#b08b4d86050f0c473673b363aa9a4e8e30cf7082"
 dependencies = [
- "astroport 3.8.0",
+ "astroport 3.9.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw2 0.15.1",
@@ -211,9 +212,9 @@ dependencies = [
 [[package]]
 name = "astroport-whitelist"
 version = "1.0.1"
-source = "git+https://github.com/astroport-fi/astroport-core.git#80595f1e7a4967e3d606efef2111d0ac67747f9f"
+source = "git+https://github.com/astroport-fi/astroport-core.git#b08b4d86050f0c473673b363aa9a4e8e30cf7082"
 dependencies = [
- "astroport 3.8.0",
+ "astroport 3.9.0",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw1-whitelist 0.15.1",
@@ -305,18 +306,6 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "chrono"
 version = "0.4.31"
-<<<<<<< HEAD
-=======
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f2c685bad3eb3d45a01354cedb7d5faa66194d1d58ba6e267a8de788f79db38"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "const-oid"
-version = "0.9.5"
->>>>>>> e6ad7b6 (started migration of V1 to V2)
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f2c685bad3eb3d45a01354cedb7d5faa66194d1d58ba6e267a8de788f79db38"
 dependencies = [
@@ -506,11 +495,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "neutron-sdk",
-<<<<<<< HEAD
  "osmosis-std 0.21.0",
-=======
- "osmosis-std",
->>>>>>> e6ad7b6 (started migration of V1 to V2)
  "prost 0.11.9",
  "prost-types 0.11.9",
  "protobuf 3.3.0",
@@ -620,7 +605,6 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
 name = "covenant-osmo-liquid-pooler"
 version = "1.0.0"
 dependencies = [
@@ -646,7 +630,7 @@ dependencies = [
  "protobuf 3.3.0",
  "schemars",
  "serde",
- "sha2 0.10.8",
+ "sha2 0.9.9",
  "thiserror",
 ]
 
@@ -673,8 +657,6 @@ dependencies = [
 ]
 
 [[package]]
-=======
->>>>>>> e6ad7b6 (started migration of V1 to V2)
 name = "covenant-single-party-pol"
 version = "1.0.0"
 dependencies = [
@@ -690,17 +672,9 @@ dependencies = [
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
  "covenant-interchain-splitter",
-<<<<<<< HEAD
-<<<<<<< HEAD
  "covenant-native-splitter",
  "covenant-single-party-pol-holder",
  "covenant-stride-liquid-staker",
-=======
-=======
- "covenant-stride-liquid-staker",
->>>>>>> 79feab7 (started working on the withdraw functionlity on the LPer)
- "covenant-two-party-pol-holder",
->>>>>>> e6ad7b6 (started migration of V1 to V2)
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
@@ -718,21 +692,10 @@ dependencies = [
 ]
 
 [[package]]
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> f570937 (instantiating liquid staker on ictests)
 name = "covenant-single-party-pol-holder"
 version = "1.0.0"
 dependencies = [
  "anyhow",
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
- "astroport 2.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
->>>>>>> f570937 (instantiating liquid staker on ictests)
-=======
->>>>>>> 79feab7 (started working on the withdraw functionlity on the LPer)
  "astroport-factory 1.6.0",
  "astroport-native-coin-registry 1.0.1 (git+https://github.com/astroport-fi/astroport-core.git)",
  "astroport-pair-stable 3.4.0",
@@ -740,36 +703,17 @@ dependencies = [
  "astroport-whitelist 1.0.1 (git+https://github.com/astroport-fi/astroport-core.git)",
  "cosmwasm-schema",
  "cosmwasm-std",
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 37e3085 (Finished with astro lper withdraw change and isngle party holder)
  "covenant-macros",
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
-=======
- "cw-multi-test",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
-<<<<<<< HEAD
- "cw20 0.15.1",
->>>>>>> f570937 (instantiating liquid staker on ictests)
-=======
->>>>>>> 79feab7 (started working on the withdraw functionlity on the LPer)
  "serde",
  "thiserror",
 ]
 
 [[package]]
-<<<<<<< HEAD
-=======
->>>>>>> e6ad7b6 (started migration of V1 to V2)
-=======
->>>>>>> f570937 (instantiating liquid staker on ictests)
 name = "covenant-stride-liquid-staker"
 version = "1.0.0"
 dependencies = [
@@ -900,24 +844,14 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
-<<<<<<< HEAD
-<<<<<<< HEAD
  "covenant-macros",
-<<<<<<< HEAD
-=======
->>>>>>> 79feab7 (started working on the withdraw functionlity on the LPer)
-=======
- "covenant-macros",
->>>>>>> 37e3085 (Finished with astro lper withdraw change and isngle party holder)
-=======
  "cw-storage-plus 1.2.0",
->>>>>>> 631fe8c (did the emergency pull out, and distribution for regular claim, left to do the rage quit distribution)
  "cw-utils 1.0.3",
  "cw20 1.1.2",
  "neutron-sdk",
  "polytone",
  "prost 0.11.9",
- "sha2 0.10.8",
+ "sha2 0.9.9",
 ]
 
 [[package]]
@@ -968,6 +902,29 @@ dependencies = [
  "rand_core 0.5.1",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "cw-address-like"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "451a4691083a88a3c0630a8a88799e9d4cd6679b7ce8ff22b8da2873ff31d380"
+dependencies = [
+ "cosmwasm-std",
+]
+
+[[package]]
+name = "cw-asset"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "431e57314dceabd29a682c78bb3ff7c641f8bdc8b915400bb9956cb911e8e571"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-address-like",
+ "cw-storage-plus 1.2.0",
+ "cw20 1.1.2",
+ "thiserror",
 ]
 
 [[package]]
@@ -1500,7 +1457,6 @@ checksum = "624a8340c38c1b80fd549087862da4ba43e08858af025b236e509b6649fc13d5"
 
 [[package]]
 name = "osmosis-std"
-<<<<<<< HEAD
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "10d6fe6ac7fcba45ed61d738091d33c838c4cabbcf4892dc7aa56d19d39cc976"
@@ -1517,19 +1473,13 @@ dependencies = [
 
 [[package]]
 name = "osmosis-std"
-=======
->>>>>>> e6ad7b6 (started migration of V1 to V2)
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e87adf61f03306474ce79ab322d52dfff6b0bcf3aed1e12d8864ac0400dec1bf"
 dependencies = [
  "chrono",
  "cosmwasm-std",
-<<<<<<< HEAD
  "osmosis-std-derive 0.20.1",
-=======
- "osmosis-std-derive",
->>>>>>> e6ad7b6 (started migration of V1 to V2)
  "prost 0.12.3",
  "prost-types 0.12.3",
  "schemars",
@@ -1539,7 +1489,6 @@ dependencies = [
 
 [[package]]
 name = "osmosis-std-derive"
-<<<<<<< HEAD
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a455e262a6fdfd3914f3a4e11e6bc0ce491901cb9d507d7856d7ef6e129e90c6"
@@ -1552,8 +1501,6 @@ dependencies = [
 
 [[package]]
 name = "osmosis-std-derive"
-=======
->>>>>>> e6ad7b6 (started migration of V1 to V2)
 version = "0.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5ebdfd1bc8ed04db596e110c6baa9b174b04f6ed1ec22c666ddc5cb3fa91bd7"
