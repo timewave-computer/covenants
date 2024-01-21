@@ -21,15 +21,37 @@ type CovenantInstantiateMsg struct {
 	RagequitConfig           *RagequitConfig     `json:"ragequit_config,omitempty"`
 	DepositDeadline          Expiration          `json:"deposit_deadline"`
 	CovenantType             string              `json:"covenant_type"`
-	PoolAddress              string              `json:"pool_address"`
 	PartyAShare              string              `json:"party_a_share"`
 	PartyBShare              string              `json:"party_b_share"`
 	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
 	AcceptablePoolRatioDelta string              `json:"acceptable_pool_ratio_delta"`
-	PairType                 PairType            `json:"pool_pair_type"`
 	Splits                   []DenomSplit        `json:"splits"`
 	FallbackSplit            *SplitConfig        `json:"fallback_split,omitempty"`
-	EmergencyCommittee       string        		 `json:"emergency_committee,omitempty"`
+	EmergencyCommittee       string              `json:"emergency_committee,omitempty"`
+	LiquidPoolerConfig       LiquidPoolerConfig  `json:"liquid_pooler_config"`
+}
+
+type LiquidPoolerConfig struct {
+	Astroport *AstroportLiquidPoolerConfig `json:"astroport,omitempty"`
+	Osmosis   *OsmosisLiquidPoolerConfig   `json:"osmosis,omitempty"`
+}
+
+type OsmosisLiquidPoolerConfig struct {
+	NoteAddress            string         `json:"note_address"`
+	PoolId                 string         `json:"pool_id"`
+	OsmoIbcTimeout         string         `json:"osmo_ibc_timeout"`
+	OsmoOutpost            string         `json:"osmo_outpost"`
+	Party1ChainInfo        PartyChainInfo `json:"party_1_chain_info"`
+	Party2ChainInfo        PartyChainInfo `json:"party_2_chain_info"`
+	LpTokenDenom           string         `json:"lp_token_denom"`
+	OsmoToNeutronChannelId string         `json:"osmo_to_neutron_channel_id"`
+	Party1DenomInfo        PartyDenomInfo `json:"party_1_denom_info"`
+	Party2DenomInfo        PartyDenomInfo `json:"party_2_denom_info"`
+}
+
+type AstroportLiquidPoolerConfig struct {
+	PairType    PairType `json:"pool_pair_type"`
+	PoolAddress string   `json:"pool_address"`
 }
 
 type SplitType struct {
@@ -474,7 +496,7 @@ type OsmoLiquidPoolerInstantiateMsg struct {
 
 type PartyDenomInfo struct {
 	OsmosisCoin       cw.Coin `json:"osmosis_coin"`
-	NeutronDenom      string  `json:"neutron_denom"`
+	LocalDenom        string  `json:"local_denom"`
 	SingleSideLpLimit string  `json:"single_side_lp_limit"`
 }
 

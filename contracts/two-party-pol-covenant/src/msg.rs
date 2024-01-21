@@ -1,6 +1,7 @@
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128, Uint64};
+use covenant_osmo_liquid_pooler::msg::{PartyChainInfo, PartyDenomInfo};
 use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
 use covenant_utils::{CovenantParty, DenomSplit, DestinationConfig, ReceiverConfig, SplitConfig};
 use cw_utils::Expiration;
@@ -20,17 +21,42 @@ pub struct InstantiateMsg {
     pub party_a_config: CovenantPartyConfig,
     pub party_b_config: CovenantPartyConfig,
     pub covenant_type: CovenantType,
-    pub pool_address: String,
     pub ragequit_config: Option<RagequitConfig>,
     pub deposit_deadline: Expiration,
     pub party_a_share: Uint64,
     pub party_b_share: Uint64,
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
-    pub pool_pair_type: PairType,
     pub splits: Vec<DenomSplit>,
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee: Option<String>,
+    pub liquid_pooler_config: LiquidPoolerConfig,
+}
+
+#[cw_serde]
+pub enum LiquidPoolerConfig {
+    Osmosis(OsmosisLiquidPoolerConfig),
+    Astroport(AstroportLiquidPoolerConfig),
+}
+
+#[cw_serde]
+pub struct OsmosisLiquidPoolerConfig {
+    pub note_address: String,
+    pub pool_id: Uint64,
+    pub osmo_ibc_timeout: Uint64,
+    pub osmo_outpost: String,
+    pub party_1_chain_info: PartyChainInfo,
+    pub party_2_chain_info: PartyChainInfo,
+    pub lp_token_denom: String,
+    pub osmo_to_neutron_channel_id: String,
+    pub party_1_denom_info: PartyDenomInfo,
+    pub party_2_denom_info: PartyDenomInfo,
+}
+
+#[cw_serde]
+pub struct AstroportLiquidPoolerConfig {
+    pub pool_pair_type: PairType,
+    pub pool_address: String,
 }
 
 impl CovenantPartyConfig {

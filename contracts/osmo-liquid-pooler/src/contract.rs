@@ -6,6 +6,7 @@ use cosmwasm_std::{
     to_json_binary, to_json_string, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
     Response, StdResult, Uint128, WasmMsg, Decimal,
 };
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::{default_ibc_fee, get_polytone_execute_msg_binary};
 use cw2::set_contract_version;
 use neutron_sdk::{
@@ -83,8 +84,7 @@ pub fn instantiate(
     IBC_CONFIG.save(deps.storage, &ibc_config)?;
 
     Ok(Response::default()
-        // TODO: reenable when integrating holder
-        // .add_message(enqueue_msg(clock_addr.as_str())?)
+        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "osmosis_lp_instantiate")
         .add_attribute("contract_state", "instantiated")
         .add_attributes(lp_config.to_response_attributes())
@@ -120,9 +120,9 @@ fn try_withdraw(
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation.
-fn try_tick(deps: DepsMut, env: Env, _info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
-    // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     match CONTRACT_STATE.load(deps.storage)? {
         // create a proxy account

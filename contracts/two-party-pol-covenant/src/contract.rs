@@ -7,15 +7,15 @@ use cosmwasm_std::{
     DepsMut, Env, MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
 
-use covenant_astroport_liquid_pooler::msg::{
-    AssetData, PresetAstroLiquidPoolerFields, SingleSideLpLimits,
-};
+use covenant_astroport_liquid_pooler::msg::{SingleSideLpLimits, AssetData, PresetAstroLiquidPoolerFields};
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
+use covenant_osmo_liquid_pooler::msg::PresetOsmoLiquidPoolerFields;
 use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
+use crate::msg::LiquidPoolerConfig::{Astroport, Osmosis};
 
 use crate::{
     error::ContractError,
@@ -225,22 +225,60 @@ pub fn instantiate(
         denoms: covenant_denoms,
     };
 
-    let preset_liquid_pooler_fields = PresetAstroLiquidPoolerFields {
-        slippage_tolerance: None,
-        assets: AssetData {
-            asset_a_denom: msg.party_a_config.get_native_denom(),
-            asset_b_denom: msg.party_b_config.get_native_denom(),
+    let liquid_pooler_instantiate2_msg = match msg.liquid_pooler_config {
+        Osmosis(config) => {
+            let preset_liquid_pooler_fields = PresetOsmoLiquidPoolerFields {
+                label: format!("{}_liquid_pooler", msg.label),
+                code_id: msg.contract_codes.liquid_pooler_code,
+                note_address: config.note_address,
+                pool_id: config.pool_id,
+                osmo_ibc_timeout: config.osmo_ibc_timeout,
+                party_1_chain_info: config.party_1_chain_info,
+                party_2_chain_info: config.party_2_chain_info,
+                osmo_to_neutron_channel_id: config.osmo_to_neutron_channel_id,
+                party_1_denom_info: config.party_1_denom_info,
+                party_2_denom_info: config.party_2_denom_info,
+                osmo_outpost: config.osmo_outpost,
+                lp_token_denom: config.lp_token_denom,
+                slippage_tolerance: None,
+                expected_spot_price: msg.expected_pool_ratio,
+                acceptable_price_spread: msg.acceptable_pool_ratio_delta,
+            };
+            preset_liquid_pooler_fields.to_instantiate2_msg(
+                env.contract.address.to_string(),
+                liquid_pooler_salt,
+                clock_address.to_string(),
+                holder_address.to_string(),
+            )?
         },
-        single_side_lp_limits: SingleSideLpLimits {
-            asset_a_limit: Uint128::new(10000),
-            asset_b_limit: Uint128::new(100000),
+        Astroport(config) => {
+            let preset_liquid_pooler_fields = PresetAstroLiquidPoolerFields {
+                slippage_tolerance: None,
+                assets: AssetData {
+                    asset_a_denom: msg.party_a_config.get_native_denom(),
+                    asset_b_denom: msg.party_b_config.get_native_denom(),
+                },
+                single_side_lp_limits: SingleSideLpLimits {
+                    asset_a_limit: Uint128::new(10000),
+                    asset_b_limit: Uint128::new(100000),
+                },
+                label: format!("{}_liquid_pooler", msg.label),
+                code_id: msg.contract_codes.liquid_pooler_code,
+                expected_pool_ratio: msg.expected_pool_ratio,
+                acceptable_pool_ratio_delta: msg.acceptable_pool_ratio_delta,
+                pair_type: config.pool_pair_type,
+            };
+            preset_liquid_pooler_fields.to_instantiate2_msg(
+                env.contract.address.to_string(),
+                liquid_pooler_salt,
+                config.pool_address,
+                clock_address.to_string(),
+                holder_address.to_string(),
+            )?
         },
-        label: format!("{}_liquid_pooler", msg.label),
-        code_id: msg.contract_codes.liquid_pooler_code,
-        expected_pool_ratio: msg.expected_pool_ratio,
-        acceptable_pool_ratio_delta: msg.acceptable_pool_ratio_delta,
-        pair_type: msg.pool_pair_type,
     };
+
+
     let mut messages = vec![
         preset_clock_fields.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?,
         preset_holder_fields.to_instantiate2_msg(
@@ -261,13 +299,7 @@ pub fn instantiate(
             party_b_router_salt,
             clock_address.to_string(),
         )?,
-        preset_liquid_pooler_fields.to_instantiate2_msg(
-            env.contract.address.to_string(),
-            liquid_pooler_salt,
-            msg.pool_address,
-            clock_address.to_string(),
-            holder_address.to_string(),
-        )?,
+        liquid_pooler_instantiate2_msg,
     ];
 
     if let Some(fields) = preset_party_a_forwarder_fields {
