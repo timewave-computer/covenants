@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, StdResult, Uint128, Uint64,
-    WasmMsg,
+    WasmMsg, StdError,
 };
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw};
 use covenant_utils::OutpostExecuteMsg;
@@ -26,6 +26,71 @@ pub struct InstantiateMsg {
     pub slippage_tolerance: Option<Decimal>,
     pub expected_spot_price: Decimal,
     pub acceptable_price_spread: Decimal,
+}
+
+#[cw_serde]
+pub struct PresetOsmoLiquidPoolerFields {
+    pub label: String,
+    pub code_id: u64,
+    pub note_address: String,
+    pub pool_id: Uint64,
+    pub osmo_ibc_timeout: Uint64,
+    pub party_1_chain_info: PartyChainInfo,
+    pub party_2_chain_info: PartyChainInfo,
+    pub osmo_to_neutron_channel_id: String,
+    pub party_1_denom_info: PartyDenomInfo,
+    pub party_2_denom_info: PartyDenomInfo,
+    pub osmo_outpost: String,
+    pub lp_token_denom: String,
+    pub slippage_tolerance: Option<Decimal>,
+    pub expected_spot_price: Decimal,
+    pub acceptable_price_spread: Decimal,
+}
+
+impl PresetOsmoLiquidPoolerFields {
+    pub fn to_instantiate_msg(
+        &self,
+        clock_address: String,
+        holder_address: String,
+    ) -> InstantiateMsg {
+        InstantiateMsg {
+            clock_address,
+            holder_address,
+            note_address: self.note_address.to_string(),
+            pool_id: self.pool_id,
+            osmo_ibc_timeout: self.osmo_ibc_timeout,
+            party_1_chain_info: self.party_1_chain_info.clone(),
+            party_2_chain_info: self.party_2_chain_info.clone(),
+            osmo_to_neutron_channel_id: self.osmo_to_neutron_channel_id.to_string(),
+            party_1_denom_info: self.party_1_denom_info.clone(),
+            party_2_denom_info: self.party_2_denom_info.clone(),
+            osmo_outpost: self.osmo_outpost.to_string(),
+            lp_token_denom: self.lp_token_denom.to_string(),
+            slippage_tolerance: self.slippage_tolerance,
+            expected_spot_price: self.expected_spot_price,
+            acceptable_price_spread: self.acceptable_price_spread,
+        }
+    }
+
+    pub fn to_instantiate2_msg(
+        &self,
+        admin_addr: String,
+        salt: Binary,
+        clock_address: String,
+        holder_address: String,
+    ) -> Result<WasmMsg, StdError> {
+        Ok(WasmMsg::Instantiate2 {
+            admin: Some(admin_addr),
+            code_id: self.code_id,
+            label: self.label.to_string(),
+            msg: to_json_binary(&self.to_instantiate_msg(
+                clock_address,
+                holder_address,
+            ))?,
+            funds: vec![],
+            salt,
+        })
+    }
 }
 
 #[cw_serde]

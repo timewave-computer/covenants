@@ -607,6 +607,13 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 				}
 
+				liquidPoolerConfig := LiquidPoolerConfig{
+					Astroport: &AstroportLiquidPoolerConfig{
+						PairType:    pairType,
+						PoolAddress: poolAddress,
+					},
+				}
+
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-happy",
 					Timeouts:        timeouts,
@@ -619,7 +626,6 @@ func TestTwoPartyPol(t *testing.T) {
 					PartyBConfig: CovenantPartyConfig{
 						Interchain: &partyBConfig,
 					},
-					PoolAddress:              poolAddress,
 					RagequitConfig:           &ragequitConfig,
 					DepositDeadline:          depositDeadline,
 					PartyAShare:              "50",
@@ -627,9 +633,9 @@ func TestTwoPartyPol(t *testing.T) {
 					ExpectedPoolRatio:        "0.1",
 					AcceptablePoolRatioDelta: "0.09",
 					CovenantType:             "share",
-					PairType:                 pairType,
 					Splits:                   denomSplits,
 					FallbackSplit:            nil,
+					LiquidPoolerConfig:       liquidPoolerConfig,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantCodeId, covenantMsg, neutronUser, keyring.BackendTest)
@@ -878,6 +884,13 @@ func TestTwoPartyPol(t *testing.T) {
 					Stable: struct{}{},
 				}
 
+				liquidPoolerConfig := LiquidPoolerConfig{
+					Astroport: &AstroportLiquidPoolerConfig{
+						PairType:    pairType,
+						PoolAddress: poolAddress,
+					},
+				}
+
 				covenantMsg := CovenantInstantiateMsg{
 					Label:                    "two-party-pol-covenant-ragequit",
 					Timeouts:                 timeouts,
@@ -886,7 +899,6 @@ func TestTwoPartyPol(t *testing.T) {
 					LockupConfig:             lockupConfig,
 					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
 					PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
-					PoolAddress:              poolAddress,
 					RagequitConfig:           &ragequitConfig,
 					DepositDeadline:          depositDeadline,
 					PartyAShare:              "50",
@@ -894,7 +906,6 @@ func TestTwoPartyPol(t *testing.T) {
 					ExpectedPoolRatio:        "0.1",
 					AcceptablePoolRatioDelta: "0.09",
 					CovenantType:             "share",
-					PairType:                 pairType,
 					Splits: []DenomSplit{
 						{
 							Denom: neutronAtomIbcDenom,
@@ -919,7 +930,8 @@ func TestTwoPartyPol(t *testing.T) {
 							},
 						},
 					},
-					FallbackSplit: nil,
+					FallbackSplit:      nil,
+					LiquidPoolerConfig: liquidPoolerConfig,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
@@ -1168,6 +1180,13 @@ func TestTwoPartyPol(t *testing.T) {
 					Stable: struct{}{},
 				}
 
+				liquidPoolerConfig := LiquidPoolerConfig{
+					Astroport: &AstroportLiquidPoolerConfig{
+						PairType:    pairType,
+						PoolAddress: poolAddress,
+					},
+				}
+
 				covenantMsg := CovenantInstantiateMsg{
 					Label:                    "two-party-pol-covenant-side-ragequit",
 					Timeouts:                 timeouts,
@@ -1176,14 +1195,12 @@ func TestTwoPartyPol(t *testing.T) {
 					LockupConfig:             lockupConfig,
 					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
 					PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
-					PoolAddress:              poolAddress,
 					RagequitConfig:           &ragequitConfig,
 					DepositDeadline:          depositDeadline,
 					PartyAShare:              "50",
 					PartyBShare:              "50",
 					ExpectedPoolRatio:        "0.1",
 					AcceptablePoolRatioDelta: "0.09",
-					PairType:                 pairType,
 					CovenantType:             "side",
 					Splits: []DenomSplit{
 						{
@@ -1209,7 +1226,8 @@ func TestTwoPartyPol(t *testing.T) {
 							},
 						},
 					},
-					FallbackSplit: nil,
+					FallbackSplit:      nil,
+					LiquidPoolerConfig: liquidPoolerConfig,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
@@ -1427,6 +1445,13 @@ func TestTwoPartyPol(t *testing.T) {
 					Stable: struct{}{},
 				}
 
+				liquidPoolerConfig := LiquidPoolerConfig{
+					Astroport: &AstroportLiquidPoolerConfig{
+						PairType:    pairType,
+						PoolAddress: poolAddress,
+					},
+				}
+
 				covenantMsg := CovenantInstantiateMsg{
 					Label:                    "two-party-pol-covenant-side-happy",
 					Timeouts:                 timeouts,
@@ -1435,14 +1460,12 @@ func TestTwoPartyPol(t *testing.T) {
 					LockupConfig:             lockupConfig,
 					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
 					PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
-					PoolAddress:              poolAddress,
 					RagequitConfig:           &ragequitConfig,
 					DepositDeadline:          depositDeadline,
 					PartyAShare:              "50",
 					PartyBShare:              "50",
 					ExpectedPoolRatio:        "0.1",
 					AcceptablePoolRatioDelta: "0.09",
-					PairType:                 pairType,
 					CovenantType:             "side",
 					Splits: []DenomSplit{
 						{
@@ -1468,7 +1491,8 @@ func TestTwoPartyPol(t *testing.T) {
 							},
 						},
 					},
-					FallbackSplit: nil,
+					FallbackSplit:      nil,
+					LiquidPoolerConfig: liquidPoolerConfig,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)

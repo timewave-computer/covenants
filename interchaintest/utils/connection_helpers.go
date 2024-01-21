@@ -779,6 +779,7 @@ func (testCtx *TestContext) QueryDepositAddress(covenant string, party string) s
 		err,
 		fmt.Sprintf("failed to query %s deposit address", party),
 	)
+	println(party, " deposit address: ", depositAddressResponse.Data)
 	return depositAddressResponse.Data
 }
 
@@ -874,7 +875,7 @@ func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.
 	require.NoError(testCtx.T, err, "manual instantiation failed")
 	println("covenant instantiation response: ", string(covInstantiationResp))
 
-	testCtx.SkipBlocks(8)
+	testCtx.SkipBlocks(5)
 
 	queryCmd := []string{"neutrond", "query", "wasm",
 		"list-contract-by-code", codeIdStr,
@@ -885,6 +886,7 @@ func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.
 	}
 
 	queryResp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, queryCmd, nil)
+	println("query response: ", string(queryResp))
 	require.NoError(testCtx.T, err, "failed to query")
 
 	type QueryContractResponse struct {

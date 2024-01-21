@@ -798,6 +798,7 @@ dependencies = [
  "covenant-clock",
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
+ "covenant-osmo-liquid-pooler",
  "covenant-two-party-pol-holder",
  "covenant-utils",
  "cw-multi-test",
