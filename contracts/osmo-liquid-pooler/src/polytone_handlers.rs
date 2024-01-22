@@ -7,12 +7,12 @@ use cosmwasm_std::{
 use covenant_utils::{
     get_polytone_execute_msg_binary, get_polytone_query_msg_binary, query_polytone_proxy_address,
 };
-use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
-use osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse;
+use neutron_sdk::{bindings::msg::{NeutronMsg, MsgSubmitTxResponse}, NeutronResult};
+use osmosis_std::types::cosmos::{bank::v1beta1::QueryBalanceResponse};
 
 use crate::{
     contract::{
-        CREATE_PROXY_CALLBACK_ID, PROVIDE_LIQUIDITY_CALLBACK_ID, PROXY_BALANCES_QUERY_CALLBACK_ID,
+        CREATE_PROXY_CALLBACK_ID, PROVIDE_LIQUIDITY_CALLBACK_ID, PROXY_BALANCES_QUERY_CALLBACK_ID, WITHDRAW_LIQUIDITY_BALANCES_QUERY_CALLBACK_ID, WITHDRAW_LIQUIDITY_CALLBACK_ID,
     },
     error::ContractError,
     msg::{ContractState, IbcConfig, LiquidityProvisionConfig},
@@ -60,7 +60,10 @@ fn process_query_callback(
     match initiator_msg {
         PROXY_BALANCES_QUERY_CALLBACK_ID => {
             handle_proxy_balances_callback(deps, env, query_callback_result)
-        }
+        },
+        WITHDRAW_LIQUIDITY_BALANCES_QUERY_CALLBACK_ID => {
+            handle_withdraw_liquidity_proxy_balances_callback(deps, env, query_callback_result)
+        },
         _ => Err(ContractError::PolytoneError(format!(
             "unexpected callback id: {:?}",
             initiator_msg
@@ -76,7 +79,7 @@ fn process_execute_callback(
     initiator_msg: Binary,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let initiator_msg: u8 = from_json(initiator_msg)?;
-    let callback_result = match execute_callback_result {
+    let callback_result: ExecutionResponse = match execute_callback_result {
         Ok(val) => val,
         Err(e) => return Err(ContractError::PolytoneError(e).to_neutron_std()),
     };
@@ -132,6 +135,61 @@ fn process_execute_callback(
                 })?;
             }
         }
+        WITHDRAW_LIQUIDITY_CALLBACK_ID => {
+            // can try to decode the response attribute here
+            // callback_result.result[0] contains the events
+            // query the events for one that has "type" == "wasm"
+            // and search its attributes for one where key == "refund_tokens".
+            // type is polytone ExecutionResponse
+            // let refund_coins: Vec<Coin> = from_json(value)?;
+            for callback_response in callback_result.clone().result {
+                for event in callback_response.events {
+                    if event.ty == "wasm" {
+                        for attr in event.attributes {
+                            if attr.key == "refund_tokens" {
+                                let refunded_coins: Vec<Coin> = match from_json(&attr.value) {
+                                    Ok(coins) => coins,
+                                    Err(e) => {
+                                        POLYTONE_CALLBACKS.save(
+                                            deps.storage,
+                                            format!(
+                                                "withdraw_liquidity_callback_REFUND_TOKENS_error : {:?}",
+                                                env.block.time.to_string()
+                                            ),
+                                            &e.to_string(),
+                                        )?;
+                                        vec![]
+                                    },
+                                };
+
+                                CONTRACT_STATE.save(deps.storage, &ContractState::Distributing {
+                                    coins: refunded_coins,
+                                })?;
+
+                                POLYTONE_CALLBACKS.save(
+                                    deps.storage,
+                                    format!(
+                                        "withdraw_liquidity_callback_REFUND_TOKENS : {:?}",
+                                        env.block.time.to_string()
+                                    ),
+                                    &attr.value,
+                                )?;
+                            }
+                        }
+                    }
+                }
+            }
+
+            POLYTONE_CALLBACKS.save(
+                deps.storage,
+                format!(
+                    "withdraw_liquidity_callback : {:?}",
+                    env.block.time.to_string()
+                ),
+                &to_json_binary(&callback_result)?.to_string(),
+            )?;
+
+        }
         _ => (),
     }
 
@@ -151,6 +209,63 @@ fn process_fatal_error_callback(
     Ok(Response::default())
 }
 
+
+fn handle_withdraw_liquidity_proxy_balances_callback(
+    deps: DepsMut,
+    env: Env,
+    query_callback_result: Result<Vec<Binary>, ErrorResponse>,
+) -> NeutronResult<Response<NeutronMsg>> {
+    // decode the query callback result into a vec of binaries,
+    // or error out if it fails
+    let response_binaries = match query_callback_result {
+        Ok(val) => {
+            for bin in val.clone() {
+                POLYTONE_CALLBACKS.save(
+                    deps.storage,
+                    format!("proxy_balances_callback : {:?}", env.block.time.to_string()),
+                    &bin.to_base64(),
+                )?;
+            }
+            val
+        },
+        Err(err) => return Err(ContractError::PolytoneError(err.error).to_neutron_std()),
+    };
+
+    // we load the lp config that was present prior
+    // to attempting to exit the pool
+    let mut pre_withdraw_liquidity_lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
+    let pre_withdraw_lp_token_balance = match pre_withdraw_liquidity_lp_config.latest_balances
+    .get(&pre_withdraw_liquidity_lp_config.lp_token_denom) {
+        Some(bal) => bal.clone(),
+        None => Coin { amount: Uint128::zero(), denom: pre_withdraw_liquidity_lp_config.lp_token_denom.to_string() },
+    };
+
+    for response_binary in response_binaries {
+        // parse binary into an osmosis QueryBalanceResponse
+        let balance_response: QueryBalanceResponse = from_json(response_binary.clone())?;
+        if let Some(balance) = balance_response.balance {
+            if balance.denom == pre_withdraw_lp_token_balance.denom {
+                // if proxy lp token balance did not decrease from the
+                // moment when we submitted the withdraw liquidity message,
+                // we assume that liquidity was withdrawn and we can
+                // proceed with the distribution flow.
+                if Uint128::from_str(&balance.amount)? >= pre_withdraw_lp_token_balance.amount {
+                    CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
+                }
+            }
+            // update the latest balances map with the processed balance
+            pre_withdraw_liquidity_lp_config.latest_balances.insert(
+                balance.denom.to_string(),
+                coin(Uint128::from_str(&balance.amount)?.u128(), balance.denom),
+            );
+        }
+    }
+    // store the latest prices in lp config
+    LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &pre_withdraw_liquidity_lp_config)?;
+
+    Ok(Response::default())
+}
+
 fn handle_proxy_balances_callback(
     deps: DepsMut,
     env: Env,
@@ -159,66 +274,100 @@ fn handle_proxy_balances_callback(
     // decode the query callback result into a vec of binaries,
     // or error out if it fails
     let response_binaries = match query_callback_result {
-        Ok(val) => val,
+        Ok(val) => {
+            for bin in val.clone() {
+                POLYTONE_CALLBACKS.save(
+                    deps.storage,
+                    format!("proxy_balances_callback : {:?}", env.block.time.to_string()),
+                    &bin.to_base64(),
+                )?;
+            }
+            val
+        },
         Err(err) => return Err(ContractError::PolytoneError(err.error).to_neutron_std()),
     };
 
-    for bin in response_binaries.clone() {
-        POLYTONE_CALLBACKS.save(
-            deps.storage,
-            format!("proxy_balances_callback : {:?}", env.block.time.to_string()),
-            &bin.to_base64(),
-        )?;
-    }
-
     // store the latest prices in lp config
-    let lp_config =
-        LIQUIDITY_PROVISIONING_CONFIG.update(deps.storage, |mut lp_config| -> StdResult<_> {
-            // process the balance responses one by one
-            for response_binary in response_binaries {
-                // parse binary into an osmosis QueryBalanceResponse
-                let balance_response: QueryBalanceResponse = from_json(response_binary.clone())?;
-                if let Some(balance) = balance_response.balance {
-                    // update the latest balances map with the processed balance
-                    lp_config.latest_balances.insert(
-                        balance.denom.to_string(),
-                        coin(Uint128::from_str(&balance.amount)?.u128(), balance.denom),
-                    );
-                }
+    LIQUIDITY_PROVISIONING_CONFIG.update(deps.storage, |mut lp_config| -> StdResult<_> {
+        // process the balance responses one by one
+        for response_binary in response_binaries {
+            // parse binary into an osmosis QueryBalanceResponse
+            let balance_response: QueryBalanceResponse = from_json(response_binary.clone())?;
+            if let Some(balance) = balance_response.balance {
+                // update the latest balances map with the processed balance
+                lp_config.latest_balances.insert(
+                    balance.denom.to_string(),
+                    coin(Uint128::from_str(&balance.amount)?.u128(), balance.denom),
+                );
             }
-            Ok(lp_config)
-        })?;
-
-    // if latest balances contain any gamm tokens,
-    // we withdraw them to this contract
-    if let Some(coin) = lp_config.latest_balances.get(&lp_config.lp_token_denom) {
-        if !coin.amount.is_zero() {
-            let ibc_config = IBC_CONFIG.load(deps.storage)?;
-            let note_address = NOTE_ADDRESS.load(deps.storage)?;
-
-            let withdraw_message = get_withdraw_lp_tokens_message(
-                ibc_config.osmo_to_neutron_channel_id,
-                env.contract.address.to_string(),
-                coin.clone(),
-                IbcTimeout::with_timestamp(
-                    env.block
-                        .time
-                        .plus_seconds(ibc_config.osmo_ibc_timeout.u64()),
-                ),
-            );
-            let note_msg = get_note_execute_neutron_msg(
-                vec![withdraw_message],
-                ibc_config.osmo_ibc_timeout,
-                note_address,
-                None,
-            )?;
-
-            return Ok(Response::default().add_message(note_msg));
         }
-    }
+        Ok(lp_config)
+    })?;
 
     Ok(Response::default())
 }
+
+// pub fn get_withdraw_denoms_note_message(
+//     deps: DepsMut,
+//     ibc_config: IbcConfig,
+//     env: Env,
+//     lp_config: LiquidityProvisionConfig,
+// ) -> Result<CosmosMsg<NeutronMsg>, ContractError> {
+//     // if we are in active state, withdraw the relevant denoms to this contract
+//     let party_1_denom_bal = if let Some(coin) = lp_config.latest_balances
+//         .get(&lp_config.party_1_denom_info.osmosis_coin.denom) {
+//             coin.clone()
+//         } else {
+//             Coin { denom: lp_config.party_1_denom_info.osmosis_coin.denom, amount: Uint128::zero() }
+//         };
+//     let party_2_denom_bal = if let Some(coin) = lp_config.latest_balances
+//         .get(&lp_config.party_2_denom_info.osmosis_coin.denom) {
+//             coin.clone()
+//         } else {
+//             Coin { denom: lp_config.party_2_denom_info.osmosis_coin.denom, amount: Uint128::zero() }
+//         };
+
+//     let mut withdraw_messages: Vec<CosmosMsg> = vec![];
+//     let ibc_config = IBC_CONFIG.load(deps.storage)?;
+//     let note_address = NOTE_ADDRESS.load(deps.storage)?;
+//     if !party_1_denom_bal.amount.is_zero() {
+//         withdraw_messages.push(get_ibc_withdraw_coin_message(
+//             ibc_config.osmo_to_neutron_channel_id.to_string(),
+//             env.contract.address.to_string(),
+//             party_1_denom_bal,
+//             IbcTimeout::with_timestamp(
+//                 env.block
+//                     .time
+//                     .plus_seconds(ibc_config.osmo_ibc_timeout.u64()),
+//             ),
+//         ));
+//     }
+//     if !party_2_denom_bal.amount.is_zero() {
+//         withdraw_messages.push(get_ibc_withdraw_coin_message(
+//             ibc_config.osmo_to_neutron_channel_id.to_string(),
+//             env.contract.address.to_string(),
+//             party_2_denom_bal,
+//             IbcTimeout::with_timestamp(
+//                 env.block
+//                     .time
+//                     .plus_seconds(ibc_config.osmo_ibc_timeout.u64()),
+//             ),
+//         ));
+//     }
+
+//     if !withdraw_messages.is_empty() {
+//         let note_msg = get_note_execute_neutron_msg(
+//             withdraw_messages,
+//             ibc_config.osmo_ibc_timeout,
+//             note_address,
+//             None,
+//         )?;
+
+//         Ok(note_msg)
+//     } else {
+//         Err(ContractError::Std(cosmwasm_std::StdError::GenericErr { msg: "nothing to withdraw".to_string() }))
+//     }
+// }
 
 pub fn get_note_execute_neutron_msg(
     msgs: Vec<CosmosMsg>,
@@ -235,19 +384,49 @@ pub fn get_note_execute_neutron_msg(
     }))
 }
 
-fn get_withdraw_lp_tokens_message(
+pub fn get_ibc_withdraw_coin_message(
     channel_id: String,
     to_address: String,
     amount: Coin,
     timeout: IbcTimeout,
 ) -> CosmosMsg {
-    let withdraw_lp_msg = IbcMsg::Transfer {
+    let msg = IbcMsg::Transfer {
         channel_id,
         to_address,
         amount,
         timeout,
     };
-    CosmosMsg::Ibc(withdraw_lp_msg)
+
+    msg.into()
+}
+
+pub fn get_ibc_pfm_withdraw_coin_message(
+    channel_id: String,
+    from_address: String,
+    to_address: String,
+    amount: Coin,
+    timeout_timestamp_nanos: u64,
+    memo: String,
+) -> CosmosMsg {
+    use prost::Message;
+
+    let ibc_message = osmosis_std::types::ibc::applications::transfer::v1::MsgTransfer {
+        source_port: "transfer".to_string(),
+        source_channel: channel_id,
+        token: Some(osmosis_std::types::cosmos::base::v1beta1::Coin { denom: amount.denom, amount: amount.amount.to_string() }),
+        sender: from_address,
+        receiver: to_address,
+        timeout_height: None,
+        timeout_timestamp: timeout_timestamp_nanos,
+        memo,
+    };
+
+    let cosmos_msg = cosmwasm_std::CosmosMsg::Stargate {
+        type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
+        value: Binary(ibc_message.encode_to_vec()),
+    };
+
+    cosmos_msg
 }
 
 pub fn get_proxy_query_balances_message(
@@ -256,6 +435,7 @@ pub fn get_proxy_query_balances_message(
     note_address: String,
     lp_config: LiquidityProvisionConfig,
     ibc_config: IbcConfig,
+    callback_id: u8,
 ) -> StdResult<WasmMsg> {
     let proxy_coin_1_balance_request: QueryRequest<Empty> =
         osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
@@ -284,7 +464,7 @@ pub fn get_proxy_query_balances_message(
         ],
         CallbackRequest {
             receiver: env.contract.address.to_string(),
-            msg: to_json_binary(&PROXY_BALANCES_QUERY_CALLBACK_ID)?,
+            msg: to_json_binary(&callback_id)?,
         },
         ibc_config.osmo_ibc_timeout,
     )?;

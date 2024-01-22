@@ -31,6 +31,7 @@ pub struct InstantiateMsg {
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee: Option<String>,
     pub liquid_pooler_config: LiquidPoolerConfig,
+    pub funding_duration_seconds: Uint64,
 }
 
 #[cw_serde]

@@ -1,4 +1,4 @@
-use cosmwasm_std::{OverflowError, StdError};
+use cosmwasm_std::{OverflowError, StdError, CheckedMultiplyRatioError};
 use neutron_sdk::NeutronError;
 use thiserror::Error;
 
@@ -6,6 +6,9 @@ use thiserror::Error;
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
+
+    #[error("{0}")]
+    CheckedMultiplyError(#[from] CheckedMultiplyRatioError),
 
     #[error("{0}")]
     NeutronError(#[from] NeutronError),
@@ -33,6 +36,9 @@ pub enum ContractError {
 
     #[error("polytone error: {0}")]
     PolytoneError(String),
+
+    #[error("Only holder can withdraw the position")]
+    NotHolder {},
 }
 
 impl ContractError {

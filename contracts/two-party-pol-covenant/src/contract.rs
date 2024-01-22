@@ -243,6 +243,7 @@ pub fn instantiate(
                 slippage_tolerance: None,
                 expected_spot_price: msg.expected_pool_ratio,
                 acceptable_price_spread: msg.acceptable_pool_ratio_delta,
+                funding_duration_seconds: msg.funding_duration_seconds,
             };
             preset_liquid_pooler_fields.to_instantiate2_msg(
                 env.contract.address.to_string(),

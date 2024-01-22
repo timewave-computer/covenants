@@ -3,10 +3,11 @@ use std::collections::HashMap;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, StdResult, Uint128, Uint64,
-    WasmMsg, StdError,
+    WasmMsg, StdError, BlockInfo,
 };
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw};
 use covenant_utils::OutpostExecuteMsg;
+use cw_utils::{Expiration, Duration};
 use polytone::callbacks::CallbackMessage;
 
 #[cw_serde]
@@ -26,6 +27,7 @@ pub struct InstantiateMsg {
     pub slippage_tolerance: Option<Decimal>,
     pub expected_spot_price: Decimal,
     pub acceptable_price_spread: Decimal,
+    pub funding_duration_seconds: Uint64,
 }
 
 #[cw_serde]
@@ -45,6 +47,7 @@ pub struct PresetOsmoLiquidPoolerFields {
     pub slippage_tolerance: Option<Decimal>,
     pub expected_spot_price: Decimal,
     pub acceptable_price_spread: Decimal,
+    pub funding_duration_seconds: Uint64,
 }
 
 impl PresetOsmoLiquidPoolerFields {
@@ -69,6 +72,7 @@ impl PresetOsmoLiquidPoolerFields {
             slippage_tolerance: self.slippage_tolerance,
             expected_spot_price: self.expected_spot_price,
             acceptable_price_spread: self.acceptable_price_spread,
+            funding_duration_seconds: self.funding_duration_seconds,
         }
     }
 
@@ -104,6 +108,7 @@ pub struct LiquidityProvisionConfig {
     pub slippage_tolerance: Option<Decimal>,
     pub expected_spot_price: Decimal,
     pub acceptable_price_spread: Decimal,
+    pub funding_duration_seconds: Uint64,
 }
 
 #[cw_serde]
@@ -175,6 +180,10 @@ impl LiquidityProvisionConfig {
         }
         .into())
     }
+
+    // pub fn get_osmo_outpost_withdraw_liquidity_message(&self) -> StdResult<CosmosMsg> {
+    //     // todo
+    // }
 
     pub fn reset_latest_proxy_balances(&mut self) {
         self.latest_balances
@@ -289,22 +298,23 @@ pub enum QueryMsg {
 pub enum ContractState {
     Instantiated,
     ProxyCreated,
-    ProxyFunded,
-    Complete,
+    ProxyFunded { funding_expiration: Expiration },
+    Active,
+    Distributing { coins: Vec<Coin> },
 }
 
 #[cw_serde]
 pub struct PartyChainInfo {
-    // todo: reconsider naming here
-    pub neutron_to_party_chain_port: String,
     pub neutron_to_party_chain_channel: String,
-    pub pfm: Option<ForwardMetadata>,
+    pub party_chain_to_neutron_channel: String,
+    pub outwards_pfm: Option<ForwardMetadata>,
+    pub inwards_pfm: Option<ForwardMetadata>,
     pub ibc_timeout: Uint64,
 }
 
 impl PartyChainInfo {
     pub fn to_response_attributes(&self, party: String) -> Vec<Attribute> {
-        let pfm_attributes: Vec<Attribute> = match &self.pfm {
+        let pfm_attributes: Vec<Attribute> = match &self.outwards_pfm {
             Some(val) => {
                 vec![
                     Attribute::new(
@@ -323,7 +333,7 @@ impl PartyChainInfo {
         let mut attributes = vec![
             Attribute::new(
                 format!("{:?}_neutron_to_party_chain_port", party),
-                self.neutron_to_party_chain_port.to_string(),
+                "transfer".to_string(),
             ),
             Attribute::new(
                 format!("{:?}_neutron_to_party_chain_channel", party),
