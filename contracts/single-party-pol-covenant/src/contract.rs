@@ -43,7 +43,7 @@ pub const LIQUID_STAKER_SALT: &[u8] = b"liquid_staker";
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;

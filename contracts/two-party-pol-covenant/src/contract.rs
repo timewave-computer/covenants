@@ -7,7 +7,10 @@ use cosmwasm_std::{
     DepsMut, Env, MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
 
-use covenant_astroport_liquid_pooler::msg::{SingleSideLpLimits, AssetData, PresetAstroLiquidPoolerFields};
+use crate::msg::LiquidPoolerConfig::{Astroport, Osmosis};
+use covenant_astroport_liquid_pooler::msg::{
+    AssetData, PresetAstroLiquidPoolerFields, SingleSideLpLimits,
+};
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
@@ -15,7 +18,6 @@ use covenant_osmo_liquid_pooler::msg::PresetOsmoLiquidPoolerFields;
 use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
-use crate::msg::LiquidPoolerConfig::{Astroport, Osmosis};
 
 use crate::{
     error::ContractError,
@@ -251,7 +253,7 @@ pub fn instantiate(
                 clock_address.to_string(),
                 holder_address.to_string(),
             )?
-        },
+        }
         Astroport(config) => {
             let preset_liquid_pooler_fields = PresetAstroLiquidPoolerFields {
                 slippage_tolerance: None,
@@ -276,9 +278,8 @@ pub fn instantiate(
                 clock_address.to_string(),
                 holder_address.to_string(),
             )?
-        },
+        }
     };
-
 
     let mut messages = vec![
         preset_clock_fields.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?,

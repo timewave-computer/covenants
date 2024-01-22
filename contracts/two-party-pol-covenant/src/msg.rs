@@ -36,7 +36,7 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum LiquidPoolerConfig {
-    Osmosis(OsmosisLiquidPoolerConfig),
+    Osmosis(Box<OsmosisLiquidPoolerConfig>),
     Astroport(AstroportLiquidPoolerConfig),
 }
 
