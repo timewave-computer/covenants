@@ -758,8 +758,17 @@ pub struct OutpostProvideLiquidityConfig {
 }
 
 #[cw_serde]
+pub struct OutpostWithdrawLiquidityConfig {
+    /// id of the pool we wish to withdraw liquidity from
+    pub pool_id: Uint64,
+}
+
+#[cw_serde]
 pub enum OutpostExecuteMsg {
     ProvideLiquidity {
         config: OutpostProvideLiquidityConfig,
+    },
+    WithdrawLiquidity {
+        config: OutpostWithdrawLiquidityConfig,
     },
 }

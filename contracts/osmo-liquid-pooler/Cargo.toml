@@ -45,7 +45,7 @@ bech32           = { workspace = true }
 cw20             = { workspace = true }
 polytone         = { workspace = true }
 # polytone-note    = { workspace = true }
-osmosis-std = "0.13.2"
+osmosis-std = "0.20.1"
 base64 = { workspace = true }
 prost = { workspace = true }
 covenant-outpost-osmo-liquid-pooler = { workspace = true }
