@@ -16,7 +16,7 @@ pub enum ExecuteMsg {
     },
     WithdrawLiquidity {
         config: OutpostWithdrawLiquidityConfig,
-    }
+    },
 }
 
 // TODO: remove duplicate from here/covenant_utils
@@ -40,7 +40,6 @@ pub struct OutpostWithdrawLiquidityConfig {
     /// id of the pool we wish to withdraw liquidity from
     pub pool_id: Uint64,
 }
-
 
 #[cw_serde]
 pub struct CallerContext {

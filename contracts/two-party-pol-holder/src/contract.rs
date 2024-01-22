@@ -120,7 +120,7 @@ pub fn execute(
         ExecuteMsg::WithdrawFailed {} => try_withdraw_failed(deps, info),
         ExecuteMsg::DistributeFallbackSplit { denoms } => {
             try_distribute_fallback_split(deps, env, denoms)
-        },
+        }
         ExecuteMsg::EmergencyWithdraw {} => try_emergency_withdraw(deps, info),
     }
 }
@@ -353,7 +353,7 @@ fn try_claim_side_based(
         .add_messages(messages))
 }
 
-fn try_tick(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     let state = CONTRACT_STATE.load(deps.storage)?;
     let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
     verify_clock(&info.sender, &clock_addr)

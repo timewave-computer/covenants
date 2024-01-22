@@ -3,10 +3,14 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, Uint128, WasmMsg, Decimal, ensure, Fraction, IbcTimeout, Attribute,
+    ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Deps,
+    DepsMut, Env, Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
-use covenant_utils::{default_ibc_fee, get_polytone_execute_msg_binary, OutpostExecuteMsg, OutpostWithdrawLiquidityConfig};
+use covenant_clock::helpers::verify_clock;
+use covenant_utils::{
+    default_ibc_fee, get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs,
+    OutpostExecuteMsg, OutpostWithdrawLiquidityConfig,
+};
 use cw2::set_contract_version;
 use cw_utils::Expiration;
 use neutron_sdk::{
@@ -21,7 +25,8 @@ use crate::{
         LiquidityProvisionConfig, MigrateMsg, PacketMetadata, PartyChainInfo, QueryMsg,
     },
     polytone_handlers::{
-        get_note_execute_neutron_msg, get_proxy_query_balances_message, try_handle_callback, get_ibc_withdraw_coin_message, get_ibc_pfm_withdraw_coin_message,
+        get_ibc_pfm_withdraw_coin_message, get_ibc_withdraw_coin_message,
+        get_note_execute_neutron_msg, get_proxy_query_balances_message, try_handle_callback,
     },
     state::{
         HOLDER_ADDRESS, IBC_CONFIG, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS,
@@ -118,39 +123,50 @@ fn try_withdraw(
     percent: Option<Decimal>,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let percent = percent.unwrap_or(Decimal::one());
-    let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
     let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
     let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
 
-    ensure!(info.sender == holder_addr, ContractError::NotHolder {}.to_neutron_std());
+    ensure!(
+        info.sender == holder_addr,
+        ContractError::NotHolder {}.to_neutron_std()
+    );
 
     let proxy_lp_token_balance = match lp_config.latest_balances.get(&lp_config.lp_token_denom) {
         Some(val) => {
             if val.amount.is_zero() {
-                return Err(ContractError::OsmosisPoolError("proxy holds 0 lp tokens".to_string())
-                    .to_neutron_std())
+                return Err(
+                    ContractError::OsmosisPoolError("proxy holds 0 lp tokens".to_string())
+                        .to_neutron_std(),
+                );
             } else {
                 val
             }
-        },
-        None => return Err(ContractError::OsmosisPoolError("no lp token balance".to_string())
-            .to_neutron_std()),
+        }
+        None => {
+            return Err(
+                ContractError::OsmosisPoolError("no lp token balance".to_string()).to_neutron_std(),
+            )
+        }
     };
 
-    let lp_redeem_amount = proxy_lp_token_balance.amount.checked_multiply_ratio(
-        percent.numerator(),
-        percent.denominator(),
-    )
-    .map_err(|e| ContractError::CheckedMultiplyError(e).to_neutron_std())?;
+    let lp_redeem_amount = proxy_lp_token_balance
+        .amount
+        .checked_multiply_ratio(percent.numerator(), percent.denominator())
+        .map_err(|e| ContractError::CheckedMultiplyError(e).to_neutron_std())?;
 
     let exit_pool_message: CosmosMsg = WasmMsg::Execute {
         contract_addr: lp_config.outpost.to_string(),
         msg: to_json_binary(&OutpostExecuteMsg::WithdrawLiquidity {
-            config: OutpostWithdrawLiquidityConfig { pool_id: lp_config.pool_id }
+            config: OutpostWithdrawLiquidityConfig {
+                pool_id: lp_config.pool_id,
+            },
         })?,
-        funds: vec![Coin { denom: lp_config.lp_token_denom.to_string(), amount: lp_redeem_amount }],
+        funds: vec![Coin {
+            denom: lp_config.lp_token_denom.to_string(),
+            amount: lp_redeem_amount,
+        }],
     }
     .into();
 
@@ -167,15 +183,13 @@ fn try_withdraw(
         funds: vec![],
     });
 
-    return Ok(Response::default()
-        .add_messages(vec![exit_pool_note_msg])
-    );
+    Ok(Response::default().add_messages(vec![exit_pool_note_msg]))
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation.
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
-    // verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     match CONTRACT_STATE.load(deps.storage)? {
         // create a proxy account
@@ -183,7 +197,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
         // fund the proxy account
         ContractState::ProxyCreated => try_deliver_funds(deps, env),
         // attempt to provide liquidity
-        ContractState::ProxyFunded { funding_expiration }=> {
+        ContractState::ProxyFunded { funding_expiration } => {
             // the funding expiration is due, we advance the state to
             // Active. it will enable withdrawals and start pulling
             // any non-LP tokens from proxy back to this contract.
@@ -196,13 +210,17 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
                 // otherwise we attempt to provide liquidity
                 try_provide_liquidity(deps, env)
             }
-        },
+        }
         ContractState::Active => try_sync_proxy_balances(deps, env),
-        ContractState::Distributing { coins } => try_distribute(deps, env, coins)
+        ContractState::Distributing { coins } => try_distribute(deps, env, coins),
     }
 }
 
-fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Response<NeutronMsg>> {
+fn try_distribute(
+    deps: DepsMut,
+    env: Env,
+    coins: Vec<Coin>,
+) -> NeutronResult<Response<NeutronMsg>> {
     let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
     // query our own relevant token denoms
     let denom_1_balance = deps.querier.query_balance(
@@ -215,18 +233,26 @@ fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Re
     )?;
 
     // we map the withdrawn coins to match the party denoms
-    let withdrawn_coin_1 = match coins.iter().find(
-        |c| c.denom == lp_config.party_1_denom_info.osmosis_coin.denom.to_string()
-    ) {
+    let withdrawn_coin_1 = match coins
+        .iter()
+        .find(|c| c.denom == lp_config.party_1_denom_info.osmosis_coin.denom)
+    {
         Some(c) => c.clone(),
-        None => Coin { denom: lp_config.party_1_denom_info.osmosis_coin.denom.to_string(), amount: Uint128::zero() },
+        None => Coin {
+            denom: lp_config.party_1_denom_info.osmosis_coin.denom.to_string(),
+            amount: Uint128::zero(),
+        },
     };
 
-    let withdrawn_coin_2 = match coins.iter().find(
-        |c| c.denom == lp_config.party_2_denom_info.osmosis_coin.denom.to_string()
-    ) {
+    let withdrawn_coin_2 = match coins
+        .iter()
+        .find(|c| c.denom == lp_config.party_2_denom_info.osmosis_coin.denom)
+    {
         Some(c) => c.clone(),
-        None => Coin { denom: lp_config.party_2_denom_info.osmosis_coin.denom.to_string(), amount: Uint128::zero() },
+        None => Coin {
+            denom: lp_config.party_2_denom_info.osmosis_coin.denom.to_string(),
+            amount: Uint128::zero(),
+        },
     };
 
     // verify if denom 1 was successfully withdrawn
@@ -238,14 +264,19 @@ fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Re
         let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
         CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
 
-        let withdraw_tokens_msg = CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-            to_address: holder_addr.to_string(),
-            amount: vec![denom_1_balance, denom_2_balance],
-        });
+        // submit a Distribute message to the holder,
+        // which carries the withdrawn coins along.
+        // this is basically a callback confirming that
+        // the withdrawal flow had been handled successfully.
+        let holder_distribute_callback_msg = WasmMsg::Execute {
+            contract_addr: holder_addr.to_string(),
+            msg: to_json_binary(&WithdrawLPMsgs::Distribute {})?,
+            funds: vec![denom_1_balance, denom_2_balance],
+        };
+
         return Ok(Response::default()
-            .add_attribute("method", "transfer out tokens")
-            .add_message(withdraw_tokens_msg)
-        )
+            .add_attribute("method", "holder_distribute_callback")
+            .add_message(holder_distribute_callback_msg));
     }
 
     let mut ibc_withdraw_msgs: Vec<CosmosMsg> = vec![];
@@ -253,11 +284,12 @@ fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Re
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
 
-    let mut attributes: Vec<Attribute> = vec![];
-    attributes.push(Attribute::new("withdrawn_coin_1", to_json_string(&withdrawn_coin_1)?));
-    attributes.push(Attribute::new("withdrawn_coin_2", to_json_string(&withdrawn_coin_2)?));
-    attributes.push(Attribute::new("denom_1_balance", to_json_string(&denom_1_balance)?));
-    attributes.push(Attribute::new("denom_2_balance", to_json_string(&denom_2_balance)?));
+    let mut attributes: Vec<Attribute> = vec![
+        Attribute::new("withdrawn_coin_1", to_json_string(&withdrawn_coin_1)?),
+        Attribute::new("withdrawn_coin_2", to_json_string(&withdrawn_coin_2)?),
+        Attribute::new("denom_1_balance", to_json_string(&denom_1_balance)?),
+        Attribute::new("denom_2_balance", to_json_string(&denom_2_balance)?),
+    ];
 
     if !denom_1_withdrawn && !withdrawn_coin_1.amount.is_zero() {
         // withdraw denom 1
@@ -269,9 +301,9 @@ fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Re
                     forward_metadata.receiver.to_string(),
                     withdrawn_coin_1,
                     env.block
-                            .time
-                            .plus_seconds(2 * ibc_config.osmo_ibc_timeout.u64())
-                            .nanos(),
+                        .time
+                        .plus_seconds(2 * ibc_config.osmo_ibc_timeout.u64())
+                        .nanos(),
                     to_json_string(&PacketMetadata {
                         forward: Some(ForwardMetadata {
                             receiver: env.contract.address.to_string(),
@@ -280,9 +312,12 @@ fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Re
                         }),
                     })?,
                 );
-                attributes.push(Attribute::new("denom_2_ibc_distribution", to_json_string(&msg)?));
+                attributes.push(Attribute::new(
+                    "denom_2_ibc_distribution",
+                    to_json_string(&msg)?,
+                ));
                 ibc_withdraw_msgs.push(msg);
-            },
+            }
             None => {
                 let msg = get_ibc_withdraw_coin_message(
                     ibc_config.osmo_to_neutron_channel_id.to_string(),
@@ -294,11 +329,13 @@ fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Re
                             .plus_seconds(2 * ibc_config.osmo_ibc_timeout.u64()),
                     ),
                 );
-                attributes.push(Attribute::new("denom_2_ibc_distribution", to_json_string(&msg)?));
+                attributes.push(Attribute::new(
+                    "denom_2_ibc_distribution",
+                    to_json_string(&msg)?,
+                ));
                 ibc_withdraw_msgs.push(msg);
-            },
+            }
         }
-
     }
     if !denom_2_withdrawn && !withdrawn_coin_2.amount.is_zero() {
         // withdraw denom 2
@@ -310,9 +347,9 @@ fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Re
                     forward_metadata.receiver.to_string(),
                     withdrawn_coin_2,
                     env.block
-                            .time
-                            .plus_seconds(2 * ibc_config.osmo_ibc_timeout.u64())
-                            .nanos(),
+                        .time
+                        .plus_seconds(2 * ibc_config.osmo_ibc_timeout.u64())
+                        .nanos(),
                     to_json_string(&PacketMetadata {
                         forward: Some(ForwardMetadata {
                             receiver: env.contract.address.to_string(),
@@ -321,9 +358,12 @@ fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Re
                         }),
                     })?,
                 );
-                attributes.push(Attribute::new("denom_2_ibc_distribution", to_json_string(&msg)?));
+                attributes.push(Attribute::new(
+                    "denom_2_ibc_distribution",
+                    to_json_string(&msg)?,
+                ));
                 ibc_withdraw_msgs.push(msg);
-            },
+            }
             None => {
                 let msg = get_ibc_withdraw_coin_message(
                     ibc_config.osmo_to_neutron_channel_id.to_string(),
@@ -335,9 +375,12 @@ fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Re
                             .plus_seconds(2 * ibc_config.osmo_ibc_timeout.u64()),
                     ),
                 );
-                attributes.push(Attribute::new("denom_2_ibc_distribution", to_json_string(&msg)?));
+                attributes.push(Attribute::new(
+                    "denom_2_ibc_distribution",
+                    to_json_string(&msg)?,
+                ));
                 ibc_withdraw_msgs.push(msg);
-            },
+            }
         }
     }
 
@@ -348,7 +391,9 @@ fn try_distribute(deps: DepsMut, env: Env, coins: Vec<Coin>) -> NeutronResult<Re
             note_address,
             None,
         )?;
-        Ok(Response::default().add_attributes(attributes).add_message(note_msg))
+        Ok(Response::default()
+            .add_attributes(attributes)
+            .add_message(note_msg))
     } else {
         Ok(Response::default().add_attributes(attributes))
     }
@@ -418,12 +463,15 @@ fn try_deliver_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronM
     ) {
         (Some(proxy_party_1_coin), Some(proxy_party_2_coin)) => {
             // if proxy holds both party contributions, we advance the state machine
-            if lp_config.proxy_received_party_contributions(proxy_party_1_coin, proxy_party_2_coin) {
+            if lp_config.proxy_received_party_contributions(proxy_party_1_coin, proxy_party_2_coin)
+            {
                 // otherwise we advance the state machine and store a
                 // two weeks expiration from the current block during
                 // which no withdrawals can be initiated.
                 let funding_expiration = Expiration::AtTime(
-                    env.block.time.plus_seconds(lp_config.funding_duration_seconds.u64())
+                    env.block
+                        .time
+                        .plus_seconds(lp_config.funding_duration_seconds.u64()),
                 );
                 CONTRACT_STATE.save(
                     deps.storage,

@@ -2,12 +2,14 @@ use std::collections::HashMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, StdResult, Uint128, Uint64,
-    WasmMsg, StdError, BlockInfo,
+    to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, StdError, StdResult,
+    Uint128, Uint64, WasmMsg,
 };
-use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw};
+use covenant_macros::{
+    clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
+};
 use covenant_utils::OutpostExecuteMsg;
-use cw_utils::{Expiration, Duration};
+use cw_utils::Expiration;
 use polytone::callbacks::CallbackMessage;
 
 #[cw_serde]
@@ -87,10 +89,7 @@ impl PresetOsmoLiquidPoolerFields {
             admin: Some(admin_addr),
             code_id: self.code_id,
             label: self.label.to_string(),
-            msg: to_json_binary(&self.to_instantiate_msg(
-                clock_address,
-                holder_address,
-            ))?,
+            msg: to_json_binary(&self.to_instantiate_msg(clock_address, holder_address))?,
             funds: vec![],
             salt,
         })

@@ -2,7 +2,10 @@ use std::str::FromStr;
 
 use crate::{
     error::ContractError,
-    msg::{ExecuteMsg, InstantiateMsg, OsmosisPool, QueryMsg, OutpostWithdrawLiquidityConfig, OutpostProvideLiquidityConfig, CallerContext},
+    msg::{
+        CallerContext, ExecuteMsg, InstantiateMsg, OsmosisPool, OutpostProvideLiquidityConfig,
+        OutpostWithdrawLiquidityConfig, QueryMsg,
+    },
     state::PENDING_REPLY,
 };
 
@@ -19,9 +22,11 @@ use osmosis_std::{
     types::{
         cosmos::base::v1beta1::Coin as ProtoCoin,
         osmosis::gamm::v1beta1::{
-            MsgJoinPool, MsgJoinSwapExternAmountIn, Pool, QueryCalcJoinPoolNoSwapSharesRequest,
-            QueryCalcJoinPoolNoSwapSharesResponse, QueryCalcJoinPoolSharesRequest,
-            QueryCalcJoinPoolSharesResponse, QueryPoolRequest, QueryPoolResponse, QueryCalcExitPoolCoinsFromSharesRequest, MsgExitPool, QueryCalcExitPoolCoinsFromSharesResponse,
+            MsgExitPool, MsgJoinPool, MsgJoinSwapExternAmountIn, Pool,
+            QueryCalcExitPoolCoinsFromSharesRequest, QueryCalcExitPoolCoinsFromSharesResponse,
+            QueryCalcJoinPoolNoSwapSharesRequest, QueryCalcJoinPoolNoSwapSharesResponse,
+            QueryCalcJoinPoolSharesRequest, QueryCalcJoinPoolSharesResponse, QueryPoolRequest,
+            QueryPoolResponse,
         },
     },
 };
@@ -49,12 +54,8 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::ProvideLiquidity {
-            config
-        } => try_provide_liquidity(deps, env, info, config),
-        ExecuteMsg::WithdrawLiquidity {
-            config
-        } => try_withdraw_liquidity(deps, env, info, config),
+        ExecuteMsg::ProvideLiquidity { config } => try_provide_liquidity(deps, env, info, config),
+        ExecuteMsg::WithdrawLiquidity { config } => try_withdraw_liquidity(deps, env, info, config),
     }
 }
 
@@ -75,7 +76,11 @@ fn try_withdraw_liquidity(
 
     let pool_shares_coin = match osmo_pool.total_shares {
         Some(coin) => coin,
-        None => return Err(ContractError::OsmosisPoolError("no shares coin in pool".to_string())),
+        None => {
+            return Err(ContractError::OsmosisPoolError(
+                "no shares coin in pool".to_string(),
+            ))
+        }
     };
 
     // we assert that the correct lp token is being redeemed
@@ -119,10 +124,7 @@ fn try_withdraw_liquidity(
 
     Ok(Response::default()
         .add_attribute("method", "try_withdraw_liquidity")
-        .add_submessage(SubMsg::reply_always(
-            exit_pool_request,
-            OSMO_POOL_REPLY_ID,
-        )))
+        .add_submessage(SubMsg::reply_always(exit_pool_request, OSMO_POOL_REPLY_ID)))
 }
 
 fn try_provide_liquidity(
@@ -159,27 +161,21 @@ fn try_provide_liquidity(
 
     // validate the price against our expectations
     let pool_spot_price = Decimal::from_ratio(pool_assets[0].amount, pool_assets[1].amount);
-    let min_acceptable_spot_price =
-        config.expected_spot_price - config.acceptable_price_spread;
-    let max_acceptable_spot_price =
-        config.expected_spot_price + config.acceptable_price_spread;
+    let min_acceptable_spot_price = config.expected_spot_price - config.acceptable_price_spread;
+    let max_acceptable_spot_price = config.expected_spot_price + config.acceptable_price_spread;
 
-    if min_acceptable_spot_price > pool_spot_price
-        || max_acceptable_spot_price < pool_spot_price
-    {
+    if min_acceptable_spot_price > pool_spot_price || max_acceptable_spot_price < pool_spot_price {
         return Err(ContractError::PriceRangeError {});
     }
 
     // get the amounts paid of pool denoms
     let asset_1_received = Coin {
         denom: pool_assets[0].denom.to_string(),
-        amount: get_paid_denom_amount(&info, &pool_assets[0].denom)
-            .unwrap_or(Uint128::zero()),
+        amount: get_paid_denom_amount(&info, &pool_assets[0].denom).unwrap_or(Uint128::zero()),
     };
     let asset_2_received = Coin {
         denom: pool_assets[1].denom.to_string(),
-        amount: get_paid_denom_amount(&info, &pool_assets[1].denom)
-            .unwrap_or(Uint128::zero()),
+        amount: get_paid_denom_amount(&info, &pool_assets[1].denom).unwrap_or(Uint128::zero()),
     };
 
     // we build a context helper that will be used to
@@ -321,10 +317,7 @@ fn provide_single_sided_liquidity(
 
     Ok(Response::default()
         .add_attribute("method", "try_join_pool")
-        .add_submessage(SubMsg::reply_always(
-            join_pool_msg,
-            OSMO_POOL_REPLY_ID,
-        )))
+        .add_submessage(SubMsg::reply_always(join_pool_msg, OSMO_POOL_REPLY_ID)))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -365,8 +358,7 @@ fn handle_pool_interaction_reply(deps: DepsMut, env: Env) -> Result<Response, Co
         .filter(|c| c.amount > Uint128::zero())
         .collect();
 
-    let mut response =
-        Response::default().add_attribute("method", "handle_pool_interaction_reply");
+    let mut response = Response::default().add_attribute("method", "handle_pool_interaction_reply");
 
     if !refund_tokens.is_empty() {
         response = response.add_message(BankMsg::Send {
