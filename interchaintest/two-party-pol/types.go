@@ -47,6 +47,7 @@ type OsmosisLiquidPoolerConfig struct {
 	OsmoToNeutronChannelId string         `json:"osmo_to_neutron_channel_id"`
 	Party1DenomInfo        PartyDenomInfo `json:"party_1_denom_info"`
 	Party2DenomInfo        PartyDenomInfo `json:"party_2_denom_info"`
+	FundingDurationSeconds string         `json:"funding_duration_seconds"`
 }
 
 type AstroportLiquidPoolerConfig struct {
@@ -492,6 +493,7 @@ type OsmoLiquidPoolerInstantiateMsg struct {
 	SlippageTolerance      string         `json:"slippage_tolerance"`
 	ExpectedSpotPrice      string         `json:"expected_spot_price"`
 	AcceptablePriceSpread  string         `json:"acceptable_price_spread"`
+	FundingDurationSeconds string         `json:"funding_duration_seconds"`
 }
 
 type PartyDenomInfo struct {
@@ -501,9 +503,10 @@ type PartyDenomInfo struct {
 }
 
 type PartyChainInfo struct {
-	NeutronToPartyChainPort    string           `json:"neutron_to_party_chain_port"`
 	NeutronToPartyChainChannel string           `json:"neutron_to_party_chain_channel"`
-	Pfm                        *ForwardMetadata `json:"pfm,omitempty"`
+	PartyChainToNeutronChannel string           `json:"party_chain_to_neutron_channel"`
+	InwardsPfm                 *ForwardMetadata `json:"inwards_pfm,omitempty"`
+	OutwardsPfm                *ForwardMetadata `json:"outwards_pfm,omitempty"`
 	IbcTimeout                 string           `json:"ibc_timeout"`
 }
 

@@ -624,7 +624,7 @@ dependencies = [
  "cw2 1.1.2",
  "cw20 1.1.2",
  "neutron-sdk",
- "osmosis-std 0.13.2",
+ "osmosis-std 0.20.1",
  "polytone",
  "prost 0.11.9",
  "protobuf 3.3.0",
@@ -1465,6 +1465,22 @@ dependencies = [
  "chrono",
  "cosmwasm-std",
  "osmosis-std-derive 0.13.2",
+ "prost 0.11.9",
+ "prost-types 0.11.9",
+ "schemars",
+ "serde",
+ "serde-cw-value",
+]
+
+[[package]]
+name = "osmosis-std"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47d7aa053bc3fad557ac90a0377688b400c395e2537f0f1de3293a15cad2e970"
+dependencies = [
+ "chrono",
+ "cosmwasm-std",
+ "osmosis-std-derive 0.20.1",
  "prost 0.11.9",
  "prost-types 0.11.9",
  "schemars",

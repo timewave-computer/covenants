@@ -37,17 +37,8 @@ pub struct OutpostProvideLiquidityConfig {
 
 #[cw_serde]
 pub struct OutpostWithdrawLiquidityConfig {
-    /// id of the pool we wish to provide liquidity to
+    /// id of the pool we wish to withdraw liquidity from
     pub pool_id: Uint64,
-    /// the price which we expect to provide liquidity at
-    pub expected_spot_price: Decimal,
-    /// acceptable delta (both ways) of the expected price
-    pub acceptable_price_spread: Decimal,
-    /// slippage tolerance
-    pub slippage_tolerance: Decimal,
-    /// limits for single-side liquidity provision
-    pub asset_1_single_side_lp_limit: Uint128,
-    pub asset_2_single_side_lp_limit: Uint128,
 }
 
 
