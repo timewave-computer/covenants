@@ -7,18 +7,19 @@ use cosmwasm_std::{
 use covenant_utils::{
     get_polytone_execute_msg_binary, get_polytone_query_msg_binary, query_polytone_proxy_address,
 };
-use neutron_sdk::{bindings::msg::{NeutronMsg, MsgSubmitTxResponse}, NeutronResult};
-use osmosis_std::types::cosmos::{bank::v1beta1::QueryBalanceResponse};
+use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
+use osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse;
 
 use crate::{
     contract::{
-        CREATE_PROXY_CALLBACK_ID, PROVIDE_LIQUIDITY_CALLBACK_ID, PROXY_BALANCES_QUERY_CALLBACK_ID, WITHDRAW_LIQUIDITY_BALANCES_QUERY_CALLBACK_ID, WITHDRAW_LIQUIDITY_CALLBACK_ID,
+        CREATE_PROXY_CALLBACK_ID, PROVIDE_LIQUIDITY_CALLBACK_ID, PROXY_BALANCES_QUERY_CALLBACK_ID,
+        WITHDRAW_LIQUIDITY_BALANCES_QUERY_CALLBACK_ID, WITHDRAW_LIQUIDITY_CALLBACK_ID,
     },
     error::ContractError,
     msg::{ContractState, IbcConfig, LiquidityProvisionConfig},
     state::{
-        CONTRACT_STATE, IBC_CONFIG, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS,
-        POLYTONE_CALLBACKS, PROXY_ADDRESS,
+        CONTRACT_STATE, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS, POLYTONE_CALLBACKS,
+        PROXY_ADDRESS,
     },
 };
 
@@ -60,10 +61,10 @@ fn process_query_callback(
     match initiator_msg {
         PROXY_BALANCES_QUERY_CALLBACK_ID => {
             handle_proxy_balances_callback(deps, env, query_callback_result)
-        },
+        }
         WITHDRAW_LIQUIDITY_BALANCES_QUERY_CALLBACK_ID => {
             handle_withdraw_liquidity_proxy_balances_callback(deps, env, query_callback_result)
-        },
+        }
         _ => Err(ContractError::PolytoneError(format!(
             "unexpected callback id: {:?}",
             initiator_msg
@@ -159,12 +160,15 @@ fn process_execute_callback(
                                             &e.to_string(),
                                         )?;
                                         vec![]
-                                    },
+                                    }
                                 };
 
-                                CONTRACT_STATE.save(deps.storage, &ContractState::Distributing {
-                                    coins: refunded_coins,
-                                })?;
+                                CONTRACT_STATE.save(
+                                    deps.storage,
+                                    &ContractState::Distributing {
+                                        coins: refunded_coins,
+                                    },
+                                )?;
 
                                 POLYTONE_CALLBACKS.save(
                                     deps.storage,
@@ -188,7 +192,6 @@ fn process_execute_callback(
                 ),
                 &to_json_binary(&callback_result)?.to_string(),
             )?;
-
         }
         _ => (),
     }
@@ -209,7 +212,6 @@ fn process_fatal_error_callback(
     Ok(Response::default())
 }
 
-
 fn handle_withdraw_liquidity_proxy_balances_callback(
     deps: DepsMut,
     env: Env,
@@ -227,17 +229,22 @@ fn handle_withdraw_liquidity_proxy_balances_callback(
                 )?;
             }
             val
-        },
+        }
         Err(err) => return Err(ContractError::PolytoneError(err.error).to_neutron_std()),
     };
 
     // we load the lp config that was present prior
     // to attempting to exit the pool
     let mut pre_withdraw_liquidity_lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
-    let pre_withdraw_lp_token_balance = match pre_withdraw_liquidity_lp_config.latest_balances
-    .get(&pre_withdraw_liquidity_lp_config.lp_token_denom) {
+    let pre_withdraw_lp_token_balance = match pre_withdraw_liquidity_lp_config
+        .latest_balances
+        .get(&pre_withdraw_liquidity_lp_config.lp_token_denom)
+    {
         Some(bal) => bal.clone(),
-        None => Coin { amount: Uint128::zero(), denom: pre_withdraw_liquidity_lp_config.lp_token_denom.to_string() },
+        None => Coin {
+            amount: Uint128::zero(),
+            denom: pre_withdraw_liquidity_lp_config.lp_token_denom.to_string(),
+        },
     };
 
     for response_binary in response_binaries {
@@ -283,7 +290,7 @@ fn handle_proxy_balances_callback(
                 )?;
             }
             val
-        },
+        }
         Err(err) => return Err(ContractError::PolytoneError(err.error).to_neutron_std()),
     };
 
@@ -413,7 +420,10 @@ pub fn get_ibc_pfm_withdraw_coin_message(
     let ibc_message = osmosis_std::types::ibc::applications::transfer::v1::MsgTransfer {
         source_port: "transfer".to_string(),
         source_channel: channel_id,
-        token: Some(osmosis_std::types::cosmos::base::v1beta1::Coin { denom: amount.denom, amount: amount.amount.to_string() }),
+        token: Some(osmosis_std::types::cosmos::base::v1beta1::Coin {
+            denom: amount.denom,
+            amount: amount.amount.to_string(),
+        }),
         sender: from_address,
         receiver: to_address,
         timeout_height: None,
@@ -421,12 +431,10 @@ pub fn get_ibc_pfm_withdraw_coin_message(
         memo,
     };
 
-    let cosmos_msg = cosmwasm_std::CosmosMsg::Stargate {
+    cosmwasm_std::CosmosMsg::Stargate {
         type_url: "/ibc.applications.transfer.v1.MsgTransfer".to_string(),
         value: Binary(ibc_message.encode_to_vec()),
-    };
-
-    cosmos_msg
+    }
 }
 
 pub fn get_proxy_query_balances_message(
