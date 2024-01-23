@@ -6,7 +6,7 @@ use cosmwasm_std::{
     ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Deps,
     DepsMut, Env, Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
-use covenant_clock::helpers::verify_clock;
+use covenant_clock::helpers::{verify_clock, enqueue_msg};
 use covenant_utils::{
     default_ibc_fee, get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs,
     OutpostExecuteMsg, OutpostWithdrawLiquidityConfig,
@@ -92,7 +92,7 @@ pub fn instantiate(
     IBC_CONFIG.save(deps.storage, &ibc_config)?;
 
     Ok(Response::default()
-        // .add_message(enqueue_msg(clock_addr.as_str())?)
+        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "osmosis_lp_instantiate")
         .add_attribute("contract_state", "instantiated")
         .add_attributes(lp_config.to_response_attributes())

@@ -876,7 +876,7 @@ func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.
 	println("covenant instantiation response: ", string(covInstantiationResp))
 	println("error: ", err)
 
-	testCtx.SkipBlocks(8)
+	testCtx.SkipBlocks(50)
 
 	queryCmd := []string{"neutrond", "query", "wasm",
 		"list-contract-by-code", codeIdStr,
