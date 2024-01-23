@@ -870,36 +870,27 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					PartyBConfig:             CovenantPartyConfig{Native: &partyBConfig},
 					RagequitConfig:           &ragequitConfig,
 					DepositDeadline:          depositDeadline,
+					CovenantType:             "share",
 					PartyAShare:              "50",
 					PartyBShare:              "50",
 					ExpectedPoolRatio:        "0.1",
 					AcceptablePoolRatioDelta: "0.09",
-					CovenantType:             "share",
 					Splits: []DenomSplit{
 						{
 							Denom: neutronAtomIbcDenom,
 							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:     "0.5",
-										neutronReceiverAddr: "0.5",
-									},
-								},
+								Custom: SplitConfig{Receivers: map[string]string{hubReceiverAddr: "0.5", neutronReceiverAddr: "0.5"}},
 							},
 						},
 						{
 							Denom: cosmosNeutron.Config().Denom,
 							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:     "0.5",
-										neutronReceiverAddr: "0.5",
-									},
-								},
+								Custom: SplitConfig{Receivers: map[string]string{hubReceiverAddr: "0.5", neutronReceiverAddr: "0.5"}},
 							},
 						},
 					},
 					FallbackSplit:      nil,
+					EmergencyCommittee: neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					LiquidPoolerConfig: liquidPoolerConfig,
 				}
 

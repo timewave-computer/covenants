@@ -434,7 +434,6 @@ dependencies = [
  "cosmwasm-std",
  "covenant-clock",
  "covenant-macros",
- "covenant-two-party-pol-holder",
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
@@ -495,7 +494,6 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "neutron-sdk",
- "osmosis-std 0.21.0",
  "prost 0.11.9",
  "prost-types 0.11.9",
  "protobuf 3.3.0",
@@ -1483,22 +1481,6 @@ dependencies = [
  "osmosis-std-derive 0.20.1",
  "prost 0.11.9",
  "prost-types 0.11.9",
- "schemars",
- "serde",
- "serde-cw-value",
-]
-
-[[package]]
-name = "osmosis-std"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e87adf61f03306474ce79ab322d52dfff6b0bcf3aed1e12d8864ac0400dec1bf"
-dependencies = [
- "chrono",
- "cosmwasm-std",
- "osmosis-std-derive 0.20.1",
- "prost 0.12.3",
- "prost-types 0.12.3",
  "schemars",
  "serde",
  "serde-cw-value",

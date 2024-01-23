@@ -31,7 +31,6 @@ pub struct InstantiateMsg {
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee: Option<String>,
     pub liquid_pooler_config: LiquidPoolerConfig,
-    pub funding_duration_seconds: Uint64,
 }
 
 #[cw_serde]
@@ -52,6 +51,7 @@ pub struct OsmosisLiquidPoolerConfig {
     pub osmo_to_neutron_channel_id: String,
     pub party_1_denom_info: PartyDenomInfo,
     pub party_2_denom_info: PartyDenomInfo,
+    pub funding_duration_seconds: Uint64,
 }
 
 #[cw_serde]
@@ -97,7 +97,7 @@ impl CovenantPartyConfig {
     }
 
     pub fn to_preset_pol_party(&self, party_share: Uint64) -> PresetPolParty {
-        match self {
+        match &self {
             CovenantPartyConfig::Interchain(config) => PresetPolParty {
                 contribution: coin(
                     config.contribution.amount.u128(),
