@@ -639,23 +639,19 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			}
 
 			covenantInstantiateMsg := CovenantInstantiateMsg{
-				Label:           "covenant-osmo",
-				Timeouts:        timeouts,
-				PresetIbcFee:    presetIbcFee,
-				ContractCodeIds: codeIds,
-				LockupConfig:    lockupConfig,
-				PartyAConfig: CovenantPartyConfig{
-					Interchain: &partyAConfig,
-				},
-				PartyBConfig: CovenantPartyConfig{
-					Interchain: &partyBConfig,
-				},
+				Label:                    "covenant-osmo",
+				Timeouts:                 timeouts,
+				PresetIbcFee:             presetIbcFee,
+				ContractCodeIds:          codeIds,
+				LockupConfig:             lockupConfig,
+				PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
+				PartyBConfig:             CovenantPartyConfig{Interchain: &partyBConfig},
 				DepositDeadline:          depositDeadline,
+				CovenantType:             "share",
 				PartyAShare:              "50",
 				PartyBShare:              "50",
 				ExpectedPoolRatio:        "0.1",
 				AcceptablePoolRatioDelta: "0.09",
-				CovenantType:             "share",
 				Splits:                   denomSplits,
 				FallbackSplit:            nil,
 				EmergencyCommittee:       neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
@@ -783,7 +779,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			}
 		})
 
-		t.Run("tick until liquidity is provided and liquid pooler receives gamm tokens", func(t *testing.T) {
+		t.Run("tick until liquidity is provided and proxy receives gamm tokens", func(t *testing.T) {
 			neutronGammDenom := testCtx.GetIbcDenom(
 				testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
 				"gamm/pool/1",
@@ -805,11 +801,60 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				println("outpost gamm token balance: ", outpostGammBalance)
 				println("proxy gamm token balance: ", proxyGammBalance)
 				println("osmo liquid pooler gamm token balance: ", osmoLiquidPoolerGammBalance)
-				if proxyAtomBal == 0 && proxyOsmoBal == 0 && proxyGammBalance == 0 {
+
+				if proxyGammBalance != 0 {
 					break
 				} else {
-					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+					testCtx.Tick(liquidPoolerAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
+			}
+		})
+
+		t.Run("tick until we are able to withdraw", func(t *testing.T) {
+			claimSuccess := false
+			for {
+				testCtx.Tick(liquidPoolerAddress, keyring.BackendTest, neutronUser.KeyName)
+				if !claimSuccess {
+					cmd := []string{"neutrond", "tx", "wasm", "execute", liquidPoolerAddress,
+						`{"withdraw":{"percentage":"0.5"}}`,
+						"--from", neutronUser.GetKeyName(),
+						"--gas-prices", "0.0untrn",
+						"--gas-adjustment", `1.5`,
+						"--output", "json",
+						"--node", testCtx.Neutron.GetRPCAddress(),
+						"--home", testCtx.Neutron.HomeDir(),
+						"--chain-id", testCtx.Neutron.Config().ChainID,
+						"--gas", "42069420",
+						"--keyring-backend", keyring.BackendTest,
+						"-y",
+					}
+
+					resp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
+					if err != nil {
+						println("claim failed", err)
+					} else {
+						claimSuccess = true
+					}
+					println("claim response: ", string(resp))
+				}
+
+				proxyGammBalance := testCtx.QueryOsmoDenomBalance("gamm/pool/1", proxyAddress)
+				proxyAtomBal := testCtx.QueryOsmoDenomBalance(osmosisAtomIbcDenom, proxyAddress)
+				proxyOsmoBal := testCtx.QueryOsmoDenomBalance(testCtx.Osmosis.Config().Denom, proxyAddress)
+				neutronUserOsmoBal := testCtx.QueryNeutronDenomBalance(neutronOsmoIbcDenom, neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix))
+				neutronUserAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix))
+				lperAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
+				lperOsmoBal := testCtx.QueryNeutronDenomBalance(neutronOsmoIbcDenom, liquidPoolerAddress)
+
+				println("neutron user osmo bal: ", neutronUserOsmoBal)
+				println("neutron user atom bal: ", neutronUserAtomBal)
+
+				println("proxy atom bal: ", proxyAtomBal)
+				println("proxy osmo bal: ", proxyOsmoBal)
+				println("proxy gamm token balance: ", proxyGammBalance)
+
+				println("liquid pooler osmo bal: ", lperOsmoBal)
+				println("liquid pooler atom bal: ", lperAtomBal)
 			}
 		})
 

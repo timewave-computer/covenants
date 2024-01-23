@@ -51,7 +51,7 @@ covenant-utils = { workspace = true }
 cw-multi-test                  = { workspace = true }
 astroport                      = { workspace = true }
 cw1-whitelist                  = { workspace = true }
-covenant-two-party-pol-holder  = { workspace = true }
+# covenant-two-party-pol-holder  = { workspace = true }
 astroport-token                = { workspace = true }
 astroport-whitelist            = { workspace = true }
 astroport-factory              = { workspace = true }
