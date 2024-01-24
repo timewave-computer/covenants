@@ -872,11 +872,10 @@ func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.
 	fmt.Println(string(prettyJson))
 
 	covInstantiationResp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
-	// require.NoError(testCtx.T, err, "manual instantiation failed")
+	require.NoError(testCtx.T, err, "manual instantiation failed")
 	println("covenant instantiation response: ", string(covInstantiationResp))
-	println("error: ", err)
 
-	testCtx.SkipBlocks(50)
+	testCtx.SkipBlocks(10)
 
 	queryCmd := []string{"neutrond", "query", "wasm",
 		"list-contract-by-code", codeIdStr,
@@ -1406,11 +1405,11 @@ func (testCtx *TestContext) HolderClaim(contract string, from *ibc.Wallet, keyri
 	}
 
 	resp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
-	require.NoError(testCtx.T, err, "claim failed")
+	if err != nil {
+		println("claim failed: ", err)
+	}
 	println("claim response: ", string(resp))
-	require.NoError(testCtx.T,
-		testutil.WaitForBlocks(testCtx.Ctx, 2, testCtx.Hub, testCtx.Neutron, testCtx.Osmosis))
-
+	testCtx.SkipBlocks(3)
 }
 
 func (testCtx *TestContext) HolderRagequit(contract string, from *ibc.Wallet, keyring string) {

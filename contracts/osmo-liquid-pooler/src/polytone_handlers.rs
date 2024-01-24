@@ -5,7 +5,7 @@ use cosmwasm_std::{
     IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg,
 };
 use covenant_utils::{
-    get_polytone_execute_msg_binary, get_polytone_query_msg_binary, query_polytone_proxy_address,
+    get_polytone_execute_msg_binary, get_polytone_query_msg_binary, query_polytone_proxy_address, withdraw_lp_helper::WithdrawLPMsgs,
 };
 use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
 use osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse;
@@ -19,7 +19,7 @@ use crate::{
     msg::{ContractState, IbcConfig, LiquidityProvisionConfig},
     state::{
         CONTRACT_STATE, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS, POLYTONE_CALLBACKS,
-        PROXY_ADDRESS,
+        PROXY_ADDRESS, HOLDER_ADDRESS,
     },
 };
 
@@ -91,7 +91,7 @@ fn process_execute_callback(
                 deps.storage,
                 format!(
                     "provide_liquidity_callback : {:?}",
-                    env.block.time.to_string()
+                    env.block.height.to_string()
                 ),
                 &to_json_binary(&callback_result)?.to_string(),
             )?;
@@ -120,7 +120,7 @@ fn process_execute_callback(
             // result contains nothing
             POLYTONE_CALLBACKS.save(
                 deps.storage,
-                format!("create_proxy_callback : {:?}", env.block.time.to_string()),
+                format!("create_proxy_callback : {:?}", env.block.height.to_string()),
                 &to_json_binary(&callback_result)?.to_string(),
             )?;
             if let Some(addr) = proxy_address {
@@ -155,7 +155,7 @@ fn process_execute_callback(
                                             deps.storage,
                                             format!(
                                                 "withdraw_liquidity_callback_REFUND_TOKENS_error : {:?}",
-                                                env.block.time.to_string()
+                                                env.block.height.to_string()
                                             ),
                                             &e.to_string(),
                                         )?;
@@ -174,7 +174,7 @@ fn process_execute_callback(
                                     deps.storage,
                                     format!(
                                         "withdraw_liquidity_callback_REFUND_TOKENS : {:?}",
-                                        env.block.time.to_string()
+                                        env.block.height.to_string()
                                     ),
                                     &attr.value,
                                 )?;
@@ -183,15 +183,39 @@ fn process_execute_callback(
                     }
                 }
             }
-
             POLYTONE_CALLBACKS.save(
                 deps.storage,
                 format!(
                     "withdraw_liquidity_callback : {:?}",
-                    env.block.time.to_string()
+                    env.block.height.to_string()
                 ),
                 &to_json_binary(&callback_result)?.to_string(),
             )?;
+
+            match CONTRACT_STATE.load(deps.storage)? {
+                ContractState::Distributing { coins: _ } => (),
+                _ => {
+                    POLYTONE_CALLBACKS.save(
+                        deps.storage,
+                        format!(
+                            "withdraw_liquidity_callback : {:?}",
+                            env.block.height.to_string()
+                        ),
+                        &"non-distributing-state".to_string(),
+                    )?;
+
+                    // if we are not in a distributing state, withdraw had failed.
+                    // we submit the appropriate callback to the holder.
+                    let holder = HOLDER_ADDRESS.load(deps.storage)?;
+                    return Ok(Response::default().add_message(
+                        CosmosMsg::Wasm(WasmMsg::Execute {
+                            contract_addr: holder.to_string(),
+                            msg: to_json_binary(&WithdrawLPMsgs::WithdrawFailed {  })?,
+                            funds: vec![],
+                        })
+                    ))
+                }
+            }
         }
         _ => (),
     }
@@ -206,7 +230,7 @@ fn process_fatal_error_callback(
 ) -> NeutronResult<Response<NeutronMsg>> {
     POLYTONE_CALLBACKS.save(
         deps.storage,
-        format!("fatal_error : {:?}", env.block.time.to_string()),
+        format!("fatal_error : {:?}", env.block.height.to_string()),
         &response,
     )?;
     Ok(Response::default())
@@ -224,7 +248,7 @@ fn handle_withdraw_liquidity_proxy_balances_callback(
             for bin in val.clone() {
                 POLYTONE_CALLBACKS.save(
                     deps.storage,
-                    format!("proxy_balances_callback : {:?}", env.block.time.to_string()),
+                    format!("proxy_balances_callback : {:?}", env.block.height.to_string()),
                     &bin.to_base64(),
                 )?;
             }
@@ -285,7 +309,7 @@ fn handle_proxy_balances_callback(
             for bin in val.clone() {
                 POLYTONE_CALLBACKS.save(
                     deps.storage,
-                    format!("proxy_balances_callback : {:?}", env.block.time.to_string()),
+                    format!("proxy_balances_callback : {:?}", env.block.height.to_string()),
                     &bin.to_base64(),
                 )?;
             }
@@ -313,68 +337,6 @@ fn handle_proxy_balances_callback(
 
     Ok(Response::default())
 }
-
-// pub fn get_withdraw_denoms_note_message(
-//     deps: DepsMut,
-//     ibc_config: IbcConfig,
-//     env: Env,
-//     lp_config: LiquidityProvisionConfig,
-// ) -> Result<CosmosMsg<NeutronMsg>, ContractError> {
-//     // if we are in active state, withdraw the relevant denoms to this contract
-//     let party_1_denom_bal = if let Some(coin) = lp_config.latest_balances
-//         .get(&lp_config.party_1_denom_info.osmosis_coin.denom) {
-//             coin.clone()
-//         } else {
-//             Coin { denom: lp_config.party_1_denom_info.osmosis_coin.denom, amount: Uint128::zero() }
-//         };
-//     let party_2_denom_bal = if let Some(coin) = lp_config.latest_balances
-//         .get(&lp_config.party_2_denom_info.osmosis_coin.denom) {
-//             coin.clone()
-//         } else {
-//             Coin { denom: lp_config.party_2_denom_info.osmosis_coin.denom, amount: Uint128::zero() }
-//         };
-
-//     let mut withdraw_messages: Vec<CosmosMsg> = vec![];
-//     let ibc_config = IBC_CONFIG.load(deps.storage)?;
-//     let note_address = NOTE_ADDRESS.load(deps.storage)?;
-//     if !party_1_denom_bal.amount.is_zero() {
-//         withdraw_messages.push(get_ibc_withdraw_coin_message(
-//             ibc_config.osmo_to_neutron_channel_id.to_string(),
-//             env.contract.address.to_string(),
-//             party_1_denom_bal,
-//             IbcTimeout::with_timestamp(
-//                 env.block
-//                     .time
-//                     .plus_seconds(ibc_config.osmo_ibc_timeout.u64()),
-//             ),
-//         ));
-//     }
-//     if !party_2_denom_bal.amount.is_zero() {
-//         withdraw_messages.push(get_ibc_withdraw_coin_message(
-//             ibc_config.osmo_to_neutron_channel_id.to_string(),
-//             env.contract.address.to_string(),
-//             party_2_denom_bal,
-//             IbcTimeout::with_timestamp(
-//                 env.block
-//                     .time
-//                     .plus_seconds(ibc_config.osmo_ibc_timeout.u64()),
-//             ),
-//         ));
-//     }
-
-//     if !withdraw_messages.is_empty() {
-//         let note_msg = get_note_execute_neutron_msg(
-//             withdraw_messages,
-//             ibc_config.osmo_ibc_timeout,
-//             note_address,
-//             None,
-//         )?;
-
-//         Ok(note_msg)
-//     } else {
-//         Err(ContractError::Std(cosmwasm_std::StdError::GenericErr { msg: "nothing to withdraw".to_string() }))
-//     }
-// }
 
 pub fn get_note_execute_neutron_msg(
     msgs: Vec<CosmosMsg>,
