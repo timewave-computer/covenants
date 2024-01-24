@@ -8,7 +8,7 @@ use cosmwasm_std::{
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_utils::OutpostExecuteMsg;
+use covenant_utils::{OutpostExecuteMsg, ForwardMetadata};
 use cw_utils::Expiration;
 use polytone::callbacks::CallbackMessage;
 
@@ -180,15 +180,13 @@ impl LiquidityProvisionConfig {
         .into())
     }
 
-    // pub fn get_osmo_outpost_withdraw_liquidity_message(&self) -> StdResult<CosmosMsg> {
-    //     // todo
-    // }
-
     pub fn reset_latest_proxy_balances(&mut self) {
         self.latest_balances
             .remove(&self.party_1_denom_info.osmosis_coin.denom);
         self.latest_balances
-            .remove(&self.party_1_denom_info.osmosis_coin.denom);
+            .remove(&self.party_2_denom_info.osmosis_coin.denom);
+        self.latest_balances
+            .remove(&self.lp_token_denom);
     }
 
     pub fn proxy_received_party_contributions(&self, p1_coin: &Coin, p2_coin: &Coin) -> bool {
@@ -344,19 +342,6 @@ impl PartyChainInfo {
 
         attributes
     }
-}
-
-// https://github.com/strangelove-ventures/packet-forward-middleware/blob/main/router/types/forward.go
-#[cw_serde]
-pub struct PacketMetadata {
-    pub forward: Option<ForwardMetadata>,
-}
-
-#[cw_serde]
-pub struct ForwardMetadata {
-    pub receiver: String,
-    pub port: String,
-    pub channel: String,
 }
 
 #[cw_serde]

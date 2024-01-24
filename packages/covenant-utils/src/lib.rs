@@ -7,7 +7,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     to_json_binary, Addr, Attribute, BankMsg, Binary, BlockInfo, Coin, CosmosMsg, Decimal, Empty,
     Fraction, IbcMsg, IbcTimeout, QuerierWrapper, QueryRequest, StdError, StdResult, Timestamp,
-    Uint128, Uint64,
+    Uint128, Uint64, to_json_string,
 };
 use cw20::BalanceResponse;
 use neutron_sdk::{
@@ -563,6 +563,19 @@ pub fn get_default_ica_fee() -> Coin {
         denom: "untrn".to_string(),
         amount: Uint128::new(1000000),
     }
+}
+
+// https://github.com/strangelove-ventures/packet-forward-middleware/blob/main/router/types/forward.go
+#[cw_serde]
+pub struct PacketMetadata {
+    pub forward: Option<ForwardMetadata>,
+}
+
+#[cw_serde]
+pub struct ForwardMetadata {
+    pub receiver: String,
+    pub port: String,
+    pub channel: String,
 }
 
 impl DestinationConfig {
