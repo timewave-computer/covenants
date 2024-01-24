@@ -47,11 +47,11 @@ fn test_migrate_config() {
     let target_denom_set: BTreeSet<String> = target_denom_vec.clone().into_iter().collect();
     let migrate_msg = MigrateMsg::UpdateConfig {
         clock_addr: Some("working_clock".to_string()),
-        receiver_config: Some(covenant_utils::ReceiverConfig::Ibc(DestinationConfig {
+        destination_config: Some(DestinationConfig {
             destination_chain_channel_id: "new_channel".to_string(),
             destination_receiver_addr: "new_receiver".to_string(),
             ibc_transfer_timeout: Uint64::new(100),
-        })),
+        }),
         target_denoms: Some(target_denom_vec),
     };
 

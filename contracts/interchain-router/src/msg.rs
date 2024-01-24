@@ -3,25 +3,23 @@ use std::collections::BTreeSet;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, WasmMsg};
 use covenant_macros::{clocked, covenant_clock_address};
-use covenant_utils::ReceiverConfig;
+use covenant_utils::{ReceiverConfig, DestinationConfig};
 
 #[cw_serde]
 pub struct InstantiateMsg {
     /// address for the clock. this contract verifies
     /// that only the clock can execute ticks
     pub clock_address: String,
-    /// config that determines whether router should
-    /// route over ibc or natively
-    pub receiver_config: ReceiverConfig,
+    /// config that determines how to facilitate the ibc routing
+    pub destination_config: DestinationConfig,
     /// specified denoms to route
     pub denoms: BTreeSet<String>,
 }
 
 #[cw_serde]
 pub struct PresetInterchainRouterFields {
-    /// config that determines whether router should
-    /// route over ibc or natively
-    pub receiver_config: ReceiverConfig,
+    /// config that determines how to facilitate the ibc routing
+    pub destination_config: DestinationConfig,
     /// specified denoms to route
     pub denoms: BTreeSet<String>,
     pub label: String,
@@ -32,7 +30,7 @@ impl PresetInterchainRouterFields {
     pub fn to_instantiate_msg(&self, clock_address: String) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
-            receiver_config: self.receiver_config.clone(),
+            destination_config: self.destination_config.clone(),
             denoms: self.denoms.clone(),
         }
     }
@@ -75,7 +73,7 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
-        receiver_config: Option<ReceiverConfig>,
+        destination_config: Option<DestinationConfig>,
         target_denoms: Option<Vec<String>>,
     },
     UpdateCodeId {
