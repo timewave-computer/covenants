@@ -172,6 +172,7 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
     contract_state.validate_claim_state()?;
 
+    // TODO: move this to a submsg reply
     // set WithdrawState to include original data
     WITHDRAW_STATE.save(
         deps.storage,

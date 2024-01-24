@@ -9,7 +9,7 @@ use cosmwasm_std::{
 use covenant_clock::helpers::{verify_clock, enqueue_msg};
 use covenant_utils::{
     default_ibc_fee, get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs,
-    OutpostExecuteMsg, OutpostWithdrawLiquidityConfig,
+    OutpostExecuteMsg, OutpostWithdrawLiquidityConfig, PacketMetadata, ForwardMetadata,
 };
 use cw2::set_contract_version;
 use cw_utils::Expiration;
@@ -21,8 +21,8 @@ use polytone::callbacks::CallbackRequest;
 use crate::{
     error::ContractError,
     msg::{
-        ContractState, ExecuteMsg, ForwardMetadata, IbcConfig, InstantiateMsg,
-        LiquidityProvisionConfig, MigrateMsg, PacketMetadata, PartyChainInfo, QueryMsg,
+        ContractState, ExecuteMsg, IbcConfig, InstantiateMsg,
+        LiquidityProvisionConfig, MigrateMsg, PartyChainInfo, QueryMsg,
     },
     polytone_handlers::{
         get_ibc_pfm_withdraw_coin_message, get_ibc_withdraw_coin_message,
@@ -170,6 +170,15 @@ fn try_withdraw(
     }
     .into();
 
+    POLYTONE_CALLBACKS.save(
+        deps.storage,
+        format!(
+            "neutron_try_withdraw_liquidity : {:?}",
+            env.block.height.to_string()
+        ),
+        &to_json_string(&exit_pool_message)?,
+    )?;
+
     let exit_pool_note_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: note_address.to_string(),
         msg: get_polytone_execute_msg_binary(
@@ -221,7 +230,7 @@ fn try_distribute(
     env: Env,
     coins: Vec<Coin>,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
+    let mut lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
     // query our own relevant token denoms
     let denom_1_balance = deps.querier.query_balance(
         env.contract.address.to_string(),
@@ -273,6 +282,10 @@ fn try_distribute(
             msg: to_json_binary(&WithdrawLPMsgs::Distribute {})?,
             funds: vec![denom_1_balance, denom_2_balance],
         };
+
+        // reset the proxy balances to trigger a query
+        lp_config.reset_latest_proxy_balances();
+        LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &lp_config)?;
 
         return Ok(Response::default()
             .add_attribute("method", "holder_distribute_callback")
