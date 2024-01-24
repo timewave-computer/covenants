@@ -7,7 +7,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     to_json_binary, Addr, Attribute, BankMsg, Binary, BlockInfo, Coin, CosmosMsg, Decimal, Empty,
     Fraction, IbcMsg, IbcTimeout, QuerierWrapper, QueryRequest, StdError, StdResult, Timestamp,
-    Uint128, Uint64, to_json_string,
+    Uint128, Uint64,
 };
 use cw20::BalanceResponse;
 use neutron_sdk::{
