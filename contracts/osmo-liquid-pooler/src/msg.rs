@@ -8,7 +8,7 @@ use cosmwasm_std::{
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_utils::{OutpostExecuteMsg, ForwardMetadata};
+use covenant_utils::{ForwardMetadata, OutpostExecuteMsg};
 use cw_utils::Expiration;
 use polytone::callbacks::CallbackMessage;
 
@@ -185,8 +185,7 @@ impl LiquidityProvisionConfig {
             .remove(&self.party_1_denom_info.osmosis_coin.denom);
         self.latest_balances
             .remove(&self.party_2_denom_info.osmosis_coin.denom);
-        self.latest_balances
-            .remove(&self.lp_token_denom);
+        self.latest_balances.remove(&self.lp_token_denom);
     }
 
     pub fn proxy_received_party_contributions(&self, p1_coin: &Coin, p2_coin: &Coin) -> bool {

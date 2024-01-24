@@ -5,7 +5,8 @@ use cosmwasm_std::{
     IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg,
 };
 use covenant_utils::{
-    get_polytone_execute_msg_binary, get_polytone_query_msg_binary, query_polytone_proxy_address, withdraw_lp_helper::WithdrawLPMsgs,
+    get_polytone_execute_msg_binary, get_polytone_query_msg_binary, query_polytone_proxy_address,
+    withdraw_lp_helper::WithdrawLPMsgs,
 };
 use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
 use osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse;
@@ -18,8 +19,8 @@ use crate::{
     error::ContractError,
     msg::{ContractState, IbcConfig, LiquidityProvisionConfig},
     state::{
-        CONTRACT_STATE, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS, POLYTONE_CALLBACKS,
-        PROXY_ADDRESS, HOLDER_ADDRESS,
+        CONTRACT_STATE, HOLDER_ADDRESS, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS,
+        POLYTONE_CALLBACKS, PROXY_ADDRESS,
     },
 };
 
@@ -207,13 +208,13 @@ fn process_execute_callback(
                     // if we are not in a distributing state, withdraw had failed.
                     // we submit the appropriate callback to the holder.
                     let holder = HOLDER_ADDRESS.load(deps.storage)?;
-                    return Ok(Response::default().add_message(
-                        CosmosMsg::Wasm(WasmMsg::Execute {
+                    return Ok(Response::default().add_message(CosmosMsg::Wasm(
+                        WasmMsg::Execute {
                             contract_addr: holder.to_string(),
-                            msg: to_json_binary(&WithdrawLPMsgs::WithdrawFailed {  })?,
+                            msg: to_json_binary(&WithdrawLPMsgs::WithdrawFailed {})?,
                             funds: vec![],
-                        })
-                    ))
+                        },
+                    )));
                 }
             }
         }
@@ -248,7 +249,10 @@ fn handle_withdraw_liquidity_proxy_balances_callback(
             for bin in val.clone() {
                 POLYTONE_CALLBACKS.save(
                     deps.storage,
-                    format!("proxy_balances_callback : {:?}", env.block.height.to_string()),
+                    format!(
+                        "proxy_balances_callback : {:?}",
+                        env.block.height.to_string()
+                    ),
                     &bin.to_base64(),
                 )?;
             }
@@ -309,7 +313,10 @@ fn handle_proxy_balances_callback(
             for bin in val.clone() {
                 POLYTONE_CALLBACKS.save(
                     deps.storage,
-                    format!("proxy_balances_callback : {:?}", env.block.height.to_string()),
+                    format!(
+                        "proxy_balances_callback : {:?}",
+                        env.block.height.to_string()
+                    ),
                     &bin.to_base64(),
                 )?;
             }
