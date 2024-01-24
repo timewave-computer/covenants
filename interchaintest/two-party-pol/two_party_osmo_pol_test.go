@@ -821,7 +821,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 		})
 
 		t.Run("osmo party claims", func(t *testing.T) {
-
 			// try to withdraw until lp tokens are gone from proxy
 			testCtx.SkipBlocks(5)
 			testCtx.HolderClaim(holderAddress, osmoPartyNeutronAddr, keyring.BackendTest)
@@ -903,55 +902,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				println("hubPartyReceiverAddrOsmoBal", hubPartyReceiverAddrOsmoBal)
 
 				if hubPartyReceiverAddrAtomBal != 0 && hubPartyReceiverAddrOsmoBal != 0 {
-					println("claiming party received the funds")
-					break
-				}
-			}
-		})
-
-		t.Run("osmo party claims", func(t *testing.T) {
-
-			// try to withdraw until lp tokens are gone from proxy
-			for {
-				testCtx.SkipBlocks(5)
-				testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-				proxyGammBalance := testCtx.QueryOsmoDenomBalance("gamm/pool/1", proxyAddress)
-				println("proxy gamm balance:", proxyGammBalance)
-				if proxyGammBalance < 10 {
-					break
-				} else {
-					testCtx.HolderClaim(holderAddress, osmoPartyNeutronAddr, keyring.BackendTest)
-				}
-			}
-
-			for {
-				testCtx.SkipBlocks(5)
-
-				testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
-				proxyGammBalance := testCtx.QueryOsmoDenomBalance("gamm/pool/1", proxyAddress)
-				proxyAtomBal := testCtx.QueryOsmoDenomBalance(osmosisAtomIbcDenom, proxyAddress)
-				proxyOsmoBal := testCtx.QueryOsmoDenomBalance(testCtx.Osmosis.Config().Denom, proxyAddress)
-				holderOsmoBal := testCtx.QueryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
-				holderAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
-				lperAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
-				lperOsmoBal := testCtx.QueryNeutronDenomBalance(neutronOsmoIbcDenom, liquidPoolerAddress)
-				osmoPartyReceiverAddrOsmoBal := testCtx.QueryOsmoDenomBalance("uosmo", happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix))
-				osmoPartyReceiverAddrAtomBal := testCtx.QueryOsmoDenomBalance(osmoNeutronAtomIbcDenom, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix))
-
-				println("holder osmo bal: ", holderOsmoBal)
-				println("holder atom bal: ", holderAtomBal)
-
-				println("proxy atom bal: ", proxyAtomBal)
-				println("proxy osmo bal: ", proxyOsmoBal)
-				println("proxy gamm token balance: ", proxyGammBalance)
-
-				println("liquid pooler osmo bal: ", lperOsmoBal)
-				println("liquid pooler atom bal: ", lperAtomBal)
-
-				println("osmoPartyReceiverAddrOsmoBal", osmoPartyReceiverAddrOsmoBal)
-				println("osmoPartyReceiverAddrAtomBal", osmoPartyReceiverAddrAtomBal)
-
-				if osmoPartyReceiverAddrOsmoBal != 0 && osmoPartyReceiverAddrAtomBal != 0 {
 					println("claiming party received the funds")
 					break
 				}
