@@ -10,29 +10,27 @@ pub struct InstantiateMsg {
     /// address for the clock. this contract verifies
     /// that only the clock can execute ticks
     pub clock_address: String,
-    /// config that determines whether router should
-    /// route over ibc or natively
-    pub receiver_config: ReceiverConfig,
+    /// receiver address on local chain
+    pub receiver_address: String,
     /// specified denoms to route
     pub denoms: BTreeSet<String>,
 }
 
 #[cw_serde]
-pub struct PresetInterchainRouterFields {
-    /// config that determines whether router should
-    /// route over ibc or natively
-    pub receiver_config: ReceiverConfig,
+pub struct PresetNativeRouterFields {
+    /// address where funds are going to be routed to
+    pub receiver_address: String,
     /// specified denoms to route
     pub denoms: BTreeSet<String>,
     pub label: String,
     pub code_id: u64,
 }
 
-impl PresetInterchainRouterFields {
+impl PresetNativeRouterFields {
     pub fn to_instantiate_msg(&self, clock_address: String) -> InstantiateMsg {
         InstantiateMsg {
             clock_address,
-            receiver_config: self.receiver_config.clone(),
+            receiver_address: self.receiver_address.to_string(),
             denoms: self.denoms.clone(),
         }
     }
@@ -75,7 +73,7 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
-        receiver_config: Option<ReceiverConfig>,
+        receiver_address: Option<String>,
         target_denoms: Option<Vec<String>>,
     },
     UpdateCodeId {

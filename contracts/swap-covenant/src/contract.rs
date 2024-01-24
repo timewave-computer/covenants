@@ -4,15 +4,16 @@ use std::collections::BTreeSet;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps,
-    DepsMut, Env, MessageInfo, Response, StdResult,
+    DepsMut, Env, MessageInfo, Response, StdResult, Uint64,
 };
 
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
+use covenant_native_router::msg::PresetNativeRouterFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
-use covenant_utils::{CovenantPartiesConfig, CovenantTerms};
+use covenant_utils::{CovenantPartiesConfig, CovenantTerms, DestinationConfig};
 use cw2::set_contract_version;
 use sha2::{Digest, Sha256};
 
@@ -186,18 +187,94 @@ pub fn instantiate(
         .map(|split| split.denom.to_string())
         .collect();
 
+
+    let party_a_router_instantiate2_msg = match &msg.party_a_config {
+        CovenantPartyConfig::Native(party) => {
+            let preset_party_a_router_fields = PresetNativeRouterFields {
+                receiver_address: party.party_receiver_addr.to_string(),
+                denoms: covenant_denoms.clone(),
+                label: format!("{}_party_a_router", msg.label),
+                code_id: party_a_router_code,
+            };
+            preset_party_a_router_fields.to_instantiate2_msg(
+                env.contract.address.to_string(),
+                party_a_router_salt,
+                clock_address.to_string(),
+            )?
+        },
+        CovenantPartyConfig::Interchain(party) => {
+            let preset_party_a_router_fields = PresetInterchainRouterFields {
+                destination_config: DestinationConfig{
+                    destination_chain_channel_id: party.host_to_party_chain_channel_id.to_string(),
+                    destination_receiver_addr: party.party_receiver_addr.to_string(),
+                    ibc_transfer_timeout: Uint64::zero(),
+                },
+                label: format!("{}_party_a_router", msg.label),
+                code_id: party_a_router_code,
+                denoms: covenant_denoms.clone(),
+            };
+            preset_party_a_router_fields.to_instantiate2_msg(
+                env.contract.address.to_string(),
+                party_a_router_salt,
+                clock_address.to_string(),
+            )?
+        },
+    };
+
+    let party_b_router_instantiate2_msg = match &msg.party_b_config {
+        CovenantPartyConfig::Native(party) => {
+            let preset_party_b_router_fields = PresetNativeRouterFields {
+                receiver_address: party.party_receiver_addr.to_string(),
+                denoms: covenant_denoms.clone(),
+                label: format!("{}_party_b_router", msg.label),
+                code_id: party_b_router_code,
+            };
+            preset_party_b_router_fields.to_instantiate2_msg(
+                env.contract.address.to_string(),
+                party_b_router_salt,
+                clock_address.to_string(),
+            )?
+        },
+        CovenantPartyConfig::Interchain(party) => {
+            let preset_party_b_router_fields = PresetInterchainRouterFields {
+                destination_config: DestinationConfig{
+                    destination_chain_channel_id: party.host_to_party_chain_channel_id.to_string(),
+                    destination_receiver_addr: party.party_receiver_addr.to_string(),
+                    ibc_transfer_timeout: Uint64::zero(),
+                },
+                label: format!("{}_party_b_router", msg.label),
+                code_id: party_a_router_code,
+                denoms: covenant_denoms.clone(),
+            };
+            preset_party_b_router_fields.to_instantiate2_msg(
+                env.contract.address.to_string(),
+                party_b_router_salt,
+                clock_address.to_string(),
+            )?
+        },
+    };
+    // todo: handle between native/ic parties
     let preset_party_a_router_fields = PresetInterchainRouterFields {
-        receiver_config: msg.party_a_config.to_receiver_config(),
+        destination_config: DestinationConfig{
+            destination_chain_channel_id: "todo".to_string(),
+            destination_receiver_addr: "todo".to_string(),
+            ibc_transfer_timeout: Uint64::zero(),
+        },
         label: format!("{}_party_a_router", msg.label),
         code_id: party_a_router_code,
         denoms: covenant_denoms.clone(),
     };
     let preset_party_b_router_fields = PresetInterchainRouterFields {
-        receiver_config: msg.party_b_config.to_receiver_config(),
+        destination_config: DestinationConfig{
+            destination_chain_channel_id: "todo".to_string(),
+            destination_receiver_addr: "todo".to_string(),
+            ibc_transfer_timeout: Uint64::zero(),
+        },
         label: format!("{}_party_b_router", msg.label),
         code_id: party_b_router_code,
         denoms: covenant_denoms,
     };
+
     let preset_splitter_fields = PresetInterchainSplitterFields {
         splits: msg.splits,
         fallback_split: msg.fallback_split,
@@ -252,16 +329,8 @@ pub fn instantiate(
         )?);
     }
 
-    messages.push(preset_party_a_router_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        party_a_router_salt,
-        clock_address.to_string(),
-    )?);
-    messages.push(preset_party_b_router_fields.to_instantiate2_msg(
-        env.contract.address.to_string(),
-        party_b_router_salt,
-        clock_address.to_string(),
-    )?);
+    messages.push(party_a_router_instantiate2_msg);
+    messages.push(party_b_router_instantiate2_msg);
     messages.push(preset_splitter_fields.to_instantiate2_msg(
         env.contract.address.to_string(),
         splitter_salt,

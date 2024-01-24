@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    to_json_binary, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
     Response, StdError, StdResult, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
@@ -13,7 +13,7 @@ use cw2::set_contract_version;
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::{CLOCK_ADDRESS, RECEIVER_CONFIG, TARGET_DENOMS},
+    state::{CLOCK_ADDRESS, TARGET_DENOMS, RECEIVER_ADDRESS},
 };
 
 const CONTRACT_NAME: &str = "crates.io:covenant-native-router";
@@ -29,8 +29,10 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-    CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
-    RECEIVER_CONFIG.save(deps.storage, &msg.receiver_config)?;
+    let receiver_addr = deps.api.addr_validate(&msg.receiver_address)?;
+
+    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+    RECEIVER_ADDRESS.save(deps.storage, &receiver_addr)?;
     TARGET_DENOMS.save(deps.storage, &msg.denoms)?;
 
     Ok(Response::default()
@@ -65,7 +67,7 @@ fn try_distribute_fallback(
     denoms: Vec<String>,
 ) -> Result<Response, ContractError> {
     let mut available_balances = Vec::with_capacity(denoms.len());
-    let receiver_config = RECEIVER_CONFIG.load(deps.storage)?;
+    let receiver_address = RECEIVER_ADDRESS.load(deps.storage)?;
     let explicit_denoms = TARGET_DENOMS.load(deps.storage)?;
 
     for denom in denoms.clone() {
@@ -82,51 +84,45 @@ fn try_distribute_fallback(
         available_balances.push(queried_coin);
     }
 
-    let messages: Vec<CosmosMsg> = match receiver_config {
-        ReceiverConfig::Native(addr) => {
-            let mut bank_sends: Vec<CosmosMsg> = vec![];
-            // we get the number of target denoms we have to reserve
-            // neutron fees for
-            let count = Uint128::from(denoms.len() as u128);
+    let mut bank_sends: Vec<CosmosMsg> = vec![];
+    // we get the number of target denoms we have to reserve
+    // neutron fees for
+    let count = Uint128::from(denoms.len() as u128);
 
-            for coin in available_balances {
-                let send_coin = if coin.denom != "untrn" {
-                    Some(coin)
-                } else {
-                    // if its neutron we're distributing we need to keep a
-                    // reserve for ibc gas costs.
-                    // this is safe because we pass target denoms.
-                    let reserve_amount = count * get_default_ibc_fee_requirement();
-                    if coin.amount > reserve_amount {
-                        Some(Coin {
-                            denom: coin.denom,
-                            amount: coin.amount - reserve_amount,
-                        })
-                    } else {
-                        None
-                    }
-                };
-
-                if let Some(c) = send_coin {
-                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-                        to_address: addr.to_string(),
-                        amount: vec![c],
-                    }));
-                }
+    for coin in available_balances {
+        let send_coin = if coin.denom != "untrn" {
+            Some(coin)
+        } else {
+            // if its neutron we're distributing we need to keep a
+            // reserve for ibc gas costs.
+            // this is safe because we pass target denoms.
+            let reserve_amount = count * get_default_ibc_fee_requirement();
+            if coin.amount > reserve_amount {
+                Some(Coin {
+                    denom: coin.denom,
+                    amount: coin.amount - reserve_amount,
+                })
+            } else {
+                None
             }
-            bank_sends
+        };
+
+        if let Some(c) = send_coin {
+            bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                to_address: receiver_address.to_string(),
+                amount: vec![c],
+            }));
         }
-        ReceiverConfig::Ibc(_destination_config) => vec![],
-    };
+    }
 
     Ok(Response::default()
         .add_attribute("method", "try_distribute_fallback")
-        .add_messages(messages))
+        .add_messages(bank_sends))
 }
 
 /// method that attempts to transfer out all available balances to the receiver
 fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
-    let receiver_config = RECEIVER_CONFIG.load(deps.storage)?;
+    let receiver_addr = RECEIVER_ADDRESS.load(deps.storage)?;
     let denoms_to_route = TARGET_DENOMS.load(deps.storage)?;
     let mut denom_balances = Vec::with_capacity(denoms_to_route.len());
 
@@ -158,55 +154,49 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
     };
 
     // get transfer messages for each denom
-    let messages: Vec<CosmosMsg> = match receiver_config {
-        covenant_utils::ReceiverConfig::Native(addr) => {
-            let mut bank_sends: Vec<CosmosMsg> = vec![];
-            // we get the number of target denoms we have to reserve
-            // neutron fees for
-            let count = Uint128::from(1 + denom_balances.len() as u128);
+    let mut bank_sends: Vec<CosmosMsg> = vec![];
+    // we get the number of target denoms we have to reserve
+    // neutron fees for
+    let count = Uint128::from(1 + denom_balances.len() as u128);
 
-            for coin in denom_balances {
-                // non-neutron coins get distributed entirely
-                let send_coin = if coin.denom != "untrn" {
-                    Some(coin)
-                } else {
-                    // if its neutron we're distributing we need to keep a
-                    // reserve for ibc gas costs.
-                    // this is safe because we pass target denoms.
-                    let reserve_amount = count * get_default_ibc_fee_requirement();
-                    if coin.amount > reserve_amount {
-                        Some(Coin {
-                            denom: coin.denom,
-                            amount: coin.amount - reserve_amount,
-                        })
-                    } else {
-                        None
-                    }
-                };
-
-                if let Some(c) = send_coin {
-                    bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
-                        to_address: addr.to_string(),
-                        amount: vec![c],
-                    }));
-                }
+    for coin in denom_balances {
+        // non-neutron coins get distributed entirely
+        let send_coin = if coin.denom != "untrn" {
+            Some(coin)
+        } else {
+            // if its neutron we're distributing we need to keep a
+            // reserve for ibc gas costs.
+            // this is safe because we pass target denoms.
+            let reserve_amount = count * get_default_ibc_fee_requirement();
+            if coin.amount > reserve_amount {
+                Some(Coin {
+                    denom: coin.denom,
+                    amount: coin.amount - reserve_amount,
+                })
+            } else {
+                None
             }
-            bank_sends
+        };
+
+        if let Some(c) = send_coin {
+            bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                to_address: receiver_addr.to_string(),
+                amount: vec![c],
+            }));
         }
-        covenant_utils::ReceiverConfig::Ibc(_destination_config) => vec![],
-    };
+    }
 
     Ok(Response::default()
         .add_attribute("method", "try_route_balances")
         .add_attributes(balance_attributes)
-        .add_messages(messages))
+        .add_messages(bank_sends))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::ReceiverConfig {} => {
-            Ok(to_json_binary(&RECEIVER_CONFIG.may_load(deps.storage)?)?)
+            Ok(to_json_binary(&RECEIVER_ADDRESS.may_load(deps.storage)?)?)
         }
         QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::TargetDenoms {} => Ok(to_json_binary(&TARGET_DENOMS.may_load(deps.storage)?)?),
@@ -220,7 +210,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
-            receiver_config,
+            receiver_address,
             target_denoms,
         } => {
             let mut response =
@@ -238,9 +228,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
                 response = response.add_attribute("target_denoms", denoms_str);
             }
 
-            if let Some(config) = receiver_config {
-                RECEIVER_CONFIG.save(deps.storage, &config)?;
-                // response = response.add_attributes(config.get_response_attributes());
+            if let Some(addr) = receiver_address {
+                RECEIVER_ADDRESS.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
+                response = response.add_attribute("receiver_addr", addr);
             }
 
             Ok(response)

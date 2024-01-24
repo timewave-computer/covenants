@@ -13,7 +13,7 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 
-use crate::state::{RECEIVER_CONFIG, TARGET_DENOMS};
+use crate::state::{TARGET_DENOMS, DESTINATION_CONFIG};
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::CLOCK_ADDRESS,
@@ -36,7 +36,7 @@ pub fn instantiate(
 
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     CLOCK_ADDRESS.save(deps.storage, &Addr::unchecked(msg.clock_address))?;
-    RECEIVER_CONFIG.save(deps.storage, &msg.receiver_config)?;
+    DESTINATION_CONFIG.save(deps.storage, &msg.destination_config)?;
     TARGET_DENOMS.save(deps.storage, &msg.denoms)?;
 
     Ok(Response::default()
@@ -71,7 +71,7 @@ fn try_distribute_fallback(
     denoms: Vec<String>,
 ) -> NeutronResult<Response<NeutronMsg>> {
     let mut available_balances = Vec::with_capacity(denoms.len());
-    let receiver_config = RECEIVER_CONFIG.load(deps.storage)?;
+    let destination_config = DESTINATION_CONFIG.load(deps.storage)?;
     let explicit_denoms = TARGET_DENOMS.load(deps.storage)?;
 
     for denom in denoms {
@@ -88,17 +88,12 @@ fn try_distribute_fallback(
         available_balances.push(queried_coin);
     }
 
-    // this will return either a bunch of bank sends in case the receiver is
-    // on the same chain, or a bunch of ibc transfer msgs otherwise
-    let fallback_distribution_messages = match receiver_config {
-        covenant_utils::ReceiverConfig::Native(_addr) => vec![], // TODO
-        covenant_utils::ReceiverConfig::Ibc(destination_config) => destination_config
-            .get_ibc_transfer_messages_for_coins(
-                available_balances,
-                env.block.time,
-                env.contract.address.to_string(),
-            ),
-    };
+    let fallback_distribution_messages = destination_config
+    .get_ibc_transfer_messages_for_coins(
+        available_balances,
+        env.block.time,
+        env.contract.address.to_string(),
+    );
 
     Ok(Response::default()
         .add_attribute("method", "try_distribute_fallback")
@@ -107,7 +102,7 @@ fn try_distribute_fallback(
 
 /// method that attempts to transfer out all available balances to the receiver
 fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
-    let receiver_config = RECEIVER_CONFIG.load(deps.storage)?;
+    let destination_config = DESTINATION_CONFIG.load(deps.storage)?;
     let denoms_to_route = TARGET_DENOMS.load(deps.storage)?;
     let mut denom_balances = Vec::with_capacity(denoms_to_route.len());
 
@@ -139,15 +134,12 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
     };
 
     // get transfer messages for each denom
-    let messages = match receiver_config {
-        covenant_utils::ReceiverConfig::Native(_addr) => vec![], // TODO
-        covenant_utils::ReceiverConfig::Ibc(destination_config) => destination_config
-            .get_ibc_transfer_messages_for_coins(
-                denom_balances,
-                env.block.time,
-                env.contract.address.to_string(),
-            ),
-    };
+    let messages = destination_config
+        .get_ibc_transfer_messages_for_coins(
+            denom_balances,
+            env.block.time,
+            env.contract.address.to_string(),
+        );
 
     Ok(Response::default()
         .add_attribute("method", "try_route_balances")
@@ -159,7 +151,7 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
 pub fn query(deps: QueryDeps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::ReceiverConfig {} => {
-            Ok(to_json_binary(&RECEIVER_CONFIG.may_load(deps.storage)?)?)
+            Ok(to_json_binary(&DESTINATION_CONFIG.may_load(deps.storage)?)?)
         }
         QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::TargetDenoms {} => Ok(to_json_binary(&TARGET_DENOMS.may_load(deps.storage)?)?),
@@ -177,7 +169,7 @@ pub fn migrate(
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
-            receiver_config,
+            destination_config,
             target_denoms,
         } => {
             let mut response =
@@ -195,9 +187,9 @@ pub fn migrate(
                 response = response.add_attribute("target_denoms", denoms_str);
             }
 
-            if let Some(config) = receiver_config {
-                RECEIVER_CONFIG.save(deps.storage, &config)?;
-                // response = response.add_attributes(config.get_response_attributes());
+            if let Some(config) = destination_config {
+                DESTINATION_CONFIG.save(deps.storage, &config)?;
+                response = response.add_attributes(config.get_response_attributes());
             }
 
             Ok(response)
