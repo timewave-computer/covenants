@@ -48,7 +48,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
-
+    // todo: return a config with contract code, salt, and address
     let (clock_salt, clock_address) = get_instantiate2_salt_and_address(
         deps.as_ref(),
         CLOCK_SALT,

@@ -13,7 +13,7 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 
-use crate::state::{TARGET_DENOMS, DESTINATION_CONFIG};
+use crate::state::{DESTINATION_CONFIG, TARGET_DENOMS};
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::CLOCK_ADDRESS,
@@ -88,8 +88,7 @@ fn try_distribute_fallback(
         available_balances.push(queried_coin);
     }
 
-    let fallback_distribution_messages = destination_config
-    .get_ibc_transfer_messages_for_coins(
+    let fallback_distribution_messages = destination_config.get_ibc_transfer_messages_for_coins(
         available_balances,
         env.block.time,
         env.contract.address.to_string(),
@@ -134,12 +133,11 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
     };
 
     // get transfer messages for each denom
-    let messages = destination_config
-        .get_ibc_transfer_messages_for_coins(
-            denom_balances,
-            env.block.time,
-            env.contract.address.to_string(),
-        )?;
+    let messages = destination_config.get_ibc_transfer_messages_for_coins(
+        denom_balances,
+        env.block.time,
+        env.contract.address.to_string(),
+    )?;
 
     Ok(Response::default()
         .add_attribute("method", "try_route_balances")

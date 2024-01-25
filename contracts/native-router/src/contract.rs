@@ -3,17 +3,17 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdError, StdResult, Uint128,
+    to_json_binary, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::{get_default_ibc_fee_requirement, ReceiverConfig};
+use covenant_utils::get_default_ibc_fee_requirement;
 use cw2::set_contract_version;
 
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::{CLOCK_ADDRESS, TARGET_DENOMS, RECEIVER_ADDRESS},
+    state::{CLOCK_ADDRESS, RECEIVER_ADDRESS, TARGET_DENOMS},
 };
 
 const CONTRACT_NAME: &str = "crates.io:covenant-native-router";

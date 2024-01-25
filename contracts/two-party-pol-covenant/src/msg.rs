@@ -2,11 +2,15 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128, Uint64, WasmMsg, Binary, StdResult};
-use covenant_astroport_liquid_pooler::msg::{PresetAstroLiquidPoolerFields, AssetData, SingleSideLpLimits};
+use cosmwasm_std::{coin, Addr, Binary, Coin, Decimal, StdResult, Uint128, Uint64, WasmMsg};
+use covenant_astroport_liquid_pooler::msg::{
+    AssetData, PresetAstroLiquidPoolerFields, SingleSideLpLimits,
+};
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_native_router::msg::PresetNativeRouterFields;
-use covenant_osmo_liquid_pooler::msg::{PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields};
+use covenant_osmo_liquid_pooler::msg::{
+    PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields,
+};
 use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
 use covenant_utils::{CovenantParty, DenomSplit, DestinationConfig, ReceiverConfig, SplitConfig};
 use cw_utils::Expiration;
@@ -53,8 +57,7 @@ impl LiquidPoolerConfig {
         salt: Binary,
         clock_addr: String,
         holder_addr: String,
-        expected_spot_price: Decimal,
-        acceptable_price_spread: Decimal,
+        (expected_spot_price, acceptable_price_spread): (Decimal, Decimal),
     ) -> StdResult<WasmMsg> {
         match self {
             LiquidPoolerConfig::Osmosis(config) => Ok(PresetOsmoLiquidPoolerFields {
@@ -74,7 +77,8 @@ impl LiquidPoolerConfig {
                 expected_spot_price,
                 acceptable_price_spread,
                 funding_duration_seconds: config.funding_duration_seconds,
-            }.to_instantiate2_msg(
+            }
+            .to_instantiate2_msg(
                 admin,
                 salt,
                 clock_addr.to_string(),
@@ -96,13 +100,14 @@ impl LiquidPoolerConfig {
                 expected_pool_ratio: expected_spot_price,
                 acceptable_pool_ratio_delta: acceptable_price_spread,
                 pair_type: config.pool_pair_type.clone(),
-            }.to_instantiate2_msg(
+            }
+            .to_instantiate2_msg(
                 admin,
                 salt,
                 config.pool_address.to_string(),
                 clock_addr.to_string(),
                 holder_addr.to_string(),
-            )?)
+            )?),
         }
     }
 }
@@ -134,7 +139,9 @@ impl CovenantPartyConfig {
     pub fn to_receiver_config(&self) -> ReceiverConfig {
         match self {
             CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
-                local_to_destination_chain_channel_id: config.host_to_party_chain_channel_id.to_string(),
+                local_to_destination_chain_channel_id: config
+                    .host_to_party_chain_channel_id
+                    .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
                 denom_to_pfm_map: BTreeMap::new(),
@@ -213,8 +220,10 @@ impl CovenantPartyConfig {
         match self {
             CovenantPartyConfig::Interchain(party) => {
                 let preset_party_b_router_fields = PresetInterchainRouterFields {
-                    destination_config: DestinationConfig{
-                        local_to_destination_chain_channel_id: party.host_to_party_chain_channel_id.to_string(),
+                    destination_config: DestinationConfig {
+                        local_to_destination_chain_channel_id: party
+                            .host_to_party_chain_channel_id
+                            .to_string(),
                         destination_receiver_addr: party.party_receiver_addr.to_string(),
                         ibc_transfer_timeout: party.ibc_transfer_timeout,
                         denom_to_pfm_map: BTreeMap::new(),
@@ -228,7 +237,7 @@ impl CovenantPartyConfig {
                     salt,
                     clock_addr.to_string(),
                 )?)
-            },
+            }
             CovenantPartyConfig::Native(party) => {
                 let preset_native_router_fields = PresetNativeRouterFields {
                     receiver_address: party.party_receiver_addr.to_string(),
@@ -241,7 +250,7 @@ impl CovenantPartyConfig {
                     salt,
                     clock_addr.to_string(),
                 )?)
-            },
+            }
         }
     }
 }
