@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, marker::PhantomData};
+use std::{collections::{BTreeSet, BTreeMap}, marker::PhantomData};
 
 use cosmwasm_std::{
     coin,
@@ -31,9 +31,10 @@ fn test_instantiate_and_query_all() {
     assert_eq!("contract0", clock);
     assert_eq!(
         ReceiverConfig::Ibc(DestinationConfig {
-            destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
+            local_to_destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
             destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
             ibc_transfer_timeout: Uint64::new(10),
+            denom_to_pfm_map: BTreeMap::new(),
         }),
         config
     );
@@ -48,9 +49,10 @@ fn test_migrate_config() {
     let migrate_msg = MigrateMsg::UpdateConfig {
         clock_addr: Some("working_clock".to_string()),
         destination_config: Some(DestinationConfig {
-            destination_chain_channel_id: "new_channel".to_string(),
+            local_to_destination_chain_channel_id: "new_channel".to_string(),
             destination_receiver_addr: "new_receiver".to_string(),
             ibc_transfer_timeout: Uint64::new(100),
+            denom_to_pfm_map: BTreeMap::new(),
         }),
         target_denoms: Some(target_denom_vec),
     };
@@ -64,9 +66,10 @@ fn test_migrate_config() {
     assert_eq!("working_clock", clock);
     assert_eq!(
         ReceiverConfig::Ibc(DestinationConfig {
-            destination_chain_channel_id: "new_channel".to_string(),
+            local_to_destination_chain_channel_id: "new_channel".to_string(),
             destination_receiver_addr: "new_receiver".to_string(),
             ibc_transfer_timeout: Uint64::new(100),
+            denom_to_pfm_map: BTreeMap::new(),
         }),
         config
     );

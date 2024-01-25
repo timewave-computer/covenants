@@ -93,7 +93,7 @@ fn try_distribute_fallback(
         available_balances,
         env.block.time,
         env.contract.address.to_string(),
-    );
+    )?;
 
     Ok(Response::default()
         .add_attribute("method", "try_distribute_fallback")
@@ -139,7 +139,7 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
             denom_balances,
             env.block.time,
             env.contract.address.to_string(),
-        );
+        )?;
 
     Ok(Response::default()
         .add_attribute("method", "try_route_balances")
