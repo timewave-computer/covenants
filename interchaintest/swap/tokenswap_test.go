@@ -368,8 +368,8 @@ func TestTokenSwap(t *testing.T) {
 
 		t.Run("instantiate covenant", func(t *testing.T) {
 			timeouts := Timeouts{
-				IcaTimeout:         "100", // sec
-				IbcTransferTimeout: "100", // sec
+				IcaTimeout:         "10000", // sec
+				IbcTransferTimeout: "10000", // sec
 			}
 
 			swapCovenantTerms := SwapCovenantTerms{
@@ -379,7 +379,7 @@ func TestTokenSwap(t *testing.T) {
 
 			currentHeight, err := cosmosNeutron.Height(ctx)
 			require.NoError(t, err, "failed to get neutron height")
-			depositBlock := Block(currentHeight + 250)
+			depositBlock := Block(currentHeight + 350)
 			lockupConfig := Expiration{
 				AtHeight: &depositBlock,
 			}
@@ -500,8 +500,6 @@ func TestTokenSwap(t *testing.T) {
 				if forwarderAState == "ica_created" {
 					partyADepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_a")
 					partyBDepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_b")
-					println("partyADepositAddress", partyADepositAddress)
-					println("partyBDepositAddress", partyBDepositAddress)
 					break
 				}
 			}
@@ -534,12 +532,13 @@ func TestTokenSwap(t *testing.T) {
 				holderAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
 				holderState := testCtx.QueryContractState(holderAddress)
 
-				if holderAtomBal != 0 && holderNeutronBal != 0 {
+				if holderAtomBal >= atomContributionAmount && holderNeutronBal >= neutronContributionAmount {
 					println("holder atom bal: ", holderAtomBal)
 					println("holder neutron bal: ", holderNeutronBal)
 					break
 				} else if holderState == "complete" {
 					println("holder state: ", holderState)
+					break
 				} else {
 					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
@@ -550,9 +549,10 @@ func TestTokenSwap(t *testing.T) {
 			for {
 				splitterNeutronBal := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, splitterAddress)
 				splitterAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, splitterAddress)
-				println("splitterOsmoBal: ", splitterNeutronBal)
+				println("splitterNeutronBal: ", splitterNeutronBal)
 				println("splitterAtomBal: ", splitterAtomBal)
-				if splitterAtomBal != 0 && splitterNeutronBal != 0 {
+				if splitterAtomBal >= atomContributionAmount && splitterNeutronBal >= neutronContributionAmount {
+					println("splitter received contributions")
 					break
 				} else {
 					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -567,7 +567,8 @@ func TestTokenSwap(t *testing.T) {
 				println("partyARouterNeutronBal: ", partyARouterNeutronBal)
 				println("partyBRouterAtomBal: ", partyBRouterAtomBal)
 
-				if partyARouterNeutronBal != 0 && partyBRouterAtomBal != 0 {
+				if partyARouterNeutronBal >= neutronContributionAmount && partyBRouterAtomBal >= atomContributionAmount {
+					println("both routers received contributions")
 					break
 				} else {
 					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
@@ -576,12 +577,15 @@ func TestTokenSwap(t *testing.T) {
 		})
 
 		t.Run("tick until routers route the funds to final receivers", func(t *testing.T) {
+			println("hub receiver address: ", hubReceiverAddr)
+			println("neutron receiver address: ", neutronReceiverAddr)
 			for {
 				neutronBal := testCtx.QueryHubDenomBalance(hubNeutronIbcDenom, hubReceiverAddr)
 				atomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, neutronReceiverAddr)
-				println("gaia user neutronBal: ", neutronBal)
-				println("neutron user atomBal: ", atomBal)
-				if neutronBal != 0 && atomBal != 0 {
+				println("gaia user neutron bal: ", neutronBal)
+				println("neutron user atom bal: ", atomBal)
+				if neutronBal >= neutronContributionAmount && atomBal >= atomContributionAmount {
+					println("complete")
 					break
 				} else {
 					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
