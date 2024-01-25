@@ -726,6 +726,14 @@ func TestSinglePartyPol(t *testing.T) {
 				NativeShare:  "0.5",
 			}
 
+			party1PfmMap := map[string]PacketForwardMiddlewareConfig{}
+			party2PfmMap := map[string]PacketForwardMiddlewareConfig{}
+
+			pfmUnwindingConfig := PfmUnwindingConfig{
+				Party1PfmMap: party1PfmMap,
+				Party2PfmMap: party2PfmMap,
+			}
+
 			covenantInstantiationMsg := CovenantInstantiationMsg{
 				Label:                    "single_party_pol_covenant",
 				Timeouts:                 timeouts,
@@ -742,6 +750,7 @@ func TestSinglePartyPol(t *testing.T) {
 				AcceptablePoolRatioDelta: "0.1",
 				PairType:                 pairType,
 				NativeSplitterConfig:     nativeSplitterConfig,
+				PfmUnwindingConfig:       pfmUnwindingConfig,
 			}
 
 			covenantAddress = testCtx.ManualInstantiateLS(covenantCodeId, covenantInstantiationMsg, neutronUser, keyring.BackendTest)
