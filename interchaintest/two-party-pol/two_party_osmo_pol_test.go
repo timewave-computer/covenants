@@ -271,39 +271,18 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 	})
 
 	t.Run("determine ibc denoms", func(t *testing.T) {
-		// We can determine the ibc denoms of:
-		// 1. ATOM on Neutron
 		neutronAtomIbcDenom = testCtx.GetIbcDenom(
 			testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 			nativeAtomDenom,
 		)
-		// 2. Osmo on neutron
 		neutronOsmoIbcDenom = testCtx.GetIbcDenom(
 			testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
 			nativeOsmoDenom,
 		)
-		// 3. hub atom => neutron => osmosis
-		osmoNeutronAtomIbcDenom = testCtx.GetMultihopIbcDenom(
-			[]string{
-				testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
-				testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-			},
-			nativeAtomDenom,
-		)
-		// 4. osmosis osmo => neutron => hub
-		gaiaNeutronOsmoIbcDenom = testCtx.GetMultihopIbcDenom(
-			[]string{
-				testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
-				testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-			},
-			nativeOsmoDenom,
-		)
-		// 5. hub atom => osmosis
 		osmosisAtomIbcDenom = testCtx.GetIbcDenom(
 			testCtx.OsmoTransferChannelIds[cosmosAtom.Config().Name],
 			nativeAtomDenom,
 		)
-
 		hubOsmoIbcDenom = testCtx.GetIbcDenom(
 			testCtx.GaiaTransferChannelIds[cosmosOsmosis.Config().Name],
 			nativeOsmoDenom,
@@ -649,7 +628,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 
 			// for party 1 (hub), we need to route osmosis correctly - neutron->osmosis->hub
 			party1PfmMap := map[string]PacketForwardMiddlewareConfig{
-				neutronOsmoIbcDenom: PacketForwardMiddlewareConfig{
+				neutronOsmoIbcDenom: {
 					LocalToHopChainChannelId:       testCtx.NeutronTransferChannelIds[testCtx.Osmosis.Config().Name],
 					HopToDestinationChainChannelId: testCtx.OsmoTransferChannelIds[testCtx.Hub.Config().Name],
 					HopChainReceiverAddress:        osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
@@ -658,7 +637,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 
 			// for party 1 (osmosis), we need to route atom correctly - neutron->hub->osmosis
 			party2PfmMap := map[string]PacketForwardMiddlewareConfig{
-				neutronAtomIbcDenom: PacketForwardMiddlewareConfig{
+				neutronAtomIbcDenom: {
 					LocalToHopChainChannelId:       testCtx.NeutronTransferChannelIds[testCtx.Hub.Config().Name],
 					HopToDestinationChainChannelId: testCtx.GaiaTransferChannelIds[testCtx.Osmosis.Config().Name],
 					HopChainReceiverAddress:        gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
