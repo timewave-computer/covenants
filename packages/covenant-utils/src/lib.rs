@@ -7,7 +7,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     to_json_binary, Addr, Attribute, BankMsg, Binary, BlockInfo, Coin, CosmosMsg, Decimal, Empty,
     Fraction, IbcMsg, IbcTimeout, QuerierWrapper, QueryRequest, StdError, StdResult, Timestamp,
-    Uint128, Uint64,
+    Uint128, Uint64, to_json_string,
 };
 use cw20::BalanceResponse;
 use neutron_sdk::{
@@ -433,7 +433,7 @@ impl CovenantParty {
                 }],
             }),
             ReceiverConfig::Ibc(destination_config) => CosmosMsg::Ibc(IbcMsg::Transfer {
-                channel_id: destination_config.destination_chain_channel_id,
+                channel_id: destination_config.local_to_destination_chain_channel_id,
                 to_address: self.addr.to_string(),
                 amount: cosmwasm_std::Coin {
                     denom: self.native_denom,
@@ -524,11 +524,20 @@ impl CovenantTerms {
 #[cw_serde]
 pub struct DestinationConfig {
     /// channel id of the destination chain
-    pub destination_chain_channel_id: String,
+    pub local_to_destination_chain_channel_id: String,
     /// address of the receiver on destination chain
     pub destination_receiver_addr: String,
     /// timeout in seconds
     pub ibc_transfer_timeout: Uint64,
+    /// pfm configurations for denoms
+    pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+}
+
+#[cw_serde]
+pub struct PacketForwardMiddlewareConfig {
+    pub local_to_hop_chain_channel_id: String,
+    pub hop_to_destination_chain_channel_id: String,
+    pub hop_chain_receiver_address: String,
 }
 
 pub fn default_ibc_ack_fee_amount() -> Uint128 {
@@ -583,8 +592,8 @@ impl DestinationConfig {
         &self,
         coins: Vec<Coin>,
         current_timestamp: Timestamp,
-        address: String,
-    ) -> Vec<CosmosMsg<NeutronMsg>> {
+        sender_address: String,
+    ) -> StdResult<Vec<CosmosMsg<NeutronMsg>>> {
         let mut messages: Vec<CosmosMsg<NeutronMsg>> = vec![];
         // we get the number of target denoms we have to reserve
         // neutron fees for
@@ -609,33 +618,64 @@ impl DestinationConfig {
             };
 
             if let Some(c) = send_coin {
-                messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
-                    source_port: "transfer".to_string(),
-                    source_channel: self.destination_chain_channel_id.to_string(),
-                    token: c.clone(),
-                    sender: address.to_string(),
-                    receiver: self.destination_receiver_addr.to_string(),
-                    timeout_height: RequestPacketTimeoutHeight {
-                        revision_number: None,
-                        revision_height: None,
+                match self.denom_to_pfm_map.get(&c.denom) {
+                    Some(pfm_config) => {
+                        // TODO: generate pfm ibc transfer msg
+                        messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+                            source_port: "transfer".to_string(),
+                            // local chain to hop chain channel
+                            source_channel: pfm_config.local_to_hop_chain_channel_id.to_string(),
+                            token: c.clone(),
+                            sender: sender_address.to_string(),
+                            receiver: pfm_config.hop_chain_receiver_address.to_string(),
+                            timeout_height: RequestPacketTimeoutHeight {
+                                revision_number: None,
+                                revision_height: None,
+                            },
+                            timeout_timestamp: current_timestamp
+                                .plus_seconds(self.ibc_transfer_timeout.u64())
+                                .nanos(),
+                            memo: to_json_string(&PacketMetadata {
+                                forward: Some(ForwardMetadata {
+                                    receiver: self.destination_receiver_addr.to_string(),
+                                    port: "transfer".to_string(),
+                                    // hop chain to final receiver chain channel
+                                    channel: pfm_config.hop_to_destination_chain_channel_id.to_string(),
+                                }),
+                            })?,
+                            fee: default_ibc_fee(),
+                        }))
                     },
-                    timeout_timestamp: current_timestamp
-                        .plus_seconds(self.ibc_transfer_timeout.u64())
-                        .nanos(),
-                    memo: format!("ibc_distribution: {:?}:{:?}", c.denom, c.amount,).to_string(),
-                    fee: default_ibc_fee(),
-                }));
+                    None => {
+                        messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
+                            source_port: "transfer".to_string(),
+                            source_channel: self.local_to_destination_chain_channel_id.to_string(),
+                            token: c.clone(),
+                            sender: sender_address.to_string(),
+                            receiver: self.destination_receiver_addr.to_string(),
+                            timeout_height: RequestPacketTimeoutHeight {
+                                revision_number: None,
+                                revision_height: None,
+                            },
+                            timeout_timestamp: current_timestamp
+                                .plus_seconds(self.ibc_transfer_timeout.u64())
+                                .nanos(),
+                            memo: format!("ibc_distribution: {:?}:{:?}", c.denom, c.amount,).to_string(),
+                            fee: default_ibc_fee(),
+                        }));
+                    },
+                }
             }
         }
 
-        messages
+        Ok(messages)
     }
 
     pub fn get_response_attributes(&self) -> Vec<Attribute> {
         vec![
             Attribute::new(
-                "destination_chain_channel_id",
-                self.destination_chain_channel_id.to_string(),
+                "local_to_destination_chain_channel_id",
+                self.local_to_destination_chain_channel_id.to_string(),
             ),
             Attribute::new(
                 "destination_receiver_addr",

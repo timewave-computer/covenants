@@ -53,6 +53,8 @@ type OsmosisLiquidPoolerConfig struct {
 type AstroportLiquidPoolerConfig struct {
 	PairType    PairType `json:"pool_pair_type"`
 	PoolAddress string   `json:"pool_address"`
+	AssetADenom string   `json:"asset_a_denom"`
+	AssetBDenom string   `json:"asset_b_denom"`
 }
 
 type SplitType struct {
