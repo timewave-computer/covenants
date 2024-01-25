@@ -46,6 +46,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    // TODO: integrate router with pfm unwinding
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
     // todo: return a config with contract code, salt, and address
