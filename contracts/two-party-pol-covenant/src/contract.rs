@@ -1,22 +1,14 @@
-use std::collections::{BTreeSet, BTreeMap};
+use std::collections::BTreeSet;
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, Uint128, WasmMsg, Uint64,
+    StdResult, WasmMsg,
 };
-use covenant_native_router::msg::PresetNativeRouterFields;
-use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, DestinationConfig, PacketForwardMiddlewareConfig};
-
-use crate::msg::LiquidPoolerConfig::{Astroport, Osmosis};
-use covenant_astroport_liquid_pooler::msg::{
-    AssetData, PresetAstroLiquidPoolerFields, SingleSideLpLimits,
-};
+use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
-use covenant_interchain_router::msg::PresetInterchainRouterFields;
-use covenant_osmo_liquid_pooler::msg::PresetOsmoLiquidPoolerFields;
 use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
 use cw2::set_contract_version;
 
@@ -155,7 +147,8 @@ pub fn instantiate(
         whitelist: clock_whitelist,
         code_id: msg.contract_codes.clock_code,
         label: format!("{}-clock", msg.label),
-    }.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
+    }
+    .to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
 
     let holder_instantiate2_msg = PresetTwoPartyPolHolderFields {
         lockup_config: msg.lockup_config,
@@ -169,7 +162,8 @@ pub fn instantiate(
         fallback_split: msg.fallback_split,
         covenant_type: msg.covenant_type,
         emergency_committee: msg.emergency_committee,
-    }.to_instantiate2_msg(
+    }
+    .to_instantiate2_msg(
         env.contract.address.to_string(),
         holder_salt,
         clock_addr.to_string(),
@@ -203,8 +197,7 @@ pub fn instantiate(
         liquid_pooler_salt,
         clock_addr.to_string(),
         holder_addr.to_string(),
-        msg.expected_pool_ratio,
-        msg.acceptable_pool_ratio_delta,
+        (msg.expected_pool_ratio, msg.acceptable_pool_ratio_delta),
     )?;
 
     let mut messages = vec![

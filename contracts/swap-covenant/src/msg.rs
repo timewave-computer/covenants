@@ -1,7 +1,7 @@
-use std::collections::{BTreeSet, BTreeMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Uint128, Uint64, StdResult, WasmMsg, Binary};
+use cosmwasm_std::{Addr, Binary, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_interchain_splitter::msg::DenomSplit;
 use covenant_native_router::msg::PresetNativeRouterFields;
@@ -39,7 +39,9 @@ impl CovenantPartyConfig {
     pub fn to_receiver_config(&self) -> ReceiverConfig {
         match self {
             CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
-                local_to_destination_chain_channel_id: config.host_to_party_chain_channel_id.to_string(),
+                local_to_destination_chain_channel_id: config
+                    .host_to_party_chain_channel_id
+                    .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
                 denom_to_pfm_map: BTreeMap::new(),
@@ -90,8 +92,10 @@ impl CovenantPartyConfig {
     ) -> StdResult<WasmMsg> {
         match self {
             CovenantPartyConfig::Interchain(party) => {
-                let destination_config = DestinationConfig{
-                    local_to_destination_chain_channel_id: party.host_to_party_chain_channel_id.to_string(),
+                let destination_config = DestinationConfig {
+                    local_to_destination_chain_channel_id: party
+                        .host_to_party_chain_channel_id
+                        .to_string(),
                     destination_receiver_addr: party.party_receiver_addr.to_string(),
                     ibc_transfer_timeout: party.ibc_transfer_timeout,
                     denom_to_pfm_map: BTreeMap::new(),
@@ -107,7 +111,7 @@ impl CovenantPartyConfig {
                     salt,
                     clock_addr.to_string(),
                 )?)
-            },
+            }
             CovenantPartyConfig::Native(party) => {
                 let native_router_fields = PresetNativeRouterFields {
                     receiver_address: party.party_receiver_addr.to_string(),
@@ -115,12 +119,8 @@ impl CovenantPartyConfig {
                     label,
                     code_id,
                 };
-                Ok(native_router_fields.to_instantiate2_msg(
-                    admin,
-                    salt,
-                    clock_addr,
-                )?)
-            },
+                Ok(native_router_fields.to_instantiate2_msg(admin, salt, clock_addr)?)
+            }
         }
     }
 }

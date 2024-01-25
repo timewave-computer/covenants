@@ -1,4 +1,7 @@
-use std::{collections::{BTreeSet, BTreeMap}, marker::PhantomData};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    marker::PhantomData,
+};
 
 use cosmwasm_std::{
     coin,

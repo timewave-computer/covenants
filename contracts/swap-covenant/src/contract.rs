@@ -3,15 +3,17 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps,
-    DepsMut, Env, MessageInfo, Response, StdResult, to_json_string,
+    to_json_binary, to_json_string, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult,
 };
 
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_splitter::msg::PresetInterchainSplitterFields;
 use covenant_swap_holder::msg::PresetSwapHolderFields;
-use covenant_utils::{CovenantPartiesConfig, CovenantTerms, instantiate2_helper::get_instantiate2_salt_and_address};
+use covenant_utils::{
+    instantiate2_helper::get_instantiate2_salt_and_address, CovenantPartiesConfig, CovenantTerms,
+};
 use cw2::set_contract_version;
 
 use crate::{
@@ -128,7 +130,8 @@ pub fn instantiate(
         code_id: msg.contract_codes.splitter_code,
         party_a_addr: msg.party_a_config.get_final_receiver_address(),
         party_b_addr: msg.party_b_config.get_final_receiver_address(),
-    }.to_instantiate2_msg(
+    }
+    .to_instantiate2_msg(
         env.contract.address.to_string(),
         splitter_salt,
         clock_addr.to_string(),
@@ -144,7 +147,8 @@ pub fn instantiate(
         covenant_terms: CovenantTerms::TokenSwap(msg.clone().covenant_terms),
         code_id: msg.contract_codes.holder_code,
         label: format!("{}_swap_holder", msg.label),
-    }.to_instantiate2_msg(
+    }
+    .to_instantiate2_msg(
         env.contract.address.to_string(),
         holder_salt,
         clock_addr.to_string(),
@@ -221,12 +225,16 @@ pub fn instantiate(
     }
 
     // include the clock in instantiation flow
-    messages.insert(0, PresetClockFields {
-        tick_max_gas: msg.clock_tick_max_gas,
-        whitelist: clock_whitelist,
-        code_id: msg.contract_codes.clock_code,
-        label: format!("{}-clock", msg.label),
-    }.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?);
+    messages.insert(
+        0,
+        PresetClockFields {
+            tick_max_gas: msg.clock_tick_max_gas,
+            whitelist: clock_whitelist,
+            code_id: msg.contract_codes.clock_code,
+            label: format!("{}-clock", msg.label),
+        }
+        .to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?,
+    );
 
     // save the contract addresses
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_addr)?;
@@ -242,8 +250,14 @@ pub fn instantiate(
         .add_attribute("party_b_router_address", party_b_router_addr.to_string())
         .add_attribute("holder_address", holder_addr.to_string())
         .add_attribute("splitter_address", splitter_addr.to_string())
-        .add_attribute("party_a_ibc_forwarder_address", party_a_forwarder_addr.to_string())
-        .add_attribute("party_b_ibc_forwarder_address", party_b_forwarder_addr.to_string())
+        .add_attribute(
+            "party_a_ibc_forwarder_address",
+            party_a_forwarder_addr.to_string(),
+        )
+        .add_attribute(
+            "party_b_ibc_forwarder_address",
+            party_b_forwarder_addr.to_string(),
+        )
         .add_attribute("instantiation_messages", to_json_string(&messages)?)
         .add_messages(messages))
 }

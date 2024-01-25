@@ -55,7 +55,9 @@ impl CovenantPartyConfig {
     pub fn to_receiver_config(&self) -> ReceiverConfig {
         match self {
             CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
-                local_to_destination_chain_channel_id: config.host_to_party_chain_channel_id.to_string(),
+                local_to_destination_chain_channel_id: config
+                    .host_to_party_chain_channel_id
+                    .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
                 denom_to_pfm_map: BTreeMap::new(),

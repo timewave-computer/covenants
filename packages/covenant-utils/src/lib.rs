@@ -5,9 +5,9 @@ pub mod withdraw_lp_helper;
 use astroport::asset::PairInfo;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, BankMsg, Binary, BlockInfo, Coin, CosmosMsg, Decimal, Empty,
-    Fraction, IbcMsg, IbcTimeout, QuerierWrapper, QueryRequest, StdError, StdResult, Timestamp,
-    Uint128, Uint64, to_json_string,
+    to_json_binary, to_json_string, Addr, Attribute, BankMsg, Binary, BlockInfo, Coin, CosmosMsg,
+    Decimal, Empty, Fraction, IbcMsg, IbcTimeout, QuerierWrapper, QueryRequest, StdError,
+    StdResult, Timestamp, Uint128, Uint64,
 };
 use cw20::BalanceResponse;
 use neutron_sdk::{
@@ -640,12 +640,14 @@ impl DestinationConfig {
                                     receiver: self.destination_receiver_addr.to_string(),
                                     port: "transfer".to_string(),
                                     // hop chain to final receiver chain channel
-                                    channel: pfm_config.hop_to_destination_chain_channel_id.to_string(),
+                                    channel: pfm_config
+                                        .hop_to_destination_chain_channel_id
+                                        .to_string(),
                                 }),
                             })?,
                             fee: default_ibc_fee(),
                         }))
-                    },
+                    }
                     None => {
                         messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
                             source_port: "transfer".to_string(),
@@ -660,10 +662,11 @@ impl DestinationConfig {
                             timeout_timestamp: current_timestamp
                                 .plus_seconds(self.ibc_transfer_timeout.u64())
                                 .nanos(),
-                            memo: format!("ibc_distribution: {:?}:{:?}", c.denom, c.amount,).to_string(),
+                            memo: format!("ibc_distribution: {:?}:{:?}", c.denom, c.amount,)
+                                .to_string(),
                             fee: default_ibc_fee(),
                         }));
-                    },
+                    }
                 }
             }
         }
