@@ -647,6 +647,29 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				},
 			}
 
+			// for party 1 (hub), we need to route osmosis correctly - neutron->osmosis->hub
+			party1PfmMap := map[string]PacketForwardMiddlewareConfig{
+				neutronOsmoIbcDenom: PacketForwardMiddlewareConfig{
+					LocalToHopChainChannelId:       testCtx.NeutronTransferChannelIds[testCtx.Osmosis.Config().Name],
+					HopToDestinationChainChannelId: testCtx.OsmoTransferChannelIds[testCtx.Hub.Config().Name],
+					HopChainReceiverAddress:        osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+				},
+			}
+
+			// for party 1 (osmosis), we need to route atom correctly - neutron->hub->osmosis
+			party2PfmMap := map[string]PacketForwardMiddlewareConfig{
+				neutronAtomIbcDenom: PacketForwardMiddlewareConfig{
+					LocalToHopChainChannelId:       testCtx.NeutronTransferChannelIds[testCtx.Hub.Config().Name],
+					HopToDestinationChainChannelId: testCtx.GaiaTransferChannelIds[testCtx.Osmosis.Config().Name],
+					HopChainReceiverAddress:        gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				},
+			}
+
+			pfmUnwindingConfig := PfmUnwindingConfig{
+				Party1PfmMap: party1PfmMap,
+				Party2PfmMap: party2PfmMap,
+			}
+
 			covenantInstantiateMsg := CovenantInstantiateMsg{
 				Label:                    "covenant-osmo",
 				Timeouts:                 timeouts,
@@ -665,6 +688,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				FallbackSplit:            nil,
 				EmergencyCommittee:       neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 				LiquidPoolerConfig:       liquidPoolerConfig,
+				PfmUnwindingConfig:       pfmUnwindingConfig,
 			}
 
 			covenantAddress = testCtx.ManualInstantiate(covenantCodeId, covenantInstantiateMsg, neutronUser, keyring.BackendTest)
@@ -837,7 +861,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				lperAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
 				lperOsmoBal := testCtx.QueryNeutronDenomBalance(neutronOsmoIbcDenom, liquidPoolerAddress)
 				osmoPartyReceiverAddrOsmoBal := testCtx.QueryOsmoDenomBalance("uosmo", happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix))
-				osmoPartyReceiverAddrAtomBal := testCtx.QueryOsmoDenomBalance(osmoNeutronAtomIbcDenom, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix))
+				osmoPartyReceiverAddrAtomBal := testCtx.QueryOsmoDenomBalance(osmosisAtomIbcDenom, happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix))
 
 				println("holder osmo bal: ", holderOsmoBal)
 				println("holder atom bal: ", holderAtomBal)
@@ -896,7 +920,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				println("liquid pooler atom bal: ", lperAtomBal)
 
 				hubPartyReceiverAddrAtomBal := testCtx.QueryHubDenomBalance("uatom", happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix))
-				hubPartyReceiverAddrOsmoBal := testCtx.QueryHubDenomBalance(gaiaNeutronOsmoIbcDenom, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix))
+				hubPartyReceiverAddrOsmoBal := testCtx.QueryHubDenomBalance(hubOsmoIbcDenom, happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix))
 
 				println("hubPartyReceiverAddrAtomBal", hubPartyReceiverAddrAtomBal)
 				println("hubPartyReceiverAddrOsmoBal", hubPartyReceiverAddrOsmoBal)
