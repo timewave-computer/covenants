@@ -531,6 +531,8 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					Astroport: &AstroportLiquidPoolerConfig{
 						PairType:    pairType,
 						PoolAddress: poolAddress,
+						AssetADenom: neutronAtomIbcDenom,
+						AssetBDenom: cosmosNeutron.Config().Denom,
 					},
 				}
 
@@ -857,6 +859,8 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					Astroport: &AstroportLiquidPoolerConfig{
 						PairType:    pairType,
 						PoolAddress: poolAddress,
+						AssetADenom: neutronAtomIbcDenom,
+						AssetBDenom: cosmosNeutron.Config().Denom,
 					},
 				}
 
@@ -1141,6 +1145,8 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					Astroport: &AstroportLiquidPoolerConfig{
 						PairType:    pairType,
 						PoolAddress: poolAddress,
+						AssetADenom: neutronAtomIbcDenom,
+						AssetBDenom: cosmosNeutron.Config().Denom,
 					},
 				}
 
@@ -1409,6 +1415,8 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					Astroport: &AstroportLiquidPoolerConfig{
 						PairType:    pairType,
 						PoolAddress: poolAddress,
+						AssetADenom: neutronAtomIbcDenom,
+						AssetBDenom: cosmosNeutron.Config().Denom,
 					},
 				}
 

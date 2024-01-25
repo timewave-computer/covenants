@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BTreeMap};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Uint128, Uint64, StdResult, WasmMsg, Binary};
@@ -39,9 +39,10 @@ impl CovenantPartyConfig {
     pub fn to_receiver_config(&self) -> ReceiverConfig {
         match self {
             CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
-                destination_chain_channel_id: config.host_to_party_chain_channel_id.to_string(),
+                local_to_destination_chain_channel_id: config.host_to_party_chain_channel_id.to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
+                denom_to_pfm_map: BTreeMap::new(),
             }),
             CovenantPartyConfig::Native(config) => {
                 ReceiverConfig::Native(Addr::unchecked(config.party_receiver_addr.to_string()))
@@ -90,9 +91,10 @@ impl CovenantPartyConfig {
         match self {
             CovenantPartyConfig::Interchain(party) => {
                 let destination_config = DestinationConfig{
-                    destination_chain_channel_id: party.host_to_party_chain_channel_id.to_string(),
+                    local_to_destination_chain_channel_id: party.host_to_party_chain_channel_id.to_string(),
                     destination_receiver_addr: party.party_receiver_addr.to_string(),
                     ibc_transfer_timeout: party.ibc_transfer_timeout,
+                    denom_to_pfm_map: BTreeMap::new(),
                 };
                 let interchain_router_fields = PresetInterchainRouterFields {
                     destination_config,

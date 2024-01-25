@@ -1,7 +1,12 @@
+use std::collections::{BTreeMap, BTreeSet};
+
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128, Uint64};
-use covenant_osmo_liquid_pooler::msg::{PartyChainInfo, PartyDenomInfo};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128, Uint64, WasmMsg, Binary, StdResult};
+use covenant_astroport_liquid_pooler::msg::{PresetAstroLiquidPoolerFields, AssetData, SingleSideLpLimits};
+use covenant_interchain_router::msg::PresetInterchainRouterFields;
+use covenant_native_router::msg::PresetNativeRouterFields;
+use covenant_osmo_liquid_pooler::msg::{PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields};
 use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
 use covenant_utils::{CovenantParty, DenomSplit, DestinationConfig, ReceiverConfig, SplitConfig};
 use cw_utils::Expiration;
@@ -39,6 +44,69 @@ pub enum LiquidPoolerConfig {
     Astroport(AstroportLiquidPoolerConfig),
 }
 
+impl LiquidPoolerConfig {
+    pub fn to_instantiate2_msg(
+        &self,
+        admin: String,
+        label: String,
+        code_id: u64,
+        salt: Binary,
+        clock_addr: String,
+        holder_addr: String,
+        expected_spot_price: Decimal,
+        acceptable_price_spread: Decimal,
+    ) -> StdResult<WasmMsg> {
+        match self {
+            LiquidPoolerConfig::Osmosis(config) => Ok(PresetOsmoLiquidPoolerFields {
+                label,
+                code_id,
+                note_address: config.note_address.to_string(),
+                pool_id: config.pool_id,
+                osmo_ibc_timeout: config.osmo_ibc_timeout,
+                party_1_chain_info: config.party_1_chain_info.clone(),
+                party_2_chain_info: config.party_2_chain_info.clone(),
+                osmo_to_neutron_channel_id: config.osmo_to_neutron_channel_id.to_string(),
+                party_1_denom_info: config.party_1_denom_info.clone(),
+                party_2_denom_info: config.party_2_denom_info.clone(),
+                osmo_outpost: config.osmo_outpost.to_string(),
+                lp_token_denom: config.lp_token_denom.to_string(),
+                slippage_tolerance: None,
+                expected_spot_price,
+                acceptable_price_spread,
+                funding_duration_seconds: config.funding_duration_seconds,
+            }.to_instantiate2_msg(
+                admin,
+                salt,
+                clock_addr.to_string(),
+                holder_addr.to_string(),
+            )?),
+            LiquidPoolerConfig::Astroport(config) => Ok(PresetAstroLiquidPoolerFields {
+                slippage_tolerance: None,
+                assets: AssetData {
+                    asset_a_denom: config.asset_a_denom.to_string(),
+                    asset_b_denom: config.asset_b_denom.to_string(),
+                },
+                // TODO: remove hardcoded limits
+                single_side_lp_limits: SingleSideLpLimits {
+                    asset_a_limit: Uint128::new(10000),
+                    asset_b_limit: Uint128::new(100000),
+                },
+                label,
+                code_id,
+                expected_pool_ratio: expected_spot_price,
+                acceptable_pool_ratio_delta: acceptable_price_spread,
+                pair_type: config.pool_pair_type.clone(),
+            }.to_instantiate2_msg(
+                admin,
+                salt,
+                config.pool_address.to_string(),
+                clock_addr.to_string(),
+                holder_addr.to_string(),
+            )?)
+        }
+    }
+}
+
 #[cw_serde]
 pub struct OsmosisLiquidPoolerConfig {
     pub note_address: String,
@@ -58,15 +126,18 @@ pub struct OsmosisLiquidPoolerConfig {
 pub struct AstroportLiquidPoolerConfig {
     pub pool_pair_type: PairType,
     pub pool_address: String,
+    pub asset_a_denom: String,
+    pub asset_b_denom: String,
 }
 
 impl CovenantPartyConfig {
     pub fn to_receiver_config(&self) -> ReceiverConfig {
         match self {
             CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
-                destination_chain_channel_id: config.host_to_party_chain_channel_id.to_string(),
+                local_to_destination_chain_channel_id: config.host_to_party_chain_channel_id.to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
+                denom_to_pfm_map: BTreeMap::new(),
             }),
             CovenantPartyConfig::Native(config) => {
                 ReceiverConfig::Native(Addr::unchecked(config.party_receiver_addr.to_string()))
@@ -120,6 +191,57 @@ impl CovenantPartyConfig {
         match self {
             CovenantPartyConfig::Interchain(config) => config.native_denom.to_string(),
             CovenantPartyConfig::Native(config) => config.native_denom.to_string(),
+        }
+    }
+
+    pub fn get_router_code_id(&self, contract_codes: &CovenantContractCodeIds) -> u64 {
+        match self {
+            CovenantPartyConfig::Native(_) => contract_codes.native_router_code,
+            CovenantPartyConfig::Interchain(_) => contract_codes.interchain_router_code,
+        }
+    }
+
+    pub fn to_router_instantiate2_msg(
+        &self,
+        admin_addr: String,
+        clock_addr: String,
+        salt: Binary,
+        code_id: u64,
+        label: String,
+        denoms: BTreeSet<String>,
+    ) -> StdResult<WasmMsg> {
+        match self {
+            CovenantPartyConfig::Interchain(party) => {
+                let preset_party_b_router_fields = PresetInterchainRouterFields {
+                    destination_config: DestinationConfig{
+                        local_to_destination_chain_channel_id: party.host_to_party_chain_channel_id.to_string(),
+                        destination_receiver_addr: party.party_receiver_addr.to_string(),
+                        ibc_transfer_timeout: party.ibc_transfer_timeout,
+                        denom_to_pfm_map: BTreeMap::new(),
+                    },
+                    label,
+                    code_id,
+                    denoms,
+                };
+                Ok(preset_party_b_router_fields.to_instantiate2_msg(
+                    admin_addr,
+                    salt,
+                    clock_addr.to_string(),
+                )?)
+            },
+            CovenantPartyConfig::Native(party) => {
+                let preset_native_router_fields = PresetNativeRouterFields {
+                    receiver_address: party.party_receiver_addr.to_string(),
+                    denoms,
+                    label,
+                    code_id,
+                };
+                Ok(preset_native_router_fields.to_instantiate2_msg(
+                    admin_addr,
+                    salt,
+                    clock_addr.to_string(),
+                )?)
+            },
         }
     }
 }

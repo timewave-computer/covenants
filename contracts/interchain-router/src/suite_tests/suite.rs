@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BTreeMap};
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use cosmwasm_std::{
@@ -59,9 +59,10 @@ impl Default for SuiteBuilder {
             instantiate: InstantiateMsg {
                 clock_address: CLOCK_ADDR.to_string(),
                 destination_config: DestinationConfig {
-                    destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
+                    local_to_destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
                     destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
                     ibc_transfer_timeout: Uint64::new(10),
+                    denom_to_pfm_map: BTreeMap::new(),
                 },
                 denoms: BTreeSet::new(),
             },
