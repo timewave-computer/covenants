@@ -301,9 +301,15 @@ pub enum ContractState {
 
 #[cw_serde]
 pub struct PartyChainInfo {
+    /// channel id to route funds from local chain to party chain
     pub neutron_to_party_chain_channel: String,
+    /// channel id to route funds from party chain to local chain
     pub party_chain_to_neutron_channel: String,
+    /// pfm configuration used to route funds from local chain
+    /// to osmosis via origin chain
     pub outwards_pfm: Option<ForwardMetadata>,
+    /// pfm configuration used to route funds from osmosis
+    /// to local chain via origin chain
     pub inwards_pfm: Option<ForwardMetadata>,
     pub ibc_timeout: Uint64,
 }

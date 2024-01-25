@@ -12,7 +12,7 @@ use covenant_osmo_liquid_pooler::msg::{
     PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields,
 };
 use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
-use covenant_utils::{CovenantParty, DenomSplit, DestinationConfig, ReceiverConfig, SplitConfig};
+use covenant_utils::{CovenantParty, DenomSplit, DestinationConfig, ReceiverConfig, SplitConfig, PacketForwardMiddlewareConfig};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -40,6 +40,15 @@ pub struct InstantiateMsg {
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee: Option<String>,
     pub liquid_pooler_config: LiquidPoolerConfig,
+    pub pfm_unwinding_config: PfmUnwindingConfig,
+}
+
+#[cw_serde]
+pub struct PfmUnwindingConfig {
+    // keys: relevant denoms IBC'd to neutron
+    // values: channel ids to facilitate ibc unwinding to party chain
+    pub party_1_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    pub party_2_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 }
 
 #[cw_serde]
@@ -216,9 +225,14 @@ impl CovenantPartyConfig {
         code_id: u64,
         label: String,
         denoms: BTreeSet<String>,
+        denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
     ) -> StdResult<WasmMsg> {
         match self {
             CovenantPartyConfig::Interchain(party) => {
+                // TODO: here we build the pfm configs for final destination routing.
+                // we need to unwind:
+                // counterparty denom on neutron -> route through counterparty chain
+                //
                 let preset_party_b_router_fields = PresetInterchainRouterFields {
                     destination_config: DestinationConfig {
                         local_to_destination_chain_channel_id: party
@@ -226,7 +240,7 @@ impl CovenantPartyConfig {
                             .to_string(),
                         destination_receiver_addr: party.party_receiver_addr.to_string(),
                         ibc_transfer_timeout: party.ibc_transfer_timeout,
-                        denom_to_pfm_map: BTreeMap::new(),
+                        denom_to_pfm_map,
                     },
                     label,
                     code_id,
