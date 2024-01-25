@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BTreeMap};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -6,7 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Addr, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response,
     StdResult, WasmMsg,
 };
-use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
+use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, PacketForwardMiddlewareConfig};
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
@@ -179,6 +179,7 @@ pub fn instantiate(
         party_a_router_code,
         format!("{}_party_a_router", msg.label),
         covenant_denoms.clone(),
+        msg.pfm_unwinding_config.party_1_pfm_map,
     )?;
 
     let party_b_router_instantiate2_msg = msg.party_b_config.to_router_instantiate2_msg(
@@ -188,6 +189,7 @@ pub fn instantiate(
         party_b_router_code,
         format!("{}_party_b_router", msg.label),
         covenant_denoms.clone(),
+        msg.pfm_unwinding_config.party_2_pfm_map,
     )?;
 
     let liquid_pooler_instantiate2_msg = msg.liquid_pooler_config.to_instantiate2_msg(
