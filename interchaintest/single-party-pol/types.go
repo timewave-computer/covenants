@@ -232,6 +232,18 @@ type CovenantInstantiationMsg struct {
 	AcceptablePoolRatioDelta string               `json:"acceptable_pool_ratio_delta"`
 	PairType                 PairType             `json:"pool_pair_type"`
 	NativeSplitterConfig     NativeSplitterConfig `json:"native_splitter_config"`
+	PfmUnwindingConfig       PfmUnwindingConfig   `json:"pfm_unwinding_config"`
+}
+
+type PfmUnwindingConfig struct {
+	Party1PfmMap map[string]PacketForwardMiddlewareConfig `json:"party_1_pfm_map"`
+	Party2PfmMap map[string]PacketForwardMiddlewareConfig `json:"party_2_pfm_map"`
+}
+
+type PacketForwardMiddlewareConfig struct {
+	LocalToHopChainChannelId       string `json:"local_to_hop_chain_channel_id"`
+	HopToDestinationChainChannelId string `json:"hop_to_destination_chain_channel_id"`
+	HopChainReceiverAddress        string `json:"hop_chain_receiver_address"`
 }
 
 type NativeSplitterConfig struct {
