@@ -1,3 +1,4 @@
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     instantiate2_address, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps, StdError, StdResult,
 };
@@ -34,5 +35,14 @@ pub fn get_instantiate2_salt_and_address(
     let contract_instantiate2_address =
         get_precomputed_address(deps, code_id, creator_address, &salt_binary)?;
 
+    // TODO: return Instantiate2HelperConfig instead so
+    // that clippy chills out about too many arguments
     Ok((salt_binary, contract_instantiate2_address))
+}
+
+#[cw_serde]
+pub struct Instantiate2HelperConfig {
+    pub addr: Addr,
+    pub code: u64,
+    pub salt: Binary,
 }
