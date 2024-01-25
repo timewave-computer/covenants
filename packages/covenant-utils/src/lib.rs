@@ -828,3 +828,11 @@ pub enum OutpostExecuteMsg {
         config: OutpostWithdrawLiquidityConfig,
     },
 }
+
+#[cw_serde]
+pub struct PfmUnwindingConfig {
+    // keys: relevant denoms IBC'd to neutron
+    // values: channel ids to facilitate ibc unwinding to party chain
+    pub party_1_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    pub party_2_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+}

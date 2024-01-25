@@ -35,7 +35,7 @@ var partyARouterAddress, partyBRouterAddress string
 var partyAIbcForwarderAddress, partyBIbcForwarderAddress string
 var partyADepositAddress, partyBDepositAddress string
 var holderAddress string
-var neutronAtomIbcDenom, neutronOsmoIbcDenom, osmoNeutronAtomIbcDenom, gaiaNeutronOsmoIbcDenom string
+var neutronAtomIbcDenom, neutronOsmoIbcDenom string
 var atomNeutronICSConnectionId, neutronAtomICSConnectionId string
 var neutronOsmosisIBCConnId, osmosisNeutronIBCConnId string
 var atomNeutronIBCConnId, neutronAtomIBCConnId string
@@ -301,34 +301,14 @@ func TestTokenSwap(t *testing.T) {
 	})
 
 	t.Run("determine ibc denoms", func(t *testing.T) {
-		// We can determine the ibc denoms of:
-		// 1. ATOM on Neutron
 		neutronAtomIbcDenom = testCtx.GetIbcDenom(
 			testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 			nativeAtomDenom,
 		)
-		// 2. Osmo on neutron
 		neutronOsmoIbcDenom = testCtx.GetIbcDenom(
 			testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
 			nativeOsmoDenom,
 		)
-		// 3. hub atom => neutron => osmosis
-		osmoNeutronAtomIbcDenom = testCtx.GetMultihopIbcDenom(
-			[]string{
-				testCtx.OsmoTransferChannelIds[cosmosNeutron.Config().Name],
-				testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
-			},
-			nativeAtomDenom,
-		)
-		// 4. osmosis osmo => neutron => hub
-		gaiaNeutronOsmoIbcDenom = testCtx.GetMultihopIbcDenom(
-			[]string{
-				testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
-				testCtx.NeutronTransferChannelIds[cosmosOsmosis.Config().Name],
-			},
-			nativeOsmoDenom,
-		)
-		// 2. neutron => hub
 		hubNeutronIbcDenom = testCtx.GetIbcDenom(
 			testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
 			cosmosNeutron.Config().Denom,

@@ -12,7 +12,7 @@ use covenant_osmo_liquid_pooler::msg::{
     PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields,
 };
 use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
-use covenant_utils::{CovenantParty, DenomSplit, DestinationConfig, ReceiverConfig, SplitConfig, PacketForwardMiddlewareConfig};
+use covenant_utils::{CovenantParty, DenomSplit, DestinationConfig, ReceiverConfig, SplitConfig, PacketForwardMiddlewareConfig, PfmUnwindingConfig};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -43,13 +43,6 @@ pub struct InstantiateMsg {
     pub pfm_unwinding_config: PfmUnwindingConfig,
 }
 
-#[cw_serde]
-pub struct PfmUnwindingConfig {
-    // keys: relevant denoms IBC'd to neutron
-    // values: channel ids to facilitate ibc unwinding to party chain
-    pub party_1_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
-    pub party_2_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
-}
 
 #[cw_serde]
 pub enum LiquidPoolerConfig {
