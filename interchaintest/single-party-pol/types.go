@@ -237,8 +237,7 @@ type CovenantInstantiationMsg struct {
 }
 
 type PfmUnwindingConfig struct {
-	Party1PfmMap map[string]PacketForwardMiddlewareConfig `json:"party_1_pfm_map"`
-	Party2PfmMap map[string]PacketForwardMiddlewareConfig `json:"party_2_pfm_map"`
+	PartyPfmMap map[string]PacketForwardMiddlewareConfig `json:"party_pfm_map"`
 }
 
 type PacketForwardMiddlewareConfig struct {

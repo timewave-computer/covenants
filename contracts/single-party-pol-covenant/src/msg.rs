@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128, Uint64};
-use covenant_utils::{CovenantParty, DestinationConfig, ReceiverConfig, PfmUnwindingConfig};
+use covenant_utils::{CovenantParty, DestinationConfig, ReceiverConfig, PfmUnwindingConfig, PacketForwardMiddlewareConfig};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -37,10 +37,17 @@ pub struct InstantiateMsg {
     pub withdrawer: Option<String>,
     pub withdraw_to: Option<String>,
     pub emergency_committee: Option<String>,
-    pub pfm_unwinding_config: PfmUnwindingConfig,
+    pub pfm_unwinding_config: SinglePartyPfmUnwindingConfig,
 
     pub covenant_party_config: InterchainCovenantParty,
     // pub liquid_pooler_config: LiquidPoolerConfig,
+}
+
+#[cw_serde]
+pub struct SinglePartyPfmUnwindingConfig {
+    // keys: relevant denoms IBC'd to neutron
+    // values: channel ids to facilitate ibc unwinding to party chain
+    pub party_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 }
 
 #[cw_serde]
@@ -224,6 +231,8 @@ pub enum QueryMsg {
     SplitterAddress {},
     #[returns(Addr)]
     PartyDepositAddress {},
+    #[returns(Addr)]
+    InterchainRouterAddress {},
 }
 
 #[cw_serde]

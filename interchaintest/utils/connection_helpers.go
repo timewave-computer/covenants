@@ -689,6 +689,27 @@ func (testCtx *TestContext) QueryInterchainRouterAddress(contract string, party 
 	return response.Data
 }
 
+func (testCtx *TestContext) QuerySinglePartyInterchainRouterAddress(contract string) string {
+	var response CovenantAddressQueryResponse
+
+	type RouterQuery struct{}
+	type SinglePartyInterchainRouterQuery struct {
+		RouterQuery RouterQuery `json:"interchain_router_address"`
+	}
+	query := SinglePartyInterchainRouterQuery{
+		RouterQuery: RouterQuery{},
+	}
+	err := testCtx.Neutron.QueryContract(testCtx.Ctx, contract, query, &response)
+	require.NoError(
+		testCtx.T,
+		err,
+		"failed to query interchain router address",
+	)
+	println("router addr: ", response.Data)
+
+	return response.Data
+}
+
 type SplitterAddress struct{}
 type SplitterAddressQuery struct {
 	SplitterAddress SplitterAddress `json:"splitter_address"`
