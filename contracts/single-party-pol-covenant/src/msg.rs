@@ -18,20 +18,27 @@ pub struct InstantiateMsg {
     pub contract_codes: CovenantContractCodeIds,
     pub clock_tick_max_gas: Option<Uint64>,
     pub lockup_period: Expiration,
+    // remove
     pub pool_address: String,
     pub ls_info: LsInfo,
+    // remove notion of party as its a single party covenant
     pub party_a_single_side_limit: Uint128,
     pub party_b_single_side_limit: Uint128,
+    // change covenant party configs to another name
     pub ls_forwarder_config: CovenantPartyConfig,
     pub lp_forwarder_config: CovenantPartyConfig,
+    // use liquid pooler config
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
     pub pool_pair_type: PairType,
     pub native_splitter_config: NativeSplitterConfig,
+    // move the following fields to a party configuration
+    // and include routing info there
     pub withdrawer: Option<String>,
     pub withdraw_to: Option<String>,
     pub emerrgency_committee: Option<String>,
     pub pfm_unwinding_config: PfmUnwindingConfig,
+    // pub liquid_pooler_config: LiquidPoolerConfig,
 }
 
 #[cw_serde]
@@ -147,6 +154,8 @@ pub struct CovenantContractCodeIds {
     pub native_splitter_code: u64,
     pub liquid_pooler_code: u64,
     pub liquid_staker_code: u64,
+    pub native_router_code: u64,
+    pub interchain_router_code: u64,
 }
 
 #[cw_serde]
