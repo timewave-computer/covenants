@@ -29,15 +29,16 @@ use crate::{
 const CONTRACT_NAME: &str = "crates.io:covenant-single-party-pol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub const CLOCK_SALT: &[u8] = b"clock";
-pub const HOLDER_SALT: &[u8] = b"pol_holder";
-pub const NATIVE_SPLITTER_SALT: &[u8] = b"native_splitter";
-
-pub const LS_FORWARDER_SALT: &[u8] = b"ls_forwarder";
-pub const LP_FORWARDER_SALT: &[u8] = b"lp_forwarder";
-
-pub const LIQUID_POOLER_SALT: &[u8] = b"liquid_pooler";
-pub const LIQUID_STAKER_SALT: &[u8] = b"liquid_staker";
+// todo: consider moving these to a getter implemented on
+// CovenantContractCodes struct
+pub(crate) const CLOCK_SALT: &[u8] = b"clock";
+pub(crate) const HOLDER_SALT: &[u8] = b"pol_holder";
+pub(crate) const NATIVE_SPLITTER_SALT: &[u8] = b"native_splitter";
+pub(crate) const LS_FORWARDER_SALT: &[u8] = b"ls_forwarder";
+pub(crate) const LP_FORWARDER_SALT: &[u8] = b"lp_forwarder";
+pub(crate) const LIQUID_POOLER_SALT: &[u8] = b"liquid_pooler";
+pub(crate) const LIQUID_STAKER_SALT: &[u8] = b"liquid_staker";
+pub(crate) const ROUTER_SALT: &[u8] = b"router";
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -92,12 +93,19 @@ pub fn instantiate(
         &creator_address,
         msg.contract_codes.holder_code,
     )?;
+    // let (router_salt, router_address) = get_instantiate2_salt_and_address(
+    //     deps.as_ref(),
+    //     ROUTER_SALT,
+    //     &creator_address,
+    //     msg.contract_codes.router_code,
+    // )?;
 
     HOLDER_ADDR.save(deps.storage, &holder_address)?;
     LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_address)?;
     LIQUID_STAKER_ADDR.save(deps.storage, &liquid_staker_address)?;
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
     SPLITTER_ADDR.save(deps.storage, &splitter_address)?;
+    // ROUTER_ADDR.save(deps.storage, &router_address)?;
 
     let mut clock_whitelist = Vec::with_capacity(7);
     clock_whitelist.push(splitter_address.to_string());
