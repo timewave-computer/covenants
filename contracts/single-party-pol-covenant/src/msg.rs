@@ -36,8 +36,10 @@ pub struct InstantiateMsg {
     // and include routing info there
     pub withdrawer: Option<String>,
     pub withdraw_to: Option<String>,
-    pub emerrgency_committee: Option<String>,
+    pub emergency_committee: Option<String>,
     pub pfm_unwinding_config: PfmUnwindingConfig,
+
+    pub covenant_party_config: InterchainCovenantParty,
     // pub liquid_pooler_config: LiquidPoolerConfig,
 }
 
@@ -154,7 +156,6 @@ pub struct CovenantContractCodeIds {
     pub native_splitter_code: u64,
     pub liquid_pooler_code: u64,
     pub liquid_staker_code: u64,
-    pub native_router_code: u64,
     pub interchain_router_code: u64,
 }
 
