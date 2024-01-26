@@ -1,7 +1,10 @@
+use std::collections::{BTreeSet, BTreeMap};
+
+use astroport::router;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg, Uint64,
 };
 
 use covenant_astroport_liquid_pooler::msg::{
@@ -9,10 +12,11 @@ use covenant_astroport_liquid_pooler::msg::{
 };
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
+use covenant_interchain_router::msg::PresetInterchainRouterFields;
 use covenant_native_splitter::msg::{NativeDenomSplit, PresetNativeSplitterFields, SplitReceiver};
 use covenant_single_party_pol_holder::msg::PresetHolderFields;
 use covenant_stride_liquid_staker::msg::PresetStrideLsFields;
-use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
+use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, DestinationConfig};
 use cw2::set_contract_version;
 
 use crate::{
@@ -22,7 +26,7 @@ use crate::{
         COVENANT_CLOCK_ADDR, HOLDER_ADDR, LIQUID_POOLER_ADDR, LIQUID_STAKER_ADDR,
         LP_FORWARDER_ADDR, LS_FORWARDER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
         PRESET_LIQUID_POOLER_FIELDS, PRESET_LIQUID_STAKER_FIELDS, PRESET_LP_FORWARDER_FIELDS,
-        PRESET_LS_FORWARDER_FIELDS, PRESET_SPLITTER_FIELDS, SPLITTER_ADDR,
+        PRESET_LS_FORWARDER_FIELDS, PRESET_SPLITTER_FIELDS, SPLITTER_ADDR, ROUTER_ADDR,
     },
 };
 
@@ -93,25 +97,48 @@ pub fn instantiate(
         &creator_address,
         msg.contract_codes.holder_code,
     )?;
-    // let (router_salt, router_address) = get_instantiate2_salt_and_address(
-    //     deps.as_ref(),
-    //     ROUTER_SALT,
-    //     &creator_address,
-    //     msg.contract_codes.router_code,
-    // )?;
+    let (router_salt, router_address) = get_instantiate2_salt_and_address(
+        deps.as_ref(),
+        ROUTER_SALT,
+        &creator_address,
+        msg.contract_codes.interchain_router_code,
+    )?;
 
     HOLDER_ADDR.save(deps.storage, &holder_address)?;
     LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_address)?;
     LIQUID_STAKER_ADDR.save(deps.storage, &liquid_staker_address)?;
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
     SPLITTER_ADDR.save(deps.storage, &splitter_address)?;
-    // ROUTER_ADDR.save(deps.storage, &router_address)?;
+    ROUTER_ADDR.save(deps.storage, &router_address)?;
 
     let mut clock_whitelist = Vec::with_capacity(7);
     clock_whitelist.push(splitter_address.to_string());
     clock_whitelist.push(liquid_pooler_address.to_string());
     clock_whitelist.push(liquid_staker_address.to_string());
     clock_whitelist.push(holder_address.to_string());
+    clock_whitelist.push(router_address.to_string());
+
+    let mut denoms: BTreeSet<String> = BTreeSet::new();
+    denoms.insert(msg.ls_info.ls_denom_on_neutron.to_string());
+    denoms.insert(msg.covenant_party_config.native_denom.to_string());
+
+    // TODO: rework instantiatemsg to facilitate this easily
+    let preset_router_fields = PresetInterchainRouterFields {
+        destination_config: DestinationConfig {
+            local_to_destination_chain_channel_id: msg.covenant_party_config.host_to_party_chain_channel_id.to_string(),
+            destination_receiver_addr: msg.covenant_party_config.party_receiver_addr.to_string(),
+            ibc_transfer_timeout: msg.covenant_party_config.ibc_transfer_timeout,
+            denom_to_pfm_map: BTreeMap::new(),
+        },
+        denoms,
+        label: format!("{}_interchain_router", msg.label),
+        code_id: msg.contract_codes.interchain_router_code,
+    };
+    let router_instantiate2_msg = preset_router_fields.to_instantiate2_msg(
+        env.contract.address.to_string(),
+        router_salt,
+        clock_address.to_string(),
+    )?;
 
     let preset_ls_forwarder_fields = match msg.clone().ls_forwarder_config {
         CovenantPartyConfig::Interchain(config) => {
@@ -172,8 +199,8 @@ pub fn instantiate(
         code_id: msg.contract_codes.holder_code,
         label: format!("{}-holder", msg.label),
         withdrawer: msg.withdrawer,
-        withdraw_to: msg.withdraw_to,
-        emergency_committee_addr: msg.emerrgency_committee,
+        withdraw_to: Some(router_address.to_string()),
+        emergency_committee_addr: msg.emergency_committee,
         lockup_period: msg.lockup_period,
     };
     PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
@@ -261,6 +288,7 @@ pub fn instantiate(
                 ],
             }],
         )?,
+        router_instantiate2_msg,
     ];
 
     if let Some(fields) = preset_ls_forwarder_fields {
@@ -282,8 +310,14 @@ pub fn instantiate(
     };
 
     Ok(Response::default()
-        .add_messages(messages)
-        .add_attribute("method", "instantiate"))
+        .add_attribute("method", "instantiate")
+        .add_attribute("clock_addr", clock_address)
+        .add_attribute("ls_forwarder_addr", ls_forwarder_address)
+        .add_attribute("lp_forwarder_addr", lp_forwarder_address)
+        .add_attribute("holder_addr", holder_address)
+        .add_attribute("splitter_addr", splitter_address)
+        .add_attribute("liquid_staker_addr", liquid_staker_address)
+        .add_messages(messages))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
