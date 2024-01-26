@@ -216,23 +216,24 @@ type NativeBalQueryResponse struct {
 // single party POL types
 
 type CovenantInstantiationMsg struct {
-	Label                    string               `json:"label"`
-	Timeouts                 Timeouts             `json:"timeouts"`
-	PresetIbcFee             PresetIbcFee         `json:"preset_ibc_fee"`
-	ContractCodeIds          ContractCodeIds      `json:"contract_codes"`
-	TickMaxGas               string               `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig             Expiration           `json:"lockup_period"`
-	PoolAddress              string               `json:"pool_address"`
-	LsInfo                   LsInfo               `json:"ls_info"`
-	PartyASingleSideLimit    string               `json:"party_a_single_side_limit"`
-	PartyBSingleSideLimit    string               `json:"party_b_single_side_limit"`
-	LsForwarderConfig        CovenantPartyConfig  `json:"ls_forwarder_config"`
-	LpForwarderConfig        CovenantPartyConfig  `json:"lp_forwarder_config"`
-	ExpectedPoolRatio        string               `json:"expected_pool_ratio"`
-	AcceptablePoolRatioDelta string               `json:"acceptable_pool_ratio_delta"`
-	PairType                 PairType             `json:"pool_pair_type"`
-	NativeSplitterConfig     NativeSplitterConfig `json:"native_splitter_config"`
-	PfmUnwindingConfig       PfmUnwindingConfig   `json:"pfm_unwinding_config"`
+	Label                    string                  `json:"label"`
+	Timeouts                 Timeouts                `json:"timeouts"`
+	PresetIbcFee             PresetIbcFee            `json:"preset_ibc_fee"`
+	ContractCodeIds          ContractCodeIds         `json:"contract_codes"`
+	TickMaxGas               string                  `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig             Expiration              `json:"lockup_period"`
+	PoolAddress              string                  `json:"pool_address"`
+	LsInfo                   LsInfo                  `json:"ls_info"`
+	PartyASingleSideLimit    string                  `json:"party_a_single_side_limit"`
+	PartyBSingleSideLimit    string                  `json:"party_b_single_side_limit"`
+	LsForwarderConfig        CovenantPartyConfig     `json:"ls_forwarder_config"`
+	LpForwarderConfig        CovenantPartyConfig     `json:"lp_forwarder_config"`
+	ExpectedPoolRatio        string                  `json:"expected_pool_ratio"`
+	AcceptablePoolRatioDelta string                  `json:"acceptable_pool_ratio_delta"`
+	PairType                 PairType                `json:"pool_pair_type"`
+	NativeSplitterConfig     NativeSplitterConfig    `json:"native_splitter_config"`
+	PfmUnwindingConfig       PfmUnwindingConfig      `json:"pfm_unwinding_config"`
+	CovenantPartyConfig      InterchainCovenantParty `json:"covenant_party_config"`
 }
 
 type PfmUnwindingConfig struct {
@@ -311,12 +312,13 @@ type Expiration struct {
 }
 
 type ContractCodeIds struct {
-	IbcForwarderCode   uint64 `json:"ibc_forwarder_code"`
-	ClockCode          uint64 `json:"clock_code"`
-	HolderCode         uint64 `json:"holder_code"`
-	LiquidPoolerCode   uint64 `json:"liquid_pooler_code"`
-	LiquidStakerCode   uint64 `json:"liquid_staker_code"`
-	NativeSplitterCode uint64 `json:"native_splitter_code"`
+	IbcForwarderCode     uint64 `json:"ibc_forwarder_code"`
+	ClockCode            uint64 `json:"clock_code"`
+	HolderCode           uint64 `json:"holder_code"`
+	LiquidPoolerCode     uint64 `json:"liquid_pooler_code"`
+	LiquidStakerCode     uint64 `json:"liquid_staker_code"`
+	NativeSplitterCode   uint64 `json:"native_splitter_code"`
+	InterchainRouterCode uint64 `json:"interchain_router_code"`
 }
 
 type SplitType struct {

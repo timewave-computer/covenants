@@ -301,6 +301,9 @@ func TestSinglePartyPol(t *testing.T) {
 	strideAdminMnemonic := "tone cause tribe this switch near host damage idle fragile antique tail soda alien depth write wool they rapid unfold body scan pledge soft"
 	strideAdmin, _ := ibctest.GetAndFundTestUserWithMnemonic(ctx, "default", strideAdminMnemonic, (100_000_000), cosmosStride)
 
+	hubCovenantParty := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
+	neutronCovenantParty := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), neutron)[0]
+
 	cosmosStride.SendFunds(ctx, strideUser.KeyName, ibc.WalletAmount{
 		Address: strideAdmin.Bech32Address(stride.Config().Bech32Prefix),
 		Denom:   "ustrd",
@@ -655,12 +658,13 @@ func TestSinglePartyPol(t *testing.T) {
 			}
 
 			contractCodes := ContractCodeIds{
-				IbcForwarderCode:   ibcForwarderCodeId,
-				ClockCode:          clockCodeId,
-				HolderCode:         holderCodeId,
-				LiquidPoolerCode:   lperCodeId,
-				LiquidStakerCode:   liquidStakerCodeId,
-				NativeSplitterCode: remoteChainSplitterCodeId,
+				IbcForwarderCode:     ibcForwarderCodeId,
+				ClockCode:            clockCodeId,
+				HolderCode:           holderCodeId,
+				LiquidPoolerCode:     lperCodeId,
+				LiquidStakerCode:     liquidStakerCodeId,
+				NativeSplitterCode:   remoteChainSplitterCodeId,
+				InterchainRouterCode: interchainRouterCodeId,
 			}
 			currentHeight := testCtx.GetNeutronHeight()
 
@@ -734,6 +738,21 @@ func TestSinglePartyPol(t *testing.T) {
 				Party2PfmMap: party2PfmMap,
 			}
 
+			contribution := Coin{
+				Denom:  nativeAtomDenom,
+				Amount: "5000000000",
+			}
+			covenantPartyConfig := InterchainCovenantParty{
+				Addr:                      neutronCovenantParty.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
+				NativeDenom:               neutronAtomIbcDenom,
+				RemoteChainDenom:          cosmosAtom.Config().Denom,
+				PartyToHostChainChannelId: testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+				HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
+				PartyReceiverAddr:         hubCovenantParty.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				PartyChainConnectionId:    neutronAtomIBCConnId,
+				IbcTransferTimeout:        "300",
+				Contribution:              contribution,
+			}
 			covenantInstantiationMsg := CovenantInstantiationMsg{
 				Label:                    "single_party_pol_covenant",
 				Timeouts:                 timeouts,
@@ -751,6 +770,7 @@ func TestSinglePartyPol(t *testing.T) {
 				PairType:                 pairType,
 				NativeSplitterConfig:     nativeSplitterConfig,
 				PfmUnwindingConfig:       pfmUnwindingConfig,
+				CovenantPartyConfig:      covenantPartyConfig,
 			}
 
 			covenantAddress = testCtx.ManualInstantiateLS(covenantCodeId, covenantInstantiationMsg, neutronUser, keyring.BackendTest)
