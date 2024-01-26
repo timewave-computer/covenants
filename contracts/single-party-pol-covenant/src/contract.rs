@@ -1,10 +1,9 @@
-use std::collections::{BTreeSet, BTreeMap};
+use std::collections::BTreeSet;
 
-use astroport::router;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg, Uint64,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg,
 };
 
 use covenant_astroport_liquid_pooler::msg::{
@@ -128,7 +127,7 @@ pub fn instantiate(
             local_to_destination_chain_channel_id: msg.covenant_party_config.host_to_party_chain_channel_id.to_string(),
             destination_receiver_addr: msg.covenant_party_config.party_receiver_addr.to_string(),
             ibc_transfer_timeout: msg.covenant_party_config.ibc_transfer_timeout,
-            denom_to_pfm_map: BTreeMap::new(),
+            denom_to_pfm_map: msg.pfm_unwinding_config.party_pfm_map.clone(),
         },
         denoms,
         label: format!("{}_interchain_router", msg.label),
@@ -198,7 +197,7 @@ pub fn instantiate(
     let preset_holder_fields = PresetHolderFields {
         code_id: msg.contract_codes.holder_code,
         label: format!("{}-holder", msg.label),
-        withdrawer: msg.withdrawer,
+        withdrawer: Some(msg.covenant_party_config.addr),
         withdraw_to: Some(router_address.to_string()),
         emergency_committee_addr: msg.emergency_committee,
         lockup_period: msg.lockup_period,
@@ -343,6 +342,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LiquidPoolerAddress {} => {
             Ok(to_json_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?)
         }
+        QueryMsg::InterchainRouterAddress {} => Ok(to_json_binary(&ROUTER_ADDR.may_load(deps.storage)?)?),
         QueryMsg::SplitterAddress {} => Ok(to_json_binary(&SPLITTER_ADDR.load(deps.storage)?)?),
         QueryMsg::PartyDepositAddress {} => {
             let splitter_address = SPLITTER_ADDR.load(deps.storage)?;

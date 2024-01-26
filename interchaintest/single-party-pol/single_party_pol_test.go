@@ -42,9 +42,10 @@ var lsForwarderAddress string
 var remoteChainSplitterAddress string
 var liquidPoolerForwarderAddress string
 var strideIcaAddress string
+var interchainRouterAddress string
 var lsForwarderIcaAddress, liquidPoolerForwarderIcaAddress string
 
-var neutronAtomIbcDenom, neutronStatomIbcDenom, strideAtomIbcDenom string
+var neutronAtomIbcDenom, neutronStatomIbcDenom, strideAtomIbcDenom, hubStAtomIbcDenom, hubNeutronStAtomIbcDenom string
 var atomNeutronICSConnectionId, neutronAtomICSConnectionId string
 var neutronStrideIBCConnId, strideNeutronIBCConnId string
 var atomNeutronIBCConnId, neutronAtomIBCConnId string
@@ -340,6 +341,21 @@ func TestSinglePartyPol(t *testing.T) {
 		strideAtomIbcDenom = testCtx.GetIbcDenom(
 			testCtx.StrideTransferChannelIds[cosmosAtom.Config().Name],
 			nativeAtomDenom,
+		)
+
+		// hubStAtomIbcDenom = testCtx.GetIbcDenom(
+		// 	testCtx.GaiaTransferChannelIds[cosmosStride.Config().Name],
+		// 	nativeStatomDenom,
+		// )
+
+		// this is a workaround for pfm being enabled in latest stride versions
+		// stride -> neutron -> hub
+		hubNeutronStAtomIbcDenom = testCtx.GetMultihopIbcDenom(
+			[]string{
+				testCtx.GaiaTransferChannelIds[cosmosNeutron.Config().Name],
+				testCtx.NeutronTransferChannelIds[cosmosStride.Config().Name],
+			},
+			nativeStatomDenom,
 		)
 	})
 
@@ -730,12 +746,17 @@ func TestSinglePartyPol(t *testing.T) {
 				NativeShare:  "0.5",
 			}
 
-			party1PfmMap := map[string]PacketForwardMiddlewareConfig{}
-			party2PfmMap := map[string]PacketForwardMiddlewareConfig{}
+			partyPfmMap := map[string]PacketForwardMiddlewareConfig{
+				// uncomment at some point
+				// neutronStatomIbcDenom: {
+				// 	LocalToHopChainChannelId:       testCtx.NeutronTransferChannelIds[testCtx.Stride.Config().Name],
+				// 	HopToDestinationChainChannelId: testCtx.StrideTransferChannelIds[testCtx.Hub.Config().Name],
+				// 	HopChainReceiverAddress:        strideUser.Bech32Address(testCtx.Stride.Config().Bech32Prefix),
+				// },
+			}
 
 			pfmUnwindingConfig := PfmUnwindingConfig{
-				Party1PfmMap: party1PfmMap,
-				Party2PfmMap: party2PfmMap,
+				PartyPfmMap: partyPfmMap,
 			}
 
 			contribution := Coin{
@@ -785,6 +806,7 @@ func TestSinglePartyPol(t *testing.T) {
 			lsForwarderAddress = testCtx.QueryIbcForwarderTyAddress(covenantAddress, "ls")
 			liquidPoolerForwarderAddress = testCtx.QueryIbcForwarderTyAddress(covenantAddress, "lp")
 			remoteChainSplitterAddress = testCtx.QueryRemoteChainSplitterAddress(covenantAddress)
+			interchainRouterAddress = testCtx.QuerySinglePartyInterchainRouterAddress(covenantAddress)
 		})
 
 		t.Run("fund contracts with neutron", func(t *testing.T) {
@@ -796,6 +818,7 @@ func TestSinglePartyPol(t *testing.T) {
 				lsForwarderAddress,
 				liquidPoolerForwarderAddress,
 				remoteChainSplitterAddress,
+				interchainRouterAddress,
 			}
 
 			testCtx.FundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
@@ -829,7 +852,7 @@ func TestSinglePartyPol(t *testing.T) {
 		})
 
 		t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
-			testCtx.FundChainAddrs([]string{partyDepositAddress}, cosmosAtom, gaiaUser, int64(atomContributionAmount))
+			testCtx.FundChainAddrs([]string{partyDepositAddress}, cosmosAtom, hubCovenantParty, int64(atomContributionAmount))
 
 			testCtx.SkipBlocksStride(3)
 		})
@@ -926,10 +949,16 @@ func TestSinglePartyPol(t *testing.T) {
 		})
 
 		t.Run("user redeems lp tokens for underlying liquidity", func(t *testing.T) {
+			stAtomBal := testCtx.QueryHubDenomBalance(hubNeutronStAtomIbcDenom, hubCovenantParty.Bech32Address(cosmosAtom.Config().Bech32Prefix))
+			atomBal := testCtx.QueryHubDenomBalance(nativeAtomDenom, hubCovenantParty.Bech32Address(cosmosAtom.Config().Bech32Prefix))
+			println("covenant party stAtomBal: ", stAtomBal)
+			println("covenant party atomBal: ", atomBal)
+			println("claiming...")
+
 			testCtx.SkipBlocksStride(10)
 			cmd := []string{"neutrond", "tx", "wasm", "execute", holderAddress,
 				`{"claim":{}}`,
-				"--from", neutronUser.GetKeyName(),
+				"--from", neutronCovenantParty.GetKeyName(),
 				"--gas-prices", "0.0untrn",
 				"--gas-adjustment", `1.5`,
 				"--output", "json",
@@ -947,11 +976,27 @@ func TestSinglePartyPol(t *testing.T) {
 			testCtx.SkipBlocksStride(5)
 
 			for {
-				stAtomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix))
-				atomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix))
-				println("neutron user stAtomBal: ", stAtomBal)
-				println("neutron user atomBal: ", atomBal)
-				if stAtomBal != 0 && atomBal != 0 {
+				// finalStAtomBal := testCtx.QueryHubDenomBalance(hubStAtomIbcDenom, hubCovenantParty.Bech32Address(cosmosAtom.Config().Bech32Prefix))
+				finalStAtomBal := testCtx.QueryHubDenomBalance(hubNeutronStAtomIbcDenom, hubCovenantParty.Bech32Address(cosmosAtom.Config().Bech32Prefix))
+				finalAtomBal := testCtx.QueryHubDenomBalance(nativeAtomDenom, hubCovenantParty.Bech32Address(cosmosAtom.Config().Bech32Prefix))
+				lpAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
+				lpStAtomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, liquidPoolerAddress)
+				holderAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+				holderStAtomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, holderAddress)
+				routerAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, interchainRouterAddress)
+				routerStAtomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, interchainRouterAddress)
+
+				println("hub user stAtomBal: ", finalStAtomBal)
+				println("hub user atomBal: ", finalAtomBal)
+				println("lp stAtomBal: ", lpStAtomBal)
+				println("lp atomBal: ", lpAtomBal)
+				println("holder stAtomBal: ", holderStAtomBal)
+				println("holder atomBal: ", holderAtomBal)
+				println("router stAtomBal: ", routerStAtomBal)
+				println("router atomBal: ", routerAtomBal)
+
+				if finalStAtomBal != 0 && finalAtomBal != 0 {
+					println("covenant party received the funds")
 					break
 				} else {
 					testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
