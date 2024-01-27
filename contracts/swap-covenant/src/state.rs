@@ -13,4 +13,3 @@ pub const PARTY_A_ROUTER_ADDR: Item<Addr> = Item::new("party_a_router_addr");
 pub const PARTY_B_ROUTER_ADDR: Item<Addr> = Item::new("party_b_router_addr");
 
 pub(crate) const CONTRACT_CODES: Item<CovenantContractCodes> = Item::new("contract_codes");
-
