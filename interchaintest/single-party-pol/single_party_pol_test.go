@@ -627,11 +627,17 @@ func TestSinglePartyPol(t *testing.T) {
 
 			// ibc transfer statom on stride to neutron user
 			transferStAtomNeutron := ibc.WalletAmount{
-				Address: neutronUser.Bech32Address(neutron.Config().Bech32Prefix),
+				Address: neutronUser.Bech32Address(testCtx.Neutron.Config().Bech32Prefix),
 				Denom:   nativeStatomDenom,
 				Amount:  int64(100000000000),
 			}
-			_, err = cosmosStride.SendIBCTransfer(ctx, testCtx.StrideTransferChannelIds[cosmosNeutron.Config().Name], strideUser.KeyName, transferStAtomNeutron, ibc.TransferOptions{})
+			_, err = testCtx.Stride.SendIBCTransfer(
+				testCtx.Ctx,
+				testCtx.StrideTransferChannelIds[cosmosNeutron.Config().Name],
+				strideUser.KeyName,
+				transferStAtomNeutron,
+				ibc.TransferOptions{},
+			)
 			require.NoError(t, err)
 
 			testCtx.SkipBlocksStride(10)
@@ -774,13 +780,21 @@ func TestSinglePartyPol(t *testing.T) {
 				IbcTransferTimeout:        "300",
 				Contribution:              contribution,
 			}
+
+			liquidPoolerConfig := LiquidPoolerConfig{
+				Astroport: &AstroportLiquidPoolerConfig{
+					PairType:    pairType,
+					PoolAddress: stableswapAddress,
+					AssetADenom: lsInfo.LsDenomOnNeutron,
+					AssetBDenom: neutronAtomIbcDenom,
+				},
+			}
 			covenantInstantiationMsg := CovenantInstantiationMsg{
 				Label:                    "single_party_pol_covenant",
 				Timeouts:                 timeouts,
 				PresetIbcFee:             presetIbcFee,
 				ContractCodeIds:          contractCodes,
 				LockupConfig:             lockupConfig,
-				PoolAddress:              stableswapAddress,
 				LsInfo:                   lsInfo,
 				PartyASingleSideLimit:    "10000000",
 				PartyBSingleSideLimit:    "10000000",
@@ -788,10 +802,10 @@ func TestSinglePartyPol(t *testing.T) {
 				LpForwarderConfig:        liquidPoolerForwarderConfig,
 				ExpectedPoolRatio:        "1.0",
 				AcceptablePoolRatioDelta: "0.1",
-				PairType:                 pairType,
 				NativeSplitterConfig:     nativeSplitterConfig,
 				PfmUnwindingConfig:       pfmUnwindingConfig,
 				CovenantPartyConfig:      covenantPartyConfig,
+				LiquidPoolerConfig:       liquidPoolerConfig,
 			}
 
 			covenantAddress = testCtx.ManualInstantiateLS(covenantCodeId, covenantInstantiationMsg, neutronUser, keyring.BackendTest)

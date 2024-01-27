@@ -50,7 +50,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    // TODO: integrate router with pfm unwinding
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
     // todo: return a config with contract code, salt, and address
@@ -217,24 +216,16 @@ pub fn instantiate(
     };
     PRESET_LIQUID_STAKER_FIELDS.save(deps.storage, &preset_liquid_staker_fields)?;
 
-    // Liquid pooler
-    let preset_liquid_pooler_fields = PresetAstroLiquidPoolerFields {
-        slippage_tolerance: None,
-        assets: AssetData {
-            asset_a_denom: msg.ls_info.ls_denom_on_neutron,
-            asset_b_denom: msg.lp_forwarder_config.get_native_denom(),
-        },
-        single_side_lp_limits: SingleSideLpLimits {
-            asset_a_limit: msg.party_a_single_side_limit,
-            asset_b_limit: msg.party_b_single_side_limit,
-        },
-        label: format!("{}_liquid_pooler", msg.label),
-        code_id: msg.contract_codes.liquid_pooler_code,
-        expected_pool_ratio: msg.expected_pool_ratio,
-        acceptable_pool_ratio_delta: msg.acceptable_pool_ratio_delta,
-        pair_type: msg.pool_pair_type,
-    };
-    PRESET_LIQUID_POOLER_FIELDS.save(deps.storage, &preset_liquid_pooler_fields)?;
+    let liquid_pooler_instantiate2_msg = msg.liquid_pooler_config.to_instantiate2_msg(
+        env.contract.address.to_string(),
+        format!("{}_liquid_pooler", msg.label),
+        msg.contract_codes.liquid_pooler_code,
+        liquid_pooler_salt,
+        clock_address.to_string(),
+        holder_address.to_string(),
+        (msg.expected_pool_ratio, msg.acceptable_pool_ratio_delta),
+    )?;
+    // PRESET_LIQUID_POOLER_FIELDS.save(deps.storage, &preset_liquid_pooler_fields)?;
 
     let preset_splitter_fields = PresetNativeSplitterFields {
         remote_chain_channel_id: msg.native_splitter_config.channel_id,
@@ -262,13 +253,7 @@ pub fn instantiate(
             holder_salt,
             liquid_pooler_address.to_string(),
         )?,
-        preset_liquid_pooler_fields.to_instantiate2_msg(
-            env.contract.address.to_string(),
-            liquid_pooler_salt,
-            msg.pool_address,
-            clock_address.to_string(),
-            holder_address.to_string(),
-        )?,
+        liquid_pooler_instantiate2_msg,
         preset_splitter_fields.to_instantiate2_msg(
             env.contract.address.to_string(),
             native_splitter_salt,

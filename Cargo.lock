@@ -671,6 +671,7 @@ dependencies = [
  "covenant-interchain-router",
  "covenant-interchain-splitter",
  "covenant-native-splitter",
+ "covenant-osmo-liquid-pooler",
  "covenant-single-party-pol-holder",
  "covenant-stride-liquid-staker",
  "covenant-utils",

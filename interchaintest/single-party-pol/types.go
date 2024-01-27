@@ -216,24 +216,76 @@ type NativeBalQueryResponse struct {
 // single party POL types
 
 type CovenantInstantiationMsg struct {
-	Label                    string                  `json:"label"`
-	Timeouts                 Timeouts                `json:"timeouts"`
-	PresetIbcFee             PresetIbcFee            `json:"preset_ibc_fee"`
-	ContractCodeIds          ContractCodeIds         `json:"contract_codes"`
-	TickMaxGas               string                  `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig             Expiration              `json:"lockup_period"`
-	PoolAddress              string                  `json:"pool_address"`
-	LsInfo                   LsInfo                  `json:"ls_info"`
-	PartyASingleSideLimit    string                  `json:"party_a_single_side_limit"`
-	PartyBSingleSideLimit    string                  `json:"party_b_single_side_limit"`
-	LsForwarderConfig        CovenantPartyConfig     `json:"ls_forwarder_config"`
-	LpForwarderConfig        CovenantPartyConfig     `json:"lp_forwarder_config"`
-	ExpectedPoolRatio        string                  `json:"expected_pool_ratio"`
-	AcceptablePoolRatioDelta string                  `json:"acceptable_pool_ratio_delta"`
-	PairType                 PairType                `json:"pool_pair_type"`
-	NativeSplitterConfig     NativeSplitterConfig    `json:"native_splitter_config"`
-	PfmUnwindingConfig       PfmUnwindingConfig      `json:"pfm_unwinding_config"`
-	CovenantPartyConfig      InterchainCovenantParty `json:"covenant_party_config"`
+	Label                    string              `json:"label"`
+	Timeouts                 Timeouts            `json:"timeouts"`
+	PresetIbcFee             PresetIbcFee        `json:"preset_ibc_fee"`
+	ContractCodeIds          ContractCodeIds     `json:"contract_codes"`
+	TickMaxGas               string              `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig             Expiration          `json:"lockup_period"`
+	LsInfo                   LsInfo              `json:"ls_info"`
+	PartyASingleSideLimit    string              `json:"party_a_single_side_limit"`
+	PartyBSingleSideLimit    string              `json:"party_b_single_side_limit"`
+	LsForwarderConfig        CovenantPartyConfig `json:"ls_forwarder_config"`
+	LpForwarderConfig        CovenantPartyConfig `json:"lp_forwarder_config"`
+	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
+	AcceptablePoolRatioDelta string              `json:"acceptable_pool_ratio_delta"`
+	// PairType                 PairType                `json:"pool_pair_type"`
+	NativeSplitterConfig NativeSplitterConfig    `json:"native_splitter_config"`
+	PfmUnwindingConfig   PfmUnwindingConfig      `json:"pfm_unwinding_config"`
+	CovenantPartyConfig  InterchainCovenantParty `json:"covenant_party_config"`
+	LiquidPoolerConfig   LiquidPoolerConfig      `json:"liquid_pooler_config"`
+}
+
+type LiquidPoolerConfig struct {
+	Astroport *AstroportLiquidPoolerConfig `json:"astroport,omitempty"`
+	Osmosis   *OsmosisLiquidPoolerConfig   `json:"osmosis,omitempty"`
+}
+
+type OsmosisLiquidPoolerConfig struct {
+	NoteAddress            string         `json:"note_address"`
+	PoolId                 string         `json:"pool_id"`
+	OsmoIbcTimeout         string         `json:"osmo_ibc_timeout"`
+	OsmoOutpost            string         `json:"osmo_outpost"`
+	Party1ChainInfo        PartyChainInfo `json:"party_1_chain_info"`
+	Party2ChainInfo        PartyChainInfo `json:"party_2_chain_info"`
+	LpTokenDenom           string         `json:"lp_token_denom"`
+	OsmoToNeutronChannelId string         `json:"osmo_to_neutron_channel_id"`
+	Party1DenomInfo        PartyDenomInfo `json:"party_1_denom_info"`
+	Party2DenomInfo        PartyDenomInfo `json:"party_2_denom_info"`
+	FundingDurationSeconds string         `json:"funding_duration_seconds"`
+}
+
+type PartyDenomInfo struct {
+	OsmosisCoin       Coin   `json:"osmosis_coin"`
+	LocalDenom        string `json:"local_denom"`
+	SingleSideLpLimit string `json:"single_side_lp_limit"`
+}
+
+type PartyChainInfo struct {
+	NeutronToPartyChainChannel string           `json:"neutron_to_party_chain_channel"`
+	PartyChainToNeutronChannel string           `json:"party_chain_to_neutron_channel"`
+	InwardsPfm                 *ForwardMetadata `json:"inwards_pfm,omitempty"`
+	OutwardsPfm                *ForwardMetadata `json:"outwards_pfm,omitempty"`
+	IbcTimeout                 string           `json:"ibc_timeout"`
+}
+
+type PacketMetadata struct {
+	ForwardMetadata *ForwardMetadata `json:"forward,omitempty"`
+}
+
+type ForwardMetadata struct {
+	Receiver string `json:"receiver"`
+	Port     string `json:"port"`
+	Channel  string `json:"channel"`
+	// Timeout  string `json:"timeout,omitempty"`
+	// Retries  uint8  `json:"retries,omitempty"`
+}
+
+type AstroportLiquidPoolerConfig struct {
+	PairType    PairType `json:"pool_pair_type"`
+	PoolAddress string   `json:"pool_address"`
+	AssetADenom string   `json:"asset_a_denom"`
+	AssetBDenom string   `json:"asset_b_denom"`
 }
 
 type PfmUnwindingConfig struct {
