@@ -5,10 +5,6 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg,
 };
-
-use covenant_astroport_liquid_pooler::msg::{
-    AssetData, PresetAstroLiquidPoolerFields, SingleSideLpLimits,
-};
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_interchain_router::msg::PresetInterchainRouterFields;
@@ -23,9 +19,7 @@ use crate::{
     msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         COVENANT_CLOCK_ADDR, HOLDER_ADDR, LIQUID_POOLER_ADDR, LIQUID_STAKER_ADDR,
-        LP_FORWARDER_ADDR, LS_FORWARDER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
-        PRESET_LIQUID_POOLER_FIELDS, PRESET_LIQUID_STAKER_FIELDS, PRESET_LP_FORWARDER_FIELDS,
-        PRESET_LS_FORWARDER_FIELDS, PRESET_SPLITTER_FIELDS, SPLITTER_ADDR, ROUTER_ADDR,
+        LP_FORWARDER_ADDR, LS_FORWARDER_ADDR, SPLITTER_ADDR, ROUTER_ADDR, CONTRACT_CODES,
     },
 };
 
@@ -51,6 +45,8 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
     // todo: return a config with contract code, salt, and address
     let (clock_salt, clock_address) = get_instantiate2_salt_and_address(
@@ -102,13 +98,6 @@ pub fn instantiate(
         msg.contract_codes.interchain_router_code,
     )?;
 
-    HOLDER_ADDR.save(deps.storage, &holder_address)?;
-    LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_address)?;
-    LIQUID_STAKER_ADDR.save(deps.storage, &liquid_staker_address)?;
-    COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
-    SPLITTER_ADDR.save(deps.storage, &splitter_address)?;
-    ROUTER_ADDR.save(deps.storage, &router_address)?;
-
     let mut clock_whitelist = Vec::with_capacity(7);
     clock_whitelist.push(splitter_address.to_string());
     clock_whitelist.push(liquid_pooler_address.to_string());
@@ -120,8 +109,7 @@ pub fn instantiate(
     denoms.insert(msg.ls_info.ls_denom_on_neutron.to_string());
     denoms.insert(msg.covenant_party_config.native_denom.to_string());
 
-    // TODO: rework instantiatemsg to facilitate this easily
-    let preset_router_fields = PresetInterchainRouterFields {
+    let router_instantiate2_msg = PresetInterchainRouterFields {
         destination_config: DestinationConfig {
             local_to_destination_chain_channel_id: msg.covenant_party_config.host_to_party_chain_channel_id.to_string(),
             destination_receiver_addr: msg.covenant_party_config.party_receiver_addr.to_string(),
@@ -131,8 +119,8 @@ pub fn instantiate(
         denoms,
         label: format!("{}_interchain_router", msg.label),
         code_id: msg.contract_codes.interchain_router_code,
-    };
-    let router_instantiate2_msg = preset_router_fields.to_instantiate2_msg(
+    }
+    .to_instantiate2_msg(
         env.contract.address.to_string(),
         router_salt,
         clock_address.to_string(),
@@ -142,8 +130,7 @@ pub fn instantiate(
         CovenantPartyConfig::Interchain(config) => {
             LS_FORWARDER_ADDR.save(deps.storage, &ls_forwarder_address)?;
             clock_whitelist.insert(0, ls_forwarder_address.to_string());
-
-            let preset = PresetIbcForwarderFields {
+            Some(PresetIbcForwarderFields {
                 remote_chain_connection_id: config.party_chain_connection_id,
                 remote_chain_channel_id: config.party_to_host_chain_channel_id,
                 denom: config.remote_chain_denom,
@@ -153,10 +140,7 @@ pub fn instantiate(
                 ica_timeout: msg.timeouts.ica_timeout,
                 ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
                 ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-            };
-            PRESET_LS_FORWARDER_FIELDS.save(deps.storage, &preset)?;
-
-            Some(preset)
+            })
         }
         CovenantPartyConfig::Native(_) => None,
     };
@@ -165,8 +149,7 @@ pub fn instantiate(
         CovenantPartyConfig::Interchain(config) => {
             LP_FORWARDER_ADDR.save(deps.storage, &lp_forwarder_address)?;
             clock_whitelist.insert(0, lp_forwarder_address.to_string());
-
-            let preset = PresetIbcForwarderFields {
+            Some(PresetIbcForwarderFields {
                 remote_chain_connection_id: config.party_chain_connection_id,
                 remote_chain_channel_id: config.party_to_host_chain_channel_id,
                 denom: config.remote_chain_denom,
@@ -176,35 +159,32 @@ pub fn instantiate(
                 ica_timeout: msg.timeouts.ica_timeout,
                 ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
                 ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-            };
-            PRESET_LP_FORWARDER_FIELDS.save(deps.storage, &preset)?;
-
-            Some(preset)
+            })
         }
         CovenantPartyConfig::Native(_) => None,
     };
 
-    let preset_clock_fields = PresetClockFields {
+    let clock_instantiate2_msg = PresetClockFields {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: clock_whitelist,
         code_id: msg.contract_codes.clock_code,
         label: format!("{}-clock", msg.label),
-    };
-    PRESET_CLOCK_FIELDS.save(deps.storage, &preset_clock_fields)?;
+    }.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
 
-    // Holder
-    let preset_holder_fields = PresetHolderFields {
+    let holder_instantiate2_msg = PresetHolderFields {
         code_id: msg.contract_codes.holder_code,
         label: format!("{}-holder", msg.label),
         withdrawer: Some(msg.covenant_party_config.addr),
         withdraw_to: Some(router_address.to_string()),
         emergency_committee_addr: msg.emergency_committee,
         lockup_period: msg.lockup_period,
-    };
-    PRESET_HOLDER_FIELDS.save(deps.storage, &preset_holder_fields)?;
+    }.to_instantiate2_msg(
+        env.contract.address.to_string(),
+        holder_salt,
+        liquid_pooler_address.to_string(),
+    )?;
 
-    // Liquid staker
-    let preset_liquid_staker_fields = PresetStrideLsFields {
+    let liquid_staker_instantiate2_msg = PresetStrideLsFields {
         label: format!("{}_stride_liquid_staker", msg.label),
         ls_denom: msg.ls_info.ls_denom,
         stride_neutron_ibc_transfer_channel_id: msg.ls_info.ls_chain_to_neutron_channel_id,
@@ -213,8 +193,12 @@ pub fn instantiate(
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         code_id: msg.contract_codes.liquid_staker_code,
-    };
-    PRESET_LIQUID_STAKER_FIELDS.save(deps.storage, &preset_liquid_staker_fields)?;
+    }.to_instantiate2_msg(
+        env.contract.address.to_string(),
+        liquid_staker_salt,
+        clock_address.to_string(),
+        liquid_pooler_address.to_string(),
+    )?;
 
     let liquid_pooler_instantiate2_msg = msg.liquid_pooler_config.to_instantiate2_msg(
         env.contract.address.to_string(),
@@ -225,9 +209,8 @@ pub fn instantiate(
         holder_address.to_string(),
         (msg.expected_pool_ratio, msg.acceptable_pool_ratio_delta),
     )?;
-    // PRESET_LIQUID_POOLER_FIELDS.save(deps.storage, &preset_liquid_pooler_fields)?;
 
-    let preset_splitter_fields = PresetNativeSplitterFields {
+    let splitter_instantiate2_msg = PresetNativeSplitterFields {
         remote_chain_channel_id: msg.native_splitter_config.channel_id,
         remote_chain_connection_id: msg.native_splitter_config.connection_id,
         code_id: msg.contract_codes.native_splitter_code,
@@ -237,41 +220,31 @@ pub fn instantiate(
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-    };
-    PRESET_SPLITTER_FIELDS.save(deps.storage, &preset_splitter_fields)?;
+    }.to_instantiate2_msg(
+        env.contract.address.to_string(),
+        native_splitter_salt,
+        clock_address.to_string(),
+        vec![NativeDenomSplit {
+            denom: msg.native_splitter_config.denom.to_string(),
+            receivers: vec![
+                SplitReceiver {
+                    addr: ls_forwarder_address.to_string(),
+                    share: msg.native_splitter_config.ls_share,
+                },
+                SplitReceiver {
+                    addr: lp_forwarder_address.to_string(),
+                    share: msg.native_splitter_config.native_share,
+                },
+            ],
+        }],
+    )?;
 
     let mut messages = vec![
-        preset_clock_fields.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?,
-        preset_liquid_staker_fields.to_instantiate2_msg(
-            env.contract.address.to_string(),
-            liquid_staker_salt,
-            clock_address.to_string(),
-            liquid_pooler_address.to_string(),
-        )?,
-        preset_holder_fields.to_instantiate2_msg(
-            env.contract.address.to_string(),
-            holder_salt,
-            liquid_pooler_address.to_string(),
-        )?,
+        clock_instantiate2_msg,
+        liquid_staker_instantiate2_msg,
+        holder_instantiate2_msg,
         liquid_pooler_instantiate2_msg,
-        preset_splitter_fields.to_instantiate2_msg(
-            env.contract.address.to_string(),
-            native_splitter_salt,
-            clock_address.to_string(),
-            vec![NativeDenomSplit {
-                denom: msg.native_splitter_config.denom.to_string(),
-                receivers: vec![
-                    SplitReceiver {
-                        addr: ls_forwarder_address.to_string(),
-                        share: msg.native_splitter_config.ls_share,
-                    },
-                    SplitReceiver {
-                        addr: lp_forwarder_address.to_string(),
-                        share: msg.native_splitter_config.native_share,
-                    },
-                ],
-            }],
-        )?,
+        splitter_instantiate2_msg,
         router_instantiate2_msg,
     ];
 
@@ -293,6 +266,16 @@ pub fn instantiate(
         )?);
     };
 
+    HOLDER_ADDR.save(deps.storage, &holder_address)?;
+    LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_address)?;
+    LIQUID_STAKER_ADDR.save(deps.storage, &liquid_staker_address)?;
+    COVENANT_CLOCK_ADDR.save(deps.storage, &clock_address)?;
+    SPLITTER_ADDR.save(deps.storage, &splitter_address)?;
+    ROUTER_ADDR.save(deps.storage, &router_address)?;
+    LS_FORWARDER_ADDR.save(deps.storage, &ls_forwarder_address)?;
+    LP_FORWARDER_ADDR.save(deps.storage, &lp_forwarder_address)?;
+    CONTRACT_CODES.save(deps.storage, &msg.contract_codes)?;
+
     Ok(Response::default()
         .add_attribute("method", "instantiate")
         .add_attribute("clock_addr", clock_address)
@@ -301,6 +284,8 @@ pub fn instantiate(
         .add_attribute("holder_addr", holder_address)
         .add_attribute("splitter_addr", splitter_address)
         .add_attribute("liquid_staker_addr", liquid_staker_address)
+        .add_attribute("liquid_pooler_addr", liquid_pooler_address)
+        .add_attribute("router_addr", router_address)
         .add_messages(messages))
 }
 
@@ -353,83 +338,88 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             liquid_pooler,
             liquid_staker,
             splitter,
+            router,
         } => {
             let mut migrate_msgs = vec![];
             let mut resp = Response::default().add_attribute("method", "migrate_contracts");
+            let contract_codes = CONTRACT_CODES.load(deps.storage)?;
 
             if let Some(clock) = clock {
                 let msg = to_json_binary(&clock)?;
-                let clock_fields = PRESET_CLOCK_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("clock_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_CLOCK_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: clock_fields.code_id,
+                    new_code_id: contract_codes.clock_code,
                     msg,
                 });
             }
 
             if let Some(forwarder) = ls_forwarder {
                 let msg: Binary = to_json_binary(&forwarder)?;
-                let forwarder_fields = PRESET_LS_FORWARDER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("ls_forwarder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: LS_FORWARDER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: forwarder_fields.code_id,
+                    new_code_id: contract_codes.ibc_forwarder_code,
                     msg,
                 });
             }
 
             if let Some(forwarder) = lp_forwarder {
                 let msg: Binary = to_json_binary(&forwarder)?;
-                let forwarder_fields = PRESET_LP_FORWARDER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("lp_forwarder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: LP_FORWARDER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: forwarder_fields.code_id,
+                    new_code_id: contract_codes.ibc_forwarder_code,
                     msg,
                 });
             }
 
             if let Some(liquid_pooler) = liquid_pooler {
                 let msg: Binary = to_json_binary(&liquid_pooler)?;
-                let liquid_pooler_fields = PRESET_LIQUID_POOLER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("liquid_pooler_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: LIQUID_POOLER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: liquid_pooler_fields.code_id,
+                    new_code_id: contract_codes.liquid_pooler_code,
                     msg,
                 });
             }
 
             if let Some(liquid_staker) = liquid_staker {
                 let msg: Binary = to_json_binary(&liquid_staker)?;
-                let liquid_staker_fields = PRESET_LIQUID_STAKER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("liquid_staker_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: LIQUID_STAKER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: liquid_staker_fields.code_id,
+                    new_code_id: contract_codes.liquid_staker_code,
                     msg,
                 });
             }
 
             if let Some(splitter) = splitter {
                 let msg: Binary = to_json_binary(&splitter)?;
-                let splitter_fields = PRESET_SPLITTER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("splitter_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: SPLITTER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: splitter_fields.code_id,
+                    new_code_id: contract_codes.native_splitter_code,
                     msg,
                 });
             }
 
             if let Some(holder) = holder {
                 let msg: Binary = to_json_binary(&holder)?;
-                let holder_fields = PRESET_HOLDER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("holder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: HOLDER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: holder_fields.code_id,
+                    new_code_id: contract_codes.holder_code,
+                    msg,
+                });
+            }
+
+            if let Some(router) = router {
+                let msg: Binary = to_json_binary(&router)?;
+                resp = resp.add_attribute("router_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: ROUTER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: contract_codes.interchain_router_code,
                     msg,
                 });
             }

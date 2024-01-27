@@ -313,6 +313,31 @@ pub struct CovenantContractCodeIds {
 }
 
 #[cw_serde]
+pub(crate) struct CovenantContractCodes {
+    pub clock: u64,
+    pub holder: u64,
+    pub liquid_pooler: u64,
+    pub party_a_router: u64,
+    pub party_b_router: u64,
+    pub party_a_forwarder: u64,
+    pub party_b_forwarder: u64,
+}
+
+impl CovenantContractCodeIds {
+    pub(crate) fn to_covenant_codes_config(&self, party_a_router_code: u64, party_b_router_code: u64) -> CovenantContractCodes {
+        CovenantContractCodes {
+            clock: self.clock_code,
+            holder: self.holder_code,
+            liquid_pooler: self.liquid_pooler_code,
+            party_a_router: party_a_router_code,
+            party_b_router: party_b_router_code,
+            party_a_forwarder: self.ibc_forwarder_code,
+            party_b_forwarder: self.ibc_forwarder_code,
+        }
+    }
+}
+
+#[cw_serde]
 pub struct Timeouts {
     /// ica timeout in seconds
     pub ica_timeout: Uint64,
