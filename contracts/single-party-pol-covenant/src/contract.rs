@@ -18,8 +18,8 @@ use crate::{
     error::ContractError,
     msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        COVENANT_CLOCK_ADDR, HOLDER_ADDR, LIQUID_POOLER_ADDR, LIQUID_STAKER_ADDR,
-        LP_FORWARDER_ADDR, LS_FORWARDER_ADDR, SPLITTER_ADDR, ROUTER_ADDR, CONTRACT_CODES,
+        CONTRACT_CODES, COVENANT_CLOCK_ADDR, HOLDER_ADDR, LIQUID_POOLER_ADDR, LIQUID_STAKER_ADDR,
+        LP_FORWARDER_ADDR, LS_FORWARDER_ADDR, ROUTER_ADDR, SPLITTER_ADDR,
     },
 };
 
@@ -45,7 +45,6 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
 
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
     // todo: return a config with contract code, salt, and address
@@ -111,7 +110,10 @@ pub fn instantiate(
 
     let router_instantiate2_msg = PresetInterchainRouterFields {
         destination_config: DestinationConfig {
-            local_to_destination_chain_channel_id: msg.covenant_party_config.host_to_party_chain_channel_id.to_string(),
+            local_to_destination_chain_channel_id: msg
+                .covenant_party_config
+                .host_to_party_chain_channel_id
+                .to_string(),
             destination_receiver_addr: msg.covenant_party_config.party_receiver_addr.to_string(),
             ibc_transfer_timeout: msg.covenant_party_config.ibc_transfer_timeout,
             denom_to_pfm_map: msg.pfm_unwinding_config.party_pfm_map.clone(),
@@ -169,7 +171,8 @@ pub fn instantiate(
         whitelist: clock_whitelist,
         code_id: msg.contract_codes.clock_code,
         label: format!("{}-clock", msg.label),
-    }.to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
+    }
+    .to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
 
     let holder_instantiate2_msg = PresetHolderFields {
         code_id: msg.contract_codes.holder_code,
@@ -178,7 +181,8 @@ pub fn instantiate(
         withdraw_to: Some(router_address.to_string()),
         emergency_committee_addr: msg.emergency_committee,
         lockup_period: msg.lockup_period,
-    }.to_instantiate2_msg(
+    }
+    .to_instantiate2_msg(
         env.contract.address.to_string(),
         holder_salt,
         liquid_pooler_address.to_string(),
@@ -193,7 +197,8 @@ pub fn instantiate(
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         code_id: msg.contract_codes.liquid_staker_code,
-    }.to_instantiate2_msg(
+    }
+    .to_instantiate2_msg(
         env.contract.address.to_string(),
         liquid_staker_salt,
         clock_address.to_string(),
@@ -220,7 +225,8 @@ pub fn instantiate(
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-    }.to_instantiate2_msg(
+    }
+    .to_instantiate2_msg(
         env.contract.address.to_string(),
         native_splitter_salt,
         clock_address.to_string(),
@@ -312,7 +318,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LiquidPoolerAddress {} => {
             Ok(to_json_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?)
         }
-        QueryMsg::InterchainRouterAddress {} => Ok(to_json_binary(&ROUTER_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::InterchainRouterAddress {} => {
+            Ok(to_json_binary(&ROUTER_ADDR.may_load(deps.storage)?)?)
+        }
         QueryMsg::SplitterAddress {} => Ok(to_json_binary(&SPLITTER_ADDR.load(deps.storage)?)?),
         QueryMsg::PartyDepositAddress {} => {
             let splitter_address = SPLITTER_ADDR.load(deps.storage)?;

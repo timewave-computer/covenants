@@ -166,7 +166,11 @@ pub struct SwapCovenantContractCodeIds {
 }
 
 impl SwapCovenantContractCodeIds {
-    pub(crate) fn to_covenant_codes_config(&self, party_a_router_code: u64, party_b_router_code: u64) -> CovenantContractCodes {
+    pub(crate) fn to_covenant_codes_config(
+        &self,
+        party_a_router_code: u64,
+        party_b_router_code: u64,
+    ) -> CovenantContractCodes {
         CovenantContractCodes {
             clock: self.clock_code,
             holder: self.holder_code,

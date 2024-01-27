@@ -2,16 +2,23 @@ use std::collections::BTreeMap;
 
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Coin, Decimal, Uint128, Uint64, Binary, WasmMsg, StdResult};
-use covenant_astroport_liquid_pooler::msg::{AssetData, SingleSideLpLimits, PresetAstroLiquidPoolerFields};
-use covenant_osmo_liquid_pooler::msg::{PresetOsmoLiquidPoolerFields, PartyChainInfo, PartyDenomInfo};
-use covenant_utils::{CovenantParty, DestinationConfig, ReceiverConfig, PfmUnwindingConfig, PacketForwardMiddlewareConfig, ForwardMetadata};
+use cosmwasm_std::{Addr, Binary, Coin, Decimal, StdResult, Uint128, Uint64, WasmMsg};
+use covenant_astroport_liquid_pooler::msg::{
+    AssetData, PresetAstroLiquidPoolerFields, SingleSideLpLimits,
+};
+use covenant_osmo_liquid_pooler::msg::{
+    PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields,
+};
+use covenant_utils::{
+    CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, ReceiverConfig,
+};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
 const NEUTRON_DENOM: &str = "untrn";
 pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 
+// TODO: clean up the instantiation message
 #[cw_serde]
 pub struct InstantiateMsg {
     pub label: String,
@@ -20,22 +27,14 @@ pub struct InstantiateMsg {
     pub contract_codes: CovenantContractCodeIds,
     pub clock_tick_max_gas: Option<Uint64>,
     pub lockup_period: Expiration,
-    // remove
-    // pub pool_address: String,
     pub ls_info: LsInfo,
-    // remove notion of party as its a single party covenant
     pub party_a_single_side_limit: Uint128,
     pub party_b_single_side_limit: Uint128,
-    // change covenant party configs to another name
     pub ls_forwarder_config: CovenantPartyConfig,
     pub lp_forwarder_config: CovenantPartyConfig,
-    // use liquid pooler config
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
-    // pub pool_pair_type: PairType,
     pub native_splitter_config: NativeSplitterConfig,
-    // move the following fields to a party configuration
-    // and include routing info there
     pub withdrawer: Option<String>,
     pub withdraw_to: Option<String>,
     pub emergency_committee: Option<String>,
@@ -43,8 +42,6 @@ pub struct InstantiateMsg {
     pub covenant_party_config: InterchainCovenantParty,
     pub liquid_pooler_config: LiquidPoolerConfig,
 }
-
-
 
 #[cw_serde]
 pub enum LiquidPoolerConfig {
@@ -116,7 +113,6 @@ impl LiquidPoolerConfig {
     }
 }
 
-
 #[cw_serde]
 pub struct OsmosisLiquidPoolerConfig {
     pub note_address: String,
@@ -139,7 +135,6 @@ pub struct AstroportLiquidPoolerConfig {
     pub asset_a_denom: String,
     pub asset_b_denom: String,
 }
-
 
 #[cw_serde]
 pub struct SinglePartyPfmUnwindingConfig {
