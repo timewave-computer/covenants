@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, BTreeMap};
+use std::collections::BTreeSet;
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -6,7 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Addr, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response,
     StdResult, WasmMsg,
 };
-use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, PacketForwardMiddlewareConfig};
+use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
@@ -18,9 +18,7 @@ use crate::{
     state::{
         COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
-        PARTY_B_ROUTER_ADDR, PRESET_CLOCK_FIELDS, PRESET_HOLDER_FIELDS,
-        PRESET_LIQUID_POOLER_FIELDS, PRESET_PARTY_A_FORWARDER_FIELDS, PRESET_PARTY_A_ROUTER_FIELDS,
-        PRESET_PARTY_B_FORWARDER_FIELDS, PRESET_PARTY_B_ROUTER_FIELDS,
+        PARTY_B_ROUTER_ADDR, CONTRACT_CODES,
     },
 };
 
@@ -48,6 +46,8 @@ pub fn instantiate(
 
     let party_a_router_code = msg.party_a_config.get_router_code_id(&msg.contract_codes);
     let party_b_router_code = msg.party_b_config.get_router_code_id(&msg.contract_codes);
+
+    CONTRACT_CODES.save(deps.storage, &msg.contract_codes.to_covenant_codes_config(party_a_router_code, party_b_router_code))?;
     let covenant_denoms: BTreeSet<String> = msg
         .splits
         .iter()
@@ -322,80 +322,74 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
         } => {
             let mut migrate_msgs = vec![];
             let mut resp = Response::default().add_attribute("method", "migrate_contracts");
+            let contract_codes = CONTRACT_CODES.load(deps.storage)?;
 
             if let Some(clock) = clock {
                 let msg = to_json_binary(&clock)?;
-                let clock_fields = PRESET_CLOCK_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("clock_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_CLOCK_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: clock_fields.code_id,
+                    new_code_id: contract_codes.clock,
                     msg,
                 });
             }
 
             if let Some(router) = party_a_router {
                 let msg: Binary = to_json_binary(&router)?;
-                let router_fields = PRESET_PARTY_A_ROUTER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("party_a_router_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: PARTY_A_ROUTER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: router_fields.code_id,
+                    new_code_id: contract_codes.party_a_router,
                     msg,
                 });
             }
 
             if let Some(router) = party_b_router {
                 let msg: Binary = to_json_binary(&router)?;
-                let router_fields = PRESET_PARTY_B_ROUTER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("party_b_router_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: PARTY_B_ROUTER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: router_fields.code_id,
+                    new_code_id: contract_codes.party_b_router,
                     msg,
                 });
             }
 
             if let Some(forwarder) = party_a_forwarder {
                 let msg: Binary = to_json_binary(&forwarder)?;
-                let forwarder_fields = PRESET_PARTY_A_FORWARDER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("party_a_forwarder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: PARTY_A_IBC_FORWARDER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: forwarder_fields.code_id,
+                    new_code_id: contract_codes.party_a_forwarder,
                     msg,
                 });
             }
 
             if let Some(forwarder) = party_b_forwarder {
                 let msg: Binary = to_json_binary(&forwarder)?;
-                let forwarder_fields = PRESET_PARTY_B_FORWARDER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("party_b_forwarder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: PARTY_B_IBC_FORWARDER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: forwarder_fields.code_id,
+                    new_code_id: contract_codes.party_b_forwarder,
                     msg,
                 });
             }
 
             if let Some(holder) = holder {
                 let msg: Binary = to_json_binary(&holder)?;
-                let holder_fields = PRESET_HOLDER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("holder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: COVENANT_POL_HOLDER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: holder_fields.code_id,
+                    new_code_id: contract_codes.holder,
                     msg,
                 });
             }
 
             if let Some(liquid_pooler) = liquid_pooler {
                 let msg = to_json_binary(&liquid_pooler)?;
-                let liquid_pooler_fields = PRESET_LIQUID_POOLER_FIELDS.load(deps.storage)?;
                 resp = resp.add_attribute("liquid_pooler_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: LIQUID_POOLER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: liquid_pooler_fields.code_id,
+                    new_code_id: contract_codes.liquid_pooler,
                     msg,
                 });
             }
