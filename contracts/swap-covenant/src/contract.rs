@@ -18,11 +18,11 @@ use cw2::set_contract_version;
 
 use crate::{
     error::ContractError,
-    msg::{CovenantPartyConfig, InstantiateMsg, QueryMsg, CovenantContractCodes},
+    msg::{CovenantPartyConfig, InstantiateMsg, QueryMsg},
     state::{
-        COVENANT_CLOCK_ADDR, COVENANT_INTERCHAIN_SPLITTER_ADDR, COVENANT_SWAP_HOLDER_ADDR,
-        PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
-        PARTY_B_ROUTER_ADDR, CONTRACT_CODES,
+        CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_INTERCHAIN_SPLITTER_ADDR,
+        COVENANT_SWAP_HOLDER_ADDR, PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR,
+        PARTY_B_IBC_FORWARDER_ADDR, PARTY_B_ROUTER_ADDR,
     },
 };
 
@@ -47,11 +47,14 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
     let party_a_router_code = msg.party_a_config.get_router_code_id(&msg.contract_codes);
     let party_b_router_code = msg.party_b_config.get_router_code_id(&msg.contract_codes);
-    CONTRACT_CODES.save(deps.storage, &msg.contract_codes.to_covenant_codes_config(party_a_router_code, party_b_router_code))?;
+    CONTRACT_CODES.save(
+        deps.storage,
+        &msg.contract_codes
+            .to_covenant_codes_config(party_a_router_code, party_b_router_code),
+    )?;
 
     let covenant_denoms: BTreeSet<String> = msg
         .splits

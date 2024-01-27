@@ -12,7 +12,10 @@ use covenant_osmo_liquid_pooler::msg::{
     PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields,
 };
 use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
-use covenant_utils::{CovenantParty, DenomSplit, DestinationConfig, ReceiverConfig, SplitConfig, PacketForwardMiddlewareConfig, PfmUnwindingConfig};
+use covenant_utils::{
+    CovenantParty, DenomSplit, DestinationConfig, PacketForwardMiddlewareConfig,
+    PfmUnwindingConfig, ReceiverConfig, SplitConfig,
+};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -42,7 +45,6 @@ pub struct InstantiateMsg {
     pub liquid_pooler_config: LiquidPoolerConfig,
     pub pfm_unwinding_config: PfmUnwindingConfig,
 }
-
 
 #[cw_serde]
 pub enum LiquidPoolerConfig {
@@ -324,7 +326,11 @@ pub(crate) struct CovenantContractCodes {
 }
 
 impl CovenantContractCodeIds {
-    pub(crate) fn to_covenant_codes_config(&self, party_a_router_code: u64, party_b_router_code: u64) -> CovenantContractCodes {
+    pub(crate) fn to_covenant_codes_config(
+        &self,
+        party_a_router_code: u64,
+        party_b_router_code: u64,
+    ) -> CovenantContractCodes {
         CovenantContractCodes {
             clock: self.clock_code,
             holder: self.holder_code,

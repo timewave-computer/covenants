@@ -1,6 +1,6 @@
+use crate::msg::CovenantContractCodeIds;
 use cosmwasm_std::Addr;
 use cw_storage_plus::Item;
-use crate::msg::CovenantContractCodeIds;
 
 pub const COVENANT_CLOCK_ADDR: Item<Addr> = Item::new("covenant_clock_addr");
 pub const HOLDER_ADDR: Item<Addr> = Item::new("holder_addr");

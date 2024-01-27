@@ -6,19 +6,19 @@ use cosmwasm_std::{
     to_json_binary, Addr, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response,
     StdResult, WasmMsg,
 };
-use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
 use covenant_clock::msg::PresetClockFields;
 use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
 use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
+use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
 use cw2::set_contract_version;
 
 use crate::{
     error::ContractError,
     msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
+        CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
-        PARTY_B_ROUTER_ADDR, CONTRACT_CODES,
+        PARTY_B_ROUTER_ADDR,
     },
 };
 
@@ -47,7 +47,11 @@ pub fn instantiate(
     let party_a_router_code = msg.party_a_config.get_router_code_id(&msg.contract_codes);
     let party_b_router_code = msg.party_b_config.get_router_code_id(&msg.contract_codes);
 
-    CONTRACT_CODES.save(deps.storage, &msg.contract_codes.to_covenant_codes_config(party_a_router_code, party_b_router_code))?;
+    CONTRACT_CODES.save(
+        deps.storage,
+        &msg.contract_codes
+            .to_covenant_codes_config(party_a_router_code, party_b_router_code),
+    )?;
     let covenant_denoms: BTreeSet<String> = msg
         .splits
         .iter()
