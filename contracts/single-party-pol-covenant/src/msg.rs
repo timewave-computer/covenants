@@ -2,8 +2,10 @@ use std::collections::BTreeMap;
 
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Coin, Decimal, Uint128, Uint64};
-use covenant_utils::{CovenantParty, DestinationConfig, ReceiverConfig, PfmUnwindingConfig, PacketForwardMiddlewareConfig};
+use cosmwasm_std::{Addr, Coin, Decimal, Uint128, Uint64, Binary, WasmMsg, StdResult};
+use covenant_astroport_liquid_pooler::msg::{AssetData, SingleSideLpLimits, PresetAstroLiquidPoolerFields};
+use covenant_osmo_liquid_pooler::msg::{PresetOsmoLiquidPoolerFields, PartyChainInfo, PartyDenomInfo};
+use covenant_utils::{CovenantParty, DestinationConfig, ReceiverConfig, PfmUnwindingConfig, PacketForwardMiddlewareConfig, ForwardMetadata};
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
 
@@ -19,7 +21,7 @@ pub struct InstantiateMsg {
     pub clock_tick_max_gas: Option<Uint64>,
     pub lockup_period: Expiration,
     // remove
-    pub pool_address: String,
+    // pub pool_address: String,
     pub ls_info: LsInfo,
     // remove notion of party as its a single party covenant
     pub party_a_single_side_limit: Uint128,
@@ -30,7 +32,7 @@ pub struct InstantiateMsg {
     // use liquid pooler config
     pub expected_pool_ratio: Decimal,
     pub acceptable_pool_ratio_delta: Decimal,
-    pub pool_pair_type: PairType,
+    // pub pool_pair_type: PairType,
     pub native_splitter_config: NativeSplitterConfig,
     // move the following fields to a party configuration
     // and include routing info there
@@ -38,10 +40,106 @@ pub struct InstantiateMsg {
     pub withdraw_to: Option<String>,
     pub emergency_committee: Option<String>,
     pub pfm_unwinding_config: SinglePartyPfmUnwindingConfig,
-
     pub covenant_party_config: InterchainCovenantParty,
-    // pub liquid_pooler_config: LiquidPoolerConfig,
+    pub liquid_pooler_config: LiquidPoolerConfig,
 }
+
+
+
+#[cw_serde]
+pub enum LiquidPoolerConfig {
+    Osmosis(Box<OsmosisLiquidPoolerConfig>),
+    Astroport(AstroportLiquidPoolerConfig),
+}
+
+impl LiquidPoolerConfig {
+    pub fn to_instantiate2_msg(
+        &self,
+        admin: String,
+        label: String,
+        code_id: u64,
+        salt: Binary,
+        clock_addr: String,
+        holder_addr: String,
+        (expected_spot_price, acceptable_price_spread): (Decimal, Decimal),
+    ) -> StdResult<WasmMsg> {
+        match self {
+            LiquidPoolerConfig::Osmosis(config) => Ok(PresetOsmoLiquidPoolerFields {
+                label,
+                code_id,
+                note_address: config.note_address.to_string(),
+                pool_id: config.pool_id,
+                osmo_ibc_timeout: config.osmo_ibc_timeout,
+                party_1_chain_info: config.party_1_chain_info.clone(),
+                party_2_chain_info: config.party_2_chain_info.clone(),
+                osmo_to_neutron_channel_id: config.osmo_to_neutron_channel_id.to_string(),
+                party_1_denom_info: config.party_1_denom_info.clone(),
+                party_2_denom_info: config.party_2_denom_info.clone(),
+                osmo_outpost: config.osmo_outpost.to_string(),
+                lp_token_denom: config.lp_token_denom.to_string(),
+                slippage_tolerance: None,
+                expected_spot_price,
+                acceptable_price_spread,
+                funding_duration_seconds: config.funding_duration_seconds,
+            }
+            .to_instantiate2_msg(
+                admin,
+                salt,
+                clock_addr.to_string(),
+                holder_addr.to_string(),
+            )?),
+            LiquidPoolerConfig::Astroport(config) => Ok(PresetAstroLiquidPoolerFields {
+                slippage_tolerance: None,
+                assets: AssetData {
+                    asset_a_denom: config.asset_a_denom.to_string(),
+                    asset_b_denom: config.asset_b_denom.to_string(),
+                },
+                // TODO: remove hardcoded limits
+                single_side_lp_limits: SingleSideLpLimits {
+                    asset_a_limit: Uint128::new(10000),
+                    asset_b_limit: Uint128::new(100000),
+                },
+                label,
+                code_id,
+                expected_pool_ratio: expected_spot_price,
+                acceptable_pool_ratio_delta: acceptable_price_spread,
+                pair_type: config.pool_pair_type.clone(),
+            }
+            .to_instantiate2_msg(
+                admin,
+                salt,
+                config.pool_address.to_string(),
+                clock_addr.to_string(),
+                holder_addr.to_string(),
+            )?),
+        }
+    }
+}
+
+
+#[cw_serde]
+pub struct OsmosisLiquidPoolerConfig {
+    pub note_address: String,
+    pub pool_id: Uint64,
+    pub osmo_ibc_timeout: Uint64,
+    pub osmo_outpost: String,
+    pub party_1_chain_info: PartyChainInfo,
+    pub party_2_chain_info: PartyChainInfo,
+    pub lp_token_denom: String,
+    pub osmo_to_neutron_channel_id: String,
+    pub party_1_denom_info: PartyDenomInfo,
+    pub party_2_denom_info: PartyDenomInfo,
+    pub funding_duration_seconds: Uint64,
+}
+
+#[cw_serde]
+pub struct AstroportLiquidPoolerConfig {
+    pub pool_pair_type: PairType,
+    pub pool_address: String,
+    pub asset_a_denom: String,
+    pub asset_b_denom: String,
+}
+
 
 #[cw_serde]
 pub struct SinglePartyPfmUnwindingConfig {
