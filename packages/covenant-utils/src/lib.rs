@@ -836,3 +836,12 @@ pub struct PfmUnwindingConfig {
     pub party_1_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
     pub party_2_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
 }
+
+/// single side lp limits define the highest amount (in `Uint128`) that
+/// we consider acceptable to provide single-sided.
+/// if asset balance exceeds these limits, double-sided liquidity should be provided.
+#[cw_serde]
+pub struct SingleSideLpLimits {
+    pub asset_a_limit: Uint128,
+    pub asset_b_limit: Uint128,
+}

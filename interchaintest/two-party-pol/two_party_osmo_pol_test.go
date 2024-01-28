@@ -611,18 +611,20 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 					},
 					OsmoToNeutronChannelId: testCtx.OsmoTransferChannelIds[testCtx.Neutron.Config().Name],
 					Party1DenomInfo: PartyDenomInfo{
-						OsmosisCoin:       cw.Coin{Denom: osmosisAtomIbcDenom, Amount: strconv.FormatUint(atomContributionAmount, 10)},
-						LocalDenom:        neutronAtomIbcDenom,
-						SingleSideLpLimit: "10000",
+						OsmosisCoin: cw.Coin{Denom: osmosisAtomIbcDenom, Amount: strconv.FormatUint(atomContributionAmount, 10)},
+						LocalDenom:  neutronAtomIbcDenom,
 					},
 					Party2DenomInfo: PartyDenomInfo{
-						OsmosisCoin:       cw.Coin{Denom: testCtx.Osmosis.Config().Denom, Amount: strconv.FormatUint(osmoContributionAmount, 10)},
-						LocalDenom:        neutronOsmoIbcDenom,
-						SingleSideLpLimit: "975000004",
+						OsmosisCoin: cw.Coin{Denom: testCtx.Osmosis.Config().Denom, Amount: strconv.FormatUint(osmoContributionAmount, 10)},
+						LocalDenom:  neutronOsmoIbcDenom,
 					},
 					LpTokenDenom:           "gamm/pool/1",
 					OsmoOutpost:            osmoOutpost,
 					FundingDurationSeconds: "200",
+					SingleSideLpLimits: SingleSideLpLimits{
+						AssetALimit: "10000",
+						AssetBLimit: "975000004",
+					},
 				},
 			}
 

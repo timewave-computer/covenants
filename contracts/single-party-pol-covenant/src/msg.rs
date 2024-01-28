@@ -4,13 +4,13 @@ use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Coin, Decimal, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::{
-    AssetData, PresetAstroLiquidPoolerFields, SingleSideLpLimits,
+    AssetData, PresetAstroLiquidPoolerFields,
 };
 use covenant_osmo_liquid_pooler::msg::{
     PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields,
 };
 use covenant_utils::{
-    CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, ReceiverConfig,
+    CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, ReceiverConfig, SingleSideLpLimits,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -28,8 +28,6 @@ pub struct InstantiateMsg {
     pub clock_tick_max_gas: Option<Uint64>,
     pub lockup_period: Expiration,
     pub ls_info: LsInfo,
-    pub party_a_single_side_limit: Uint128,
-    pub party_b_single_side_limit: Uint128,
     pub ls_forwarder_config: CovenantPartyConfig,
     pub lp_forwarder_config: CovenantPartyConfig,
     pub expected_pool_ratio: Decimal,
@@ -78,6 +76,7 @@ impl LiquidPoolerConfig {
                 expected_spot_price,
                 acceptable_price_spread,
                 funding_duration_seconds: config.funding_duration_seconds,
+                single_side_lp_limits: config.single_side_lp_limits.clone(),
             }
             .to_instantiate2_msg(
                 admin,
@@ -92,10 +91,7 @@ impl LiquidPoolerConfig {
                     asset_b_denom: config.asset_b_denom.to_string(),
                 },
                 // TODO: remove hardcoded limits
-                single_side_lp_limits: SingleSideLpLimits {
-                    asset_a_limit: Uint128::new(10000),
-                    asset_b_limit: Uint128::new(100000),
-                },
+                single_side_lp_limits: config.single_side_lp_limits.clone(),
                 label,
                 code_id,
                 expected_pool_ratio: expected_spot_price,
@@ -126,6 +122,7 @@ pub struct OsmosisLiquidPoolerConfig {
     pub party_1_denom_info: PartyDenomInfo,
     pub party_2_denom_info: PartyDenomInfo,
     pub funding_duration_seconds: Uint64,
+    pub single_side_lp_limits: SingleSideLpLimits,
 }
 
 #[cw_serde]
@@ -134,6 +131,7 @@ pub struct AstroportLiquidPoolerConfig {
     pub pool_address: String,
     pub asset_a_denom: String,
     pub asset_b_denom: String,
+    pub single_side_lp_limits: SingleSideLpLimits,
 }
 
 #[cw_serde]

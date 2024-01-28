@@ -216,24 +216,21 @@ type NativeBalQueryResponse struct {
 // single party POL types
 
 type CovenantInstantiationMsg struct {
-	Label                    string              `json:"label"`
-	Timeouts                 Timeouts            `json:"timeouts"`
-	PresetIbcFee             PresetIbcFee        `json:"preset_ibc_fee"`
-	ContractCodeIds          ContractCodeIds     `json:"contract_codes"`
-	TickMaxGas               string              `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig             Expiration          `json:"lockup_period"`
-	LsInfo                   LsInfo              `json:"ls_info"`
-	PartyASingleSideLimit    string              `json:"party_a_single_side_limit"`
-	PartyBSingleSideLimit    string              `json:"party_b_single_side_limit"`
-	LsForwarderConfig        CovenantPartyConfig `json:"ls_forwarder_config"`
-	LpForwarderConfig        CovenantPartyConfig `json:"lp_forwarder_config"`
-	ExpectedPoolRatio        string              `json:"expected_pool_ratio"`
-	AcceptablePoolRatioDelta string              `json:"acceptable_pool_ratio_delta"`
-	// PairType                 PairType                `json:"pool_pair_type"`
-	NativeSplitterConfig NativeSplitterConfig    `json:"native_splitter_config"`
-	PfmUnwindingConfig   PfmUnwindingConfig      `json:"pfm_unwinding_config"`
-	CovenantPartyConfig  InterchainCovenantParty `json:"covenant_party_config"`
-	LiquidPoolerConfig   LiquidPoolerConfig      `json:"liquid_pooler_config"`
+	Label                    string                  `json:"label"`
+	Timeouts                 Timeouts                `json:"timeouts"`
+	PresetIbcFee             PresetIbcFee            `json:"preset_ibc_fee"`
+	ContractCodeIds          ContractCodeIds         `json:"contract_codes"`
+	TickMaxGas               string                  `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig             Expiration              `json:"lockup_period"`
+	LsInfo                   LsInfo                  `json:"ls_info"`
+	LsForwarderConfig        CovenantPartyConfig     `json:"ls_forwarder_config"`
+	LpForwarderConfig        CovenantPartyConfig     `json:"lp_forwarder_config"`
+	ExpectedPoolRatio        string                  `json:"expected_pool_ratio"`
+	AcceptablePoolRatioDelta string                  `json:"acceptable_pool_ratio_delta"`
+	NativeSplitterConfig     NativeSplitterConfig    `json:"native_splitter_config"`
+	PfmUnwindingConfig       PfmUnwindingConfig      `json:"pfm_unwinding_config"`
+	CovenantPartyConfig      InterchainCovenantParty `json:"covenant_party_config"`
+	LiquidPoolerConfig       LiquidPoolerConfig      `json:"liquid_pooler_config"`
 }
 
 type LiquidPoolerConfig struct {
@@ -242,17 +239,23 @@ type LiquidPoolerConfig struct {
 }
 
 type OsmosisLiquidPoolerConfig struct {
-	NoteAddress            string         `json:"note_address"`
-	PoolId                 string         `json:"pool_id"`
-	OsmoIbcTimeout         string         `json:"osmo_ibc_timeout"`
-	OsmoOutpost            string         `json:"osmo_outpost"`
-	Party1ChainInfo        PartyChainInfo `json:"party_1_chain_info"`
-	Party2ChainInfo        PartyChainInfo `json:"party_2_chain_info"`
-	LpTokenDenom           string         `json:"lp_token_denom"`
-	OsmoToNeutronChannelId string         `json:"osmo_to_neutron_channel_id"`
-	Party1DenomInfo        PartyDenomInfo `json:"party_1_denom_info"`
-	Party2DenomInfo        PartyDenomInfo `json:"party_2_denom_info"`
-	FundingDurationSeconds string         `json:"funding_duration_seconds"`
+	NoteAddress            string             `json:"note_address"`
+	PoolId                 string             `json:"pool_id"`
+	OsmoIbcTimeout         string             `json:"osmo_ibc_timeout"`
+	OsmoOutpost            string             `json:"osmo_outpost"`
+	Party1ChainInfo        PartyChainInfo     `json:"party_1_chain_info"`
+	Party2ChainInfo        PartyChainInfo     `json:"party_2_chain_info"`
+	LpTokenDenom           string             `json:"lp_token_denom"`
+	OsmoToNeutronChannelId string             `json:"osmo_to_neutron_channel_id"`
+	Party1DenomInfo        PartyDenomInfo     `json:"party_1_denom_info"`
+	Party2DenomInfo        PartyDenomInfo     `json:"party_2_denom_info"`
+	FundingDurationSeconds string             `json:"funding_duration_seconds"`
+	SingleSideLpLimits     SingleSideLpLimits `json:"single_side_lp_limits"`
+}
+
+type SingleSideLpLimits struct {
+	AssetALimit string `json:"asset_a_limit"`
+	AssetBLimit string `json:"asset_b_limit"`
 }
 
 type PartyDenomInfo struct {
@@ -282,10 +285,11 @@ type ForwardMetadata struct {
 }
 
 type AstroportLiquidPoolerConfig struct {
-	PairType    PairType `json:"pool_pair_type"`
-	PoolAddress string   `json:"pool_address"`
-	AssetADenom string   `json:"asset_a_denom"`
-	AssetBDenom string   `json:"asset_b_denom"`
+	PairType           PairType           `json:"pool_pair_type"`
+	PoolAddress        string             `json:"pool_address"`
+	AssetADenom        string             `json:"asset_a_denom"`
+	AssetBDenom        string             `json:"asset_b_denom"`
+	SingleSideLpLimits SingleSideLpLimits `json:"single_side_lp_limits"`
 }
 
 type PfmUnwindingConfig struct {

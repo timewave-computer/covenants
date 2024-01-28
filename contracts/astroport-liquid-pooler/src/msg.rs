@@ -7,6 +7,7 @@ use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, Decimal, StdError, U
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
+use covenant_utils::SingleSideLpLimits;
 
 use crate::error::ContractError;
 
@@ -186,15 +187,6 @@ impl AssetData {
             },
         )
     }
-}
-
-/// single side lp limits define the highest amount (in `Uint128`) that
-/// we consider acceptable to provide single-sided.
-/// if asset balance exceeds these limits, double-sided liquidity should be provided.
-#[cw_serde]
-pub struct SingleSideLpLimits {
-    pub asset_a_limit: Uint128,
-    pub asset_b_limit: Uint128,
 }
 
 #[clocked]

@@ -787,8 +787,13 @@ func TestSinglePartyPol(t *testing.T) {
 					PoolAddress: stableswapAddress,
 					AssetADenom: lsInfo.LsDenomOnNeutron,
 					AssetBDenom: neutronAtomIbcDenom,
+					SingleSideLpLimits: SingleSideLpLimits{
+						AssetALimit: "1000000",
+						AssetBLimit: "1000000",
+					},
 				},
 			}
+
 			covenantInstantiationMsg := CovenantInstantiationMsg{
 				Label:                    "single_party_pol_covenant",
 				Timeouts:                 timeouts,
@@ -796,8 +801,6 @@ func TestSinglePartyPol(t *testing.T) {
 				ContractCodeIds:          contractCodes,
 				LockupConfig:             lockupConfig,
 				LsInfo:                   lsInfo,
-				PartyASingleSideLimit:    "10000000",
-				PartyBSingleSideLimit:    "10000000",
 				LsForwarderConfig:        lsForwarderConfig,
 				LpForwarderConfig:        liquidPoolerForwarderConfig,
 				ExpectedPoolRatio:        "1.0",
