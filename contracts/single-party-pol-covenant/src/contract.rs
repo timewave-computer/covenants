@@ -207,11 +207,11 @@ pub fn instantiate(
         router_instantiate2_msg,
     ];
 
-
     if let CovenantPartyConfig::Interchain(config) = msg.ls_forwarder_config {
         LS_FORWARDER_ADDR.save(deps.storage, &ls_forwarder_address)?;
-            clock_whitelist.insert(0, ls_forwarder_address.to_string());
-            messages.push(PresetIbcForwarderFields {
+        clock_whitelist.insert(0, ls_forwarder_address.to_string());
+        messages.push(
+            PresetIbcForwarderFields {
                 remote_chain_connection_id: config.party_chain_connection_id,
                 remote_chain_channel_id: config.party_to_host_chain_channel_id,
                 denom: config.remote_chain_denom,
@@ -227,31 +227,32 @@ pub fn instantiate(
                 ls_forwarder_salt,
                 clock_address.to_string(),
                 liquid_staker_address.to_string(),
-            )?
+            )?,
         );
     }
-
 
     if let CovenantPartyConfig::Interchain(config) = msg.lp_forwarder_config {
         LP_FORWARDER_ADDR.save(deps.storage, &lp_forwarder_address)?;
         clock_whitelist.insert(0, lp_forwarder_address.to_string());
-        messages.push(PresetIbcForwarderFields {
-            remote_chain_connection_id: config.party_chain_connection_id,
-            remote_chain_channel_id: config.party_to_host_chain_channel_id,
-            denom: config.remote_chain_denom,
-            amount: config.contribution.amount,
-            label: format!("{}_lp_ibc_forwarder", msg.label),
-            code_id: msg.contract_codes.ibc_forwarder_code,
-            ica_timeout: msg.timeouts.ica_timeout,
-            ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-        }
-        .to_instantiate2_msg(
-            env.contract.address.to_string(),
-            lp_forwarder_salt,
-            clock_address.to_string(),
-            liquid_pooler_address.to_string(),
-        )?);
+        messages.push(
+            PresetIbcForwarderFields {
+                remote_chain_connection_id: config.party_chain_connection_id,
+                remote_chain_channel_id: config.party_to_host_chain_channel_id,
+                denom: config.remote_chain_denom,
+                amount: config.contribution.amount,
+                label: format!("{}_lp_ibc_forwarder", msg.label),
+                code_id: msg.contract_codes.ibc_forwarder_code,
+                ica_timeout: msg.timeouts.ica_timeout,
+                ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+                ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+            }
+            .to_instantiate2_msg(
+                env.contract.address.to_string(),
+                lp_forwarder_salt,
+                clock_address.to_string(),
+                liquid_pooler_address.to_string(),
+            )?,
+        );
     };
 
     let clock_instantiate2_msg = PresetClockFields {

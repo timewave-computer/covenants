@@ -102,57 +102,10 @@ pub fn instantiate(
     )?;
 
     let mut clock_whitelist: Vec<String> = Vec::with_capacity(6);
-
-    let preset_party_a_forwarder_fields =
-        if let CovenantPartyConfig::Interchain(config) = &msg.party_a_config {
-            PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &party_a_forwarder_addr)?;
-            clock_whitelist.push(party_a_forwarder_addr.to_string());
-            Some(PresetIbcForwarderFields {
-                remote_chain_connection_id: config.party_chain_connection_id.to_string(),
-                remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
-                denom: config.remote_chain_denom.to_string(),
-                amount: config.contribution.amount,
-                label: format!("{}_party_a_ibc_forwarder", msg.label),
-                code_id: msg.contract_codes.ibc_forwarder_code,
-                ica_timeout: msg.timeouts.ica_timeout,
-                ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-                ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-            })
-        } else {
-            None
-        };
-
-    let preset_party_b_forwarder_fields =
-        if let CovenantPartyConfig::Interchain(config) = &msg.party_b_config {
-            PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_forwarder_addr)?;
-            clock_whitelist.push(party_b_forwarder_addr.to_string());
-            Some(PresetIbcForwarderFields {
-                remote_chain_connection_id: config.party_chain_connection_id.to_string(),
-                remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
-                denom: config.remote_chain_denom.to_string(),
-                amount: config.contribution.amount,
-                label: format!("{}_party_b_ibc_forwarder", msg.label),
-                code_id: msg.contract_codes.ibc_forwarder_code,
-                ica_timeout: msg.timeouts.ica_timeout,
-                ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-                ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
-            })
-        } else {
-            None
-        };
-
     clock_whitelist.push(holder_addr.to_string());
     clock_whitelist.push(party_a_router_addr.to_string());
     clock_whitelist.push(party_b_router_addr.to_string());
     clock_whitelist.push(liquid_pooler_addr.to_string());
-
-    let clock_instantiate2_msg = PresetClockFields {
-        tick_max_gas: msg.clock_tick_max_gas,
-        whitelist: clock_whitelist,
-        code_id: msg.contract_codes.clock_code,
-        label: format!("{}-clock", msg.label),
-    }
-    .to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
 
     let holder_instantiate2_msg = PresetTwoPartyPolHolderFields {
         lockup_config: msg.lockup_config,
@@ -207,15 +160,27 @@ pub fn instantiate(
     )?;
 
     let mut messages = vec![
-        clock_instantiate2_msg,
         holder_instantiate2_msg,
         party_a_router_instantiate2_msg,
         party_b_router_instantiate2_msg,
         liquid_pooler_instantiate2_msg,
     ];
 
-    if let Some(fields) = preset_party_a_forwarder_fields {
-        messages.push(fields.to_instantiate2_msg(
+    if let CovenantPartyConfig::Interchain(config) = &msg.party_a_config {
+        PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &party_a_forwarder_addr)?;
+        clock_whitelist.push(party_a_forwarder_addr.to_string());
+        let preset_fields = PresetIbcForwarderFields {
+            remote_chain_connection_id: config.party_chain_connection_id.to_string(),
+            remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
+            denom: config.remote_chain_denom.to_string(),
+            amount: config.contribution.amount,
+            label: format!("{}_party_a_ibc_forwarder", msg.label),
+            code_id: msg.contract_codes.ibc_forwarder_code,
+            ica_timeout: msg.timeouts.ica_timeout,
+            ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+        };
+        messages.push(preset_fields.to_instantiate2_msg(
             env.contract.address.to_string(),
             party_a_forwarder_salt,
             clock_addr.to_string(),
@@ -223,14 +188,36 @@ pub fn instantiate(
         )?);
     }
 
-    if let Some(fields) = preset_party_b_forwarder_fields {
-        messages.push(fields.to_instantiate2_msg(
+    if let CovenantPartyConfig::Interchain(config) = &msg.party_b_config {
+        PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_forwarder_addr)?;
+        clock_whitelist.push(party_b_forwarder_addr.to_string());
+        let preset_fields = PresetIbcForwarderFields {
+            remote_chain_connection_id: config.party_chain_connection_id.to_string(),
+            remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
+            denom: config.remote_chain_denom.to_string(),
+            amount: config.contribution.amount,
+            label: format!("{}_party_b_ibc_forwarder", msg.label),
+            code_id: msg.contract_codes.ibc_forwarder_code,
+            ica_timeout: msg.timeouts.ica_timeout,
+            ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+        };
+        messages.push(preset_fields.to_instantiate2_msg(
             env.contract.address.to_string(),
             party_b_forwarder_salt,
             clock_addr.to_string(),
             holder_addr.to_string(),
         )?);
-    };
+    }
+
+    let clock_instantiate2_msg = PresetClockFields {
+        tick_max_gas: msg.clock_tick_max_gas,
+        whitelist: clock_whitelist,
+        code_id: msg.contract_codes.clock_code,
+        label: format!("{}-clock", msg.label),
+    }
+    .to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
+    messages.insert(0, clock_instantiate2_msg);
 
     COVENANT_POL_HOLDER_ADDR.save(deps.storage, &holder_addr)?;
     LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_addr)?;

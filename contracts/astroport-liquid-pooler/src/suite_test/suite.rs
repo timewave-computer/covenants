@@ -8,7 +8,7 @@ use cosmwasm_std::{
     testing::MockApi, to_json_binary, Addr, Coin, Decimal, Empty, MemoryStorage, QueryRequest,
     Uint128, Uint64, WasmQuery,
 };
-use covenant_utils::{SingleSideLpLimits, PoolPriceConfig};
+use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
 use cw20::Cw20ExecuteMsg;
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BankSudo, Contract, ContractWrapper, Executor, FailingModule,
