@@ -8,7 +8,7 @@ use cosmwasm_std::{
     testing::MockApi, to_json_binary, Addr, Coin, Decimal, Empty, MemoryStorage, QueryRequest,
     Uint128, Uint64, WasmQuery,
 };
-use covenant_utils::SingleSideLpLimits;
+use covenant_utils::{SingleSideLpLimits, PoolPriceConfig};
 use cw20::Cw20ExecuteMsg;
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BankSudo, Contract, ContractWrapper, Executor, FailingModule,
@@ -154,8 +154,10 @@ impl Default for SuiteBuilder {
                     asset_a_limit: Uint128::new(100),
                     asset_b_limit: Uint128::new(1000),
                 },
-                expected_pool_ratio: Decimal::from_ratio(Uint128::new(1), Uint128::new(10)),
-                acceptable_pool_ratio_delta: Decimal::from_ratio(Uint128::one(), Uint128::new(100)),
+                pool_price_config: PoolPriceConfig {
+                    expected_spot_price: Decimal::from_ratio(Uint128::new(1), Uint128::new(10)),
+                    acceptable_price_spread: Decimal::from_ratio(Uint128::one(), Uint128::new(100)),
+                },
                 pair_type: PairType::Stable {},
                 holder_address: "holder".to_string(),
             },

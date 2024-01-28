@@ -8,9 +8,8 @@ use cosmwasm_std::{
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_utils::{ForwardMetadata, OutpostExecuteMsg, SingleSideLpLimits};
+use covenant_utils::{ForwardMetadata, OutpostExecuteMsg, SingleSideLpLimits, PoolPriceConfig};
 use cw_utils::Expiration;
-use osmosis_std::types::cosmos::tx::signing::v1beta1::signature_descriptor::data::Single;
 use polytone::callbacks::CallbackMessage;
 
 #[cw_serde]
@@ -28,11 +27,11 @@ pub struct InstantiateMsg {
     pub osmo_outpost: String,
     pub lp_token_denom: String,
     pub slippage_tolerance: Option<Decimal>,
-    pub expected_spot_price: Decimal,
-    pub acceptable_price_spread: Decimal,
+    pub pool_price_config: PoolPriceConfig,
     pub funding_duration_seconds: Uint64,
     pub single_side_lp_limits: SingleSideLpLimits,
 }
+
 
 #[cw_serde]
 pub struct PresetOsmoLiquidPoolerFields {
@@ -49,8 +48,7 @@ pub struct PresetOsmoLiquidPoolerFields {
     pub osmo_outpost: String,
     pub lp_token_denom: String,
     pub slippage_tolerance: Option<Decimal>,
-    pub expected_spot_price: Decimal,
-    pub acceptable_price_spread: Decimal,
+    pub pool_price_config: PoolPriceConfig,
     pub funding_duration_seconds: Uint64,
     pub single_side_lp_limits: SingleSideLpLimits,
 }
@@ -75,8 +73,7 @@ impl PresetOsmoLiquidPoolerFields {
             osmo_outpost: self.osmo_outpost.to_string(),
             lp_token_denom: self.lp_token_denom.to_string(),
             slippage_tolerance: self.slippage_tolerance,
-            expected_spot_price: self.expected_spot_price,
-            acceptable_price_spread: self.acceptable_price_spread,
+            pool_price_config: self.pool_price_config.clone(),
             funding_duration_seconds: self.funding_duration_seconds,
             single_side_lp_limits: self.single_side_lp_limits.clone(),
         }
@@ -109,8 +106,7 @@ pub struct LiquidityProvisionConfig {
     pub outpost: String,
     pub lp_token_denom: String,
     pub slippage_tolerance: Option<Decimal>,
-    pub expected_spot_price: Decimal,
-    pub acceptable_price_spread: Decimal,
+    pub pool_price_config: PoolPriceConfig,
     pub funding_duration_seconds: Uint64,
     pub single_side_lp_limits: SingleSideLpLimits,
 }
@@ -167,8 +163,8 @@ impl LiquidityProvisionConfig {
 
         let outpost_config = covenant_utils::OutpostProvideLiquidityConfig {
             pool_id: Uint64::new(self.pool_id.u64()),
-            expected_spot_price: self.expected_spot_price,
-            acceptable_price_spread: self.acceptable_price_spread,
+            expected_spot_price: self.pool_price_config.expected_spot_price,
+            acceptable_price_spread: self.pool_price_config.acceptable_price_spread,
             // if no slippage tolerance is passed, we use 0
             slippage_tolerance: self.slippage_tolerance.unwrap_or_default(),
             asset_1_single_side_lp_limit: self.single_side_lp_limits.asset_a_limit,
@@ -214,10 +210,10 @@ impl LiquidityProvisionConfig {
             Attribute::new("outpost", self.outpost),
             Attribute::new("lp_token_denom", self.lp_token_denom),
             Attribute::new("slippage_tolerance", slippage_tolerance),
-            Attribute::new("expected_spot_price", self.expected_spot_price.to_string()),
+            Attribute::new("expected_spot_price", self.pool_price_config.expected_spot_price.to_string()),
             Attribute::new(
                 "acceptable_price_spread",
-                self.acceptable_price_spread.to_string(),
+                self.pool_price_config.acceptable_price_spread.to_string(),
             ),
         ];
         attributes.extend(

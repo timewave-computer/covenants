@@ -166,7 +166,7 @@ pub fn instantiate(
         liquid_pooler_salt,
         clock_address.to_string(),
         holder_address.to_string(),
-        (msg.expected_pool_ratio, msg.acceptable_pool_ratio_delta),
+        msg.pool_price_config,
     )?;
 
     let splitter_instantiate2_msg = PresetNativeSplitterFields {

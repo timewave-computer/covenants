@@ -10,7 +10,7 @@ use covenant_osmo_liquid_pooler::msg::{
     PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields,
 };
 use covenant_utils::{
-    CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, ReceiverConfig, SingleSideLpLimits,
+    CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, ReceiverConfig, SingleSideLpLimits, PoolPriceConfig,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -30,11 +30,9 @@ pub struct InstantiateMsg {
     pub ls_info: LsInfo,
     pub ls_forwarder_config: CovenantPartyConfig,
     pub lp_forwarder_config: CovenantPartyConfig,
-    pub expected_pool_ratio: Decimal,
-    pub acceptable_pool_ratio_delta: Decimal,
+    // todo: combine into a single struct
+    pub pool_price_config: PoolPriceConfig,
     pub native_splitter_config: NativeSplitterConfig,
-    pub withdrawer: Option<String>,
-    pub withdraw_to: Option<String>,
     pub emergency_committee: Option<String>,
     pub pfm_unwinding_config: SinglePartyPfmUnwindingConfig,
     pub covenant_party_config: InterchainCovenantParty,
@@ -56,7 +54,7 @@ impl LiquidPoolerConfig {
         salt: Binary,
         clock_addr: String,
         holder_addr: String,
-        (expected_spot_price, acceptable_price_spread): (Decimal, Decimal),
+        pool_price_config: PoolPriceConfig,
     ) -> StdResult<WasmMsg> {
         match self {
             LiquidPoolerConfig::Osmosis(config) => Ok(PresetOsmoLiquidPoolerFields {
@@ -73,8 +71,7 @@ impl LiquidPoolerConfig {
                 osmo_outpost: config.osmo_outpost.to_string(),
                 lp_token_denom: config.lp_token_denom.to_string(),
                 slippage_tolerance: None,
-                expected_spot_price,
-                acceptable_price_spread,
+                pool_price_config,
                 funding_duration_seconds: config.funding_duration_seconds,
                 single_side_lp_limits: config.single_side_lp_limits.clone(),
             }
@@ -94,8 +91,7 @@ impl LiquidPoolerConfig {
                 single_side_lp_limits: config.single_side_lp_limits.clone(),
                 label,
                 code_id,
-                expected_pool_ratio: expected_spot_price,
-                acceptable_pool_ratio_delta: acceptable_price_spread,
+                pool_price_config,
                 pair_type: config.pool_pair_type.clone(),
             }
             .to_instantiate2_msg(

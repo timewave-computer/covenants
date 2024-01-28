@@ -560,17 +560,19 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					PartyBConfig: CovenantPartyConfig{
 						Native: &partyBConfig,
 					},
-					RagequitConfig:           &ragequitConfig,
-					DepositDeadline:          depositDeadline,
-					PartyAShare:              "50",
-					PartyBShare:              "50",
-					ExpectedPoolRatio:        "0.1",
-					AcceptablePoolRatioDelta: "0.09",
-					CovenantType:             "share",
-					Splits:                   denomSplits,
-					FallbackSplit:            nil,
-					LiquidPoolerConfig:       liquidPoolerConfig,
-					PfmUnwindingConfig:       pfmUnwindingConfig,
+					RagequitConfig:     &ragequitConfig,
+					DepositDeadline:    depositDeadline,
+					PartyAShare:        "50",
+					PartyBShare:        "50",
+					CovenantType:       "share",
+					Splits:             denomSplits,
+					FallbackSplit:      nil,
+					LiquidPoolerConfig: liquidPoolerConfig,
+					PfmUnwindingConfig: pfmUnwindingConfig,
+					PoolPriceConfig: PoolPriceConfig{
+						ExpectedSpotPrice:     "0.1",
+						AcceptablePriceSpread: "0.09",
+					},
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantCodeId, covenantMsg, neutronUser, keyring.BackendTest)
@@ -874,6 +876,10 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						PoolAddress: poolAddress,
 						AssetADenom: neutronAtomIbcDenom,
 						AssetBDenom: cosmosNeutron.Config().Denom,
+						SingleSideLpLimits: SingleSideLpLimits{
+							AssetALimit: "100000",
+							AssetBLimit: "100000",
+						},
 					},
 				}
 
@@ -886,20 +892,22 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				}
 
 				covenantMsg := CovenantInstantiateMsg{
-					Label:                    "two-party-pol-covenant-ragequit",
-					Timeouts:                 timeouts,
-					PresetIbcFee:             presetIbcFee,
-					ContractCodeIds:          codeIds,
-					LockupConfig:             lockupConfig,
-					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
-					PartyBConfig:             CovenantPartyConfig{Native: &partyBConfig},
-					RagequitConfig:           &ragequitConfig,
-					DepositDeadline:          depositDeadline,
-					CovenantType:             "share",
-					PartyAShare:              "50",
-					PartyBShare:              "50",
-					ExpectedPoolRatio:        "0.1",
-					AcceptablePoolRatioDelta: "0.09",
+					Label:           "two-party-pol-covenant-ragequit",
+					Timeouts:        timeouts,
+					PresetIbcFee:    presetIbcFee,
+					ContractCodeIds: codeIds,
+					LockupConfig:    lockupConfig,
+					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
+					PartyBConfig:    CovenantPartyConfig{Native: &partyBConfig},
+					RagequitConfig:  &ragequitConfig,
+					DepositDeadline: depositDeadline,
+					CovenantType:    "share",
+					PartyAShare:     "50",
+					PartyBShare:     "50",
+					PoolPriceConfig: PoolPriceConfig{
+						ExpectedSpotPrice:     "0.1",
+						AcceptablePriceSpread: "0.09",
+					},
 					Splits: []DenomSplit{
 						{
 							Denom: neutronAtomIbcDenom,
@@ -1169,6 +1177,10 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						PoolAddress: poolAddress,
 						AssetADenom: neutronAtomIbcDenom,
 						AssetBDenom: cosmosNeutron.Config().Denom,
+						SingleSideLpLimits: SingleSideLpLimits{
+							AssetALimit: "100000",
+							AssetBLimit: "100000",
+						},
 					},
 				}
 
@@ -1181,20 +1193,22 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				}
 
 				covenantMsg := CovenantInstantiateMsg{
-					Label:                    "two-party-pol-covenant-side-ragequit",
-					Timeouts:                 timeouts,
-					PresetIbcFee:             presetIbcFee,
-					ContractCodeIds:          codeIds,
-					LockupConfig:             lockupConfig,
-					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
-					PartyBConfig:             CovenantPartyConfig{Native: &partyBConfig},
-					RagequitConfig:           &ragequitConfig,
-					DepositDeadline:          depositDeadline,
-					PartyAShare:              "50",
-					PartyBShare:              "50",
-					ExpectedPoolRatio:        "0.1",
-					AcceptablePoolRatioDelta: "0.09",
-					CovenantType:             "side",
+					Label:           "two-party-pol-covenant-side-ragequit",
+					Timeouts:        timeouts,
+					PresetIbcFee:    presetIbcFee,
+					ContractCodeIds: codeIds,
+					LockupConfig:    lockupConfig,
+					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
+					PartyBConfig:    CovenantPartyConfig{Native: &partyBConfig},
+					RagequitConfig:  &ragequitConfig,
+					DepositDeadline: depositDeadline,
+					PartyAShare:     "50",
+					PartyBShare:     "50",
+					PoolPriceConfig: PoolPriceConfig{
+						ExpectedSpotPrice:     "0.1",
+						AcceptablePriceSpread: "0.09",
+					},
+					CovenantType: "side",
 					Splits: []DenomSplit{
 						{
 							Denom: neutronAtomIbcDenom,
@@ -1448,6 +1462,10 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						PoolAddress: poolAddress,
 						AssetADenom: neutronAtomIbcDenom,
 						AssetBDenom: cosmosNeutron.Config().Denom,
+						SingleSideLpLimits: SingleSideLpLimits{
+							AssetALimit: "100000",
+							AssetBLimit: "100000",
+						},
 					},
 				}
 
@@ -1460,20 +1478,22 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				}
 
 				covenantMsg := CovenantInstantiateMsg{
-					Label:                    "two-party-pol-covenant-side-happy",
-					Timeouts:                 timeouts,
-					PresetIbcFee:             presetIbcFee,
-					ContractCodeIds:          codeIds,
-					LockupConfig:             lockupConfig,
-					PartyAConfig:             CovenantPartyConfig{Interchain: &partyAConfig},
-					PartyBConfig:             CovenantPartyConfig{Native: &partyBConfig},
-					RagequitConfig:           &ragequitConfig,
-					DepositDeadline:          depositDeadline,
-					PartyAShare:              "50",
-					PartyBShare:              "50",
-					ExpectedPoolRatio:        "0.1",
-					AcceptablePoolRatioDelta: "0.09",
-					CovenantType:             "side",
+					Label:           "two-party-pol-covenant-side-happy",
+					Timeouts:        timeouts,
+					PresetIbcFee:    presetIbcFee,
+					ContractCodeIds: codeIds,
+					LockupConfig:    lockupConfig,
+					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
+					PartyBConfig:    CovenantPartyConfig{Native: &partyBConfig},
+					RagequitConfig:  &ragequitConfig,
+					DepositDeadline: depositDeadline,
+					PartyAShare:     "50",
+					PartyBShare:     "50",
+					PoolPriceConfig: PoolPriceConfig{
+						ExpectedSpotPrice:     "0.1",
+						AcceptablePriceSpread: "0.09",
+					},
+					CovenantType: "side",
 					Splits: []DenomSplit{
 						{
 							Denom: neutronAtomIbcDenom,

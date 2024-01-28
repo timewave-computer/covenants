@@ -795,20 +795,22 @@ func TestSinglePartyPol(t *testing.T) {
 			}
 
 			covenantInstantiationMsg := CovenantInstantiationMsg{
-				Label:                    "single_party_pol_covenant",
-				Timeouts:                 timeouts,
-				PresetIbcFee:             presetIbcFee,
-				ContractCodeIds:          contractCodes,
-				LockupConfig:             lockupConfig,
-				LsInfo:                   lsInfo,
-				LsForwarderConfig:        lsForwarderConfig,
-				LpForwarderConfig:        liquidPoolerForwarderConfig,
-				ExpectedPoolRatio:        "1.0",
-				AcceptablePoolRatioDelta: "0.1",
-				NativeSplitterConfig:     nativeSplitterConfig,
-				PfmUnwindingConfig:       pfmUnwindingConfig,
-				CovenantPartyConfig:      covenantPartyConfig,
-				LiquidPoolerConfig:       liquidPoolerConfig,
+				Label:                "single_party_pol_covenant",
+				Timeouts:             timeouts,
+				PresetIbcFee:         presetIbcFee,
+				ContractCodeIds:      contractCodes,
+				LockupConfig:         lockupConfig,
+				LsInfo:               lsInfo,
+				LsForwarderConfig:    lsForwarderConfig,
+				LpForwarderConfig:    liquidPoolerForwarderConfig,
+				NativeSplitterConfig: nativeSplitterConfig,
+				PfmUnwindingConfig:   pfmUnwindingConfig,
+				CovenantPartyConfig:  covenantPartyConfig,
+				LiquidPoolerConfig:   liquidPoolerConfig,
+				PoolPriceConfig: PoolPriceConfig{
+					ExpectedSpotPrice:     "1.0",
+					AcceptablePriceSpread: "0.1",
+				},
 			}
 
 			covenantAddress = testCtx.ManualInstantiateLS(covenantCodeId, covenantInstantiationMsg, neutronUser, keyring.BackendTest)

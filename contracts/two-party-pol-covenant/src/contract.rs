@@ -26,8 +26,8 @@ const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const CLOCK_SALT: &[u8] = b"clock";
-pub const PARTY_A_INTERCHAIN_ROUTER_SALT: &[u8] = b"router_a";
-pub const PARTY_B_INTERCHAIN_ROUTER_SALT: &[u8] = b"router_b";
+pub const PARTY_A_ROUTER_SALT: &[u8] = b"router_a";
+pub const PARTY_B_ROUTER_SALT: &[u8] = b"router_b";
 pub const HOLDER_SALT: &[u8] = b"pol_holder";
 pub const PARTY_A_FORWARDER_SALT: &[u8] = b"forwarder_a";
 pub const PARTY_B_FORWARDER_SALT: &[u8] = b"forwarder_b";
@@ -66,13 +66,13 @@ pub fn instantiate(
     )?;
     let (party_a_router_salt, party_a_router_addr) = get_instantiate2_salt_and_address(
         deps.as_ref(),
-        PARTY_A_INTERCHAIN_ROUTER_SALT,
+        PARTY_A_ROUTER_SALT,
         &creator_address,
         party_a_router_code,
     )?;
     let (party_b_router_salt, party_b_router_addr) = get_instantiate2_salt_and_address(
         deps.as_ref(),
-        PARTY_B_INTERCHAIN_ROUTER_SALT,
+        PARTY_B_ROUTER_SALT,
         &creator_address,
         party_b_router_code,
     )?;
@@ -203,7 +203,7 @@ pub fn instantiate(
         liquid_pooler_salt,
         clock_addr.to_string(),
         holder_addr.to_string(),
-        (msg.expected_pool_ratio, msg.acceptable_pool_ratio_delta),
+        msg.pool_price_config,
     )?;
 
     let mut messages = vec![

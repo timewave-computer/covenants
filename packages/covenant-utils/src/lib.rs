@@ -845,3 +845,10 @@ pub struct SingleSideLpLimits {
     pub asset_a_limit: Uint128,
     pub asset_b_limit: Uint128,
 }
+
+/// config for the pool price expectations upon covenant instantiation
+#[cw_serde]
+pub struct PoolPriceConfig {
+    pub expected_spot_price: Decimal,
+    pub acceptable_price_spread: Decimal,
+}

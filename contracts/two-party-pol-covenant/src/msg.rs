@@ -14,7 +14,7 @@ use covenant_osmo_liquid_pooler::msg::{
 use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
 use covenant_utils::{
     CovenantParty, DenomSplit, DestinationConfig, PacketForwardMiddlewareConfig,
-    PfmUnwindingConfig, ReceiverConfig, SplitConfig, SingleSideLpLimits,
+    PfmUnwindingConfig, ReceiverConfig, SplitConfig, SingleSideLpLimits, PoolPriceConfig,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -37,8 +37,7 @@ pub struct InstantiateMsg {
     pub deposit_deadline: Expiration,
     pub party_a_share: Uint64,
     pub party_b_share: Uint64,
-    pub expected_pool_ratio: Decimal,
-    pub acceptable_pool_ratio_delta: Decimal,
+    pub pool_price_config: PoolPriceConfig,
     pub splits: Vec<DenomSplit>,
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee: Option<String>,
@@ -61,7 +60,7 @@ impl LiquidPoolerConfig {
         salt: Binary,
         clock_addr: String,
         holder_addr: String,
-        (expected_spot_price, acceptable_price_spread): (Decimal, Decimal),
+        pool_price_config: PoolPriceConfig,
     ) -> StdResult<WasmMsg> {
         match self {
             LiquidPoolerConfig::Osmosis(config) => Ok(PresetOsmoLiquidPoolerFields {
@@ -78,8 +77,7 @@ impl LiquidPoolerConfig {
                 osmo_outpost: config.osmo_outpost.to_string(),
                 lp_token_denom: config.lp_token_denom.to_string(),
                 slippage_tolerance: None,
-                expected_spot_price,
-                acceptable_price_spread,
+                pool_price_config,
                 funding_duration_seconds: config.funding_duration_seconds,
                 single_side_lp_limits: config.single_side_lp_limits.clone(),
             }
@@ -98,8 +96,7 @@ impl LiquidPoolerConfig {
                 single_side_lp_limits: config.single_side_lp_limits.clone(),
                 label,
                 code_id,
-                expected_pool_ratio: expected_spot_price,
-                acceptable_pool_ratio_delta: acceptable_price_spread,
+                pool_price_config,
                 pair_type: config.pool_pair_type.clone(),
             }
             .to_instantiate2_msg(
