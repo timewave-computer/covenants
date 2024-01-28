@@ -80,6 +80,7 @@ pub fn instantiate(
         expected_spot_price: msg.expected_spot_price,
         acceptable_price_spread: msg.acceptable_price_spread,
         funding_duration_seconds: msg.funding_duration_seconds,
+        single_side_lp_limits: msg.single_side_lp_limits,
     };
     LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &lp_config)?;
 

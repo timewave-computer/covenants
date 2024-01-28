@@ -8,8 +8,9 @@ use cosmwasm_std::{
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_utils::{ForwardMetadata, OutpostExecuteMsg};
+use covenant_utils::{ForwardMetadata, OutpostExecuteMsg, SingleSideLpLimits};
 use cw_utils::Expiration;
+use osmosis_std::types::cosmos::tx::signing::v1beta1::signature_descriptor::data::Single;
 use polytone::callbacks::CallbackMessage;
 
 #[cw_serde]
@@ -30,6 +31,7 @@ pub struct InstantiateMsg {
     pub expected_spot_price: Decimal,
     pub acceptable_price_spread: Decimal,
     pub funding_duration_seconds: Uint64,
+    pub single_side_lp_limits: SingleSideLpLimits,
 }
 
 #[cw_serde]
@@ -50,6 +52,7 @@ pub struct PresetOsmoLiquidPoolerFields {
     pub expected_spot_price: Decimal,
     pub acceptable_price_spread: Decimal,
     pub funding_duration_seconds: Uint64,
+    pub single_side_lp_limits: SingleSideLpLimits,
 }
 
 impl PresetOsmoLiquidPoolerFields {
@@ -75,6 +78,7 @@ impl PresetOsmoLiquidPoolerFields {
             expected_spot_price: self.expected_spot_price,
             acceptable_price_spread: self.acceptable_price_spread,
             funding_duration_seconds: self.funding_duration_seconds,
+            single_side_lp_limits: self.single_side_lp_limits.clone(),
         }
     }
 
@@ -108,6 +112,7 @@ pub struct LiquidityProvisionConfig {
     pub expected_spot_price: Decimal,
     pub acceptable_price_spread: Decimal,
     pub funding_duration_seconds: Uint64,
+    pub single_side_lp_limits: SingleSideLpLimits,
 }
 
 #[cw_serde]
@@ -166,8 +171,8 @@ impl LiquidityProvisionConfig {
             acceptable_price_spread: self.acceptable_price_spread,
             // if no slippage tolerance is passed, we use 0
             slippage_tolerance: self.slippage_tolerance.unwrap_or_default(),
-            asset_1_single_side_lp_limit: self.party_1_denom_info.single_side_lp_limit,
-            asset_2_single_side_lp_limit: self.party_2_denom_info.single_side_lp_limit,
+            asset_1_single_side_lp_limit: self.single_side_lp_limits.asset_a_limit,
+            asset_2_single_side_lp_limit: self.single_side_lp_limits.asset_b_limit,
         };
 
         Ok(WasmMsg::Execute {
@@ -235,8 +240,6 @@ pub struct PartyDenomInfo {
     pub osmosis_coin: Coin,
     /// ibc denom on liquid pooler chain
     pub local_denom: String,
-    /// the max amount of tokens allow to be single-side lp'd
-    pub single_side_lp_limit: Uint128,
 }
 
 impl PartyDenomInfo {
@@ -253,10 +256,6 @@ impl PartyDenomInfo {
             Attribute {
                 key: format!("{:?}_osmosis_coin", party),
                 value: self.osmosis_coin.to_string(),
-            },
-            Attribute {
-                key: format!("{:?}_single_side_lp_limit", party),
-                value: self.single_side_lp_limit.to_string(),
             },
         ]
     }
