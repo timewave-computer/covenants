@@ -7,7 +7,7 @@ use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, Decimal, StdError, U
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_utils::SingleSideLpLimits;
+use covenant_utils::{SingleSideLpLimits, PoolPriceConfig};
 
 use crate::error::ContractError;
 
@@ -18,8 +18,7 @@ pub struct InstantiateMsg {
     pub slippage_tolerance: Option<Decimal>,
     pub assets: AssetData,
     pub single_side_lp_limits: SingleSideLpLimits,
-    pub expected_pool_ratio: Decimal,
-    pub acceptable_pool_ratio_delta: Decimal,
+    pub pool_price_config: PoolPriceConfig,
     pub pair_type: PairType,
     pub holder_address: String,
 }
@@ -31,8 +30,7 @@ pub struct PresetAstroLiquidPoolerFields {
     pub single_side_lp_limits: SingleSideLpLimits,
     pub label: String,
     pub code_id: u64,
-    pub expected_pool_ratio: Decimal,
-    pub acceptable_pool_ratio_delta: Decimal,
+    pub pool_price_config: PoolPriceConfig,
     pub pair_type: PairType,
 }
 
@@ -49,8 +47,7 @@ impl PresetAstroLiquidPoolerFields {
             slippage_tolerance: self.slippage_tolerance,
             assets: self.assets.clone(),
             single_side_lp_limits: self.single_side_lp_limits.clone(),
-            expected_pool_ratio: self.expected_pool_ratio,
-            acceptable_pool_ratio_delta: self.acceptable_pool_ratio_delta,
+            pool_price_config: self.pool_price_config.clone(),
             pair_type: self.pair_type.clone(),
             holder_address,
         }

@@ -216,21 +216,25 @@ type NativeBalQueryResponse struct {
 // single party POL types
 
 type CovenantInstantiationMsg struct {
-	Label                    string                  `json:"label"`
-	Timeouts                 Timeouts                `json:"timeouts"`
-	PresetIbcFee             PresetIbcFee            `json:"preset_ibc_fee"`
-	ContractCodeIds          ContractCodeIds         `json:"contract_codes"`
-	TickMaxGas               string                  `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig             Expiration              `json:"lockup_period"`
-	LsInfo                   LsInfo                  `json:"ls_info"`
-	LsForwarderConfig        CovenantPartyConfig     `json:"ls_forwarder_config"`
-	LpForwarderConfig        CovenantPartyConfig     `json:"lp_forwarder_config"`
-	ExpectedPoolRatio        string                  `json:"expected_pool_ratio"`
-	AcceptablePoolRatioDelta string                  `json:"acceptable_pool_ratio_delta"`
-	NativeSplitterConfig     NativeSplitterConfig    `json:"native_splitter_config"`
-	PfmUnwindingConfig       PfmUnwindingConfig      `json:"pfm_unwinding_config"`
-	CovenantPartyConfig      InterchainCovenantParty `json:"covenant_party_config"`
-	LiquidPoolerConfig       LiquidPoolerConfig      `json:"liquid_pooler_config"`
+	Label                string                  `json:"label"`
+	Timeouts             Timeouts                `json:"timeouts"`
+	PresetIbcFee         PresetIbcFee            `json:"preset_ibc_fee"`
+	ContractCodeIds      ContractCodeIds         `json:"contract_codes"`
+	TickMaxGas           string                  `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig         Expiration              `json:"lockup_period"`
+	LsInfo               LsInfo                  `json:"ls_info"`
+	LsForwarderConfig    CovenantPartyConfig     `json:"ls_forwarder_config"`
+	LpForwarderConfig    CovenantPartyConfig     `json:"lp_forwarder_config"`
+	NativeSplitterConfig NativeSplitterConfig    `json:"native_splitter_config"`
+	PfmUnwindingConfig   PfmUnwindingConfig      `json:"pfm_unwinding_config"`
+	CovenantPartyConfig  InterchainCovenantParty `json:"covenant_party_config"`
+	LiquidPoolerConfig   LiquidPoolerConfig      `json:"liquid_pooler_config"`
+	PoolPriceConfig      PoolPriceConfig         `json:"pool_price_config"`
+}
+
+type PoolPriceConfig struct {
+	ExpectedSpotPrice     string `json:"expected_spot_price"`
+	AcceptablePriceSpread string `json:"acceptable_price_spread"`
 }
 
 type LiquidPoolerConfig struct {

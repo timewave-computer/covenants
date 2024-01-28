@@ -571,11 +571,13 @@ func TestTwoPartyOsmoLP(t *testing.T) {
 					OsmosisCoin: cw.Coin{Denom: testCtx.Osmosis.Config().Denom, Amount: strconv.FormatUint(osmoContributionAmount, 10)},
 					LocalDenom:  neutronOsmoIbcDenom,
 				},
-				OsmoOutpost:            osmoOutpost,
-				LpTokenDenom:           "gamm/pool/1",
-				SlippageTolerance:      "0.001",
-				ExpectedSpotPrice:      "0.10",
-				AcceptablePriceSpread:  "0.04",
+				OsmoOutpost:       osmoOutpost,
+				LpTokenDenom:      "gamm/pool/1",
+				SlippageTolerance: "0.001",
+				PoolPriceConfig: PoolPriceConfig{
+					ExpectedSpotPrice:     "0.10",
+					AcceptablePriceSpread: "0.04",
+				},
 				FundingDurationSeconds: "50",
 				SingleSideLpLimits: SingleSideLpLimits{
 					AssetALimit: "10000",
