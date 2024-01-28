@@ -8,6 +8,7 @@ use cosmwasm_std::{
     testing::MockApi, to_json_binary, Addr, Coin, Decimal, Empty, MemoryStorage, QueryRequest,
     Uint128, Uint64, WasmQuery,
 };
+use covenant_utils::SingleSideLpLimits;
 use cw20::Cw20ExecuteMsg;
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BankSudo, Contract, ContractWrapper, Executor, FailingModule,
@@ -15,7 +16,7 @@ use cw_multi_test::{
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use crate::msg::{AssetData, InstantiateMsg, LpConfig, MigrateMsg, QueryMsg, SingleSideLpLimits};
+use crate::msg::{AssetData, InstantiateMsg, LpConfig, MigrateMsg, QueryMsg};
 use astroport::factory::InstantiateMsg as FactoryInstantiateMsg;
 use astroport::native_coin_registry::InstantiateMsg as NativeCoinRegistryInstantiateMsg;
 use astroport::pair::InstantiateMsg as PairInstantiateMsg;

@@ -958,7 +958,7 @@ func (testCtx *TestContext) ManualInstantiateLS(codeId uint64, msg any, from *ib
 		println("failed to instantiate covenant")
 	}
 	require.NoError(testCtx.T,
-		testutil.WaitForBlocks(testCtx.Ctx, 50, testCtx.Hub, testCtx.Neutron, testCtx.Stride))
+		testutil.WaitForBlocks(testCtx.Ctx, 5, testCtx.Hub, testCtx.Neutron, testCtx.Stride))
 
 	queryCmd := []string{"neutrond", "query", "wasm",
 		"list-contract-by-code", codeIdStr,

@@ -614,6 +614,10 @@ func TestTwoPartyPol(t *testing.T) {
 						PoolAddress: poolAddress,
 						AssetADenom: neutronAtomIbcDenom,
 						AssetBDenom: neutronOsmoIbcDenom,
+						SingleSideLpLimits: SingleSideLpLimits{
+							AssetALimit: "100000",
+							AssetBLimit: "1000000",
+						},
 					},
 				}
 
@@ -902,6 +906,10 @@ func TestTwoPartyPol(t *testing.T) {
 						PoolAddress: poolAddress,
 						AssetADenom: neutronAtomIbcDenom,
 						AssetBDenom: neutronOsmoIbcDenom,
+						SingleSideLpLimits: SingleSideLpLimits{
+							AssetALimit: "100000",
+							AssetBLimit: "100000",
+						},
 					},
 				}
 
@@ -1209,6 +1217,10 @@ func TestTwoPartyPol(t *testing.T) {
 						PoolAddress: poolAddress,
 						AssetADenom: neutronAtomIbcDenom,
 						AssetBDenom: neutronOsmoIbcDenom,
+						SingleSideLpLimits: SingleSideLpLimits{
+							AssetALimit: "1000000",
+							AssetBLimit: "1000000",
+						},
 					},
 				}
 
@@ -1485,6 +1497,10 @@ func TestTwoPartyPol(t *testing.T) {
 						PoolAddress: poolAddress,
 						AssetADenom: neutronAtomIbcDenom,
 						AssetBDenom: neutronOsmoIbcDenom,
+						SingleSideLpLimits: SingleSideLpLimits{
+							AssetALimit: "1000000",
+							AssetBLimit: "10000000",
+						},
 					},
 				}
 

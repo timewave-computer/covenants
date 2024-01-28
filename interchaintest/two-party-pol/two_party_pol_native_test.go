@@ -541,6 +541,10 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						PoolAddress: poolAddress,
 						AssetADenom: neutronAtomIbcDenom,
 						AssetBDenom: cosmosNeutron.Config().Denom,
+						SingleSideLpLimits: SingleSideLpLimits{
+							AssetALimit: "100000",
+							AssetBLimit: "100000",
+						},
 					},
 				}
 
