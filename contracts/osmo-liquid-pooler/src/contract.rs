@@ -77,8 +77,7 @@ pub fn instantiate(
         outpost: msg.osmo_outpost,
         lp_token_denom: msg.lp_token_denom,
         slippage_tolerance: msg.slippage_tolerance,
-        expected_spot_price: msg.expected_spot_price,
-        acceptable_price_spread: msg.acceptable_price_spread,
+        pool_price_config: msg.pool_price_config,
         funding_duration_seconds: msg.funding_duration_seconds,
         single_side_lp_limits: msg.single_side_lp_limits,
     };
