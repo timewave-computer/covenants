@@ -7,7 +7,7 @@ use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, Decimal, StdError, U
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_utils::{SingleSideLpLimits, PoolPriceConfig};
+use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
 
 use crate::error::ContractError;
 
