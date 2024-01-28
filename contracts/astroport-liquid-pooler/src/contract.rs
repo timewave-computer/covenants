@@ -58,8 +58,10 @@ pub fn instantiate(
 
     HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
 
-    let decimal_range =
-        DecimalRange::try_from(msg.pool_price_config.expected_spot_price, msg.pool_price_config.acceptable_price_spread)?;
+    let decimal_range = DecimalRange::try_from(
+        msg.pool_price_config.expected_spot_price,
+        msg.pool_price_config.acceptable_price_spread,
+    )?;
 
     let lp_config = LpConfig {
         pool_address: pool_addr,

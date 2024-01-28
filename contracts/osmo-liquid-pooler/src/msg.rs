@@ -8,7 +8,7 @@ use cosmwasm_std::{
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_utils::{ForwardMetadata, OutpostExecuteMsg, SingleSideLpLimits, PoolPriceConfig};
+use covenant_utils::{ForwardMetadata, OutpostExecuteMsg, PoolPriceConfig, SingleSideLpLimits};
 use cw_utils::Expiration;
 use polytone::callbacks::CallbackMessage;
 
@@ -31,7 +31,6 @@ pub struct InstantiateMsg {
     pub funding_duration_seconds: Uint64,
     pub single_side_lp_limits: SingleSideLpLimits,
 }
-
 
 #[cw_serde]
 pub struct PresetOsmoLiquidPoolerFields {
@@ -210,7 +209,10 @@ impl LiquidityProvisionConfig {
             Attribute::new("outpost", self.outpost),
             Attribute::new("lp_token_denom", self.lp_token_denom),
             Attribute::new("slippage_tolerance", slippage_tolerance),
-            Attribute::new("expected_spot_price", self.pool_price_config.expected_spot_price.to_string()),
+            Attribute::new(
+                "expected_spot_price",
+                self.pool_price_config.expected_spot_price.to_string(),
+            ),
             Attribute::new(
                 "acceptable_price_spread",
                 self.pool_price_config.acceptable_price_spread.to_string(),
