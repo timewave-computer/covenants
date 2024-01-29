@@ -1,0 +1,37 @@
+[package]
+name    = "unit-test"                      # the name of the package
+version = "0.1.0"                          # the current version, obeying semver
+authors = ["Art3miX <r3mix.il@gmail.com>"]
+edition = "2021"
+
+[dev-dependencies]
+cosmwasm-std    = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw-utils        = { workspace = true }
+cw-multi-test   = { workspace = true }
+neutron-sdk     = { workspace = true }
+sha2            = { workspace = true }
+prost           = { workspace = true }
+prost-types     = { workspace = true }
+colored         = "1.9.4"
+const_format    = "0.2.32"
+
+covenant-interchain-splitter        = { workspace = true }
+covenant-ibc-forwarder              = { workspace = true }
+covenant-clock                      = { workspace = true }
+covenant-stride-liquid-staker       = { workspace = true }
+covenant-native-splitter            = { workspace = true }
+covenant-swap-holder                = { workspace = true }
+covenant-swap                       = { workspace = true }
+covenant-interchain-router          = { workspace = true }
+covenant-two-party-pol-holder       = { workspace = true }
+covenant-two-party-pol              = { workspace = true }
+covenant-astroport-liquid-pooler    = { workspace = true }
+covenant-native-router              = { workspace = true }
+covenant-outpost-osmo-liquid-pooler = { workspace = true }
+covenant-single-party-pol           = { workspace = true }
+covenant-single-party-pol-holder    = { workspace = true }
+covenant-osmo-liquid-pooler         = { workspace = true }
+
+covenant-utils = { workspace = true }

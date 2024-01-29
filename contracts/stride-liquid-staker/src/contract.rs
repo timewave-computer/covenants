@@ -32,9 +32,12 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const SUDO_PAYLOAD_REPLY_ID: u64 = 1u64;
 
+type QueryDeps<'a> = Deps<'a, NeutronQuery>;
+type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -69,7 +72,7 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -91,7 +94,7 @@ pub fn execute(
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
@@ -103,7 +106,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 }
 
 /// registers an interchain account on stride with port_id associated with `INTERCHAIN_ACCOUNT_ID`
-fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_register_stride_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
     let register_fee: Option<Vec<Coin>> = Some(coins(1000001, "untrn"));
     let register: NeutronMsg = NeutronMsg::register_interchain_account(
@@ -125,7 +128,7 @@ fn try_register_stride_ica(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
 /// contract, anyone can call this method by passing an amount (`Uint128`) to transfer
 /// the funds (with `ls_denom`) to the liquid pooler module.
 fn try_execute_transfer(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     _info: MessageInfo,
     amount: Uint128,
@@ -206,7 +209,7 @@ fn try_execute_transfer(
 }
 
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     msg: C,
     payload: SudoPayload,
 ) -> StdResult<SubMsg<T>> {
@@ -215,7 +218,7 @@ fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps<NeutronQuery>, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
+pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::IcaAddress {} => Ok(to_json_binary(
@@ -274,7 +277,7 @@ fn _query_deposit_address(deps: Deps<NeutronQuery>, env: Env) -> Result<Option<S
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
+pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> Result<Response, StdError> {
     deps.api
         .debug(format!("WASMDEBUG: sudo: received sudo msg: {msg:?}").as_str());
 
@@ -308,7 +311,7 @@ pub fn sudo(deps: DepsMut, env: Env, msg: SudoMsg) -> StdResult<Response> {
 
 // handler
 fn sudo_open_ack(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     _env: Env,
     port_id: String,
     _channel_id: String,
@@ -339,7 +342,7 @@ fn sudo_open_ack(
     Ok(Response::default().add_attribute("method", "sudo_open_ack"))
 }
 
-fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResult<Response> {
+fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}",).as_str());
 
@@ -355,7 +358,7 @@ fn sudo_response(deps: DepsMut, request: RequestPacket, data: Binary) -> StdResu
     Ok(Response::default().add_attribute("method", "sudo_response"))
 }
 
-fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<Response> {
+fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
 
@@ -366,7 +369,7 @@ fn sudo_timeout(deps: DepsMut, _env: Env, request: RequestPacket) -> StdResult<R
     Ok(Response::default())
 }
 
-fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResult<Response> {
+fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
     deps.api
@@ -391,7 +394,7 @@ fn sudo_error(deps: DepsMut, request: RequestPacket, details: String) -> StdResu
 // allows you "attach" some payload to your SubmitTx message
 // and process this payload when an acknowledgement for the SubmitTx message
 // is received in Sudo handler
-fn prepare_sudo_payload(mut deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
+fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResult<Response> {
     let payload = read_reply_payload(deps.storage)?;
     let resp: MsgSubmitTxResponse = serde_json_wasm::from_slice(
         msg.result
@@ -423,7 +426,7 @@ fn get_ica(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
+pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
     deps.api
         .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
     match msg.id {
@@ -436,7 +439,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
