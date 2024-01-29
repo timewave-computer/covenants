@@ -1,7 +1,10 @@
 use cosmwasm_std::{Binary, DepsMut, Env, Reply, Response, StdError, StdResult};
 use covenant_utils::neutron::OpenAckVersion;
 use neutron_sdk::{
-    bindings::{msg::MsgSubmitTxResponse, query::NeutronQuery},
+    bindings::{
+        msg::{MsgSubmitTxResponse, NeutronMsg},
+        query::NeutronQuery,
+    },
     sudo::msg::RequestPacket,
 };
 
@@ -20,7 +23,7 @@ pub fn sudo_open_ack(
     _channel_id: String,
     _counterparty_channel_id: String,
     counterparty_version: String,
-) -> StdResult<Response> {
+) -> StdResult<Response<NeutronMsg>> {
     // The version variable contains a JSON value with multiple fields,
     // including the generated account address.
     let parsed_version: Result<OpenAckVersion, _> =
@@ -49,7 +52,7 @@ pub fn sudo_response(
     deps: ExecuteDeps,
     request: RequestPacket,
     data: Binary,
-) -> StdResult<Response> {
+) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}").as_str());
 
@@ -65,7 +68,11 @@ pub fn sudo_response(
     Ok(Response::default().add_attribute("method", "sudo_response"))
 }
 
-pub fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response> {
+pub fn sudo_timeout(
+    deps: ExecuteDeps,
+    _env: Env,
+    request: RequestPacket,
+) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
 
@@ -80,7 +87,7 @@ pub fn sudo_error(
     deps: ExecuteDeps,
     request: RequestPacket,
     details: String,
-) -> StdResult<Response> {
+) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
     deps.api
@@ -98,7 +105,11 @@ pub fn sudo_error(
     Ok(Response::default().add_attribute("method", "sudo_error"))
 }
 
-pub fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResult<Response> {
+pub fn prepare_sudo_payload(
+    mut deps: ExecuteDeps,
+    _env: Env,
+    msg: Reply,
+) -> StdResult<Response<NeutronMsg>> {
     let payload = read_reply_payload(deps.storage)?;
     let resp: MsgSubmitTxResponse = serde_json_wasm::from_slice(
         msg.result

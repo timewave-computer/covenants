@@ -1,5 +1,9 @@
 [workspace]
-members  = ["packages/*", "contracts/*"]
+members = [
+  "packages/*",
+  "contracts/*",
+  "unit-tests/",
+]
 resolver = "2"
 
 [workspace.package]
@@ -28,24 +32,28 @@ panic            = 'abort'
 rpath            = false
 
 [workspace.dependencies]
-covenant-clock                      = { path = "contracts/clock" }
-covenant-clock-tester               = { path = "contracts/clock-tester" }
-covenant-ibc-forwarder              = { path = "contracts/ibc-forwarder" }
-covenant-remote-chain-splitter      = { path = "contracts/remote-chain-splitter" }
-covenant-native-splitter            = { path = "contracts/native-splitter" }
-covenant-swap-holder                = { path = "contracts/swap-holder" }
-swap-covenant                       = { path = "contracts/swap-covenant" }
-covenant-interchain-router          = { path = "contracts/interchain-router" }
-covenant-two-party-pol-holder       = { path = "contracts/two-party-pol-holder" }
-covenant-two-party-pol              = { path = "contracts/two-party-pol-covenant" }
-covenant-astroport-liquid-pooler    = { path = "contracts/astroport-liquid-pooler" }
-covenant-native-router              = { path = "contracts/native-router" }
-covenant-osmo-liquid-pooler         = { path = "contracts/osmo-liquid-pooler" }
+covenant-clock                         = { path = "contracts/clock" }
+covenant-clock-tester                  = { path = "contracts/clock-tester" }
+covenant-ibc-forwarder                 = { path = "contracts/ibc-forwarder" }
+covenant-remote-chain-splitter         = { path = "contracts/remote-chain-splitter" }
+covenant-native-splitter               = { path = "contracts/native-splitter" }
+covenant-swap-holder                   = { path = "contracts/swap-holder" }
+covenant-swap                          = { path = "contracts/swap-covenant" }
+covenant-interchain-router             = { path = "contracts/interchain-router" }
+covenant-two-party-pol-holder          = { path = "contracts/two-party-pol-holder" }
+covenant-two-party-pol                 = { path = "contracts/two-party-pol-covenant" }
+covenant-astroport-liquid-pooler       = { path = "contracts/astroport-liquid-pooler" }
+covenant-native-router                           = { path = "contracts/native-router" }
+covenant-osmo-liquid-pooler                 = { path = "contracts/osmo-liquid-pooler" }
 covenant-outpost-osmo-liquid-pooler = { path = "contracts/outpost-osmo-liquid-pooler" }
 covenant-single-party-pol-holder    = { path = "contracts/single-party-pol-holder" }
+covenant-single-party-pol           = { path = "contracts/single-party-pol-covenant" }
 covenant-stride-liquid-staker       = { path = "contracts/stride-liquid-staker" }
 
 # packages
+polytone        = "1.0.0"
+clock-derive    = { path = "packages/clock-derive" }
+cw-fifo         = { path = "packages/cw-fifo" }
 polytone        = "1.0.0"
 clock-derive    = { path = "packages/clock-derive" }
 cw-fifo         = { path = "packages/cw-fifo" }
@@ -84,7 +92,7 @@ quote = "1"
 syn = "1"
 
 # dev-dependencies
-cw-multi-test                  = "0.20.0"
+cw-multi-test                  = { git = "https://github.com/Art3miX/cw-multi-test", branch = "main", features = ["cosmwasm_1_2"] }
 anyhow                         = { version = "1.0.51" }
 cw1-whitelist                  = "1.1.2"
 astroport-token                = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }

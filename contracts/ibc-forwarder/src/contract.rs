@@ -252,7 +252,7 @@ fn get_ica(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response> {
+pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: sudo: received sudo msg: {msg:?}").as_str());
 
@@ -285,7 +285,7 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
+pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
     match msg.id {
@@ -297,7 +297,11 @@ pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
     }
 }
 
-fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResult<Response> {
+fn prepare_sudo_payload(
+    mut deps: ExecuteDeps,
+    _env: Env,
+    msg: Reply,
+) -> StdResult<Response<NeutronMsg>> {
     let payload = read_reply_payload(deps.storage)?;
     let resp: MsgSubmitTxResponse = serde_json_wasm::from_slice(
         msg.result
@@ -331,7 +335,7 @@ pub fn save_sudo_payload(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
     deps.api.debug("WASMDEBUG: migrate");
     match msg {
         MigrateMsg::UpdateConfig {

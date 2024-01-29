@@ -7,14 +7,14 @@ use cosmwasm_std::{
     StdResult,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::split::SplitConfig;
+use covenant_utils::SplitConfig;
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SplitType};
 use crate::state::{CLOCK_ADDRESS, FALLBACK_SPLIT, SPLIT_CONFIG_MAP};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-native-splitter";
+const CONTRACT_NAME: &str = "crates.io:covenant-interchain-splitter";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -27,15 +27,22 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let mut resp = Response::default().add_attribute("method", "native_splitter_instantiate");
+    let mut resp = Response::default().add_attribute("method", "interchain_splitter_instantiate");
 
-    CLOCK_ADDRESS.save(deps.storage, &msg.clock_address)?;
-    resp = resp.add_attribute("clock_addr", msg.clock_address.to_string());
+    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
+    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+    resp = resp.add_attribute("clock_addr", clock_addr.to_string());
 
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
-        split.validate_shares()?;
-        SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
+        // split.get_split_config()?.validate()?;
+        match split {
+            SplitType::Custom(config) => {
+                SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &config)?;
+            }
+        }
+
+        // resp = resp.add_attributes(vec![split.get_response_attribute(denom)]);
     }
 
     // if a fallback split is provided we validate and store it
@@ -46,7 +53,7 @@ pub fn instantiate(
         resp = resp.add_attribute("fallback", "None");
     }
 
-    Ok(resp.add_message(enqueue_msg(msg.clock_address.as_str())?))
+    Ok(resp.add_message(enqueue_msg(clock_addr.as_str())?))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -167,11 +174,7 @@ pub fn query_split(deps: Deps, denom: String) -> Result<SplitConfig, StdError> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(
-    deps: ExecuteDeps,
-    _env: Env,
-    msg: MigrateMsg,
-) -> Result<Response<NeutronMsg>, StdError> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
@@ -190,9 +193,13 @@ pub fn migrate(
             if let Some(splits) = splits {
                 // clear all current split configs before storing new values
                 SPLIT_CONFIG_MAP.clear(deps.storage);
-                for (denom, split) in splits {
-                    // we validate each split before storing it
-                    SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
+                for (denom, split_type) in splits {
+                    match split_type {
+                        // we validate each split before storing it
+                        SplitType::Custom(split) => {
+                            SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
+                        }
+                    }
                 }
             }
 

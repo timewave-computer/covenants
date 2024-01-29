@@ -1,6 +1,9 @@
 use cosmwasm_std::{to_json_vec, Binary, DepsMut, Env, Response, StdError, StdResult, Storage};
-use covenant_utils::neutron::{OpenAckVersion, SudoPayload};
-use neutron_sdk::{bindings::query::NeutronQuery, sudo::msg::RequestPacket};
+use covenant_utils::neutron_ica;
+use neutron_sdk::{
+    bindings::{msg::NeutronMsg, query::NeutronQuery},
+    sudo::msg::RequestPacket,
+};
 
 use crate::{
     msg::ContractState,
@@ -17,7 +20,7 @@ pub fn sudo_open_ack(
     _channel_id: String,
     _counterparty_channel_id: String,
     counterparty_version: String,
-) -> StdResult<Response> {
+) -> StdResult<Response<NeutronMsg>> {
     // The version variable contains a JSON value with multiple fields,
     // including the generated account address.
     let parsed_version: Result<OpenAckVersion, _> =
@@ -46,7 +49,7 @@ pub fn sudo_response(
     deps: ExecuteDeps,
     request: RequestPacket,
     data: Binary,
-) -> StdResult<Response> {
+) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}").as_str());
 
@@ -62,7 +65,11 @@ pub fn sudo_response(
     Ok(Response::default().add_attribute("method", "sudo_response"))
 }
 
-pub fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response> {
+pub fn sudo_timeout(
+    deps: ExecuteDeps,
+    _env: Env,
+    request: RequestPacket,
+) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
 
@@ -77,7 +84,7 @@ pub fn sudo_error(
     deps: ExecuteDeps,
     request: RequestPacket,
     details: String,
-) -> StdResult<Response> {
+) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
 
