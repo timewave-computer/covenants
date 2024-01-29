@@ -139,10 +139,9 @@ pub fn instantiate(
     )?;
 
     let liquid_pooler_instantiate2_msg = msg.liquid_pooler_config.to_instantiate2_msg(
+        &liquid_pooler_instantiate2_config,
         env.contract.address.to_string(),
         format!("{}_liquid_pooler", msg.label),
-        msg.contract_codes.liquid_pooler_code,
-        liquid_pooler_instantiate2_config.salt,
         clock_instantiate2_config.addr.to_string(),
         holder_instantiate2_config.addr.to_string(),
         msg.pool_price_config,

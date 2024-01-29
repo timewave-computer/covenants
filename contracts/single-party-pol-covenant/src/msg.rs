@@ -2,14 +2,14 @@ use std::collections::BTreeMap;
 
 use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Coin, Decimal, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::{AssetData, PresetAstroLiquidPoolerFields};
 use covenant_osmo_liquid_pooler::msg::{
     PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields,
 };
 use covenant_utils::{
-    CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, PoolPriceConfig,
-    ReceiverConfig, SingleSideLpLimits,
+    instantiate2_helper::Instantiate2HelperConfig, CovenantParty, DestinationConfig,
+    PacketForwardMiddlewareConfig, PoolPriceConfig, ReceiverConfig, SingleSideLpLimits,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -45,10 +45,9 @@ pub enum LiquidPoolerConfig {
 impl LiquidPoolerConfig {
     pub fn to_instantiate2_msg(
         &self,
+        instantiate2_helper: &Instantiate2HelperConfig,
         admin: String,
         label: String,
-        code_id: u64,
-        salt: Binary,
         clock_addr: String,
         holder_addr: String,
         pool_price_config: PoolPriceConfig,
@@ -56,7 +55,7 @@ impl LiquidPoolerConfig {
         match self {
             LiquidPoolerConfig::Osmosis(config) => Ok(PresetOsmoLiquidPoolerFields {
                 label,
-                code_id,
+                code_id: instantiate2_helper.code,
                 note_address: config.note_address.to_string(),
                 pool_id: config.pool_id,
                 osmo_ibc_timeout: config.osmo_ibc_timeout,
@@ -74,7 +73,7 @@ impl LiquidPoolerConfig {
             }
             .to_instantiate2_msg(
                 admin,
-                salt,
+                instantiate2_helper.salt.clone(),
                 clock_addr.to_string(),
                 holder_addr.to_string(),
             )?),
@@ -86,13 +85,13 @@ impl LiquidPoolerConfig {
                 },
                 single_side_lp_limits: config.single_side_lp_limits.clone(),
                 label,
-                code_id,
+                code_id: instantiate2_helper.code,
                 pool_price_config,
                 pair_type: config.pool_pair_type.clone(),
             }
             .to_instantiate2_msg(
                 admin,
-                salt,
+                instantiate2_helper.salt.clone(),
                 config.pool_address.to_string(),
                 clock_addr.to_string(),
                 holder_addr.to_string(),
