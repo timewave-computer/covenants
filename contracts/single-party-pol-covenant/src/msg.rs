@@ -199,14 +199,6 @@ impl PresetIbcFee {
 }
 
 #[cw_serde]
-pub enum ExecuteMsg {
-    /// Withdraw from the LPer
-    Withdraw {},
-    ///
-    Claim {},
-}
-
-#[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(Addr)]
