@@ -17,7 +17,6 @@ use neutron_sdk::bindings::msg::IbcFee;
 const NEUTRON_DENOM: &str = "untrn";
 pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 
-// TODO: clean up the instantiation message
 #[cw_serde]
 pub struct InstantiateMsg {
     pub label: String,
@@ -29,7 +28,6 @@ pub struct InstantiateMsg {
     pub ls_info: LsInfo,
     pub ls_forwarder_config: CovenantPartyConfig,
     pub lp_forwarder_config: CovenantPartyConfig,
-    // todo: combine into a single struct
     pub pool_price_config: PoolPriceConfig,
     pub native_splitter_config: NativeSplitterConfig,
     pub emergency_committee: Option<String>,
@@ -86,7 +84,6 @@ impl LiquidPoolerConfig {
                     asset_a_denom: config.asset_a_denom.to_string(),
                     asset_b_denom: config.asset_b_denom.to_string(),
                 },
-                // TODO: remove hardcoded limits
                 single_side_lp_limits: config.single_side_lp_limits.clone(),
                 label,
                 code_id,

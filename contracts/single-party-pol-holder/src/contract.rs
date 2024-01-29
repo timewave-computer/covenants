@@ -129,7 +129,6 @@ fn try_distribute(deps: DepsMut, info: MessageInfo) -> Result<Response, Contract
 
     WITHDRAW_STATE.remove(deps.storage);
 
-    // TODO: Have a better logic to send funds over IBC
     let send_msg = BankMsg::Send {
         to_address: withdraw_to_addr.to_string(),
         amount: info.funds,

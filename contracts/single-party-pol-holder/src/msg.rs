@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, WasmMsg};
 use covenant_macros::{covenant_holder_distribute, covenant_holder_emergency_withdraw};
+use covenant_utils::instantiate2_helper::Instantiate2HelperConfig;
 use cw_utils::Expiration;
 
 #[cw_serde]
@@ -18,46 +19,20 @@ pub struct InstantiateMsg {
     pub lockup_period: Expiration,
 }
 
-/// Preset fields are set by the user when instantiating the covenant.
-/// use `to_instantiate_msg` implementation method to get `InstantiateMsg`.
-#[cw_serde]
-pub struct PresetHolderFields {
-    pub withdrawer: Option<String>,
-    pub withdraw_to: Option<String>,
-    pub emergency_committee_addr: Option<String>,
-    pub lockup_period: Expiration,
-    pub code_id: u64,
-    pub label: String,
-}
-
-impl PresetHolderFields {
-    /// takes in the `pool_address` from which the funds would be withdrawn
-    /// and returns an `InstantiateMsg`.
-    pub fn to_instantiate_msg(&self, pooler_address: String) -> InstantiateMsg {
-        InstantiateMsg {
-            withdrawer: self.withdrawer.clone(),
-            withdraw_to: self.withdraw_to.clone(),
-            pooler_address,
-            lockup_period: self.lockup_period,
-            emergency_committee_addr: self.emergency_committee_addr.clone(),
-        }
-    }
-
+impl InstantiateMsg {
     pub fn to_instantiate2_msg(
         &self,
-        admin_addr: String,
-        salt: Binary,
-        pooler_address: String,
-    ) -> Result<WasmMsg, StdError> {
-        let instantiate_msg = self.to_instantiate_msg(pooler_address);
-
+        instantiate2_helper: &Instantiate2HelperConfig,
+        admin: String,
+        label: String,
+    ) -> StdResult<WasmMsg> {
         Ok(WasmMsg::Instantiate2 {
-            admin: Some(admin_addr),
-            code_id: self.code_id,
-            label: self.label.to_string(),
-            msg: to_json_binary(&instantiate_msg)?,
+            admin: Some(admin),
+            code_id: instantiate2_helper.code,
+            label,
+            msg: to_json_binary(self)?,
             funds: vec![],
-            salt,
+            salt: instantiate2_helper.salt.clone(),
         })
     }
 }
