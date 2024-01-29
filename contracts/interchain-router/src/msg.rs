@@ -1,9 +1,11 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, WasmMsg};
 use covenant_macros::{clocked, covenant_clock_address};
-use covenant_utils::{DestinationConfig, ReceiverConfig};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig, DestinationConfig, ReceiverConfig,
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -16,39 +18,20 @@ pub struct InstantiateMsg {
     pub denoms: BTreeSet<String>,
 }
 
-#[cw_serde]
-pub struct PresetInterchainRouterFields {
-    /// config that determines how to facilitate the ibc routing
-    pub destination_config: DestinationConfig,
-    /// specified denoms to route
-    pub denoms: BTreeSet<String>,
-    pub label: String,
-    pub code_id: u64,
-}
-
-impl PresetInterchainRouterFields {
-    pub fn to_instantiate_msg(&self, clock_address: String) -> InstantiateMsg {
-        InstantiateMsg {
-            clock_address,
-            destination_config: self.destination_config.clone(),
-            denoms: self.denoms.clone(),
-        }
-    }
-
+impl InstantiateMsg {
     pub fn to_instantiate2_msg(
         &self,
-        admin_addr: String,
-        salt: Binary,
-        clock_address: String,
-    ) -> Result<WasmMsg, StdError> {
-        let instantiate_msg = self.to_instantiate_msg(clock_address);
+        instantiate2_helper: &Instantiate2HelperConfig,
+        admin: String,
+        label: String,
+    ) -> StdResult<WasmMsg> {
         Ok(WasmMsg::Instantiate2 {
-            admin: Some(admin_addr),
-            code_id: self.code_id,
-            label: self.label.to_string(),
-            msg: to_json_binary(&instantiate_msg)?,
+            admin: Some(admin),
+            code_id: instantiate2_helper.code,
+            label,
+            msg: to_json_binary(self)?,
             funds: vec![],
-            salt,
+            salt: instantiate2_helper.salt.clone(),
         })
     }
 }

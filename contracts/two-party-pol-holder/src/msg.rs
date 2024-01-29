@@ -11,7 +11,9 @@ use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
-use covenant_utils::{DenomSplit, SplitConfig, SplitType};
+use covenant_utils::{
+    DenomSplit, SplitConfig, SplitType,
+};
 use cw_utils::Expiration;
 
 use crate::{error::ContractError, state::CONTRACT_STATE};
@@ -487,7 +489,6 @@ pub enum ContractState {
     Instantiated,
     /// funds have been forwarded to the LP module. from the perspective
     /// of this contract that indicates an active LP position.
-    /// TODO: think about whether this is a fair assumption to make.
     Active,
     /// one of the parties have initiated ragequit. the remaining
     /// counterparty with an active position is free to exit at any time.

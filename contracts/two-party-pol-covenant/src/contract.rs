@@ -6,8 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Addr, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response,
     StdResult, WasmMsg,
 };
-use covenant_clock::msg::PresetClockFields;
-use covenant_ibc_forwarder::msg::PresetIbcForwarderFields;
+use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
 use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
 use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
 use cw2::set_contract_version;
@@ -44,57 +43,49 @@ pub fn instantiate(
     let creator_address: CanonicalAddr =
         deps.api.addr_canonicalize(env.contract.address.as_str())?;
 
-    let party_a_router_code = msg.party_a_config.get_router_code_id(&msg.contract_codes);
-    let party_b_router_code = msg.party_b_config.get_router_code_id(&msg.contract_codes);
-
-    CONTRACT_CODES.save(
-        deps.storage,
-        &msg.contract_codes
-            .to_covenant_codes_config(party_a_router_code, party_b_router_code),
-    )?;
     let covenant_denoms: BTreeSet<String> = msg
         .splits
         .iter()
         .map(|split| split.denom.to_string())
         .collect();
 
-    let (clock_salt, clock_addr) = get_instantiate2_salt_and_address(
+    let clock_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
         CLOCK_SALT,
         &creator_address,
         msg.contract_codes.clock_code,
     )?;
-    let (party_a_router_salt, party_a_router_addr) = get_instantiate2_salt_and_address(
+    let party_a_router_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
         PARTY_A_ROUTER_SALT,
         &creator_address,
-        party_a_router_code,
+        msg.party_a_config.get_router_code_id(&msg.contract_codes),
     )?;
-    let (party_b_router_salt, party_b_router_addr) = get_instantiate2_salt_and_address(
+    let party_b_router_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
         PARTY_B_ROUTER_SALT,
         &creator_address,
-        party_b_router_code,
+        msg.party_b_config.get_router_code_id(&msg.contract_codes),
     )?;
-    let (holder_salt, holder_addr) = get_instantiate2_salt_and_address(
+    let holder_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
         HOLDER_SALT,
         &creator_address,
         msg.contract_codes.holder_code,
     )?;
-    let (party_a_forwarder_salt, party_a_forwarder_addr) = get_instantiate2_salt_and_address(
+    let party_a_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
         PARTY_A_FORWARDER_SALT,
         &creator_address,
         msg.contract_codes.ibc_forwarder_code,
     )?;
-    let (party_b_forwarder_salt, party_b_forwarder_addr) = get_instantiate2_salt_and_address(
+    let party_b_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
         PARTY_B_FORWARDER_SALT,
         &creator_address,
         msg.contract_codes.ibc_forwarder_code,
     )?;
-    let (liquid_pooler_salt, liquid_pooler_addr) = get_instantiate2_salt_and_address(
+    let liquid_pooler_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
         LIQUID_POOLER_SALT,
         &creator_address,
@@ -102,10 +93,10 @@ pub fn instantiate(
     )?;
 
     let mut clock_whitelist: Vec<String> = Vec::with_capacity(6);
-    clock_whitelist.push(holder_addr.to_string());
-    clock_whitelist.push(party_a_router_addr.to_string());
-    clock_whitelist.push(party_b_router_addr.to_string());
-    clock_whitelist.push(liquid_pooler_addr.to_string());
+    clock_whitelist.push(holder_instantiate2_config.addr.to_string());
+    clock_whitelist.push(party_a_router_instantiate2_config.addr.to_string());
+    clock_whitelist.push(party_b_router_instantiate2_config.addr.to_string());
+    clock_whitelist.push(liquid_pooler_instantiate2_config.addr.to_string());
 
     let holder_instantiate2_msg = PresetTwoPartyPolHolderFields {
         lockup_config: msg.lockup_config,
@@ -122,40 +113,38 @@ pub fn instantiate(
     }
     .to_instantiate2_msg(
         env.contract.address.to_string(),
-        holder_salt,
-        clock_addr.to_string(),
-        liquid_pooler_addr.to_string(),
-        party_a_router_addr.to_string(),
-        party_b_router_addr.to_string(),
+        holder_instantiate2_config.salt,
+        clock_instantiate2_config.addr.to_string(),
+        liquid_pooler_instantiate2_config.addr.to_string(),
+        party_a_router_instantiate2_config.addr.to_string(),
+        party_b_router_instantiate2_config.addr.to_string(),
     )?;
 
     let party_a_router_instantiate2_msg = msg.party_a_config.to_router_instantiate2_msg(
         env.contract.address.to_string(),
-        clock_addr.to_string(),
-        party_a_router_salt,
-        party_a_router_code,
+        clock_instantiate2_config.addr.to_string(),
         format!("{}_party_a_router", msg.label),
         covenant_denoms.clone(),
         msg.pfm_unwinding_config.party_1_pfm_map,
+        party_a_router_instantiate2_config.clone(),
     )?;
 
     let party_b_router_instantiate2_msg = msg.party_b_config.to_router_instantiate2_msg(
         env.contract.address.to_string(),
-        clock_addr.to_string(),
-        party_b_router_salt,
-        party_b_router_code,
+        clock_instantiate2_config.addr.to_string(),
         format!("{}_party_b_router", msg.label),
         covenant_denoms.clone(),
         msg.pfm_unwinding_config.party_2_pfm_map,
+        party_b_router_instantiate2_config.clone(),
     )?;
 
     let liquid_pooler_instantiate2_msg = msg.liquid_pooler_config.to_instantiate2_msg(
         env.contract.address.to_string(),
         format!("{}_liquid_pooler", msg.label),
         msg.contract_codes.liquid_pooler_code,
-        liquid_pooler_salt,
-        clock_addr.to_string(),
-        holder_addr.to_string(),
+        liquid_pooler_instantiate2_config.salt,
+        clock_instantiate2_config.addr.to_string(),
+        holder_instantiate2_config.addr.to_string(),
         msg.pool_price_config,
     )?;
 
@@ -167,73 +156,97 @@ pub fn instantiate(
     ];
 
     if let CovenantPartyConfig::Interchain(config) = &msg.party_a_config {
-        PARTY_A_IBC_FORWARDER_ADDR.save(deps.storage, &party_a_forwarder_addr)?;
-        clock_whitelist.push(party_a_forwarder_addr.to_string());
-        let preset_fields = PresetIbcForwarderFields {
+        PARTY_A_IBC_FORWARDER_ADDR
+            .save(deps.storage, &party_a_forwarder_instantiate2_config.addr)?;
+        clock_whitelist.push(party_a_forwarder_instantiate2_config.addr.to_string());
+        let instantiate_msg = IbcForwarderInstantiateMsg {
+            clock_address: clock_instantiate2_config.addr.to_string(),
+            next_contract: holder_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id.to_string(),
             remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
             denom: config.remote_chain_denom.to_string(),
             amount: config.contribution.amount,
-            label: format!("{}_party_a_ibc_forwarder", msg.label),
-            code_id: msg.contract_codes.ibc_forwarder_code,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         };
-        messages.push(preset_fields.to_instantiate2_msg(
+
+        messages.push(instantiate_msg.to_instantiate2_msg(
+            &party_a_forwarder_instantiate2_config,
             env.contract.address.to_string(),
-            party_a_forwarder_salt,
-            clock_addr.to_string(),
-            holder_addr.to_string(),
+            format!("{}_party_a_ibc_forwarder", msg.label),
         )?);
     }
 
     if let CovenantPartyConfig::Interchain(config) = &msg.party_b_config {
-        PARTY_B_IBC_FORWARDER_ADDR.save(deps.storage, &party_b_forwarder_addr)?;
-        clock_whitelist.push(party_b_forwarder_addr.to_string());
-        let preset_fields = PresetIbcForwarderFields {
+        PARTY_B_IBC_FORWARDER_ADDR
+            .save(deps.storage, &party_b_forwarder_instantiate2_config.addr)?;
+        clock_whitelist.push(party_b_forwarder_instantiate2_config.addr.to_string());
+        let instantiate_msg = IbcForwarderInstantiateMsg {
+            clock_address: clock_instantiate2_config.addr.to_string(),
+            next_contract: holder_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id.to_string(),
             remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
             denom: config.remote_chain_denom.to_string(),
             amount: config.contribution.amount,
-            label: format!("{}_party_b_ibc_forwarder", msg.label),
-            code_id: msg.contract_codes.ibc_forwarder_code,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         };
-        messages.push(preset_fields.to_instantiate2_msg(
+
+        messages.push(instantiate_msg.to_instantiate2_msg(
+            &party_b_forwarder_instantiate2_config,
             env.contract.address.to_string(),
-            party_b_forwarder_salt,
-            clock_addr.to_string(),
-            holder_addr.to_string(),
+            format!("{}_party_b_ibc_forwarder", msg.label),
         )?);
     }
 
-    let clock_instantiate2_msg = PresetClockFields {
+    let clock_instantiate2_msg = covenant_clock::msg::InstantiateMsg {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: clock_whitelist,
-        code_id: msg.contract_codes.clock_code,
-        label: format!("{}-clock", msg.label),
     }
-    .to_instantiate2_msg(env.contract.address.to_string(), clock_salt)?;
+    .to_instantiate2_msg(
+        clock_instantiate2_config.code,
+        clock_instantiate2_config.salt,
+        env.contract.address.to_string(),
+        format!("{}-clock", msg.label),
+    )?;
     messages.insert(0, clock_instantiate2_msg);
 
-    COVENANT_POL_HOLDER_ADDR.save(deps.storage, &holder_addr)?;
-    LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_addr)?;
-    PARTY_B_ROUTER_ADDR.save(deps.storage, &party_b_router_addr)?;
-    PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_router_addr)?;
-    COVENANT_CLOCK_ADDR.save(deps.storage, &clock_addr)?;
+    CONTRACT_CODES.save(
+        deps.storage,
+        &msg.contract_codes.to_covenant_codes_config(
+            party_a_router_instantiate2_config.code,
+            party_b_router_instantiate2_config.code,
+        ),
+    )?;
+    COVENANT_POL_HOLDER_ADDR.save(deps.storage, &holder_instantiate2_config.addr)?;
+    LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_instantiate2_config.addr)?;
+    PARTY_B_ROUTER_ADDR.save(deps.storage, &party_b_router_instantiate2_config.addr)?;
+    PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_router_instantiate2_config.addr)?;
+    COVENANT_CLOCK_ADDR.save(deps.storage, &clock_instantiate2_config.addr)?;
 
     Ok(Response::default()
         .add_attribute("method", "instantiate")
-        .add_attribute("clock_addr", clock_addr)
-        .add_attribute("liquid_pooler_addr", liquid_pooler_addr)
-        .add_attribute("party_a_router_addr", party_a_router_addr)
-        .add_attribute("party_b_router_addr", party_b_router_addr)
-        .add_attribute("holder_addr", holder_addr)
-        .add_attribute("party_a_forwarder_addr", party_a_forwarder_addr)
-        .add_attribute("party_b_forwarder_addr", party_b_forwarder_addr)
+        .add_attribute("clock_addr", clock_instantiate2_config.addr)
+        .add_attribute("liquid_pooler_addr", liquid_pooler_instantiate2_config.addr)
+        .add_attribute(
+            "party_a_router_addr",
+            party_a_router_instantiate2_config.addr,
+        )
+        .add_attribute(
+            "party_b_router_addr",
+            party_b_router_instantiate2_config.addr,
+        )
+        .add_attribute("holder_addr", holder_instantiate2_config.addr)
+        .add_attribute(
+            "party_a_forwarder_addr",
+            party_a_forwarder_instantiate2_config.addr,
+        )
+        .add_attribute(
+            "party_b_forwarder_addr",
+            party_b_forwarder_instantiate2_config.addr,
+        )
         .add_messages(messages))
 }
 

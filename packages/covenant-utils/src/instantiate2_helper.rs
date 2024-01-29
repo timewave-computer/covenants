@@ -29,15 +29,17 @@ pub fn get_instantiate2_salt_and_address(
     salt_bytes: &[u8],
     creator_address: &CanonicalAddr,
     code_id: u64,
-) -> StdResult<(Binary, Addr)> {
+) -> StdResult<Instantiate2HelperConfig> {
     let salt_binary = generate_contract_salt(salt_bytes);
 
     let contract_instantiate2_address =
         get_precomputed_address(deps, code_id, creator_address, &salt_binary)?;
 
-    // TODO: return Instantiate2HelperConfig instead so
-    // that clippy chills out about too many arguments
-    Ok((salt_binary, contract_instantiate2_address))
+    Ok(Instantiate2HelperConfig {
+        addr: contract_instantiate2_address,
+        code: code_id,
+        salt: salt_binary,
+    })
 }
 
 #[cw_serde]

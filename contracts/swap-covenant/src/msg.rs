@@ -1,12 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, StdResult, Uint128, Uint64, WasmMsg};
-use covenant_interchain_router::msg::PresetInterchainRouterFields;
+use cosmwasm_std::{Addr, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_interchain_splitter::msg::DenomSplit;
-use covenant_native_router::msg::PresetNativeRouterFields;
 use covenant_utils::{
-    CovenantParty, DestinationConfig, ReceiverConfig, SplitConfig, SwapCovenantTerms,
+    instantiate2_helper::Instantiate2HelperConfig, CovenantParty, DestinationConfig,
+    ReceiverConfig, SplitConfig, SwapCovenantTerms,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -87,8 +86,7 @@ impl CovenantPartyConfig {
         admin: String,
         clock_addr: String,
         covenant_denoms: BTreeSet<String>,
-        code_id: u64,
-        salt: Binary,
+        instantiate2_helper: Instantiate2HelperConfig,
     ) -> StdResult<WasmMsg> {
         match self {
             CovenantPartyConfig::Interchain(party) => {
@@ -100,26 +98,20 @@ impl CovenantPartyConfig {
                     ibc_transfer_timeout: party.ibc_transfer_timeout,
                     denom_to_pfm_map: BTreeMap::new(),
                 };
-                let interchain_router_fields = PresetInterchainRouterFields {
+                let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
+                    clock_address: clock_addr.to_string(),
                     destination_config,
-                    label,
-                    code_id,
-                    denoms: covenant_denoms.clone(),
+                    denoms: covenant_denoms,
                 };
-                Ok(interchain_router_fields.to_instantiate2_msg(
-                    admin,
-                    salt,
-                    clock_addr.to_string(),
-                )?)
+                Ok(instantiate_msg.to_instantiate2_msg(&instantiate2_helper, admin, label)?)
             }
             CovenantPartyConfig::Native(party) => {
-                let native_router_fields = PresetNativeRouterFields {
+                let instantiate_msg = covenant_native_router::msg::InstantiateMsg {
+                    clock_address: clock_addr.to_string(),
                     receiver_address: party.party_receiver_addr.to_string(),
-                    denoms: covenant_denoms.clone(),
-                    label,
-                    code_id,
+                    denoms: covenant_denoms,
                 };
-                Ok(native_router_fields.to_instantiate2_msg(admin, salt, clock_addr)?)
+                Ok(instantiate_msg.to_instantiate2_msg(&instantiate2_helper, admin, label)?)
             }
         }
     }

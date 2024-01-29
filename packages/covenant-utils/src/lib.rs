@@ -620,7 +620,6 @@ impl DestinationConfig {
             if let Some(c) = send_coin {
                 match self.denom_to_pfm_map.get(&c.denom) {
                     Some(pfm_config) => {
-                        // TODO: generate pfm ibc transfer msg
                         messages.push(CosmosMsg::Custom(NeutronMsg::IbcTransfer {
                             source_port: "transfer".to_string(),
                             // local chain to hop chain channel
