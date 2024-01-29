@@ -1,8 +1,12 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, DepsMut, StdError, WasmMsg};
+use cosmwasm_std::{
+    to_json_binary, Addr, Attribute, Binary, DepsMut, StdError, StdResult, WasmMsg,
+};
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
-use covenant_utils::{CovenantPartiesConfig, CovenantTerms};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig, CovenantPartiesConfig, CovenantTerms,
+};
 use cw_utils::Expiration;
 
 use crate::state::CONTRACT_STATE;
@@ -25,6 +29,24 @@ pub struct InstantiateMsg {
 }
 
 impl InstantiateMsg {
+    pub fn to_instantiate2_msg(
+        &self,
+        instantiate2_helper: &Instantiate2HelperConfig,
+        admin: String,
+        label: String,
+    ) -> StdResult<WasmMsg> {
+        Ok(WasmMsg::Instantiate2 {
+            admin: Some(admin),
+            code_id: instantiate2_helper.code,
+            label,
+            msg: to_json_binary(self)?,
+            funds: vec![],
+            salt: instantiate2_helper.salt.clone(),
+        })
+    }
+}
+
+impl InstantiateMsg {
     pub fn get_response_attributes(self) -> Vec<Attribute> {
         let mut attrs = vec![
             Attribute::new("clock_addr", self.clock_address),
@@ -34,54 +56,6 @@ impl InstantiateMsg {
         attrs.extend(self.parties_config.get_response_attributes());
         attrs.extend(self.covenant_terms.get_response_attributes());
         attrs
-    }
-}
-
-#[cw_serde]
-pub struct PresetSwapHolderFields {
-    /// block height of covenant expiration. Position is exited
-    /// automatically upon reaching that height.
-    pub lockup_config: Expiration,
-    /// parties engaged in the POL.
-    pub parties_config: CovenantPartiesConfig,
-    /// terms of the covenant
-    pub covenant_terms: CovenantTerms,
-    /// code id for the contract
-    pub code_id: u64,
-    /// contract label
-    pub label: String,
-}
-
-impl PresetSwapHolderFields {
-    pub fn to_instantiate_msg(
-        &self,
-        clock_address: String,
-        next_contract: String,
-    ) -> InstantiateMsg {
-        InstantiateMsg {
-            clock_address,
-            next_contract,
-            lockup_config: self.lockup_config,
-            parties_config: self.parties_config.clone(),
-            covenant_terms: self.covenant_terms.clone(),
-        }
-    }
-
-    pub fn to_instantiate2_msg(
-        &self,
-        admin_addr: String,
-        salt: Binary,
-        clock_address: String,
-        next_contract: String,
-    ) -> Result<WasmMsg, StdError> {
-        Ok(WasmMsg::Instantiate2 {
-            admin: Some(admin_addr),
-            code_id: self.code_id,
-            label: self.label.to_string(),
-            msg: to_json_binary(&self.to_instantiate_msg(clock_address, next_contract))?,
-            funds: vec![],
-            salt,
-        })
     }
 }
 

@@ -1,10 +1,10 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdError, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
 };
-use covenant_utils::neutron_ica::RemoteChainInfo;
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron_ica::RemoteChainInfo};
 use neutron_sdk::bindings::msg::IbcFee;
 
 #[cw_serde]
@@ -43,53 +43,20 @@ pub struct InstantiateMsg {
     pub ibc_transfer_timeout: Uint64,
 }
 
-#[cw_serde]
-pub struct PresetStrideLsFields {
-    pub code_id: u64,
-    pub label: String,
-    pub ls_denom: String,
-    pub stride_neutron_ibc_transfer_channel_id: String,
-    pub neutron_stride_ibc_connection_id: String,
-    pub ica_timeout: Uint64,
-    pub ibc_transfer_timeout: Uint64,
-    pub ibc_fee: IbcFee,
-}
-
-impl PresetStrideLsFields {
-    pub fn to_instantiate_msg(
-        &self,
-        clock_address: String,
-        next_contract: String,
-    ) -> InstantiateMsg {
-        InstantiateMsg {
-            clock_address,
-            stride_neutron_ibc_transfer_channel_id: self
-                .stride_neutron_ibc_transfer_channel_id
-                .to_string(),
-            neutron_stride_ibc_connection_id: self.neutron_stride_ibc_connection_id.to_string(),
-            next_contract,
-            ls_denom: self.ls_denom.to_string(),
-            ibc_fee: self.ibc_fee.clone(),
-            ica_timeout: self.ica_timeout,
-            ibc_transfer_timeout: self.ibc_transfer_timeout,
-        }
-    }
-
+impl InstantiateMsg {
     pub fn to_instantiate2_msg(
         &self,
-        admin_addr: String,
-        salt: Binary,
-        clock_address: String,
-        next_contract: String,
-    ) -> Result<WasmMsg, StdError> {
-        let instantiate_msg = self.to_instantiate_msg(clock_address, next_contract);
+        instantiate2_helper: &Instantiate2HelperConfig,
+        admin: String,
+        label: String,
+    ) -> StdResult<WasmMsg> {
         Ok(WasmMsg::Instantiate2 {
-            admin: Some(admin_addr),
-            code_id: self.code_id,
-            label: self.label.to_string(),
-            msg: to_json_binary(&instantiate_msg)?,
+            admin: Some(admin),
+            code_id: instantiate2_helper.code,
+            label,
+            msg: to_json_binary(self)?,
             funds: vec![],
-            salt,
+            salt: instantiate2_helper.salt.clone(),
         })
     }
 }

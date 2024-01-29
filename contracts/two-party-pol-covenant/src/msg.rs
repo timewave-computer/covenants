@@ -4,13 +4,12 @@ use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{coin, Addr, Binary, Coin, Decimal, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::{AssetData, PresetAstroLiquidPoolerFields};
-use covenant_interchain_router::msg::PresetInterchainRouterFields;
-use covenant_native_router::msg::PresetNativeRouterFields;
 use covenant_osmo_liquid_pooler::msg::{
     PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields,
 };
 use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
 use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig,
     CovenantParty, DenomSplit, DestinationConfig, PacketForwardMiddlewareConfig,
     PfmUnwindingConfig, PoolPriceConfig, ReceiverConfig, SingleSideLpLimits, SplitConfig,
 };
@@ -210,11 +209,10 @@ impl CovenantPartyConfig {
         &self,
         admin_addr: String,
         clock_addr: String,
-        salt: Binary,
-        code_id: u64,
         label: String,
         denoms: BTreeSet<String>,
         denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+        instantiate2_helper: Instantiate2HelperConfig,
     ) -> StdResult<WasmMsg> {
         match self {
             CovenantPartyConfig::Interchain(party) => {
@@ -222,7 +220,8 @@ impl CovenantPartyConfig {
                 // we need to unwind:
                 // counterparty denom on neutron -> route through counterparty chain
                 //
-                let preset_party_b_router_fields = PresetInterchainRouterFields {
+                let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
+                    clock_address: clock_addr.to_string(),
                     destination_config: DestinationConfig {
                         local_to_destination_chain_channel_id: party
                             .host_to_party_chain_channel_id
@@ -231,28 +230,17 @@ impl CovenantPartyConfig {
                         ibc_transfer_timeout: party.ibc_transfer_timeout,
                         denom_to_pfm_map,
                     },
-                    label,
-                    code_id,
                     denoms,
                 };
-                Ok(preset_party_b_router_fields.to_instantiate2_msg(
-                    admin_addr,
-                    salt,
-                    clock_addr.to_string(),
-                )?)
+                Ok(instantiate_msg.to_instantiate2_msg(&instantiate2_helper, admin_addr, label)?)
             }
             CovenantPartyConfig::Native(party) => {
-                let preset_native_router_fields = PresetNativeRouterFields {
+                let instantiate_msg = covenant_native_router::msg::InstantiateMsg {
+                    clock_address: clock_addr.to_string(),
                     receiver_address: party.party_receiver_addr.to_string(),
                     denoms,
-                    label,
-                    code_id,
                 };
-                Ok(preset_native_router_fields.to_instantiate2_msg(
-                    admin_addr,
-                    salt,
-                    clock_addr.to_string(),
-                )?)
+                Ok(instantiate_msg.to_instantiate2_msg(&instantiate2_helper, admin_addr, label)?)
             }
         }
     }
