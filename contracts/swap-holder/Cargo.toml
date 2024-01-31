@@ -1,9 +1,9 @@
 [package]
-name = "covenant-swap-holder"
-authors = ["benskey bekauz@protonmail.com"]
+name        = "covenant-swap-holder"
+authors     = ["benskey bekauz@protonmail.com"]
 description = "covenant contract to facilitate a tokenswap"
-edition = { workspace = true }
-license = { workspace = true }
+edition     = { workspace = true }
+license     = { workspace = true }
 # rust-version = { workspace = true }
 version = { workspace = true }
 
@@ -17,18 +17,18 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-cosmwasm-schema = { workspace = true }
-cosmwasm-std = { workspace = true }
-cw-storage-plus = { workspace = true }
-cw-utils = { workspace = true }
-covenant-clock = { workspace = true, features=["library"]}
-cw2 = { workspace = true }
-serde = { workspace = true }
-thiserror = { workspace = true }
-covenant-macros = { workspace = true }
-covenant-utils = { workspace = true }
+cosmwasm-schema  = { workspace = true }
+cosmwasm-std     = { workspace = true }
+cw-storage-plus  = { workspace = true }
+cw-utils         = { workspace = true }
+covenant-clock   = { workspace = true, features = ["library"] }
+cw2              = { workspace = true }
+serde            = { workspace = true }
+thiserror        = { workspace = true }
+covenant-macros  = { workspace = true }
+covenant-utils   = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
-anyhow = { workspace = true }
+anyhow        = { workspace = true }

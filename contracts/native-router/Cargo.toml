@@ -7,10 +7,7 @@ license     = { workspace = true }
 repository  = { workspace = true }
 version     = { workspace = true }
 
-exclude = [
-  "contract.wasm",
-  "hash.txt",
-]
+exclude = ["contract.wasm", "hash.txt"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -22,8 +19,8 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-covenant-macros = { workspace = true}
-covenant-clock = { workspace = true, features=["library"]}
+covenant-macros  = { workspace = true }
+covenant-clock   = { workspace = true, features = ["library"] }
 cosmwasm-schema  = { workspace = true }
 cosmwasm-std     = { workspace = true }
 cw-storage-plus  = { workspace = true }
@@ -41,6 +38,6 @@ bech32           = { workspace = true }
 covenant-utils   = { workspace = true }
 
 [dev-dependencies]
-cw-multi-test = { workspace = true }
-anyhow        = { workspace = true }
+cw-multi-test  = { workspace = true }
+anyhow         = { workspace = true }
 covenant-clock = { workspace = true }
