@@ -8,10 +8,7 @@ version     = { workspace = true }
 edition     = { workspace = true }
 # rust-version = { workspace = true }
 
-exclude = [
-  "contract.wasm",
-  "hash.txt",
-]
+exclude = ["contract.wasm", "hash.txt"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -48,9 +45,9 @@ covenant-utils = { workspace = true }
 
 # dev-dependencies
 [dev-dependencies]
-cw-multi-test                  = { workspace = true }
-astroport                      = { workspace = true }
-cw1-whitelist                  = { workspace = true }
+cw-multi-test = { workspace = true }
+astroport     = { workspace = true }
+cw1-whitelist = { workspace = true }
 # covenant-two-party-pol-holder  = { workspace = true }
 astroport-token                = { workspace = true }
 astroport-whitelist            = { workspace = true }

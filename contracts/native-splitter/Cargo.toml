@@ -1,11 +1,11 @@
 [package]
-name         = "covenant-native-splitter"
-authors      = ["benskey bekauz@protonmail.com"]
-description  = "Native Splitter module for covenants"
-edition      = { workspace = true }
-license      = { workspace = true }
+name        = "covenant-native-splitter"
+authors     = ["benskey bekauz@protonmail.com"]
+description = "Native Splitter module for covenants"
+edition     = { workspace = true }
+license     = { workspace = true }
 repository  = { workspace = true }
-version      = { workspace = true }
+version     = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -18,7 +18,7 @@ library = []
 
 [dependencies]
 covenant-macros  = { workspace = true }
-covenant-clock   = { workspace = true, features=["library"] }
+covenant-clock   = { workspace = true, features = ["library"] }
 covenant-utils   = { workspace = true }
 cosmwasm-schema  = { workspace = true }
 cosmwasm-std     = { workspace = true }
