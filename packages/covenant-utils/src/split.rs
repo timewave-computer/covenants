@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Attribute, BankMsg, Coin, CosmosMsg, Decimal, Fraction, StdError, Uint128};
+use cosmwasm_std::{Attribute, BankMsg, Coin, CosmosMsg, Decimal, Fraction, StdError, StdResult, Uint128};
 
 // splitter
 #[cw_serde]
@@ -156,4 +156,28 @@ impl SplitConfig {
         receivers.push(']');
         Attribute::new(denom, receivers)
     }
+}
+
+pub fn remap_splits(
+    splits: BTreeMap<String, SplitType>,
+    (party_a_receiver, party_a_router): (String, String),
+    (party_b_receiver, party_b_router): (String, String),
+) -> StdResult<BTreeMap<String, SplitType>> {
+    let mut remapped_splits: BTreeMap<String, SplitType> = BTreeMap::new();
+
+    for (denom, split) in splits.iter() {
+        match split {
+            SplitType::Custom(config) => {
+                let remapped_split = config.remap_receivers_to_routers(
+                    party_a_receiver.clone(),
+                    party_a_router.clone(),
+                    party_b_receiver.clone(),
+                    party_b_router.clone(),
+                )?;
+                remapped_splits.insert(denom.clone(), SplitType::Custom(remapped_split));
+            },
+        }
+    }
+
+    Ok(remapped_splits)
 }

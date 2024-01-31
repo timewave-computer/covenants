@@ -7,8 +7,8 @@ use cosmwasm_std::{
     StdResult, WasmMsg,
 };
 use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
-use covenant_two_party_pol_holder::msg::{remap_splits, RagequitConfig, TwoPartyPolCovenantConfig};
-use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
+use covenant_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};
+use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits};
 use cw2::set_contract_version;
 
 use crate::{
@@ -45,8 +45,8 @@ pub fn instantiate(
 
     let covenant_denoms: BTreeSet<String> = msg
         .splits
-        .iter()
-        .map(|split| split.denom.to_string())
+        .keys()
+        .map(|k| k.to_string())
         .collect();
 
     let clock_instantiate2_config = get_instantiate2_salt_and_address(

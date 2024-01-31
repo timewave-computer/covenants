@@ -2,9 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, StdResult, Uint128, Uint64, WasmMsg};
-use covenant_interchain_splitter::msg::DenomSplit;
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty,
+    instantiate2_helper::Instantiate2HelperConfig, split::{SplitConfig, SplitType}, CovenantParty,
     DestinationConfig, ReceiverConfig, SwapCovenantTerms,
 };
 use cw_utils::Expiration;
@@ -24,7 +23,7 @@ pub struct InstantiateMsg {
     pub covenant_terms: SwapCovenantTerms,
     pub party_a_config: CovenantPartyConfig,
     pub party_b_config: CovenantPartyConfig,
-    pub splits: Vec<DenomSplit>,
+    pub splits: BTreeMap<String, SplitType>,
     pub fallback_split: Option<SplitConfig>,
 }
 
@@ -265,6 +264,7 @@ pub enum MigrateMsg {
         clock: Option<covenant_clock::msg::MigrateMsg>,
         holder: Option<covenant_swap_holder::msg::MigrateMsg>,
         splitter: Option<covenant_interchain_splitter::msg::MigrateMsg>,
+        // TODO: add support for native router migrations
         party_a_router: Option<covenant_interchain_router::msg::MigrateMsg>,
         party_b_router: Option<covenant_interchain_router::msg::MigrateMsg>,
         party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,

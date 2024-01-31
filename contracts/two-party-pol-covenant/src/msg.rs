@@ -8,7 +8,7 @@ use covenant_osmo_liquid_pooler::msg::{PartyChainInfo, PartyDenomInfo};
 use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig,
-    split::{DenomSplit, SplitConfig},
+    split::{SplitConfig, SplitType},
     CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, PfmUnwindingConfig,
     PoolPriceConfig, ReceiverConfig, SingleSideLpLimits,
 };
@@ -34,7 +34,7 @@ pub struct InstantiateMsg {
     pub party_a_share: Uint64,
     pub party_b_share: Uint64,
     pub pool_price_config: PoolPriceConfig,
-    pub splits: Vec<DenomSplit>,
+    pub splits: BTreeMap<String, SplitType>,
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee: Option<String>,
     pub liquid_pooler_config: LiquidPoolerConfig,
