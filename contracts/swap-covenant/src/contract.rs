@@ -5,9 +5,8 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, to_json_string, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg
 };
-use covenant_interchain_splitter::msg::remap_splits;
 use covenant_utils::{
-    instantiate2_helper::get_instantiate2_salt_and_address, CovenantPartiesConfig, CovenantTerms,
+    instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits, CovenantPartiesConfig, CovenantTerms
 };
 use cw2::set_contract_version;
 
@@ -44,10 +43,9 @@ pub fn instantiate(
 
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
 
-    let covenant_denoms: BTreeSet<String> = msg
-        .splits
-        .iter()
-        .map(|split| split.denom.to_string())
+    let covenant_denoms: BTreeSet<String> = msg.splits
+        .keys()
+        .map(|k| k.to_string())
         .collect();
 
     // first we generate the instantiate2 addresses for each contract
