@@ -1,6 +1,5 @@
 use cosmwasm_std::{
-    to_json_binary, Addr, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128,
+    ensure, to_json_binary, Addr, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128
 };
 use covenant_utils::CovenantTerms;
 
@@ -13,7 +12,7 @@ use crate::{
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use covenant_clock::helpers::enqueue_msg;
+use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use cw2::set_contract_version;
 
 const CONTRACT_NAME: &str = "crates.io:covenant-swap-holder";
@@ -64,9 +63,7 @@ pub fn execute(
 /// attempts to advance the state machine. performs `info.sender` validation
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
-    if info.sender != CLOCK_ADDRESS.load(deps.storage)? {
-        return Err(ContractError::Unauthorized {});
-    }
+    ensure!(info.sender == CLOCK_ADDRESS.load(deps.storage)?, ContractError::Unauthorized {});
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
