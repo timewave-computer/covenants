@@ -1,5 +1,5 @@
 use cosmwasm_std::{to_json_vec, Binary, DepsMut, Env, Response, StdError, StdResult, Storage};
-use covenant_utils::neutron_ica;
+use covenant_utils::neutron::{OpenAckVersion, SudoPayload};
 use neutron_sdk::{bindings::query::NeutronQuery, sudo::msg::RequestPacket};
 
 use crate::{
@@ -20,7 +20,7 @@ pub fn sudo_open_ack(
 ) -> StdResult<Response> {
     // The version variable contains a JSON value with multiple fields,
     // including the generated account address.
-    let parsed_version: Result<neutron_ica::OpenAckVersion, _> =
+    let parsed_version: Result<OpenAckVersion, _> =
         serde_json_wasm::from_str(counterparty_version.as_str());
 
     // get the parsed OpenAckVersion or return an error if we fail
@@ -96,9 +96,6 @@ pub fn sudo_error(
     Ok(Response::default().add_attribute("method", "sudo_error"))
 }
 
-pub fn save_reply_payload(
-    store: &mut dyn Storage,
-    payload: neutron_ica::SudoPayload,
-) -> StdResult<()> {
+pub fn save_reply_payload(store: &mut dyn Storage, payload: SudoPayload) -> StdResult<()> {
     REPLY_ID_STORAGE.save(store, &to_json_vec(&payload)?)
 }

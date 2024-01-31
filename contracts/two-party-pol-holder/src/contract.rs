@@ -9,8 +9,8 @@ use cosmwasm_std::{
 use cosmwasm_std::entry_point;
 
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
+use covenant_utils::split::{SplitConfig, SplitType};
 use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
-use covenant_utils::{SplitConfig, SplitType};
 use cw2::set_contract_version;
 
 use crate::msg::CovenantType;

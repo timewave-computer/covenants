@@ -6,9 +6,7 @@ use cosmwasm_std::{
     Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::neutron_ica::{
-    self, get_proto_coin, OpenAckVersion, RemoteChainInfo, SudoPayload,
-};
+use covenant_utils::neutron::{self, get_proto_coin, OpenAckVersion, RemoteChainInfo, SudoPayload};
 use cw2::set_contract_version;
 
 use crate::helpers::{Autopilot, AutopilotConfig};
@@ -134,10 +132,9 @@ fn try_execute_transfer(
 ) -> NeutronResult<Response<NeutronMsg>> {
     // first we verify whether the next contract is ready for receiving the funds
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
-    let deposit_address_query = deps.querier.query_wasm_smart(
-        next_contract,
-        &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
-    )?;
+    let deposit_address_query = deps
+        .querier
+        .query_wasm_smart(next_contract, &neutron::QueryMsg::DepositAddress {})?;
 
     // if query returns None, then we error and wait
     let Some(deposit_address) = deposit_address_query else {
@@ -171,7 +168,7 @@ fn try_execute_transfer(
                     .nanos(),
             };
 
-            let protobuf = neutron_ica::to_proto_msg_transfer(msg)?;
+            let protobuf = neutron::to_proto_msg_transfer(msg)?;
 
             // wrap the protobuf of MsgTransfer into a message to be executed
             // by our interchain account

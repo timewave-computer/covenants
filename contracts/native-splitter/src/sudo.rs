@@ -1,5 +1,5 @@
 use cosmwasm_std::{Binary, DepsMut, Env, Reply, Response, StdError, StdResult};
-use covenant_utils::neutron_ica::OpenAckVersion;
+use covenant_utils::neutron::OpenAckVersion;
 use neutron_sdk::{
     bindings::{msg::MsgSubmitTxResponse, query::NeutronQuery},
     sudo::msg::RequestPacket,

@@ -11,7 +11,7 @@ use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
-use covenant_utils::{DenomSplit, SplitConfig, SplitType};
+use covenant_utils::split::{DenomSplit, SplitConfig, SplitType};
 use cw_utils::Expiration;
 
 use crate::{error::ContractError, state::CONTRACT_STATE};

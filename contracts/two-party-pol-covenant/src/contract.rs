@@ -290,7 +290,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 match PARTY_A_IBC_FORWARDER_ADDR.may_load(deps.storage)? {
                     Some(addr) => deps.querier.query_wasm_smart(
                         addr,
-                        &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
+                        &covenant_utils::neutron::QueryMsg::DepositAddress {},
                     )?,
                     None => COVENANT_POL_HOLDER_ADDR.may_load(deps.storage)?,
                 }
@@ -298,7 +298,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 match PARTY_B_IBC_FORWARDER_ADDR.may_load(deps.storage)? {
                     Some(addr) => deps.querier.query_wasm_smart(
                         addr,
-                        &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
+                        &covenant_utils::neutron::QueryMsg::DepositAddress {},
                     )?,
                     None => COVENANT_POL_HOLDER_ADDR.may_load(deps.storage)?,
                 }

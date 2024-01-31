@@ -5,7 +5,7 @@ use cosmwasm_std::{
     QuerierWrapper, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::{query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
+use covenant_utils::{astroport::query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
 use cw2::set_contract_version;
 
 use astroport::{
