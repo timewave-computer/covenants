@@ -3,14 +3,18 @@ use std::{collections::BTreeMap, fmt};
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError, StdResult, WasmMsg
+    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError,
+    StdResult, WasmMsg,
 };
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::{DenomSplit, SplitConfig, SplitType}};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig,
+    split::{DenomSplit, SplitConfig, SplitType},
+};
 use cw_utils::Expiration;
 
 use crate::{error::ContractError, state::CONTRACT_STATE};
