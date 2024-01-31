@@ -37,6 +37,7 @@ pub enum CovenantPartyConfig {
 impl CovenantPartyConfig {
     pub fn to_receiver_config(&self) -> ReceiverConfig {
         match self {
+            // TODO: enable pfm mapping
             CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
                 local_to_destination_chain_channel_id: config
                     .host_to_party_chain_channel_id
@@ -46,6 +47,7 @@ impl CovenantPartyConfig {
                 denom_to_pfm_map: BTreeMap::new(),
             }),
             CovenantPartyConfig::Native(config) => {
+                // todo: validate the address
                 ReceiverConfig::Native(Addr::unchecked(config.party_receiver_addr.to_string()))
             }
         }
