@@ -1,16 +1,13 @@
 [package]
-name         = "covenant-interchain-splitter"
-authors      = ["benskey bekauz@protonmail.com"]
-description  = "Interchain Splitter module for covenants"
-edition      = { workspace = true }
-license      = { workspace = true }
+name        = "covenant-interchain-splitter"
+authors     = ["benskey bekauz@protonmail.com"]
+description = "Interchain Splitter module for covenants"
+edition     = { workspace = true }
+license     = { workspace = true }
 # rust-version = { workspace = true }
-version      = { workspace = true }
+version = { workspace = true }
 
-exclude = [
-  "contract.wasm",
-  "hash.txt",
-]
+exclude = ["contract.wasm", "hash.txt"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -23,17 +20,17 @@ library = []
 
 [dependencies]
 covenant-macros = { workspace = true }
-cosmwasm-schema  = { workspace = true }
-cosmwasm-std     = { workspace = true }
-covenant-utils = { workspace = true }
-covenant-clock = { workspace = true, features=["library"]}
-cw-storage-plus  = { workspace = true }
-cw2              = { workspace = true }
-thiserror        = { workspace = true }
-schemars         = { workspace = true }
-serde-json-wasm  = { workspace = true }
-serde            = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cosmwasm-std    = { workspace = true }
+covenant-utils  = { workspace = true }
+covenant-clock  = { workspace = true, features = ["library"] }
+cw-storage-plus = { workspace = true }
+cw2             = { workspace = true }
+thiserror       = { workspace = true }
+schemars        = { workspace = true }
+serde-json-wasm = { workspace = true }
+serde           = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
-anyhow = { workspace = true }
+anyhow        = { workspace = true }

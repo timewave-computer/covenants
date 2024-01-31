@@ -1,9 +1,9 @@
 [package]
-name = "covenant-clock"
-authors = ["ekez <ekez@withoutdoing.com>"]
+name        = "covenant-clock"
+authors     = ["ekez <ekez@withoutdoing.com>"]
 description = "A clock that advances the covenant state machine."
-edition = { workspace = true }
-license = { workspace = true }
+edition     = { workspace = true }
+license     = { workspace = true }
 # rust-version = { workspace = true }
 version = { workspace = true }
 
@@ -18,17 +18,17 @@ library = []
 
 [dependencies]
 cosmwasm-schema = { workspace = true }
-cosmwasm-std = { workspace = true }
+cosmwasm-std    = { workspace = true }
 covenant-macros = { workspace = true }
-cw-fifo = { workspace = true }
+cw-fifo         = { workspace = true }
 cw-storage-plus = { workspace = true }
-cw2 = { workspace = true }
-serde = { workspace = true }
-thiserror = { workspace = true }
-neutron-sdk      = { workspace = true }
+cw2             = { workspace = true }
+serde           = { workspace = true }
+thiserror       = { workspace = true }
+neutron-sdk     = { workspace = true }
 # covenant-utils = { workspace = true, features=["library"] }
 
 [dev-dependencies]
-cw-multi-test = { workspace = true }
-anyhow = { workspace = true }
-covenant-clock-tester = { workspace = true, features=["library"] }
+cw-multi-test         = { workspace = true }
+anyhow                = { workspace = true }
+covenant-clock-tester = { workspace = true, features = ["library"] }
