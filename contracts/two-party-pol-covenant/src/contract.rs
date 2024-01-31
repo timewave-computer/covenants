@@ -7,7 +7,7 @@ use cosmwasm_std::{
     StdResult, WasmMsg,
 };
 use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
-use covenant_two_party_pol_holder::msg::{PresetTwoPartyPolHolderFields, RagequitConfig};
+use covenant_two_party_pol_holder::msg::{remap_splits, RagequitConfig, TwoPartyPolCovenantConfig};
 use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
 use cw2::set_contract_version;
 
@@ -98,26 +98,43 @@ pub fn instantiate(
     clock_whitelist.push(party_b_router_instantiate2_config.addr.to_string());
     clock_whitelist.push(liquid_pooler_instantiate2_config.addr.to_string());
 
-    let holder_instantiate2_msg = PresetTwoPartyPolHolderFields {
+    let holder_instantiate2_msg = covenant_two_party_pol_holder::msg::InstantiateMsg {
+        clock_address: clock_instantiate2_config.addr.to_string(),
         lockup_config: msg.lockup_config,
+        next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
         ragequit_config: msg.ragequit_config.unwrap_or(RagequitConfig::Disabled),
         deposit_deadline: msg.deposit_deadline,
-        party_a: msg.party_a_config.to_preset_pol_party(msg.party_a_share),
-        party_b: msg.party_b_config.to_preset_pol_party(msg.party_b_share),
-        code_id: msg.contract_codes.holder_code,
-        label: format!("{}-holder", msg.label),
-        splits: msg.splits,
-        fallback_split: msg.fallback_split,
-        covenant_type: msg.covenant_type,
-        emergency_committee: msg.emergency_committee,
+        splits: remap_splits(
+            msg.splits,
+            (msg.party_a_config.get_final_receiver_address(), party_a_router_instantiate2_config.addr.to_string()),
+            (msg.party_b_config.get_final_receiver_address(), party_b_router_instantiate2_config.addr.to_string()),
+        )?,
+        fallback_split: match msg.fallback_split {
+            Some(config) => Some(config.remap_receivers_to_routers(
+                msg.party_a_config.get_final_receiver_address(),
+                party_a_router_instantiate2_config.addr.to_string(),
+                msg.party_b_config.get_final_receiver_address(),
+                party_b_router_instantiate2_config.addr.to_string(),
+            )?),
+            None => None,
+        },
+        covenant_config: TwoPartyPolCovenantConfig {
+            party_a: msg.party_a_config.to_two_party_pol_party(
+                msg.party_a_share,
+                party_a_router_instantiate2_config.addr.to_string(),
+            ),
+            party_b: msg.party_b_config.to_two_party_pol_party(
+                msg.party_b_share,
+                party_b_router_instantiate2_config.addr.to_string(),
+            ),
+            covenant_type: msg.covenant_type.clone(),
+        },
+        emergency_committee_addr: msg.emergency_committee,
     }
     .to_instantiate2_msg(
+        &holder_instantiate2_config,
         env.contract.address.to_string(),
-        holder_instantiate2_config.salt,
-        clock_instantiate2_config.addr.to_string(),
-        liquid_pooler_instantiate2_config.addr.to_string(),
-        party_a_router_instantiate2_config.addr.to_string(),
-        party_b_router_instantiate2_config.addr.to_string(),
+        format!("{}_holder", msg.label),
     )?;
 
     let party_a_router_instantiate2_msg = msg.party_a_config.to_router_instantiate2_msg(

@@ -7,7 +7,7 @@ use covenant_astroport_liquid_pooler::msg::{AssetData, PresetAstroLiquidPoolerFi
 use covenant_osmo_liquid_pooler::msg::{
     PartyChainInfo, PartyDenomInfo, PresetOsmoLiquidPoolerFields,
 };
-use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
+use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig,
     split::{DenomSplit, SplitConfig},
@@ -171,9 +171,9 @@ impl CovenantPartyConfig {
         }
     }
 
-    pub fn to_preset_pol_party(&self, party_share: Uint64) -> PresetPolParty {
+    pub fn to_two_party_pol_party(&self, party_share: Uint64, router: String) -> TwoPartyPolCovenantParty {
         match &self {
-            CovenantPartyConfig::Interchain(config) => PresetPolParty {
+            CovenantPartyConfig::Interchain(config) => TwoPartyPolCovenantParty {
                 contribution: coin(
                     config.contribution.amount.u128(),
                     config.native_denom.to_string(),
@@ -181,12 +181,14 @@ impl CovenantPartyConfig {
                 host_addr: config.addr.to_string(),
                 controller_addr: config.party_receiver_addr.to_string(),
                 allocation: Decimal::from_ratio(party_share, Uint128::new(100)),
+                router,
             },
-            CovenantPartyConfig::Native(config) => PresetPolParty {
+            CovenantPartyConfig::Native(config) => TwoPartyPolCovenantParty {
                 contribution: config.contribution.clone(),
                 host_addr: config.addr.to_string(),
                 controller_addr: config.party_receiver_addr.to_string(),
                 allocation: Decimal::from_ratio(party_share, Uint128::new(100)),
+                router,
             },
         }
     }
