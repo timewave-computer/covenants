@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, fmt};
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError, StdResult, WasmMsg
+    ensure, to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError, StdResult, WasmMsg
 };
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
@@ -343,9 +343,7 @@ impl TwoPartyPolCovenantConfig {
             return Err(ContractError::Unauthorized {});
         };
 
-        if parties.0.allocation == Decimal::zero() {
-            return Err(ContractError::PartyAllocationIsZero {});
-        }
+        ensure!(!parties.0.allocation.is_zero(), ContractError::PartyAllocationIsZero {});
 
         Ok(parties)
     }

@@ -55,6 +55,50 @@ impl InstantiateMsg {
 }
 
 #[cw_serde]
+pub struct OsmosisLiquidPoolerConfig {
+    pub note_address: String,
+    pub pool_id: Uint64,
+    pub osmo_ibc_timeout: Uint64,
+    pub osmo_outpost: String,
+    pub party_1_chain_info: PartyChainInfo,
+    pub party_2_chain_info: PartyChainInfo,
+    pub lp_token_denom: String,
+    pub osmo_to_neutron_channel_id: String,
+    pub party_1_denom_info: PartyDenomInfo,
+    pub party_2_denom_info: PartyDenomInfo,
+    pub funding_duration_seconds: Uint64,
+    pub single_side_lp_limits: SingleSideLpLimits,
+}
+
+impl OsmosisLiquidPoolerConfig {
+    pub fn to_instantiate_msg(
+        &self,
+        clock_address: String,
+        holder_address: String,
+        pool_price_config: PoolPriceConfig,
+    ) -> InstantiateMsg {
+        InstantiateMsg {
+            clock_address,
+            holder_address,
+            note_address: self.note_address.to_string(),
+            pool_id: self.pool_id,
+            osmo_ibc_timeout: self.osmo_ibc_timeout,
+            party_1_chain_info: self.party_1_chain_info.clone(),
+            party_2_chain_info: self.party_2_chain_info.clone(),
+            osmo_to_neutron_channel_id: self.osmo_to_neutron_channel_id.to_string(),
+            party_1_denom_info: self.party_1_denom_info.clone(),
+            party_2_denom_info: self.party_2_denom_info.clone(),
+            osmo_outpost: self.osmo_outpost.to_string(),
+            lp_token_denom: self.lp_token_denom.to_string(),
+            slippage_tolerance: None,
+            pool_price_config,
+            funding_duration_seconds: self.funding_duration_seconds,
+            single_side_lp_limits: self.single_side_lp_limits.clone(),
+        }
+    }
+}
+
+#[cw_serde]
 pub struct LiquidityProvisionConfig {
     pub latest_balances: HashMap<String, Coin>,
     pub party_1_denom_info: PartyDenomInfo,

@@ -44,6 +44,38 @@ impl InstantiateMsg {
 }
 
 #[cw_serde]
+pub struct AstroportLiquidPoolerConfig {
+    pub pool_pair_type: PairType,
+    pub pool_address: String,
+    pub asset_a_denom: String,
+    pub asset_b_denom: String,
+    pub single_side_lp_limits: SingleSideLpLimits,
+}
+
+impl AstroportLiquidPoolerConfig {
+    pub fn to_instantiate_msg(
+        &self,
+        clock_address: String,
+        holder_address: String,
+        pool_price_config: PoolPriceConfig,
+    ) -> InstantiateMsg {
+        InstantiateMsg {
+            pool_address: self.pool_address.to_string(),
+            clock_address,
+            single_side_lp_limits: self.single_side_lp_limits.clone(),
+            pool_price_config,
+            pair_type: self.pool_pair_type.clone(),
+            holder_address,
+            slippage_tolerance: None,
+            assets: AssetData {
+                asset_a_denom: self.asset_a_denom.to_string(),
+                asset_b_denom: self.asset_b_denom.to_string(),
+            },
+        }
+    }
+}
+
+#[cw_serde]
 pub struct DecimalRange {
     min: Decimal,
     max: Decimal,
