@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, Uint128};
-use covenant_utils::neutron_ica::RemoteChainInfo;
+use covenant_utils::neutron::RemoteChainInfo;
 use cw_storage_plus::{Item, Map};
 
 use crate::msg::ContractState;

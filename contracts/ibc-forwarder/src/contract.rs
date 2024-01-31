@@ -5,9 +5,8 @@ use cosmwasm_std::{
     Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::{
-    get_default_ica_fee,
-    neutron_ica::{self, get_proto_coin, RemoteChainInfo},
+use covenant_utils::neutron::{
+    get_default_ica_fee, get_proto_coin, to_proto_msg_transfer, RemoteChainInfo, SudoPayload,
 };
 use cw2::set_contract_version;
 use neutron_sdk::{
@@ -123,7 +122,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
     let deposit_address_query: Option<String> = deps.querier.query_wasm_smart(
         next_contract.to_string(),
-        &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
+        &covenant_utils::neutron::QueryMsg::DepositAddress {},
     )?;
 
     // if query returns None, then we error and wait
@@ -159,7 +158,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                 memo,
             };
 
-            let protobuf_msg = neutron_ica::to_proto_msg_transfer(transfer_msg)?;
+            let protobuf_msg = to_proto_msg_transfer(transfer_msg)?;
 
             // tx to our ICA that wraps the transfer message defined above
             let submit_msg = NeutronMsg::submit_tx(
@@ -175,7 +174,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
             let submsg = msg_with_sudo_callback(
                 deps.branch(),
                 submit_msg,
-                neutron_ica::SudoPayload {
+                SudoPayload {
                     port_id,
                     message: "try_forward_funds".to_string(),
                 },
@@ -200,7 +199,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
     deps: ExecuteDeps,
     msg: C,
-    payload: neutron_ica::SudoPayload,
+    payload: SudoPayload,
 ) -> StdResult<SubMsg<T>> {
     save_reply_payload(deps.storage, payload)?;
     Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
@@ -317,7 +316,7 @@ fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResu
     Ok(Response::new())
 }
 
-pub fn read_reply_payload(store: &mut dyn Storage) -> StdResult<neutron_ica::SudoPayload> {
+pub fn read_reply_payload(store: &mut dyn Storage) -> StdResult<SudoPayload> {
     let data = REPLY_ID_STORAGE.load(store)?;
     from_json(Binary(data))
 }
@@ -326,7 +325,7 @@ pub fn save_sudo_payload(
     store: &mut dyn Storage,
     channel_id: String,
     seq_id: u64,
-    payload: neutron_ica::SudoPayload,
+    payload: SudoPayload,
 ) -> StdResult<()> {
     SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_json_vec(&payload)?)
 }

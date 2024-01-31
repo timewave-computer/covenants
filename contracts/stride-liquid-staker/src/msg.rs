@@ -4,7 +4,7 @@ use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
 };
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron_ica::RemoteChainInfo};
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo};
 use neutron_sdk::bindings::msg::IbcFee;
 
 #[cw_serde]

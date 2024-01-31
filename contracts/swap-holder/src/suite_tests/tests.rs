@@ -158,7 +158,7 @@ fn test_covenant_query_endpoint() {
         .wrap()
         .query_wasm_smart(
             suite.mock_deposit,
-            &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
+            &covenant_utils::neutron::QueryMsg::DepositAddress {},
         )
         .unwrap();
 

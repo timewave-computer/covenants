@@ -8,7 +8,8 @@ use cosmwasm_std::{
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_utils::{ForwardMetadata, OutpostExecuteMsg, PoolPriceConfig, SingleSideLpLimits};
+use covenant_outpost_osmo_liquid_pooler::msg::OutpostProvideLiquidityConfig;
+use covenant_utils::{ForwardMetadata, PoolPriceConfig, SingleSideLpLimits};
 use cw_utils::Expiration;
 use polytone::callbacks::CallbackMessage;
 
@@ -160,7 +161,7 @@ impl LiquidityProvisionConfig {
             funds.push(c.clone());
         }
 
-        let outpost_config = covenant_utils::OutpostProvideLiquidityConfig {
+        let outpost_config = OutpostProvideLiquidityConfig {
             pool_id: Uint64::new(self.pool_id.u64()),
             expected_spot_price: self.pool_price_config.expected_spot_price,
             acceptable_price_spread: self.pool_price_config.acceptable_price_spread,
@@ -172,9 +173,11 @@ impl LiquidityProvisionConfig {
 
         Ok(WasmMsg::Execute {
             contract_addr: self.outpost.to_string(),
-            msg: to_json_binary(&OutpostExecuteMsg::ProvideLiquidity {
-                config: outpost_config,
-            })?,
+            msg: to_json_binary(
+                &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity {
+                    config: outpost_config,
+                },
+            )?,
             funds,
         }
         .into())

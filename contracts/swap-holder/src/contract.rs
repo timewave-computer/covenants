@@ -2,6 +2,7 @@ use cosmwasm_std::{
     to_json_binary, Addr, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult, Uint128,
 };
+use covenant_utils::CovenantTerms;
 
 use crate::{
     error::ContractError,
@@ -13,7 +14,6 @@ use crate::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use covenant_clock::helpers::enqueue_msg;
-use covenant_utils::CovenantTerms;
 use cw2::set_contract_version;
 
 const CONTRACT_NAME: &str = "crates.io:covenant-swap-holder";
@@ -118,7 +118,7 @@ fn try_forward(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
     let deposit_address_query = deps.querier.query_wasm_smart(
         next_contract,
-        &covenant_utils::neutron_ica::QueryMsg::DepositAddress {},
+        &covenant_utils::neutron::QueryMsg::DepositAddress {},
     )?;
 
     // if query returns None, then we error and wait

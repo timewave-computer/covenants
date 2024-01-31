@@ -5,7 +5,10 @@ use cosmwasm_std::{
     IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg,
 };
 use covenant_utils::{
-    get_polytone_execute_msg_binary, get_polytone_query_msg_binary, query_polytone_proxy_address,
+    polytone::{
+        get_polytone_execute_msg_binary, get_polytone_query_msg_binary,
+        query_polytone_proxy_address,
+    },
     withdraw_lp_helper::WithdrawLPMsgs,
 };
 use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};

@@ -7,7 +7,7 @@ use cosmwasm_std::{
     StdResult,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::SplitConfig;
+use covenant_utils::split::SplitConfig;
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
