@@ -3,7 +3,7 @@ use astroport::{
     factory::PairType,
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, Decimal, StdResult, Uint128, WasmMsg};
+use cosmwasm_std::{ensure, to_json_binary, Addr, Attribute, Binary, Decimal, StdResult, Uint128, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
@@ -62,11 +62,8 @@ impl DecimalRange {
     }
 
     pub fn is_within_range(&self, value: Decimal) -> Result<(), ContractError> {
-        if value >= self.min && value <= self.max {
-            Ok(())
-        } else {
-            Err(ContractError::PriceRangeError {})
-        }
+        ensure!(value >= self.min && value <= self.max, ContractError::PriceRangeError {});
+        Ok(())
     }
 }
 
