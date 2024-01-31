@@ -3,18 +3,14 @@ use std::{collections::BTreeMap, fmt};
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError,
-    StdResult, WasmMsg,
+    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError, StdResult, WasmMsg
 };
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
-use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    split::{DenomSplit, SplitConfig, SplitType},
-};
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::{SplitConfig, SplitType}};
 use cw_utils::Expiration;
 
 use crate::{error::ContractError, state::CONTRACT_STATE};
@@ -262,33 +258,6 @@ impl DenomSplits {
 
         Ok(self)
     }
-}
-
-pub fn remap_splits(
-    splits: Vec<DenomSplit>,
-    (party_a_receiver, party_a_router): (String, String),
-    (party_b_receiver, party_b_router): (String, String),
-) -> StdResult<BTreeMap<String, SplitType>> {
-    let mut remapped_splits: BTreeMap<String, SplitType> = BTreeMap::new();
-
-    for denom_split in &splits {
-        match &denom_split.split {
-            SplitType::Custom(config) => {
-                let remapped_split = config.remap_receivers_to_routers(
-                    party_a_receiver.to_string(),
-                    party_a_router.to_string(),
-                    party_b_receiver.to_string(),
-                    party_b_router.to_string(),
-                )?;
-                remapped_splits.insert(
-                    denom_split.denom.to_string(),
-                    SplitType::Custom(remapped_split),
-                );
-            }
-        }
-    }
-
-    Ok(remapped_splits)
 }
 
 #[cw_serde]
