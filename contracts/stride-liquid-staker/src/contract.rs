@@ -205,7 +205,6 @@ fn try_execute_transfer(
     }
 }
 
-#[allow(unused)]
 fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
     deps: DepsMut,
     msg: C,
