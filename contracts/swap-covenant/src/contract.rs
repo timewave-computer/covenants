@@ -3,8 +3,7 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult,
+    to_json_binary, to_json_string, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg
 };
 use covenant_interchain_splitter::msg::remap_splits;
 use covenant_utils::{
@@ -14,7 +13,7 @@ use cw2::set_contract_version;
 
 use crate::{
     error::ContractError,
-    msg::{CovenantPartyConfig, InstantiateMsg, QueryMsg},
+    msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_INTERCHAIN_SPLITTER_ADDR,
         COVENANT_SWAP_HOLDER_ADDR, PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR,
@@ -310,7 +309,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else if party == "party_b" {
                 PARTY_B_ROUTER_ADDR.may_load(deps.storage)?
             } else {
-                Some(Addr::unchecked("not found"))
+                return Err(StdError::not_found("unknown party"))
             };
             Ok(to_json_binary(&resp)?)
         }
@@ -320,7 +319,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else if party == "party_b" {
                 PARTY_B_IBC_FORWARDER_ADDR.may_load(deps.storage)?
             } else {
-                Some(Addr::unchecked("not found"))
+                return Err(StdError::not_found("unknown party"))
             };
             Ok(to_json_binary(&resp)?)
         }
@@ -353,4 +352,96 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
-// TODO: add migrations
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    match msg {
+        MigrateMsg::UpdateCovenant {
+            clock,
+            holder,
+            splitter,
+            party_a_router,
+            party_b_router,
+            party_a_forwarder,
+            party_b_forwarder,
+        } => {
+            let mut migrate_msgs = vec![];
+            let mut resp = Response::default().add_attribute("method", "migrate_contracts");
+            let contract_codes = CONTRACT_CODES.load(deps.storage)?;
+
+            if let Some(clock) = clock {
+                let msg = to_json_binary(&clock)?;
+                resp = resp.add_attribute("clock_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: COVENANT_CLOCK_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: contract_codes.clock,
+                    msg,
+                });
+            }
+
+            if let Some(router) = party_a_router {
+                let msg: Binary = to_json_binary(&router)?;
+                resp = resp.add_attribute("party_a_router_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: PARTY_A_ROUTER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: contract_codes.party_a_router,
+                    msg,
+                });
+            }
+
+            if let Some(router) = party_b_router {
+                let msg: Binary = to_json_binary(&router)?;
+                resp = resp.add_attribute("party_b_router_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: PARTY_B_ROUTER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: contract_codes.party_b_router,
+                    msg,
+                });
+            }
+
+            if let Some(forwarder) = party_a_forwarder {
+                let msg: Binary = to_json_binary(&forwarder)?;
+                resp = resp.add_attribute("party_a_forwarder_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: PARTY_A_IBC_FORWARDER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: contract_codes.party_a_forwarder,
+                    msg,
+                });
+            }
+
+            if let Some(forwarder) = party_b_forwarder {
+                let msg: Binary = to_json_binary(&forwarder)?;
+                resp = resp.add_attribute("party_b_forwarder_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: PARTY_B_IBC_FORWARDER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: contract_codes.party_b_forwarder,
+                    msg,
+                });
+            }
+
+            if let Some(holder) = holder {
+                let msg: Binary = to_json_binary(&holder)?;
+                resp = resp.add_attribute("holder_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: COVENANT_SWAP_HOLDER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: contract_codes.holder,
+                    msg,
+                });
+            }
+
+            if let Some(splitter) = splitter {
+                let msg = to_json_binary(&splitter)?;
+                resp = resp.add_attribute("splitter_migrate", msg.to_base64());
+                migrate_msgs.push(WasmMsg::Migrate {
+                    contract_addr: COVENANT_INTERCHAIN_SPLITTER_ADDR.load(deps.storage)?.to_string(),
+                    new_code_id: contract_codes.splitter,
+                    msg,
+                });
+            }
+
+            Ok(resp.add_messages(migrate_msgs))
+        },
+        MigrateMsg::UpdateCodeId { data: _ } => Ok(Response::default()),
+    }
+}
+
