@@ -3,11 +3,11 @@ use astroport::{
     factory::PairType,
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, Decimal, StdError, Uint128, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, Decimal, StdError, StdResult, Uint128, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, PoolPriceConfig, SingleSideLpLimits};
 
 use crate::error::ContractError;
 
@@ -23,55 +23,20 @@ pub struct InstantiateMsg {
     pub holder_address: String,
 }
 
-#[cw_serde]
-pub struct PresetAstroLiquidPoolerFields {
-    pub slippage_tolerance: Option<Decimal>,
-    pub assets: AssetData,
-    pub single_side_lp_limits: SingleSideLpLimits,
-    pub label: String,
-    pub code_id: u64,
-    pub pool_price_config: PoolPriceConfig,
-    pub pair_type: PairType,
-}
-
-impl PresetAstroLiquidPoolerFields {
-    pub fn to_instantiate_msg(
-        &self,
-        pool_address: String,
-        clock_address: String,
-        holder_address: String,
-    ) -> InstantiateMsg {
-        InstantiateMsg {
-            pool_address,
-            clock_address,
-            slippage_tolerance: self.slippage_tolerance,
-            assets: self.assets.clone(),
-            single_side_lp_limits: self.single_side_lp_limits.clone(),
-            pool_price_config: self.pool_price_config.clone(),
-            pair_type: self.pair_type.clone(),
-            holder_address,
-        }
-    }
-
+impl InstantiateMsg {
     pub fn to_instantiate2_msg(
         &self,
-        admin_addr: String,
-        salt: Binary,
-        pool_address: String,
-        clock_address: String,
-        holder_address: String,
-    ) -> Result<WasmMsg, StdError> {
+        instantiate2_helper: &Instantiate2HelperConfig,
+        admin: String,
+        label: String,
+    ) -> StdResult<WasmMsg> {
         Ok(WasmMsg::Instantiate2 {
-            admin: Some(admin_addr),
-            code_id: self.code_id,
-            label: self.label.to_string(),
-            msg: to_json_binary(&self.to_instantiate_msg(
-                pool_address,
-                clock_address,
-                holder_address,
-            ))?,
+            admin: Some(admin),
+            code_id: instantiate2_helper.code,
+            label,
+            msg: to_json_binary(self)?,
             funds: vec![],
-            salt,
+            salt: instantiate2_helper.salt.clone(),
         })
     }
 }
