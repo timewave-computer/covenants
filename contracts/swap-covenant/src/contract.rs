@@ -125,22 +125,6 @@ pub fn instantiate(
         party_b_router_instantiate2_config.clone(),
     )?;
 
-    // let splitter_instantiate2_msg = PresetInterchainSplitterFields {
-    //     splits: msg.clone().splits,
-    //     fallback_split: msg.clone().fallback_split,
-    //     label: format!("{}_interchain_splitter", msg.label),
-    //     code_id: msg.contract_codes.splitter_code,
-    //     party_a_addr: msg.party_a_config.get_final_receiver_address(),
-    //     party_b_addr: msg.party_b_config.get_final_receiver_address(),
-    // }
-    // .to_instantiate2_msg(
-    //     env.contract.address.to_string(),
-    //     splitter_instantiate2_config.salt,
-    //     clock_instantiate2_config.addr.to_string(),
-    //     party_a_router_instantiate2_config.addr.to_string(),
-    //     party_b_router_instantiate2_config.addr.to_string(),
-    // )?;
-
     let splitter_instantiate2_msg = covenant_interchain_splitter::msg::InstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
         splits: remap_splits(
@@ -163,6 +147,7 @@ pub fn instantiate(
         env.contract.address.to_string(),
         format!("{}_interchain_splitter", msg.label),
     )?;
+
     let holder_instantiate2_msg = covenant_swap_holder::msg::InstantiateMsg {
         lockup_config: msg.lockup_config,
         parties_config: CovenantPartiesConfig {

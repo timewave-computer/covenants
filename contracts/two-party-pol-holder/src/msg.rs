@@ -3,15 +3,14 @@ use std::{collections::BTreeMap, fmt};
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError,
-    WasmMsg,
+    to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError, StdResult, WasmMsg
 };
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
-use covenant_utils::split::{DenomSplit, SplitConfig, SplitType};
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::{DenomSplit, SplitConfig, SplitType}};
 use cw_utils::Expiration;
 
 use crate::{error::ContractError, state::CONTRACT_STATE};
@@ -37,6 +36,24 @@ pub struct InstantiateMsg {
     pub fallback_split: Option<SplitConfig>,
     /// address of the emergency committee
     pub emergency_committee_addr: Option<String>,
+}
+
+impl InstantiateMsg {
+    pub fn to_instantiate2_msg(
+        &self,
+        instantiate2_helper: &Instantiate2HelperConfig,
+        admin: String,
+        label: String,
+    ) -> StdResult<WasmMsg> {
+        Ok(WasmMsg::Instantiate2 {
+            admin: Some(admin),
+            code_id: instantiate2_helper.code,
+            label,
+            msg: to_json_binary(self)?,
+            funds: vec![],
+            salt: instantiate2_helper.salt.clone(),
+        })
+    }
 }
 
 impl InstantiateMsg {
@@ -243,119 +260,31 @@ impl DenomSplits {
     }
 }
 
-#[cw_serde]
-pub struct PresetTwoPartyPolHolderFields {
-    pub lockup_config: Expiration,
-    pub ragequit_config: RagequitConfig,
-    pub deposit_deadline: Expiration,
-    pub party_a: PresetPolParty,
-    pub party_b: PresetPolParty,
-    pub code_id: u64,
-    pub label: String,
-    pub splits: Vec<DenomSplit>,
-    pub fallback_split: Option<SplitConfig>,
-    pub covenant_type: CovenantType,
-    pub emergency_committee: Option<String>,
-}
+pub fn remap_splits(
+    splits: Vec<DenomSplit>,
+    (party_a_receiver, party_a_router): (String, String),
+    (party_b_receiver, party_b_router): (String, String),
+) -> StdResult<BTreeMap<String, SplitType>> {
+    let mut remapped_splits: BTreeMap<String, SplitType> = BTreeMap::new();
 
-#[cw_serde]
-pub struct PresetPolParty {
-    pub contribution: Coin,
-    pub host_addr: String,
-    pub controller_addr: String,
-    pub allocation: Decimal,
-}
-
-impl PresetTwoPartyPolHolderFields {
-    pub fn to_instantiate_msg(
-        &self,
-        clock_address: String,
-        next_contract: String,
-        party_a_router: &str,
-        party_b_router: &str,
-    ) -> Result<InstantiateMsg, StdError> {
-        let mut remapped_splits: BTreeMap<String, SplitType> = BTreeMap::new();
-        for denom_split in &self.splits {
-            match &denom_split.split {
-                SplitType::Custom(config) => {
-                    let remapped_split = config.remap_receivers_to_routers(
-                        self.party_a.controller_addr.to_string(),
-                        party_a_router.to_string(),
-                        self.party_b.controller_addr.to_string(),
-                        party_b_router.to_string(),
-                    )?;
-                    remapped_splits.insert(
-                        denom_split.denom.to_string(),
-                        SplitType::Custom(remapped_split),
-                    );
-                }
+    for denom_split in &splits {
+        match &denom_split.split {
+            SplitType::Custom(config) => {
+                let remapped_split = config.remap_receivers_to_routers(
+                    party_a_receiver.to_string(),
+                    party_a_router.to_string(),
+                    party_b_receiver.to_string(),
+                    party_b_router.to_string(),
+                )?;
+                remapped_splits.insert(
+                    denom_split.denom.to_string(),
+                    SplitType::Custom(remapped_split),
+                );
             }
         }
-
-        let remapped_fallback = match &self.fallback_split {
-            Some(split_config) => Some(split_config.remap_receivers_to_routers(
-                self.party_a.controller_addr.to_string(),
-                party_a_router.to_string(),
-                self.party_b.controller_addr.to_string(),
-                party_b_router.to_string(),
-            )?),
-            None => None,
-        };
-
-        Ok(InstantiateMsg {
-            clock_address,
-            next_contract,
-            lockup_config: self.lockup_config,
-            ragequit_config: self.ragequit_config.clone(),
-            deposit_deadline: self.deposit_deadline,
-            covenant_config: TwoPartyPolCovenantConfig {
-                party_a: TwoPartyPolCovenantParty {
-                    contribution: self.party_a.contribution.clone(),
-                    allocation: self.party_a.allocation,
-                    router: party_a_router.to_string(),
-                    host_addr: self.party_a.host_addr.to_string(),
-                    controller_addr: self.party_a.controller_addr.to_string(),
-                },
-                party_b: TwoPartyPolCovenantParty {
-                    contribution: self.party_b.contribution.clone(),
-                    allocation: self.party_b.allocation,
-                    router: party_b_router.to_string(),
-                    host_addr: self.party_b.host_addr.to_string(),
-                    controller_addr: self.party_b.controller_addr.to_string(),
-                },
-                covenant_type: self.covenant_type.clone(),
-            },
-            splits: remapped_splits,
-            fallback_split: remapped_fallback,
-            emergency_committee_addr: self.emergency_committee.clone(),
-        })
     }
 
-    pub fn to_instantiate2_msg(
-        &self,
-        admin_addr: String,
-        salt: Binary,
-        clock_address: String,
-        next_contract: String,
-        party_a_router: String,
-        party_b_router: String,
-    ) -> Result<WasmMsg, StdError> {
-        let instantiate_msg = &self.to_instantiate_msg(
-            clock_address,
-            next_contract,
-            &party_a_router,
-            &party_b_router,
-        )?;
-
-        Ok(WasmMsg::Instantiate2 {
-            admin: Some(admin_addr),
-            code_id: self.code_id,
-            label: self.label.to_string(),
-            msg: to_json_binary(&instantiate_msg)?,
-            funds: vec![],
-            salt,
-        })
-    }
+    Ok(remapped_splits)
 }
 
 #[cw_serde]
