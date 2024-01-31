@@ -4,9 +4,7 @@ use astroport::factory::PairType;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{coin, Addr, Coin, Decimal, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::AssetData;
-use covenant_osmo_liquid_pooler::msg::{
-    PartyChainInfo, PartyDenomInfo,
-};
+use covenant_osmo_liquid_pooler::msg::{PartyChainInfo, PartyDenomInfo};
 use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig,
@@ -79,12 +77,8 @@ impl LiquidPoolerConfig {
                     funding_duration_seconds: config.funding_duration_seconds,
                     single_side_lp_limits: config.single_side_lp_limits.clone(),
                 }
-                .to_instantiate2_msg(
-                    instantiate2_helper,
-                    admin,
-                    label,
-                )?)
-            },
+                .to_instantiate2_msg(instantiate2_helper, admin, label)?)
+            }
             LiquidPoolerConfig::Astroport(config) => {
                 Ok(covenant_astroport_liquid_pooler::msg::InstantiateMsg {
                     pool_address: config.pool_address.to_string(),
@@ -99,12 +93,8 @@ impl LiquidPoolerConfig {
                         asset_b_denom: config.asset_b_denom.to_string(),
                     },
                 }
-                .to_instantiate2_msg(
-                    instantiate2_helper,
-                    admin,
-                    label,
-                )?)
-            },
+                .to_instantiate2_msg(instantiate2_helper, admin, label)?)
+            }
         }
     }
 }
@@ -173,7 +163,11 @@ impl CovenantPartyConfig {
         }
     }
 
-    pub fn to_two_party_pol_party(&self, party_share: Uint64, router: String) -> TwoPartyPolCovenantParty {
+    pub fn to_two_party_pol_party(
+        &self,
+        party_share: Uint64,
+        router: String,
+    ) -> TwoPartyPolCovenantParty {
         match &self {
             CovenantPartyConfig::Interchain(config) => TwoPartyPolCovenantParty {
                 contribution: coin(

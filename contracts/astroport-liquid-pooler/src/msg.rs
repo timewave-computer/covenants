@@ -3,11 +3,13 @@ use astroport::{
     factory::PairType,
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, Decimal, StdError, StdResult, Uint128, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, Decimal, StdResult, Uint128, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, PoolPriceConfig, SingleSideLpLimits};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig, PoolPriceConfig, SingleSideLpLimits,
+};
 
 use crate::error::ContractError;
 
