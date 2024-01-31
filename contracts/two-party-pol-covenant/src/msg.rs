@@ -9,9 +9,10 @@ use covenant_osmo_liquid_pooler::msg::{
 };
 use covenant_two_party_pol_holder::msg::{CovenantType, PresetPolParty, RagequitConfig};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, CovenantParty, DenomSplit, DestinationConfig,
-    PacketForwardMiddlewareConfig, PfmUnwindingConfig, PoolPriceConfig, ReceiverConfig,
-    SingleSideLpLimits, SplitConfig,
+    instantiate2_helper::Instantiate2HelperConfig,
+    split::{DenomSplit, SplitConfig},
+    CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, PfmUnwindingConfig,
+    PoolPriceConfig, ReceiverConfig, SingleSideLpLimits,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;

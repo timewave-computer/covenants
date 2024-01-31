@@ -10,8 +10,8 @@ use cosmwasm_std::{
     MessageInfo, Reply, Response, StdError, StdResult, SubMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::get_default_ica_fee;
-use covenant_utils::neutron_ica::{RemoteChainInfo, SudoPayload};
+use covenant_utils::neutron::{RemoteChainInfo, SudoPayload};
+use covenant_utils::{get_default_ica_fee, neutron};
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_txs::helpers::get_port_id;
@@ -154,7 +154,7 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
                 // if either does not exist yet, error out
                 let forwarder_deposit_address: Option<String> = deps.querier.query_wasm_smart(
                     split_receiver.addr.to_string(),
-                    &covenant_utils::neutron_ica::CovenantQueryMsg::DepositAddress {},
+                    &neutron::CovenantQueryMsg::DepositAddress {},
                 )?;
 
                 let receiver_ica = match forwarder_deposit_address {

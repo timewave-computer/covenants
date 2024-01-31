@@ -310,7 +310,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let splitter_address = SPLITTER_ADDR.load(deps.storage)?;
             let ica: Option<Addr> = deps.querier.query_wasm_smart(
                 splitter_address,
-                &covenant_utils::neutron_ica::CovenantQueryMsg::DepositAddress {},
+                &covenant_utils::neutron::CovenantQueryMsg::DepositAddress {},
             )?;
 
             Ok(to_json_binary(&ica)?)

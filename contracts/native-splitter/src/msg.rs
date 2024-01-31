@@ -11,7 +11,7 @@ use covenant_macros::{
     covenant_remote_chain,
 };
 
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron_ica::RemoteChainInfo};
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo};
 use neutron_sdk::bindings::msg::IbcFee;
 use schemars::Map;
 

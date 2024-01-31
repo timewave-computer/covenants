@@ -1,5 +1,5 @@
 use cosmwasm_std::Addr;
-use covenant_utils::SplitConfig;
+use covenant_utils::split::SplitConfig;
 use cw_storage_plus::{Item, Map};
 
 /// clock module address to verify the sender of incoming ticks
