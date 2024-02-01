@@ -7,7 +7,8 @@ use cosmwasm_std::{
     StdError, StdResult, WasmMsg,
 };
 use covenant_utils::{
-    instantiate2_helper::{get_instantiate2_salt_and_address, Instantiate2}, split::remap_splits,
+    instantiate2_helper::{get_instantiate2_salt_and_address, Instantiate2},
+    split::remap_splits,
     CovenantPartiesConfig, CovenantTerms,
 };
 use cw2::set_contract_version;
