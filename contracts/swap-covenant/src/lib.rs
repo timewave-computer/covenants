@@ -7,8 +7,6 @@ pub mod error;
 pub mod msg;
 pub mod state;
 
-// pub mod instantiate2;
-
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
 mod suite_test;

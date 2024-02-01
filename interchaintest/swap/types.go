@@ -12,7 +12,6 @@ type CovenantInstantiateMsg struct {
 	SwapCovenantContractCodeIds SwapCovenantContractCodeIds `json:"contract_codes"`
 	TickMaxGas                  string                      `json:"clock_tick_max_gas,omitempty"`
 	LockupConfig                Expiration                  `json:"lockup_config"`
-	SwapCovenantTerms           SwapCovenantTerms           `json:"covenant_terms"`
 	PartyAConfig                CovenantPartyConfig         `json:"party_a_config"`
 	PartyBConfig                CovenantPartyConfig         `json:"party_b_config"`
 	Splits                      map[string]SplitConfig      `json:"splits"`

@@ -40,7 +40,7 @@ bech32                       = { workspace = true }
 covenant-clock               = { workspace = true, features = ["library"] }
 covenant-swap-holder         = { workspace = true, features = ["library"] }
 covenant-utils               = { workspace = true }
-covenant-interchain-splitter = { workspace = true, features = ["library"] }
+covenant-native-splitter     = { workspace = true, features = ["library"] }
 covenant-ibc-forwarder       = { workspace = true, features = ["library"] }
 covenant-interchain-router   = { workspace = true, features = ["library"] }
 covenant-native-router       = { workspace = true, features = ["library"] }

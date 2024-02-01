@@ -1,16 +1,16 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg,
+    to_json_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg
 };
 use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
 use covenant_interchain_router::msg::InstantiateMsg as RouterInstantiateMsg;
 use covenant_remote_chain_splitter::msg::InstantiateMsg as SplitterInstantiateMsg;
-use covenant_remote_chain_splitter::msg::{NativeDenomSplit, SplitReceiver};
 use covenant_single_party_pol_holder::msg::InstantiateMsg as HolderInstantiateMsg;
 use covenant_stride_liquid_staker::msg::InstantiateMsg as LiquidStakerInstantiateMsg;
+use covenant_utils::split::SplitConfig;
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, DestinationConfig};
 use cw2::set_contract_version;
 
@@ -166,6 +166,22 @@ pub fn instantiate(
         msg.pool_price_config,
     )?;
 
+    let mut split_config_map: BTreeMap<String, Decimal> = BTreeMap::new();
+    split_config_map.insert(
+        ls_forwarder_instantiate2_config.addr.to_string(),
+        msg.remote_chain_splitter_config.ls_share,
+    );
+    split_config_map.insert(
+        lp_forwarder_instantiate2_config.addr.to_string(),
+        msg.remote_chain_splitter_config.native_share,
+    );
+
+    let mut splits: BTreeMap<String, SplitConfig> = BTreeMap::new();
+    splits.insert(
+        msg.remote_chain_splitter_config.denom.to_string(),
+        SplitConfig { receivers: split_config_map },
+    );
+
     let splitter_instantiate2_msg = SplitterInstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
         remote_chain_channel_id: msg.remote_chain_splitter_config.channel_id,
@@ -175,19 +191,7 @@ pub fn instantiate(
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-        splits: vec![NativeDenomSplit {
-            denom: msg.remote_chain_splitter_config.denom.to_string(),
-            receivers: vec![
-                SplitReceiver {
-                    addr: ls_forwarder_instantiate2_config.addr.to_string(),
-                    share: msg.remote_chain_splitter_config.ls_share,
-                },
-                SplitReceiver {
-                    addr: lp_forwarder_instantiate2_config.addr.to_string(),
-                    share: msg.remote_chain_splitter_config.native_share,
-                },
-            ],
-        }],
+        splits,
     }
     .to_instantiate2_msg(
         &splitter_instantiate2_config,

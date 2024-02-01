@@ -1,8 +1,8 @@
 use cosmwasm_std::{from_json, to_json_vec, Addr, Binary, Order, StdResult, Storage, Uint128};
-use covenant_utils::neutron::{RemoteChainInfo, SudoPayload};
+use covenant_utils::{neutron::{RemoteChainInfo, SudoPayload}, split::SplitConfig};
 use cw_storage_plus::{Item, Map};
 
-use crate::msg::{ContractState, SplitReceiver};
+use crate::msg::ContractState;
 
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
@@ -13,7 +13,7 @@ pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 pub const TRANSFER_AMOUNT: Item<Uint128> = Item::new("transfer_amount");
 
 // maps a denom string to a vec of SplitReceivers
-pub const SPLIT_CONFIG_MAP: Map<String, Vec<SplitReceiver>> = Map::new("split_config");
+pub const SPLIT_CONFIG_MAP: Map<String, SplitConfig> = Map::new("split_config");
 
 /// information needed for an ibc transfer to the remote chain
 pub const REMOTE_CHAIN_INFO: Item<RemoteChainInfo> = Item::new("r_c_info");

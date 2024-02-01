@@ -47,7 +47,6 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(SplitConfig)]
     DenomSplit { denom: String },
-    // todo: update
     #[returns(Vec<(String, SplitConfig)>)]
     Splits {},
     #[returns(SplitConfig)]

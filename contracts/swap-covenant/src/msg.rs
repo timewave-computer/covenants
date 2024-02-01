@@ -3,7 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Coin, Deps, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty, DestinationConfig, InterchainCovenantParty, NativeCovenantParty, ReceiverConfig, SwapCovenantTerms
+    instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty,
+    DestinationConfig, InterchainCovenantParty, NativeCovenantParty, ReceiverConfig,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -19,7 +20,6 @@ pub struct InstantiateMsg {
     pub contract_codes: SwapCovenantContractCodeIds,
     pub clock_tick_max_gas: Option<Uint64>,
     pub lockup_config: Expiration,
-    pub covenant_terms: SwapCovenantTerms,
     pub party_a_config: CovenantPartyConfig,
     pub party_b_config: CovenantPartyConfig,
     pub splits: BTreeMap<String, SplitConfig>,
@@ -216,7 +216,7 @@ pub enum MigrateMsg {
     UpdateCovenant {
         clock: Option<covenant_clock::msg::MigrateMsg>,
         holder: Option<covenant_swap_holder::msg::MigrateMsg>,
-        splitter: Option<covenant_interchain_splitter::msg::MigrateMsg>,
+        splitter: Option<covenant_native_splitter::msg::MigrateMsg>,
         party_a_router: Option<RouterMigrateMsg>,
         party_b_router: Option<RouterMigrateMsg>,
         party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
