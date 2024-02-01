@@ -352,9 +352,17 @@ func TestTokenSwap(t *testing.T) {
 				IbcTransferTimeout: "10000", // sec
 			}
 
+			partyACoin := Coin{
+				Denom:  nativeAtomDenom,
+				Amount: strconv.FormatUint(atomContributionAmount, 10),
+			}
+			partyBCoin := Coin{
+				Denom:  cosmosNeutron.Config().Denom,
+				Amount: strconv.FormatUint(neutronContributionAmount, 10),
+			}
 			swapCovenantTerms := SwapCovenantTerms{
-				PartyAAmount: strconv.FormatUint(atomContributionAmount, 10),
-				PartyBAmount: strconv.FormatUint(neutronContributionAmount, 10),
+				PartyAAmount: partyACoin.Amount,
+				PartyBAmount: partyBCoin.Amount,
 			}
 
 			currentHeight, err := cosmosNeutron.Height(ctx)
@@ -373,19 +381,21 @@ func TestTokenSwap(t *testing.T) {
 			hubReceiverAddr = gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 
 			splits := map[string]SplitConfig{
-				neutronAtomIbcDenom: SplitConfig{
+				neutronAtomIbcDenom: {
 					Receivers: map[string]string{
 						neutronReceiverAddr: "1.0",
 						hubReceiverAddr:     "0.0",
 					},
 				},
-				cosmosNeutron.Config().Denom: SplitConfig{
+				cosmosNeutron.Config().Denom: {
 					Receivers: map[string]string{
 						neutronReceiverAddr: "0.0",
 						hubReceiverAddr:     "1.0",
 					},
 				},
 			}
+
+			denomToPfmMap := map[string]PacketForwardMiddlewareConfig{}
 
 			partyAConfig := InterchainCovenantParty{
 				Addr:                      hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
@@ -396,11 +406,14 @@ func TestTokenSwap(t *testing.T) {
 				PartyReceiverAddr:         hubReceiverAddr,
 				PartyChainConnectionId:    neutronAtomIBCConnId,
 				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+				DenomToPfmMap:             denomToPfmMap,
+				Contribution:              partyACoin,
 			}
 			partyBConfig := NativeCovenantParty{
 				Addr:              neutronReceiverAddr,
 				NativeDenom:       cosmosNeutron.Config().Denom,
 				PartyReceiverAddr: neutronReceiverAddr,
+				Contribution:      partyBCoin,
 			}
 			codeIds := SwapCovenantContractCodeIds{
 				IbcForwarderCode:       ibcForwarderCodeId,

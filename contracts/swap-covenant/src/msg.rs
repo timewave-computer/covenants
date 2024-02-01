@@ -1,10 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Deps, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{Addr, Binary, Coin, Deps, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty,
-    DestinationConfig, ReceiverConfig, SwapCovenantTerms,
+    instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty, DestinationConfig, InterchainCovenantParty, NativeCovenantParty, ReceiverConfig, SwapCovenantTerms
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -36,14 +35,13 @@ pub enum CovenantPartyConfig {
 impl CovenantPartyConfig {
     pub fn to_receiver_config(&self, deps: Deps) -> StdResult<ReceiverConfig> {
         match self {
-            // TODO: enable pfm mapping
             CovenantPartyConfig::Interchain(config) => Ok(ReceiverConfig::Ibc(DestinationConfig {
                 local_to_destination_chain_channel_id: config
                     .host_to_party_chain_channel_id
                     .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
-                denom_to_pfm_map: BTreeMap::new(),
+                denom_to_pfm_map: config.denom_to_pfm_map.clone(),
             })),
             CovenantPartyConfig::Native(config) => {
                 let addr = deps.api.addr_validate(&config.party_receiver_addr)?;
@@ -81,6 +79,13 @@ impl CovenantPartyConfig {
         }
     }
 
+    pub fn get_contribution(&self) -> Coin {
+        match self {
+            CovenantPartyConfig::Interchain(config) => config.contribution.clone(),
+            CovenantPartyConfig::Native(config) => config.contribution.clone(),
+        }
+    }
+
     pub fn get_router_instantiate2_wasm_msg(
         &self,
         label: String,
@@ -97,7 +102,7 @@ impl CovenantPartyConfig {
                         .to_string(),
                     destination_receiver_addr: party.party_receiver_addr.to_string(),
                     ibc_transfer_timeout: party.ibc_transfer_timeout,
-                    denom_to_pfm_map: BTreeMap::new(),
+                    denom_to_pfm_map: party.denom_to_pfm_map.clone(),
                 };
                 let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
                     clock_address: clock_addr,
@@ -116,36 +121,6 @@ impl CovenantPartyConfig {
             }
         }
     }
-}
-
-#[cw_serde]
-pub struct InterchainCovenantParty {
-    /// address of the receiver on destination chain
-    pub party_receiver_addr: String,
-    /// connection id to the party chain
-    pub party_chain_connection_id: String,
-    /// timeout in seconds
-    pub ibc_transfer_timeout: Uint64,
-    /// channel id from party to host chain
-    pub party_to_host_chain_channel_id: String,
-    /// channel id from host chain to the party chain
-    pub host_to_party_chain_channel_id: String,
-    /// denom provided by the party on its native chain
-    pub remote_chain_denom: String,
-    /// authorized address of the party on neutron
-    pub addr: String,
-    /// denom provided by the party on neutron
-    pub native_denom: String,
-}
-
-#[cw_serde]
-pub struct NativeCovenantParty {
-    /// address of the receiver on destination chain
-    pub party_receiver_addr: String,
-    /// denom provided by the party on neutron
-    pub native_denom: String,
-    /// authorized address of the party on neutron
-    pub addr: String,
 }
 
 #[cw_serde]
@@ -174,28 +149,6 @@ impl SwapCovenantContractCodeIds {
             party_b_forwarder: self.ibc_forwarder_code,
         }
     }
-}
-
-// TODO: this config should enable the option to have both
-// ibc and native chain parties
-#[cw_serde]
-pub struct SwapPartyConfig {
-    /// authorized address of the party
-    pub addr: Addr,
-    /// denom provided by the party on its native chain
-    pub native_denom: String,
-    /// ibc denom provided by the party on neutron
-    pub ibc_denom: String,
-    /// channel id from party to host chain
-    pub party_to_host_chain_channel_id: String,
-    /// channel id from host chain to the party chain
-    pub host_to_party_chain_channel_id: String,
-    /// address of the receiver on destination chain
-    pub party_receiver_addr: Addr,
-    /// connection id to the party chain
-    pub party_chain_connection_id: String,
-    /// timeout in seconds
-    pub ibc_transfer_timeout: Uint64,
 }
 
 #[cw_serde]

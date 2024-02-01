@@ -24,17 +24,13 @@ impl SplitConfig {
         match self.receivers.get(&receiver_a) {
             Some(val) => new_receivers.insert(router_a, *val),
             None => {
-                return Err(StdError::NotFound {
-                    kind: format!("receiver {receiver_b:?} not found"),
-                })
+                return Err(StdError::not_found(format!("receiver {receiver_a:?} not found")))
             }
         };
         match self.receivers.get(&receiver_b) {
             Some(val) => new_receivers.insert(router_b, *val),
             None => {
-                return Err(StdError::NotFound {
-                    kind: format!("receiver {receiver_b:?} not found"),
-                })
+                return Err(StdError::not_found(format!("receiver {receiver_b:?} not found")))
             }
         };
 

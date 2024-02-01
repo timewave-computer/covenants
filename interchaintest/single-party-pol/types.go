@@ -226,7 +226,6 @@ type CovenantInstantiationMsg struct {
 	LsForwarderConfig         CovenantPartyConfig       `json:"ls_forwarder_config"`
 	LpForwarderConfig         CovenantPartyConfig       `json:"lp_forwarder_config"`
 	RemoteChainSplitterConfig RemoteChainSplitterConfig `json:"remote_chain_splitter_config"`
-	PfmUnwindingConfig        PfmUnwindingConfig        `json:"pfm_unwinding_config"`
 	CovenantPartyConfig       InterchainCovenantParty   `json:"covenant_party_config"`
 	LiquidPoolerConfig        LiquidPoolerConfig        `json:"liquid_pooler_config"`
 	PoolPriceConfig           PoolPriceConfig           `json:"pool_price_config"`
@@ -326,15 +325,16 @@ type Coin struct {
 }
 
 type InterchainCovenantParty struct {
-	Addr                      string `json:"addr"`
-	NativeDenom               string `json:"native_denom"`
-	RemoteChainDenom          string `json:"remote_chain_denom"`
-	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
-	HostToPartyChainChannelId string `json:"host_to_party_chain_channel_id"`
-	PartyReceiverAddr         string `json:"party_receiver_addr"`
-	PartyChainConnectionId    string `json:"party_chain_connection_id"`
-	IbcTransferTimeout        string `json:"ibc_transfer_timeout"`
-	Contribution              Coin   `json:"contribution"`
+	Addr                      string                                   `json:"addr"`
+	NativeDenom               string                                   `json:"native_denom"`
+	RemoteChainDenom          string                                   `json:"remote_chain_denom"`
+	PartyToHostChainChannelId string                                   `json:"party_to_host_chain_channel_id"`
+	HostToPartyChainChannelId string                                   `json:"host_to_party_chain_channel_id"`
+	PartyReceiverAddr         string                                   `json:"party_receiver_addr"`
+	PartyChainConnectionId    string                                   `json:"party_chain_connection_id"`
+	IbcTransferTimeout        string                                   `json:"ibc_transfer_timeout"`
+	Contribution              Coin                                     `json:"contribution"`
+	DenomToPfmMap             map[string]PacketForwardMiddlewareConfig `json:"denom_to_pfm_map"`
 }
 
 type NativeCovenantParty struct {

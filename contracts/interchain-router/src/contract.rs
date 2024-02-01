@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
