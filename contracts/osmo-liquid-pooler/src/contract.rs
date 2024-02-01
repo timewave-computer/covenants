@@ -13,7 +13,6 @@ use covenant_utils::{
     withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata, PacketMetadata,
 };
 use cw2::set_contract_version;
-use cw_utils::{Duration, Expiration};
 use neutron_sdk::{
     bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight, NeutronResult,
 };

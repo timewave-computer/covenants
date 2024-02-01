@@ -6,10 +6,7 @@ use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
 use covenant_utils::{
-    instantiate2_helper::{Instantiate2, Instantiate2HelperConfig},
-    split::SplitConfig,
-    CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, PfmUnwindingConfig,
-    PoolPriceConfig, ReceiverConfig,
+    instantiate2_helper::{Instantiate2, Instantiate2HelperConfig}, split::SplitConfig, CovenantParty, DestinationConfig, InterchainCovenantParty, NativeCovenantParty, PacketForwardMiddlewareConfig, PfmUnwindingConfig, PoolPriceConfig, ReceiverConfig
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -37,7 +34,6 @@ pub struct InstantiateMsg {
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee: Option<String>,
     pub liquid_pooler_config: LiquidPoolerConfig,
-    pub pfm_unwinding_config: PfmUnwindingConfig,
 }
 
 #[cw_serde]
@@ -84,8 +80,7 @@ impl CovenantPartyConfig {
                     .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
-                // TODO: pass this in
-                denom_to_pfm_map: BTreeMap::new(),
+                denom_to_pfm_map: config.denom_to_pfm_map.clone(),
             })),
             CovenantPartyConfig::Native(config) => {
                 let addr = deps.api.addr_validate(&config.party_receiver_addr)?;
@@ -162,15 +157,10 @@ impl CovenantPartyConfig {
         clock_addr: Addr,
         label: String,
         denoms: BTreeSet<String>,
-        denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
         instantiate2_helper: Instantiate2HelperConfig,
     ) -> StdResult<WasmMsg> {
         match self {
             CovenantPartyConfig::Interchain(party) => {
-                // TODO: here we build the pfm configs for final destination routing.
-                // we need to unwind:
-                // counterparty denom on neutron -> route through counterparty chain
-                //
                 let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
                     clock_address: clock_addr,
                     destination_config: DestinationConfig {
@@ -179,7 +169,7 @@ impl CovenantPartyConfig {
                             .to_string(),
                         destination_receiver_addr: party.party_receiver_addr.to_string(),
                         ibc_transfer_timeout: party.ibc_transfer_timeout,
-                        denom_to_pfm_map,
+                        denom_to_pfm_map: party.denom_to_pfm_map.clone(),
                     },
                     denoms,
                 };
@@ -201,40 +191,6 @@ impl CovenantPartyConfig {
 pub enum CovenantPartyConfig {
     Interchain(InterchainCovenantParty),
     Native(NativeCovenantParty),
-}
-
-#[cw_serde]
-pub struct NativeCovenantParty {
-    /// address of the receiver on destination chain
-    pub party_receiver_addr: String,
-    /// denom provided by the party on neutron
-    pub native_denom: String,
-    /// authorized address of the party on neutron
-    pub addr: String,
-    /// coin provided by the party on its native chain
-    pub contribution: Coin,
-}
-
-#[cw_serde]
-pub struct InterchainCovenantParty {
-    /// address of the receiver on destination chain
-    pub party_receiver_addr: String,
-    /// connection id to the party chain
-    pub party_chain_connection_id: String,
-    /// timeout in seconds
-    pub ibc_transfer_timeout: Uint64,
-    /// channel id from party to host chain
-    pub party_to_host_chain_channel_id: String,
-    /// channel id from host chain to the party chain
-    pub host_to_party_chain_channel_id: String,
-    /// denom provided by the party on its native chain
-    pub remote_chain_denom: String,
-    /// authorized address of the party on neutron
-    pub addr: String,
-    /// denom provided by the party on neutron
-    pub native_denom: String,
-    /// coin provided by the party on its native chain
-    pub contribution: Coin,
 }
 
 #[cw_serde]

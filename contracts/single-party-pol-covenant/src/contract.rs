@@ -115,7 +115,7 @@ pub fn instantiate(
                 .to_string(),
             destination_receiver_addr: msg.covenant_party_config.party_receiver_addr.to_string(),
             ibc_transfer_timeout: msg.covenant_party_config.ibc_transfer_timeout,
-            denom_to_pfm_map: msg.pfm_unwinding_config.party_pfm_map.clone(),
+            denom_to_pfm_map: msg.covenant_party_config.denom_to_pfm_map,
         },
         denoms,
     }

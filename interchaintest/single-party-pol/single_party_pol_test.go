@@ -722,6 +722,7 @@ func TestSinglePartyPol(t *testing.T) {
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 					Contribution:              lsContribution,
+					DenomToPfmMap:             map[string]PacketForwardMiddlewareConfig{},
 				},
 			}
 
@@ -736,6 +737,7 @@ func TestSinglePartyPol(t *testing.T) {
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 					Contribution:              liquidPoolerContribution,
+					DenomToPfmMap:             map[string]PacketForwardMiddlewareConfig{},
 				},
 			}
 
@@ -761,10 +763,6 @@ func TestSinglePartyPol(t *testing.T) {
 				// },
 			}
 
-			pfmUnwindingConfig := PfmUnwindingConfig{
-				PartyPfmMap: partyPfmMap,
-			}
-
 			contribution := Coin{
 				Denom:  nativeAtomDenom,
 				Amount: "5000000000",
@@ -779,6 +777,7 @@ func TestSinglePartyPol(t *testing.T) {
 				PartyChainConnectionId:    neutronAtomIBCConnId,
 				IbcTransferTimeout:        "300",
 				Contribution:              contribution,
+				DenomToPfmMap:             partyPfmMap,
 			}
 
 			liquidPoolerConfig := LiquidPoolerConfig{
@@ -804,7 +803,6 @@ func TestSinglePartyPol(t *testing.T) {
 				LsForwarderConfig:         lsForwarderConfig,
 				LpForwarderConfig:         liquidPoolerForwarderConfig,
 				RemoteChainSplitterConfig: remoteChainSplitterConfig,
-				PfmUnwindingConfig:        pfmUnwindingConfig,
 				CovenantPartyConfig:       covenantPartyConfig,
 				LiquidPoolerConfig:        liquidPoolerConfig,
 				PoolPriceConfig: PoolPriceConfig{

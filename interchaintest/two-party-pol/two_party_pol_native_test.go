@@ -473,6 +473,7 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 					Contribution:              atomCoin,
+					DenomToPfmMap:             map[string]PacketForwardMiddlewareConfig{},
 				}
 				partyBConfig := NativeCovenantParty{
 					Addr:              neutronReceiverAddr,
@@ -517,14 +518,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					},
 				}
 
-				party1PfmMap := map[string]PacketForwardMiddlewareConfig{}
-				party2PfmMap := map[string]PacketForwardMiddlewareConfig{}
-
-				pfmUnwindingConfig := PfmUnwindingConfig{
-					Party1PfmMap: party1PfmMap,
-					Party2PfmMap: party2PfmMap,
-				}
-
 				liquidPoolerConfig := LiquidPoolerConfig{
 					Astroport: &AstroportLiquidPoolerConfig{
 						PairType:    pairType,
@@ -563,7 +556,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					Splits:             denomSplits,
 					FallbackSplit:      nil,
 					LiquidPoolerConfig: liquidPoolerConfig,
-					PfmUnwindingConfig: pfmUnwindingConfig,
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
@@ -836,6 +828,7 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+					DenomToPfmMap:             map[string]PacketForwardMiddlewareConfig{},
 				}
 				partyBConfig := NativeCovenantParty{
 					PartyReceiverAddr: neutronReceiverAddr,
@@ -878,14 +871,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					},
 				}
 
-				party1PfmMap := map[string]PacketForwardMiddlewareConfig{}
-				party2PfmMap := map[string]PacketForwardMiddlewareConfig{}
-
-				pfmUnwindingConfig := PfmUnwindingConfig{
-					Party1PfmMap: party1PfmMap,
-					Party2PfmMap: party2PfmMap,
-				}
-
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-ragequit",
 					Timeouts:        timeouts,
@@ -910,7 +895,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					FallbackSplit:      nil,
 					EmergencyCommittee: neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					LiquidPoolerConfig: liquidPoolerConfig,
-					PfmUnwindingConfig: pfmUnwindingConfig,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
@@ -1127,6 +1111,7 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+					DenomToPfmMap:             map[string]PacketForwardMiddlewareConfig{},
 				}
 				partyBConfig := NativeCovenantParty{
 					PartyReceiverAddr: neutronReceiverAddr,
@@ -1169,14 +1154,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					},
 				}
 
-				party1PfmMap := map[string]PacketForwardMiddlewareConfig{}
-				party2PfmMap := map[string]PacketForwardMiddlewareConfig{}
-
-				pfmUnwindingConfig := PfmUnwindingConfig{
-					Party1PfmMap: party1PfmMap,
-					Party2PfmMap: party2PfmMap,
-				}
-
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-side-ragequit",
 					Timeouts:        timeouts,
@@ -1210,7 +1187,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					},
 					FallbackSplit:      nil,
 					LiquidPoolerConfig: liquidPoolerConfig,
-					PfmUnwindingConfig: pfmUnwindingConfig,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
@@ -1402,6 +1378,7 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					HostToPartyChainChannelId: testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 					PartyChainConnectionId:    neutronAtomIBCConnId,
 					IbcTransferTimeout:        timeouts.IbcTransferTimeout,
+					DenomToPfmMap:             map[string]PacketForwardMiddlewareConfig{},
 				}
 				partyBConfig := NativeCovenantParty{
 					PartyReceiverAddr: neutronReceiverAddr,
@@ -1444,14 +1421,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					},
 				}
 
-				party1PfmMap := map[string]PacketForwardMiddlewareConfig{}
-				party2PfmMap := map[string]PacketForwardMiddlewareConfig{}
-
-				pfmUnwindingConfig := PfmUnwindingConfig{
-					Party1PfmMap: party1PfmMap,
-					Party2PfmMap: party2PfmMap,
-				}
-
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-side-happy",
 					Timeouts:        timeouts,
@@ -1485,7 +1454,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					},
 					FallbackSplit:      nil,
 					LiquidPoolerConfig: liquidPoolerConfig,
-					PfmUnwindingConfig: pfmUnwindingConfig,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)

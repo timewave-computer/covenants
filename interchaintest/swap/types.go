@@ -25,20 +25,34 @@ type CovenantPartyConfig struct {
 }
 
 type InterchainCovenantParty struct {
-	Addr                      string `json:"addr"`
-	NativeDenom               string `json:"native_denom"`
-	RemoteChainDenom          string `json:"remote_chain_denom"`
-	PartyToHostChainChannelId string `json:"party_to_host_chain_channel_id"`
-	HostToPartyChainChannelId string `json:"host_to_party_chain_channel_id"`
-	PartyReceiverAddr         string `json:"party_receiver_addr"`
-	PartyChainConnectionId    string `json:"party_chain_connection_id"`
-	IbcTransferTimeout        string `json:"ibc_transfer_timeout"`
+	Addr                      string                                   `json:"addr"`
+	NativeDenom               string                                   `json:"native_denom"`
+	RemoteChainDenom          string                                   `json:"remote_chain_denom"`
+	PartyToHostChainChannelId string                                   `json:"party_to_host_chain_channel_id"`
+	HostToPartyChainChannelId string                                   `json:"host_to_party_chain_channel_id"`
+	PartyReceiverAddr         string                                   `json:"party_receiver_addr"`
+	PartyChainConnectionId    string                                   `json:"party_chain_connection_id"`
+	IbcTransferTimeout        string                                   `json:"ibc_transfer_timeout"`
+	Contribution              Coin                                     `json:"contribution"`
+	DenomToPfmMap             map[string]PacketForwardMiddlewareConfig `json:"denom_to_pfm_map"`
+}
+
+type Coin struct {
+	Denom  string `json:"denom"`
+	Amount string `json:"amount"`
+}
+
+type PacketForwardMiddlewareConfig struct {
+	LocalToHopChainChannelId       string `json:"local_to_hop_chain_channel_id"`
+	HopToDestinationChainChannelId string `json:"hop_to_destination_chain_channel_id"`
+	HopChainReceiverAddress        string `json:"hop_chain_receiver_address"`
 }
 
 type NativeCovenantParty struct {
 	Addr              string `json:"addr"`
 	NativeDenom       string `json:"native_denom"`
 	PartyReceiverAddr string `json:"party_receiver_addr"`
+	Contribution      Coin   `json:"contribution"`
 }
 
 type SwapCovenantContractCodeIds struct {
