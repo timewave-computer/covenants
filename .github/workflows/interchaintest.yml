@@ -81,7 +81,7 @@ jobs:
         uses: extractions/setup-just@v1
 
       - name: swap covenant
-        run: mkdir interchaintest/swap/wasms && cp -R artifacts/*.wasm interchaintest/swap/wasms && just local-e2e swap TestTokenSwap
+        run: mkdir -p interchaintest/swap/wasms && cp -R artifacts/*.wasm interchaintest/swap/wasms && just local-e2e swap TestTokenSwap
 
   # todo: figure out how to run ci with custom stride image
   # single-party-pol-covenant:
@@ -129,8 +129,8 @@ jobs:
         uses: extractions/setup-just@v1
 
       - name: two party POL native & interchain parties
-        run: mkdir interchaintest/two-party-pol/wasms && cp -R artifacts/*.wasm interchaintest/two-party-pol/wasms && cp -R interchaintest/wasms/astroport/*.wasm interchaintest/two-party-pol/wasms && just local-e2e two-party-pol TestTwoPartyNativePartyPol
+        run: mkdir -p interchaintest/two-party-pol/wasms && cp -R artifacts/*.wasm interchaintest/two-party-pol/wasms && cp -R interchaintest/wasms/astroport/*.wasm interchaintest/two-party-pol/wasms && just local-e2e two-party-pol TestTwoPartyNativePartyPol
 
       - name: two party POL two interchain parties
-        run: mkdir interchaintest/two-party-pol/wasms && cp -R artifacts/*.wasm interchaintest/two-party-pol/wasms && cp -R interchaintest/wasms/astroport/*.wasm interchaintest/two-party-pol/wasms && just local-e2e two-party-pol TestTwoPartyPol
+        run: mkdir -p interchaintest/two-party-pol/wasms && cp -R artifacts/*.wasm interchaintest/two-party-pol/wasms && cp -R interchaintest/wasms/astroport/*.wasm interchaintest/two-party-pol/wasms && just local-e2e two-party-pol TestTwoPartyPol
 
