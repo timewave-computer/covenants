@@ -8,7 +8,7 @@ use cosmwasm_std::{
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
     Attribute, CosmosMsg, Empty, OwnedDeps, SubMsg, Uint128, Uint64,
 };
-use covenant_utils::{DestinationConfig, ReceiverConfig};
+use covenant_utils::DestinationConfig;
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
     sudo::msg::RequestPacketTimeoutHeight,
@@ -33,12 +33,12 @@ fn test_instantiate_and_query_all() {
 
     assert_eq!("contract0", clock);
     assert_eq!(
-        ReceiverConfig::Ibc(DestinationConfig {
+        DestinationConfig {
             local_to_destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
             destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
             ibc_transfer_timeout: Uint64::new(10),
             denom_to_pfm_map: BTreeMap::new(),
-        }),
+        },
         config
     );
     assert_eq!(BTreeSet::new(), denoms);
@@ -68,12 +68,12 @@ fn test_migrate_config() {
 
     assert_eq!("working_clock", clock);
     assert_eq!(
-        ReceiverConfig::Ibc(DestinationConfig {
+        DestinationConfig {
             local_to_destination_chain_channel_id: "new_channel".to_string(),
             destination_receiver_addr: "new_receiver".to_string(),
             ibc_transfer_timeout: Uint64::new(100),
             denom_to_pfm_map: BTreeMap::new(),
-        }),
+        },
         config
     );
     assert_eq!(target_denom_set, target_denoms);
