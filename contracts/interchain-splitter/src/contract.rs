@@ -29,9 +29,8 @@ pub fn instantiate(
 
     let mut resp = Response::default().add_attribute("method", "interchain_splitter_instantiate");
 
-    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
-    resp = resp.add_attribute("clock_addr", clock_addr.to_string());
+    CLOCK_ADDRESS.save(deps.storage, &msg.clock_address)?;
+    resp = resp.add_attribute("clock_addr", msg.clock_address.to_string());
 
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
@@ -53,7 +52,7 @@ pub fn instantiate(
         resp = resp.add_attribute("fallback", "None");
     }
 
-    Ok(resp.add_message(enqueue_msg(clock_addr.as_str())?))
+    Ok(resp.add_message(enqueue_msg(msg.clock_address.as_str())?))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

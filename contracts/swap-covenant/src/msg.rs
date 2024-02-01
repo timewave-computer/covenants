@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{Addr, Binary, Deps, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig,
     split::{SplitConfig, SplitType},
@@ -35,20 +35,20 @@ pub enum CovenantPartyConfig {
 }
 
 impl CovenantPartyConfig {
-    pub fn to_receiver_config(&self) -> ReceiverConfig {
+    pub fn to_receiver_config(&self, deps: Deps) -> StdResult<ReceiverConfig> {
         match self {
             // TODO: enable pfm mapping
-            CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
+            CovenantPartyConfig::Interchain(config) => Ok(ReceiverConfig::Ibc(DestinationConfig {
                 local_to_destination_chain_channel_id: config
                     .host_to_party_chain_channel_id
                     .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
                 denom_to_pfm_map: BTreeMap::new(),
-            }),
+            })),
             CovenantPartyConfig::Native(config) => {
-                // todo: validate the address
-                ReceiverConfig::Native(Addr::unchecked(config.party_receiver_addr.to_string()))
+                let addr = deps.api.addr_validate(&config.party_receiver_addr)?;
+                Ok(ReceiverConfig::Native(addr))
             }
         }
     }
@@ -60,18 +60,18 @@ impl CovenantPartyConfig {
         }
     }
 
-    pub fn to_covenant_party(&self) -> CovenantParty {
+    pub fn to_covenant_party(&self, deps: Deps) -> StdResult<CovenantParty> {
         match self {
-            CovenantPartyConfig::Interchain(config) => CovenantParty {
+            CovenantPartyConfig::Interchain(config) => Ok(CovenantParty {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
-                receiver_config: self.to_receiver_config(),
-            },
-            CovenantPartyConfig::Native(config) => CovenantParty {
+                receiver_config: self.to_receiver_config(deps)?,
+            }),
+            CovenantPartyConfig::Native(config) => Ok(CovenantParty {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
-                receiver_config: self.to_receiver_config(),
-            },
+                receiver_config: self.to_receiver_config(deps)?,
+            }),
         }
     }
 
@@ -86,7 +86,7 @@ impl CovenantPartyConfig {
         &self,
         label: String,
         admin: String,
-        clock_addr: String,
+        clock_addr: Addr,
         covenant_denoms: BTreeSet<String>,
         instantiate2_helper: Instantiate2HelperConfig,
     ) -> StdResult<WasmMsg> {
@@ -101,7 +101,7 @@ impl CovenantPartyConfig {
                     denom_to_pfm_map: BTreeMap::new(),
                 };
                 let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
-                    clock_address: clock_addr.to_string(),
+                    clock_address: clock_addr,
                     destination_config,
                     denoms: covenant_denoms,
                 };
