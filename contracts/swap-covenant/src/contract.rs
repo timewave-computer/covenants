@@ -3,10 +3,12 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg
+    to_json_binary, to_json_string, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, WasmMsg,
 };
 use covenant_utils::{
-    instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits, CovenantPartiesConfig, CovenantTerms
+    instantiate2_helper::{get_instantiate2_salt_and_address, Instantiate2}, split::remap_splits,
+    CovenantPartiesConfig, CovenantTerms,
 };
 use cw2::set_contract_version;
 
@@ -43,10 +45,7 @@ pub fn instantiate(
 
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
 
-    let covenant_denoms: BTreeSet<String> = msg.splits
-        .keys()
-        .map(|k| k.to_string())
-        .collect();
+    let covenant_denoms: BTreeSet<String> = msg.splits.keys().map(|k| k.to_string()).collect();
 
     // first we generate the instantiate2 addresses for each contract
     let party_a_router_instantiate2_config = get_instantiate2_salt_and_address(
@@ -307,7 +306,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else if party == "party_b" {
                 PARTY_B_ROUTER_ADDR.may_load(deps.storage)?
             } else {
-                return Err(StdError::not_found("unknown party"))
+                return Err(StdError::not_found("unknown party"));
             };
             Ok(to_json_binary(&resp)?)
         }
@@ -317,7 +316,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else if party == "party_b" {
                 PARTY_B_IBC_FORWARDER_ADDR.may_load(deps.storage)?
             } else {
-                return Err(StdError::not_found("unknown party"))
+                return Err(StdError::not_found("unknown party"));
             };
             Ok(to_json_binary(&resp)?)
         }
@@ -349,7 +348,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         }
     }
 }
-
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
@@ -431,15 +429,16 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 let msg = to_json_binary(&splitter)?;
                 resp = resp.add_attribute("splitter_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
-                    contract_addr: COVENANT_INTERCHAIN_SPLITTER_ADDR.load(deps.storage)?.to_string(),
+                    contract_addr: COVENANT_INTERCHAIN_SPLITTER_ADDR
+                        .load(deps.storage)?
+                        .to_string(),
                     new_code_id: contract_codes.splitter,
                     msg,
                 });
             }
 
             Ok(resp.add_messages(migrate_msgs))
-        },
+        }
         MigrateMsg::UpdateCodeId { data: _ } => Ok(Response::default()),
     }
 }
-

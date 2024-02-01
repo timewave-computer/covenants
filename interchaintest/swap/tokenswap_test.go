@@ -372,26 +372,20 @@ func TestTokenSwap(t *testing.T) {
 			neutronReceiverAddr = neutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
 			hubReceiverAddr = gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 
-			splits := []DenomSplit{
-				{
-					Denom: neutronAtomIbcDenom,
-					Type: SplitType{
-						Custom: SplitConfig{
-							Receivers: map[string]string{
-								neutronReceiverAddr: "1.0",
-								hubReceiverAddr:     "0.0",
-							},
+			splits := map[string]SplitType{
+				neutronAtomIbcDenom: SplitType{
+					Custom: SplitConfig{
+						Receivers: map[string]string{
+							neutronReceiverAddr: "1.0",
+							hubReceiverAddr:     "0.0",
 						},
 					},
 				},
-				{
-					Denom: cosmosNeutron.Config().Denom,
-					Type: SplitType{
-						Custom: SplitConfig{
-							Receivers: map[string]string{
-								neutronReceiverAddr: "0.0",
-								hubReceiverAddr:     "1.0",
-							},
+				cosmosNeutron.Config().Denom: SplitType{
+					Custom: SplitConfig{
+						Receivers: map[string]string{
+							neutronReceiverAddr: "0.0",
+							hubReceiverAddr:     "1.0",
 						},
 					},
 				},

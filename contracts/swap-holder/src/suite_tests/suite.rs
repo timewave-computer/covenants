@@ -189,7 +189,7 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_native_splitter_balances(&self) -> Vec<Coin> {
+    pub fn query_remote_chain_splitter_balances(&self) -> Vec<Coin> {
         self.app
             .wrap()
             .query_all_balances("native-splitter")

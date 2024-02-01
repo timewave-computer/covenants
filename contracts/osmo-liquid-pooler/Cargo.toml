@@ -45,7 +45,7 @@ polytone    = { workspace = true }
 osmosis-std                         = "0.20.1"
 base64                              = { workspace = true }
 prost                               = { workspace = true }
-covenant-outpost-osmo-liquid-pooler = { workspace = true }
+covenant-outpost-osmo-liquid-pooler = { workspace = true, features = ["library"] }
 
 # dev-dependencies
 [dev-dependencies]

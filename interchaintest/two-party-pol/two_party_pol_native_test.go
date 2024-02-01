@@ -502,26 +502,20 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					Stable: struct{}{},
 				}
 
-				denomSplits := []DenomSplit{
-					{
-						Denom: neutronAtomIbcDenom,
-						Type: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:     "0.5",
-									neutronReceiverAddr: "0.5",
-								},
+				denomSplits := map[string]SplitType{
+					neutronAtomIbcDenom: SplitType{
+						Custom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:     "0.5",
+								neutronReceiverAddr: "0.5",
 							},
 						},
 					},
-					{
-						Denom: cosmosNeutron.Config().Denom,
-						Type: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:     "0.5",
-									neutronReceiverAddr: "0.5",
-								},
+					cosmosNeutron.Config().Denom: SplitType{
+						Custom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:     "0.5",
+								neutronReceiverAddr: "0.5",
 							},
 						},
 					},
@@ -908,18 +902,12 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
 					},
-					Splits: []DenomSplit{
-						{
-							Denom: neutronAtomIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{Receivers: map[string]string{hubReceiverAddr: "0.5", neutronReceiverAddr: "0.5"}},
-							},
+					Splits: map[string]SplitType{
+						neutronAtomIbcDenom: SplitType{
+							Custom: SplitConfig{Receivers: map[string]string{hubReceiverAddr: "0.5", neutronReceiverAddr: "0.5"}},
 						},
-						{
-							Denom: cosmosNeutron.Config().Denom,
-							Type: SplitType{
-								Custom: SplitConfig{Receivers: map[string]string{hubReceiverAddr: "0.5", neutronReceiverAddr: "0.5"}},
-							},
+						cosmosNeutron.Config().Denom: SplitType{
+							Custom: SplitConfig{Receivers: map[string]string{hubReceiverAddr: "0.5", neutronReceiverAddr: "0.5"}},
 						},
 					},
 					FallbackSplit:      nil,
@@ -1209,26 +1197,20 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						AcceptablePriceSpread: "0.09",
 					},
 					CovenantType: "side",
-					Splits: []DenomSplit{
-						{
-							Denom: neutronAtomIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:     "1.0",
-										neutronReceiverAddr: "0.0",
-									},
+					Splits: map[string]SplitType{
+						neutronAtomIbcDenom: SplitType{
+							Custom: SplitConfig{
+								Receivers: map[string]string{
+									hubReceiverAddr:     "1.0",
+									neutronReceiverAddr: "0.0",
 								},
 							},
 						},
-						{
-							Denom: cosmosNeutron.Config().Denom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:     "0.0",
-										neutronReceiverAddr: "1.0",
-									},
+						cosmosNeutron.Config().Denom: SplitType{
+							Custom: SplitConfig{
+								Receivers: map[string]string{
+									hubReceiverAddr:     "0.0",
+									neutronReceiverAddr: "1.0",
 								},
 							},
 						},
@@ -1494,26 +1476,20 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						AcceptablePriceSpread: "0.09",
 					},
 					CovenantType: "side",
-					Splits: []DenomSplit{
-						{
-							Denom: neutronAtomIbcDenom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:     "1.0",
-										neutronReceiverAddr: "0.0",
-									},
+					Splits: map[string]SplitType{
+						neutronAtomIbcDenom: SplitType{
+							Custom: SplitConfig{
+								Receivers: map[string]string{
+									hubReceiverAddr:     "1.0",
+									neutronReceiverAddr: "0.0",
 								},
 							},
 						},
-						{
-							Denom: cosmosNeutron.Config().Denom,
-							Type: SplitType{
-								Custom: SplitConfig{
-									Receivers: map[string]string{
-										hubReceiverAddr:     "0.0",
-										neutronReceiverAddr: "1.0",
-									},
+						cosmosNeutron.Config().Denom: SplitType{
+							Custom: SplitConfig{
+								Receivers: map[string]string{
+									hubReceiverAddr:     "0.0",
+									neutronReceiverAddr: "1.0",
 								},
 							},
 						},

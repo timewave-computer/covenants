@@ -1,8 +1,28 @@
-use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::{cw_serde, serde::Serialize};
 use cosmwasm_std::{
-    instantiate2_address, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps, StdError, StdResult,
+    to_json_binary, instantiate2_address, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps, StdError, StdResult, WasmMsg
 };
 use sha2::{Digest, Sha256};
+
+// TODO: see if we can impl this and not manually reimplement this
+// on every  contract
+pub trait Instantiate2: Serialize {
+    fn to_instantiate2_msg(
+        &self,
+        instantiate2_helper: &Instantiate2HelperConfig,
+        admin: String,
+        label: String,
+    ) -> StdResult<WasmMsg> {
+        Ok(WasmMsg::Instantiate2 {
+            admin: Some(admin),
+            code_id: instantiate2_helper.code,
+            label,
+            msg: to_json_binary(self)?,
+            funds: vec![],
+            salt: instantiate2_helper.salt.clone(),
+        })
+    }
+}
 
 fn get_precomputed_address(
     deps: Deps,
