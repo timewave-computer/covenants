@@ -544,26 +544,20 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				LiquidPoolerCode:     lperCodeId,
 			}
 
-			denomSplits := []DenomSplit{
-				{
-					Denom: neutronAtomIbcDenom,
-					Type: SplitType{
-						Custom: SplitConfig{
-							Receivers: map[string]string{
-								hubReceiverAddr:  "0.5",
-								osmoReceiverAddr: "0.5",
-							},
+			denomSplits := map[string]SplitType{
+				neutronAtomIbcDenom: SplitType{
+					Custom: SplitConfig{
+						Receivers: map[string]string{
+							hubReceiverAddr:  "0.5",
+							osmoReceiverAddr: "0.5",
 						},
 					},
 				},
-				{
-					Denom: neutronOsmoIbcDenom,
-					Type: SplitType{
-						Custom: SplitConfig{
-							Receivers: map[string]string{
-								hubReceiverAddr:  "0.5",
-								osmoReceiverAddr: "0.5",
-							},
+				neutronOsmoIbcDenom: SplitType{
+					Custom: SplitConfig{
+						Receivers: map[string]string{
+							hubReceiverAddr:  "0.5",
+							osmoReceiverAddr: "0.5",
 						},
 					},
 				},

@@ -26,7 +26,7 @@ pub struct InstantiateMsg {
     pub ls_forwarder_config: CovenantPartyConfig,
     pub lp_forwarder_config: CovenantPartyConfig,
     pub pool_price_config: PoolPriceConfig,
-    pub native_splitter_config: NativeSplitterConfig,
+    pub remote_chain_splitter_config: RemoteChainSplitterConfig,
     pub emergency_committee: Option<String>,
     pub pfm_unwinding_config: SinglePartyPfmUnwindingConfig,
     pub covenant_party_config: InterchainCovenantParty,
@@ -50,21 +50,23 @@ impl LiquidPoolerConfig {
         pool_price_config: PoolPriceConfig,
     ) -> StdResult<WasmMsg> {
         match self {
-            LiquidPoolerConfig::Osmosis(config) => {
-                Ok(config
-                    .to_instantiate_msg(clock_addr.to_string(), holder_addr.to_string(), pool_price_config)
-                    .to_instantiate2_msg(instantiate2_helper, admin, label)?,
+            LiquidPoolerConfig::Osmosis(config) => Ok(config
+                .to_instantiate_msg(
+                    clock_addr.to_string(),
+                    holder_addr.to_string(),
+                    pool_price_config,
                 )
-            }
-            LiquidPoolerConfig::Astroport(config) => {
-                Ok(config
-                    .to_instantiate_msg(clock_addr.to_string(), holder_addr.to_string(), pool_price_config)
-                    .to_instantiate2_msg(instantiate2_helper, admin, label)?)
-            }
+                .to_instantiate2_msg(instantiate2_helper, admin, label)?),
+            LiquidPoolerConfig::Astroport(config) => Ok(config
+                .to_instantiate_msg(
+                    clock_addr.to_string(),
+                    holder_addr.to_string(),
+                    pool_price_config,
+                )
+                .to_instantiate2_msg(instantiate2_helper, admin, label)?),
         }
     }
 }
-
 
 #[cw_serde]
 pub struct SinglePartyPfmUnwindingConfig {
@@ -74,7 +76,7 @@ pub struct SinglePartyPfmUnwindingConfig {
 }
 
 #[cw_serde]
-pub struct NativeSplitterConfig {
+pub struct RemoteChainSplitterConfig {
     pub channel_id: String,
     pub connection_id: String,
     pub denom: String,
@@ -102,6 +104,7 @@ impl CovenantPartyConfig {
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
                 denom_to_pfm_map: BTreeMap::new(),
             }),
+            // validate address here
             CovenantPartyConfig::Native(config) => {
                 ReceiverConfig::Native(Addr::unchecked(config.party_receiver_addr.to_string()))
             }
@@ -183,7 +186,7 @@ pub struct CovenantContractCodeIds {
     pub ibc_forwarder_code: u64,
     pub holder_code: u64,
     pub clock_code: u64,
-    pub native_splitter_code: u64,
+    pub remote_chain_splitter_code: u64,
     pub liquid_pooler_code: u64,
     pub liquid_staker_code: u64,
     pub interchain_router_code: u64,

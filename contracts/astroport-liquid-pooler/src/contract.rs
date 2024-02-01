@@ -124,9 +124,10 @@ fn try_withdraw(
         env.contract.address.to_string(),
     )?;
 
-    if lp_token_info.balance_response.balance.is_zero() {
-        return Err(ContractError::NoLpTokensAvailable {});
-    }
+    ensure!(
+        !lp_token_info.balance_response.balance.is_zero(),
+        ContractError::NoLpTokensAvailable {}
+    );
 
     // If percentage is 100%, use the whole balance
     // If percentage is less than 100%, calculate the percentage of share we want to withdraw
@@ -194,9 +195,11 @@ fn validate_pair_type(
 ) -> Result<(), ContractError> {
     let pool_response: PairInfo =
         querier.query_wasm_smart(pool, &astroport::pair::QueryMsg::Pair {})?;
-    if &pool_response.pair_type != pair_type {
-        return Err(ContractError::PairTypeMismatch {});
-    }
+
+    ensure!(
+        &pool_response.pair_type == pair_type,
+        ContractError::PairTypeMismatch {}
+    );
     Ok(())
 }
 

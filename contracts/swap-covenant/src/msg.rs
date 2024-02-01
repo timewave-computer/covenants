@@ -3,8 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, split::{SplitConfig, SplitType}, CovenantParty,
-    DestinationConfig, ReceiverConfig, SwapCovenantTerms,
+    instantiate2_helper::Instantiate2HelperConfig,
+    split::{SplitConfig, SplitType},
+    CovenantParty, DestinationConfig, ReceiverConfig, SwapCovenantTerms,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;

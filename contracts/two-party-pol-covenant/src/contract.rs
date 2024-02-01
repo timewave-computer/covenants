@@ -43,11 +43,7 @@ pub fn instantiate(
     let creator_address: CanonicalAddr =
         deps.api.addr_canonicalize(env.contract.address.as_str())?;
 
-    let covenant_denoms: BTreeSet<String> = msg
-        .splits
-        .keys()
-        .map(|k| k.to_string())
-        .collect();
+    let covenant_denoms: BTreeSet<String> = msg.splits.keys().map(|k| k.to_string()).collect();
 
     let clock_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
