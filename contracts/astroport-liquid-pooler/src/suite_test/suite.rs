@@ -545,14 +545,17 @@ impl Suite {}
 impl Suite {
     // tick LPer
     pub fn tick(&mut self) -> AppResponse {
-        self.app
+        let resp = self
+            .app
             .execute_contract(
                 Addr::unchecked(self.clock_addr.to_string()),
                 Addr::unchecked(self.liquid_pooler.1.to_string()),
                 &crate::msg::ExecuteMsg::Tick {},
                 &[],
             )
-            .unwrap()
+            .unwrap();
+        println!("response: {:?}", resp);
+        resp
     }
 
     // mint coins

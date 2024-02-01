@@ -6,7 +6,7 @@ use cosmwasm_std::{
     Addr, Coin, Empty, GovMsg, Uint64,
 };
 
-use covenant_utils::{DestinationConfig, ReceiverConfig};
+use covenant_utils::DestinationConfig;
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, DistributionKeeper,
     Executor, FailingModule, IbcAcceptingModule, StakeKeeper, WasmKeeper,
@@ -144,7 +144,7 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_destination_config(&self) -> ReceiverConfig {
+    pub fn query_destination_config(&self) -> DestinationConfig {
         self.app
             .wrap()
             .query_wasm_smart(&self.router, &QueryMsg::ReceiverConfig {})
