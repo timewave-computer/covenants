@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coin, ensure, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, DepsMut, Empty, Env, IbcMsg, IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg
+    coin, ensure, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, DepsMut, Empty, Env,
+    IbcMsg, IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg,
 };
 use covenant_utils::{
     polytone::{
@@ -41,7 +42,7 @@ pub fn try_handle_callback(
     // only the note can submit a callback
     ensure!(
         info.sender == NOTE_ADDRESS.load(deps.storage)?,
-        ContractError::Unauthorized {}.to_neutron_std(),
+        ContractError::Unauthorized {}.to_neutron_std()
     );
 
     match msg.result {

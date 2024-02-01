@@ -5,8 +5,7 @@ use cosmwasm_std::{
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    CovenantPartiesConfig, CovenantTerms,
+    instantiate2_helper::Instantiate2HelperConfig, CovenantPartiesConfig, CovenantTerms,
 };
 use cw_utils::Expiration;
 

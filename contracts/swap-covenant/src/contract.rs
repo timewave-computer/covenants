@@ -415,7 +415,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-            if let Some(forwarder) = party_b_forwarder {
+            if let Some(forwarder) = *party_b_forwarder {
                 let msg: Binary = to_json_binary(&forwarder)?;
                 resp = resp.add_attribute("party_b_forwarder_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {

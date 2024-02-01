@@ -3,7 +3,8 @@ use std::collections::{BTreeMap, BTreeSet};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg
+    to_json_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    WasmMsg,
 };
 use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
 use covenant_interchain_router::msg::InstantiateMsg as RouterInstantiateMsg;
@@ -179,7 +180,9 @@ pub fn instantiate(
     let mut splits: BTreeMap<String, SplitConfig> = BTreeMap::new();
     splits.insert(
         msg.remote_chain_splitter_config.denom.to_string(),
-        SplitConfig { receivers: split_config_map },
+        SplitConfig {
+            receivers: split_config_map,
+        },
     );
 
     let splitter_instantiate2_msg = SplitterInstantiateMsg {

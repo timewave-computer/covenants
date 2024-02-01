@@ -2,8 +2,7 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, DepsMut, StdError, StdResult, Uint128,
-    Uint64, WasmMsg,
+    to_json_binary, Addr, Binary, DepsMut, StdError, StdResult, Uint128, Uint64, WasmMsg,
 };
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
@@ -11,7 +10,9 @@ use covenant_macros::{
     covenant_remote_chain,
 };
 
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo, split::SplitConfig};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo, split::SplitConfig,
+};
 use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::state::CONTRACT_STATE;
