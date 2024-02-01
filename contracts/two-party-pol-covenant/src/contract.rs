@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, WasmMsg,
+    to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, WasmMsg,
 };
 use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
 use covenant_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};

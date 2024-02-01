@@ -6,10 +6,9 @@ use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    split::SplitConfig,
-    CovenantParty, DestinationConfig, InterchainCovenantParty, NativeCovenantParty,
-    PoolPriceConfig, ReceiverConfig,
+    instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty,
+    DestinationConfig, InterchainCovenantParty, NativeCovenantParty, PoolPriceConfig,
+    ReceiverConfig,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
