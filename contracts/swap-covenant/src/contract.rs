@@ -3,11 +3,12 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, WasmMsg,
+    to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, WasmMsg,
 };
 use covenant_utils::{
-    instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits, CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms
+    instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits,
+    CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms,
 };
 use cw2::set_contract_version;
 
@@ -120,7 +121,7 @@ pub fn instantiate(
         party_b_router_instantiate2_config.clone(),
     )?;
 
-    let splitter_instantiate2_msg = covenant_interchain_splitter::msg::InstantiateMsg {
+    let splitter_instantiate2_msg = covenant_native_splitter::msg::InstantiateMsg {
         clock_address: clock_instantiate2_config.addr.clone(),
         splits: remap_splits(
             msg.splits.clone(),
@@ -179,7 +180,7 @@ pub fn instantiate(
     // covenant flow. otherwise party is native, meaning that
     // its deposit address will be the holder contract. no
     // extra actions are neeed for that.
-    if let CovenantPartyConfig::Interchain(config) = msg.party_a_config {
+    if let CovenantPartyConfig::Interchain(config) = &msg.party_a_config {
         // store its forwarder contract address
         PARTY_A_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_a_forwarder_instantiate2_config.addr)?;
@@ -188,10 +189,10 @@ pub fn instantiate(
         // generate its instantiate2 message and add it to the list
         // of instantiation messages
         let instantiate_msg = covenant_ibc_forwarder::msg::InstantiateMsg {
-            remote_chain_connection_id: config.party_chain_connection_id,
-            remote_chain_channel_id: config.party_to_host_chain_channel_id,
-            denom: config.remote_chain_denom,
-            amount: msg.covenant_terms.party_a_amount,
+            remote_chain_connection_id: config.party_chain_connection_id.to_string(),
+            remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
+            denom: config.remote_chain_denom.to_string(),
+            amount: msg.party_a_config.get_contribution().amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
@@ -210,7 +211,7 @@ pub fn instantiate(
     // covenant flow. otherwise party is native, meaning that
     // its deposit address will be the holder contract. no
     // extra actions are neeed for that.
-    if let CovenantPartyConfig::Interchain(config) = msg.party_b_config {
+    if let CovenantPartyConfig::Interchain(config) = &msg.party_b_config {
         // store its forwarder contract address
         PARTY_B_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_b_forwarder_instantiate2_config.addr)?;
@@ -219,10 +220,10 @@ pub fn instantiate(
         // generate its instantiate2 message and add it to the list
         // of instantiation messages
         let instantiate_msg = covenant_ibc_forwarder::msg::InstantiateMsg {
-            remote_chain_connection_id: config.party_chain_connection_id,
-            remote_chain_channel_id: config.party_to_host_chain_channel_id,
-            denom: config.remote_chain_denom,
-            amount: msg.covenant_terms.party_a_amount,
+            remote_chain_connection_id: config.party_chain_connection_id.to_string(),
+            remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
+            denom: config.remote_chain_denom.to_string(),
+            amount: msg.party_b_config.get_contribution().amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
@@ -448,6 +449,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
 
             Ok(resp.add_messages(migrate_msgs))
         }
-        MigrateMsg::UpdateCodeId { data: _ } => Ok(Response::default()),
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
+        }
     }
 }

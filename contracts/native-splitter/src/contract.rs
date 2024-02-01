@@ -14,7 +14,7 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{CLOCK_ADDRESS, FALLBACK_SPLIT, SPLIT_CONFIG_MAP};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-interchain-splitter";
+const CONTRACT_NAME: &str = "crates.io:covenant-native-splitter";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -27,16 +27,15 @@ pub fn instantiate(
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let mut resp = Response::default().add_attribute("method", "interchain_splitter_instantiate");
+    let mut resp = Response::default().add_attribute("method", "native_splitter_instantiate");
 
     CLOCK_ADDRESS.save(deps.storage, &msg.clock_address)?;
     resp = resp.add_attribute("clock_addr", msg.clock_address.to_string());
 
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
-        // todo: split.get_split_config()?.validate()?;
+        split.validate_shares()?;
         SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
-        // resp = resp.add_attributes(vec![split.get_response_attribute(denom)]);
     }
 
     // if a fallback split is provided we validate and store it

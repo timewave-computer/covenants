@@ -25,7 +25,7 @@ covenant-clock                      = { path = "contracts/clock" }
 covenant-clock-tester               = { path = "contracts/clock-tester" }
 covenant-ibc-forwarder              = { path = "contracts/ibc-forwarder" }
 covenant-remote-chain-splitter      = { path = "contracts/remote-chain-splitter" }
-covenant-interchain-splitter        = { path = "contracts/interchain-splitter" }
+covenant-native-splitter            = { path = "contracts/native-splitter" }
 covenant-swap-holder                = { path = "contracts/swap-holder" }
 swap-covenant                       = { path = "contracts/swap-covenant" }
 covenant-interchain-router          = { path = "contracts/interchain-router" }

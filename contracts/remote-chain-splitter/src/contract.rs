@@ -66,19 +66,19 @@ pub fn instantiate(
     let mut split_resp_attributes: Vec<Attribute> = Vec::with_capacity(msg.splits.len());
     let mut encountered_denoms: HashSet<String> = HashSet::with_capacity(msg.splits.len());
 
-    for split in msg.splits {
+    for (denom, split_config) in msg.splits {
         // if denom had not yet been encountered we proceed, otherwise error
-        if encountered_denoms.insert(split.denom.to_string()) {
-            let validated_split = split.validate()?;
-            split_resp_attributes.push(validated_split.to_response_attribute());
+        if encountered_denoms.insert(denom.to_string()) {
+            split_config.validate_shares()?;
+            split_resp_attributes.push(split_config.get_response_attribute(denom.to_string()));
             SPLIT_CONFIG_MAP.save(
                 deps.storage,
-                validated_split.denom,
-                &validated_split.receivers,
+                denom,
+                &split_config,
             )?;
         } else {
             return Err(NeutronError::Std(StdError::GenericErr {
-                msg: format!("multiple {:?} entries", split.denom),
+                msg: format!("multiple {:?} entries", denom),
             }));
         }
     }
@@ -146,14 +146,14 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
             let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
 
             let splits =
-                SPLIT_CONFIG_MAP.load(deps.storage, remote_chain_info.denom.to_string())?;
+                SPLIT_CONFIG_MAP.load(deps.storage, remote_chain_info.denom.to_string())?.receivers;
 
             let mut outputs: Vec<Output> = Vec::with_capacity(splits.len());
-            for split_receiver in splits.iter() {
+            for (split_receiver, share) in splits.iter() {
                 // query the ibc forwarders for their ICA addresses
                 // if either does not exist yet, error out
                 let forwarder_deposit_address: Option<String> = deps.querier.query_wasm_smart(
-                    split_receiver.addr.to_string(),
+                    split_receiver.to_string(),
                     &neutron::CovenantQueryMsg::DepositAddress {},
                 )?;
 
@@ -169,8 +169,8 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
                 // get the fraction dedicated to this receiver
                 let amt = amount
                     .checked_multiply_ratio(
-                        split_receiver.share.numerator(),
-                        split_receiver.share.denominator(),
+                        share.numerator(),
+                        share.denominator(),
                     )
                     .map_err(|e: cosmwasm_std::CheckedMultiplyRatioError| {
                         NeutronError::Std(StdError::GenericErr { msg: e.to_string() })
@@ -365,25 +365,25 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 let mut split_resp_attributes: Vec<Attribute> = Vec::with_capacity(splits.len());
                 let mut encountered_denoms: HashSet<String> = HashSet::with_capacity(splits.len());
 
-                for split in splits {
+                for (denom, split) in splits {
                     // if denom had not yet been encountered we proceed, otherwise error
-                    if encountered_denoms.insert(split.denom.to_string()) {
-                        let validated_split = split.validate()?;
-                        split_resp_attributes.push(validated_split.to_response_attribute());
+                    if encountered_denoms.insert(denom.to_string()) {
+                        split.validate_shares()?;
+                        split_resp_attributes.push(split.get_response_attribute(denom.to_string()));
                         SPLIT_CONFIG_MAP.save(
                             deps.storage,
-                            validated_split.denom.clone(),
-                            &validated_split.receivers,
+                            denom.to_string(),
+                            &split,
                         )?;
 
                         resp = resp.add_attribute(
-                            format!("split-{}", validated_split.denom),
-                            format!("{:?}", validated_split.receivers),
+                            format!("split-{}", denom),
+                            format!("{:?}", split.receivers),
                         );
                     } else {
                         return Err(StdError::generic_err(format!(
                             "multiple {:?} entries",
-                            split.denom
+                            denom
                         )));
                     }
                 }

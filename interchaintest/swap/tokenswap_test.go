@@ -321,7 +321,7 @@ func TestTokenSwap(t *testing.T) {
 		const clockContractPath = "wasms/covenant_clock.wasm"
 		const interchainRouterContractPath = "wasms/covenant_interchain_router.wasm"
 		const nativeRouterContractPath = "wasms/covenant_native_router.wasm"
-		const splitterContractPath = "wasms/covenant_interchain_splitter.wasm"
+		const splitterContractPath = "wasms/covenant_native_splitter.wasm"
 		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
 		const swapHolderContractPath = "wasms/covenant_swap_holder.wasm"
 
@@ -359,10 +359,6 @@ func TestTokenSwap(t *testing.T) {
 			partyBCoin := Coin{
 				Denom:  cosmosNeutron.Config().Denom,
 				Amount: strconv.FormatUint(neutronContributionAmount, 10),
-			}
-			swapCovenantTerms := SwapCovenantTerms{
-				PartyAAmount: partyACoin.Amount,
-				PartyBAmount: partyBCoin.Amount,
 			}
 
 			currentHeight, err := cosmosNeutron.Height(ctx)
@@ -430,7 +426,6 @@ func TestTokenSwap(t *testing.T) {
 				PresetIbcFee:                presetIbcFee,
 				SwapCovenantContractCodeIds: codeIds,
 				LockupConfig:                lockupConfig,
-				SwapCovenantTerms:           swapCovenantTerms,
 				PartyAConfig: CovenantPartyConfig{
 					Interchain: &partyAConfig,
 				},

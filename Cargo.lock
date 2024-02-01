@@ -530,25 +530,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "covenant-interchain-splitter"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-multi-test",
- "cw-storage-plus 1.2.0",
- "cw2 1.1.2",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "thiserror",
-]
-
-[[package]]
 name = "covenant-macros"
 version = "1.0.0"
 dependencies = [
@@ -579,6 +560,25 @@ dependencies = [
  "schemars",
  "serde",
  "sha2 0.9.9",
+ "thiserror",
+]
+
+[[package]]
+name = "covenant-native-splitter"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-clock",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-multi-test",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
  "thiserror",
 ]
 
@@ -666,7 +666,7 @@ dependencies = [
  "covenant-clock",
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
- "covenant-interchain-splitter",
+ "covenant-native-splitter",
  "covenant-osmo-liquid-pooler",
  "covenant-remote-chain-splitter",
  "covenant-single-party-pol-holder",
@@ -742,8 +742,8 @@ dependencies = [
  "covenant-clock",
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
- "covenant-interchain-splitter",
  "covenant-native-router",
+ "covenant-native-splitter",
  "covenant-swap-holder",
  "covenant-utils",
  "cw-multi-test",

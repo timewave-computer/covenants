@@ -170,7 +170,6 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
     contract_state.validate_claim_state()?;
 
-    // TODO: move this to a submsg reply
     // set WithdrawState to include original data
     WITHDRAW_STATE.save(
         deps.storage,
@@ -367,7 +366,6 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         ContractState::Expired | ContractState::Ragequit => {
             Ok(Response::default()
                 .add_attribute("method", "tick")
-                // .add_attribute("lp_token_bal", lp_token_bal)
                 .add_attribute("contract_state", state.to_string()))
         }
     }
