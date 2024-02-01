@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, WasmMsg,
+    StdError, StdResult, WasmMsg,
 };
 use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
 use covenant_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};
@@ -13,7 +13,10 @@ use cw2::set_contract_version;
 
 use crate::{
     error::ContractError,
-    msg::{CovenantPartyConfig, InstantiateMsg, LiquidPoolerMigrateMsg, MigrateMsg, QueryMsg, RouterMigrateMsg},
+    msg::{
+        CovenantPartyConfig, InstantiateMsg, LiquidPoolerMigrateMsg, MigrateMsg, QueryMsg,
+        RouterMigrateMsg,
+    },
     state::{
         CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
@@ -141,7 +144,7 @@ pub fn instantiate(
 
     let party_a_router_instantiate2_msg = msg.party_a_config.to_router_instantiate2_msg(
         env.contract.address.to_string(),
-        clock_instantiate2_config.addr.to_string(),
+        clock_instantiate2_config.addr.clone(),
         format!("{}_party_a_router", msg.label),
         covenant_denoms.clone(),
         msg.pfm_unwinding_config.party_1_pfm_map,
@@ -150,7 +153,7 @@ pub fn instantiate(
 
     let party_b_router_instantiate2_msg = msg.party_b_config.to_router_instantiate2_msg(
         env.contract.address.to_string(),
-        clock_instantiate2_config.addr.to_string(),
+        clock_instantiate2_config.addr.clone(),
         format!("{}_party_b_router", msg.label),
         covenant_denoms.clone(),
         msg.pfm_unwinding_config.party_2_pfm_map,
@@ -283,7 +286,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else if party == "party_b" {
                 PARTY_B_IBC_FORWARDER_ADDR.may_load(deps.storage)?
             } else {
-                Some(Addr::unchecked("not found"))
+                return Err(StdError::not_found("not found"));
             };
             Ok(to_json_binary(&resp)?)
         }
@@ -293,7 +296,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else if party == "party_b" {
                 PARTY_B_ROUTER_ADDR.may_load(deps.storage)?
             } else {
-                Some(Addr::unchecked("not found"))
+                return Err(StdError::not_found("not found"));
             };
             Ok(to_json_binary(&resp)?)
         }
@@ -322,7 +325,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     None => COVENANT_POL_HOLDER_ADDR.may_load(deps.storage)?,
                 }
             } else {
-                Some(Addr::unchecked("not found"))
+                return Err(StdError::not_found("not found"));
             };
             Ok(to_json_binary(&resp)?)
         }

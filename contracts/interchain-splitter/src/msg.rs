@@ -11,7 +11,7 @@ use covenant_utils::{
 #[cw_serde]
 pub struct InstantiateMsg {
     /// address of the associated clock
-    pub clock_address: String,
+    pub clock_address: Addr,
     /// maps denom to its split configuration
     pub splits: BTreeMap<String, SplitType>,
     /// a split for all denoms that are not covered in the

@@ -107,7 +107,7 @@ pub fn instantiate(
     denoms.insert(msg.covenant_party_config.native_denom.to_string());
 
     let router_instantiate2_msg = RouterInstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        clock_address: clock_instantiate2_config.addr.clone(),
         destination_config: DestinationConfig {
             local_to_destination_chain_channel_id: msg
                 .covenant_party_config
@@ -293,7 +293,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             } else if ty == "ls" {
                 LS_FORWARDER_ADDR.may_load(deps.storage)?
             } else {
-                Some(Addr::unchecked("not found"))
+                return Err(cosmwasm_std::StdError::not_found(
+                    "unknown type".to_string(),
+                ));
             };
             Ok(to_json_binary(&resp)?)
         }

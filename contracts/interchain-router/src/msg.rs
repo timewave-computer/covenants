@@ -11,7 +11,7 @@ use covenant_utils::{
 pub struct InstantiateMsg {
     /// address for the clock. this contract verifies
     /// that only the clock can execute ticks
-    pub clock_address: String,
+    pub clock_address: Addr,
     /// config that determines how to facilitate the ibc routing
     pub destination_config: DestinationConfig,
     /// specified denoms to route

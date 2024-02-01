@@ -111,20 +111,20 @@ pub fn instantiate(
     let party_a_router_instantiate2_msg = msg.party_a_config.get_router_instantiate2_wasm_msg(
         format!("{}_party_a_router", msg.label),
         env.contract.address.to_string(),
-        clock_instantiate2_config.addr.to_string(),
+        clock_instantiate2_config.addr.clone(),
         covenant_denoms.clone(),
         party_a_router_instantiate2_config.clone(),
     )?;
     let party_b_router_instantiate2_msg = msg.party_b_config.get_router_instantiate2_wasm_msg(
         format!("{}_party_b_router", msg.label),
         env.contract.address.to_string(),
-        clock_instantiate2_config.addr.to_string(),
+        clock_instantiate2_config.addr.clone(),
         covenant_denoms.clone(),
         party_b_router_instantiate2_config.clone(),
     )?;
 
     let splitter_instantiate2_msg = covenant_interchain_splitter::msg::InstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        clock_address: clock_instantiate2_config.addr.clone(),
         splits: remap_splits(
             msg.splits.clone(),
             (
@@ -155,8 +155,8 @@ pub fn instantiate(
     let holder_instantiate2_msg = covenant_swap_holder::msg::InstantiateMsg {
         lockup_config: msg.lockup_config,
         parties_config: CovenantPartiesConfig {
-            party_a: msg.party_a_config.to_covenant_party(),
-            party_b: msg.party_b_config.to_covenant_party(),
+            party_a: msg.party_a_config.to_covenant_party(deps.as_ref())?,
+            party_b: msg.party_b_config.to_covenant_party(deps.as_ref())?,
         },
         covenant_terms: CovenantTerms::TokenSwap(msg.clone().covenant_terms),
         clock_address: clock_instantiate2_config.addr.to_string(),
@@ -344,7 +344,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                     None => COVENANT_SWAP_HOLDER_ADDR.may_load(deps.storage)?,
                 }
             } else {
-                Some(Addr::unchecked("not found"))
+                return Err(StdError::not_found("unknown party"));
             };
             Ok(to_json_binary(&resp)?)
         }

@@ -57,7 +57,7 @@ impl Default for SuiteBuilder {
     fn default() -> Self {
         Self {
             instantiate: InstantiateMsg {
-                clock_address: CLOCK_ADDR.to_string(),
+                clock_address: Addr::unchecked(CLOCK_ADDR.to_string()),
                 destination_config: DestinationConfig {
                     local_to_destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
                     destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
@@ -99,8 +99,7 @@ impl SuiteBuilder {
                 "clock",
                 Some(ADMIN.to_string()),
             )
-            .unwrap()
-            .to_string();
+            .unwrap();
 
         let router = app
             .instantiate_contract(
