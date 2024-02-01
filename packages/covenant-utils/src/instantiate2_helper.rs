@@ -1,7 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    instantiate2_address, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps,
-    StdError, StdResult,
+    instantiate2_address, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps, StdError, StdResult,
 };
 use sha2::{Digest, Sha256};
 

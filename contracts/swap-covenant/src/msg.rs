@@ -220,7 +220,7 @@ pub enum MigrateMsg {
         party_a_router: Option<RouterMigrateMsg>,
         party_b_router: Option<RouterMigrateMsg>,
         party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        party_b_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
+        party_b_forwarder: Box<Option<covenant_ibc_forwarder::msg::MigrateMsg>>,
     },
     UpdateCodeId {
         data: Option<Binary>,

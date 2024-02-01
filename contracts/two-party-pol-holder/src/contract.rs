@@ -363,11 +363,9 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         ContractState::Complete => Ok(Response::default()
             .add_attribute("method", "tick")
             .add_attribute("contract_state", state.to_string())),
-        ContractState::Expired | ContractState::Ragequit => {
-            Ok(Response::default()
-                .add_attribute("method", "tick")
-                .add_attribute("contract_state", state.to_string()))
-        }
+        ContractState::Expired | ContractState::Ragequit => Ok(Response::default()
+            .add_attribute("method", "tick")
+            .add_attribute("contract_state", state.to_string())),
     }
 }
 

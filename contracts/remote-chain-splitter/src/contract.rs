@@ -71,11 +71,7 @@ pub fn instantiate(
         if encountered_denoms.insert(denom.to_string()) {
             split_config.validate_shares()?;
             split_resp_attributes.push(split_config.get_response_attribute(denom.to_string()));
-            SPLIT_CONFIG_MAP.save(
-                deps.storage,
-                denom,
-                &split_config,
-            )?;
+            SPLIT_CONFIG_MAP.save(deps.storage, denom, &split_config)?;
         } else {
             return Err(NeutronError::Std(StdError::GenericErr {
                 msg: format!("multiple {:?} entries", denom),
@@ -145,8 +141,9 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
         Some((address, controller_conn_id)) => {
             let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
 
-            let splits =
-                SPLIT_CONFIG_MAP.load(deps.storage, remote_chain_info.denom.to_string())?.receivers;
+            let splits = SPLIT_CONFIG_MAP
+                .load(deps.storage, remote_chain_info.denom.to_string())?
+                .receivers;
 
             let mut outputs: Vec<Output> = Vec::with_capacity(splits.len());
             for (split_receiver, share) in splits.iter() {
@@ -168,10 +165,7 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
 
                 // get the fraction dedicated to this receiver
                 let amt = amount
-                    .checked_multiply_ratio(
-                        share.numerator(),
-                        share.denominator(),
-                    )
+                    .checked_multiply_ratio(share.numerator(), share.denominator())
                     .map_err(|e: cosmwasm_std::CheckedMultiplyRatioError| {
                         NeutronError::Std(StdError::GenericErr { msg: e.to_string() })
                     })?;
@@ -370,11 +364,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                     if encountered_denoms.insert(denom.to_string()) {
                         split.validate_shares()?;
                         split_resp_attributes.push(split.get_response_attribute(denom.to_string()));
-                        SPLIT_CONFIG_MAP.save(
-                            deps.storage,
-                            denom.to_string(),
-                            &split,
-                        )?;
+                        SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
 
                         resp = resp.add_attribute(
                             format!("split-{}", denom),
