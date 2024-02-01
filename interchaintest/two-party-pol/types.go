@@ -10,25 +10,25 @@ import (
 
 // ----- Covenant Instantiation ------
 type CovenantInstantiateMsg struct {
-	Label              string               `json:"label"`
-	Timeouts           Timeouts             `json:"timeouts"`
-	PresetIbcFee       PresetIbcFee         `json:"preset_ibc_fee"`
-	ContractCodeIds    ContractCodeIds      `json:"contract_codes"`
-	TickMaxGas         string               `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig       Expiration           `json:"lockup_config"`
-	PartyAConfig       CovenantPartyConfig  `json:"party_a_config"`
-	PartyBConfig       CovenantPartyConfig  `json:"party_b_config"`
-	RagequitConfig     *RagequitConfig      `json:"ragequit_config,omitempty"`
-	DepositDeadline    Expiration           `json:"deposit_deadline"`
-	CovenantType       string               `json:"covenant_type"`
-	PartyAShare        string               `json:"party_a_share"`
-	PartyBShare        string               `json:"party_b_share"`
-	Splits             map[string]SplitType `json:"splits"`
-	FallbackSplit      *SplitConfig         `json:"fallback_split,omitempty"`
-	EmergencyCommittee string               `json:"emergency_committee,omitempty"`
-	LiquidPoolerConfig LiquidPoolerConfig   `json:"liquid_pooler_config"`
-	PfmUnwindingConfig PfmUnwindingConfig   `json:"pfm_unwinding_config"`
-	PoolPriceConfig    PoolPriceConfig      `json:"pool_price_config"`
+	Label              string                 `json:"label"`
+	Timeouts           Timeouts               `json:"timeouts"`
+	PresetIbcFee       PresetIbcFee           `json:"preset_ibc_fee"`
+	ContractCodeIds    ContractCodeIds        `json:"contract_codes"`
+	TickMaxGas         string                 `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig       Expiration             `json:"lockup_config"`
+	PartyAConfig       CovenantPartyConfig    `json:"party_a_config"`
+	PartyBConfig       CovenantPartyConfig    `json:"party_b_config"`
+	RagequitConfig     *RagequitConfig        `json:"ragequit_config,omitempty"`
+	DepositDeadline    Expiration             `json:"deposit_deadline"`
+	CovenantType       string                 `json:"covenant_type"`
+	PartyAShare        string                 `json:"party_a_share"`
+	PartyBShare        string                 `json:"party_b_share"`
+	Splits             map[string]SplitConfig `json:"splits"`
+	FallbackSplit      *SplitConfig           `json:"fallback_split,omitempty"`
+	EmergencyCommittee string                 `json:"emergency_committee,omitempty"`
+	LiquidPoolerConfig LiquidPoolerConfig     `json:"liquid_pooler_config"`
+	PfmUnwindingConfig PfmUnwindingConfig     `json:"pfm_unwinding_config"`
+	PoolPriceConfig    PoolPriceConfig        `json:"pool_price_config"`
 }
 
 type PfmUnwindingConfig struct {
@@ -58,7 +58,7 @@ type OsmosisLiquidPoolerConfig struct {
 	OsmoToNeutronChannelId string             `json:"osmo_to_neutron_channel_id"`
 	Party1DenomInfo        PartyDenomInfo     `json:"party_1_denom_info"`
 	Party2DenomInfo        PartyDenomInfo     `json:"party_2_denom_info"`
-	FundingDurationSeconds string             `json:"funding_duration_seconds"`
+	FundingDuration        Duration           `json:"funding_duration"`
 	SingleSideLpLimits     SingleSideLpLimits `json:"single_side_lp_limits"`
 }
 
@@ -73,15 +73,6 @@ type AstroportLiquidPoolerConfig struct {
 	AssetADenom        string             `json:"asset_a_denom"`
 	AssetBDenom        string             `json:"asset_b_denom"`
 	SingleSideLpLimits SingleSideLpLimits `json:"single_side_lp_limits"`
-}
-
-type SplitType struct {
-	Custom SplitConfig `json:"custom"`
-}
-
-type DenomSplit struct {
-	Denom string    `json:"denom"`
-	Type  SplitType `json:"split"`
 }
 
 type Receiver struct {
@@ -119,6 +110,11 @@ type Expiration struct {
 	Never    string     `json:"none,omitempty"`
 	AtHeight *Block     `json:"at_height,omitempty"`
 	AtTime   *Timestamp `json:"at_time,omitempty"`
+}
+
+type Duration struct {
+	Height *uint64 `json:"height,omitempty"`
+	Time   *uint64 `json:"time,omitempty"`
 }
 
 type RagequitConfig struct {

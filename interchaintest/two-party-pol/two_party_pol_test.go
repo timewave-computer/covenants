@@ -583,21 +583,17 @@ func TestTwoPartyPol(t *testing.T) {
 					Stable: struct{}{},
 				}
 
-				denomSplits := map[string]SplitType{
-					neutronAtomIbcDenom: SplitType{
-						Custom: SplitConfig{
-							Receivers: map[string]string{
-								hubReceiverAddr:  "0.5",
-								osmoReceiverAddr: "0.5",
-							},
+				denomSplits := map[string]SplitConfig{
+					neutronAtomIbcDenom: SplitConfig{
+						Receivers: map[string]string{
+							hubReceiverAddr:  "0.5",
+							osmoReceiverAddr: "0.5",
 						},
 					},
-					neutronOsmoIbcDenom: SplitType{
-						Custom: SplitConfig{
-							Receivers: map[string]string{
-								hubReceiverAddr:  "0.5",
-								osmoReceiverAddr: "0.5",
-							},
+					neutronOsmoIbcDenom: SplitConfig{
+						Receivers: map[string]string{
+							hubReceiverAddr:  "0.5",
+							osmoReceiverAddr: "0.5",
 						},
 					},
 				}
@@ -934,21 +930,17 @@ func TestTwoPartyPol(t *testing.T) {
 						AcceptablePriceSpread: "0.09",
 					},
 					CovenantType: "share",
-					Splits: map[string]SplitType{
-						neutronAtomIbcDenom: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:  "0.5",
-									osmoReceiverAddr: "0.5",
-								},
+					Splits: map[string]SplitConfig{
+						neutronAtomIbcDenom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:  "0.5",
+								osmoReceiverAddr: "0.5",
 							},
 						},
-						neutronOsmoIbcDenom: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:  "0.5",
-									osmoReceiverAddr: "0.5",
-								},
+						neutronOsmoIbcDenom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:  "0.5",
+								osmoReceiverAddr: "0.5",
 							},
 						},
 					},
@@ -1241,21 +1233,17 @@ func TestTwoPartyPol(t *testing.T) {
 						AcceptablePriceSpread: "0.09",
 					},
 					CovenantType: "side",
-					Splits: map[string]SplitType{
-						neutronAtomIbcDenom: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:  "1.0",
-									osmoReceiverAddr: "0.0",
-								},
+					Splits: map[string]SplitConfig{
+						neutronAtomIbcDenom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:  "1.0",
+								osmoReceiverAddr: "0.0",
 							},
 						},
-						neutronOsmoIbcDenom: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:  "0.0",
-									osmoReceiverAddr: "1.0",
-								},
+						neutronOsmoIbcDenom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:  "0.0",
+								osmoReceiverAddr: "1.0",
 							},
 						},
 					},
@@ -1517,21 +1505,17 @@ func TestTwoPartyPol(t *testing.T) {
 						AcceptablePriceSpread: "0.09",
 					},
 					CovenantType: "side",
-					Splits: map[string]SplitType{
-						neutronAtomIbcDenom: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:  "1.0",
-									osmoReceiverAddr: "0.0",
-								},
+					Splits: map[string]SplitConfig{
+						neutronAtomIbcDenom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:  "1.0",
+								osmoReceiverAddr: "0.0",
 							},
 						},
-						neutronOsmoIbcDenom: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:  "0.0",
-									osmoReceiverAddr: "1.0",
-								},
+						neutronOsmoIbcDenom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:  "0.0",
+								osmoReceiverAddr: "1.0",
 							},
 						},
 					},

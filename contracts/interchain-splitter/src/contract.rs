@@ -7,7 +7,7 @@ use cosmwasm_std::{
     StdResult,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::split::{SplitConfig, SplitType};
+use covenant_utils::split::SplitConfig;
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
@@ -34,13 +34,8 @@ pub fn instantiate(
 
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
-        // split.get_split_config()?.validate()?;
-        match split {
-            SplitType::Custom(config) => {
-                SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &config)?;
-            }
-        }
-
+        // todo: split.get_split_config()?.validate()?;
+        SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
         // resp = resp.add_attributes(vec![split.get_response_attribute(denom)]);
     }
 
@@ -192,13 +187,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             if let Some(splits) = splits {
                 // clear all current split configs before storing new values
                 SPLIT_CONFIG_MAP.clear(deps.storage);
-                for (denom, split_type) in splits {
-                    match split_type {
-                        // we validate each split before storing it
-                        SplitType::Custom(split) => {
-                            SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
-                        }
-                    }
+                for (denom, split) in splits {
+                    // we validate each split before storing it
+                    SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
                 }
             }
 

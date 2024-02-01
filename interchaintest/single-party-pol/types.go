@@ -253,7 +253,7 @@ type OsmosisLiquidPoolerConfig struct {
 	OsmoToNeutronChannelId string             `json:"osmo_to_neutron_channel_id"`
 	Party1DenomInfo        PartyDenomInfo     `json:"party_1_denom_info"`
 	Party2DenomInfo        PartyDenomInfo     `json:"party_2_denom_info"`
-	FundingDurationSeconds string             `json:"funding_duration_seconds"`
+	FundingDuration        Duration           `json:"funding_duration"`
 	SingleSideLpLimits     SingleSideLpLimits `json:"single_side_lp_limits"`
 }
 
@@ -370,6 +370,11 @@ type Expiration struct {
 	AtTime   *Timestamp `json:"at_time,omitempty"`
 }
 
+type Duration struct {
+	Height *uint64 `json:"height,omitempty"`
+	Time   *uint64 `json:"time,omitempty"`
+}
+
 type ContractCodeIds struct {
 	IbcForwarderCode        uint64 `json:"ibc_forwarder_code"`
 	ClockCode               uint64 `json:"clock_code"`
@@ -378,15 +383,6 @@ type ContractCodeIds struct {
 	LiquidStakerCode        uint64 `json:"liquid_staker_code"`
 	RemoteChainSplitterCode uint64 `json:"remote_chain_splitter_code"`
 	InterchainRouterCode    uint64 `json:"interchain_router_code"`
-}
-
-type SplitType struct {
-	Custom SplitConfig `json:"custom"`
-}
-
-type DenomSplit struct {
-	Denom string    `json:"denom"`
-	Type  SplitType `json:"split"`
 }
 
 type SplitConfig struct {

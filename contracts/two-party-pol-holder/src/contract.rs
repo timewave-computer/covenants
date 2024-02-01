@@ -9,7 +9,7 @@ use cosmwasm_std::{
 use cosmwasm_std::entry_point;
 
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::split::{SplitConfig, SplitType};
+use covenant_utils::split::SplitConfig;
 use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
 use cw2::set_contract_version;
 
@@ -61,16 +61,14 @@ pub fn instantiate(
     let explicit_splits: BTreeMap<String, SplitConfig> = msg
         .splits
         .iter()
-        .filter_map(|(denom, split)| match split {
-            SplitType::Custom(split_config) => {
-                split_config
-                    .validate(
-                        &msg.covenant_config.party_a.router,
-                        &msg.covenant_config.party_b.router,
-                    )
-                    .ok()?;
-                Some((denom.to_string(), split_config.to_owned()))
-            }
+        .filter_map(|(denom, split)| {
+            split
+                .validate(
+                    &msg.covenant_config.party_a.router,
+                    &msg.covenant_config.party_b.router,
+                )
+                .ok()?;
+            Some((denom.to_string(), split.to_owned()))
         })
         .collect();
 

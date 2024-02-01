@@ -502,21 +502,17 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					Stable: struct{}{},
 				}
 
-				denomSplits := map[string]SplitType{
-					neutronAtomIbcDenom: SplitType{
-						Custom: SplitConfig{
-							Receivers: map[string]string{
-								hubReceiverAddr:     "0.5",
-								neutronReceiverAddr: "0.5",
-							},
+				denomSplits := map[string]SplitConfig{
+					neutronAtomIbcDenom: SplitConfig{
+						Receivers: map[string]string{
+							hubReceiverAddr:     "0.5",
+							neutronReceiverAddr: "0.5",
 						},
 					},
-					cosmosNeutron.Config().Denom: SplitType{
-						Custom: SplitConfig{
-							Receivers: map[string]string{
-								hubReceiverAddr:     "0.5",
-								neutronReceiverAddr: "0.5",
-							},
+					cosmosNeutron.Config().Denom: SplitConfig{
+						Receivers: map[string]string{
+							hubReceiverAddr:     "0.5",
+							neutronReceiverAddr: "0.5",
 						},
 					},
 				}
@@ -541,6 +537,11 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						},
 					},
 				}
+
+				fundingDuration := Duration{
+					Time: new(uint64),
+				}
+				*fundingDuration.Time = 300
 
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-happy",
@@ -902,13 +903,9 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
 					},
-					Splits: map[string]SplitType{
-						neutronAtomIbcDenom: SplitType{
-							Custom: SplitConfig{Receivers: map[string]string{hubReceiverAddr: "0.5", neutronReceiverAddr: "0.5"}},
-						},
-						cosmosNeutron.Config().Denom: SplitType{
-							Custom: SplitConfig{Receivers: map[string]string{hubReceiverAddr: "0.5", neutronReceiverAddr: "0.5"}},
-						},
+					Splits: map[string]SplitConfig{
+						neutronAtomIbcDenom:          SplitConfig{Receivers: map[string]string{hubReceiverAddr: "0.5", neutronReceiverAddr: "0.5"}},
+						cosmosNeutron.Config().Denom: SplitConfig{Receivers: map[string]string{hubReceiverAddr: "0.5", neutronReceiverAddr: "0.5"}},
 					},
 					FallbackSplit:      nil,
 					EmergencyCommittee: neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
@@ -1197,21 +1194,17 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						AcceptablePriceSpread: "0.09",
 					},
 					CovenantType: "side",
-					Splits: map[string]SplitType{
-						neutronAtomIbcDenom: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:     "1.0",
-									neutronReceiverAddr: "0.0",
-								},
+					Splits: map[string]SplitConfig{
+						neutronAtomIbcDenom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:     "1.0",
+								neutronReceiverAddr: "0.0",
 							},
 						},
-						cosmosNeutron.Config().Denom: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:     "0.0",
-									neutronReceiverAddr: "1.0",
-								},
+						cosmosNeutron.Config().Denom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:     "0.0",
+								neutronReceiverAddr: "1.0",
 							},
 						},
 					},
@@ -1476,21 +1469,17 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 						AcceptablePriceSpread: "0.09",
 					},
 					CovenantType: "side",
-					Splits: map[string]SplitType{
-						neutronAtomIbcDenom: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:     "1.0",
-									neutronReceiverAddr: "0.0",
-								},
+					Splits: map[string]SplitConfig{
+						neutronAtomIbcDenom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:     "1.0",
+								neutronReceiverAddr: "0.0",
 							},
 						},
-						cosmosNeutron.Config().Denom: SplitType{
-							Custom: SplitConfig{
-								Receivers: map[string]string{
-									hubReceiverAddr:     "0.0",
-									neutronReceiverAddr: "1.0",
-								},
+						cosmosNeutron.Config().Denom: SplitConfig{
+							Receivers: map[string]string{
+								hubReceiverAddr:     "0.0",
+								neutronReceiverAddr: "1.0",
 							},
 						},
 					},
