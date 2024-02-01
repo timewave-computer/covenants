@@ -106,7 +106,6 @@ pub struct DenomSplits {
     pub fallback_split: Option<SplitConfig>,
 }
 
-// TODO: try to generalize these implementations
 impl DenomSplits {
     pub fn get_fallback_distribution_messages(self, available_coins: Vec<Coin>) -> Vec<CosmosMsg> {
         available_coins
@@ -178,7 +177,6 @@ impl DenomSplits {
             .collect()
     }
 
-    // todo: clean this up
     pub fn apply_penalty(
         mut self,
         penalty: Decimal,

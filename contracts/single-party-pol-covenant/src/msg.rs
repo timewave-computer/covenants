@@ -1,11 +1,13 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Coin, Decimal, Deps, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{Addr, Decimal, Deps, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, CovenantParty, DestinationConfig, InterchainCovenantParty, NativeCovenantParty, PacketForwardMiddlewareConfig, PoolPriceConfig, ReceiverConfig
+    instantiate2_helper::Instantiate2HelperConfig, CovenantParty, DestinationConfig,
+    InterchainCovenantParty, NativeCovenantParty, PacketForwardMiddlewareConfig, PoolPriceConfig,
+    ReceiverConfig,
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -232,7 +234,7 @@ pub enum MigrateMsg {
         holder: Option<covenant_single_party_pol_holder::msg::MigrateMsg>,
         ls_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
         lp_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        splitter: Option<covenant_interchain_splitter::msg::MigrateMsg>,
+        splitter: Option<covenant_native_splitter::msg::MigrateMsg>,
         liquid_pooler: Option<LiquidPoolerMigrateMsg>,
         liquid_staker: Option<covenant_stride_liquid_staker::msg::MigrateMsg>,
         router: Option<covenant_interchain_router::msg::MigrateMsg>,

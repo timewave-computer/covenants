@@ -1,8 +1,8 @@
-use std::fmt;
+use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, Binary, Decimal, DepsMut, StdError, StdResult, Uint128,
+    to_json_binary, Addr, Binary, DepsMut, StdError, StdResult, Uint128,
     Uint64, WasmMsg,
 };
 use covenant_clock::helpers::dequeue_msg;
@@ -11,9 +11,8 @@ use covenant_macros::{
     covenant_remote_chain,
 };
 
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo};
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo, split::SplitConfig};
 use neutron_sdk::bindings::msg::IbcFee;
-use schemars::Map;
 
 use crate::state::CONTRACT_STATE;
 
@@ -28,7 +27,7 @@ pub struct InstantiateMsg {
     pub denom: String,
     pub amount: Uint128,
 
-    pub splits: Vec<NativeDenomSplit>,
+    pub splits: BTreeMap<String, SplitConfig>,
 
     /// Neutron requires fees to be set to refund relayers for
     /// submission of ack and timeout messages.
@@ -66,65 +65,9 @@ impl InstantiateMsg {
     }
 }
 
-#[cw_serde]
-pub struct NativeDenomSplit {
-    /// denom to be distributed
-    pub denom: String,
-    /// denom receivers and their respective shares
-    // TODO: convert to map of ibc forwarder -> decimal?
-    pub receivers: Vec<SplitReceiver>,
-}
-
-impl NativeDenomSplit {
-    pub fn validate(self) -> Result<NativeDenomSplit, StdError> {
-        // here we validate that all receiver shares add up to 100 (%)
-        let mut total_share = Decimal::zero();
-
-        self.receivers.iter().for_each(|r| total_share += r.share);
-
-        if total_share != Decimal::one() {
-            Err(StdError::generic_err(format!(
-                "failed to validate split config for denom: {}",
-                self.denom
-            )))
-        } else {
-            Ok(self)
-        }
-    }
-
-    pub fn to_response_attribute(&self) -> Attribute {
-        let mut str = "".to_string();
-
-        for rec in &self.receivers {
-            str += rec.to_string().as_str();
-        }
-        Attribute::new(&self.denom, str)
-    }
-}
-
-#[cw_serde]
-pub struct SplitReceiver {
-    /// address of the receiver on remote chain
-    pub addr: String,
-    /// percentage share that the address is entitled to
-    pub share: Decimal,
-}
-
-impl fmt::Display for SplitReceiver {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        fmt.write_str(format!("[{},{}]", self.addr, self.share).as_str())?;
-        Ok(())
-    }
-}
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {}
-
-#[cw_serde]
-pub struct SplitConfigMap {
-    /// maps denom to its associated receivers with their shares
-    pub map: Map<String, Vec<SplitReceiver>>,
-}
 
 #[covenant_clock_address]
 #[covenant_remote_chain]
@@ -135,7 +78,7 @@ pub struct SplitConfigMap {
 pub enum QueryMsg {
     #[returns(ContractState)]
     ContractState {},
-    #[returns(Vec<(String, Vec<SplitReceiver>)>)]
+    #[returns(Vec<(String, SplitConfig)>)]
     SplitConfig {},
     #[returns(Uint128)]
     TransferAmount {},
@@ -160,7 +103,7 @@ pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
         remote_chain_info: Option<RemoteChainInfo>,
-        splits: Option<Vec<NativeDenomSplit>>,
+        splits: Option<BTreeMap<String, SplitConfig>>,
     },
     UpdateCodeId {
         data: Option<Binary>,

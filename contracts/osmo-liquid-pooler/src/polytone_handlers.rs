@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coin, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, DepsMut, Empty, Env, IbcMsg,
-    IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg,
+    coin, ensure, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, DepsMut, Empty, Env, IbcMsg, IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg
 };
 use covenant_utils::{
     polytone::{
@@ -40,9 +39,10 @@ pub fn try_handle_callback(
     msg: CallbackMessage,
 ) -> NeutronResult<Response<NeutronMsg>> {
     // only the note can submit a callback
-    if info.sender != NOTE_ADDRESS.load(deps.storage)? {
-        return Err(ContractError::Unauthorized {}.to_neutron_std());
-    }
+    ensure!(
+        info.sender == NOTE_ADDRESS.load(deps.storage)?,
+        ContractError::Unauthorized {}.to_neutron_std(),
+    );
 
     match msg.result {
         PolytoneCallback::Query(resp) => process_query_callback(env, deps, resp, msg.initiator_msg),
@@ -109,7 +109,6 @@ fn process_execute_callback(
                             &response_binary.to_base64(),
                         )?;
                     }
-                    // todo: do we want to do something here?
                 }
             }
         }
@@ -141,12 +140,11 @@ fn process_execute_callback(
             }
         }
         WITHDRAW_LIQUIDITY_CALLBACK_ID => {
-            // can try to decode the response attribute here
+            // decode the response attribute here
             // callback_result.result[0] contains the events
             // query the events for one that has "type" == "wasm"
             // and search its attributes for one where key == "refund_tokens".
             // type is polytone ExecutionResponse
-            // let refund_coins: Vec<Coin> = from_json(value)?;
             for callback_response in callback_result.clone().result {
                 for event in callback_response.events {
                     if event.ty == "wasm" {
