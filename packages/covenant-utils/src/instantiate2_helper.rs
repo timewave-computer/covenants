@@ -7,13 +7,16 @@ use sha2::{Digest, Sha256};
 
 // TODO: see if we can impl this and not manually reimplement this
 // on every  contract
-pub trait Instantiate2: Serialize {
-    fn to_instantiate2_msg(
+pub trait Instantiate2 {
+    fn to_instantiate2_msg<T: Serialize>(
         &self,
         instantiate2_helper: &Instantiate2HelperConfig,
         admin: String,
         label: String,
-    ) -> StdResult<WasmMsg> {
+    ) -> StdResult<WasmMsg>
+    where
+        Self: Serialize,
+    {
         Ok(WasmMsg::Instantiate2 {
             admin: Some(admin),
             code_id: instantiate2_helper.code,

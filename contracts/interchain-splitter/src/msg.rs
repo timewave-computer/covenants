@@ -3,17 +3,14 @@ use std::collections::BTreeMap;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, WasmMsg};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
-use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    split::{SplitConfig, SplitType},
-};
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig};
 
 #[cw_serde]
 pub struct InstantiateMsg {
     /// address of the associated clock
     pub clock_address: Addr,
     /// maps denom to its split configuration
-    pub splits: BTreeMap<String, SplitType>,
+    pub splits: BTreeMap<String, SplitConfig>,
     /// a split for all denoms that are not covered in the
     /// regular `splits` list
     pub fallback_split: Option<SplitConfig>,
@@ -35,12 +32,6 @@ impl InstantiateMsg {
             salt: instantiate2_helper.salt.clone(),
         })
     }
-}
-
-#[cw_serde]
-pub struct DenomSplit {
-    pub denom: String,
-    pub split: SplitType,
 }
 
 #[clocked]
@@ -68,7 +59,7 @@ pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
         fallback_split: Option<SplitConfig>,
-        splits: Option<BTreeMap<String, SplitType>>,
+        splits: Option<BTreeMap<String, SplitConfig>>,
     },
     UpdateCodeId {
         data: Option<Binary>,

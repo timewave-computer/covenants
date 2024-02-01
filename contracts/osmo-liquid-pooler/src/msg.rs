@@ -13,7 +13,7 @@ use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, ForwardMetadata, PoolPriceConfig,
     SingleSideLpLimits,
 };
-use cw_utils::Expiration;
+use cw_utils::{Duration, Expiration};
 use polytone::callbacks::CallbackMessage;
 
 #[cw_serde]
@@ -32,7 +32,7 @@ pub struct InstantiateMsg {
     pub lp_token_denom: String,
     pub slippage_tolerance: Option<Decimal>,
     pub pool_price_config: PoolPriceConfig,
-    pub funding_duration_seconds: Uint64,
+    pub funding_duration: Duration,
     pub single_side_lp_limits: SingleSideLpLimits,
 }
 
@@ -66,7 +66,7 @@ pub struct OsmosisLiquidPoolerConfig {
     pub osmo_to_neutron_channel_id: String,
     pub party_1_denom_info: PartyDenomInfo,
     pub party_2_denom_info: PartyDenomInfo,
-    pub funding_duration_seconds: Uint64,
+    pub funding_duration: Duration,
     pub single_side_lp_limits: SingleSideLpLimits,
 }
 
@@ -92,7 +92,7 @@ impl OsmosisLiquidPoolerConfig {
             lp_token_denom: self.lp_token_denom.to_string(),
             slippage_tolerance: None,
             pool_price_config,
-            funding_duration_seconds: self.funding_duration_seconds,
+            funding_duration: self.funding_duration,
             single_side_lp_limits: self.single_side_lp_limits.clone(),
         }
     }
@@ -108,7 +108,7 @@ pub struct LiquidityProvisionConfig {
     pub lp_token_denom: String,
     pub slippage_tolerance: Option<Decimal>,
     pub pool_price_config: PoolPriceConfig,
-    pub funding_duration_seconds: Uint64,
+    pub funding_duration: Duration,
     pub single_side_lp_limits: SingleSideLpLimits,
 }
 

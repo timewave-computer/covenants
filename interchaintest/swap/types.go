@@ -15,7 +15,7 @@ type CovenantInstantiateMsg struct {
 	SwapCovenantTerms           SwapCovenantTerms           `json:"covenant_terms"`
 	PartyAConfig                CovenantPartyConfig         `json:"party_a_config"`
 	PartyBConfig                CovenantPartyConfig         `json:"party_b_config"`
-	Splits                      map[string]SplitType        `json:"splits"`
+	Splits                      map[string]SplitConfig      `json:"splits"`
 	FallbackSplit               *SplitConfig                `json:"fallback_split,omitempty"`
 }
 
@@ -59,21 +59,6 @@ type SplitConfig struct {
 	Receivers map[string]string `json:"receivers"`
 }
 
-type SplitType struct {
-	Custom SplitConfig `json:"custom"`
-}
-
-type DenomSplit struct {
-	Denom string    `json:"denom"`
-	Type  SplitType `json:"split"`
-}
-
-type PresetSplitterFields struct {
-	Splits        []DenomSplit `json:"splits"`
-	FallbackSplit *SplitType   `json:"fallback_split,omitempty"`
-	Label         string       `json:"label"`
-}
-
 type Timeouts struct {
 	IcaTimeout         string `json:"ica_timeout"`
 	IbcTransferTimeout string `json:"ibc_transfer_timeout"`
@@ -106,6 +91,11 @@ type Expiration struct {
 	Never    string     `json:"none,omitempty"`
 	AtHeight *Block     `json:"at_height,omitempty"`
 	AtTime   *Timestamp `json:"at_time,omitempty"`
+}
+
+type Duration struct {
+	Height *uint64 `json:"height,omitempty"`
+	Time   *uint64 `json:"time,omitempty"`
 }
 
 type CovenantPartiesConfig struct {

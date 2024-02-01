@@ -6,8 +6,8 @@ use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    split::{SplitConfig, SplitType},
+    instantiate2_helper::{Instantiate2, Instantiate2HelperConfig},
+    split::SplitConfig,
     CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, PfmUnwindingConfig,
     PoolPriceConfig, ReceiverConfig,
 };
@@ -33,7 +33,7 @@ pub struct InstantiateMsg {
     pub party_a_share: Uint64,
     pub party_b_share: Uint64,
     pub pool_price_config: PoolPriceConfig,
-    pub splits: BTreeMap<String, SplitType>,
+    pub splits: BTreeMap<String, SplitConfig>,
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee: Option<String>,
     pub liquid_pooler_config: LiquidPoolerConfig,

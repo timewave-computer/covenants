@@ -2,7 +2,7 @@
 // use cw_multi_test::{App, AppResponse, Executor, SudoMsg};
 
 // use crate::msg::{
-//     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, SplitType,
+//     ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 // };
 
 // use super::splitter_contract;

@@ -544,21 +544,17 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				LiquidPoolerCode:     lperCodeId,
 			}
 
-			denomSplits := map[string]SplitType{
-				neutronAtomIbcDenom: SplitType{
-					Custom: SplitConfig{
-						Receivers: map[string]string{
-							hubReceiverAddr:  "0.5",
-							osmoReceiverAddr: "0.5",
-						},
+			denomSplits := map[string]SplitConfig{
+				neutronAtomIbcDenom: SplitConfig{
+					Receivers: map[string]string{
+						hubReceiverAddr:  "0.5",
+						osmoReceiverAddr: "0.5",
 					},
 				},
-				neutronOsmoIbcDenom: SplitType{
-					Custom: SplitConfig{
-						Receivers: map[string]string{
-							hubReceiverAddr:  "0.5",
-							osmoReceiverAddr: "0.5",
-						},
+				neutronOsmoIbcDenom: SplitConfig{
+					Receivers: map[string]string{
+						hubReceiverAddr:  "0.5",
+						osmoReceiverAddr: "0.5",
 					},
 				},
 			}
@@ -585,6 +581,10 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				Contribution:              osmoCoin,
 			}
+			fundingDuration := Duration{
+				Time: new(uint64),
+			}
+			*fundingDuration.Time = 300
 
 			liquidPoolerConfig := LiquidPoolerConfig{
 				Osmosis: &OsmosisLiquidPoolerConfig{
@@ -612,9 +612,9 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 						OsmosisCoin: cw.Coin{Denom: testCtx.Osmosis.Config().Denom, Amount: strconv.FormatUint(osmoContributionAmount, 10)},
 						LocalDenom:  neutronOsmoIbcDenom,
 					},
-					LpTokenDenom:           "gamm/pool/1",
-					OsmoOutpost:            osmoOutpost,
-					FundingDurationSeconds: "200",
+					LpTokenDenom:    "gamm/pool/1",
+					OsmoOutpost:     osmoOutpost,
+					FundingDuration: fundingDuration,
 					SingleSideLpLimits: SingleSideLpLimits{
 						AssetALimit: "10000",
 						AssetBLimit: "975000004",
