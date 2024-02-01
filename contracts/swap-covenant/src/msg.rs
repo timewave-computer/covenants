@@ -265,15 +265,20 @@ pub enum MigrateMsg {
         clock: Option<covenant_clock::msg::MigrateMsg>,
         holder: Option<covenant_swap_holder::msg::MigrateMsg>,
         splitter: Option<covenant_interchain_splitter::msg::MigrateMsg>,
-        // TODO: add support for native router migrations
-        party_a_router: Option<covenant_interchain_router::msg::MigrateMsg>,
-        party_b_router: Option<covenant_interchain_router::msg::MigrateMsg>,
+        party_a_router: Option<RouterMigrateMsg>,
+        party_b_router: Option<RouterMigrateMsg>,
         party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
         party_b_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
     },
     UpdateCodeId {
         data: Option<Binary>,
     },
+}
+
+#[cw_serde]
+pub enum RouterMigrateMsg {
+    Interchain(covenant_interchain_router::msg::MigrateMsg),
+    Native(covenant_native_router::msg::MigrateMsg),
 }
 
 #[cw_serde]

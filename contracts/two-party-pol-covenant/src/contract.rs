@@ -13,7 +13,7 @@ use cw2::set_contract_version;
 
 use crate::{
     error::ContractError,
-    msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg},
+    msg::{CovenantPartyConfig, InstantiateMsg, LiquidPoolerMigrateMsg, MigrateMsg, QueryMsg, RouterMigrateMsg},
     state::{
         CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
         PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR, PARTY_B_IBC_FORWARDER_ADDR,
@@ -356,8 +356,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-            if let Some(router) = party_a_router {
-                let msg: Binary = to_json_binary(&router)?;
+            if let Some(router_migrate_msg) = party_a_router {
+                let msg: Binary = match router_migrate_msg {
+                    RouterMigrateMsg::Interchain(msg) => to_json_binary(&msg)?,
+                    RouterMigrateMsg::Native(msg) => to_json_binary(&msg)?,
+                };
                 resp = resp.add_attribute("party_a_router_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: PARTY_A_ROUTER_ADDR.load(deps.storage)?.to_string(),
@@ -366,8 +369,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-            if let Some(router) = party_b_router {
-                let msg: Binary = to_json_binary(&router)?;
+            if let Some(router_migrate_msg) = party_b_router {
+                let msg: Binary = match router_migrate_msg {
+                    RouterMigrateMsg::Interchain(msg) => to_json_binary(&msg)?,
+                    RouterMigrateMsg::Native(msg) => to_json_binary(&msg)?,
+                };
                 resp = resp.add_attribute("party_b_router_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: PARTY_B_ROUTER_ADDR.load(deps.storage)?.to_string(),
@@ -406,8 +412,12 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-            if let Some(liquid_pooler) = liquid_pooler {
-                let msg = to_json_binary(&liquid_pooler)?;
+            if let Some(liquid_pooler_migrate_msg) = liquid_pooler {
+                let msg: Binary = match liquid_pooler_migrate_msg {
+                    LiquidPoolerMigrateMsg::Astroport(msg) => to_json_binary(&msg)?,
+                    LiquidPoolerMigrateMsg::Osmosis(msg) => to_json_binary(&msg)?,
+                };
+
                 resp = resp.add_attribute("liquid_pooler_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: LIQUID_POOLER_ADDR.load(deps.storage)?.to_string(),
