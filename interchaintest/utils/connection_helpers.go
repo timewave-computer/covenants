@@ -895,6 +895,7 @@ func (testCtx *TestContext) ManualInstantiate(codeId uint64, msg any, from *ibc.
 	covInstantiationResp, _, err := testCtx.Neutron.Exec(testCtx.Ctx, cmd, nil)
 	println("covenant instantiation response: ", string(covInstantiationResp))
 
+	testCtx.SkipBlocks(50)
 	if err != nil {
 		println("manual instantiation failed")
 	}

@@ -148,7 +148,7 @@ fn test_covenant_query_endpoint() {
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Complete);
 
-    let splitter_balances = suite.query_native_splitter_balances();
+    let splitter_balances = suite.query_remote_chain_splitter_balances();
     assert_eq!(2, splitter_balances.len());
     assert_eq!(coin_a, splitter_balances[0]);
     assert_eq!(coin_b, splitter_balances[1]);
@@ -188,7 +188,7 @@ fn test_forward_tick() {
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Complete);
 
-    let splitter_balances = suite.query_native_splitter_balances();
+    let splitter_balances = suite.query_remote_chain_splitter_balances();
     assert_eq!(2, splitter_balances.len());
     assert_eq!(coin_a, splitter_balances[0]);
     assert_eq!(coin_b, splitter_balances[1]);

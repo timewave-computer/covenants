@@ -488,7 +488,7 @@ func TestSinglePartyPol(t *testing.T) {
 		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
 		const holderContractPath = "wasms/covenant_single_party_pol_holder.wasm"
 		const liquidPoolerPath = "wasms/covenant_astroport_liquid_pooler.wasm"
-		const remoteChainSplitterPath = "wasms/covenant_native_splitter.wasm"
+		const remoteChainSplitterPath = "wasms/covenant_remote_chain_splitter.wasm"
 		const liquidStakerContractPath = "wasms/covenant_stride_liquid_staker.wasm"
 
 		// After storing on Neutron, we will receive a code id
@@ -680,13 +680,13 @@ func TestSinglePartyPol(t *testing.T) {
 			}
 
 			contractCodes := ContractCodeIds{
-				IbcForwarderCode:     ibcForwarderCodeId,
-				ClockCode:            clockCodeId,
-				HolderCode:           holderCodeId,
-				LiquidPoolerCode:     lperCodeId,
-				LiquidStakerCode:     liquidStakerCodeId,
-				NativeSplitterCode:   remoteChainSplitterCodeId,
-				InterchainRouterCode: interchainRouterCodeId,
+				IbcForwarderCode:        ibcForwarderCodeId,
+				ClockCode:               clockCodeId,
+				HolderCode:              holderCodeId,
+				LiquidPoolerCode:        lperCodeId,
+				LiquidStakerCode:        liquidStakerCodeId,
+				RemoteChainSplitterCode: remoteChainSplitterCodeId,
+				InterchainRouterCode:    interchainRouterCodeId,
 			}
 			currentHeight := testCtx.GetNeutronHeight()
 
@@ -743,7 +743,7 @@ func TestSinglePartyPol(t *testing.T) {
 				Stable: struct{}{},
 			}
 
-			nativeSplitterConfig := NativeSplitterConfig{
+			remoteChainSplitterConfig := RemoteChainSplitterConfig{
 				ChannelId:    testCtx.NeutronTransferChannelIds[cosmosAtom.Config().Name],
 				ConnectionId: neutronAtomIBCConnId,
 				Denom:        nativeAtomDenom,
@@ -795,18 +795,18 @@ func TestSinglePartyPol(t *testing.T) {
 			}
 
 			covenantInstantiationMsg := CovenantInstantiationMsg{
-				Label:                "single_party_pol_covenant",
-				Timeouts:             timeouts,
-				PresetIbcFee:         presetIbcFee,
-				ContractCodeIds:      contractCodes,
-				LockupConfig:         lockupConfig,
-				LsInfo:               lsInfo,
-				LsForwarderConfig:    lsForwarderConfig,
-				LpForwarderConfig:    liquidPoolerForwarderConfig,
-				NativeSplitterConfig: nativeSplitterConfig,
-				PfmUnwindingConfig:   pfmUnwindingConfig,
-				CovenantPartyConfig:  covenantPartyConfig,
-				LiquidPoolerConfig:   liquidPoolerConfig,
+				Label:                     "single_party_pol_covenant",
+				Timeouts:                  timeouts,
+				PresetIbcFee:              presetIbcFee,
+				ContractCodeIds:           contractCodes,
+				LockupConfig:              lockupConfig,
+				LsInfo:                    lsInfo,
+				LsForwarderConfig:         lsForwarderConfig,
+				LpForwarderConfig:         liquidPoolerForwarderConfig,
+				RemoteChainSplitterConfig: remoteChainSplitterConfig,
+				PfmUnwindingConfig:        pfmUnwindingConfig,
+				CovenantPartyConfig:       covenantPartyConfig,
+				LiquidPoolerConfig:        liquidPoolerConfig,
 				PoolPriceConfig: PoolPriceConfig{
 					ExpectedSpotPrice:     "1.0",
 					AcceptablePriceSpread: "0.1",

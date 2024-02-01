@@ -583,26 +583,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "covenant-native-splitter"
-version = "1.0.0"
-dependencies = [
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw2 1.1.2",
- "neutron-sdk",
- "protobuf 3.3.0",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "thiserror",
-]
-
-[[package]]
 name = "covenant-osmo-liquid-pooler"
 version = "1.0.0"
 dependencies = [
@@ -652,6 +632,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "covenant-remote-chain-splitter"
+version = "1.0.0"
+dependencies = [
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-clock",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "protobuf 3.3.0",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "thiserror",
+]
+
+[[package]]
 name = "covenant-single-party-pol"
 version = "1.0.0"
 dependencies = [
@@ -667,8 +667,8 @@ dependencies = [
  "covenant-ibc-forwarder",
  "covenant-interchain-router",
  "covenant-interchain-splitter",
- "covenant-native-splitter",
  "covenant-osmo-liquid-pooler",
+ "covenant-remote-chain-splitter",
  "covenant-single-party-pol-holder",
  "covenant-stride-liquid-staker",
  "covenant-utils",

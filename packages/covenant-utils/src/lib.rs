@@ -16,6 +16,7 @@ pub mod neutron;
 pub mod polytone;
 pub mod split;
 pub mod withdraw_lp_helper;
+pub mod osmo_outpost;
 
 #[cw_serde]
 pub enum ReceiverConfig {

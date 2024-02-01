@@ -3,14 +3,18 @@ use std::{collections::BTreeMap, fmt};
 use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    ensure, to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError, StdResult, WasmMsg
+    ensure, to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut,
+    StdError, StdResult, WasmMsg,
 };
 use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::{SplitConfig, SplitType}};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig,
+    split::{SplitConfig, SplitType},
+};
 use cw_utils::Expiration;
 
 use crate::{error::ContractError, state::CONTRACT_STATE};
@@ -343,7 +347,10 @@ impl TwoPartyPolCovenantConfig {
             return Err(ContractError::Unauthorized {});
         };
 
-        ensure!(!parties.0.allocation.is_zero(), ContractError::PartyAllocationIsZero {});
+        ensure!(
+            !parties.0.allocation.is_zero(),
+            ContractError::PartyAllocationIsZero {}
+        );
 
         Ok(parties)
     }

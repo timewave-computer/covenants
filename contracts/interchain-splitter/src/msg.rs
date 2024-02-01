@@ -3,7 +3,10 @@ use std::collections::BTreeMap;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, WasmMsg};
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::{SplitConfig, SplitType}};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig,
+    split::{SplitConfig, SplitType},
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -53,6 +56,7 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(SplitConfig)]
     DenomSplit { denom: String },
+    // todo: update
     #[returns(Vec<(String, SplitConfig)>)]
     Splits {},
     #[returns(SplitConfig)]

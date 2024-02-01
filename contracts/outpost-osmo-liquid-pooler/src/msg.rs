@@ -19,7 +19,7 @@ pub enum ExecuteMsg {
     },
 }
 
-// TODO: remove duplicate from here/covenant_utils
+
 #[cw_serde]
 pub struct OutpostProvideLiquidityConfig {
     /// id of the pool we wish to provide liquidity to

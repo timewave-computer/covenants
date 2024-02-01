@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Attribute, BankMsg, Coin, CosmosMsg, Decimal, Fraction, StdError, StdResult, Uint128};
+use cosmwasm_std::{
+    Attribute, BankMsg, Coin, CosmosMsg, Decimal, Fraction, StdError, StdResult, Uint128,
+};
 
 // splitter
 #[cw_serde]
@@ -175,7 +177,7 @@ pub fn remap_splits(
                     party_b_router.clone(),
                 )?;
                 remapped_splits.insert(denom.clone(), SplitType::Custom(remapped_split));
-            },
+            }
         }
     }
 

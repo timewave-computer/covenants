@@ -7,8 +7,8 @@ use cosmwasm_std::{
 };
 use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
 use covenant_interchain_router::msg::InstantiateMsg as RouterInstantiateMsg;
-use covenant_native_splitter::msg::InstantiateMsg as SplitterInstantiateMsg;
-use covenant_native_splitter::msg::{NativeDenomSplit, SplitReceiver};
+use covenant_remote_chain_splitter::msg::InstantiateMsg as SplitterInstantiateMsg;
+use covenant_remote_chain_splitter::msg::{NativeDenomSplit, SplitReceiver};
 use covenant_single_party_pol_holder::msg::InstantiateMsg as HolderInstantiateMsg;
 use covenant_stride_liquid_staker::msg::InstantiateMsg as LiquidStakerInstantiateMsg;
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, DestinationConfig};
@@ -28,7 +28,7 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub(crate) const CLOCK_SALT: &[u8] = b"clock";
 pub(crate) const HOLDER_SALT: &[u8] = b"pol_holder";
-pub(crate) const NATIVE_SPLITTER_SALT: &[u8] = b"native_splitter";
+pub(crate) const REMOTE_CHAIN_SPLITTER_SALT: &[u8] = b"remote_chain_splitter";
 pub(crate) const LS_FORWARDER_SALT: &[u8] = b"ls_forwarder";
 pub(crate) const LP_FORWARDER_SALT: &[u8] = b"lp_forwarder";
 pub(crate) const LIQUID_POOLER_SALT: &[u8] = b"liquid_pooler";
@@ -53,9 +53,9 @@ pub fn instantiate(
     )?;
     let splitter_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
-        NATIVE_SPLITTER_SALT,
+        REMOTE_CHAIN_SPLITTER_SALT,
         &creator_address,
-        msg.contract_codes.native_splitter_code,
+        msg.contract_codes.remote_chain_splitter_code,
     )?;
     let ls_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
@@ -167,23 +167,23 @@ pub fn instantiate(
 
     let splitter_instantiate2_msg = SplitterInstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
-        remote_chain_channel_id: msg.native_splitter_config.channel_id,
-        remote_chain_connection_id: msg.native_splitter_config.connection_id,
-        denom: msg.native_splitter_config.denom.to_string(),
-        amount: msg.native_splitter_config.amount,
+        remote_chain_channel_id: msg.remote_chain_splitter_config.channel_id,
+        remote_chain_connection_id: msg.remote_chain_splitter_config.connection_id,
+        denom: msg.remote_chain_splitter_config.denom.to_string(),
+        amount: msg.remote_chain_splitter_config.amount,
         ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
         splits: vec![NativeDenomSplit {
-            denom: msg.native_splitter_config.denom.to_string(),
+            denom: msg.remote_chain_splitter_config.denom.to_string(),
             receivers: vec![
                 SplitReceiver {
                     addr: ls_forwarder_instantiate2_config.addr.to_string(),
-                    share: msg.native_splitter_config.ls_share,
+                    share: msg.remote_chain_splitter_config.ls_share,
                 },
                 SplitReceiver {
                     addr: lp_forwarder_instantiate2_config.addr.to_string(),
-                    share: msg.native_splitter_config.native_share,
+                    share: msg.remote_chain_splitter_config.native_share,
                 },
             ],
         }],
@@ -391,7 +391,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 resp = resp.add_attribute("splitter_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: SPLITTER_ADDR.load(deps.storage)?.to_string(),
-                    new_code_id: contract_codes.native_splitter_code,
+                    new_code_id: contract_codes.remote_chain_splitter_code,
                     msg,
                 });
             }
