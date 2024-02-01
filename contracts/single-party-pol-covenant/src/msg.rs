@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{Addr, Coin, Decimal, Deps, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_utils::{
@@ -94,19 +94,19 @@ pub struct LsInfo {
 }
 
 impl CovenantPartyConfig {
-    pub fn to_receiver_config(&self) -> ReceiverConfig {
+    pub fn to_receiver_config(&self, deps: Deps) -> StdResult<ReceiverConfig> {
         match self {
-            CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
+            CovenantPartyConfig::Interchain(config) => Ok(ReceiverConfig::Ibc(DestinationConfig {
                 local_to_destination_chain_channel_id: config
                     .host_to_party_chain_channel_id
                     .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
                 denom_to_pfm_map: BTreeMap::new(),
-            }),
-            // validate address here
+            })),
             CovenantPartyConfig::Native(config) => {
-                ReceiverConfig::Native(Addr::unchecked(config.party_receiver_addr.to_string()))
+                let addr = deps.api.addr_validate(&config.party_receiver_addr)?;
+                Ok(ReceiverConfig::Native(addr))
             }
         }
     }
@@ -118,18 +118,18 @@ impl CovenantPartyConfig {
         }
     }
 
-    pub fn to_covenant_party(&self) -> CovenantParty {
+    pub fn to_covenant_party(&self, deps: Deps) -> StdResult<CovenantParty> {
         match self {
-            CovenantPartyConfig::Interchain(config) => CovenantParty {
+            CovenantPartyConfig::Interchain(config) => Ok(CovenantParty {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
-                receiver_config: self.to_receiver_config(),
-            },
-            CovenantPartyConfig::Native(config) => CovenantParty {
+                receiver_config: self.to_receiver_config(deps)?,
+            }),
+            CovenantPartyConfig::Native(config) => Ok(CovenantParty {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
-                receiver_config: self.to_receiver_config(),
-            },
+                receiver_config: self.to_receiver_config(deps)?,
+            }),
         }
     }
 
@@ -280,4 +280,3 @@ pub enum LiquidPoolerMigrateMsg {
     Osmosis(covenant_osmo_liquid_pooler::msg::MigrateMsg),
     Astroport(covenant_astroport_liquid_pooler::msg::MigrateMsg),
 }
-
