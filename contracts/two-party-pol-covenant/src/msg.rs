@@ -84,6 +84,7 @@ impl CovenantPartyConfig {
                     .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
+                // TODO: pass this in
                 denom_to_pfm_map: BTreeMap::new(),
             }),
             CovenantPartyConfig::Native(config) => {
@@ -339,11 +340,22 @@ pub enum MigrateMsg {
     UpdateCovenant {
         clock: Option<covenant_clock::msg::MigrateMsg>,
         holder: Option<covenant_two_party_pol_holder::msg::MigrateMsg>,
-        // todo: handle osmo liquid pooler migration
-        liquid_pooler: Option<covenant_astroport_liquid_pooler::msg::MigrateMsg>,
-        party_a_router: Option<covenant_interchain_router::msg::MigrateMsg>,
-        party_b_router: Option<covenant_interchain_router::msg::MigrateMsg>,
+        liquid_pooler: Option<LiquidPoolerMigrateMsg>,
+        party_a_router: Option<RouterMigrateMsg>,
+        party_b_router: Option<RouterMigrateMsg>,
         party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
         party_b_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
     },
+}
+
+#[cw_serde]
+pub enum LiquidPoolerMigrateMsg {
+    Osmosis(covenant_osmo_liquid_pooler::msg::MigrateMsg),
+    Astroport(covenant_astroport_liquid_pooler::msg::MigrateMsg),
+}
+
+#[cw_serde]
+pub enum RouterMigrateMsg {
+    Interchain(covenant_interchain_router::msg::MigrateMsg),
+    Native(covenant_native_router::msg::MigrateMsg),
 }

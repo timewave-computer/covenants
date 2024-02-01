@@ -6,6 +6,7 @@ use cosmwasm_std::{
     to_json_binary, to_json_string, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, WasmMsg,
 };
+use covenant_interchain_splitter::msg;
 use covenant_utils::{
     instantiate2_helper::{get_instantiate2_salt_and_address, Instantiate2},
     split::remap_splits,
@@ -15,7 +16,7 @@ use cw2::set_contract_version;
 
 use crate::{
     error::ContractError,
-    msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg},
+    msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg, RouterMigrateMsg},
     state::{
         CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_INTERCHAIN_SPLITTER_ADDR,
         COVENANT_SWAP_HOLDER_ADDR, PARTY_A_IBC_FORWARDER_ADDR, PARTY_A_ROUTER_ADDR,
@@ -376,8 +377,12 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-            if let Some(router) = party_a_router {
-                let msg: Binary = to_json_binary(&router)?;
+            if let Some(router_migrate_msg) = party_a_router {
+                let msg: Binary = match router_migrate_msg {
+                    RouterMigrateMsg::Interchain(msg) => to_json_binary(&msg)?,
+                    RouterMigrateMsg::Native(msg) => to_json_binary(&msg)?,
+                };
+
                 resp = resp.add_attribute("party_a_router_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: PARTY_A_ROUTER_ADDR.load(deps.storage)?.to_string(),
@@ -386,8 +391,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-            if let Some(router) = party_b_router {
-                let msg: Binary = to_json_binary(&router)?;
+            if let Some(router_migrate_msg) = party_b_router {
+                let msg: Binary = match router_migrate_msg {
+                    RouterMigrateMsg::Interchain(msg) => to_json_binary(&msg)?,
+                    RouterMigrateMsg::Native(msg) => to_json_binary(&msg)?,
+                };
                 resp = resp.add_attribute("party_b_router_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: PARTY_B_ROUTER_ADDR.load(deps.storage)?.to_string(),

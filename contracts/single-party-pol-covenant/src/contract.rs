@@ -14,6 +14,7 @@ use covenant_stride_liquid_staker::msg::InstantiateMsg as LiquidStakerInstantiat
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, DestinationConfig};
 use cw2::set_contract_version;
 
+use crate::msg::LiquidPoolerMigrateMsg;
 use crate::{
     error::ContractError,
     msg::{CovenantPartyConfig, InstantiateMsg, MigrateMsg, QueryMsg},
@@ -366,8 +367,11 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 });
             }
 
-            if let Some(liquid_pooler) = liquid_pooler {
-                let msg: Binary = to_json_binary(&liquid_pooler)?;
+            if let Some(liquid_pooler_migrate_msg) = liquid_pooler {
+                let msg: Binary = match liquid_pooler_migrate_msg {
+                    LiquidPoolerMigrateMsg::Astroport(msg) => to_json_binary(&msg)?,
+                    LiquidPoolerMigrateMsg::Osmosis(msg) => to_json_binary(&msg)?,
+                };
                 resp = resp.add_attribute("liquid_pooler_migrate", msg.to_base64());
                 migrate_msgs.push(WasmMsg::Migrate {
                     contract_addr: LIQUID_POOLER_ADDR.load(deps.storage)?.to_string(),
