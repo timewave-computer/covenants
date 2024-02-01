@@ -11,10 +11,7 @@ use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
-use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    split::{SplitConfig, SplitType},
-};
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig};
 use cw_utils::Expiration;
 
 use crate::{error::ContractError, state::CONTRACT_STATE};
@@ -34,7 +31,7 @@ pub struct InstantiateMsg {
     /// config describing the covenant dynamics
     pub covenant_config: TwoPartyPolCovenantConfig,
     /// mapping of denoms to their splits
-    pub splits: BTreeMap<String, SplitType>,
+    pub splits: BTreeMap<String, SplitConfig>,
     /// a split for all denoms that are not covered in the
     /// regular `splits` list
     pub fallback_split: Option<SplitConfig>,
@@ -69,11 +66,7 @@ impl InstantiateMsg {
         let splits_attr: Vec<Attribute> = self
             .splits
             .iter()
-            .map(|(denom, split_type)| match split_type {
-                SplitType::Custom(split_config) => {
-                    split_config.get_response_attribute(denom.to_string())
-                }
-            })
+            .map(|(denom, split_config)| split_config.get_response_attribute(denom.to_string()))
             .collect();
 
         let mut attrs = vec![

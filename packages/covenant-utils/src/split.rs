@@ -5,27 +5,6 @@ use cosmwasm_std::{
     Attribute, BankMsg, Coin, CosmosMsg, Decimal, Fraction, StdError, StdResult, Uint128,
 };
 
-// splitter
-#[cw_serde]
-pub struct DenomSplit {
-    pub denom: String,
-    pub split: SplitType,
-}
-
-#[cw_serde]
-pub enum SplitType {
-    Custom(SplitConfig),
-    // predefined splits will go here
-}
-
-impl SplitType {
-    pub fn get_split_config(self) -> Result<SplitConfig, StdError> {
-        match self {
-            SplitType::Custom(c) => Ok(c),
-        }
-    }
-}
-
 #[cw_serde]
 pub struct SplitConfig {
     /// map receiver address to its share of the split
@@ -161,24 +140,20 @@ impl SplitConfig {
 }
 
 pub fn remap_splits(
-    splits: BTreeMap<String, SplitType>,
+    splits: BTreeMap<String, SplitConfig>,
     (party_a_receiver, party_a_router): (String, String),
     (party_b_receiver, party_b_router): (String, String),
-) -> StdResult<BTreeMap<String, SplitType>> {
-    let mut remapped_splits: BTreeMap<String, SplitType> = BTreeMap::new();
+) -> StdResult<BTreeMap<String, SplitConfig>> {
+    let mut remapped_splits: BTreeMap<String, SplitConfig> = BTreeMap::new();
 
     for (denom, split) in splits.iter() {
-        match split {
-            SplitType::Custom(config) => {
-                let remapped_split = config.remap_receivers_to_routers(
-                    party_a_receiver.clone(),
-                    party_a_router.clone(),
-                    party_b_receiver.clone(),
-                    party_b_router.clone(),
-                )?;
-                remapped_splits.insert(denom.clone(), SplitType::Custom(remapped_split));
-            }
-        }
+        let remapped_split = split.remap_receivers_to_routers(
+            party_a_receiver.clone(),
+            party_a_router.clone(),
+            party_b_receiver.clone(),
+            party_b_router.clone(),
+        )?;
+        remapped_splits.insert(denom.clone(), remapped_split);
     }
 
     Ok(remapped_splits)

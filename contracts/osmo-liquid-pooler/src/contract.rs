@@ -13,7 +13,7 @@ use covenant_utils::{
     withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata, PacketMetadata,
 };
 use cw2::set_contract_version;
-use cw_utils::Expiration;
+use cw_utils::{Duration, Expiration};
 use neutron_sdk::{
     bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight, NeutronResult,
 };
@@ -79,7 +79,7 @@ pub fn instantiate(
         lp_token_denom: msg.lp_token_denom,
         slippage_tolerance: msg.slippage_tolerance,
         pool_price_config: msg.pool_price_config,
-        funding_duration_seconds: msg.funding_duration_seconds,
+        funding_duration: msg.funding_duration,
         single_side_lp_limits: msg.single_side_lp_limits,
     };
     LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &lp_config)?;
@@ -481,14 +481,9 @@ fn try_deliver_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronM
             // if proxy holds both party contributions, we advance the state machine
             if lp_config.proxy_received_party_contributions(proxy_party_1_coin, proxy_party_2_coin)
             {
-                // otherwise we advance the state machine and store a
-                // two weeks expiration from the current block during
-                // which no withdrawals can be initiated.
-                let funding_expiration = Expiration::AtTime(
-                    env.block
-                        .time
-                        .plus_seconds(lp_config.funding_duration_seconds.u64()),
-                );
+                // otherwise we advance the state machine and store an
+                // expiration time for the funding period
+                let funding_expiration = lp_config.funding_duration.after(&env.block);
                 CONTRACT_STATE.save(
                     deps.storage,
                     &ContractState::ProxyFunded { funding_expiration },
