@@ -1,6 +1,7 @@
 use cosmwasm_schema::{cw_serde, serde::Serialize};
 use cosmwasm_std::{
-    to_json_binary, instantiate2_address, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps, StdError, StdResult, WasmMsg
+    instantiate2_address, to_json_binary, Addr, Binary, CanonicalAddr, CodeInfoResponse, Deps,
+    StdError, StdResult, WasmMsg,
 };
 use sha2::{Digest, Sha256};
 

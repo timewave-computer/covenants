@@ -19,7 +19,6 @@ pub enum ExecuteMsg {
     },
 }
 
-
 #[cw_serde]
 pub struct OutpostProvideLiquidityConfig {
     /// id of the pool we wish to provide liquidity to
