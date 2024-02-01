@@ -3,14 +3,11 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, WasmMsg,
 };
-use covenant_interchain_splitter::msg;
 use covenant_utils::{
-    instantiate2_helper::{get_instantiate2_salt_and_address, Instantiate2},
-    split::remap_splits,
-    CovenantPartiesConfig, CovenantTerms,
+    instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits, CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms
 };
 use cw2::set_contract_version;
 
@@ -158,7 +155,10 @@ pub fn instantiate(
             party_a: msg.party_a_config.to_covenant_party(deps.as_ref())?,
             party_b: msg.party_b_config.to_covenant_party(deps.as_ref())?,
         },
-        covenant_terms: CovenantTerms::TokenSwap(msg.clone().covenant_terms),
+        covenant_terms: CovenantTerms::TokenSwap(SwapCovenantTerms {
+            party_a_amount: msg.party_a_config.get_contribution().amount,
+            party_b_amount: msg.party_b_config.get_contribution().amount,
+        }),
         clock_address: clock_instantiate2_config.addr.to_string(),
         next_contract: splitter_instantiate2_config.addr.to_string(),
     }

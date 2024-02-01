@@ -147,7 +147,6 @@ pub fn instantiate(
         clock_instantiate2_config.addr.clone(),
         format!("{}_party_a_router", msg.label),
         covenant_denoms.clone(),
-        msg.pfm_unwinding_config.party_1_pfm_map,
         party_a_router_instantiate2_config.clone(),
     )?;
 
@@ -156,7 +155,6 @@ pub fn instantiate(
         clock_instantiate2_config.addr.clone(),
         format!("{}_party_b_router", msg.label),
         covenant_denoms.clone(),
-        msg.pfm_unwinding_config.party_2_pfm_map,
         party_b_router_instantiate2_config.clone(),
     )?;
 

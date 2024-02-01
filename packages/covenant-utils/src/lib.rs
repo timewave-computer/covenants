@@ -18,6 +18,42 @@ pub mod split;
 pub mod withdraw_lp_helper;
 
 #[cw_serde]
+pub struct InterchainCovenantParty {
+    /// address of the receiver on destination chain
+    pub party_receiver_addr: String,
+    /// connection id to the party chain
+    pub party_chain_connection_id: String,
+    /// timeout in seconds
+    pub ibc_transfer_timeout: Uint64,
+    /// channel id from party to host chain
+    pub party_to_host_chain_channel_id: String,
+    /// channel id from host chain to the party chain
+    pub host_to_party_chain_channel_id: String,
+    /// denom provided by the party on its native chain
+    pub remote_chain_denom: String,
+    /// authorized address of the party on neutron
+    pub addr: String,
+    /// denom provided by the party on neutron
+    pub native_denom: String,
+    /// coin provided by the party on its native chain
+    pub contribution: Coin,
+    /// configuration for unwinding the denoms via pfm
+    pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+}
+
+#[cw_serde]
+pub struct NativeCovenantParty {
+    /// address of the receiver on destination chain
+    pub party_receiver_addr: String,
+    /// denom provided by the party on neutron
+    pub native_denom: String,
+    /// authorized address of the party on neutron
+    pub addr: String,
+    /// coin provided by the party on its native chain
+    pub contribution: Coin,
+}
+
+#[cw_serde]
 pub enum ReceiverConfig {
     /// party expects to receive funds on the same chain
     Native(Addr),

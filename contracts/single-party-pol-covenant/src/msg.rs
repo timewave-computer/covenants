@@ -5,9 +5,7 @@ use cosmwasm_std::{Addr, Coin, Decimal, Deps, StdResult, Uint128, Uint64, WasmMs
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_utils::{
-    instantiate2_helper::{Instantiate2, Instantiate2HelperConfig},
-    CovenantParty, DestinationConfig, PacketForwardMiddlewareConfig, PoolPriceConfig,
-    ReceiverConfig,
+    instantiate2_helper::Instantiate2HelperConfig, CovenantParty, DestinationConfig, InterchainCovenantParty, NativeCovenantParty, PacketForwardMiddlewareConfig, PoolPriceConfig, ReceiverConfig
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -29,7 +27,6 @@ pub struct InstantiateMsg {
     pub pool_price_config: PoolPriceConfig,
     pub remote_chain_splitter_config: RemoteChainSplitterConfig,
     pub emergency_committee: Option<String>,
-    pub pfm_unwinding_config: SinglePartyPfmUnwindingConfig,
     pub covenant_party_config: InterchainCovenantParty,
     pub liquid_pooler_config: LiquidPoolerConfig,
 }
@@ -146,40 +143,6 @@ impl CovenantPartyConfig {
 pub enum CovenantPartyConfig {
     Interchain(InterchainCovenantParty),
     Native(NativeCovenantParty),
-}
-
-#[cw_serde]
-pub struct NativeCovenantParty {
-    /// address of the receiver on destination chain
-    pub party_receiver_addr: String,
-    /// denom provided by the party on neutron
-    pub native_denom: String,
-    /// authorized address of the party on neutron
-    pub addr: String,
-    /// coin provided by the party on its native chain
-    pub contribution: Coin,
-}
-
-#[cw_serde]
-pub struct InterchainCovenantParty {
-    /// address of the receiver on destination chain
-    pub party_receiver_addr: String,
-    /// connection id to the party chain
-    pub party_chain_connection_id: String,
-    /// timeout in seconds
-    pub ibc_transfer_timeout: Uint64,
-    /// channel id from party to host chain
-    pub party_to_host_chain_channel_id: String,
-    /// channel id from host chain to the party chain
-    pub host_to_party_chain_channel_id: String,
-    /// denom provided by the party on its native chain
-    pub remote_chain_denom: String,
-    /// authorized address of the party on neutron
-    pub addr: String,
-    /// denom provided by the party on neutron
-    pub native_denom: String,
-    /// coin provided by the party on its native chain
-    pub contribution: Coin,
 }
 
 #[cw_serde]

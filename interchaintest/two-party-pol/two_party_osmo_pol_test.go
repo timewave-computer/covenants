@@ -559,6 +559,15 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				},
 			}
 
+			// for party 1 (hub), we need to route osmosis correctly - neutron->osmosis->hub
+			party1PfmMap := map[string]PacketForwardMiddlewareConfig{
+				neutronOsmoIbcDenom: {
+					LocalToHopChainChannelId:       testCtx.NeutronTransferChannelIds[testCtx.Osmosis.Config().Name],
+					HopToDestinationChainChannelId: testCtx.OsmoTransferChannelIds[testCtx.Hub.Config().Name],
+					HopChainReceiverAddress:        osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
+				},
+			}
+
 			partyAConfig := InterchainCovenantParty{
 				Addr:                      hubPartyNeutronAddr.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 				NativeDenom:               neutronAtomIbcDenom,
@@ -569,6 +578,15 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				PartyChainConnectionId:    neutronAtomIBCConnId,
 				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				Contribution:              atomCoin,
+				DenomToPfmMap:             party1PfmMap,
+			}
+			// for party 2 (osmosis), we need to route atom correctly - neutron->hub->osmosis
+			party2PfmMap := map[string]PacketForwardMiddlewareConfig{
+				neutronAtomIbcDenom: {
+					LocalToHopChainChannelId:       testCtx.NeutronTransferChannelIds[testCtx.Hub.Config().Name],
+					HopToDestinationChainChannelId: testCtx.GaiaTransferChannelIds[testCtx.Osmosis.Config().Name],
+					HopChainReceiverAddress:        gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
+				},
 			}
 			partyBConfig := InterchainCovenantParty{
 				Addr:                      osmoPartyNeutronAddr.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
@@ -580,6 +598,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				PartyChainConnectionId:    neutronOsmosisIBCConnId,
 				IbcTransferTimeout:        timeouts.IbcTransferTimeout,
 				Contribution:              osmoCoin,
+				DenomToPfmMap:             party2PfmMap,
 			}
 			fundingDuration := Duration{
 				Time: new(uint64),
@@ -622,29 +641,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				},
 			}
 
-			// for party 1 (hub), we need to route osmosis correctly - neutron->osmosis->hub
-			party1PfmMap := map[string]PacketForwardMiddlewareConfig{
-				neutronOsmoIbcDenom: {
-					LocalToHopChainChannelId:       testCtx.NeutronTransferChannelIds[testCtx.Osmosis.Config().Name],
-					HopToDestinationChainChannelId: testCtx.OsmoTransferChannelIds[testCtx.Hub.Config().Name],
-					HopChainReceiverAddress:        osmoUser.Bech32Address(cosmosOsmosis.Config().Bech32Prefix),
-				},
-			}
-
-			// for party 1 (osmosis), we need to route atom correctly - neutron->hub->osmosis
-			party2PfmMap := map[string]PacketForwardMiddlewareConfig{
-				neutronAtomIbcDenom: {
-					LocalToHopChainChannelId:       testCtx.NeutronTransferChannelIds[testCtx.Hub.Config().Name],
-					HopToDestinationChainChannelId: testCtx.GaiaTransferChannelIds[testCtx.Osmosis.Config().Name],
-					HopChainReceiverAddress:        gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix),
-				},
-			}
-
-			pfmUnwindingConfig := PfmUnwindingConfig{
-				Party1PfmMap: party1PfmMap,
-				Party2PfmMap: party2PfmMap,
-			}
-
 			covenantInstantiateMsg := CovenantInstantiateMsg{
 				Label:           "covenant-osmo",
 				Timeouts:        timeouts,
@@ -665,7 +661,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				FallbackSplit:      nil,
 				EmergencyCommittee: neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 				LiquidPoolerConfig: liquidPoolerConfig,
-				PfmUnwindingConfig: pfmUnwindingConfig,
 			}
 
 			covenantAddress = testCtx.ManualInstantiate(covenantCodeId, covenantInstantiateMsg, neutronUser, keyring.BackendTest)
