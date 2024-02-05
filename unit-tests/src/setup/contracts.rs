@@ -137,47 +137,13 @@ pub fn interchain_router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery
     Box::new(contract)
 }
 
-pub fn interchain_splitter_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
-    let exec = |deps: DepsMut<NeutronQuery>,
-                env: Env,
-                info: MessageInfo,
-                msg: covenant_interchain_splitter::msg::ExecuteMsg| {
-        execute_into_neutron(covenant_interchain_splitter::contract::execute(
-            get_empty_depsmut(deps),
-            env,
-            info,
-            msg,
-        ))
-    };
-
-    let init = |deps: DepsMut<NeutronQuery>,
-                env: Env,
-                info: MessageInfo,
-                msg: covenant_interchain_splitter::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_interchain_splitter::contract::instantiate(
-            get_empty_depsmut(deps),
-            env,
-            info,
-            msg,
-        ))
-    };
-
-    let query =
-        |deps: Deps<NeutronQuery>, env: Env, msg: covenant_interchain_splitter::msg::QueryMsg| {
-            covenant_interchain_splitter::contract::query(get_empty_deps(deps), env, msg)
-        };
-
-    let migrate = |deps: DepsMut<NeutronQuery>,
-                   env: Env,
-                   msg: covenant_interchain_splitter::msg::MigrateMsg| {
-        execute_into_neutron(covenant_interchain_splitter::contract::migrate(
-            get_empty_depsmut(deps),
-            env,
-            msg,
-        ))
-    };
-
-    let contract = ContractWrapper::new(exec, init, query).with_migrate(migrate);
+pub fn remote_splitter_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
+    let contract = ContractWrapper::new(
+        covenant_remote_chain_splitter::contract::execute,
+        covenant_remote_chain_splitter::contract::instantiate,
+        covenant_remote_chain_splitter::contract::query,
+    )
+    .with_migrate(covenant_remote_chain_splitter::contract::migrate);
     Box::new(contract)
 }
 
@@ -224,14 +190,45 @@ pub fn native_router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
 }
 
 pub fn native_splitter_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
-    let contract = ContractWrapper::new(
-        covenant_native_splitter::contract::execute,
-        covenant_native_splitter::contract::instantiate,
-        covenant_native_splitter::contract::query,
-    )
-    .with_reply(covenant_native_splitter::contract::reply)
-    .with_sudo(covenant_native_splitter::contract::sudo)
-    .with_migrate(covenant_native_splitter::contract::migrate);
+    let exec = |deps: DepsMut<NeutronQuery>,
+                env: Env,
+                info: MessageInfo,
+                msg: covenant_native_splitter::msg::ExecuteMsg| {
+        execute_into_neutron(covenant_native_splitter::contract::execute(
+            get_empty_depsmut(deps),
+            env,
+            info,
+            msg,
+        ))
+    };
+
+    let init = |deps: DepsMut<NeutronQuery>,
+                env: Env,
+                info: MessageInfo,
+                msg: covenant_native_splitter::msg::InstantiateMsg| {
+        execute_into_neutron(covenant_native_splitter::contract::instantiate(
+            get_empty_depsmut(deps),
+            env,
+            info,
+            msg,
+        ))
+    };
+
+    let query =
+        |deps: Deps<NeutronQuery>, env: Env, msg: covenant_native_splitter::msg::QueryMsg| {
+            covenant_native_splitter::contract::query(get_empty_deps(deps), env, msg)
+        };
+
+    let migrate =
+        |deps: DepsMut<NeutronQuery>, env: Env, msg: covenant_native_splitter::msg::MigrateMsg| {
+            execute_into_neutron(covenant_native_splitter::contract::migrate(
+                get_empty_depsmut(deps),
+                env,
+                msg,
+            ))
+        };
+
+    let contract = ContractWrapper::new(exec, init, query).with_migrate(migrate);
     Box::new(contract)
 }
 
