@@ -222,7 +222,7 @@ impl Module for NeutronKeeper {
                             channel_id: "channel-1".to_string(),
                             counterparty_channel_id: "channel-1".to_string(),
                             counterparty_version: to_json_string(
-                                &covenant_utils::neutron_ica::OpenAckVersion {
+                                &covenant_utils::neutron::OpenAckVersion {
                                     version: "ica".to_string(),
                                     controller_connection_id: connection_id.clone(),
                                     host_connection_id: connection_id.clone(),

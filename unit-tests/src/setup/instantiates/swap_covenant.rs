@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cosmwasm_std::{testing::mock_env, Addr, Decimal, Uint128, Uint64};
+use cosmwasm_std::{coin, testing::mock_env, Addr, Decimal, Uint128, Uint64};
 use cw_utils::Expiration;
 
 use crate::setup::suite_builder::SuiteBuilder;
@@ -21,13 +21,13 @@ impl SwapCovenantInstantiate {
         builder: &SuiteBuilder,
         party_a_config: covenant_swap::msg::CovenantPartyConfig,
         party_b_config: covenant_swap::msg::CovenantPartyConfig,
-        splits: Vec<covenant_interchain_splitter::msg::DenomSplit>,
+        splits: BTreeMap<String, covenant_utils::split::SplitConfig>,
     ) -> Self {
         let contract_codes = covenant_swap::msg::SwapCovenantContractCodeIds {
             ibc_forwarder_code: builder.ibc_forwarder_code_id,
             interchain_router_code: builder.interchain_router_code_id,
             native_router_code: builder.native_router_code_id,
-            splitter_code: builder.interchain_splitter_code_id,
+            splitter_code: builder.native_splitter_code_id,
             holder_code: builder.swap_holder_code_id,
             clock_code: builder.clock_code_id,
         };
@@ -45,10 +45,6 @@ impl SwapCovenantInstantiate {
             contract_codes,
             None,
             Expiration::AtHeight(mock_env().block.height + 1000),
-            covenant_utils::SwapCovenantTerms {
-                party_a_amount: 10_000_000_u128.into(),
-                party_b_amount: 10_000_000_u128.into(),
-            },
             party_a_config,
             party_b_config,
             splits,
@@ -63,9 +59,10 @@ impl SwapCovenantInstantiate {
         local_denom: &str,
         local_to_remote_channel_id: &str,
         remote_to_local_channel_id: &str,
+        amount: u128,
     ) -> covenant_swap::msg::CovenantPartyConfig {
         covenant_swap::msg::CovenantPartyConfig::Interchain(
-            covenant_swap::msg::InterchainCovenantParty {
+            covenant_utils::InterchainCovenantParty {
                 party_receiver_addr: remote_recevier.to_string(),
                 party_chain_connection_id: "conn-1".to_string(),
                 ibc_transfer_timeout: 1000_u64.into(),
@@ -74,6 +71,8 @@ impl SwapCovenantInstantiate {
                 remote_chain_denom: remote_denom.to_string(),
                 addr: local_recevier.to_string(),
                 native_denom: local_denom.to_string(),
+                contribution: coin(amount, remote_denom),
+                denom_to_pfm_map: BTreeMap::new(),
             },
         )
     }
@@ -81,36 +80,33 @@ impl SwapCovenantInstantiate {
     pub fn get_party_config_native(
         recevier: &Addr,
         denom: &str,
+        amount: u128,
     ) -> covenant_swap::msg::CovenantPartyConfig {
-        covenant_swap::msg::CovenantPartyConfig::Native(covenant_swap::msg::NativeCovenantParty {
+        covenant_swap::msg::CovenantPartyConfig::Native(covenant_utils::NativeCovenantParty {
             party_receiver_addr: recevier.to_string(),
             native_denom: denom.to_string(),
             addr: recevier.to_string(),
+            contribution: coin(amount, denom),
         })
     }
 
     pub fn get_split_custom(
         splits: Vec<(&str, &Vec<(&Addr, Decimal)>)>,
-    ) -> Vec<covenant_interchain_splitter::msg::DenomSplit> {
-        splits
-            .into_iter()
-            .map(|(denom, split)| {
-                let mut receivers = BTreeMap::new();
+    ) -> BTreeMap<String, covenant_utils::split::SplitConfig> {
+        let mut map = BTreeMap::new();
 
-                split.into_iter().for_each(|(receiver, amount)| {
-                    receivers.insert(receiver.to_string(), amount.clone());
-                });
+        splits.into_iter().for_each(|(denom, split)| {
+            let mut receivers = BTreeMap::new();
 
-                let split = covenant_interchain_splitter::msg::SplitType::Custom(
-                    covenant_utils::SplitConfig { receivers },
-                );
+            split.into_iter().for_each(|(receiver, amount)| {
+                receivers.insert(receiver.to_string(), amount.clone());
+            });
 
-                covenant_interchain_splitter::msg::DenomSplit {
-                    denom: denom.to_string(),
-                    split,
-                }
-            })
-            .collect()
+            let split = covenant_utils::split::SplitConfig { receivers };
+
+            map.insert(denom.to_string(), split);
+        });
+        map
     }
 
     pub fn get_contract_codes() {}
@@ -124,11 +120,10 @@ impl SwapCovenantInstantiate {
         contract_codes: covenant_swap::msg::SwapCovenantContractCodeIds,
         clock_tick_max_gas: Option<Uint64>,
         lockup_config: Expiration,
-        covenant_terms: covenant_utils::SwapCovenantTerms,
         party_a_config: covenant_swap::msg::CovenantPartyConfig,
         party_b_config: covenant_swap::msg::CovenantPartyConfig,
-        splits: Vec<covenant_interchain_splitter::msg::DenomSplit>,
-        fallback_split: Option<covenant_utils::SplitConfig>,
+        splits: BTreeMap<String, covenant_utils::split::SplitConfig>,
+        fallback_split: Option<covenant_utils::split::SplitConfig>,
     ) -> Self {
         Self {
             msg: covenant_swap::msg::InstantiateMsg {
@@ -138,7 +133,6 @@ impl SwapCovenantInstantiate {
                 contract_codes,
                 clock_tick_max_gas,
                 lockup_config,
-                covenant_terms,
                 party_a_config,
                 party_b_config,
                 splits,
@@ -195,16 +189,6 @@ impl SwapCovenantInstantiate {
         self
     }
 
-    pub fn with_covenant_terms(
-        &mut self,
-        party_a_amount: impl Into<Uint128>,
-        party_b_amount: impl Into<Uint128>,
-    ) -> &mut Self {
-        self.msg.covenant_terms.party_a_amount = party_a_amount.into();
-        self.msg.covenant_terms.party_b_amount = party_b_amount.into();
-        self
-    }
-
     pub fn with_party_a_config(
         &mut self,
         config: covenant_swap::msg::CovenantPartyConfig,
@@ -223,7 +207,7 @@ impl SwapCovenantInstantiate {
 
     pub fn with_splits(
         &mut self,
-        splits: Vec<covenant_interchain_splitter::msg::DenomSplit>,
+        splits: BTreeMap<String, covenant_utils::split::SplitConfig>,
     ) -> &mut Self {
         self.msg.splits = splits;
         self
@@ -235,7 +219,7 @@ impl SwapCovenantInstantiate {
             receivers.insert(receiver.to_string(), amount.clone());
         });
 
-        self.msg.fallback_split = Some(covenant_utils::SplitConfig { receivers });
+        self.msg.fallback_split = Some(covenant_utils::split::SplitConfig { receivers });
         self
     }
 }
