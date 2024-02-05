@@ -28,8 +28,7 @@ pub const DENOM_OSMO: &str = "uosmo";
 /// This is used to fund the fuacet with all possible denoms we have.
 /// so funding accounts and addresses can be done using the transfer msg
 /// To fund the fuacet with another denom, just add the denom to the array
-pub const ALL_DENOMS: &'static [&'static str] =
-    &[DENOM_ATOM, DENOM_NTRN, DENOM_OSMO, DENOM_FALLBACK];
+pub const ALL_DENOMS: &[&str] = &[DENOM_ATOM, DENOM_NTRN, DENOM_OSMO, DENOM_FALLBACK];
 
 // Addrs
 pub const FAUCET: &str = "faucet_addr";
@@ -48,21 +47,20 @@ pub const HUB_OSMO_CHANNEL: (&str, &str) = ("channel-3", "channel-300");
 // IBC denoms
 
 /// ntrn -> osmo
-pub const DENOM_FALLBACK_ON_OSMO: &'static str =
-    concatcp!(NTRN_OSMO_CHANNEL.1, "/", DENOM_FALLBACK);
-pub const DENOM_FALLBACK_ON_HUB: &'static str = concatcp!(NTRN_HUB_CHANNEL.1, "/", DENOM_FALLBACK);
+pub const DENOM_FALLBACK_ON_OSMO: &str = concatcp!(NTRN_OSMO_CHANNEL.1, "/", DENOM_FALLBACK);
+pub const DENOM_FALLBACK_ON_HUB: &str = concatcp!(NTRN_HUB_CHANNEL.1, "/", DENOM_FALLBACK);
 
 /// hub -> ntrn
-pub const DENOM_ATOM_ON_NTRN: &'static str = concatcp!(NTRN_HUB_CHANNEL.0, "/", DENOM_ATOM);
+pub const DENOM_ATOM_ON_NTRN: &str = concatcp!(NTRN_HUB_CHANNEL.0, "/", DENOM_ATOM);
 /// ntrn -> hub
-pub const DENOM_NTRN_ON_HUB: &'static str = concatcp!(NTRN_HUB_CHANNEL.1, "/", DENOM_NTRN);
+pub const DENOM_NTRN_ON_HUB: &str = concatcp!(NTRN_HUB_CHANNEL.1, "/", DENOM_NTRN);
 /// osmo -> ntrn
-pub const DENOM_OSMO_ON_NTRN: &'static str = concatcp!(NTRN_OSMO_CHANNEL.0, "/", DENOM_OSMO);
+pub const DENOM_OSMO_ON_NTRN: &str = concatcp!(NTRN_OSMO_CHANNEL.0, "/", DENOM_OSMO);
 /// ntrn -> osmo
-pub const DENOM_NTRN_ON_OSMO: &'static str = concatcp!(NTRN_OSMO_CHANNEL.1, "/", DENOM_NTRN);
+pub const DENOM_NTRN_ON_OSMO: &str = concatcp!(NTRN_OSMO_CHANNEL.1, "/", DENOM_NTRN);
 /// osmo -> ntrn -> hub
-pub const DENOM_OSMO_ON_HUB_FROM_NTRN: &'static str =
+pub const DENOM_OSMO_ON_HUB_FROM_NTRN: &str =
     concatcp!(NTRN_HUB_CHANNEL.1, "/", DENOM_OSMO_ON_NTRN);
 /// hub -> ntrn -> osmo
-pub const DENOM_HUB_ON_OSMO_FROM_NTRN: &'static str =
+pub const DENOM_HUB_ON_OSMO_FROM_NTRN: &str =
     concatcp!(NTRN_OSMO_CHANNEL.1, "/", DENOM_ATOM_ON_NTRN);

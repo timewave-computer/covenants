@@ -195,8 +195,7 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
             let multi_send_msg = MsgMultiSend { inputs, outputs };
 
             // Serialize the Delegate message.
-            let mut buf = Vec::new();
-            buf.reserve(multi_send_msg.encoded_len());
+            let mut buf = Vec::with_capacity(multi_send_msg.encoded_len());
 
             if let Err(e) = multi_send_msg.encode(&mut buf) {
                 return Err(NeutronError::Std(StdError::generic_err(format!(

@@ -95,11 +95,11 @@ impl SwapCovenantInstantiate {
     ) -> BTreeMap<String, covenant_utils::split::SplitConfig> {
         let mut map = BTreeMap::new();
 
-        splits.into_iter().for_each(|(denom, split)| {
+        splits.iter().for_each(|(denom, split)| {
             let mut receivers = BTreeMap::new();
 
-            split.into_iter().for_each(|(receiver, amount)| {
-                receivers.insert(receiver.to_string(), amount.clone());
+            split.iter().for_each(|(receiver, amount)| {
+                receivers.insert(receiver.to_string(), *amount);
             });
 
             let split = covenant_utils::split::SplitConfig { receivers };
@@ -113,6 +113,7 @@ impl SwapCovenantInstantiate {
 }
 
 impl SwapCovenantInstantiate {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         label: String,
         timeouts: covenant_swap::msg::Timeouts,
@@ -213,10 +214,10 @@ impl SwapCovenantInstantiate {
         self
     }
 
-    pub fn with_fallback_split(&mut self, split: &Vec<(&Addr, Decimal)>) -> &mut Self {
+    pub fn with_fallback_split(&mut self, split: &[(&Addr, Decimal)]) -> &mut Self {
         let mut receivers = BTreeMap::new();
-        split.into_iter().for_each(|(receiver, amount)| {
-            receivers.insert(receiver.to_string(), amount.clone());
+        split.iter().for_each(|(receiver, amount)| {
+            receivers.insert(receiver.to_string(), *amount);
         });
 
         self.msg.fallback_split = Some(covenant_utils::split::SplitConfig { receivers });
