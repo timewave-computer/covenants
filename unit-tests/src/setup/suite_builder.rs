@@ -9,9 +9,8 @@ use sha2::{Digest, Sha256};
 
 use super::{
     contracts::{
-        clock_contract, ibc_forwarder_contract, interchain_router_contract,
-        interchain_splitter_contract, native_router_contract, swap_covenant_contract,
-        swap_holder_contract,
+        clock_contract, ibc_forwarder_contract, interchain_router_contract, native_router_contract,
+        remote_splitter_contract, swap_covenant_contract, swap_holder_contract, native_splitter_contract,
     },
     custom_module::{NeutronKeeper, CHAIN_PREFIX},
     CustomApp, ADMIN, ALL_DENOMS, FAUCET, HUB_OSMO_CHANNEL, NTRN_HUB_CHANNEL, NTRN_OSMO_CHANNEL,
@@ -31,7 +30,8 @@ pub struct SuiteBuilder {
     pub ibc_forwarder_code_id: u64,
     pub native_router_code_id: u64,
     pub interchain_router_code_id: u64,
-    pub interchain_splitter_code_id: u64,
+    pub remote_splitter_code_id: u64,
+    pub native_splitter_code_id: u64,
 }
 
 impl SuiteBuilder {
@@ -69,7 +69,8 @@ impl SuiteBuilder {
         let clock_code_id = app.store_code(clock_contract());
         let swap_covenant_code_id = app.store_code(swap_covenant_contract());
         let swap_holder_code_id = app.store_code(swap_holder_contract());
-        let interchain_splitter_code_id = app.store_code(interchain_splitter_contract());
+        let remote_splitter_code_id = app.store_code(remote_splitter_contract());
+        let native_splitter_code_id = app.store_code(native_splitter_contract());
         let interchain_router_code_id = app.store_code(interchain_router_contract());
         let native_router_code_id = app.store_code(native_router_contract());
         let ibc_forwarder_code_id = app.store_code(ibc_forwarder_contract());
@@ -87,7 +88,8 @@ impl SuiteBuilder {
             ibc_forwarder_code_id,
             native_router_code_id,
             interchain_router_code_id,
-            interchain_splitter_code_id,
+            remote_splitter_code_id,
+            native_splitter_code_id,
         }
     }
 

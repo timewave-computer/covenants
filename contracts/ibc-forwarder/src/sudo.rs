@@ -1,5 +1,5 @@
 use cosmwasm_std::{to_json_vec, Binary, DepsMut, Env, Response, StdError, StdResult, Storage};
-use covenant_utils::neutron_ica;
+use covenant_utils::neutron::{OpenAckVersion, SudoPayload};
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
     sudo::msg::RequestPacket,

@@ -167,11 +167,7 @@ pub fn query_split(deps: Deps, denom: String) -> Result<SplitConfig, StdError> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(
-    deps: ExecuteDeps,
-    _env: Env,
-    msg: MigrateMsg,
-) -> Result<Response<NeutronMsg>, StdError> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, StdError> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {

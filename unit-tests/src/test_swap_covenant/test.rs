@@ -227,7 +227,7 @@ fn test_covenant_fallback_split() {
         .execute_contract(
             suite.admin.clone(),
             suite.splitter_addr.clone(),
-            &covenant_interchain_splitter::msg::ExecuteMsg::DistributeFallback {
+            &covenant_native_splitter::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
             &[],
@@ -321,7 +321,7 @@ fn test_covenant_interchain_fallback_split() {
         .execute_contract(
             suite.admin.clone(),
             suite.splitter_addr.clone(),
-            &covenant_interchain_splitter::msg::ExecuteMsg::DistributeFallback {
+            &covenant_native_splitter::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
             &[],
