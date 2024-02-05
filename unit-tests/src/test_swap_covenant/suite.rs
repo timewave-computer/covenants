@@ -204,9 +204,13 @@ impl Suite {
             DENOM_ATOM_ON_NTRN,
             NTRN_HUB_CHANNEL.0,
             NTRN_HUB_CHANNEL.1,
+            10_000_000_u128,
         );
-        let party_b_config =
-            SwapCovenantInstantiate::get_party_config_native(&party_b_receiver, DENOM_NTRN);
+        let party_b_config = SwapCovenantInstantiate::get_party_config_native(
+            &party_b_receiver,
+            DENOM_NTRN,
+            10_000_000_u128,
+        );
         let init_msg =
             SwapCovenantInstantiate::default(&builder, party_a_config, party_b_config, splits).msg;
 
@@ -238,10 +242,16 @@ impl Suite {
             (DENOM_ATOM, &recievers),
             (DENOM_NTRN, &recievers),
         ]);
-        let party_a_config =
-            SwapCovenantInstantiate::get_party_config_native(&party_a_receiver, DENOM_ATOM);
-        let party_b_config =
-            SwapCovenantInstantiate::get_party_config_native(&party_b_receiver, DENOM_NTRN);
+        let party_a_config = SwapCovenantInstantiate::get_party_config_native(
+            &party_a_receiver,
+            DENOM_ATOM,
+            10_000_000_u128,
+        );
+        let party_b_config = SwapCovenantInstantiate::get_party_config_native(
+            &party_b_receiver,
+            DENOM_NTRN,
+            10_000_000_u128,
+        );
         let init_msg =
             SwapCovenantInstantiate::default(&builder, party_a_config, party_b_config, splits).msg;
 
@@ -281,6 +291,7 @@ impl Suite {
             DENOM_ATOM_ON_NTRN,
             NTRN_HUB_CHANNEL.0,
             NTRN_HUB_CHANNEL.1,
+            10_000_000_u128,
         );
         let party_b_config = SwapCovenantInstantiate::get_party_config_interchain(
             &party_b_receiver,
@@ -289,6 +300,7 @@ impl Suite {
             DENOM_OSMO_ON_NTRN,
             NTRN_OSMO_CHANNEL.0,
             NTRN_OSMO_CHANNEL.1,
+            10_000_000_u128,
         );
         let init_msg =
             SwapCovenantInstantiate::default(&builder, party_a_config, party_b_config, splits).msg;
@@ -333,6 +345,7 @@ impl Suite {
             DENOM_ATOM_ON_NTRN,
             NTRN_HUB_CHANNEL.0,
             NTRN_HUB_CHANNEL.1,
+            10_000_000_u128,
         );
         let party_b_config = SwapCovenantInstantiate::get_party_config_interchain(
             &party_b_receiver,
@@ -341,6 +354,7 @@ impl Suite {
             DENOM_OSMO_ON_NTRN,
             NTRN_OSMO_CHANNEL.0,
             NTRN_OSMO_CHANNEL.1,
+            10_000_000_u128,
         );
         let init_msg =
             SwapCovenantInstantiate::default(&builder, party_a_config, party_b_config, splits).msg;
@@ -372,10 +386,16 @@ impl Suite {
             (DENOM_ATOM, &recievers),
             (DENOM_NTRN, &recievers),
         ]);
-        let party_a_config =
-            SwapCovenantInstantiate::get_party_config_native(&party_a_receiver, DENOM_ATOM);
-        let party_b_config =
-            SwapCovenantInstantiate::get_party_config_native(&party_b_receiver, DENOM_NTRN);
+        let party_a_config = SwapCovenantInstantiate::get_party_config_native(
+            &party_a_receiver,
+            DENOM_ATOM,
+            10_000_000_u128,
+        );
+        let party_b_config = SwapCovenantInstantiate::get_party_config_native(
+            &party_b_receiver,
+            DENOM_NTRN,
+            10_000_000_u128,
+        );
         let mut init_msg =
             SwapCovenantInstantiate::default(&builder, party_a_config, party_b_config, splits);
         init_msg.with_fallback_split(&recievers);
@@ -416,6 +436,7 @@ impl Suite {
             DENOM_ATOM_ON_NTRN,
             NTRN_HUB_CHANNEL.0,
             NTRN_HUB_CHANNEL.1,
+            10_000_000_u128,
         );
         let party_b_config = SwapCovenantInstantiate::get_party_config_interchain(
             &party_b_receiver,
@@ -424,6 +445,7 @@ impl Suite {
             DENOM_OSMO_ON_NTRN,
             NTRN_OSMO_CHANNEL.0,
             NTRN_OSMO_CHANNEL.1,
+            10_000_000_u128,
         );
         let mut init_msg =
             SwapCovenantInstantiate::default(&builder, party_a_config, party_b_config, splits);

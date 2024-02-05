@@ -17,7 +17,7 @@ prost-types     = { workspace = true }
 colored         = "1.9.4"
 const_format    = "0.2.32"
 
-covenant-interchain-splitter        = { workspace = true }
+covenant-remote-chain-splitter      = { workspace = true }
 covenant-ibc-forwarder              = { workspace = true }
 covenant-clock                      = { workspace = true }
 covenant-stride-liquid-staker       = { workspace = true }
