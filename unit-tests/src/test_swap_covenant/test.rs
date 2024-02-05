@@ -16,8 +16,8 @@ fn test_covenant() {
 
     // Wait until depositors are ready and fund them
     suite.get_and_fund_depositors(
-        coin(10_000_000_u128.into(), DENOM_ATOM),
-        coin(10_000_000_u128.into(), DENOM_NTRN),
+        coin(10_000_000_u128, DENOM_ATOM),
+        coin(10_000_000_u128, DENOM_NTRN),
     );
 
     // tick until holder receive both denoms
@@ -68,8 +68,8 @@ fn test_covenant_2_native_parties() {
 
     // Wait until depositors are ready and fund them
     suite.get_and_fund_depositors(
-        coin(10_000_000_u128.into(), DENOM_ATOM),
-        coin(10_000_000_u128.into(), DENOM_NTRN),
+        coin(10_000_000_u128, DENOM_ATOM),
+        coin(10_000_000_u128, DENOM_NTRN),
     );
 
     // tick until holder receive both denoms
@@ -111,8 +111,8 @@ fn test_covenant_2_interchain_parties() {
 
     // Wait until depositors are ready and fund them
     suite.get_and_fund_depositors(
-        coin(10_000_000_u128.into(), DENOM_ATOM),
-        coin(10_000_000_u128.into(), DENOM_OSMO),
+        coin(10_000_000_u128, DENOM_ATOM),
+        coin(10_000_000_u128, DENOM_OSMO),
     );
 
     // tick until holder receive both denoms
@@ -156,8 +156,8 @@ fn test_covenant_100_percent_split() {
 
     // Wait until depositors are ready and fund them
     suite.get_and_fund_depositors(
-        coin(10_000_000_u128.into(), DENOM_ATOM),
-        coin(10_000_000_u128.into(), DENOM_OSMO),
+        coin(10_000_000_u128, DENOM_ATOM),
+        coin(10_000_000_u128, DENOM_OSMO),
     );
 
     // tick until holder receive both denoms
@@ -172,12 +172,12 @@ fn test_covenant_100_percent_split() {
     assert_eq!(holder_atom_balance.amount.u128(), 10_000_000);
 
     // Tick until receiver_a gets his split
-    while suite.query_all_balances(&suite.party_a_receiver).len() < 1 {
+    while suite.query_all_balances(&suite.party_a_receiver).is_empty() {
         suite.tick("Wait for receiver_a to get his split");
     }
 
     // Tick until receiver_b gets his split
-    while suite.query_all_balances(&suite.party_b_receiver).len() < 1 {
+    while suite.query_all_balances(&suite.party_b_receiver).is_empty() {
         suite.tick("Wait for receiver_b to get his split");
     }
 
@@ -201,8 +201,8 @@ fn test_covenant_fallback_split() {
 
     // Wait until depositors are ready and fund them
     suite.get_and_fund_depositors(
-        coin(10_000_000_u128.into(), DENOM_ATOM),
-        coin(10_000_000_u128.into(), DENOM_NTRN),
+        coin(10_000_000_u128, DENOM_ATOM),
+        coin(10_000_000_u128, DENOM_NTRN),
     );
 
     // Send some denom (ufallback, not part of the covenant) to the splitter
@@ -295,8 +295,8 @@ fn test_covenant_interchain_fallback_split() {
 
     // Wait until depositors are ready and fund them
     suite.get_and_fund_depositors(
-        coin(10_000_000_u128.into(), DENOM_ATOM),
-        coin(10_000_000_u128.into(), DENOM_OSMO),
+        coin(10_000_000_u128, DENOM_ATOM),
+        coin(10_000_000_u128, DENOM_OSMO),
     );
 
     // Send some denom (ufallback, not part of the covenant) to the splitter
@@ -389,8 +389,8 @@ fn test_covenant_native_refund() {
 
     // Wait until depositors are ready and fund them
     suite.get_and_fund_depositors(
-        coin(10_000_000_u128.into(), DENOM_ATOM),
-        coin(10_000_000_u128.into(), DENOM_NTRN),
+        coin(10_000_000_u128, DENOM_ATOM),
+        coin(10_000_000_u128, DENOM_NTRN),
     );
 
     // tick until holder receive both denoms
@@ -407,16 +407,16 @@ fn test_covenant_native_refund() {
     // Expire the covenant
     suite.app.update_block(|block| {
         block.time = block.time.plus_hours(1_000_000);
-        block.height = block.height + 1_000_000;
+        block.height += 1_000_000;
     });
 
     // Tick until receiver_a gets his split
-    while suite.query_all_balances(&suite.party_a_receiver).len() < 1 {
+    while suite.query_all_balances(&suite.party_a_receiver).is_empty() {
         suite.tick("Wait for receiver_a to get his split");
     }
 
     // Tick until receiver_b gets his split
-    while suite.query_all_balances(&suite.party_b_receiver).len() < 1 {
+    while suite.query_all_balances(&suite.party_b_receiver).is_empty() {
         suite.tick("Wait for receiver_b to get his split");
     }
 
