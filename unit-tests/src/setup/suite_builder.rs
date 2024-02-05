@@ -10,7 +10,8 @@ use sha2::{Digest, Sha256};
 use super::{
     contracts::{
         clock_contract, ibc_forwarder_contract, interchain_router_contract, native_router_contract,
-        remote_splitter_contract, swap_covenant_contract, swap_holder_contract, native_splitter_contract,
+        native_splitter_contract, remote_splitter_contract, swap_covenant_contract,
+        swap_holder_contract,
     },
     custom_module::{NeutronKeeper, CHAIN_PREFIX},
     CustomApp, ADMIN, ALL_DENOMS, FAUCET, HUB_OSMO_CHANNEL, NTRN_HUB_CHANNEL, NTRN_OSMO_CHANNEL,
@@ -32,6 +33,11 @@ pub struct SuiteBuilder {
     pub interchain_router_code_id: u64,
     pub remote_splitter_code_id: u64,
     pub native_splitter_code_id: u64,
+}
+impl Default for SuiteBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SuiteBuilder {
@@ -125,7 +131,7 @@ impl SuiteBuilder {
 
     pub fn get_contract_addr(&mut self, code_id: u64, salt: &str) -> Addr {
         let mut hasher = Sha256::new();
-        hasher.update(salt.to_string());
+        hasher.update(salt);
         let salt = hasher.finalize().to_vec();
 
         let canonical_creator = self
@@ -147,7 +153,7 @@ impl SuiteBuilder {
         funds: &[Coin],
     ) {
         let mut hasher = Sha256::new();
-        hasher.update(salt.to_string());
+        hasher.update(salt);
         let hashed_salt = hasher.finalize().to_vec();
 
         self.app

@@ -477,10 +477,10 @@ impl Suite {
         let depositor_b = self.query_deposit_addr("party_b").unwrap();
 
         self.app
-            .send_tokens(self.fuacet.clone(), depositor_a.clone(), &vec![a])
+            .send_tokens(self.fuacet.clone(), depositor_a.clone(), &[a])
             .unwrap();
         self.app
-            .send_tokens(self.fuacet.clone(), depositor_b.clone(), &vec![b])
+            .send_tokens(self.fuacet.clone(), depositor_b.clone(), &[b])
             .unwrap();
 
         (depositor_a, depositor_b)
