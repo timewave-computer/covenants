@@ -112,7 +112,7 @@ impl NeutronKeeper {
         let mut ntrn_storage = prefixed(storage, NAMESPACE_NEUTRON);
 
         if ACCOUNTS.has(
-            &mut ntrn_storage,
+            &ntrn_storage,
             (&sender, conn_id.clone(), account_id.clone()),
         ) {
             bail!("Account already registered");
