@@ -1,3 +1,17 @@
+
+```
+     .-----.
+  ,-'.-----.'-.
+ / ,'   ∅   `. \
+; ; ∅   ^   ∅ : :
+| |     |     | |
+| |∅    +->  ∅| |
+: :           ; ;
+ \ \ ∅     ∅ / /
+  \ `.  ∅  ,' /
+  |   `---'   |
+  +-----------+
+```
 A clock contract for advancing a state machine. See src/msg.rs for API
 documentation.
 
