@@ -108,8 +108,6 @@ impl SwapCovenantInstantiate {
         });
         map
     }
-
-    pub fn get_contract_codes() {}
 }
 
 impl SwapCovenantInstantiate {

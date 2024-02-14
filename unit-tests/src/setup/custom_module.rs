@@ -1,8 +1,8 @@
-use std::str::FromStr;
+use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{
-    coin, coins, from_json, to_json_binary, to_json_string, Addr, BankMsg, StdError, StdResult,
-    Storage, Uint128,
+    coin, coins, from_json, to_json_binary, to_json_string, Addr, BalanceResponse, BankMsg,
+    BankQuery, StdError, StdResult, Storage, Uint128,
 };
 use covenant_ibc_forwarder::helpers::MsgTransfer;
 use covenant_stride_liquid_staker::helpers::Autopilot;
@@ -479,7 +479,7 @@ impl Module for NeutronKeeper {
                                 api,
                                 storage,
                                 block,
-                                Addr::unchecked(account.clone()),
+                                account.clone(),
                                 BankMsg::Burn {
                                     amount: vec![token.clone()],
                                 }
@@ -558,8 +558,189 @@ impl Module for NeutronKeeper {
                             Ok(())
                         }
 
-                        "/cosmos.bank.v1beta1.MsgSend" => todo!(),
-                        "/cosmos.bank.v1beta1.MsgMultiSend" => todo!(),
+                        "/cosmos.bank.v1beta1.MsgSend" => {
+                          let msg: cosmos_sdk_proto::cosmos::bank::v1beta1::MsgSend =
+                                Message::decode(msg.value.clone().as_slice()).unwrap();
+
+                                if let Err(err) = router
+                                .execute(
+                                    api,
+                                    storage,
+                                    block,
+                                    account.clone(),
+                                    BankMsg::Send {
+                                        to_address: msg.to_address.clone(),
+                                        amount: msg.amount
+                                            .iter()
+                                            .map(|c| {
+                                                coin(
+                                                    Uint128::from_str(&c.amount)
+                                                        .unwrap()
+                                                        .u128(),
+                                                    c.denom.clone(),
+                                                )
+                                            })
+                                            .collect(),
+                                    }
+                                    .into(),
+                                ) {
+                                  router
+                                        .sudo(
+                                            api,
+                                            storage,
+                                            block,
+                                            cw_multi_test::SudoMsg::Wasm(WasmSudo {
+                                                contract_addr: sender.clone(),
+                                                msg: to_json_binary(
+                                                    &neutron_sdk::sudo::msg::SudoMsg::Error {
+                                                        request: RequestPacket {
+                                                            sequence: Some(1),
+                                                            source_port: None,
+                                                            source_channel: Some(
+                                                                "some_channel".to_string(),
+                                                            ),
+                                                            destination_port: None,
+                                                            destination_channel: None,
+                                                            data: None,
+                                                            timeout_height: None,
+                                                            timeout_timestamp: None,
+                                                        },
+                                                        details: err.to_string(),
+                                                    },
+                                                )
+                                                .unwrap(),
+                                            }),
+                                        )
+                                        .unwrap();
+
+                                    return Ok(AppResponse {
+                                        data: Some(
+                                            to_json_binary(&MsgSubmitTxResponse {
+                                                sequence_id: 1,
+                                                channel: "some_channel".to_string(),
+                                            })
+                                            .unwrap(),
+                                        ),
+                                        events: vec![],
+                                    });
+                                };
+
+                                Ok(())
+                        },
+                        "/cosmos.bank.v1beta1.MsgMultiSend" => {
+                            let msg: cosmos_sdk_proto::cosmos::bank::v1beta1::MsgMultiSend =
+                                Message::decode(msg.value.clone().as_slice()).unwrap();
+
+                            // first verify we have enough funds to send it all
+                            let mut needed_amount: BTreeMap<String, Uint128> = BTreeMap::new();
+
+                            for output in msg.outputs.clone() {
+                                for coin in output.coins {
+                                    let amount = Uint128::from_str(&coin.amount).unwrap();
+
+                                    match needed_amount.get_key_value(&coin.denom) {
+                                        Some((_, a)) => {
+                                            needed_amount.insert(
+                                                coin.denom,
+                                                amount.checked_add(*a).unwrap(),
+                                            );
+                                        }
+                                        None => {
+                                            needed_amount.insert(coin.denom, amount);
+                                        }
+                                    }
+                                }
+                            }
+
+                            for (denom, am) in needed_amount {
+                                let curr_balance = from_json::<BalanceResponse>(
+                                    router
+                                        .query(
+                                            api,
+                                            storage,
+                                            block,
+                                            BankQuery::Balance {
+                                                address: account.to_string(),
+                                                denom,
+                                            }
+                                            .into(),
+                                        )
+                                        .unwrap(),
+                                )
+                                .unwrap();
+
+                                if curr_balance.amount.amount < am {
+                                  router
+                                        .sudo(
+                                            api,
+                                            storage,
+                                            block,
+                                            cw_multi_test::SudoMsg::Wasm(WasmSudo {
+                                                contract_addr: sender.clone(),
+                                                msg: to_json_binary(
+                                                    &neutron_sdk::sudo::msg::SudoMsg::Error {
+                                                        request: RequestPacket {
+                                                            sequence: Some(1),
+                                                            source_port: None,
+                                                            source_channel: Some(
+                                                                "some_channel".to_string(),
+                                                            ),
+                                                            destination_port: None,
+                                                            destination_channel: None,
+                                                            data: None,
+                                                            timeout_height: None,
+                                                            timeout_timestamp: None,
+                                                        },
+                                                        details: format!("Not enough balance: Current = {curr_balance:?} | Required = {am}", ),
+                                                    },
+                                                )
+                                                .unwrap(),
+                                            }),
+                                        )
+                                        .unwrap();
+
+                                    return Ok(AppResponse {
+                                        data: Some(
+                                            to_json_binary(&MsgSubmitTxResponse {
+                                                sequence_id: 1,
+                                                channel: "some_channel".to_string(),
+                                            })
+                                            .unwrap(),
+                                        ),
+                                        events: vec![],
+                                    });
+                                }
+                            }
+
+                            // After we verified we have enough funds, we can safely transfer them
+                            for output in msg.outputs {
+                                router
+                                    .execute(
+                                        api,
+                                        storage,
+                                        block,
+                                        account.clone(),
+                                        BankMsg::Send {
+                                            to_address: output.address.clone(),
+                                            amount: output
+                                                .coins
+                                                .iter()
+                                                .map(|c| {
+                                                    coin(
+                                                        Uint128::from_str(&c.amount)
+                                                            .unwrap()
+                                                            .u128(),
+                                                        c.denom.clone(),
+                                                    )
+                                                })
+                                                .collect(),
+                                        }
+                                        .into(),
+                                    )
+                                    .unwrap();
+                            }
+                            Ok(())
+                        }
                         _ => Err(StdError::generic_err("Unknown message type")),
                     }
                     .unwrap();

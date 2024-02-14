@@ -277,7 +277,7 @@ fn _query_deposit_address(deps: Deps<NeutronQuery>, env: Env) -> Result<Option<S
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> Result<Response, StdError> {
+pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> Result<Response<NeutronMsg>, StdError> {
     deps.api
         .debug(format!("WASMDEBUG: sudo: received sudo msg: {msg:?}").as_str());
 
@@ -317,7 +317,7 @@ fn sudo_open_ack(
     _channel_id: String,
     _counterparty_channel_id: String,
     counterparty_version: String,
-) -> StdResult<Response> {
+) -> StdResult<Response<NeutronMsg>> {
     // The version variable contains a JSON value with multiple fields,
     // including the generated account address.
     let parsed_version: Result<OpenAckVersion, _> =
@@ -342,7 +342,7 @@ fn sudo_open_ack(
     Ok(Response::default().add_attribute("method", "sudo_open_ack"))
 }
 
-fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response> {
+fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}",).as_str());
 
@@ -358,7 +358,7 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
     Ok(Response::default().add_attribute("method", "sudo_response"))
 }
 
-fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response> {
+fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
 
@@ -369,7 +369,7 @@ fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResu
     Ok(Response::default())
 }
 
-fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> StdResult<Response> {
+fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
     deps.api
@@ -394,7 +394,7 @@ fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> Std
 // allows you "attach" some payload to your SubmitTx message
 // and process this payload when an acknowledgement for the SubmitTx message
 // is received in Sudo handler
-fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResult<Response> {
+fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
     let payload = read_reply_payload(deps.storage)?;
     let resp: MsgSubmitTxResponse = serde_json_wasm::from_slice(
         msg.result
@@ -426,7 +426,7 @@ fn get_ica(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
+pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
     deps.api
         .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
     match msg.id {
@@ -439,7 +439,7 @@ pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
     deps.api.debug("WASMDEBUG: migrate");
 
     match msg {
