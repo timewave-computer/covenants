@@ -60,7 +60,6 @@ protobuf         = { version = "3.2.0", features = ["with-bytes"] }
 serde-json-wasm  = { version = "0.4.1" }
 base64           = "0.13.0"
 prost            = "0.11"
-astroport        = "2.9.5"
 prost-types      = "0.11"
 bech32           = "0.9.0"
 cosmwasm-schema  = "1.5.0"
@@ -78,17 +77,21 @@ cw2             = "1.0.1"
 serde           = { version = "1.0.145", default-features = false, features = ["derive"] }
 thiserror       = "1.0.31"
 schemars        = "0.8.10"
-cw20            = { version = "1.1.2" }
+cw20            = { version = "0.15.1" }
+cw20-base       = { version = "0.15.1" }
 proc-macro2     = "1"
 quote           = "1"
 syn             = "1"
 
+astroport = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+
 # dev-dependencies
 cw-multi-test                  = { git = "https://github.com/Art3miX/cw-multi-test", branch = "main", features = ["cosmwasm_1_2"] }
 anyhow                         = { version = "1.0.51" }
-cw1-whitelist                  = "1.1.2"
+cw1-whitelist                  = "0.15"
 astroport-token                = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-whitelist            = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-factory              = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-pair             = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
