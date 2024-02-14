@@ -224,7 +224,9 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
                     message: "split_funds_msg".to_string(),
                 },
             )?;
-            Ok(Response::default().add_submessages(vec![sudo_msg]))
+            Ok(Response::default()
+                .add_attribute("method", "try_split_funds")
+                .add_submessages(vec![sudo_msg]))
         }
         None => {
             // I can't think of a case of how we could end up here as `sudo_open_ack`

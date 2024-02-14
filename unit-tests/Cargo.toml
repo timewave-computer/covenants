@@ -5,17 +5,18 @@ authors = ["Art3miX <r3mix.il@gmail.com>"]
 edition = "2021"
 
 [dev-dependencies]
-cosmwasm-std    = { workspace = true }
-cosmwasm-schema = { workspace = true }
-cw-storage-plus = { workspace = true }
-cw-utils        = { workspace = true }
-cw-multi-test   = { workspace = true }
-neutron-sdk     = { workspace = true }
-sha2            = { workspace = true }
-prost           = { workspace = true }
-prost-types     = { workspace = true }
-colored         = "1.9.4"
-const_format    = "0.2.32"
+cosmwasm-std     = { workspace = true }
+cosmwasm-schema  = { workspace = true }
+cw-storage-plus  = { workspace = true }
+cw-utils         = { workspace = true }
+cw-multi-test    = { workspace = true }
+neutron-sdk      = { workspace = true }
+sha2             = { workspace = true }
+prost            = { workspace = true }
+prost-types      = { workspace = true }
+colored          = "1.9.4"
+const_format     = "0.2.32"
+cosmos-sdk-proto = { workspace = true }
 
 covenant-remote-chain-splitter      = { workspace = true }
 covenant-ibc-forwarder              = { workspace = true }
@@ -35,3 +36,15 @@ covenant-single-party-pol-holder    = { workspace = true }
 covenant-osmo-liquid-pooler         = { workspace = true }
 
 covenant-utils = { workspace = true }
+
+# astroport stuff
+cw20                           = { workspace = true }
+cw20-base                      = { workspace = true }
+cw1-whitelist                  = { workspace = true }
+astroport                      = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-token                = { workspace = true }
+astroport-whitelist            = { workspace = true }
+astroport-factory              = { workspace = true }
+astroport-native-coin-registry = { workspace = true }
+astroport-pair-stable          = { workspace = true }
+astroport-pair             = { workspace = true }

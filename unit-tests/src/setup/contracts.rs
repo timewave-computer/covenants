@@ -9,7 +9,9 @@ use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 /// Turn a neutron response into an empty response
 /// This is fine because the contract return an empty response, but our testing enviroment expects a neutron response
 /// the contract that uses this function will never emit a neutron response anyways
-fn execute_into_neutron<E: Display>(into: Result<Response, E>) -> Result<Response<NeutronMsg>, E> {
+pub(crate) fn execute_into_neutron<E: Display>(
+    into: Result<Response, E>,
+) -> Result<Response<NeutronMsg>, E> {
     into.map(|r| {
         let mut res: Response<NeutronMsg> = Response::<NeutronMsg>::default();
         res.data = r.data;
@@ -47,7 +49,7 @@ fn execute_into_neutron<E: Display>(into: Result<Response, E>) -> Result<Respons
 }
 
 /// Turn neutron DepsMut into empty DepsMut
-fn get_empty_depsmut(deps: DepsMut<NeutronQuery>) -> DepsMut<'_, Empty> {
+pub(crate) fn get_empty_depsmut(deps: DepsMut<NeutronQuery>) -> DepsMut<'_, Empty> {
     DepsMut {
         storage: deps.storage,
         api: deps.api,
@@ -56,7 +58,7 @@ fn get_empty_depsmut(deps: DepsMut<NeutronQuery>) -> DepsMut<'_, Empty> {
 }
 
 /// Turn neutron Deps into empty Deps
-fn get_empty_deps(deps: Deps<NeutronQuery>) -> Deps<'_, Empty> {
+pub(crate) fn get_empty_deps(deps: Deps<NeutronQuery>) -> Deps<'_, Empty> {
     Deps {
         storage: deps.storage,
         api: deps.api,
@@ -143,6 +145,8 @@ pub fn remote_splitter_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
         covenant_remote_chain_splitter::contract::instantiate,
         covenant_remote_chain_splitter::contract::query,
     )
+    .with_reply(covenant_remote_chain_splitter::contract::reply)
+    .with_sudo(covenant_remote_chain_splitter::contract::sudo)
     .with_migrate(covenant_remote_chain_splitter::contract::migrate);
     Box::new(contract)
 }
@@ -322,9 +326,9 @@ pub fn stride_lser_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
         covenant_stride_liquid_staker::contract::instantiate,
         covenant_stride_liquid_staker::contract::query,
     )
-    .with_reply_empty(covenant_stride_liquid_staker::contract::reply)
-    .with_sudo_empty(covenant_stride_liquid_staker::contract::sudo)
-    .with_migrate_empty(covenant_stride_liquid_staker::contract::migrate);
+    .with_reply(covenant_stride_liquid_staker::contract::reply)
+    .with_sudo(covenant_stride_liquid_staker::contract::sudo)
+    .with_migrate(covenant_stride_liquid_staker::contract::migrate);
     Box::new(contract)
 }
 
@@ -478,5 +482,60 @@ pub fn two_party_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>
     };
 
     let contract = ContractWrapper::new(exec, init, query).with_migrate(migrate);
+    Box::new(contract)
+}
+
+pub fn astroport_pooler_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
+    let exec = |deps: DepsMut<NeutronQuery>,
+                env: Env,
+                info: MessageInfo,
+                msg: covenant_astroport_liquid_pooler::msg::ExecuteMsg| {
+        execute_into_neutron(covenant_astroport_liquid_pooler::contract::execute(
+            get_empty_depsmut(deps),
+            env,
+            info,
+            msg,
+        ))
+    };
+
+    let init = |deps: DepsMut<NeutronQuery>,
+                env: Env,
+                info: MessageInfo,
+                msg: covenant_astroport_liquid_pooler::msg::InstantiateMsg| {
+        execute_into_neutron(covenant_astroport_liquid_pooler::contract::instantiate(
+            get_empty_depsmut(deps),
+            env,
+            info,
+            msg,
+        ))
+    };
+
+    let query = |deps: Deps<NeutronQuery>,
+                 env: Env,
+                 msg: covenant_astroport_liquid_pooler::msg::QueryMsg| {
+        covenant_astroport_liquid_pooler::contract::query(get_empty_deps(deps), env, msg)
+    };
+
+    let reply = |deps: DepsMut<NeutronQuery>, env: Env, reply: Reply| {
+        execute_into_neutron(covenant_astroport_liquid_pooler::contract::reply(
+            get_empty_depsmut(deps),
+            env,
+            reply,
+        ))
+    };
+
+    let migrate = |deps: DepsMut<NeutronQuery>,
+                   env: Env,
+                   msg: covenant_astroport_liquid_pooler::msg::MigrateMsg| {
+        execute_into_neutron(covenant_astroport_liquid_pooler::contract::migrate(
+            get_empty_depsmut(deps),
+            env,
+            msg,
+        ))
+    };
+
+    let contract = ContractWrapper::new(exec, init, query)
+        .with_reply(reply)
+        .with_migrate(migrate);
     Box::new(contract)
 }
