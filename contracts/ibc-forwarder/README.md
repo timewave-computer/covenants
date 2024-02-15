@@ -1,4 +1,40 @@
 # IBC Forwarder
+```
+       ┌──────────────┐
+    ┌──│    clock     │
+    │  └──────────────┘
+    │  t = 1
+    │  ┌────────────────────────────┐              ┌────────────────────────────┐
+    │  │neutron                     │              │remote chain                │
+    │  │         ┌─────────────┐    │              │                            │
+    │  │         │next contract│    │              │                            │
+    │  │         └─────────────┘    │              │                            │
+    │  │                            │              │                            │
+    │  │         ┌─────────────┐    │              │                            │
+    │  │         │             │    │              │      ┌───────┐             │
+    ├──┼──tick──▶│ibc forwarder│───1. register_ica─┼─────▶│  ica  │             │
+    │  │         │             │    │              │      └───────┘             │
+    │  │         └─────────────┘    │              │          │                 │
+    │  │                ▲           │              │          │                 │
+    │  └────────────────┼───────────┘              └──────────┼─────────────────┘
+    │                   └──1.1. ContractState::IcaCreated─────┘
+    │
+    │  t = 2
+    │  ┌────────────────────────────┐              ┌────────────────────────────┐
+    │  │neutron  ┌─────────────┐    │              │remote chain                │
+    │  │         │next contract│◀───┼──────────┐   │                            │
+    │  │         └──────▲──────┘    │          │   │            ┌───────┐       │
+    │  │                │           │       2.3. MsgTransfer────│  ica  │       │
+    │  │       2.1. query deposit   │              │            └───────┘       │
+    │  │         address & memo     │              │                ▲           │
+    │  │                │           │              │                │           │
+    │  │         ┌──────┴──────┐    │              │                │           │
+    │  │         │             │    │              │                │           │
+    └──┼──tick──▶│ibc forwarder│────┼──2.2. forward_funds───────────┘           │
+       │         │             │    │              │                            │
+       │         └─────────────┘    │              │                            │
+       └────────────────────────────┘              └────────────────────────────┘
+```
 
 IBC Forwarders are contracts instantiated on neutron with the sole responsibility of
 receiving funds to an ICA on a remote chain and forwarding them to another module.
