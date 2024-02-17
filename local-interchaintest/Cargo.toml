@@ -1,0 +1,12 @@
+[package]
+name = "e2e_testing"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+repository.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cosmwasm-std.workspace = true
+localic-std = { git = "https://github.com/strangelove-ventures/interchaintest", version = "0.0.1" }
