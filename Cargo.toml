@@ -1,5 +1,5 @@
 [workspace]
-members  = ["packages/*", "contracts/*"]
+members  = ["packages/*", "contracts/*", "local-interchaintest/"]
 resolver = "2"
 
 [workspace.package]
