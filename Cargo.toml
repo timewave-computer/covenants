@@ -37,6 +37,8 @@ covenant-osmo-liquid-pooler         = { path = "contracts/osmo-liquid-pooler" }
 covenant-outpost-osmo-liquid-pooler = { path = "contracts/outpost-osmo-liquid-pooler" }
 covenant-single-party-pol-holder    = { path = "contracts/single-party-pol-holder" }
 covenant-stride-liquid-staker       = { path = "contracts/stride-liquid-staker" }
+cp-discovery-two-party-pol-holder = { path = "contracts/counterparty-discovery-two-party-holder" }
+cp-discovery-two-party-pol-covenant = { path = "contracts/counterparty-discovery-covenant-poc" }
 
 # packages
 polytone        = "1.0.0"

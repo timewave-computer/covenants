@@ -454,6 +454,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "coutnerparty-discovery-covenant-two-party-pol-holder"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "astroport 2.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-clock",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-multi-test",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "cw20 1.1.2",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "covenant-astroport-liquid-pooler"
 version = "1.0.0"
 dependencies = [
