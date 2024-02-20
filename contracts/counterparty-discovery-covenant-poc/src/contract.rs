@@ -6,19 +6,19 @@ use cosmwasm_std::{
     to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult, WasmMsg,
 };
-use covenant_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits};
 use cw2::set_contract_version;
-
+use counterparty_discovery_covenant_holder::msg::TwoPartyPolCovenantConfig;
+use counterparty_discovery_covenant_holder::msg::RagequitConfig;
+use counterparty_discovery_covenant_holder::msg::UndiscoveredTwoPartyPolCovenantCounterparty;
 use crate::{
     error::ContractError,
-    msg::{
-        InstantiateMsg, LiquidPoolerMigrateMsg, MigrateMsg, QueryMsg,
-        },
-    state::{
-        CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
-    },
+    msg::{InstantiateMsg, LiquidPoolerMigrateMsg, MigrateMsg, QueryMsg},
+    state::{CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR},
 };
+
+use cosmwasm_std::Uint128;
+use cosmwasm_std::Decimal;
 
 const CONTRACT_NAME: &str = "crates.io:counterparty-discovery-covenant-poc";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -63,7 +63,7 @@ pub fn instantiate(
     clock_whitelist.push(holder_instantiate2_config.addr.to_string());
     clock_whitelist.push(liquid_pooler_instantiate2_config.addr.to_string());
 
-    let holder_instantiate2_msg = covenant_two_party_pol_holder::msg::InstantiateMsg {
+    let holder_instantiate2_msg = counterparty_discovery_covenant_holder::msg::InstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
         lockup_config: msg.lockup_config,
         next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
@@ -73,7 +73,7 @@ pub fn instantiate(
             msg.splits,
             (
                 msg.party_a_config.get_final_receiver_address(),
-                "TODO".to_string(),
+                msg.party_a_config.get_final_receiver_address(),
             ),
             (
                 msg.party_b_config.get_final_receiver_address(),
@@ -83,23 +83,21 @@ pub fn instantiate(
         fallback_split: match msg.fallback_split {
             Some(config) => Some(config.remap_receivers_to_routers(
                 msg.party_a_config.get_final_receiver_address(),
-                "TODO".to_string(),
+                msg.party_a_config.get_final_receiver_address(),
                 msg.party_b_config.get_final_receiver_address(),
                 "TODO".to_string(),
             )?),
             None => None,
         },
-        covenant_config: TwoPartyPolCovenantConfig {
-            party_a: msg.party_a_config.to_two_party_pol_party(
-                msg.party_a_share,
-                "TODO".to_string(),
-            ),
-            party_b: msg.party_b_config.to_two_party_pol_party(
-                msg.party_b_share,
-                "TODO".to_string(),
-            ),
-            covenant_type: msg.covenant_type.clone(),
+        party: msg.party_a_config.to_two_party_pol_party(
+            msg.party_a_share,
+            "TODO".to_string(),
+        ),
+        counterparty: UndiscoveredTwoPartyPolCovenantCounterparty {
+            contribution: msg.party_b_config.get_contribution(),
+            allocation: Decimal::from_ratio(msg.party_b_share, Uint128::new(100)),
         },
+        covenant_type: msg.covenant_type.clone(),
         emergency_committee_addr: msg.emergency_committee,
     }
     .to_instantiate2_msg(
@@ -162,9 +160,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LiquidPoolerAddress {} => {
             Ok(to_json_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?)
         }
-        QueryMsg::PartyDepositAddress { party } => {
-            // TODO
-            Ok(to_json_binary(&env.contract.address)?)}
+        QueryMsg::PartyDepositAddress {} => {
+            Ok(to_json_binary(&COVENANT_POL_HOLDER_ADDR.load(deps.storage)?)?)
+        }
     }
 }
 
@@ -176,10 +174,6 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             clock,
             holder,
             liquid_pooler,
-            party_a_router,
-            party_b_router,
-            party_a_forwarder,
-            party_b_forwarder,
         } => {
             let mut migrate_msgs = vec![];
             let mut resp = Response::default().add_attribute("method", "migrate_contracts");

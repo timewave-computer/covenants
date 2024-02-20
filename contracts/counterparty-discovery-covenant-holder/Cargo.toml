@@ -1,5 +1,5 @@
 [package]
-name        = "coutnerparty-discovery-covenant-two-party-pol-holder"
+name        = "counterparty-discovery-covenant-holder"
 authors     = ["benskey bekauz@protonmail.com"]
 description = "Two party POL holder module for covenants with counterparty discovery"
 edition     = { workspace = true }

@@ -29,7 +29,7 @@ use crate::{
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:counterparty-discovery-covenant-two-party-pol-holder";
+const CONTRACT_NAME: &str = "crates.io:counterparty-discovery-covenant-holder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -128,7 +128,7 @@ fn try_deposit_counterparty(
     env: Env,
 ) -> Result<Response, ContractError> {
     let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
-    let expected_contribution = covenant_config.counterparty.contribution;
+    let expected_contribution = covenant_config.counterparty.contribution.clone();
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
 
     // deposits should only happen in instantiated state
@@ -138,9 +138,13 @@ fn try_deposit_counterparty(
     );
 
     // assert that the contribution is met
+    let paid_deposit_amount = must_pay(&info, &expected_contribution.denom)?;
+
     ensure!(
-        must_pay(&info, &expected_contribution.denom)? == expected_contribution.amount,
-        ContractError::InsufficientDeposits {}
+        paid_deposit_amount >= expected_contribution.amount,
+        ContractError::Std(StdError::generic_err(
+            format!("expected deposit: {:?}, got: {:?}", covenant_config.counterparty.contribution, paid_deposit_amount)
+        ))
     );
 
     let splits = DENOM_SPLITS.load(deps.storage)?;
@@ -153,7 +157,7 @@ fn try_deposit_counterparty(
         let updated_split = split_config.remap_receivers_to_routers(
             covenant_config.party.host_addr.to_string(),
             covenant_config.party.host_addr.to_string(),
-            covenant_config.counterparty.host_addr.to_string(),
+            "TODO".to_string(),
             info.sender.to_string(),
         )?;
         new_splits.explicit_splits.insert(denom, updated_split);
@@ -164,7 +168,7 @@ fn try_deposit_counterparty(
             Some(split.remap_receivers_to_routers(
                 covenant_config.party.host_addr.to_string(),
                 covenant_config.party.host_addr.to_string(),
-                covenant_config.counterparty.host_addr.to_string(),
+                "TODO".to_string(),
                 info.sender.to_string(),
             )?)
         },
@@ -177,10 +181,10 @@ fn try_deposit_counterparty(
         allocation: covenant_config.counterparty.allocation,
         router: info.sender.to_string(),
     };
-     
+
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
     DENOM_SPLITS.save(deps.storage, &new_splits)?;
-    
+
     Ok(Response::default().add_attribute("method", "counterparty_deposit"))
 }
 

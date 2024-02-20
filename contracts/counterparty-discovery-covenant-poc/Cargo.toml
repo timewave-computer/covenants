@@ -40,10 +40,7 @@ prost-types                      = { workspace = true }
 bech32                           = { workspace = true }
 covenant-clock                   = { workspace = true, features = ["library"] }
 covenant-utils                   = { workspace = true }
-covenant-ibc-forwarder           = { workspace = true, features = ["library"] }
-covenant-interchain-router       = { workspace = true, features = ["library"] }
-covenant-native-router           = { workspace = true, features = ["library"] }
-covenant-two-party-pol-holder    = { workspace = true, features = ["library"] }
+counterparty-discovery-covenant-holder = { workspace = true, features = ["library"] }
 covenant-astroport-liquid-pooler = { workspace = true, features = ["library"] }
 covenant-osmo-liquid-pooler      = { workspace = true, features = ["library"] }
 astroport                        = { workspace = true }

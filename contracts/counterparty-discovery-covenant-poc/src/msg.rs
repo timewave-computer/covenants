@@ -4,7 +4,6 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{coin, Addr, Decimal, Deps, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
-use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty,
     DestinationConfig, InterchainCovenantParty, NativeCovenantParty, PoolPriceConfig,
@@ -12,6 +11,10 @@ use covenant_utils::{
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
+use counterparty_discovery_covenant_holder::msg::TwoPartyPolCovenantParty;
+use counterparty_discovery_covenant_holder::msg::CovenantType;
+use counterparty_discovery_covenant_holder::msg::RagequitConfig;
+use cosmwasm_std::Coin;
 
 const NEUTRON_DENOM: &str = "untrn";
 pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
@@ -139,6 +142,13 @@ impl CovenantPartyConfig {
         }
     }
 
+    pub fn get_contribution(&self) -> Coin {
+        match self {
+            CovenantPartyConfig::Interchain(config) => config.contribution.clone(),
+            CovenantPartyConfig::Native(config) => config.contribution.clone(),
+        }
+    }
+
     pub fn get_native_denom(&self) -> String {
         match self {
             CovenantPartyConfig::Interchain(config) => config.native_denom.to_string(),
@@ -150,41 +160,6 @@ impl CovenantPartyConfig {
         match self {
             CovenantPartyConfig::Native(_) => contract_codes.native_router_code,
             CovenantPartyConfig::Interchain(_) => contract_codes.interchain_router_code,
-        }
-    }
-
-    pub fn to_router_instantiate2_msg(
-        &self,
-        admin_addr: String,
-        clock_addr: Addr,
-        label: String,
-        denoms: BTreeSet<String>,
-        instantiate2_helper: Instantiate2HelperConfig,
-    ) -> StdResult<WasmMsg> {
-        match self {
-            CovenantPartyConfig::Interchain(party) => {
-                let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
-                    clock_address: clock_addr,
-                    destination_config: DestinationConfig {
-                        local_to_destination_chain_channel_id: party
-                            .host_to_party_chain_channel_id
-                            .to_string(),
-                        destination_receiver_addr: party.party_receiver_addr.to_string(),
-                        ibc_transfer_timeout: party.ibc_transfer_timeout,
-                        denom_to_pfm_map: party.denom_to_pfm_map.clone(),
-                    },
-                    denoms,
-                };
-                Ok(instantiate_msg.to_instantiate2_msg(&instantiate2_helper, admin_addr, label)?)
-            }
-            CovenantPartyConfig::Native(party) => {
-                let instantiate_msg = covenant_native_router::msg::InstantiateMsg {
-                    clock_address: clock_addr.to_string(),
-                    receiver_address: party.party_receiver_addr.to_string(),
-                    denoms,
-                };
-                Ok(instantiate_msg.to_instantiate2_msg(&instantiate2_helper, admin_addr, label)?)
-            }
         }
     }
 }
@@ -275,19 +250,15 @@ pub enum QueryMsg {
     #[returns(Addr)]
     LiquidPoolerAddress {},
     #[returns(Addr)]
-    PartyDepositAddress { party: String },
+    PartyDepositAddress {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateCovenant {
         clock: Option<covenant_clock::msg::MigrateMsg>,
-        holder: Option<covenant_two_party_pol_holder::msg::MigrateMsg>,
+        holder: Option<counterparty_discovery_covenant_holder::msg::MigrateMsg>,
         liquid_pooler: Option<LiquidPoolerMigrateMsg>,
-        party_a_router: Option<RouterMigrateMsg>,
-        party_b_router: Option<RouterMigrateMsg>,
-        party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        party_b_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
     },
 }
 
@@ -295,10 +266,4 @@ pub enum MigrateMsg {
 pub enum LiquidPoolerMigrateMsg {
     Osmosis(covenant_osmo_liquid_pooler::msg::MigrateMsg),
     Astroport(covenant_astroport_liquid_pooler::msg::MigrateMsg),
-}
-
-#[cw_serde]
-pub enum RouterMigrateMsg {
-    Interchain(covenant_interchain_router::msg::MigrateMsg),
-    Native(covenant_native_router::msg::MigrateMsg),
 }

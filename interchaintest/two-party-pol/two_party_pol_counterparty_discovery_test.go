@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -204,8 +205,6 @@ func TestTwoPartyPolCounterpartyDiscovery(t *testing.T) {
 
 	sideBasedRqCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
 
-	happyCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
-
 	sideBasedHappyCaseHubAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(atomContributionAmount), atom)[0]
 
 	rqCaseNeutronAccount := ibctest.GetAndFundTestUsers(t, ctx, "default", int64(neutronContributionAmount), neutron)[0]
@@ -249,7 +248,7 @@ func TestTwoPartyPolCounterpartyDiscovery(t *testing.T) {
 		// Wasm code that we need to store on Neutron
 		const covenantContractPath = "wasms/counterparty_discovery_covenant_poc.wasm"
 		const clockContractPath = "wasms/covenant_clock.wasm"
-		const holderContractPath = "wasms/coutnerparty_discovery_covenant_two_party_pol_holder.wasm"
+		const holderContractPath = "wasms/counterparty_discovery_covenant_holder.wasm"
 		const liquidPoolerPath = "wasms/covenant_astroport_liquid_pooler.wasm"
 
 		// After storing on Neutron, we will receive a code id
@@ -414,22 +413,22 @@ func TestTwoPartyPolCounterpartyDiscovery(t *testing.T) {
 					Amount: strconv.FormatUint(neutronContributionAmount, 10),
 				}
 
-				hubReceiverAddr = happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
+				hubReceiverAddr = hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
 				neutronReceiverAddr = happyCaseNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
 
 				println("hub receiver address: ", hubReceiverAddr)
 
 				partyAConfig := NativeCovenantParty{
-					Addr:              hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
-					NativeDenom:       neutronAtomIbcDenom,
-					PartyReceiverAddr: hubReceiverAddr,
-					Contribution:      atomCoin,
-				}
-				partyBConfig := NativeCovenantParty{
 					Addr:              neutronReceiverAddr,
 					NativeDenom:       cosmosNeutron.Config().Denom,
 					PartyReceiverAddr: neutronReceiverAddr,
 					Contribution:      neutronCoin,
+				}
+				partyBConfig := NativeCovenantParty{
+					Addr:              hubReceiverAddr,
+					NativeDenom:       neutronAtomIbcDenom,
+					PartyReceiverAddr: hubReceiverAddr,
+					Contribution:      atomCoin,
 				}
 				codeIds := ContractCodeIds{
 					IbcForwarderCode:     5,
@@ -532,11 +531,7 @@ func TestTwoPartyPolCounterpartyDiscovery(t *testing.T) {
 			})
 
 			t.Run("fund the forwarders with sufficient funds", func(t *testing.T) {
-				partyADepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_a")
-				partyBDepositAddress = testCtx.QueryDepositAddress(covenantAddress, "party_b")
-
-				testCtx.FundChainAddrs([]string{partyBDepositAddress}, cosmosNeutron, happyCaseNeutronAccount, int64(neutronContributionAmount))
-				testCtx.FundChainAddrs([]string{partyADepositAddress}, cosmosAtom, happyCaseHubAccount, int64(atomContributionAmount))
+				testCtx.FundChainAddrs([]string{holderAddress}, cosmosNeutron, happyCaseNeutronAccount, int64(neutronContributionAmount))
 
 				hubNeutronAddress := hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
 				_, err := atom.SendIBCTransfer(ctx,
@@ -554,20 +549,23 @@ func TestTwoPartyPolCounterpartyDiscovery(t *testing.T) {
 				hubNeutronAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, hubNeutronAddress)
 				println("hub neutron atom balance: ", hubNeutronAtomBal)
 
+				atomContributionStr := strconv.FormatUint(atomContributionAmount, 10) + neutronAtomIbcDenom
+				neutronContributionStr := strconv.FormatUint(neutronContributionAmount/10, 10) + cosmosNeutron.Config().Denom
+
 				cmd := []string{"neutrond", "tx", "wasm", "execute", holderAddress,
 					`{"counterparty_deposit":{}}`,
 					"--from", hubNeutronAccount.GetKeyName(),
-					"--gas-prices", "0.0untrn",
-					"--gas-adjustment", `1.5`,
 					"--output", "json",
 					"--node", testCtx.Neutron.GetRPCAddress(),
 					"--home", testCtx.Neutron.HomeDir(),
 					"--chain-id", testCtx.Neutron.Config().ChainID,
-					"--fees", "100000untrn",
+					"--amount", atomContributionStr,
+					"--amount", neutronContributionStr,
+					"--gas", "auto",
 					"--keyring-backend", keyring.BackendTest,
 					"-y",
 				}
-				println("attempting to deposit to holder")
+				println("attempting to deposit to holder: \n", strings.Join(cmd, " "), "\n")
 				stdout, stderr, err := cosmosNeutron.Exec(
 					testCtx.Ctx,
 					cmd,
@@ -576,6 +574,11 @@ func TestTwoPartyPolCounterpartyDiscovery(t *testing.T) {
 				println("stdout: ", string(stdout))
 				println("stderr: ", string(stderr))
 				println("err: ", err)
+
+				holderAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+				holderNeutronBal := testCtx.QueryNeutronDenomBalance(testCtx.Neutron.Config().Denom, holderAddress)
+				println("holder atom balance: ", holderAtomBal)
+				println("holder neutron balance: ", holderNeutronBal)
 			})
 
 			t.Run("tick until forwarders forward the funds to holder", func(t *testing.T) {
