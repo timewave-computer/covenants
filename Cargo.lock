@@ -420,6 +420,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "counterparty-discovery-covenant-poc"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "astroport 2.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "base64 0.13.1",
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-astroport-liquid-pooler",
+ "covenant-clock",
+ "covenant-ibc-forwarder",
+ "covenant-interchain-router",
+ "covenant-native-router",
+ "covenant-osmo-liquid-pooler",
+ "covenant-two-party-pol-holder",
+ "covenant-utils",
+ "cw-multi-test",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types 0.11.9",
+ "protobuf 3.3.0",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "sha2 0.9.9",
+ "thiserror",
+]
+
+[[package]]
 name = "covenant-astroport-liquid-pooler"
 version = "1.0.0"
 dependencies = [
