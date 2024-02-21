@@ -9,13 +9,11 @@ use cosmwasm_std::{
 use cosmwasm_std::entry_point;
 
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::split::SplitConfig;
 use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
 use cw2::set_contract_version;
 use cw_utils::must_pay;
-use serde::de;
 
-use crate::msg::CovenantType;
+use crate::msg::{CovenantType, PartyDiscoveryEnum};
 use crate::state::{WithdrawState, LIQUID_POOLER_ADDRESS, WITHDRAW_STATE};
 use crate::{
     error::ContractError,
@@ -55,35 +53,20 @@ pub fn instantiate(
 
     let covenant_party_config = TwoPartyPolCovenantConfig {
         party: msg.party.clone(),
-        counterparty: TwoPartyPolCovenantParty {
-            contribution: msg.counterparty.contribution.clone(),
-            host_addr: "unclaimed".to_string(),
-            controller_addr: "unclaimed".to_string(),
-            allocation: msg.counterparty.allocation.clone(),
-            router: "unclaimed".to_string(),
-        },
+        counterparty: PartyDiscoveryEnum::Undiscovered(msg.counterparty.clone()),
         covenant_type: msg.covenant_type.clone(),
     };
 
     covenant_party_config.validate(deps.api)?;
     msg.ragequit_config.validate(
         covenant_party_config.party.allocation,
-        covenant_party_config.counterparty.allocation,
+        covenant_party_config.counterparty.get_allocation(),
     )?;
-
-    // validate the splits and collect them into map
-    let explicit_splits: BTreeMap<String, SplitConfig> = msg
-        .splits
-        .iter()
-        .filter_map(|(denom, split)| {
-            Some((denom.to_string(), split.to_owned()))
-        })
-        .collect();
 
     DENOM_SPLITS.save(
         deps.storage,
         &DenomSplits {
-            explicit_splits,
+            explicit_splits: msg.splits.clone(),
             fallback_split: msg.fallback_split.clone(),
         },
     )?;
@@ -125,10 +108,10 @@ pub fn execute(
 fn try_deposit_counterparty(
     deps: DepsMut,
     info: MessageInfo,
-    env: Env,
+    _env: Env,
 ) -> Result<Response, ContractError> {
     let mut covenant_config = COVENANT_CONFIG.load(deps.storage)?;
-    let expected_contribution = covenant_config.counterparty.contribution.clone();
+    let expected_contribution = covenant_config.counterparty.get_contribution();
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
 
     // deposits should only happen in instantiated state
@@ -142,9 +125,11 @@ fn try_deposit_counterparty(
 
     ensure!(
         paid_deposit_amount >= expected_contribution.amount,
-        ContractError::Std(StdError::generic_err(
-            format!("expected deposit: {:?}, got: {:?}", covenant_config.counterparty.contribution, paid_deposit_amount)
-        ))
+        ContractError::Std(StdError::generic_err(format!(
+            "expected deposit: {:?}, got: {:?}",
+            covenant_config.counterparty.get_contribution(),
+            paid_deposit_amount
+        )))
     );
 
     let splits = DENOM_SPLITS.load(deps.storage)?;
@@ -153,34 +138,24 @@ fn try_deposit_counterparty(
         fallback_split: None,
     };
 
+    let remap_vec = vec![("TODO".to_string(), info.sender.to_string())];
+
     for (denom, split_config) in splits.explicit_splits.clone() {
-        let updated_split = split_config.remap_receivers_to_routers(
-            covenant_config.party.host_addr.to_string(),
-            covenant_config.party.host_addr.to_string(),
-            "TODO".to_string(),
-            info.sender.to_string(),
-        )?;
+        let updated_split = split_config.remap_receivers_to_routers(remap_vec.clone())?;
         new_splits.explicit_splits.insert(denom, updated_split);
     }
 
     new_splits.fallback_split = match splits.fallback_split {
-        Some(split) => {
-            Some(split.remap_receivers_to_routers(
-                covenant_config.party.host_addr.to_string(),
-                covenant_config.party.host_addr.to_string(),
-                "TODO".to_string(),
-                info.sender.to_string(),
-            )?)
-        },
+        Some(split) => Some(split.remap_receivers_to_routers(remap_vec.clone())?),
         None => None,
     };
-    covenant_config.counterparty = TwoPartyPolCovenantParty {
+    covenant_config.counterparty = PartyDiscoveryEnum::Discovered(TwoPartyPolCovenantParty {
         contribution: expected_contribution,
         host_addr: info.sender.to_string(),
         controller_addr: info.sender.to_string(),
-        allocation: covenant_config.counterparty.allocation,
+        allocation: covenant_config.counterparty.get_allocation(),
         router: info.sender.to_string(),
-    };
+    });
 
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
     DENOM_SPLITS.save(deps.storage, &new_splits)?;
@@ -340,7 +315,7 @@ fn try_distribute(mut deps: DepsMut, info: MessageInfo) -> Result<Response, Cont
             try_claim_side_based(
                 deps,
                 claim_party,
-                counterparty,
+                PartyDiscoveryEnum::Discovered(counterparty),
                 info.funds,
                 covenant_config,
                 denom_splits,
@@ -361,7 +336,6 @@ fn try_withdraw_failed(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
     Ok(Response::default())
 }
 
-#[allow(clippy::too_many_arguments)]
 fn try_claim_share_based(
     deps: DepsMut,
     mut claim_party: TwoPartyPolCovenantParty,
@@ -383,7 +357,7 @@ fn try_claim_share_based(
         CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
     };
 
-    covenant_config.update_parties(claim_party, counterparty);
+    covenant_config.update_parties(claim_party, PartyDiscoveryEnum::Discovered(counterparty));
 
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
 
@@ -392,11 +366,10 @@ fn try_claim_share_based(
         .add_messages(messages))
 }
 
-#[allow(clippy::too_many_arguments)]
 fn try_claim_side_based(
     deps: DepsMut,
     mut claim_party: TwoPartyPolCovenantParty,
-    mut counterparty: TwoPartyPolCovenantParty,
+    mut counterparty: PartyDiscoveryEnum,
     funds: Vec<Coin>,
     mut covenant_config: TwoPartyPolCovenantConfig,
     denom_splits: DenomSplits,
@@ -404,7 +377,7 @@ fn try_claim_side_based(
     let messages: Vec<CosmosMsg> = denom_splits.get_shared_distribution_messages(funds);
 
     claim_party.allocation = Decimal::zero();
-    counterparty.allocation = Decimal::zero();
+    counterparty.set_allocation(Decimal::zero());
     covenant_config.update_parties(claim_party, counterparty);
 
     // update the states
@@ -431,7 +404,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         ContractState::Expired | ContractState::Ragequit => Ok(Response::default()
             .add_attribute("method", "tick")
             .add_attribute("contract_state", state.to_string())),
-}
+    }
 }
 
 fn try_deposit(
@@ -450,11 +423,11 @@ fn try_deposit(
     )?;
     let party_b_bal = deps.querier.query_balance(
         env.contract.address.to_string(),
-        config.counterparty.contribution.denom,
+        config.counterparty.get_contribution().denom,
     )?;
 
     let party_a_fulfilled = config.party.contribution.amount <= party_a_bal.amount;
-    let party_b_fulfilled = config.counterparty.contribution.amount <= party_b_bal.amount;
+    let party_b_fulfilled = config.counterparty.get_contribution().amount <= party_b_bal.amount;
 
     // note: even if both parties deposit their funds in time,
     // it is important to trigger this method before the expiry block
@@ -473,7 +446,7 @@ fn try_deposit(
                 }
                 // refund party B
                 (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
-                    to_address: config.counterparty.router,
+                    to_address: config.counterparty.get_receiver_addr()?,
                     amount: vec![party_b_bal],
                 })],
                 // refund party A
@@ -488,7 +461,7 @@ fn try_deposit(
                         amount: vec![party_a_bal],
                     }),
                     CosmosMsg::Bank(BankMsg::Send {
-                        to_address: config.counterparty.router,
+                        to_address: config.counterparty.get_receiver_addr()?,
                         amount: vec![party_b_bal],
                     }),
                 ],
@@ -626,9 +599,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::NextContract {} => {
             Ok(to_json_binary(&LIQUID_POOLER_ADDRESS.load(deps.storage)?)?)
         }
-        QueryMsg::ConfigPartyA {} => Ok(to_json_binary(
-            &COVENANT_CONFIG.load(deps.storage)?.party,
-        )?),
+        QueryMsg::ConfigPartyA {} => {
+            Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?.party)?)
+        }
         QueryMsg::ConfigPartyB {} => Ok(to_json_binary(
             &COVENANT_CONFIG.load(deps.storage)?.counterparty,
         )?),

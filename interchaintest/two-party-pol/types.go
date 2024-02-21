@@ -30,6 +30,38 @@ type CovenantInstantiateMsg struct {
 	PoolPriceConfig    PoolPriceConfig        `json:"pool_price_config"`
 }
 
+type CounterpartyDiscoveryCovenantInstantiateMsg struct {
+	Label              string                                      `json:"label"`
+	Timeouts           Timeouts                                    `json:"timeouts"`
+	PresetIbcFee       PresetIbcFee                                `json:"preset_ibc_fee"`
+	ContractCodeIds    CpDiscoveryContractCodeIds                  `json:"contract_codes"`
+	TickMaxGas         string                                      `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig       Expiration                                  `json:"lockup_config"`
+	PartyAConfig       CovenantPartyConfig                         `json:"party_a_config"`
+	PartyBConfig       UndiscoveredTwoPartyPolCovenantCounterparty `json:"party_b_config"`
+	RagequitConfig     *RagequitConfig                             `json:"ragequit_config,omitempty"`
+	DepositDeadline    Expiration                                  `json:"deposit_deadline"`
+	CovenantType       string                                      `json:"covenant_type"`
+	PartyAShare        string                                      `json:"party_a_share"`
+	PartyBShare        string                                      `json:"party_b_share"`
+	Splits             map[string]SplitConfig                      `json:"splits"`
+	FallbackSplit      *SplitConfig                                `json:"fallback_split,omitempty"`
+	EmergencyCommittee string                                      `json:"emergency_committee,omitempty"`
+	LiquidPoolerConfig LiquidPoolerConfig                          `json:"liquid_pooler_config"`
+	PoolPriceConfig    PoolPriceConfig                             `json:"pool_price_config"`
+}
+
+type CpDiscoveryContractCodeIds struct {
+	ClockCode        uint64 `json:"clock_code"`
+	HolderCode       uint64 `json:"holder_code"`
+	LiquidPoolerCode uint64 `json:"liquid_pooler_code"`
+}
+
+type UndiscoveredTwoPartyPolCovenantCounterparty struct {
+	Contribution Coin   `json:"contribution"`
+	Allocation   string `json:"allocation"`
+}
+
 type PacketForwardMiddlewareConfig struct {
 	LocalToHopChainChannelId       string `json:"local_to_hop_chain_channel_id"`
 	HopToDestinationChainChannelId string `json:"hop_to_destination_chain_channel_id"`

@@ -14,29 +14,34 @@ pub struct SplitConfig {
 impl SplitConfig {
     pub fn remap_receivers_to_routers(
         &self,
-        receiver_a: String,
-        router_a: String,
-        receiver_b: String,
-        router_b: String,
+        // vector of (old_addr, new_addr) tuples to remap
+        remaps: Vec<(String, String)>,
     ) -> Result<SplitConfig, StdError> {
         let mut new_receivers = BTreeMap::new();
 
-        match self.receivers.get(&receiver_a) {
-            Some(val) => new_receivers.insert(router_a, *val),
-            None => {
-                return Err(StdError::not_found(format!(
-                    "receiver {receiver_a:?} not found"
-                )))
-            }
-        };
-        match self.receivers.get(&receiver_b) {
-            Some(val) => new_receivers.insert(router_b, *val),
-            None => {
-                return Err(StdError::not_found(format!(
-                    "receiver {receiver_b:?} not found"
-                )))
-            }
-        };
+        for (old, new) in remaps {
+            match self.receivers.get(&old) {
+                Some(val) => new_receivers.insert(new, *val),
+                None => return Err(StdError::not_found(format!("receiver {old:?} not found"))),
+            };
+        }
+
+        // match self.receivers.get(&receiver_a) {
+        //     Some(val) => new_receivers.insert(router_a, *val),
+        //     None => {
+        //         return Err(StdError::not_found(format!(
+        //             "receiver {receiver_a:?} not found"
+        //         )))
+        //     }
+        // };
+        // match self.receivers.get(&receiver_b) {
+        //     Some(val) => new_receivers.insert(router_b, *val),
+        //     None => {
+        //         return Err(StdError::not_found(format!(
+        //             "receiver {receiver_b:?} not found"
+        //         )))
+        //     }
+        // };
 
         Ok(SplitConfig {
             receivers: new_receivers,
@@ -146,14 +151,14 @@ pub fn remap_splits(
 ) -> StdResult<BTreeMap<String, SplitConfig>> {
     let mut remapped_splits: BTreeMap<String, SplitConfig> = BTreeMap::new();
 
+    let remap_vector = vec![
+        (party_a_receiver.clone(), party_a_router.clone()),
+        (party_b_receiver.clone(), party_b_router.clone()),
+    ];
+
     for (denom, split) in splits.iter() {
-        let remapped_split = split.remap_receivers_to_routers(
-            party_a_receiver.clone(),
-            party_a_router.clone(),
-            party_b_receiver.clone(),
-            party_b_router.clone(),
-        )?;
-        remapped_splits.insert(denom.clone(), remapped_split);
+        let remapped_split = split.remap_receivers_to_routers(remap_vector.clone())?;
+        remapped_splits.insert(denom.to_string(), remapped_split);
     }
 
     Ok(remapped_splits)

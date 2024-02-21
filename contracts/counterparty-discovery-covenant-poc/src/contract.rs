@@ -1,24 +1,20 @@
-use std::collections::BTreeSet;
-
-#[cfg(not(feature = "library"))]
-use cosmwasm_std::entry_point;
-use cosmwasm_std::{
-    to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, WasmMsg,
-};
-use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits};
-use cw2::set_contract_version;
-use counterparty_discovery_covenant_holder::msg::TwoPartyPolCovenantConfig;
-use counterparty_discovery_covenant_holder::msg::RagequitConfig;
-use counterparty_discovery_covenant_holder::msg::UndiscoveredTwoPartyPolCovenantCounterparty;
 use crate::{
     error::ContractError,
     msg::{InstantiateMsg, LiquidPoolerMigrateMsg, MigrateMsg, QueryMsg},
     state::{CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR},
 };
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+use cosmwasm_std::{
+    to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    WasmMsg,
+};
+use counterparty_discovery_covenant_holder::msg::{RagequitConfig, TwoPartyPolCovenantParty};
+use covenant_utils::instantiate2_helper::get_instantiate2_salt_and_address;
+use cw2::set_contract_version;
 
-use cosmwasm_std::Uint128;
 use cosmwasm_std::Decimal;
+use cosmwasm_std::Uint128;
 
 const CONTRACT_NAME: &str = "crates.io:counterparty-discovery-covenant-poc";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -37,8 +33,6 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let creator_address: CanonicalAddr =
         deps.api.addr_canonicalize(env.contract.address.as_str())?;
-
-    let covenant_denoms: BTreeSet<String> = msg.splits.keys().map(|k| k.to_string()).collect();
 
     let clock_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
@@ -59,44 +53,22 @@ pub fn instantiate(
         msg.contract_codes.liquid_pooler_code,
     )?;
 
-    let mut clock_whitelist: Vec<String> = Vec::with_capacity(4);
-    clock_whitelist.push(holder_instantiate2_config.addr.to_string());
-    clock_whitelist.push(liquid_pooler_instantiate2_config.addr.to_string());
-
     let holder_instantiate2_msg = counterparty_discovery_covenant_holder::msg::InstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
         lockup_config: msg.lockup_config,
         next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
         ragequit_config: msg.ragequit_config.unwrap_or(RagequitConfig::Disabled),
         deposit_deadline: msg.deposit_deadline,
-        splits: remap_splits(
-            msg.splits,
-            (
-                msg.party_a_config.get_final_receiver_address(),
-                msg.party_a_config.get_final_receiver_address(),
-            ),
-            (
-                msg.party_b_config.get_final_receiver_address(),
-                "TODO".to_string(),
-            ),
-        )?,
-        fallback_split: match msg.fallback_split {
-            Some(config) => Some(config.remap_receivers_to_routers(
-                msg.party_a_config.get_final_receiver_address(),
-                msg.party_a_config.get_final_receiver_address(),
-                msg.party_b_config.get_final_receiver_address(),
-                "TODO".to_string(),
-            )?),
-            None => None,
+        splits: msg.splits,
+        fallback_split: msg.fallback_split,
+        party: TwoPartyPolCovenantParty {
+            contribution: msg.party_a_config.get_contribution(),
+            host_addr: msg.party_a_config.get_addr(),
+            controller_addr: msg.party_a_config.get_controller_addr(),
+            allocation: Decimal::from_ratio(msg.party_a_share, Uint128::new(100)),
+            router: msg.party_a_config.get_controller_addr(),
         },
-        party: msg.party_a_config.to_two_party_pol_party(
-            msg.party_a_share,
-            "TODO".to_string(),
-        ),
-        counterparty: UndiscoveredTwoPartyPolCovenantCounterparty {
-            contribution: msg.party_b_config.get_contribution(),
-            allocation: Decimal::from_ratio(msg.party_b_share, Uint128::new(100)),
-        },
+        counterparty: msg.party_b_config,
         covenant_type: msg.covenant_type.clone(),
         emergency_committee_addr: msg.emergency_committee,
     }
@@ -115,14 +87,12 @@ pub fn instantiate(
         msg.pool_price_config,
     )?;
 
-    let mut messages = vec![
-        holder_instantiate2_msg,
-        liquid_pooler_instantiate2_msg,
-    ];
-
     let clock_instantiate2_msg = covenant_clock::msg::InstantiateMsg {
         tick_max_gas: msg.clock_tick_max_gas,
-        whitelist: clock_whitelist,
+        whitelist: vec![
+            holder_instantiate2_config.addr.to_string(),
+            liquid_pooler_instantiate2_config.addr.to_string(),
+        ],
     }
     .to_instantiate2_msg(
         clock_instantiate2_config.code,
@@ -130,12 +100,14 @@ pub fn instantiate(
         env.contract.address.to_string(),
         format!("{}-clock", msg.label),
     )?;
-    messages.insert(0, clock_instantiate2_msg);
 
-    CONTRACT_CODES.save(
-        deps.storage,
-        &msg.contract_codes.to_covenant_codes_config(),
-    )?;
+    let instantiation_messages = vec![
+        clock_instantiate2_msg,
+        holder_instantiate2_msg,
+        liquid_pooler_instantiate2_msg,
+    ];
+
+    CONTRACT_CODES.save(deps.storage, &msg.contract_codes.to_covenant_codes_config())?;
     COVENANT_POL_HOLDER_ADDR.save(deps.storage, &holder_instantiate2_config.addr)?;
     LIQUID_POOLER_ADDR.save(deps.storage, &liquid_pooler_instantiate2_config.addr)?;
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_instantiate2_config.addr)?;
@@ -145,11 +117,11 @@ pub fn instantiate(
         .add_attribute("clock_addr", clock_instantiate2_config.addr)
         .add_attribute("liquid_pooler_addr", liquid_pooler_instantiate2_config.addr)
         .add_attribute("holder_addr", holder_instantiate2_config.addr)
-        .add_messages(messages))
+        .add_messages(instantiation_messages))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(to_json_binary(
             &COVENANT_CLOCK_ADDR.may_load(deps.storage)?,
@@ -160,9 +132,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::LiquidPoolerAddress {} => {
             Ok(to_json_binary(&LIQUID_POOLER_ADDR.may_load(deps.storage)?)?)
         }
-        QueryMsg::PartyDepositAddress {} => {
-            Ok(to_json_binary(&COVENANT_POL_HOLDER_ADDR.load(deps.storage)?)?)
-        }
+        QueryMsg::PartyDepositAddress {} => Ok(to_json_binary(
+            &COVENANT_POL_HOLDER_ADDR.load(deps.storage)?,
+        )?),
     }
 }
 

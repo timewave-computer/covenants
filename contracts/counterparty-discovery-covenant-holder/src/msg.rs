@@ -28,8 +28,7 @@ pub struct InstantiateMsg {
     pub ragequit_config: RagequitConfig,
     /// deadline for both parties to deposit their funds
     pub deposit_deadline: Expiration,
-    /// config describing the covenant dynamics
-    // pub covenant_config: TwoPartyPolCovenantConfig,
+    /// configs describing the covenant dynamics
     pub party: TwoPartyPolCovenantParty,
     pub counterparty: UndiscoveredTwoPartyPolCovenantCounterparty,
     pub covenant_type: CovenantType,
@@ -261,18 +260,70 @@ impl DenomSplits {
 #[cw_serde]
 pub struct TwoPartyPolCovenantConfig {
     pub party: TwoPartyPolCovenantParty,
-    pub counterparty: TwoPartyPolCovenantParty,
+    pub counterparty: PartyDiscoveryEnum,
     pub covenant_type: CovenantType,
 }
 
+#[cw_serde]
+pub enum PartyDiscoveryEnum {
+    Undiscovered(UndiscoveredTwoPartyPolCovenantCounterparty),
+    Discovered(TwoPartyPolCovenantParty),
+}
+
+impl PartyDiscoveryEnum {
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
+        match self {
+            PartyDiscoveryEnum::Undiscovered(p) => p.get_response_attributes(),
+            PartyDiscoveryEnum::Discovered(p) => p.get_response_attributes(),
+        }
+    }
+
+    pub fn get_allocation(&self) -> Decimal {
+        match self {
+            PartyDiscoveryEnum::Undiscovered(p) => p.allocation,
+            PartyDiscoveryEnum::Discovered(p) => p.allocation,
+        }
+    }
+
+    pub fn get_contribution(&self) -> Coin {
+        match self {
+            PartyDiscoveryEnum::Undiscovered(p) => p.contribution.clone(),
+            PartyDiscoveryEnum::Discovered(p) => p.contribution.clone(),
+        }
+    }
+
+    pub fn set_allocation(&mut self, allocation: Decimal) {
+        match self {
+            PartyDiscoveryEnum::Undiscovered(p) => p.allocation = allocation,
+            PartyDiscoveryEnum::Discovered(p) => p.allocation = allocation,
+        }
+    }
+
+    pub fn get_receiver_addr(&self) -> Result<String, ContractError> {
+        match self {
+            PartyDiscoveryEnum::Undiscovered(_) => Err(ContractError::PartyNotFound {}),
+            PartyDiscoveryEnum::Discovered(p) => Ok(p.router.to_string()),
+        }
+    }
+}
+
 impl TwoPartyPolCovenantConfig {
-    pub fn update_parties(&mut self, party: TwoPartyPolCovenantParty, counterparty: TwoPartyPolCovenantParty) {
+    pub fn update_parties(
+        &mut self,
+        party: TwoPartyPolCovenantParty,
+        counterparty: PartyDiscoveryEnum,
+    ) {
         self.party = party;
         self.counterparty = counterparty;
     }
 
-    pub fn validate(&self, api: &dyn Api) -> Result<(), ContractError> {
-        if self.party.allocation + self.counterparty.allocation != Decimal::one() {
+    pub fn validate(&self, _api: &dyn Api) -> Result<(), ContractError> {
+        let cp_allocation = match &self.counterparty {
+            PartyDiscoveryEnum::Undiscovered(p) => p.allocation,
+            PartyDiscoveryEnum::Discovered(p) => p.allocation,
+        };
+
+        if self.party.allocation + cp_allocation != Decimal::one() {
             return Err(ContractError::AllocationValidationError {});
         }
         Ok(())
@@ -317,6 +368,20 @@ pub struct UndiscoveredTwoPartyPolCovenantCounterparty {
     pub allocation: Decimal,
 }
 
+impl UndiscoveredTwoPartyPolCovenantCounterparty {
+    pub fn get_response_attributes(&self) -> Vec<Attribute> {
+        vec![
+            Attribute {
+                key: "allocation".to_string(),
+                value: self.allocation.to_string(),
+            },
+            Attribute {
+                key: "contribution".to_string(),
+                value: self.contribution.to_string(),
+            },
+        ]
+    }
+}
 
 impl TwoPartyPolCovenantParty {
     pub fn get_response_attributes(&self) -> Vec<Attribute> {
@@ -336,10 +401,16 @@ impl TwoPartyPolCovenantConfig {
         &self,
         sender: String,
     ) -> Result<(TwoPartyPolCovenantParty, TwoPartyPolCovenantParty), ContractError> {
-        let parties = if self.party.host_addr.to_string() == sender {
-            (self.party.clone(), self.counterparty.clone())
-        } else if self.counterparty.host_addr.to_string() == sender {
-            (self.counterparty.clone(), self.party.clone())
+        let party_host_addr = self.party.host_addr.to_string();
+        let counterparty = match self.counterparty.clone() {
+            PartyDiscoveryEnum::Undiscovered(_) => return Err(ContractError::Unauthorized {}),
+            PartyDiscoveryEnum::Discovered(p) => p,
+        };
+
+        let parties = if party_host_addr == sender {
+            (self.party.clone(), counterparty.clone())
+        } else if counterparty.host_addr.to_ascii_lowercase() == sender {
+            (counterparty.clone(), self.party.clone())
         } else {
             return Err(ContractError::Unauthorized {});
         };

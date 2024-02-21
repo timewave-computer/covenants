@@ -1,7 +1,13 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::Coin;
 use cosmwasm_std::{coin, Addr, Decimal, Deps, StdResult, Uint128, Uint64, WasmMsg};
+use counterparty_discovery_covenant_holder::msg::RagequitConfig;
+use counterparty_discovery_covenant_holder::msg::TwoPartyPolCovenantParty;
+use counterparty_discovery_covenant_holder::msg::{
+    CovenantType, UndiscoveredTwoPartyPolCovenantCounterparty,
+};
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_utils::{
@@ -11,10 +17,6 @@ use covenant_utils::{
 };
 use cw_utils::Expiration;
 use neutron_sdk::bindings::msg::IbcFee;
-use counterparty_discovery_covenant_holder::msg::TwoPartyPolCovenantParty;
-use counterparty_discovery_covenant_holder::msg::CovenantType;
-use counterparty_discovery_covenant_holder::msg::RagequitConfig;
-use cosmwasm_std::Coin;
 
 const NEUTRON_DENOM: &str = "untrn";
 pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
@@ -28,7 +30,7 @@ pub struct InstantiateMsg {
     pub clock_tick_max_gas: Option<Uint64>,
     pub lockup_config: Expiration,
     pub party_a_config: CovenantPartyConfig,
-    pub party_b_config: CovenantPartyConfig,
+    pub party_b_config: UndiscoveredTwoPartyPolCovenantCounterparty,
     pub covenant_type: CovenantType,
     pub ragequit_config: Option<RagequitConfig>,
     pub deposit_deadline: Expiration,
@@ -149,17 +151,24 @@ impl CovenantPartyConfig {
         }
     }
 
+    pub fn get_addr(&self) -> String {
+        match self {
+            CovenantPartyConfig::Interchain(config) => config.addr.to_string(),
+            CovenantPartyConfig::Native(config) => config.addr.to_string(),
+        }
+    }
+
+    pub fn get_controller_addr(&self) -> String {
+        match self {
+            CovenantPartyConfig::Interchain(config) => config.party_receiver_addr.to_string(),
+            CovenantPartyConfig::Native(config) => config.party_receiver_addr.to_string(),
+        }
+    }
+
     pub fn get_native_denom(&self) -> String {
         match self {
             CovenantPartyConfig::Interchain(config) => config.native_denom.to_string(),
             CovenantPartyConfig::Native(config) => config.native_denom.to_string(),
-        }
-    }
-
-    pub fn get_router_code_id(&self, contract_codes: &CovenantContractCodeIds) -> u64 {
-        match self {
-            CovenantPartyConfig::Native(_) => contract_codes.native_router_code,
-            CovenantPartyConfig::Interchain(_) => contract_codes.interchain_router_code,
         }
     }
 }
@@ -172,11 +181,8 @@ pub enum CovenantPartyConfig {
 
 #[cw_serde]
 pub struct CovenantContractCodeIds {
-    pub ibc_forwarder_code: u64,
     pub holder_code: u64,
     pub clock_code: u64,
-    pub interchain_router_code: u64,
-    pub native_router_code: u64,
     pub liquid_pooler_code: u64,
 }
 

@@ -135,12 +135,16 @@ pub fn instantiate(
             ),
         )?,
         fallback_split: match msg.fallback_split.clone() {
-            Some(config) => Some(config.remap_receivers_to_routers(
-                msg.party_a_config.get_final_receiver_address(),
-                party_a_router_instantiate2_config.addr.to_string(),
-                msg.party_b_config.get_final_receiver_address(),
-                party_b_router_instantiate2_config.addr.to_string(),
-            )?),
+            Some(config) => Some(config.remap_receivers_to_routers(vec![
+                (
+                    msg.party_a_config.get_final_receiver_address(),
+                    party_a_router_instantiate2_config.addr.to_string(),
+                ),
+                (
+                    msg.party_b_config.get_final_receiver_address(),
+                    party_b_router_instantiate2_config.addr.to_string(),
+                ),
+            ])?),
             None => None,
         },
     }
