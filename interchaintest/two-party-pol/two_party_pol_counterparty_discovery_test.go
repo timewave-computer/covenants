@@ -682,6 +682,198 @@ func TestTwoPartyPolCounterpartyDiscovery(t *testing.T) {
 			})
 		})
 
+		t.Run("two party POL fail to discover counterparty path", func(t *testing.T) {
+			var depositBlock Block
+			var lockupBlock Block
+			var hubReceiverAddr string
+			var neutronReceiverAddr string
+			t.Run("instantiate covenant", func(t *testing.T) {
+				timeouts := Timeouts{
+					IcaTimeout:         "10000", // sec
+					IbcTransferTimeout: "10000", // sec
+				}
+
+				currentHeight := testCtx.GetNeutronHeight()
+				depositBlock = Block(currentHeight + 50)
+				lockupBlock = Block(currentHeight + 70)
+
+				lockupConfig := Expiration{
+					AtHeight: &lockupBlock,
+				}
+				depositDeadline := Expiration{
+					AtHeight: &depositBlock,
+				}
+				presetIbcFee := PresetIbcFee{
+					AckFee:     "100000",
+					TimeoutFee: "100000",
+				}
+
+				atomCoin := Coin{
+					Denom:  neutronAtomIbcDenom,
+					Amount: strconv.FormatUint(atomContributionAmount, 10),
+				}
+
+				neutronCoin := Coin{
+					Denom:  cosmosNeutron.Config().Denom,
+					Amount: strconv.FormatUint(neutronContributionAmount, 10),
+				}
+
+				hubReceiverAddr = hubNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
+				neutronReceiverAddr = happyCaseNeutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
+
+				println("hub receiver address: ", hubReceiverAddr)
+
+				partyAConfig := NativeCovenantParty{
+					Addr:              neutronReceiverAddr,
+					NativeDenom:       cosmosNeutron.Config().Denom,
+					PartyReceiverAddr: neutronReceiverAddr,
+					Contribution:      neutronCoin,
+				}
+
+				codeIds := CpDiscoveryContractCodeIds{
+					ClockCode:        clockCodeId,
+					HolderCode:       holderCodeId,
+					LiquidPoolerCode: lperCodeId,
+				}
+
+				ragequitTerms := RagequitTerms{
+					Penalty: "0.1",
+				}
+
+				ragequitConfig := RagequitConfig{
+					Enabled: &ragequitTerms,
+				}
+
+				poolAddress := stableswapAddress
+				pairType := PairType{
+					Stable: struct{}{},
+				}
+
+				denomSplits := map[string]SplitConfig{
+					neutronAtomIbcDenom: SplitConfig{
+						Receivers: map[string]string{
+							"TODO":              "0.6",
+							neutronReceiverAddr: "0.4",
+						},
+					},
+					cosmosNeutron.Config().Denom: SplitConfig{
+						Receivers: map[string]string{
+							"TODO":              "0.6",
+							neutronReceiverAddr: "0.4",
+						},
+					},
+				}
+
+				liquidPoolerConfig := LiquidPoolerConfig{
+					Astroport: &AstroportLiquidPoolerConfig{
+						PairType:    pairType,
+						PoolAddress: poolAddress,
+						AssetADenom: neutronAtomIbcDenom,
+						AssetBDenom: cosmosNeutron.Config().Denom,
+						SingleSideLpLimits: SingleSideLpLimits{
+							AssetALimit: "100000",
+							AssetBLimit: "100000",
+						},
+					},
+				}
+
+				fundingDuration := Duration{
+					Time: new(uint64),
+				}
+				*fundingDuration.Time = 300
+
+				covenantMsg := CounterpartyDiscoveryCovenantInstantiateMsg{
+					Label:           "two-party-pol-covenant-happy",
+					Timeouts:        timeouts,
+					PresetIbcFee:    presetIbcFee,
+					ContractCodeIds: codeIds,
+					LockupConfig:    lockupConfig,
+					PartyAConfig: CovenantPartyConfig{
+						Native: &partyAConfig,
+					},
+					PartyBConfig: UndiscoveredTwoPartyPolCovenantCounterparty{
+						Contribution: atomCoin,
+						Allocation:   "0.6",
+					},
+					RagequitConfig:     &ragequitConfig,
+					DepositDeadline:    depositDeadline,
+					PartyAShare:        "40",
+					PartyBShare:        "60",
+					CovenantType:       "share",
+					Splits:             denomSplits,
+					FallbackSplit:      nil,
+					LiquidPoolerConfig: liquidPoolerConfig,
+					PoolPriceConfig: PoolPriceConfig{
+						ExpectedSpotPrice:     "0.1",
+						AcceptablePriceSpread: "0.09",
+					},
+				}
+
+				covenantAddress = testCtx.ManualInstantiate(covenantCodeId, covenantMsg, neutronUser, keyring.BackendTest)
+
+				println("covenant address: ", covenantAddress)
+			})
+
+			t.Run("query covenant contracts", func(t *testing.T) {
+				clockAddress = testCtx.QueryClockAddress(covenantAddress)
+				holderAddress = testCtx.QueryHolderAddress(covenantAddress)
+				liquidPoolerAddress = testCtx.QueryLiquidPoolerAddress(covenantAddress)
+			})
+
+			t.Run("fund contracts with neutron", func(t *testing.T) {
+				addrs := []string{
+					clockAddress,
+					liquidPoolerAddress,
+				}
+				testCtx.FundChainAddrs(addrs, cosmosNeutron, neutronUser, 5000000000)
+			})
+
+			t.Run("fund the holder with neutron", func(t *testing.T) {
+				testCtx.FundChainAddrs([]string{holderAddress}, cosmosNeutron, happyCaseNeutronAccount, int64(neutronContributionAmount))
+
+				holderAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+				holderNeutronBal := testCtx.QueryNeutronDenomBalance(testCtx.Neutron.Config().Denom, holderAddress)
+				println("holder atom balance: ", holderAtomBal)
+				println("holder neutron balance: ", holderNeutronBal)
+			})
+
+			t.Run("tick until deposit deadline expires", func(t *testing.T) {
+				for {
+					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
+					holderNeutronBal := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, holderAddress)
+					holderAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+					holderState := testCtx.QueryContractState(holderAddress)
+					println("holder ibc atom balance: ", holderAtomBal)
+					println("holder neutron balance: ", holderNeutronBal)
+					println("holder state: ", holderState)
+
+					if holderState != "instantiated" {
+						println("holder state: ", holderState)
+						break
+					}
+				}
+			})
+
+			t.Run("tick until holder refunds the main party", func(t *testing.T) {
+				for {
+					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+
+					holderNeutronBal := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, holderAddress)
+					neutronReceiverNeutronBal := testCtx.QueryNeutronDenomBalance(cosmosNeutron.Config().Denom, neutronReceiverAddr)
+					holderState := testCtx.QueryContractState(holderAddress)
+					println("holder state: ", holderState)
+					println("holder neutron balance: ", holderNeutronBal)
+					println("neutron receiver neutron balance: ", neutronReceiverNeutronBal)
+
+					if holderNeutronBal == 0 {
+						println("holder empty")
+						break
+					}
+				}
+			})
+		})
+
 		// t.Run("two party share based POL ragequit path", func(t *testing.T) {
 		// 	var hubReceiverAddr string
 		// 	var neutronReceiverAddr string

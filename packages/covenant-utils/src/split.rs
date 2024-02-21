@@ -22,26 +22,9 @@ impl SplitConfig {
         for (old, new) in remaps {
             match self.receivers.get(&old) {
                 Some(val) => new_receivers.insert(new, *val),
-                None => return Err(StdError::not_found(format!("receiver {old:?} not found"))),
+                None => return Err(StdError::not_found(format!("receiver {old:?} not found in split config: {:?}", self.receivers))),
             };
         }
-
-        // match self.receivers.get(&receiver_a) {
-        //     Some(val) => new_receivers.insert(router_a, *val),
-        //     None => {
-        //         return Err(StdError::not_found(format!(
-        //             "receiver {receiver_a:?} not found"
-        //         )))
-        //     }
-        // };
-        // match self.receivers.get(&receiver_b) {
-        //     Some(val) => new_receivers.insert(router_b, *val),
-        //     None => {
-        //         return Err(StdError::not_found(format!(
-        //             "receiver {receiver_b:?} not found"
-        //         )))
-        //     }
-        // };
 
         Ok(SplitConfig {
             receivers: new_receivers,

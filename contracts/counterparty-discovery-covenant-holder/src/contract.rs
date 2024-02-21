@@ -114,7 +114,14 @@ fn try_deposit_counterparty(
     let expected_contribution = covenant_config.counterparty.get_contribution();
     let contract_state = CONTRACT_STATE.load(deps.storage)?;
 
-    // deposits should only happen in instantiated state
+    // first we validate that no counterparty is discovered yet
+    if let PartyDiscoveryEnum::Discovered(_) = covenant_config.counterparty {
+        return Err(ContractError::CounterpartyDiscoveryError("counterparty already discovered".to_string()))
+    }
+
+    // deposits should only happen in instantiated state.
+    // this way the deadline for counterparty discovery is
+    // the same as the deposit deadline.
     ensure!(
         contract_state == ContractState::Instantiated,
         ContractError::Std(StdError::generic_err("counterparty already discovered"))
@@ -122,14 +129,14 @@ fn try_deposit_counterparty(
 
     // assert that the contribution is met
     let paid_deposit_amount = must_pay(&info, &expected_contribution.denom)?;
-
     ensure!(
         paid_deposit_amount >= expected_contribution.amount,
-        ContractError::Std(StdError::generic_err(format!(
-            "expected deposit: {:?}, got: {:?}",
+        ContractError::CounterpartyDiscoveryError(format!(
+            "expected {:?} deposit of {:?}, got {:?}",
+            expected_contribution.denom.to_string(),
             covenant_config.counterparty.get_contribution(),
             paid_deposit_amount
-        )))
+        ))
     );
 
     let splits = DENOM_SPLITS.load(deps.storage)?;

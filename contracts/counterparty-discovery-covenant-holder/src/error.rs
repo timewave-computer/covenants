@@ -7,9 +7,6 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("{0}")]
-    CounterpartyDiscoveryError(#[from] PaymentError),
-
     #[error("party allocations must add up to 1.0")]
     AllocationValidationError {},
 
@@ -75,4 +72,10 @@ pub enum ContractError {
 
     #[error("Claimer already claimed his share")]
     PartyAllocationIsZero {},
+
+    #[error("Counterparty discovery error: {0}")]
+    CounterpartyDiscoveryError(String),
+
+    #[error("Payment error: {0}")]
+    PaymentError(#[from] PaymentError),
 }
