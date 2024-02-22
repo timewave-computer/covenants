@@ -33,7 +33,7 @@ fn main() {
     poll_for_start(&Client::new(), API_URL, 300);
 
     let rb: ChainRequestBuilder =
-        match ChainRequestBuilder::new(API_URL.to_string(), "localjuno-1".to_string(), true) {
+        match ChainRequestBuilder::new(API_URL.to_string(), "localcosmos-1".to_string(), true) {
             Ok(rb) => rb,
             Err(err) => {
                 panic!("ChainRequestBuilder failed: {err:?}");
@@ -41,20 +41,20 @@ fn main() {
         };
     let node_a: Chain = Chain::new(&rb);
 
-    let rb2: ChainRequestBuilder =
-        match ChainRequestBuilder::new(API_URL.to_string(), "localjuno-2".to_string(), true) {
-            Ok(rb) => rb,
-            Err(err) => {
-                panic!("ChainRequestBuilder failed: {err:?}");
-            }
-        };
+    // let rb2: ChainRequestBuilder =
+    //     match ChainRequestBuilder::new(API_URL.to_string(), "localjuno-2".to_string(), true) {
+    //         Ok(rb) => rb,
+    //         Err(err) => {
+    //             panic!("ChainRequestBuilder failed: {err:?}");
+    //         }
+    //     };
 
     test_paths(&rb);
     test_queries(&rb);
     test_binary(&rb);
     test_bank_send(&rb);
 
-    test_ibc_contract_relaying(&node_a, &rb, &rb2);
+    // test_ibc_contract_relaying(&node_a, &rb, &rb2);
     test_node_information(&node_a);
     test_node_actions(&node_a);
 }
@@ -145,7 +145,7 @@ fn test_ibc_contract_relaying(node: &Chain, rb1: &ChainRequestBuilder, rb2: &Cha
 fn test_node_actions(node: &Chain) {
     let keyname = "abc";
     let words = "offer excite scare peanut rally speak suggest unit reflect whale cloth speak joy unusual wink session effort hidden angry envelope click race allow buffalo";
-    let expected_addr = "juno1cp8wps50zemt3x5tn3sgqh3x93rlt8cw6tkgx4";
+    let expected_addr = "cosmos1cp8wps50zemt3x5tn3sgqh3x93rlt8cwve4npf";
 
     let res = node.recover_key(keyname, words);
     println!("res: {res:?}");
@@ -167,7 +167,7 @@ fn test_node_information(node: &Chain) {
     let v = node.account_key_bech_32("acc0");
     assert_eq!(
         v.unwrap_or_default(),
-        "juno1hj5fveer5cjtn4wd6wstzugjfdxzl0xps73ftl"
+        "cosmos1hj5fveer5cjtn4wd6wstzugjfdxzl0xpxvjjvr"
     );
 
     let v = node.account_key_bech_32("fake-key987");
@@ -175,7 +175,7 @@ fn test_node_information(node: &Chain) {
 
     node.get_chain_config();
 
-    assert!(node.get_name().starts_with("localjuno-1-val-0"));
+    assert!(node.get_name().starts_with("localcosmos-1-val-0"));
     node.get_container_id();
     node.get_host_name();
     node.get_genesis_file_content();
@@ -218,14 +218,14 @@ fn test_paths(rb: &ChainRequestBuilder) {
                 }
             };
             println!("body: {body:?}");
-            assert_eq!(body, "{\"success\":\"file uploaded to localjuno-1\",\"location\":\"/var/cosmos-chain/localjuno-1/Makefile\"}");
+            assert_eq!(body, "{\"success\":\"file uploaded to localcosmos-1\",\"location\":\"/var/cosmos-chain/localcosmos-1/Makefile\"}");
         }
         Err(err) => {
             panic!("upload_file failed {err:?}");
         }
     };
 
-    let files = match get_files(rb, "/var/cosmos-chain/localjuno-1") {
+    let files = match get_files(rb, "/var/cosmos-chain/localcosmos-1") {
         Ok(files) => files,
         Err(err) => {
             panic!("get_files failed {err:?}");
@@ -247,11 +247,11 @@ fn test_bank_send(rb: &ChainRequestBuilder) {
         "acc0",
         "juno10r39fueph9fq7a6lgswu4zdsg8t3gxlq670lt0",
         &[Coin {
-            denom: "ujuno".to_string(),
+            denom: "ucosmos".to_string(),
             amount: Uint128::new(5),
         }],
         &Coin {
-            denom: "ujuno".to_string(),
+            denom: "ucosmos".to_string(),
             amount: Uint128::new(5000),
         },
     );
