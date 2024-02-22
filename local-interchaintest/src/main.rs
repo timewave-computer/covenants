@@ -27,7 +27,7 @@ use base::{
     get_contract_cache_path, get_contract_path, get_current_dir, get_local_interchain_dir, API_URL,
 };
 
-// local-ic start juno_ibc
+// local-ic start neutron_gaia
 // cargo run --package localic-bin --bin localic-bin
 fn main() {
     poll_for_start(&Client::new(), API_URL, 300);
@@ -41,20 +41,21 @@ fn main() {
         };
     let node_a: Chain = Chain::new(&rb);
 
-    // let rb2: ChainRequestBuilder =
-    //     match ChainRequestBuilder::new(API_URL.to_string(), "localjuno-2".to_string(), true) {
-    //         Ok(rb) => rb,
-    //         Err(err) => {
-    //             panic!("ChainRequestBuilder failed: {err:?}");
-    //         }
-    //     };
+    let rb2: ChainRequestBuilder =
+        match ChainRequestBuilder::new(API_URL.to_string(), "localneutron-1".to_string(), true) {
+            Ok(rb) => rb,
+            Err(err) => {
+                panic!("ChainRequestBuilder failed: {err:?}");
+            }
+        };
 
+    println!("\n\n test starts \n\n");
     test_paths(&rb);
     test_queries(&rb);
     test_binary(&rb);
     test_bank_send(&rb);
 
-    // test_ibc_contract_relaying(&node_a, &rb, &rb2);
+    test_ibc_contract_relaying(&node_a, &rb, &rb2);
     test_node_information(&node_a);
     test_node_actions(&node_a);
 }
@@ -129,7 +130,7 @@ fn test_ibc_contract_relaying(node: &Chain, rb1: &ChainRequestBuilder, rb2: &Cha
     // flush packets
     println!(
         "relayer.flush: {:?}",
-        relayer.flush("juno-ibc-1", channel_id)
+        relayer.flush("gaia-neutron-1", channel_id)
     );
 
     let query_res = contract_a.query_value(&json!({"get_count":{"channel":channel_id}}));

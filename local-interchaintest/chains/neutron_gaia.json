@@ -7,7 +7,7 @@
       "binary": "gaiad",
       "bech32_prefix": "cosmos",
       "docker_image": {
-        "version": "v10.0.1"
+        "version": "v9.1.0"
       },
       "gas_prices": "0%DENOM%",
       "chain_type": "cosmos",
@@ -18,6 +18,9 @@
       "number_node": 0,
       "debugging": true,
       "block_time": "500ms",
+      "ibc_paths": [
+        "gaia-neutron-1"
+      ],
       "genesis": {
         "modify": [
           {
@@ -40,6 +43,97 @@
             "amount": "10000000000%DENOM%",
             "mnemonic": "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
           }
+        ]
+      }
+    },
+    {
+      "name": "neutron",
+      "chain_id": "localneutron-1",
+      "denom": "untrn",
+      "binary": "neutrond",
+      "bech32_prefix": "neutron",
+      "docker_image": {
+        "repository": "ghcr.io/strangelove-ventures/heighliner/neutron",
+        "version": "v2.0.0"
+      },
+      "gas_prices": "0%DENOM%",
+      "chain_type": "cosmos",
+      "coin_type": 118,
+      "trusting_period": "112h",
+      "gas_adjustment": 2.0,
+      "number_vals": 1,
+      "number_node": 0,
+      "use_new_genesis_command": false,
+      "debugging": true,
+      "ibc_paths": [
+        "gaia-neutron-1"
+      ],
+      "block_time": "500ms",
+      "host_port_override": {
+        "100": "1000"
+      },
+      "config_file_overrides": [
+        {
+          "file": "config/config.toml",
+          "paths": {
+            "moniker": "localic",
+            "rpc.cors_allowed_origins": [
+              "*"
+            ]
+          },
+          "consensus": {
+            "timeout_commit": "1s"
+          }
+        }
+      ],
+      "genesis": {
+        "modify": [
+          {
+            "key": "app_state.ccvconsumer.params.soft_opt_out_threshold",
+            "value": "0.05"
+          },
+          {
+            "key": "app_state.ccvconsumer.params.reward_denoms",
+            "value": [
+              "untrn"
+            ]
+          },
+          {
+            "key": "app_state.ccvconsumer.params.provider_reward_denoms",
+            "value": [
+              "uatom"
+            ]
+          },
+          {
+            "key": "consensus_params.block.max_gas",
+            "value": "1000000000"
+          },
+          {
+            "key": "app_state.globalfee.params.minimum_gas_prices",
+            "value": {
+              "denom": "untrn",
+              "amount": "0"
+            }
+          },
+          {
+            "key": "app_state.feeburner.params.treasury_address",
+            "value": "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky"
+          },
+          {
+            "key": "app_state.tokenfactory.params.fee_collector_address",
+            "value": "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky"
+          }
+        ],
+        "accounts": [
+          {
+            "name": "acc0",
+            "address": "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky",
+            "amount": "10000000000%DENOM%",
+            "mnemonic": "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
+          }
+        ],
+        "startup_commands": [
+          "%BIN% keys add example-key-after --keyring-backend test --home %HOME%"
         ]
       }
     }

@@ -2,7 +2,8 @@
   "relayer": {
     "docker_image": {
       "repository": "ghcr.io/cosmos/relayer",
-      "version": "v2.4.0"
+      "version": "v2.4.0",
+      "uid_gid": "1000:1000"
     },
     "startup_flags": [
       "-p",
