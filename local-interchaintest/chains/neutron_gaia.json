@@ -7,7 +7,7 @@
       "binary": "gaiad",
       "bech32_prefix": "cosmos",
       "docker_image": {
-        "version": "v9.1.0"
+        "version": "v15.0.0-rc2"
       },
       "gas_prices": "0%DENOM%",
       "chain_type": "cosmos",
@@ -24,16 +24,23 @@
       "genesis": {
         "modify": [
           {
-            "key": "app_state.gov.voting_params.voting_period",
-            "value": "15s"
+            "key": "app_state.gov.params.voting_period",
+            "value": "3s"
           },
           {
-            "key": "app_state.gov.deposit_params.max_deposit_period",
-            "value": "15s"
-          },
-          {
-            "key": "app_state.gov.deposit_params.min_deposit.0.denom",
-            "value": "uatom"
+            "key": "app_state.interchainaccounts.host_genesis_state.params.allow_messages",
+            "value": [
+              "/cosmos.bank.v1beta1.MsgSend",
+              "/cosmos.bank.v1beta1.MsgMultiSend",
+              "/cosmos.staking.v1beta1.MsgDelegate",
+              "/cosmos.staking.v1beta1.MsgUndelegate",
+              "/cosmos.staking.v1beta1.MsgBeginRedelegate",
+              "/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
+              "/cosmos.staking.v1beta1.MsgTokenizeShares",
+              "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+              "/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+              "/ibc.applications.transfer.v1.MsgTransfer"
+            ]
           }
         ],
         "accounts": [
@@ -43,6 +50,10 @@
             "amount": "10000000000%DENOM%",
             "mnemonic": "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
           }
+        ],
+        "startup_commands": [
+          "%BIN% keys add example-key-after --keyring-backend test --home %HOME%",
+          "%BIN% tx staking create-validator --amount 1000000uatom --pubkey {\"@type\":\"/cosmos.crypto.ed25519.PubKey\",\"key\":\"qwrYHaJ7sNHfYBR1nzDr851+wT4ed6p8BbwTeVhaHoA=\"} --moniker a --commission-rate 0.1 --commission-max-rate 0.2 --commission-max-change-rate 0.01 --min-self-delegation 1000000 --home %HOME% --chain-id %CHAIN_ID% --from faucet --fees 20000uatom --keyring-backend test -y"
         ]
       }
     },
@@ -53,39 +64,21 @@
       "binary": "neutrond",
       "bech32_prefix": "neutron",
       "docker_image": {
-        "repository": "ghcr.io/strangelove-ventures/heighliner/neutron",
-        "version": "v2.0.0"
+        "version": "v2.0.1"
       },
-      "gas_prices": "0%DENOM%",
+      "gas_prices": "0.0untrn,0.0uatom",
       "chain_type": "cosmos",
       "coin_type": 118,
       "trusting_period": "112h",
       "gas_adjustment": 2.0,
       "number_vals": 1,
       "number_node": 0,
-      "use_new_genesis_command": false,
+      "ics_consumer_link": "localcosmos-1",
       "debugging": true,
       "ibc_paths": [
         "gaia-neutron-1"
       ],
       "block_time": "500ms",
-      "host_port_override": {
-        "100": "1000"
-      },
-      "config_file_overrides": [
-        {
-          "file": "config/config.toml",
-          "paths": {
-            "moniker": "localic",
-            "rpc.cors_allowed_origins": [
-              "*"
-            ]
-          },
-          "consensus": {
-            "timeout_commit": "1s"
-          }
-        }
-      ],
       "genesis": {
         "modify": [
           {
@@ -122,18 +115,35 @@
           {
             "key": "app_state.tokenfactory.params.fee_collector_address",
             "value": "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky"
+          },
+          {
+            "key": "app_state.interchainaccounts.host_genesis_state.params.allow_messages",
+            "value": [
+              "/cosmos.bank.v1beta1.MsgSend",
+              "/cosmos.bank.v1beta1.MsgMultiSend",
+              "/cosmos.staking.v1beta1.MsgDelegate",
+              "/cosmos.staking.v1beta1.MsgUndelegate",
+              "/cosmos.staking.v1beta1.MsgBeginRedelegate",
+              "/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
+              "/cosmos.staking.v1beta1.MsgTokenizeShares",
+              "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+              "/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+              "/ibc.applications.transfer.v1.MsgTransfer",
+              "/ibc.lightclients.localhost.v2.ClientState",
+              "/ibc.core.client.v1.MsgCreateClient",
+              "/ibc.core.client.v1.Query/ClientState",
+              "/ibc.core.client.v1.Query/ConsensusState",
+              "/ibc.core.connection.v1.Query/Connection"
+            ]
           }
         ],
         "accounts": [
           {
             "name": "acc0",
             "address": "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky",
-            "amount": "10000000000%DENOM%",
+            "amount": "10000000000untrn",
             "mnemonic": "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
           }
-        ],
-        "startup_commands": [
-          "%BIN% keys add example-key-after --keyring-backend test --home %HOME%"
         ]
       }
     }
