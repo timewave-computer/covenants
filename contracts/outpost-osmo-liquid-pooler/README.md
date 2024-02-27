@@ -1,7 +1,7 @@
 # osmo liquid pooler outpost
 
-This is a stateless outpost contract designed to provide liquidity iff
-some preconditions are met.
+This is a near-stateless outpost contract designed to provide liquidity iff some preconditions are met. The only state being stored is to handle the callback context
+to ensure funds do not get stuck on the contract.
 
 Contract has no notion of state, and therefore queries.
 
@@ -24,6 +24,46 @@ pub enum ExecuteMsg {
     },
 }
 ```
+
+## Providing liquidity flow
+
+In this diagram, regardless of the outcome of `1.1.`, all tokens are returned
+to the sender after the join pool attempt.
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │osmosis                              ┌──1.2. return LP tokens─┐      │
+    │                                     │     and/or leftover    │      │
+    │                                     ▼         denoms         │      │
+    │  ┌───────────┐                 ┌─────────┐               ┌───────┐  │
+    │  │           │                 │         │               │       │  │
+    │  │ polytone  │    1. provide   │  osmo   │   1.1. join   │ gamm  │  │
+    │  │   proxy   │─────liquidity──▶│ outpost │──────pool────▶│ pool  │  │
+    │  │           │                 │         │               │       │  │
+    │  └───────────┘                 └─────────┘               │       │  │
+    │        ▲                            │                    └───────┘  │
+    │        │       1.3. return all      │                               │
+    │        └──────available tokens──────┘                               │
+    └─────────────────────────────────────────────────────────────────────┘
+
+## Withdrawing liquidity flow
+
+In this diagram, regardless of exit pool message outcome, all tokens are
+returned to the sender in the callback.
+
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │osmosis                             ┌──────1.2. return ─────┐        │
+    │                                    │      underlying       │        │
+    │                                    ▼       liquidity       │        │
+    │  ┌──────────┐                 ┌────────┐              ┌────────┐    │
+    │  │          │                 │        │              │        │    │
+    │  │ polytone │   1. withdraw   │  osmo  │  1.1. exit   │  gamm  │    │
+    │  │  proxy   │────liquidity───▶│outpost │─────pool────▶│  pool  │    │
+    │  │          │                 │        │              │        │    │
+    │  └──────────┘                 └────────┘              └────────┘    │
+    │        ▲                           │                                │
+    │        │       1.3. return all     │                                │
+    │        └──────available tokens─────┘                                │
+    └─────────────────────────────────────────────────────────────────────┘
 
 ## Liquidity provision conditions
 
