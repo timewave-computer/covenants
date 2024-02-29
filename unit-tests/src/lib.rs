@@ -5,4 +5,7 @@ pub mod setup;
 pub mod test_swap_covenant;
 
 #[cfg(test)]
+pub mod test_two_party_pol_holder;
+
+#[cfg(test)]
 pub mod test;
