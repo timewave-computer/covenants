@@ -1,5 +1,5 @@
 [package]
-name    = "unit-test"                      # the name of the package
+name    = "unit-tests"                      # the name of the package
 version = "0.1.0"                          # the current version, obeying semver
 authors = ["Art3miX <r3mix.il@gmail.com>"]
 edition = "2021"
