@@ -53,6 +53,7 @@ pub const CLOCK_SALT: &str = "clock";
 pub const SWAP_COVENANT_SALT: &str = "swap_covenant";
 pub const SINGLE_PARTY_COVENANT_SALT: &str = "single_party_covenant";
 pub const SWAP_HOLDER_SALT: &str = "swap_holder";
+pub const TWO_PARTY_HOLDER_SALT: &str = "two_party_holder";
 
 // Channels between the chains
 pub const NTRN_HUB_CHANNEL: (&str, &str) = ("channel-1", "channel-100");
