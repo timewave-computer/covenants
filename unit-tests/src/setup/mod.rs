@@ -56,6 +56,7 @@ pub const SWAP_HOLDER_SALT: &str = "swap_holder";
 pub const TWO_PARTY_HOLDER_SALT: &str = "two_party_holder";
 pub const SINGLE_PARTY_HOLDER_SALT: &str = "single_party_holder";
 pub const ASTRO_LIQUID_POOLER_SALT: &str = "astro_liquid_pooler";
+pub const NATIVE_SPLITTER_SALT: &str = "native_splitter";
 
 // Channels between the chains
 pub const NTRN_HUB_CHANNEL: (&str, &str) = ("channel-1", "channel-100");
