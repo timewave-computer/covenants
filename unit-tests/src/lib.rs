@@ -20,3 +20,5 @@ pub mod test_swap_holder;
 pub mod test_native_splitter;
 #[cfg(test)]
 pub mod test_osmo_lp_outpost;
+#[cfg(test)]
+pub mod test_remote_chain_splitter;
