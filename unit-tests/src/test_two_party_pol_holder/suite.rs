@@ -1,16 +1,21 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
-use covenant_astroport_liquid_pooler::state::CLOCK_ADDRESS;
-use covenant_two_party_pol_holder::msg::TwoPartyPolCovenantParty;
+use cosmwasm_std::{coin, Addr, Decimal};
+use covenant_two_party_pol_holder::msg::{DenomSplits, TwoPartyPolCovenantParty};
 use covenant_utils::split::SplitConfig;
 use cw_utils::Expiration;
 
-use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, instantiates::two_party_pol_holder::TwoPartyHolderInstantiate, suite_builder::SuiteBuilder, CustomApp, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, TWO_PARTY_HOLDER_SALT};
+use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, instantiates::two_party_pol_holder::TwoPartyHolderInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, TWO_PARTY_HOLDER_SALT};
 
 
 pub(super) struct Suite {
     pub app: CustomApp,
+
+    pub faucet: Addr,
+    pub admin: Addr,
+
+    pub holder_addr: Addr,
+
     pub clock_addr: Addr,
     pub next_contract: Addr,
     pub lockup_config: Expiration,
@@ -41,27 +46,86 @@ impl BaseSuite for Suite {
 impl Suite {
     fn build(
         mut builder: SuiteBuilder,
-        clock_addr: Addr,
-        next_contract: Addr,
-        lockup_config: Expiration,
-        ragequit_config: covenant_two_party_pol_holder::msg::RagequitConfig,
-        deposit_deadline: Expiration,
-        covenant_config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
-        splits: BTreeMap<String, SplitConfig>,
-        fallback_split: Option<SplitConfig>,
+        holder_addr: Addr,
         emergency_committee_addr: Option<String>,
     ) -> Self {
+        let clock_addr = builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap();
+
+        let ragequit_config = builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::RagequitConfig {},
+            )
+            .unwrap();
+
+        let lockup_config = builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::LockupConfig {},
+            )
+            .unwrap();
+
+        let deposit_deadline = builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::DepositDeadline {},
+            )
+            .unwrap();
+
+        let covenant_config = builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::Config {},
+            )
+            .unwrap();
+
+        let denom_splits: DenomSplits = builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::DenomSplits {},
+            )
+            .unwrap();
+
+        let next_contract = builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::NextContract {},
+            )
+            .unwrap();
+
         Self {
-            app: builder.build(),
             clock_addr,
             next_contract,
             lockup_config,
             ragequit_config,
             deposit_deadline,
             covenant_config,
-            splits,
-            fallback_split,
+            splits: denom_splits.clone().explicit_splits,
+            fallback_split: denom_splits.clone().fallback_split,
             emergency_committee_addr,
+            faucet: builder.fuacet.clone(),
+            admin: builder.admin.clone(),
+            holder_addr,
+            app: builder.build(),
         }
     }
 }
@@ -69,6 +133,27 @@ impl Suite {
 impl Suite {
     pub fn new_default() -> Self {
         let mut builder = SuiteBuilder::new();
+        let holder_addr = builder.get_contract_addr(
+            builder.two_party_holder_code_id,
+            TWO_PARTY_HOLDER_SALT,
+        );
+        let clock_addr = builder.get_contract_addr(
+            builder.clock_code_id,
+            CLOCK_SALT,
+        );
+
+        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+            tick_max_gas: None,
+            whitelist: vec![holder_addr.to_string()],
+        };
+        builder.contract_init2(
+            builder.clock_code_id,
+            CLOCK_SALT,
+            &clock_instantiate_msg,
+            &[],
+        );
+
+        // TODO: set up a liquid pooler
 
         // init astro pools
         let (pool_addr, lp_token_addr) = builder.init_astro_pool(
@@ -85,13 +170,22 @@ impl Suite {
         let party_b_controller_addr = builder.get_random_addr();
 
         // TODO: update these to actual contract addresses
-        let clock_address = builder.get_random_addr();
         let next_contract = builder.get_random_addr();
 
-        let lockup_config = Expiration::AtHeight(1000);
-        let deposit_deadline = Expiration::AtHeight(2000);
+        let mut splits = BTreeMap::new();
+        splits.insert(party_a_controller_addr.to_string(), Decimal::from_str("0.5").unwrap());
+        splits.insert(party_b_controller_addr.to_string(), Decimal::from_str("0.5").unwrap());
+
+        let split_config = SplitConfig {
+            receivers: splits,
+        };
+        let mut denom_to_split_config_map = BTreeMap::new();
+        denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
+        denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
+
+        let lockup_config = Expiration::AtHeight(100000);
+        let deposit_deadline = Expiration::AtHeight(200000);
         let ragequit_config = covenant_two_party_pol_holder::msg::RagequitConfig::Disabled {};
-        let splits = BTreeMap::new();
         let fallback_split = None;
         let emergency_committee_addr = None;
         let covenant_config = covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig {
@@ -100,29 +194,27 @@ impl Suite {
                 host_addr: party_a_host_addr.to_string(),
                 controller_addr: party_a_controller_addr.to_string(),
                 allocation: Decimal::from_str("0.5").unwrap(),
-                router: "router".to_string(),
+                router: party_a_controller_addr.to_string(),
             },
             party_b: TwoPartyPolCovenantParty {
                 contribution: coin(10_000, DENOM_LS_ATOM_ON_NTRN),
                 host_addr: party_b_host_addr.to_string(),
                 controller_addr: party_b_controller_addr.to_string(),
                 allocation: Decimal::from_str("0.5").unwrap(),
-                router: "router".to_string(),
+                router: party_b_controller_addr.to_string()
             },
             covenant_type: covenant_two_party_pol_holder::msg::CovenantType::Share {},
         };
 
-
-
         let holder_instantiate_msg = TwoPartyHolderInstantiate::default(
             &builder,
-            clock_address.to_string(),
+            clock_addr.to_string(),
             next_contract.to_string(),
             lockup_config,
             ragequit_config.clone(),
             deposit_deadline,
             covenant_config.clone(),
-            splits.clone(),
+            denom_to_split_config_map.clone(),
             fallback_split.clone(),
             emergency_committee_addr.clone(),
         );
@@ -136,14 +228,7 @@ impl Suite {
 
         Self::build(
             builder,
-            Addr::unchecked("clock"),
-            Addr::unchecked("next_contract"),
-            lockup_config,
-            ragequit_config,
-            deposit_deadline,
-            covenant_config,
-            splits,
-            fallback_split,
+            holder_addr,
             emergency_committee_addr,
         )
     }
