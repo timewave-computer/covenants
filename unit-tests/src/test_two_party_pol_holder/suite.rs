@@ -1,11 +1,12 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::{coin, Addr, Decimal};
+use astroport::factory::PairType;
+use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use covenant_two_party_pol_holder::msg::{DenomSplits, TwoPartyPolCovenantParty};
-use covenant_utils::split::SplitConfig;
+use covenant_utils::{split::SplitConfig, PoolPriceConfig, SingleSideLpLimits};
 use cw_utils::Expiration;
 
-use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, instantiates::two_party_pol_holder::TwoPartyHolderInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, TWO_PARTY_HOLDER_SALT};
+use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, instantiates::two_party_pol_holder::TwoPartyHolderInstantiate, suite_builder::SuiteBuilder, CustomApp, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, TWO_PARTY_HOLDER_SALT};
 
 
 pub(super) struct Suite {
@@ -141,19 +142,10 @@ impl Suite {
             builder.clock_code_id,
             CLOCK_SALT,
         );
-
-        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
-            tick_max_gas: None,
-            whitelist: vec![holder_addr.to_string()],
-        };
-        builder.contract_init2(
-            builder.clock_code_id,
-            CLOCK_SALT,
-            &clock_instantiate_msg,
-            &[],
+        let liquid_pooler_addr = builder.get_contract_addr(
+            builder.astro_pooler_code_id,
+            ASTRO_LIQUID_POOLER_SALT,
         );
-
-        // TODO: set up a liquid pooler
 
         // init astro pools
         let (pool_addr, lp_token_addr) = builder.init_astro_pool(
@@ -162,15 +154,50 @@ impl Suite {
             coin(10_000_000_000_000, DENOM_LS_ATOM_ON_NTRN),
         );
 
+        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+            tick_max_gas: None,
+            whitelist: vec![holder_addr.to_string(), liquid_pooler_addr.to_string()],
+        };
+        builder.contract_init2(
+            builder.clock_code_id,
+            CLOCK_SALT,
+            &clock_instantiate_msg,
+            &[],
+        );
+
+        let liquid_pooler_instantiate_msg = covenant_astroport_liquid_pooler::msg::InstantiateMsg {
+            pool_address: pool_addr.to_string(),
+            clock_address: clock_addr.to_string(),
+            slippage_tolerance: None,
+            assets: covenant_astroport_liquid_pooler::msg::AssetData {
+                asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),
+                asset_b_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
+            },
+            single_side_lp_limits: SingleSideLpLimits {
+                asset_a_limit: Uint128::new(100000),
+                asset_b_limit: Uint128::new(100000),
+            },
+            pool_price_config: PoolPriceConfig {
+                expected_spot_price: Decimal::one(),
+                acceptable_price_spread: Decimal::from_ratio(Uint128::one(), Uint128::new(2)),
+            },
+            pair_type: PairType::Stable {},
+            holder_address: holder_addr.to_string(),
+        };
+
+        builder.contract_init2(
+            builder.astro_pooler_code_id,
+            ASTRO_LIQUID_POOLER_SALT,
+            &liquid_pooler_instantiate_msg,
+            &[],
+        );
+
         let party_a_host_addr = builder.get_random_addr();
         let party_a_controller_addr = builder.get_random_addr();
 
 
         let party_b_host_addr = builder.get_random_addr();
         let party_b_controller_addr = builder.get_random_addr();
-
-        // TODO: update these to actual contract addresses
-        let next_contract = builder.get_random_addr();
 
         let mut splits = BTreeMap::new();
         splits.insert(party_a_controller_addr.to_string(), Decimal::from_str("0.5").unwrap());
@@ -209,7 +236,7 @@ impl Suite {
         let holder_instantiate_msg = TwoPartyHolderInstantiate::default(
             &builder,
             clock_addr.to_string(),
-            next_contract.to_string(),
+            liquid_pooler_addr.to_string(),
             lockup_config,
             ragequit_config.clone(),
             deposit_deadline,
