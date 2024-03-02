@@ -6,3 +6,4 @@ pub mod clock;
 pub mod astro_liquid_pooler;
 pub mod single_party_holder;
 pub mod swap_holder;
+pub mod native_splitter;
