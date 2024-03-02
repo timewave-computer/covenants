@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use astroport::factory;
 use cosmwasm_std::Addr;
 use covenant_utils::split::SplitConfig;
 
