@@ -54,6 +54,7 @@ pub const SWAP_COVENANT_SALT: &str = "swap_covenant";
 pub const SINGLE_PARTY_COVENANT_SALT: &str = "single_party_covenant";
 pub const SWAP_HOLDER_SALT: &str = "swap_holder";
 pub const TWO_PARTY_HOLDER_SALT: &str = "two_party_holder";
+pub const SINGLE_PARTY_HOLDER_SALT: &str = "single_party_holder";
 pub const ASTRO_LIQUID_POOLER_SALT: &str = "astro_liquid_pooler";
 
 // Channels between the chains
