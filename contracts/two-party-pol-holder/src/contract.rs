@@ -570,6 +570,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::DepositDeadline {} => Ok(to_json_binary(&DEPOSIT_DEADLINE.load(deps.storage)?)?),
         QueryMsg::Config {} => Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&env.contract.address)?),
+        QueryMsg::DenomSplits {} => Ok(to_json_binary(&DENOM_SPLITS.load(deps.storage)?)?),
     }
 }
 

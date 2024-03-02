@@ -442,6 +442,8 @@ pub enum QueryMsg {
     DepositDeadline {},
     #[returns(TwoPartyPolCovenantConfig)]
     Config {},
+    #[returns(DenomSplits)]
+    DenomSplits {},
 }
 
 #[cw_serde]

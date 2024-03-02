@@ -102,3 +102,4 @@ astroport-factory              = { git = "https://github.com/astroport-fi/astrop
 astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-pair             = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+unit-tests = { path = "unit-tests" }
