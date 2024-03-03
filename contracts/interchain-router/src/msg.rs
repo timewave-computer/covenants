@@ -46,7 +46,7 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 #[cw_serde]
 pub enum QueryMsg {
-    #[returns(ReceiverConfig)]
+    #[returns(DestinationConfig)]
     ReceiverConfig {},
     #[returns(BTreeSet<String>)]
     TargetDenoms {},
