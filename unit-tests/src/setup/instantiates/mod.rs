@@ -9,3 +9,4 @@ pub mod swap_holder;
 pub mod native_splitter;
 pub mod osmo_lp_outpost;
 pub mod remote_chain_splitter;
+pub mod interchain_router;
