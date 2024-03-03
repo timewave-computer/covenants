@@ -24,3 +24,5 @@ pub mod test_osmo_lp_outpost;
 pub mod test_remote_chain_splitter;
 #[cfg(test)]
 pub mod test_interchain_router;
+#[cfg(test)]
+pub mod test_native_router;
