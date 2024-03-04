@@ -1,10 +1,16 @@
 use std::{collections::BTreeMap, str::FromStr};
 
+use crate::setup::{
+    base_suite::BaseSuiteMut, instantiates::swap_holder::SwapHolderInstantiate,
+    suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+    NATIVE_SPLITTER_SALT, SWAP_HOLDER_SALT,
+};
 use cosmwasm_std::{Addr, Decimal, Uint128};
-use covenant_utils::{split::SplitConfig, CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig, SwapCovenantTerms};
+use covenant_utils::{
+    split::SplitConfig, CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig,
+    SwapCovenantTerms,
+};
 use cw_utils::Expiration;
-use crate::setup::{base_suite::BaseSuiteMut, instantiates::swap_holder::SwapHolderInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, NATIVE_SPLITTER_SALT, SWAP_HOLDER_SALT};
-
 
 pub(super) struct Suite {
     pub app: CustomApp,
@@ -82,7 +88,7 @@ impl Suite {
             .unwrap();
 
         Self {
-            faucet: builder.fuacet.clone(),
+            faucet: builder.faucet.clone(),
             admin: builder.admin.clone(),
             clock_addr,
             lockup_config,
@@ -99,18 +105,10 @@ impl Suite {
     pub fn new_default() -> Self {
         let mut builder = SuiteBuilder::new();
 
-        let holder_addr = builder.get_contract_addr(
-            builder.swap_holder_code_id,
-            SWAP_HOLDER_SALT,
-        );
-        let clock_addr = builder.get_contract_addr(
-            builder.clock_code_id,
-            CLOCK_SALT,
-        );
-        let native_splitter_addr = builder.get_contract_addr(
-            builder.native_splitter_code_id,
-            NATIVE_SPLITTER_SALT,
-        );
+        let holder_addr = builder.get_contract_addr(builder.swap_holder_code_id, SWAP_HOLDER_SALT);
+        let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
+        let native_splitter_addr =
+            builder.get_contract_addr(builder.native_splitter_code_id, NATIVE_SPLITTER_SALT);
 
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
             tick_max_gas: None,
@@ -127,12 +125,16 @@ impl Suite {
         let party_b_controller_addr = builder.get_random_addr();
 
         let mut splits = BTreeMap::new();
-        splits.insert(party_a_controller_addr.to_string(), Decimal::from_str("0.5").unwrap());
-        splits.insert(party_b_controller_addr.to_string(), Decimal::from_str("0.5").unwrap());
+        splits.insert(
+            party_a_controller_addr.to_string(),
+            Decimal::from_str("0.5").unwrap(),
+        );
+        splits.insert(
+            party_b_controller_addr.to_string(),
+            Decimal::from_str("0.5").unwrap(),
+        );
 
-        let split_config = SplitConfig {
-            receivers: splits,
-        };
+        let split_config = SplitConfig { receivers: splits };
         let mut denom_to_split_config_map = BTreeMap::new();
         denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
         denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
@@ -153,7 +155,7 @@ impl Suite {
         let holder_instantiate_msg = SwapHolderInstantiate {
             msg: covenant_swap_holder::msg::InstantiateMsg {
                 next_contract: native_splitter_addr.to_string(),
-                covenant_terms: CovenantTerms::TokenSwap(SwapCovenantTerms{
+                covenant_terms: CovenantTerms::TokenSwap(SwapCovenantTerms {
                     party_a_amount: Uint128::new(100000),
                     party_b_amount: Uint128::new(100000),
                 }),
@@ -171,7 +173,7 @@ impl Suite {
                         receiver_config: ReceiverConfig::Native(party_b_controller_addr),
                     },
                 },
-            }
+            },
         };
 
         builder.contract_init2(
@@ -181,10 +183,6 @@ impl Suite {
             &[],
         );
 
-        Self::build(
-            builder,
-            holder_addr,
-            None,
-        )
+        Self::build(builder, holder_addr, None)
     }
 }

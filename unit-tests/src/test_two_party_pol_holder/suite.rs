@@ -6,8 +6,13 @@ use covenant_two_party_pol_holder::msg::{DenomSplits, TwoPartyPolCovenantParty};
 use covenant_utils::{split::SplitConfig, PoolPriceConfig, SingleSideLpLimits};
 use cw_utils::Expiration;
 
-use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, instantiates::two_party_pol_holder::TwoPartyHolderInstantiate, suite_builder::SuiteBuilder, CustomApp, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, TWO_PARTY_HOLDER_SALT};
-
+use crate::setup::{
+    base_suite::{BaseSuite, BaseSuiteMut},
+    instantiates::two_party_pol_holder::TwoPartyHolderInstantiate,
+    suite_builder::SuiteBuilder,
+    CustomApp, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+    TWO_PARTY_HOLDER_SALT,
+};
 
 pub(super) struct Suite {
     pub app: CustomApp,
@@ -123,7 +128,7 @@ impl Suite {
             splits: denom_splits.clone().explicit_splits,
             fallback_split: denom_splits.clone().fallback_split,
             emergency_committee_addr,
-            faucet: builder.fuacet.clone(),
+            faucet: builder.faucet.clone(),
             admin: builder.admin.clone(),
             holder_addr,
             app: builder.build(),
@@ -134,18 +139,11 @@ impl Suite {
 impl Suite {
     pub fn new_default() -> Self {
         let mut builder = SuiteBuilder::new();
-        let holder_addr = builder.get_contract_addr(
-            builder.two_party_holder_code_id,
-            TWO_PARTY_HOLDER_SALT,
-        );
-        let clock_addr = builder.get_contract_addr(
-            builder.clock_code_id,
-            CLOCK_SALT,
-        );
-        let liquid_pooler_addr = builder.get_contract_addr(
-            builder.astro_pooler_code_id,
-            ASTRO_LIQUID_POOLER_SALT,
-        );
+        let holder_addr =
+            builder.get_contract_addr(builder.two_party_holder_code_id, TWO_PARTY_HOLDER_SALT);
+        let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
+        let liquid_pooler_addr =
+            builder.get_contract_addr(builder.astro_pooler_code_id, ASTRO_LIQUID_POOLER_SALT);
 
         // init astro pools
         let (pool_addr, lp_token_addr) = builder.init_astro_pool(
@@ -195,17 +193,20 @@ impl Suite {
         let party_a_host_addr = builder.get_random_addr();
         let party_a_controller_addr = builder.get_random_addr();
 
-
         let party_b_host_addr = builder.get_random_addr();
         let party_b_controller_addr = builder.get_random_addr();
 
         let mut splits = BTreeMap::new();
-        splits.insert(party_a_controller_addr.to_string(), Decimal::from_str("0.5").unwrap());
-        splits.insert(party_b_controller_addr.to_string(), Decimal::from_str("0.5").unwrap());
+        splits.insert(
+            party_a_controller_addr.to_string(),
+            Decimal::from_str("0.5").unwrap(),
+        );
+        splits.insert(
+            party_b_controller_addr.to_string(),
+            Decimal::from_str("0.5").unwrap(),
+        );
 
-        let split_config = SplitConfig {
-            receivers: splits,
-        };
+        let split_config = SplitConfig { receivers: splits };
         let mut denom_to_split_config_map = BTreeMap::new();
         denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
         denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
@@ -228,7 +229,7 @@ impl Suite {
                 host_addr: party_b_host_addr.to_string(),
                 controller_addr: party_b_controller_addr.to_string(),
                 allocation: Decimal::from_str("0.5").unwrap(),
-                router: party_b_controller_addr.to_string()
+                router: party_b_controller_addr.to_string(),
             },
             covenant_type: covenant_two_party_pol_holder::msg::CovenantType::Share {},
         };
@@ -253,11 +254,6 @@ impl Suite {
             &[],
         );
 
-        Self::build(
-            builder,
-            holder_addr,
-            emergency_committee_addr,
-        )
+        Self::build(builder, holder_addr, emergency_committee_addr)
     }
 }
-

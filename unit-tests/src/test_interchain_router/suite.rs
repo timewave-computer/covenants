@@ -3,8 +3,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use cosmwasm_std::{Addr, Uint64};
 use covenant_utils::DestinationConfig;
 
-use crate::setup::{base_suite::BaseSuiteMut, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, INTERCHAIN_ROUTER_SALT, NTRN_HUB_CHANNEL};
-
+use crate::setup::{
+    base_suite::BaseSuiteMut, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT,
+    DENOM_ATOM_ON_NTRN, INTERCHAIN_ROUTER_SALT, NTRN_HUB_CHANNEL,
+};
 
 pub(super) struct Suite {
     pub app: CustomApp,
@@ -28,11 +30,7 @@ impl BaseSuiteMut for Suite {
 }
 
 impl Suite {
-    pub fn build(
-        mut builder: SuiteBuilder,
-        router: Addr,
-    ) -> Self {
-            
+    pub fn build(mut builder: SuiteBuilder, router: Addr) -> Self {
         let clock_addr = builder
             .app
             .wrap()
@@ -62,7 +60,7 @@ impl Suite {
 
         Self {
             app: builder.app,
-            faucet: builder.fuacet,
+            faucet: builder.faucet,
             admin: builder.admin,
             clock_addr,
             denoms,
@@ -75,14 +73,9 @@ impl Suite {
     pub fn new_default() -> Self {
         let mut builder = SuiteBuilder::new();
 
-        let clock_addr = builder.get_contract_addr(
-            builder.clock_code_id,
-            CLOCK_SALT,
-        );
-        let interchain_router_addr = builder.get_contract_addr(
-            builder.interchain_router_code_id,
-            INTERCHAIN_ROUTER_SALT,
-        );
+        let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
+        let interchain_router_addr =
+            builder.get_contract_addr(builder.interchain_router_code_id, INTERCHAIN_ROUTER_SALT);
 
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
             tick_max_gas: None,
@@ -96,7 +89,7 @@ impl Suite {
         );
 
         let party_receiver = builder.get_random_addr();
-        
+
         let denoms = BTreeSet::from_iter(vec![DENOM_ATOM_ON_NTRN.to_string()]);
 
         let destination_config = DestinationConfig {
@@ -119,9 +112,6 @@ impl Suite {
             &[],
         );
 
-        Self::build(
-            builder,
-            interchain_router_addr,
-        )
+        Self::build(builder, interchain_router_addr)
     }
 }

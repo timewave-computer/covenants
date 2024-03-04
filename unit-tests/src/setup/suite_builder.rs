@@ -13,13 +13,22 @@ use super::{
     astro_contracts::{
         astro_coin_registry_contract, astro_factory_contract, astro_pair_stable_contract,
         astro_pair_xyk_contract, astro_token_contract, astro_whitelist_contract,
-    }, contracts::{
-        astroport_pooler_contract, clock_contract, ibc_forwarder_contract, interchain_router_contract, native_router_contract, native_splitter_contract, osmo_lp_outpost_contract, remote_splitter_contract, single_party_covenant_contract, single_party_holder_contract, stride_lser_contract, swap_covenant_contract, swap_holder_contract, two_party_holder_contract
-    }, custom_module::{NeutronKeeper, CHAIN_PREFIX}, instantiates::osmo_lp_outpost, CustomApp, ADMIN, ALL_DENOMS, DENOM_NTRN, FAUCET, HUB_OSMO_CHANNEL, HUB_STRIDE_CHANNEL, NTRN_HUB_CHANNEL, NTRN_OSMO_CHANNEL, NTRN_STRIDE_CHANNEL
+    },
+    contracts::{
+        astroport_pooler_contract, clock_contract, ibc_forwarder_contract,
+        interchain_router_contract, native_router_contract, native_splitter_contract,
+        osmo_lp_outpost_contract, remote_splitter_contract, single_party_covenant_contract,
+        single_party_holder_contract, stride_lser_contract, swap_covenant_contract,
+        swap_holder_contract, two_party_holder_contract,
+    },
+    custom_module::{NeutronKeeper, CHAIN_PREFIX},
+    instantiates::osmo_lp_outpost,
+    CustomApp, ADMIN, ALL_DENOMS, DENOM_NTRN, FAUCET, HUB_OSMO_CHANNEL, HUB_STRIDE_CHANNEL,
+    NTRN_HUB_CHANNEL, NTRN_OSMO_CHANNEL, NTRN_STRIDE_CHANNEL,
 };
 
 pub struct SuiteBuilder {
-    pub fuacet: Addr,
+    pub faucet: Addr,
     pub admin: Addr,
 
     pub app: CustomApp,
@@ -121,7 +130,7 @@ impl SuiteBuilder {
         let astro_coin_registry_code_id = app.store_code(astro_coin_registry_contract());
 
         Self {
-            fuacet: app.api().addr_make(FAUCET),
+            faucet: app.api().addr_make(FAUCET),
             admin: app.api().addr_make(ADMIN),
 
             app,
@@ -301,12 +310,12 @@ impl SuiteBuilder {
             assets,
             slippage_tolerance: None,
             auto_stake: Some(false),
-            receiver: Some(self.fuacet.to_string()),
+            receiver: Some(self.faucet.to_string()),
         };
 
         self.app
             .execute_contract(
-                self.fuacet.clone(),
+                self.faucet.clone(),
                 pool_info.contract_addr.clone(),
                 &provide_liquidity_msg,
                 &balances,
@@ -335,7 +344,7 @@ impl SuiteBuilder {
     pub fn fund_with_ntrn(&mut self, addr: &Addr, amount: u128) {
         self.app
             .send_tokens(
-                self.fuacet.clone(),
+                self.faucet.clone(),
                 addr.clone(),
                 &coins(amount, DENOM_NTRN),
             )
