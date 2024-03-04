@@ -387,9 +387,9 @@ fn try_get_single_side_lp_submsg(
         );
 
         return Ok(Some(submsg));
-    } else if coin_b.amount.is_zero()
-        && coin_a.amount <= lp_config.single_side_lp_limits.asset_a_limit
-    {
+    }
+
+    if coin_b.amount.is_zero() && coin_a.amount <= lp_config.single_side_lp_limits.asset_a_limit {
         // update the provided liquidity info
         PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
             info.provided_amount_a = info.provided_amount_a.checked_add(coin_a.amount)?;
