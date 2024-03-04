@@ -1,8 +1,11 @@
 use astroport::factory::PairType;
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Decimal, Uint128};
 use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
 
+use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
+
+#[derive(Clone)]
 pub struct AstroLiquidPoolerInstantiate {
     pub msg: covenant_astroport_liquid_pooler::msg::InstantiateMsg,
 }
@@ -83,22 +86,26 @@ impl AstroLiquidPoolerInstantiate {
     pub fn default(
         pool_address: String,
         clock_address: String,
-        slippage_tolerance: Option<Decimal>,
-        assets: covenant_astroport_liquid_pooler::msg::AssetData,
-        single_side_lp_limits: SingleSideLpLimits,
-        pool_price_config: PoolPriceConfig,
-        pair_type: PairType,
         holder_address: String,
     ) -> Self {
         Self {
             msg: covenant_astroport_liquid_pooler::msg::InstantiateMsg {
                 pool_address,
                 clock_address,
-                slippage_tolerance,
-                assets,
-                single_side_lp_limits,
-                pool_price_config,
-                pair_type,
+                slippage_tolerance: None,
+                assets: covenant_astroport_liquid_pooler::msg::AssetData {
+                    asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),
+                    asset_b_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
+                },
+                single_side_lp_limits: SingleSideLpLimits {
+                    asset_a_limit: Uint128::new(100000),
+                    asset_b_limit: Uint128::new(100000),
+                },
+                pool_price_config: PoolPriceConfig {
+                    expected_spot_price: Decimal::one(),
+                    acceptable_price_spread: Decimal::from_ratio(Uint128::one(), Uint128::new(2)),
+                },
+                pair_type: PairType::Stable {},
                 holder_address,
             },
         }
