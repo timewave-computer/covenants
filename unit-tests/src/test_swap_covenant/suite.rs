@@ -110,7 +110,7 @@ impl Suite {
             builder
                 .app
                 .send_tokens(
-                    builder.fuacet.clone(),
+                    builder.faucet.clone(),
                     ibc_forwarder,
                     &coins(2_000_000, DENOM_NTRN),
                 )
@@ -126,7 +126,7 @@ impl Suite {
             builder
                 .app
                 .send_tokens(
-                    builder.fuacet.clone(),
+                    builder.faucet.clone(),
                     ibc_forwarder,
                     &coins(2_000_000, DENOM_NTRN),
                 )
@@ -142,7 +142,7 @@ impl Suite {
         ) {
             builder
                 .app
-                .send_tokens(builder.fuacet.clone(), router, &coins(400_000, DENOM_NTRN))
+                .send_tokens(builder.faucet.clone(), router, &coins(400_000, DENOM_NTRN))
                 .unwrap();
         };
 
@@ -154,12 +154,12 @@ impl Suite {
         ) {
             builder
                 .app
-                .send_tokens(builder.fuacet.clone(), router, &coins(400_000, DENOM_NTRN))
+                .send_tokens(builder.faucet.clone(), router, &coins(400_000, DENOM_NTRN))
                 .unwrap();
         };
 
         Self {
-            fuacet: builder.fuacet.clone(),
+            fuacet: builder.faucet.clone(),
             admin: builder.admin.clone(),
 
             covenant_addr,
