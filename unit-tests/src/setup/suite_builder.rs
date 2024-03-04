@@ -406,7 +406,7 @@ impl SuiteBuilder {
         salt: &str,
         init_msg: &M,
         funds: &[Coin],
-    ) {
+    ) -> Addr {
         let mut hasher = Sha256::new();
         hasher.update(salt);
         let hashed_salt = hasher.finalize().to_vec();
@@ -421,6 +421,6 @@ impl SuiteBuilder {
                 Some(ADMIN.to_string()),
                 hashed_salt,
             )
-            .unwrap();
+            .unwrap()
     }
 }
