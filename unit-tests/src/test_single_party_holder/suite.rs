@@ -1,12 +1,15 @@
-
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
 use cw_utils::Expiration;
 
-use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, instantiates::single_party_holder::SinglePartyHolderInstantiate, suite_builder::SuiteBuilder, CustomApp, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, SINGLE_PARTY_HOLDER_SALT, TWO_PARTY_HOLDER_SALT};
-
-
+use crate::setup::{
+    base_suite::{BaseSuite, BaseSuiteMut},
+    instantiates::single_party_holder::SinglePartyHolderInstantiate,
+    suite_builder::SuiteBuilder,
+    CustomApp, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+    SINGLE_PARTY_HOLDER_SALT, TWO_PARTY_HOLDER_SALT,
+};
 
 pub(super) struct Suite {
     pub app: CustomApp,
@@ -38,10 +41,7 @@ impl BaseSuite for Suite {
 }
 
 impl Suite {
-    fn build(
-        mut builder: SuiteBuilder,
-        holder_addr: Addr,
-    ) -> Self {
+    fn build(mut builder: SuiteBuilder, holder_addr: Addr) -> Self {
         let liquid_pooler_address = builder
             .app
             .wrap()
@@ -71,7 +71,7 @@ impl Suite {
 
         Self {
             app: builder.app,
-            faucet: builder.fuacet,
+            faucet: builder.faucet,
             admin: builder.admin,
             holder_addr,
             withdraw_to,
@@ -96,14 +96,9 @@ impl Suite {
             builder.single_party_holder_code_id,
             SINGLE_PARTY_HOLDER_SALT,
         );
-        let liquid_pooler_addr = builder.get_contract_addr(
-            builder.astro_pooler_code_id,
-            ASTRO_LIQUID_POOLER_SALT,
-        );
-        let clock_addr = builder.get_contract_addr(
-            builder.clock_code_id,
-            CLOCK_SALT,
-        );
+        let liquid_pooler_addr =
+            builder.get_contract_addr(builder.astro_pooler_code_id, ASTRO_LIQUID_POOLER_SALT);
+        let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
 
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
             tick_max_gas: None,

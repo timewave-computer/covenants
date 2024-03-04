@@ -60,6 +60,7 @@ pub const NATIVE_SPLITTER_SALT: &str = "native_splitter";
 pub const REMOTE_CHAIN_SPLITTER_SALT: &str = "remote_chain_splitter";
 pub const INTERCHAIN_ROUTER_SALT: &str = "interchain_router";
 pub const NATIVE_ROUTER_SALT: &str = "native_router";
+pub const IBC_FORWARDER_SALT: &str = "ibc_forwarder";
 
 // Channels between the chains
 pub const NTRN_HUB_CHANNEL: (&str, &str) = ("channel-1", "channel-100");

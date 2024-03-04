@@ -144,7 +144,7 @@ impl Suite {
         builder.fund_with_ntrn(&lp_forwarder_addr, 2_000_000_u128);
 
         Self {
-            fuacet: builder.fuacet.clone(),
+            fuacet: builder.faucet.clone(),
             admin: builder.admin.clone(),
 
             covenant_addr,

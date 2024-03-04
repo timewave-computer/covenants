@@ -3,8 +3,12 @@ use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use covenant_astroport_liquid_pooler::msg::{LpConfig, ProvidedLiquidityInfo, QueryMsg};
 use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
 
-use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, suite_builder::SuiteBuilder, CustomApp, ADMIN, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, TWO_PARTY_HOLDER_SALT};
-
+use crate::setup::{
+    base_suite::{BaseSuite, BaseSuiteMut},
+    suite_builder::SuiteBuilder,
+    CustomApp, ADMIN, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN,
+    DENOM_LS_ATOM_ON_NTRN, TWO_PARTY_HOLDER_SALT,
+};
 
 pub(super) struct Suite {
     pub app: CustomApp,
@@ -36,35 +40,23 @@ impl BaseSuite for Suite {
 }
 
 impl Suite {
-    fn build(
-        mut builder: SuiteBuilder,
-        liquid_pooler_addr: Addr,
-    ) -> Self {
+    fn build(mut builder: SuiteBuilder, liquid_pooler_addr: Addr) -> Self {
         let clock_addr = builder
             .app
             .wrap()
-            .query_wasm_smart(
-                liquid_pooler_addr.clone(),
-                &QueryMsg::ClockAddress {},
-            )
+            .query_wasm_smart(liquid_pooler_addr.clone(), &QueryMsg::ClockAddress {})
             .unwrap();
 
         let holder_addr = builder
             .app
             .wrap()
-            .query_wasm_smart(
-                liquid_pooler_addr.clone(),
-                &QueryMsg::HolderAddress {},
-            )
+            .query_wasm_smart(liquid_pooler_addr.clone(), &QueryMsg::HolderAddress {})
             .unwrap();
 
         let lp_config = builder
             .app
             .wrap()
-            .query_wasm_smart(
-                liquid_pooler_addr.clone(),
-                &QueryMsg::LpConfig {},
-            )
+            .query_wasm_smart(liquid_pooler_addr.clone(), &QueryMsg::LpConfig {})
             .unwrap();
 
         let provided_liquidity_info = builder
@@ -78,7 +70,7 @@ impl Suite {
 
         Self {
             app: builder.app,
-            faucet: builder.fuacet,
+            faucet: builder.faucet,
             admin: builder.admin,
             liquid_pooler_addr,
             clock_addr,
@@ -100,14 +92,9 @@ impl Suite {
             coin(10_000_000_000_000, DENOM_LS_ATOM_ON_NTRN),
         );
 
-        let clock_addr = builder.get_contract_addr(
-            builder.clock_code_id,
-            CLOCK_SALT,
-        );
-        let liquid_pooler_addr = builder.get_contract_addr(
-            builder.astro_pooler_code_id,
-            ASTRO_LIQUID_POOLER_SALT,
-        );
+        let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
+        let liquid_pooler_addr =
+            builder.get_contract_addr(builder.astro_pooler_code_id, ASTRO_LIQUID_POOLER_SALT);
         let holder_addr = builder.get_random_addr();
 
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
@@ -149,9 +136,6 @@ impl Suite {
             &[],
         );
 
-        Self::build(
-            builder,
-            liquid_pooler_addr,
-        )
+        Self::build(builder, liquid_pooler_addr)
     }
 }

@@ -3,9 +3,7 @@ use std::collections::BTreeSet;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, WasmMsg};
 use covenant_macros::{clocked, covenant_clock_address};
-use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, DestinationConfig, ReceiverConfig,
-};
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, DestinationConfig};
 
 #[cw_serde]
 pub struct InstantiateMsg {

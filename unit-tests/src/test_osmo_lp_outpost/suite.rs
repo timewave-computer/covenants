@@ -2,7 +2,6 @@ use cosmwasm_std::Addr;
 
 use crate::setup::{base_suite::BaseSuiteMut, suite_builder::SuiteBuilder, CustomApp};
 
-
 pub(super) struct Suite {
     pub app: CustomApp,
 
@@ -23,12 +22,8 @@ impl BaseSuiteMut for Suite {
 }
 
 impl Suite {
-    pub fn build(
-        mut builder: SuiteBuilder,
-        outpost: Addr,
-    ) -> Self {
-
-        let faucet = builder.fuacet.clone();
+    pub fn build(mut builder: SuiteBuilder, outpost: Addr) -> Self {
+        let faucet = builder.faucet.clone();
         let admin = builder.admin.clone();
 
         Self {
