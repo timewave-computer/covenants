@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use cosmwasm_std::Addr;
 
-use crate::setup::suite_builder::SuiteBuilder;
+use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN};
 
 
 pub struct NativeRouterInstantiate {
@@ -48,11 +48,11 @@ impl NativeRouterInstantiate {
 
 impl NativeRouterInstantiate {
     pub fn default(
-        builder: &SuiteBuilder,
         clock_address: Addr,
         receiver_address: Addr,
-        denoms: BTreeSet<String>,
     ) -> Self {
+        let denoms = BTreeSet::from_iter(vec![DENOM_ATOM_ON_NTRN.to_string()]);
+
         Self::new(
             clock_address,
             receiver_address,
