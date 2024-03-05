@@ -14,131 +14,15 @@ use crate::setup::{
     TWO_PARTY_HOLDER_SALT,
 };
 
-pub(super) struct Suite {
-    pub app: CustomApp,
-
-    pub faucet: Addr,
-    pub admin: Addr,
-
-    pub holder_addr: Addr,
-
-    pub clock_addr: Addr,
-    pub next_contract: Addr,
-    pub lockup_config: Expiration,
-    pub ragequit_config: covenant_two_party_pol_holder::msg::RagequitConfig,
-    pub deposit_deadline: Expiration,
-    pub covenant_config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
-    pub splits: BTreeMap<String, SplitConfig>,
-    pub fallback_split: Option<SplitConfig>,
-    pub emergency_committee_addr: Option<String>,
+pub struct TwoPartyHolderBuilder {
+    pub builder: SuiteBuilder,
+    pub instantiate_msg: TwoPartyHolderInstantiate,
 }
 
-impl BaseSuiteMut for Suite {
-    fn get_app(&mut self) -> &mut CustomApp {
-        &mut self.app
-    }
-
-    fn get_clock_addr(&mut self) -> Addr {
-        self.clock_addr.clone()
-    }
-}
-
-impl BaseSuite for Suite {
-    fn get_app(&self) -> &CustomApp {
-        &self.app
-    }
-}
-
-impl Suite {
-    fn build(
-        mut builder: SuiteBuilder,
-        holder_addr: Addr,
-        emergency_committee_addr: Option<String>,
-    ) -> Self {
-        let clock_addr = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
-            )
-            .unwrap();
-
-        let ragequit_config = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::RagequitConfig {},
-            )
-            .unwrap();
-
-        let lockup_config = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::LockupConfig {},
-            )
-            .unwrap();
-
-        let deposit_deadline = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::DepositDeadline {},
-            )
-            .unwrap();
-
-        let covenant_config = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::Config {},
-            )
-            .unwrap();
-
-        let denom_splits: DenomSplits = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::DenomSplits {},
-            )
-            .unwrap();
-
-        let next_contract = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::NextContract {},
-            )
-            .unwrap();
-
-        Self {
-            clock_addr,
-            next_contract,
-            lockup_config,
-            ragequit_config,
-            deposit_deadline,
-            covenant_config,
-            splits: denom_splits.clone().explicit_splits,
-            fallback_split: denom_splits.clone().fallback_split,
-            emergency_committee_addr,
-            faucet: builder.faucet.clone(),
-            admin: builder.admin.clone(),
-            holder_addr,
-            app: builder.build(),
-        }
-    }
-}
-
-impl Suite {
-    pub fn new_default() -> Self {
+impl Default for TwoPartyHolderBuilder {
+    fn default() -> Self {
         let mut builder = SuiteBuilder::new();
+        
         let holder_addr =
             builder.get_contract_addr(builder.two_party_holder_code_id, TWO_PARTY_HOLDER_SALT);
         let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
@@ -190,70 +74,190 @@ impl Suite {
             &[],
         );
 
-        let party_a_host_addr = builder.get_random_addr();
         let party_a_controller_addr = builder.get_random_addr();
-
-        let party_b_host_addr = builder.get_random_addr();
         let party_b_controller_addr = builder.get_random_addr();
-
-        let mut splits = BTreeMap::new();
-        splits.insert(
-            party_a_controller_addr.to_string(),
-            Decimal::from_str("0.5").unwrap(),
-        );
-        splits.insert(
-            party_b_controller_addr.to_string(),
-            Decimal::from_str("0.5").unwrap(),
-        );
-
-        let split_config = SplitConfig { receivers: splits };
-        let mut denom_to_split_config_map = BTreeMap::new();
-        denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
-        denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
-
-        let lockup_config = Expiration::AtHeight(100000);
-        let deposit_deadline = Expiration::AtHeight(200000);
-        let ragequit_config = covenant_two_party_pol_holder::msg::RagequitConfig::Disabled {};
-        let fallback_split = None;
-        let emergency_committee_addr = None;
-        let covenant_config = covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig {
-            party_a: TwoPartyPolCovenantParty {
-                contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
-                host_addr: party_a_host_addr.to_string(),
-                controller_addr: party_a_controller_addr.to_string(),
-                allocation: Decimal::from_str("0.5").unwrap(),
-                router: party_a_controller_addr.to_string(),
-            },
-            party_b: TwoPartyPolCovenantParty {
-                contribution: coin(10_000, DENOM_LS_ATOM_ON_NTRN),
-                host_addr: party_b_host_addr.to_string(),
-                controller_addr: party_b_controller_addr.to_string(),
-                allocation: Decimal::from_str("0.5").unwrap(),
-                router: party_b_controller_addr.to_string(),
-            },
-            covenant_type: covenant_two_party_pol_holder::msg::CovenantType::Share {},
-        };
+      
 
         let holder_instantiate_msg = TwoPartyHolderInstantiate::default(
-            &builder,
             clock_addr.to_string(),
             liquid_pooler_addr.to_string(),
-            lockup_config,
-            ragequit_config.clone(),
-            deposit_deadline,
-            covenant_config.clone(),
-            denom_to_split_config_map.clone(),
-            fallback_split.clone(),
-            emergency_committee_addr.clone(),
+            party_a_controller_addr,
+            party_b_controller_addr,
         );
+        
+        Self {
+            builder,
+            instantiate_msg: holder_instantiate_msg,
+        }
+    }
+}
 
-        builder.contract_init2(
-            builder.two_party_holder_code_id,
+impl TwoPartyHolderBuilder {
+    pub fn with_clock(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_clock(addr);
+        self
+    }
+
+    pub fn with_next_contract(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_next_contract(addr);
+        self
+    }
+
+    pub fn with_lockup_config(mut self, config: Expiration) -> Self {
+        self.instantiate_msg.with_lockup_config(config);
+        self
+    }
+
+    pub fn with_ragequit_config(mut self, config: covenant_two_party_pol_holder::msg::RagequitConfig) -> Self {
+        self.instantiate_msg.with_ragequit_config(config);
+        self
+    }
+
+    pub fn with_deposit_deadline(mut self, config: Expiration) -> Self {
+        self.instantiate_msg.with_deposit_deadline(config);
+        self
+    }
+
+    pub fn with_covenant_config(mut self, config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig) -> Self {
+        self.instantiate_msg.with_covenant_config(config);
+        self
+    }
+
+    pub fn with_splits(mut self, splits: BTreeMap<String, SplitConfig>) -> Self {
+        self.instantiate_msg.with_splits(splits);
+        self
+    }
+    
+    pub fn with_fallback_split(mut self, split: SplitConfig) -> Self {
+        self.instantiate_msg.with_fallback_split(split);
+        self
+    }
+
+    pub fn with_emergency_committee(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_emergency_committee(addr);
+        self
+    }
+
+    pub fn build(mut self) -> Suite {
+        let holder_addr = self.builder.contract_init2(
+            self.builder.two_party_holder_code_id,
             TWO_PARTY_HOLDER_SALT,
-            &holder_instantiate_msg.msg,
+            &self.instantiate_msg.msg,
             &[],
         );
 
-        Self::build(builder, holder_addr, emergency_committee_addr)
+        let clock_addr = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap();
+
+        let ragequit_config = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::RagequitConfig {},
+            )
+            .unwrap();
+
+        let lockup_config = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::LockupConfig {},
+            )
+            .unwrap();
+
+        let deposit_deadline = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::DepositDeadline {},
+            )
+            .unwrap();
+
+        let covenant_config = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::Config {},
+            )
+            .unwrap();
+
+        let denom_splits: DenomSplits = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::DenomSplits {},
+            )
+            .unwrap();
+
+        let next_contract = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::NextContract {},
+            )
+            .unwrap();
+
+        Suite {
+            faucet: self.builder.faucet.clone(),
+            admin: self.builder.admin.clone(),
+            holder_addr,
+            clock_addr,
+            next_contract,
+            lockup_config,
+            ragequit_config,
+            deposit_deadline,
+            covenant_config,
+            splits: denom_splits.clone().explicit_splits,
+            fallback_split: denom_splits.clone().fallback_split,
+            emergency_committee_addr: None, // todo after adding emergency committee query to holder contract
+            app: self.builder.build(),
+        }
+    }
+}
+
+pub(super) struct Suite {
+    pub app: CustomApp,
+
+    pub faucet: Addr,
+    pub admin: Addr,
+
+    pub holder_addr: Addr,
+
+    pub clock_addr: Addr,
+    pub next_contract: Addr,
+    pub lockup_config: Expiration,
+    pub ragequit_config: covenant_two_party_pol_holder::msg::RagequitConfig,
+    pub deposit_deadline: Expiration,
+    pub covenant_config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
+    pub splits: BTreeMap<String, SplitConfig>,
+    pub fallback_split: Option<SplitConfig>,
+    pub emergency_committee_addr: Option<String>,
+}
+
+impl BaseSuiteMut for Suite {
+    fn get_app(&mut self) -> &mut CustomApp {
+        &mut self.app
+    }
+
+    fn get_clock_addr(&mut self) -> Addr {
+        self.clock_addr.clone()
+    }
+}
+
+impl BaseSuite for Suite {
+    fn get_app(&self) -> &CustomApp {
+        &self.app
     }
 }
