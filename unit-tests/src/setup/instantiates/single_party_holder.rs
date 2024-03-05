@@ -60,19 +60,16 @@ impl SinglePartyHolderInstantiate {
 
 impl SinglePartyHolderInstantiate {
     pub fn default(
-        builder: &SuiteBuilder,
         pooler_address: String,
-        lockup_period: Expiration,
-        withdrawer: Option<String>,
-        withdraw_to: Option<String>,
-        emergency_committee_addr: Option<String>,
     ) -> Self {
-        Self::new(
-            withdrawer,
-            withdraw_to,
-            emergency_committee_addr,
-            pooler_address,
-            lockup_period,
-        )
+        Self {
+            msg: covenant_single_party_pol_holder::msg::InstantiateMsg {
+                withdrawer: None,
+                withdraw_to: None,
+                emergency_committee_addr: None,
+                pooler_address,
+                lockup_period: Expiration::AtHeight(100000),
+            }
+        }
     }
 }

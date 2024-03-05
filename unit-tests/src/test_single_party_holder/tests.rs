@@ -1,7 +1,7 @@
-use super::suite::Suite;
+use super::suite::{SinglePartyHolderBuilder, Suite};
 
 
 #[test]
 fn test_covenant() {
-    let mut suite = Suite::new_default();
+    let suite = SinglePartyHolderBuilder::default().build();
 }
