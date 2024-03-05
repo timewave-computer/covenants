@@ -12,8 +12,8 @@ pub struct AstroLiquidPoolerBuilder {
     pub instantiate_msg: AstroLiquidPoolerInstantiate,
 }
 
-impl AstroLiquidPoolerBuilder {
-    pub fn default() -> Self {
+impl Default for AstroLiquidPoolerBuilder {
+    fn default() -> Self {
         let mut builder = SuiteBuilder::new();
 
         // init astro pools
@@ -53,7 +53,9 @@ impl AstroLiquidPoolerBuilder {
             instantiate_msg: liquid_pooler_instantiate,
         }
     }
+}
 
+impl AstroLiquidPoolerBuilder {
     pub fn with_custom_astroport_pool(mut self, pair_type: PairType, coin_a: Coin, coin_b: Coin) -> Self {
         let (pool_addr, lp_token_addr) = self.builder.init_astro_pool(
             pair_type,
