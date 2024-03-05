@@ -1,7 +1,5 @@
-use std::borrow::BorrowMut;
-
 use astroport::factory::PairType;
-use cosmwasm_std::{coin, Addr, Decimal};
+use cosmwasm_std::{coin, Addr, Coin, Decimal};
 use covenant_astroport_liquid_pooler::msg::{LpConfig, ProvidedLiquidityInfo, QueryMsg};
 use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
 
@@ -50,61 +48,64 @@ impl AstroLiquidPoolerBuilder {
             holder_addr.to_string(),
         );
 
-        let mut instance = AstroLiquidPoolerBuilder {
+        AstroLiquidPoolerBuilder {
             builder,
             instantiate_msg: liquid_pooler_instantiate,
-        };
-
-        instance
-        // Self {
-        //     builder,
-        //     instantiate_msg: liquid_pooler_instantiate,
-        // }
+        }
     }
 
-    pub fn with_pool_address(&mut self, pool_address: String) -> &mut Self {
+    pub fn with_custom_astroport_pool(mut self, pair_type: PairType, coin_a: Coin, coin_b: Coin) -> Self {
+        let (pool_addr, lp_token_addr) = self.builder.init_astro_pool(
+            pair_type,
+            coin_a,
+            coin_b,
+        );
+        self.instantiate_msg.with_pool_address(pool_addr.to_string());
+        self
+    }
+
+    pub fn with_pool_address(mut self, pool_address: String) -> Self {
         self.instantiate_msg.with_pool_address(pool_address);
         self
     }
 
-    pub fn with_clock_address(&mut self, clock_address: String) -> &mut Self {
+    pub fn with_clock_address(mut self, clock_address: String) -> Self {
         self.instantiate_msg.with_clock_address(clock_address);
         self
     }
 
-    pub fn with_slippage_tolerance(&mut self, slippage_tolerance: Option<Decimal>) -> &mut Self {
+    pub fn with_slippage_tolerance(mut self, slippage_tolerance: Option<Decimal>) -> Self {
         self.instantiate_msg.with_slippage_tolerance(slippage_tolerance);
         self
     }
 
-    pub fn with_assets(&mut self, assets: covenant_astroport_liquid_pooler::msg::AssetData) -> &mut Self {
+    pub fn with_assets(mut self, assets: covenant_astroport_liquid_pooler::msg::AssetData) -> Self {
         self.instantiate_msg.with_assets(assets);
         self
     }
 
-    pub fn with_single_side_lp_limits(&mut self, single_side_lp_limits: SingleSideLpLimits) -> &mut Self {
+    pub fn with_single_side_lp_limits(mut self, single_side_lp_limits: SingleSideLpLimits) -> Self {
         self.instantiate_msg.with_single_side_lp_limits(single_side_lp_limits);
         self
     }
 
-    pub fn with_pool_price_config(&mut self, pool_price_config: PoolPriceConfig) -> &mut Self {
+    pub fn with_pool_price_config(mut self, pool_price_config: PoolPriceConfig) -> Self {
         self.instantiate_msg.with_pool_price_config(pool_price_config);
         self
     }
 
-    pub fn with_pair_type(&mut self, pair_type: PairType) -> &mut Self {
+    pub fn with_pair_type(mut self, pair_type: PairType) -> Self {
         self.instantiate_msg.with_pair_type(pair_type);
         self
     }
 
-    pub fn with_holder_address(&mut self, holder_address: String) -> &mut Self {
+    pub fn with_holder_address(mut self, holder_address: String) -> Self {
         self.instantiate_msg.with_holder_address(holder_address);
         self
     }
 
-
-    pub fn finalize(mut self) -> Suite {
-        let liquid_pooler_address = &self.builder.contract_init2(
+    pub fn build(mut self) -> Suite {
+        let liquid_pooler_address = self.builder.contract_init2(
             self.builder.astro_pooler_code_id,
             ASTRO_LIQUID_POOLER_SALT,
             &self.instantiate_msg.msg,
@@ -180,57 +181,5 @@ impl BaseSuiteMut for Suite {
 impl BaseSuite for Suite {
     fn get_app(&self) -> &CustomApp {
         &self.app
-    }
-}
-
-impl Suite {
-    fn build(mut sb: SuiteBuilder, instantiate_msg: AstroLiquidPoolerInstantiate) -> Self {
-        let liquid_pooler_addr = sb.contract_init2(
-            sb.astro_pooler_code_id.clone(),
-            ASTRO_LIQUID_POOLER_SALT,
-            &instantiate_msg.msg,
-            &[],
-        );
-
-        let clock_addr = sb
-            .app
-            .wrap()
-            .query_wasm_smart(liquid_pooler_addr.clone(), &QueryMsg::ClockAddress {})
-            .unwrap();
-
-        let holder_addr = sb
-            .app
-            .wrap()
-            .query_wasm_smart(liquid_pooler_addr.clone(), &QueryMsg::HolderAddress {})
-            .unwrap();
-
-        let lp_config = sb
-            .app
-            .wrap()
-            .query_wasm_smart(liquid_pooler_addr.clone(), &QueryMsg::LpConfig {})
-            .unwrap();
-
-        let provided_liquidity_info = sb
-            .app
-            .wrap()
-            .query_wasm_smart(
-                liquid_pooler_addr.clone(),
-                &QueryMsg::ProvidedLiquidityInfo {},
-            )
-            .unwrap();
-
-        let faucet = sb.faucet.clone();
-        let admin = sb.admin.clone();
-
-        Self {
-            faucet,
-            admin,
-            liquid_pooler_addr,
-            clock_addr,
-            holder_addr,
-            lp_config,
-            provided_liquidity_info,
-            app: sb.build(),
-        }
     }
 }
