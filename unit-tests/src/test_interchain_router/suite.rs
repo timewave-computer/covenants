@@ -4,73 +4,17 @@ use cosmwasm_std::{Addr, Uint64};
 use covenant_utils::DestinationConfig;
 
 use crate::setup::{
-    base_suite::BaseSuiteMut, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT,
-    DENOM_ATOM_ON_NTRN, INTERCHAIN_ROUTER_SALT, NTRN_HUB_CHANNEL,
+    base_suite::BaseSuiteMut, instantiates::interchain_router::InterchainRouterInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, INTERCHAIN_ROUTER_SALT, NTRN_HUB_CHANNEL
 };
 
-pub(super) struct Suite {
-    pub app: CustomApp,
-
-    pub faucet: Addr,
-    pub admin: Addr,
-
-    pub clock_addr: Addr,
-    pub receiver_config: covenant_utils::DestinationConfig,
-    pub denoms: BTreeSet<String>,
+pub struct InterchainRouterBuilder {
+    pub builder: SuiteBuilder,
+    pub instantiate_msg: InterchainRouterInstantiate,
 }
 
-impl BaseSuiteMut for Suite {
-    fn get_app(&mut self) -> &mut CustomApp {
-        &mut self.app
-    }
 
-    fn get_clock_addr(&mut self) -> Addr {
-        self.clock_addr.clone()
-    }
-}
-
-impl Suite {
-    pub fn build(mut builder: SuiteBuilder, router: Addr) -> Self {
-        let clock_addr = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                router.clone(),
-                &covenant_interchain_router::msg::QueryMsg::ClockAddress {},
-            )
-            .unwrap();
-
-        let receiver_config = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                router.clone(),
-                &covenant_interchain_router::msg::QueryMsg::ReceiverConfig {},
-            )
-            .unwrap();
-
-        let denoms = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                router.clone(),
-                &covenant_interchain_router::msg::QueryMsg::TargetDenoms {},
-            )
-            .unwrap();
-
-        Self {
-            app: builder.app,
-            faucet: builder.faucet,
-            admin: builder.admin,
-            clock_addr,
-            denoms,
-            receiver_config,
-        }
-    }
-}
-
-impl Suite {
-    pub fn new_default() -> Self {
+impl Default for InterchainRouterBuilder {
+    fn default() -> Self {
         let mut builder = SuiteBuilder::new();
 
         let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
@@ -90,28 +34,97 @@ impl Suite {
 
         let party_receiver = builder.get_random_addr();
 
-        let denoms = BTreeSet::from_iter(vec![DENOM_ATOM_ON_NTRN.to_string()]);
+        let interchain_router_instantiate = InterchainRouterInstantiate::default(
+            clock_addr,
+            party_receiver.to_string(),
+        );
+        
+        Self {
+            builder,
+            instantiate_msg: interchain_router_instantiate,
+        }
+    }
+}
 
-        let destination_config = DestinationConfig {
-            local_to_destination_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
-            destination_receiver_addr: party_receiver.to_string(),
-            ibc_transfer_timeout: Uint64::new(1000),
-            denom_to_pfm_map: BTreeMap::new(),
-        };
+impl InterchainRouterBuilder {
+    pub fn with_clock_address(mut self, clock_address: Addr) -> Self {
+        self.instantiate_msg.with_clock_address(clock_address);
+        self
+    }
 
-        let interchain_router_instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
-            clock_address: clock_addr.clone(),
-            destination_config,
-            denoms,
-        };
+    pub fn with_destination_config(mut self, destination_config: DestinationConfig) -> Self {
+        self.instantiate_msg.with_destination_config(destination_config);
+        self
+    }
 
-        builder.contract_init2(
-            builder.interchain_router_code_id,
+    pub fn with_denoms(mut self, denoms: BTreeSet<String>) -> Self {
+        self.instantiate_msg.with_denoms(denoms);
+        self
+    }
+
+    pub fn build(mut self) -> Suite {
+        let interchain_router_address = self.builder.contract_init2(
+            self.builder.interchain_router_code_id,
             INTERCHAIN_ROUTER_SALT,
-            &interchain_router_instantiate_msg,
+            &self.instantiate_msg.msg,
             &[],
         );
 
-        Self::build(builder, interchain_router_addr)
+        let clock_addr = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                interchain_router_address.clone(),
+                &covenant_interchain_router::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap();
+
+        let receiver_config = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                interchain_router_address.clone(),
+                &covenant_interchain_router::msg::QueryMsg::ReceiverConfig {},
+            )
+            .unwrap();
+
+        let denoms = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                interchain_router_address.clone(),
+                &covenant_interchain_router::msg::QueryMsg::TargetDenoms {},
+            )
+            .unwrap();
+
+        Suite {
+            faucet: self.builder.faucet.clone(),
+            admin: self.builder.admin.clone(),
+            clock_addr,
+            denoms,
+            receiver_config,
+            app: self.builder.build(),
+        }
+    }
+}
+
+pub(super) struct Suite {
+    pub app: CustomApp,
+
+    pub faucet: Addr,
+    pub admin: Addr,
+
+    pub clock_addr: Addr,
+    pub receiver_config: covenant_utils::DestinationConfig,
+    pub denoms: BTreeSet<String>,
+}
+
+impl BaseSuiteMut for Suite {
+    fn get_app(&mut self) -> &mut CustomApp {
+        &mut self.app
+    }
+
+    fn get_clock_addr(&mut self) -> Addr {
+        self.clock_addr.clone()
     }
 }
