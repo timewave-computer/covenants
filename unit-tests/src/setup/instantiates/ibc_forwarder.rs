@@ -1,7 +1,7 @@
-use cosmwasm_std::{Uint128, Uint64};
+use cosmwasm_std::{coin, Uint128, Uint64};
 use neutron_sdk::bindings::msg::IbcFee;
 
-use crate::setup::suite_builder::SuiteBuilder;
+use crate::setup::{suite_builder::SuiteBuilder, DENOM_NTRN, NTRN_HUB_CHANNEL};
 
 pub struct IbcForwarderInstantiate {
     pub msg: covenant_ibc_forwarder::msg::InstantiateMsg,
@@ -88,27 +88,25 @@ impl IbcForwarderInstantiate {
 
 impl IbcForwarderInstantiate {
     pub fn default(
-        builder: &SuiteBuilder,
         clock_address: String,
         next_contract: String,
-        remote_chain_connection_id: String,
-        remote_chain_channel_id: String,
-        denom: String,
-        amount: Uint128,
-        ibc_fee: IbcFee,
-        ibc_transfer_timeout: Uint64,
-        ica_timeout: Uint64,
     ) -> Self {
-        Self::new(
-            clock_address,
-            next_contract,
-            remote_chain_connection_id,
-            remote_chain_channel_id,
-            denom,
-            amount,
-            ibc_fee,
-            ibc_transfer_timeout,
-            ica_timeout,
-        )
+        Self {
+            msg: covenant_ibc_forwarder::msg::InstantiateMsg {
+                clock_address,
+                next_contract,
+                remote_chain_connection_id: "connection-todo".to_string(),
+                remote_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
+                denom: DENOM_NTRN.to_string(),
+                amount: Uint128::new(100000),
+                ibc_fee: IbcFee {
+                    recv_fee: vec![coin(1u128, DENOM_NTRN)],
+                    ack_fee: vec![coin(1u128, DENOM_NTRN)],
+                    timeout_fee: vec![coin(1u128, DENOM_NTRN)],
+                },
+                ica_timeout: Uint64::from(100u64),
+                ibc_transfer_timeout: Uint64::from(100u64),
+            },
+        }
     }
 }
