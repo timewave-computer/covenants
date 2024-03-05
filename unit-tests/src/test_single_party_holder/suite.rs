@@ -1,6 +1,7 @@
 use astroport::factory::PairType;
-use cosmwasm_std::{coin, Addr, Decimal, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
 use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
+use cw_multi_test::Executor;
 use cw_utils::Expiration;
 
 use crate::setup::{
@@ -178,6 +179,10 @@ impl BaseSuiteMut for Suite {
     fn get_clock_addr(&mut self) -> Addr {
         // single party holder is not clocked
         Addr::unchecked("")
+    }
+    
+    fn get_faucet_addr(&mut self) -> Addr {
+        self.faucet.clone()
     }
 }
 
