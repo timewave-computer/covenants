@@ -1,7 +1,8 @@
-use super::suite::Suite;
+use crate::test_native_router::suite::NativeRouterBuilder;
 
 
 #[test]
 fn test_covenant() {
-    let mut suite = Suite::new_default();
+    let suite = NativeRouterBuilder::default()
+        .build();
 }
