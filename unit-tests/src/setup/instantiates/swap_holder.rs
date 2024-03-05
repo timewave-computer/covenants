@@ -1,7 +1,8 @@
-use covenant_utils::{CovenantPartiesConfig, CovenantTerms};
+use cosmwasm_std::{Addr, Uint128};
+use covenant_utils::{CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig};
 use cw_utils::Expiration;
 
-use crate::setup::suite_builder::SuiteBuilder;
+use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 
 pub struct SwapHolderInstantiate {
@@ -61,19 +62,33 @@ impl SwapHolderInstantiate {
 
 impl SwapHolderInstantiate {
     pub fn default(
-        builder: &SuiteBuilder,
         clock_address: String,
         next_contract: String,
-        lockup_config: Expiration,
-        covenant_terms: CovenantTerms,
-        parties_config: CovenantPartiesConfig,
+        party_a_addr: Addr,
+        party_b_addr: Addr,
     ) -> Self {
-        Self::new(
-            clock_address,
-            next_contract,
-            lockup_config,
-            covenant_terms,
-            parties_config,
-        )
+        Self {
+            msg: covenant_swap_holder::msg::InstantiateMsg {            
+                clock_address,
+                next_contract,
+                lockup_config: Expiration::AtHeight(1000000),
+                covenant_terms: CovenantTerms::TokenSwap(covenant_utils::SwapCovenantTerms {
+                    party_a_amount: Uint128::new(100000),
+                    party_b_amount: Uint128::new(100000),
+                }),
+                parties_config: CovenantPartiesConfig {
+                    party_a: CovenantParty {
+                        addr: party_a_addr.to_string(),
+                        native_denom: DENOM_ATOM_ON_NTRN.to_string(),
+                        receiver_config: ReceiverConfig::Native(party_a_addr),
+                    },
+                    party_b: CovenantParty {
+                        addr: party_b_addr.to_string(),
+                        native_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
+                        receiver_config: ReceiverConfig::Native(party_b_addr),
+                    },
+                },
+            }
+        }
     }
 }
