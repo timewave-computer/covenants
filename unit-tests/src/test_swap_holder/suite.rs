@@ -12,97 +12,13 @@ use covenant_utils::{
 };
 use cw_utils::Expiration;
 
-pub(super) struct Suite {
-    pub app: CustomApp,
-
-    pub faucet: Addr,
-    pub admin: Addr,
-
-    pub clock_addr: Addr,
-    pub lockup_config: Expiration,
-    pub next_contract: Addr,
-    pub covenant_parties_config: CovenantPartiesConfig,
-    pub covenant_terms: CovenantTerms,
-    pub emergency_committee_addr: Option<String>,
+pub struct SwapHolderBuilder {
+    pub builder: SuiteBuilder,
+    pub instantiate_msg: SwapHolderInstantiate,
 }
 
-impl BaseSuiteMut for Suite {
-    fn get_app(&mut self) -> &mut CustomApp {
-        &mut self.app
-    }
-
-    fn get_clock_addr(&mut self) -> Addr {
-        self.clock_addr.clone()
-    }
-}
-
-impl Suite {
-    pub fn build(
-        mut builder: SuiteBuilder,
-        holder_addr: Addr,
-        emergency_committee_addr: Option<String>,
-    ) -> Self {
-        let clock_addr = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_swap_holder::msg::QueryMsg::ClockAddress {},
-            )
-            .unwrap();
-
-        let lockup_config = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_swap_holder::msg::QueryMsg::LockupConfig {},
-            )
-            .unwrap();
-
-        let next_contract = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_swap_holder::msg::QueryMsg::NextContract {},
-            )
-            .unwrap();
-
-        let covenant_parties_config = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_swap_holder::msg::QueryMsg::CovenantParties {},
-            )
-            .unwrap();
-
-        let covenant_terms = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_swap_holder::msg::QueryMsg::CovenantTerms {},
-            )
-            .unwrap();
-
-        Self {
-            faucet: builder.faucet.clone(),
-            admin: builder.admin.clone(),
-            clock_addr,
-            lockup_config,
-            next_contract,
-            covenant_parties_config,
-            covenant_terms,
-            emergency_committee_addr,
-            app: builder.build(),
-        }
-    }
-}
-
-impl Suite {
-    pub fn new_default() -> Self {
+impl Default for SwapHolderBuilder {
+    fn default() -> Self {
         let mut builder = SuiteBuilder::new();
 
         let holder_addr = builder.get_contract_addr(builder.swap_holder_code_id, SWAP_HOLDER_SALT);
@@ -152,37 +68,134 @@ impl Suite {
             &[],
         );
 
-        let holder_instantiate_msg = SwapHolderInstantiate {
-            msg: covenant_swap_holder::msg::InstantiateMsg {
-                next_contract: native_splitter_addr.to_string(),
-                covenant_terms: CovenantTerms::TokenSwap(SwapCovenantTerms {
-                    party_a_amount: Uint128::new(100000),
-                    party_b_amount: Uint128::new(100000),
-                }),
-                clock_address: clock_addr.to_string(),
-                lockup_config: Expiration::AtHeight(1000000),
-                parties_config: CovenantPartiesConfig {
-                    party_a: CovenantParty {
-                        addr: party_a_controller_addr.to_string(),
-                        native_denom: DENOM_ATOM_ON_NTRN.to_string(),
-                        receiver_config: ReceiverConfig::Native(party_a_controller_addr),
-                    },
-                    party_b: CovenantParty {
-                        addr: party_b_controller_addr.to_string(),
-                        native_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
-                        receiver_config: ReceiverConfig::Native(party_b_controller_addr),
-                    },
-                },
-            },
-        };
+        let holder_instantiate_msg = SwapHolderInstantiate::default(
+            clock_addr.to_string(),
+            native_splitter_addr.to_string(),
+            party_a_controller_addr,
+            party_b_controller_addr,
+        );
 
-        builder.contract_init2(
-            builder.swap_holder_code_id,
+        Self {
+            builder,
+            instantiate_msg: holder_instantiate_msg,
+        }
+    }
+}
+
+impl SwapHolderBuilder {
+
+    pub fn with_clock_address(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_clock_address(addr);
+        self
+    }
+
+    pub fn with_next_contract(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_next_contract(addr);
+        self
+    }
+
+    pub fn with_lockup_config(mut self, period: Expiration) -> Self {
+        self.instantiate_msg.with_lockup_config(period);
+        self
+    }
+
+    pub fn with_covenant_terms(mut self, terms: CovenantTerms) -> Self {
+        self.instantiate_msg.with_covenant_terms(terms);
+        self
+    }
+
+    pub fn with_parties_config(mut self, config: CovenantPartiesConfig) -> Self {
+        self.instantiate_msg.with_parties_config(config);
+        self
+    }
+
+    pub fn build(mut self) -> Suite {
+        let holder_addr = self.builder.contract_init2(
+            self.builder.swap_holder_code_id,
             SWAP_HOLDER_SALT,
-            &holder_instantiate_msg.msg,
+            &self.instantiate_msg.msg,
             &[],
         );
 
-        Self::build(builder, holder_addr, None)
+        let clock_addr = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_swap_holder::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap();
+
+        let lockup_config = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_swap_holder::msg::QueryMsg::LockupConfig {},
+            )
+            .unwrap();
+
+        let next_contract = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_swap_holder::msg::QueryMsg::NextContract {},
+            )
+            .unwrap();
+
+        let covenant_parties_config = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_swap_holder::msg::QueryMsg::CovenantParties {},
+            )
+            .unwrap();
+
+        let covenant_terms = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_swap_holder::msg::QueryMsg::CovenantTerms {},
+            )
+            .unwrap();
+
+        Suite {
+            faucet: self.builder.faucet.clone(),
+            admin: self.builder.admin.clone(),
+            clock_addr,
+            lockup_config,
+            next_contract,
+            covenant_parties_config,
+            covenant_terms,
+            emergency_committee_addr: None,
+            app: self.builder.build(),
+        }
+    }
+}
+
+pub(super) struct Suite {
+    pub app: CustomApp,
+
+    pub faucet: Addr,
+    pub admin: Addr,
+
+    pub clock_addr: Addr,
+    pub lockup_config: Expiration,
+    pub next_contract: Addr,
+    pub covenant_parties_config: CovenantPartiesConfig,
+    pub covenant_terms: CovenantTerms,
+    pub emergency_committee_addr: Option<String>,
+}
+
+impl BaseSuiteMut for Suite {
+    fn get_app(&mut self) -> &mut CustomApp {
+        &mut self.app
+    }
+
+    fn get_clock_addr(&mut self) -> Addr {
+        self.clock_addr.clone()
     }
 }
