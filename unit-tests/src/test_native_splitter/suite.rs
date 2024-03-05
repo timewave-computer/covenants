@@ -130,4 +130,8 @@ impl BaseSuiteMut for Suite {
     fn get_clock_addr(&mut self) -> Addr {
         self.clock_addr.clone()
     }
+
+    fn get_faucet_addr(&mut self) -> Addr {
+        self.faucet.clone()
+    }
 }

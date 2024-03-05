@@ -52,4 +52,8 @@ impl BaseSuiteMut for Suite {
         // outpost is not clocked
         Addr::unchecked("")
     }
+
+    fn get_faucet_addr(&mut self) -> Addr {
+        self.faucet.clone()
+    }
 }
