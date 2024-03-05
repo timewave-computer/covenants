@@ -1,10 +1,10 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::{Uint128, Uint64};
+use cosmwasm_std::{coin, Decimal, Uint128, Uint64};
 use covenant_utils::split::SplitConfig;
 use neutron_sdk::bindings::msg::IbcFee;
 
-use crate::setup::suite_builder::SuiteBuilder;
+use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
 use super::clock;
 
@@ -93,27 +93,41 @@ impl RemoteChainSplitterInstantiate {
 
 impl RemoteChainSplitterInstantiate {
     pub fn default(
-        builder: &SuiteBuilder,
         clock_address: String,
-        splits: BTreeMap<String, SplitConfig>,
-        remote_chain_connection_id: String,
-        remote_chain_channel_id: String,
-        denom: String,
-        amount: Uint128,
-        ibc_fee: IbcFee,
-        ica_timeout: Uint64,
-        ibc_transfer_timeout: Uint64,
+        party_a_addr: String,
+        party_b_addr: String,
     ) -> Self {
-        Self::new(
-            clock_address,
-            remote_chain_connection_id,
-            remote_chain_channel_id,
-            denom,
-            amount,
-            splits,
-            ibc_fee,
-            ica_timeout,
-            ibc_transfer_timeout,
-        )
+        let mut splits = BTreeMap::new();
+        splits.insert(
+            party_a_addr.to_string(),
+            Decimal::from_str("0.5").unwrap(),
+        );
+        splits.insert(
+            party_b_addr.to_string(),
+            Decimal::from_str("0.5").unwrap(),
+        );
+
+        let split_config = SplitConfig { receivers: splits };
+        let mut denom_to_split_config_map = BTreeMap::new();
+        denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
+        denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
+
+        Self {
+            msg: covenant_remote_chain_splitter::msg::InstantiateMsg {
+                clock_address,
+                remote_chain_connection_id: "connection-0".to_string(),
+                remote_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
+                denom: DENOM_ATOM_ON_NTRN.to_string(),
+                amount: Uint128::from(100u128),
+                splits: denom_to_split_config_map,
+                ibc_fee: IbcFee {
+                    recv_fee: vec![coin(1u128, DENOM_ATOM_ON_NTRN)],
+                    ack_fee: vec![coin(1u128, DENOM_ATOM_ON_NTRN)],
+                    timeout_fee: vec![coin(1u128, DENOM_ATOM_ON_NTRN)],
+                },
+                ica_timeout: Uint64::from(100u64),
+                ibc_transfer_timeout: Uint64::from(100u64),
+            }
+        }
     }
 }
