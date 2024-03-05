@@ -1,9 +1,9 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Uint64};
 use covenant_utils::DestinationConfig;
 
-use crate::setup::suite_builder::SuiteBuilder;
+use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
 pub struct InterchainRouterInstantiate {
     pub msg: covenant_interchain_router::msg::InstantiateMsg,
@@ -48,11 +48,18 @@ impl InterchainRouterInstantiate {
 
 impl InterchainRouterInstantiate {
     pub fn default(
-        builder: &SuiteBuilder,
         clock_address: Addr,
-        destination_config: DestinationConfig,
-        denoms: BTreeSet<String>,
+        party_receiver: String,
     ) -> Self {
+        let denoms = BTreeSet::from_iter(vec![DENOM_ATOM_ON_NTRN.to_string()]);
+
+        let destination_config = DestinationConfig {
+            local_to_destination_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
+            destination_receiver_addr: party_receiver,
+            ibc_transfer_timeout: Uint64::new(1000),
+            denom_to_pfm_map: BTreeMap::new(),
+        };
+        
         Self::new(
             clock_address,
             destination_config,
