@@ -1,9 +1,9 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
 use covenant_utils::split::SplitConfig;
 
-use crate::setup::suite_builder::SuiteBuilder;
+use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 
 pub struct NativeSplitterInstantiate {
@@ -49,15 +49,32 @@ impl NativeSplitterInstantiate {
 
 impl NativeSplitterInstantiate {
     pub fn default(
-        builder: &SuiteBuilder,
         clock_address: Addr,
-        splits: BTreeMap::<String, SplitConfig>,
-        fallback_split: Option<SplitConfig>,
+        party_a_addr: String,
+        party_b_addr: String,
     ) -> Self {
-        Self::new(
-            clock_address,
-            splits,
-            fallback_split
-        )
+        let mut splits = BTreeMap::new();
+        splits.insert(
+            party_a_addr,
+            Decimal::from_str("0.5").unwrap(),
+        );
+        splits.insert(
+            party_b_addr,
+            Decimal::from_str("0.5").unwrap(),
+        );
+
+        let split_config = SplitConfig { receivers: splits };
+        let mut denom_to_split_config_map = BTreeMap::new();
+        denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
+        denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
+
+
+        Self {
+            msg: covenant_native_splitter::msg::InstantiateMsg {
+                clock_address,
+                splits: denom_to_split_config_map,
+                fallback_split: None,
+            }
+        }
     }
 }
