@@ -11,78 +11,13 @@ use crate::setup::{
     SINGLE_PARTY_HOLDER_SALT, TWO_PARTY_HOLDER_SALT,
 };
 
-pub(super) struct Suite {
-    pub app: CustomApp,
-
-    pub faucet: Addr,
-    pub admin: Addr,
-
-    pub holder_addr: Addr,
-    pub withdraw_to: Option<Addr>,
-    pub withdrawer: Option<Addr>,
-    pub liquid_pooler_address: Addr,
+pub struct SinglePartyHolderBuilder {
+    pub builder: SuiteBuilder,
+    pub instantiate_msg: SinglePartyHolderInstantiate,
 }
 
-impl BaseSuiteMut for Suite {
-    fn get_app(&mut self) -> &mut CustomApp {
-        &mut self.app
-    }
-
-    fn get_clock_addr(&mut self) -> Addr {
-        // single party holder is not clocked
-        Addr::unchecked("")
-    }
-}
-
-impl BaseSuite for Suite {
-    fn get_app(&self) -> &CustomApp {
-        &self.app
-    }
-}
-
-impl Suite {
-    fn build(mut builder: SuiteBuilder, holder_addr: Addr) -> Self {
-        let liquid_pooler_address = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::PoolerAddress {},
-            )
-            .unwrap();
-
-        let withdrawer = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::Withdrawer {},
-            )
-            .unwrap();
-
-        let withdraw_to = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::WithdrawTo {},
-            )
-            .unwrap();
-
-        Self {
-            app: builder.app,
-            faucet: builder.faucet,
-            admin: builder.admin,
-            holder_addr,
-            withdraw_to,
-            withdrawer,
-            liquid_pooler_address,
-        }
-    }
-}
-
-impl Suite {
-    pub fn new_default() -> Self {
+impl Default for SinglePartyHolderBuilder {
+    fn default() -> Self {
         let mut builder = SuiteBuilder::new();
 
         // init astro pools
@@ -138,24 +73,116 @@ impl Suite {
             &[],
         );
 
-        let lockup_config = Expiration::AtHeight(100000);
-
         let holder_instantiate_msg = SinglePartyHolderInstantiate::default(
-            &builder,
             liquid_pooler_addr.to_string(),
-            lockup_config,
-            None,
-            None,
-            None,
         );
 
-        builder.contract_init2(
-            builder.single_party_holder_code_id,
+        Self {
+            builder,
+            instantiate_msg: holder_instantiate_msg,
+        }
+    }
+}
+
+impl SinglePartyHolderBuilder {
+    pub fn with_withdrawer(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_withdrawer(addr);
+        self
+    }
+
+    pub fn with_withdraw_to(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_withdraw_to(addr);
+        self
+    }
+
+    pub fn with_emergency_committee_addr(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_emergency_committee_addr(addr);
+        self
+    }
+
+    pub fn with_pooler_address(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_pooler_address(addr);
+        self
+    }
+
+    pub fn with_lockup_period(mut self, period: Expiration) -> Self {
+        self.instantiate_msg.with_lockup_period(period);
+        self
+    }
+
+    pub fn build(mut self) -> Suite {
+        let holder_addr = self.builder.contract_init2(
+            self.builder.single_party_holder_code_id,
             SINGLE_PARTY_HOLDER_SALT,
-            &holder_instantiate_msg.msg,
+            &self.instantiate_msg.msg,
             &[],
         );
 
-        Self::build(builder, holder_addr)
+
+        let liquid_pooler_address = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_single_party_pol_holder::msg::QueryMsg::PoolerAddress {},
+            )
+            .unwrap();
+
+        let withdrawer = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_single_party_pol_holder::msg::QueryMsg::Withdrawer {},
+            )
+            .unwrap();
+
+        let withdraw_to = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &covenant_single_party_pol_holder::msg::QueryMsg::WithdrawTo {},
+            )
+            .unwrap();
+
+        Suite {
+            faucet: self.builder.faucet.clone(),
+            admin: self.builder.admin.clone(),
+            holder_addr,
+            withdraw_to,
+            withdrawer,
+            liquid_pooler_address,
+            app: self.builder.build(),
+        }
+    }
+}
+
+pub(super) struct Suite {
+    pub app: CustomApp,
+
+    pub faucet: Addr,
+    pub admin: Addr,
+
+    pub holder_addr: Addr,
+    pub withdraw_to: Option<Addr>,
+    pub withdrawer: Option<Addr>,
+    pub liquid_pooler_address: Addr,
+}
+
+impl BaseSuiteMut for Suite {
+    fn get_app(&mut self) -> &mut CustomApp {
+        &mut self.app
+    }
+
+    fn get_clock_addr(&mut self) -> Addr {
+        // single party holder is not clocked
+        Addr::unchecked("")
+    }
+}
+
+impl BaseSuite for Suite {
+    fn get_app(&self) -> &CustomApp {
+        &self.app
     }
 }
