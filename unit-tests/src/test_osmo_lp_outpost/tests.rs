@@ -1,8 +1,7 @@
-use super::suite::Suite;
-
+use crate::test_osmo_lp_outpost::suite::OsmoLpOutpostBuilder;
 
 #[test]
 fn test_covenant() {
-    let mut suite = Suite::new_default();
+    let suite = OsmoLpOutpostBuilder::default().build();
     println!("outpost addr: {:?}", suite.outpost);
 }
