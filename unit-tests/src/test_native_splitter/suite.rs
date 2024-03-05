@@ -4,75 +4,16 @@ use cosmwasm_std::{Addr, Decimal};
 use covenant_utils::split::SplitConfig;
 
 use crate::setup::{
-    base_suite::BaseSuiteMut, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT,
-    DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, NATIVE_SPLITTER_SALT,
+    base_suite::BaseSuiteMut, instantiates::native_splitter::NativeSplitterInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, NATIVE_SPLITTER_SALT
 };
 
-pub(super) struct Suite {
-    pub app: CustomApp,
-
-    pub faucet: Addr,
-    pub admin: Addr,
-
-    pub clock_addr: Addr,
-    pub splits: BTreeMap<String, SplitConfig>,
-    pub fallback_split: Option<SplitConfig>,
+pub struct NativeSplitterBuilder {
+    pub builder: SuiteBuilder,
+    pub instantiate_msg: NativeSplitterInstantiate,
 }
 
-impl BaseSuiteMut for Suite {
-    fn get_app(&mut self) -> &mut CustomApp {
-        &mut self.app
-    }
-
-    fn get_clock_addr(&mut self) -> Addr {
-        self.clock_addr.clone()
-    }
-}
-
-impl Suite {
-    pub fn build(mut builder: SuiteBuilder, splitter: Addr) -> Self {
-        let clock_addr = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                splitter.clone(),
-                &covenant_native_splitter::msg::QueryMsg::ClockAddress {},
-            )
-            .unwrap();
-
-        let splits: Vec<(String, SplitConfig)> = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                splitter.clone(),
-                &covenant_native_splitter::msg::QueryMsg::Splits {},
-            )
-            .unwrap();
-
-        let split_map = BTreeMap::from_iter(splits);
-
-        let fallback_split = builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                splitter.clone(),
-                &covenant_native_splitter::msg::QueryMsg::FallbackSplit {},
-            )
-            .unwrap();
-
-        Self {
-            faucet: builder.faucet.clone(),
-            admin: builder.admin.clone(),
-            clock_addr,
-            splits: split_map,
-            fallback_split,
-            app: builder.build(),
-        }
-    }
-}
-
-impl Suite {
-    pub fn new_default() -> Self {
+impl Default for NativeSplitterBuilder {
+    fn default() -> Self {
         let mut builder = SuiteBuilder::new();
 
         let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
@@ -93,34 +34,100 @@ impl Suite {
         let party_a_controller_addr = builder.get_random_addr();
         let party_b_controller_addr = builder.get_random_addr();
 
-        let mut splits = BTreeMap::new();
-        splits.insert(
+        let native_splitter_instantiate = NativeSplitterInstantiate::default(
+            clock_addr,
             party_a_controller_addr.to_string(),
-            Decimal::from_str("0.5").unwrap(),
-        );
-        splits.insert(
             party_b_controller_addr.to_string(),
-            Decimal::from_str("0.5").unwrap(),
         );
 
-        let split_config = SplitConfig { receivers: splits };
-        let mut denom_to_split_config_map = BTreeMap::new();
-        denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
-        denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
+        Self {
+            builder,
+            instantiate_msg: native_splitter_instantiate,
+        }
+    }
+}
 
-        let native_splitter_instantiate_msg = covenant_native_splitter::msg::InstantiateMsg {
-            clock_address: clock_addr.clone(),
-            splits: denom_to_split_config_map,
-            fallback_split: None,
-        };
+impl NativeSplitterBuilder {
+    pub fn with_clock_address(mut self, addr: Addr) -> Self {
+        self.instantiate_msg.with_clock_address(addr);
+        self
+    }
 
-        builder.contract_init2(
-            builder.native_splitter_code_id,
+    pub fn with_splits(mut self, splits: BTreeMap::<String, SplitConfig>) -> Self {
+        self.instantiate_msg.with_splits(splits);
+        self
+    }
+
+    pub fn with_fallback_split(mut self, fallback_split: Option<SplitConfig>) -> Self {
+        self.instantiate_msg.with_fallback_split(fallback_split);
+        self
+    }
+
+    pub fn build(mut self) -> Suite {
+        let native_splitter_address = self.builder.contract_init2(
+            self.builder.native_splitter_code_id,
             NATIVE_SPLITTER_SALT,
-            &native_splitter_instantiate_msg,
+            &self.instantiate_msg.msg,
             &[],
         );
 
-        Self::build(builder, native_splitter_addr)
+        let clock_addr = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                native_splitter_address.clone(),
+                &covenant_native_splitter::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap();
+
+        let splits: Vec<(String, SplitConfig)> = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                native_splitter_address.clone(),
+                &covenant_native_splitter::msg::QueryMsg::Splits {},
+            )
+            .unwrap();
+
+        let split_map = BTreeMap::from_iter(splits);
+
+        let fallback_split = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                native_splitter_address.clone(),
+                &covenant_native_splitter::msg::QueryMsg::FallbackSplit {},
+            )
+            .unwrap();
+
+        Suite {
+            faucet: self.builder.faucet.clone(),
+            admin: self.builder.admin.clone(),
+            clock_addr,
+            splits: split_map,
+            fallback_split,
+            app: self.builder.build(),
+        }
+    }
+}
+
+pub(super) struct Suite {
+    pub app: CustomApp,
+
+    pub faucet: Addr,
+    pub admin: Addr,
+
+    pub clock_addr: Addr,
+    pub splits: BTreeMap<String, SplitConfig>,
+    pub fallback_split: Option<SplitConfig>,
+}
+
+impl BaseSuiteMut for Suite {
+    fn get_app(&mut self) -> &mut CustomApp {
+        &mut self.app
+    }
+
+    fn get_clock_addr(&mut self) -> Addr {
+        self.clock_addr.clone()
     }
 }
