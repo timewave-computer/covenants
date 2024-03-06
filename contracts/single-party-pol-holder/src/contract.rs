@@ -23,7 +23,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     deps.api.debug("WASMDEBUG: holder instantiate");
     let mut resp = Response::default().add_attribute("method", "instantiate");
-
+    
     // withdrawer is optional on instantiation; can be set later
     if let Some(addr) = msg.withdrawer {
         WITHDRAWER.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
@@ -34,7 +34,7 @@ pub fn instantiate(
         WITHDRAW_TO.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
         resp = resp.add_attribute("withdraw_to", addr);
     };
-
+    
     if let Some(addr) = msg.emergency_committee_addr {
         EMERGENCY_COMMITTEE_ADDR.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
         resp = resp.add_attribute("emergency_committee", addr);
