@@ -85,6 +85,7 @@ impl Default for SinglePartyHolderBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl SinglePartyHolderBuilder {
     pub fn with_withdrawer(mut self, addr: &str) -> Self {
         self.instantiate_msg.with_withdrawer(addr);
@@ -159,6 +160,7 @@ impl SinglePartyHolderBuilder {
     }
 }
 
+#[allow(dead_code)]
 pub(super) struct Suite {
     pub app: CustomApp,
 

@@ -40,7 +40,7 @@ pub trait BaseSuiteMut {
         res
     }
 
-    fn tick_contract(&mut self, contract: Addr) {
+    fn tick_contract(&mut self, contract: Addr) -> AppResponse {
         let clock_addr = self.get_clock_addr();
         let app = self.get_app();
 
@@ -50,7 +50,7 @@ pub trait BaseSuiteMut {
             &covenant_clock::msg::ExecuteMsg::Tick {},
             &[],
         )
-        .unwrap();
+        .unwrap()
     }
 
     fn fund_contract(&mut self, amount: &Vec<Coin>, to: Addr) {

@@ -220,7 +220,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let pool_response: PoolResponse = deps
         .querier
         .query_wasm_smart(&lp_config.pool_address, &astroport::pair::QueryMsg::Pool {})?;
-
+    
     let (pool_token_a_bal, pool_token_b_bal) = get_pool_asset_amounts(
         pool_response.assets,
         lp_config.asset_data.asset_a_denom.as_str(),

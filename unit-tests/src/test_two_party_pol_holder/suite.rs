@@ -30,7 +30,7 @@ impl Default for TwoPartyHolderBuilder {
             builder.get_contract_addr(builder.astro_pooler_code_id, ASTRO_LIQUID_POOLER_SALT);
 
         // init astro pools
-        let (pool_addr, lp_token_addr) = builder.init_astro_pool(
+        let (pool_addr, _lp_token_addr) = builder.init_astro_pool(
             astroport::factory::PairType::Stable {},
             coin(10_000_000_000_000, DENOM_ATOM_ON_NTRN),
             coin(10_000_000_000_000, DENOM_LS_ATOM_ON_NTRN),
@@ -92,6 +92,7 @@ impl Default for TwoPartyHolderBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl TwoPartyHolderBuilder {
     pub fn with_clock(mut self, addr: &str) -> Self {
         self.instantiate_msg.with_clock(addr);
@@ -227,6 +228,7 @@ impl TwoPartyHolderBuilder {
     }
 }
 
+#[allow(dead_code)]
 pub(super) struct Suite {
     pub app: CustomApp,
 

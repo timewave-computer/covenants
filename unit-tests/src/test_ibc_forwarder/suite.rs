@@ -11,6 +11,7 @@ pub struct IbcForwarderBuilder {
     pub instantiate_msg: IbcForwarderInstantiate,
 }
 
+#[allow(dead_code)]
 impl IbcForwarderBuilder {
     pub fn default() -> Self {
         let mut builder = SuiteBuilder::new();
@@ -128,6 +129,7 @@ impl IbcForwarderBuilder {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) struct Suite {
     pub app: CustomApp,
 

@@ -11,6 +11,7 @@ use crate::setup::{
     HUB_STRIDE_CHANNEL, NTRN_HUB_CHANNEL, NTRN_STRIDE_CHANNEL, SINGLE_PARTY_COVENANT_SALT,
 };
 
+#[allow(dead_code)]
 pub(super) struct Suite {
     pub fuacet: Addr,
     pub admin: Addr,

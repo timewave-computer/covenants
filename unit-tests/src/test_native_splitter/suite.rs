@@ -47,6 +47,7 @@ impl Default for NativeSplitterBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl NativeSplitterBuilder {
     pub fn with_clock_address(mut self, addr: Addr) -> Self {
         self.instantiate_msg.with_clock_address(addr);
@@ -111,6 +112,7 @@ impl NativeSplitterBuilder {
     }
 }
 
+#[allow(dead_code)]
 pub(super) struct Suite {
     pub app: CustomApp,
 

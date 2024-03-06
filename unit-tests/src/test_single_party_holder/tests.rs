@@ -7,13 +7,13 @@ use super::suite::{SinglePartyHolderBuilder};
 
 #[test]
 fn test_covenant() {
-    let suite = SinglePartyHolderBuilder::default().build();
+    let _suite = SinglePartyHolderBuilder::default().build();
 }
 
 
 #[test]
 fn test_instantiate_and_query_withdrawer() {
-    let suite = SinglePartyHolderBuilder::default().build();
+    let _suite = SinglePartyHolderBuilder::default().build();
  
 }
 

@@ -35,6 +35,7 @@ impl OsmoLpOutpostBuilder {
     }
 }
 
+#[allow(dead_code)]
 pub(super) struct Suite {
     pub app: CustomApp,
 

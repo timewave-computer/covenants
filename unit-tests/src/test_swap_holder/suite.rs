@@ -82,6 +82,7 @@ impl Default for SwapHolderBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl SwapHolderBuilder {
 
     pub fn with_clock_address(mut self, addr: &str) -> Self {
@@ -176,6 +177,7 @@ impl SwapHolderBuilder {
     }
 }
 
+#[allow(dead_code)]
 pub(super) struct Suite {
     pub app: CustomApp,
 

@@ -45,6 +45,7 @@ impl Default for NativeRouterBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl NativeRouterBuilder {
     pub fn with_clock_address(mut self, addr: Addr) -> Self {
         self.instantiate_msg.with_clock_address(addr);
@@ -108,6 +109,7 @@ impl NativeRouterBuilder {
     }
 }
 
+#[allow(dead_code)]
 pub(super) struct Suite {
     pub app: CustomApp,
 
