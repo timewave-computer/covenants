@@ -45,6 +45,10 @@ impl BaseSuiteMut for Suite {
     fn get_clock_addr(&mut self) -> Addr {
         self.clock_addr.clone()
     }
+    
+    fn get_faucet_addr(&mut self) -> Addr {
+        self.fuacet.clone()
+    }
 }
 
 impl BaseSuite for Suite {
@@ -144,7 +148,7 @@ impl Suite {
         builder.fund_with_ntrn(&lp_forwarder_addr, 2_000_000_u128);
 
         Self {
-            fuacet: builder.fuacet.clone(),
+            fuacet: builder.faucet.clone(),
             admin: builder.admin.clone(),
 
             covenant_addr,
