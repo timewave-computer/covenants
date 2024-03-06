@@ -1,8 +1,7 @@
-use super::suite::{Suite, SwapHolderBuilder};
+use super::suite::{SwapHolderBuilder};
 
 
 #[test]
 fn test_covenant() {
-    let suite = SwapHolderBuilder::default()
-        .build();
+    SwapHolderBuilder::default().build();
 }

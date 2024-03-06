@@ -46,6 +46,7 @@ impl Default for InterchainRouterBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl InterchainRouterBuilder {
     pub fn with_clock_address(mut self, clock_address: Addr) -> Self {
         self.instantiate_msg.with_clock_address(clock_address);
@@ -108,6 +109,7 @@ impl InterchainRouterBuilder {
     }
 }
 
+#[allow(dead_code)]
 pub(super) struct Suite {
     pub app: CustomApp,
 

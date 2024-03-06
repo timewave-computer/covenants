@@ -2,9 +2,10 @@ use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Coin, Decimal};
 use covenant_astroport_liquid_pooler::msg::{LpConfig, ProvidedLiquidityInfo, QueryMsg};
 use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
+use cw_multi_test::Executor;
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::astro_liquid_pooler::AstroLiquidPoolerInstantiate, suite_builder::SuiteBuilder, CustomApp, ADMIN, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, TWO_PARTY_HOLDER_SALT
+    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::astro_liquid_pooler::AstroLiquidPoolerInstantiate, suite_builder::SuiteBuilder, CustomApp, ADMIN, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, SINGLE_PARTY_HOLDER_SALT, TWO_PARTY_HOLDER_SALT
 };
 
 pub struct AstroLiquidPoolerBuilder {
@@ -17,7 +18,7 @@ impl Default for AstroLiquidPoolerBuilder {
         let mut builder = SuiteBuilder::new();
 
         // init astro pools
-        let (pool_addr, lp_token_addr) = builder.init_astro_pool(
+        let (pool_addr, _lp_token_addr) = builder.init_astro_pool(
             astroport::factory::PairType::Stable {},
             coin(10_000_000_000_000, DENOM_ATOM_ON_NTRN),
             coin(10_000_000_000_000, DENOM_LS_ATOM_ON_NTRN),
@@ -28,7 +29,19 @@ impl Default for AstroLiquidPoolerBuilder {
             builder.astro_pooler_code_id,
             ASTRO_LIQUID_POOLER_SALT,
         );
-        let holder_addr = builder.get_random_addr();
+
+        let holder_addr = builder.get_contract_addr(
+            builder.single_party_holder_code_id,
+            SINGLE_PARTY_HOLDER_SALT,
+        );
+
+        let holder_instantiate_msg = covenant_single_party_pol_holder::msg::InstantiateMsg {
+            withdrawer: Some(clock_addr.to_string()),
+            withdraw_to: Some(holder_addr.to_string()),
+            emergency_committee_addr: None,
+            pooler_address: liquid_pooler_addr.to_string(),
+            lockup_period: cw_utils::Expiration::AtHeight(12365),
+        };
 
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
             tick_max_gas: None,
@@ -39,6 +52,12 @@ impl Default for AstroLiquidPoolerBuilder {
             builder.clock_code_id,
             CLOCK_SALT,
             &clock_instantiate_msg,
+            &[],
+        );
+        builder.contract_init2(
+            builder.single_party_holder_code_id,
+            SINGLE_PARTY_HOLDER_SALT,
+            &holder_instantiate_msg,
             &[],
         );
 
@@ -55,9 +74,10 @@ impl Default for AstroLiquidPoolerBuilder {
     }
 }
 
+#[allow(dead_code)]
 impl AstroLiquidPoolerBuilder {
     pub fn with_custom_astroport_pool(mut self, pair_type: PairType, coin_a: Coin, coin_b: Coin) -> Self {
-        let (pool_addr, lp_token_addr) = self.builder.init_astro_pool(
+        let (pool_addr, _lp_token_addr) = self.builder.init_astro_pool(
             pair_type,
             coin_a,
             coin_b,
@@ -168,6 +188,72 @@ pub struct Suite {
     pub holder_addr: Addr,
     pub lp_config: LpConfig,
     pub provided_liquidity_info: ProvidedLiquidityInfo,
+}
+
+#[allow(dead_code)]
+impl Suite {
+    pub(crate) fn withdraw(&mut self, sender: &Addr, percentage: Option<Decimal>) {
+        let holder = self.holder_addr.clone();
+        let app = self.get_app();
+        app.execute_contract(
+            sender.clone(),
+            holder,
+            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {  },
+            &vec![],
+        )
+        .unwrap();
+    }
+
+    pub(crate) fn query_provided_liquidity_info(&self) -> ProvidedLiquidityInfo {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.liquid_pooler_addr.clone(),
+                &covenant_astroport_liquid_pooler::msg::QueryMsg::ProvidedLiquidityInfo {},
+            )
+            .unwrap()
+    }
+
+    pub(crate) fn query_contract_state(&self) -> covenant_astroport_liquid_pooler::msg::ContractState {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.liquid_pooler_addr.clone(),
+                &covenant_astroport_liquid_pooler::msg::QueryMsg::ContractState {},
+            )
+            .unwrap()
+    }
+
+    pub(crate) fn query_clock_address(&self) -> Addr {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.liquid_pooler_addr.clone(),
+                &covenant_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap()
+    }
+
+    pub(crate) fn query_holder_address(&self) -> Addr {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.liquid_pooler_addr.clone(),
+                &covenant_astroport_liquid_pooler::msg::QueryMsg::HolderAddress {},
+            )
+            .unwrap()
+    }
+
+    pub(crate) fn query_lp_config(&self) -> LpConfig {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.liquid_pooler_addr.clone(),
+                &covenant_astroport_liquid_pooler::msg::QueryMsg::LpConfig {},
+            )
+            .unwrap()
+    }
+
 }
 
 impl BaseSuiteMut for Suite {
