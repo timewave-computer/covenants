@@ -179,7 +179,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                     message: "try_forward_funds".to_string(),
                 },
             )?;
-
+            
             Ok(Response::default()
                 .add_attribute("method", "try_forward_funds")
                 .add_submessage(submsg))
