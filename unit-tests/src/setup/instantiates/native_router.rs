@@ -30,13 +30,13 @@ impl NativeRouterInstantiate {
         }
     }
 
-    pub fn with_clock_address(&mut self, addr: Addr) -> &mut Self {
-        self.msg.clock_address = addr.to_string();
+    pub fn with_clock_address(&mut self, addr: String) -> &mut Self {
+        self.msg.clock_address = addr;
         self
     }
 
-    pub fn with_receiver_address(&mut self, addr: Addr) -> &mut Self {
-        self.msg.receiver_address = addr.to_string();
+    pub fn with_receiver_address(&mut self, addr: String) -> &mut Self {
+        self.msg.receiver_address = addr;
         self
     }
 
