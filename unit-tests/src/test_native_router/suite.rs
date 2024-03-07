@@ -1,9 +1,10 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_std::Addr;
+use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
-    base_suite::BaseSuiteMut, instantiates::native_router::NativeRouterInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, NATIVE_ROUTER_SALT
+    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::native_router::NativeRouterInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, NATIVE_ROUTER_SALT
 };
 
 pub struct NativeRouterBuilder {
@@ -47,18 +48,19 @@ impl Default for NativeRouterBuilder {
 
 #[allow(dead_code)]
 impl NativeRouterBuilder {
-    pub fn with_clock_address(mut self, addr: Addr) -> Self {
-        self.instantiate_msg.with_clock_address(addr);
+    pub fn with_clock_address(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_clock_address(addr.to_string());
         self
     }
 
-    pub fn with_receiver_address(mut self, addr: Addr) -> Self {
-        self.instantiate_msg.with_receiver_address(addr);
+    pub fn with_receiver_address(mut self, addr: &str) -> Self {
+        self.instantiate_msg.with_receiver_address(addr.to_string());
         self
     }
 
-    pub fn with_denoms(mut self, denoms: BTreeSet<String>) -> Self {
-        self.instantiate_msg.with_denoms(denoms);
+    pub fn with_denoms(mut self, denoms: Vec<String>) -> Self {
+        let denom_set = BTreeSet::from_iter(denoms);
+        self.instantiate_msg.with_denoms(denom_set);
         self
     }
 
@@ -98,6 +100,7 @@ impl NativeRouterBuilder {
             .unwrap();
 
         Suite {
+            router_addr: native_router_address,
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
             clock_addr,
@@ -116,9 +119,59 @@ pub(super) struct Suite {
     pub faucet: Addr,
     pub admin: Addr,
 
+    pub router_addr: Addr,
     pub clock_addr: Addr,
     pub receiver_addr: Addr,
     pub denoms: BTreeSet<String>,
+}
+
+impl Suite {
+    pub fn query_receiver_config(&mut self) -> Addr {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.router_addr.clone(),
+                &covenant_native_router::msg::QueryMsg::ReceiverConfig {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_clock_address(&mut self) -> Addr {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.router_addr.clone(),
+                &covenant_native_router::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_target_denoms(&mut self) -> BTreeSet<String> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.router_addr.clone(),
+                &covenant_native_router::msg::QueryMsg::TargetDenoms {},
+            )
+            .unwrap()
+    }
+
+    pub fn distribute_fallback(&mut self, denoms: Vec<String>) -> AppResponse {
+        self.app
+            .execute_contract(
+                self.receiver_addr.clone(),
+                self.router_addr.clone(),
+                &covenant_native_router::msg::ExecuteMsg::DistributeFallback { denoms },
+                &[],
+            )
+            .unwrap()
+    }
+}
+
+impl BaseSuite for Suite {
+    fn get_app(&self) -> &CustomApp {
+        &self.app
+    }
 }
 
 impl BaseSuiteMut for Suite {

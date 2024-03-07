@@ -31,7 +31,7 @@ pub(super) struct Suite {
     pub party_receiver: Addr,
     pub party_local_receiver: Addr,
     pub ls_receiver: Addr,
-
+3
     // Astro
     pub pool_addr: Addr,
     pub lp_token_addr: Addr,
