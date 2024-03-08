@@ -27,6 +27,6 @@ pub enum ContractError {
     #[error("The lockup period must be in the future")]
     MustBeFutureLockupPeriod,
 
-    #[error("We exepct 2 denoms to be recieved by the pooler")]
+    #[error("We expect 2 denoms to be received from the liquidity pooler")]
     InvalidFunds,
 }
