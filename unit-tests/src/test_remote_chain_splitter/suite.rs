@@ -1,11 +1,11 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint128, Uint64};
-use covenant_utils::{neutron::RemoteChainInfo, split::SplitConfig};
+use covenant_utils::{neutron::RemoteChainInfo, split::{self, SplitConfig}};
 use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::setup::{
-    base_suite::BaseSuiteMut, instantiates::remote_chain_splitter::RemoteChainSplitterInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, NTRN_HUB_CHANNEL, REMOTE_CHAIN_SPLITTER_SALT
+    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::remote_chain_splitter::RemoteChainSplitterInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN, NTRN_HUB_CHANNEL, REMOTE_CHAIN_SPLITTER_SALT
 };
 
 pub struct RemoteChainSplitterBuilder {
@@ -21,9 +21,11 @@ impl Default for RemoteChainSplitterBuilder {
         let remote_chain_splitter_addr =
             builder.get_contract_addr(builder.remote_splitter_code_id, REMOTE_CHAIN_SPLITTER_SALT);
 
+        let forwarder_a_addr = builder.get_contract_addr(builder.ibc_forwarder_code_id, "forwarder_a");
+        let forwarder_b_addr = builder.get_contract_addr(builder.ibc_forwarder_code_id, "forwarder_b");
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
             tick_max_gas: None,
-            whitelist: vec![remote_chain_splitter_addr.to_string()],
+            whitelist: vec![remote_chain_splitter_addr.to_string(), forwarder_a_addr.to_string(), forwarder_b_addr.to_string()],
         };
         builder.contract_init2(
             builder.clock_code_id,
@@ -32,14 +34,39 @@ impl Default for RemoteChainSplitterBuilder {
             &[],
         );
 
-        let party_a_controller_addr = builder.get_random_addr();
-        let party_b_controller_addr = builder.get_random_addr();
-
+        let default_forwarder_instantiate_msg = covenant_ibc_forwarder::msg::InstantiateMsg {
+            clock_address: clock_addr.to_string(),
+            next_contract: clock_addr.to_string(),
+            remote_chain_connection_id: "connection-0".to_string(),
+            remote_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
+            denom: DENOM_ATOM_ON_NTRN.to_string(),
+            amount: Uint128::new(100),
+            ibc_fee: IbcFee {
+                recv_fee: vec![],
+                ack_fee: vec![coin(1u128, DENOM_NTRN)],
+                timeout_fee: vec![coin(1u128, DENOM_NTRN)],
+            },
+            ibc_transfer_timeout: Uint64::new(100),
+            ica_timeout: Uint64::new(100),
+        };
     
+        builder.contract_init2(
+            builder.ibc_forwarder_code_id,
+            "forwarder_a",
+            &default_forwarder_instantiate_msg,
+            &[],
+        );
+        builder.contract_init2(
+            builder.ibc_forwarder_code_id,
+            "forwarder_b",
+            &default_forwarder_instantiate_msg,
+            &[],
+        );
+
         let remote_chain_splitter_instantiate = RemoteChainSplitterInstantiate::default(
             clock_addr.to_string(),
-            party_a_controller_addr.to_string(),
-            party_b_controller_addr.to_string(),
+            forwarder_a_addr.to_string(),
+            forwarder_b_addr.to_string(),
         );
 
         Self {
@@ -122,7 +149,12 @@ impl RemoteChainSplitterBuilder {
                 &covenant_remote_chain_splitter::msg::QueryMsg::SplitConfig {},
             )
             .unwrap();
+        let config_1 = split_config[0].clone().1.receivers;
+        let receivers: Vec<String> = config_1.keys().cloned().collect();
+
         let splits = BTreeMap::from_iter(split_config);
+        
+        
 
         let transfer_amount = self.builder
             .app
@@ -143,6 +175,7 @@ impl RemoteChainSplitterBuilder {
             .unwrap();
 
         Suite {
+            splitter: remote_chain_splitter_address,
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
             clock_addr,
@@ -150,6 +183,8 @@ impl RemoteChainSplitterBuilder {
             transfer_amount,
             remote_chain_info,
             app: self.builder.build(),
+            receiver_1: Addr::unchecked(receivers[0].to_string()),
+            receiver_2: Addr::unchecked(receivers[1].to_string()),
         }
     }
 }
@@ -162,10 +197,77 @@ pub(super) struct Suite {
     pub faucet: Addr,
     pub admin: Addr,
     pub clock_addr: Addr,
+    pub splitter: Addr,
 
     pub splits: BTreeMap<String, SplitConfig>,
     pub transfer_amount: Uint128,
     pub remote_chain_info: RemoteChainInfo,
+
+    pub receiver_1: Addr,
+    pub receiver_2: Addr,
+}
+
+impl Suite {
+    pub fn query_clock_address(&self) -> Addr {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.splitter.clone(),
+                &covenant_remote_chain_splitter::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_contract_state(&self) -> covenant_remote_chain_splitter::msg::ContractState {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.splitter.clone(),
+                &covenant_remote_chain_splitter::msg::QueryMsg::ContractState {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_remote_chain_info(&self) -> RemoteChainInfo {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.splitter.clone(),
+                &covenant_remote_chain_splitter::msg::QueryMsg::RemoteChainInfo {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_split_config(&self) -> BTreeMap<String, SplitConfig> {
+        let split_config: Vec<(String, SplitConfig)> = self.app
+            .wrap()
+            .query_wasm_smart(
+                self.splitter.clone(),
+                &covenant_remote_chain_splitter::msg::QueryMsg::SplitConfig {},
+            )
+            .unwrap();
+        BTreeMap::from_iter(split_config)
+    }
+
+    pub fn query_transfer_amount(&self) -> Uint128 {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.splitter.clone(),
+                &covenant_remote_chain_splitter::msg::QueryMsg::TransferAmount {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_deposit_address(&self, addr: Addr) -> Option<String> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                addr,
+                &covenant_remote_chain_splitter::msg::QueryMsg::DepositAddress {},
+            )
+            .unwrap()
+    }
 }
 
 impl BaseSuiteMut for Suite {
@@ -179,5 +281,11 @@ impl BaseSuiteMut for Suite {
 
     fn get_faucet_addr(&mut self) -> Addr {
         self.faucet.clone()
+    }
+}
+
+impl BaseSuite for Suite {
+    fn get_app(&self) -> &CustomApp {
+        &self.app
     }
 }
