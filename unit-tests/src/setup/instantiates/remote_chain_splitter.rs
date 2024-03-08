@@ -4,7 +4,7 @@ use cosmwasm_std::{coin, Decimal, Uint128, Uint64};
 use covenant_utils::split::SplitConfig;
 use neutron_sdk::bindings::msg::IbcFee;
 
-use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
+use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN, NTRN_HUB_CHANNEL};
 
 use super::clock;
 
@@ -110,7 +110,6 @@ impl RemoteChainSplitterInstantiate {
         let split_config = SplitConfig { receivers: splits };
         let mut denom_to_split_config_map = BTreeMap::new();
         denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
-        denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
 
         Self {
             msg: covenant_remote_chain_splitter::msg::InstantiateMsg {
@@ -118,12 +117,12 @@ impl RemoteChainSplitterInstantiate {
                 remote_chain_connection_id: "connection-0".to_string(),
                 remote_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
                 denom: DENOM_ATOM_ON_NTRN.to_string(),
-                amount: Uint128::from(100u128),
+                amount: Uint128::from(10000u128),
                 splits: denom_to_split_config_map,
                 ibc_fee: IbcFee {
-                    recv_fee: vec![coin(1u128, DENOM_ATOM_ON_NTRN)],
-                    ack_fee: vec![coin(1u128, DENOM_ATOM_ON_NTRN)],
-                    timeout_fee: vec![coin(1u128, DENOM_ATOM_ON_NTRN)],
+                    recv_fee: vec![],
+                    ack_fee: vec![coin(10000u128, DENOM_NTRN)],
+                    timeout_fee: vec![coin(10000u128, DENOM_NTRN)],
                 },
                 ica_timeout: Uint64::from(100u64),
                 ibc_transfer_timeout: Uint64::from(100u64),
