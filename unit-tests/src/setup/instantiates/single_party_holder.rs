@@ -32,18 +32,18 @@ impl SinglePartyHolderInstantiate {
         }
     }
 
-    pub fn with_withdrawer(&mut self, addr: &str) -> &mut Self {
-        self.msg.withdrawer = Some(addr.to_string());
+    pub fn with_withdrawer(&mut self, addr: Option<String>) -> &mut Self {
+        self.msg.withdrawer = addr;
         self
     }
 
-    pub fn with_withdraw_to(&mut self, addr: &str) -> &mut Self {
-        self.msg.withdraw_to = Some(addr.to_string());
+    pub fn with_withdraw_to(&mut self, addr: Option<String>) -> &mut Self {
+        self.msg.withdraw_to = addr;
         self
     }
 
-    pub fn with_emergency_committee_addr(&mut self, addr: &str) -> &mut Self {
-        self.msg.emergency_committee_addr = Some(addr.to_string());
+    pub fn with_emergency_committee_addr(&mut self, addr: Option<String>) -> &mut Self {
+        self.msg.emergency_committee_addr = addr;
         self
     }
 
@@ -64,9 +64,9 @@ impl SinglePartyHolderInstantiate {
     ) -> Self {
         Self {
             msg: covenant_single_party_pol_holder::msg::InstantiateMsg {
-                withdrawer: None,
-                withdraw_to: None,
-                emergency_committee_addr: None,
+                withdrawer: Some(pooler_address.to_string()),
+                withdraw_to: Some(pooler_address.to_string()),
+                emergency_committee_addr: Some(pooler_address.to_string()),
                 pooler_address,
                 lockup_period: Expiration::AtHeight(100000),
             }

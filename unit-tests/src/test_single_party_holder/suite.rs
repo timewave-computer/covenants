@@ -1,7 +1,7 @@
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
 use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
-use cw_multi_test::Executor;
+use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
 
 use crate::setup::{
@@ -87,17 +87,17 @@ impl Default for SinglePartyHolderBuilder {
 
 #[allow(dead_code)]
 impl SinglePartyHolderBuilder {
-    pub fn with_withdrawer(mut self, addr: &str) -> Self {
+    pub fn with_withdrawer(mut self, addr: Option<String>) -> Self {
         self.instantiate_msg.with_withdrawer(addr);
         self
     }
 
-    pub fn with_withdraw_to(mut self, addr: &str) -> Self {
+    pub fn with_withdraw_to(mut self, addr: Option<String>) -> Self {
         self.instantiate_msg.with_withdraw_to(addr);
         self
     }
 
-    pub fn with_emergency_committee_addr(mut self, addr: &str) -> Self {
+    pub fn with_emergency_committee_addr(mut self, addr: Option<String>) -> Self {
         self.instantiate_msg.with_emergency_committee_addr(addr);
         self
     }
@@ -119,14 +119,22 @@ impl SinglePartyHolderBuilder {
             &self.instantiate_msg.msg,
             &[],
         );
-
-
-        let liquid_pooler_address = self.builder
+        
+        let liquid_pooler_address: Addr = self.builder
             .app
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
                 &covenant_single_party_pol_holder::msg::QueryMsg::PoolerAddress {},
+            )
+            .unwrap();
+
+        let clock_address = self.builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                liquid_pooler_address.to_string(),
+                &covenant_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -152,6 +160,7 @@ impl SinglePartyHolderBuilder {
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
             holder_addr,
+            clock: clock_address,
             withdraw_to,
             withdrawer,
             liquid_pooler_address,
@@ -166,11 +175,111 @@ pub(super) struct Suite {
 
     pub faucet: Addr,
     pub admin: Addr,
+    pub clock: Addr,
 
     pub holder_addr: Addr,
     pub withdraw_to: Option<Addr>,
     pub withdrawer: Option<Addr>,
     pub liquid_pooler_address: Addr,
+}
+
+impl Suite {
+    pub fn execute_claim(&mut self, sender: Addr) -> AppResponse {
+        let holder = self.holder_addr.clone();
+        
+        self.app.execute_contract(
+            sender,
+            holder,
+            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &[],
+        )
+        .unwrap()
+    }
+
+    pub fn execute_distribute(&mut self, sender: Addr, funds: Vec<Coin>) -> AppResponse {
+        let holder = self.holder_addr.clone();
+        
+        self.app.execute_contract(
+            sender,
+            holder,
+            &covenant_single_party_pol_holder::msg::ExecuteMsg::Distribute {},
+            &funds,
+        )
+        .unwrap()
+    }
+
+    pub fn execute_withdraw_failed(&mut self, sender: Addr) -> AppResponse {
+        let holder = self.holder_addr.clone();
+        
+        self.app.execute_contract(
+            sender,
+            holder,
+            &covenant_single_party_pol_holder::msg::ExecuteMsg::WithdrawFailed {},
+            &[],
+        )
+        .unwrap()
+    }
+
+    pub fn execute_emergency_withdraw(&mut self, sender: Addr) -> AppResponse {
+        let holder = self.holder_addr.clone();
+        
+        self.app.execute_contract(
+            sender,
+            holder,
+            &covenant_single_party_pol_holder::msg::ExecuteMsg::EmergencyWithdraw {},
+            &[],
+        )
+        .unwrap()
+    }
+
+    pub fn fund_contract_coins(&mut self, funds: Vec<Coin>, addr: Addr) {
+        self.fund_contract(&funds, addr)
+    }
+
+    pub fn enter_pool(&mut self) -> AppResponse {
+        let pooler = self.liquid_pooler_address.clone();
+        let funds = vec![coin(1_000_000, DENOM_ATOM_ON_NTRN), coin(1_000_000, DENOM_LS_ATOM_ON_NTRN)];
+        let clock = self.clock.clone();
+        self.fund_contract(&funds, pooler.clone());
+
+        self.app.execute_contract(
+            clock,
+            pooler,
+            &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Tick {},
+            &[],
+        )
+        .unwrap()
+    }
+
+    pub fn query_withdrawer(&mut self) -> Option<Addr> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_single_party_pol_holder::msg::QueryMsg::Withdrawer {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_withdraw_to(&mut self) -> Option<Addr> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_single_party_pol_holder::msg::QueryMsg::WithdrawTo {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_pooler_address(&mut self) -> Addr {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_single_party_pol_holder::msg::QueryMsg::PoolerAddress {},
+            )
+            .unwrap()
+    }
 }
 
 impl BaseSuiteMut for Suite {
