@@ -69,11 +69,13 @@ impl NativeSplitterInstantiate {
         denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
 
 
+
+
         Self {
             msg: covenant_native_splitter::msg::InstantiateMsg {
                 clock_address,
                 splits: denom_to_split_config_map,
-                fallback_split: None,
+                fallback_split: Some(split_config),
             }
         }
     }
