@@ -75,7 +75,7 @@ pub trait BaseSuite {
         app.wrap().query_all_balances(addr).unwrap()
     }
 
-    fn assert_balance(&self, addr: &Addr, coin: Coin) {
+    fn assert_balance(&self, addr: impl Into<String>, coin: Coin) {
         let app = self.get_app();
         let bal = app.wrap().query_balance(addr, &coin.denom).unwrap();
         assert_eq!(bal, coin);

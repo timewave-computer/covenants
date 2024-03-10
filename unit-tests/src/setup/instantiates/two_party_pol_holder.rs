@@ -118,9 +118,9 @@ impl TwoPartyHolderInstantiate {
             msg: covenant_two_party_pol_holder::msg::InstantiateMsg {
                 clock_address,
                 next_contract,
-                lockup_config: Expiration::AtHeight(100000),
+                lockup_config: Expiration::AtHeight(200000),
                 ragequit_config: covenant_two_party_pol_holder::msg::RagequitConfig::Disabled {},
-                deposit_deadline: Expiration::AtHeight(200000),
+                deposit_deadline: Expiration::AtHeight(100000),
                 covenant_config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig {
                     party_a: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantParty {
                         contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
