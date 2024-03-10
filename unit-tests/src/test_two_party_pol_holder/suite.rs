@@ -2,8 +2,9 @@ use std::{collections::BTreeMap, str::FromStr};
 
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use covenant_two_party_pol_holder::msg::{DenomSplits, TwoPartyPolCovenantParty};
+use covenant_two_party_pol_holder::msg::{ContractState, DenomSplits, TwoPartyPolCovenantParty};
 use covenant_utils::{split::SplitConfig, PoolPriceConfig, SingleSideLpLimits};
+use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
 
 use crate::setup::{
@@ -246,6 +247,97 @@ pub(super) struct Suite {
     pub splits: BTreeMap<String, SplitConfig>,
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee_addr: Option<String>,
+}
+
+impl Suite {
+    pub fn expire_deposit_deadline(&mut self) {
+        let expiration = self.deposit_deadline;
+        self.get_app().update_block(|b| match expiration {
+            Expiration::AtHeight(h) => b.height = h,
+            Expiration::AtTime(t) => b.time = t,
+            Expiration::Never {  } => (),
+        });
+    }
+
+    pub fn expire_lockup_config(&mut self) {
+        let expiration = self.lockup_config;
+        self.get_app().update_block(|b| match expiration {
+            Expiration::AtHeight(h) => b.height = h,
+            Expiration::AtTime(t) => b.time = t,
+            Expiration::Never {  } => (),
+        });
+    }
+
+    pub fn ragequit(&mut self, sender: &str) -> AppResponse {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.holder_addr.clone(),
+            &covenant_two_party_pol_holder::msg::ExecuteMsg::Ragequit { },
+            &[],
+        )
+        .unwrap()
+    }
+
+    pub fn claim(&mut self, sender: &str) -> AppResponse {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.holder_addr.clone(),
+            &covenant_two_party_pol_holder::msg::ExecuteMsg::Claim { },
+            &[],
+        )
+        .unwrap()
+    }
+
+
+    pub fn distribute(&mut self, sender: &str) -> AppResponse {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.holder_addr.clone(),
+            &covenant_two_party_pol_holder::msg::ExecuteMsg::Distribute { },
+            &[],
+        )
+        .unwrap()
+    }
+
+    pub fn withdraw_failed(&mut self, sender: &str) -> AppResponse {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.holder_addr.clone(),
+            &covenant_two_party_pol_holder::msg::ExecuteMsg::WithdrawFailed { },
+            &[],
+        )
+        .unwrap()
+    }
+
+    pub fn emergency_withdraw(&mut self, sender: &str) -> AppResponse {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.holder_addr.clone(),
+            &covenant_two_party_pol_holder::msg::ExecuteMsg::EmergencyWithdraw { },
+            &[],
+        )
+        .unwrap()
+    }
+
+    pub fn distribute_fallback_split(&mut self, sender: &str, denoms: Vec<String>) -> AppResponse {
+        self.app.execute_contract(
+            Addr::unchecked(sender),
+            self.holder_addr.clone(),
+            &covenant_two_party_pol_holder::msg::ExecuteMsg::DistributeFallbackSplit { denoms },
+            &[],
+        )
+        .unwrap()
+    }
+
+    pub fn query_contract_state(&mut self) -> ContractState {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::ContractState {},
+            )
+            .unwrap()
+    }
 }
 
 impl BaseSuiteMut for Suite {
