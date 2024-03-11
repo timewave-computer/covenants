@@ -15,14 +15,9 @@ use super::{
         astro_pair_xyk_contract, astro_token_contract, astro_whitelist_contract,
     },
     contracts::{
-        astroport_pooler_contract, clock_contract, ibc_forwarder_contract,
-        interchain_router_contract, native_router_contract, native_splitter_contract,
-        osmo_lp_outpost_contract, remote_splitter_contract, single_party_covenant_contract,
-        single_party_holder_contract, stride_lser_contract, swap_covenant_contract,
-        swap_holder_contract, two_party_holder_contract,
+        astroport_pooler_contract, clock_contract, ibc_forwarder_contract, interchain_router_contract, native_router_contract, native_splitter_contract, osmo_lp_outpost_contract, remote_splitter_contract, single_party_covenant_contract, single_party_holder_contract, stride_lser_contract, swap_covenant_contract, swap_holder_contract, two_party_covenant_contract, two_party_holder_contract
     },
     custom_module::{NeutronKeeper, CHAIN_PREFIX},
-    instantiates::osmo_lp_outpost,
     CustomApp, ADMIN, ALL_DENOMS, DENOM_NTRN, FAUCET, HUB_OSMO_CHANNEL, HUB_STRIDE_CHANNEL,
     NTRN_HUB_CHANNEL, NTRN_OSMO_CHANNEL, NTRN_STRIDE_CHANNEL,
 };
@@ -38,6 +33,7 @@ pub struct SuiteBuilder {
     // Covenant contracts code ids
     pub swap_covenant_code_id: u64,
     pub single_party_covenant_code_id: u64,
+    pub two_party_covenant_code_id: u64,
 
     // Modules code ids
     pub clock_code_id: u64,
@@ -129,6 +125,8 @@ impl SuiteBuilder {
         let astro_pair_xyk_code_id = app.store_code(astro_pair_xyk_contract());
         let astro_coin_registry_code_id = app.store_code(astro_coin_registry_contract());
 
+        let two_party_covenant_code_id = app.store_code(two_party_covenant_contract());
+
         Self {
             faucet: app.api().addr_make(FAUCET),
             admin: app.api().addr_make(ADMIN),
@@ -138,6 +136,7 @@ impl SuiteBuilder {
 
             swap_covenant_code_id,
             single_party_covenant_code_id,
+            two_party_covenant_code_id,
 
             clock_code_id,
             swap_holder_code_id,
