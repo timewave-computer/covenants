@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, str::FromStr};
 
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use covenant_two_party_pol_holder::msg::{ContractState, DenomSplits, TwoPartyPolCovenantParty};
+use covenant_two_party_pol_holder::msg::{ContractState, DenomSplits, RagequitConfig, TwoPartyPolCovenantParty};
 use covenant_utils::{split::SplitConfig, PoolPriceConfig, SingleSideLpLimits};
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
@@ -329,12 +329,84 @@ impl Suite {
         .unwrap()
     }
 
+    pub fn query_covenant_config(&mut self) -> covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::Config {},
+            )
+            .unwrap()
+    }
+
+
     pub fn query_contract_state(&mut self) -> ContractState {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
                 &covenant_two_party_pol_holder::msg::QueryMsg::ContractState {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_ragequit_config(&mut self) -> RagequitConfig {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::RagequitConfig {},
+            )
+            .unwrap()
+    
+    }
+
+    pub fn query_lockup_config(&mut self) -> Expiration {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::LockupConfig {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_clock_addr(&mut self) -> Addr {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_next_contract(&mut self) -> Addr {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::NextContract {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_deposit_deadline(&mut self) -> Expiration {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::DepositDeadline {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_denom_splits(&mut self) -> DenomSplits {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::DenomSplits {},
             )
             .unwrap()
     }
