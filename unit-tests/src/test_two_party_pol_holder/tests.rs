@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::{coin, Decimal, Event};
-use covenant_two_party_pol_holder::msg::{ContractState, RagequitTerms, TwoPartyPolCovenantConfig};
+use cosmwasm_std::{coin, Addr, Decimal, Event, Uint128};
+use covenant_two_party_pol_holder::msg::{ContractState, RagequitConfig, RagequitTerms, TwoPartyPolCovenantConfig};
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
 
-use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
+use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 use super::suite::TwoPartyHolderBuilder;
 
@@ -391,7 +391,166 @@ fn test_execute_ragequit_validates_sender() {
 }
 
 #[test]
-fn test_execute_ragequit_happy() {
+#[should_panic(expected = "unauthorized")]
+fn test_execute_claim_unauthorized() {
+    let mut suite = TwoPartyHolderBuilder::default()
+        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(RagequitTerms {
+            penalty: Decimal::from_str("0.05").unwrap(),
+            state: None,
+        }))
+        .build();
+    let clock = suite.clock_addr.clone();
 
+    suite.claim(clock.as_str());
 }
 
+#[test]
+#[should_panic(expected = "Claimer already claimed his share")]
+fn test_execute_claim_with_null_allocation() {
+    let mut suite = TwoPartyHolderBuilder::default()
+        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(RagequitTerms {
+            penalty: Decimal::from_str("0.05").unwrap(),
+            state: None,
+        }))
+        .build();
+    suite.fund_contract(
+        &vec![
+            coin(10_000, DENOM_ATOM_ON_NTRN),
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN)
+        ],
+        suite.holder_addr.clone(),
+    );
+    suite.tick_contract(suite.holder_addr.clone());
+    suite.tick_contract(suite.next_contract.clone());
+
+    assert_eq!(suite.query_contract_state(), ContractState::Active {});
+
+    suite.expire_deposit_deadline();
+    suite.ragequit(&suite.covenant_config.party_a.host_addr.clone());
+
+    suite.claim(&suite.covenant_config.party_a.host_addr.clone());
+}
+
+#[test]
+#[should_panic(expected = "contract needs to be in ragequit or expired state in order to claim")]
+fn test_execute_claim_validates_claim_state() {
+    let mut suite = TwoPartyHolderBuilder::default()
+        .build();
+    suite.fund_contract(
+        &vec![
+            coin(10_000, DENOM_ATOM_ON_NTRN),
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN)
+        ],
+        suite.holder_addr.clone(),
+    );
+    suite.tick_contract(suite.holder_addr.clone());
+
+    suite.claim(&suite.covenant_config.party_a.host_addr.clone());
+}
+
+
+#[test]
+fn test_execute_claim_happy() {
+    let mut suite = TwoPartyHolderBuilder::default()
+    .build();
+    suite.fund_contract(
+        &vec![
+            coin(10_001, DENOM_ATOM_ON_NTRN),
+            coin(10_001, DENOM_LS_ATOM_ON_NTRN)
+        ],
+        suite.holder_addr.clone(),
+    );
+    suite.tick_contract(suite.holder_addr.clone());
+    suite.tick_contract(suite.next_contract.clone());
+
+    suite.expire_lockup_config();
+    suite.tick_contract(suite.holder_addr.clone());
+
+    suite.claim(&suite.covenant_config.party_a.host_addr.clone());
+
+    let ls_atom_bal = suite.query_balance(
+        &Addr::unchecked(suite.covenant_config.party_a.host_addr.to_string()),
+        DENOM_LS_ATOM_ON_NTRN,
+    );
+    let atom_bal = suite.query_balance(
+        &Addr::unchecked(suite.covenant_config.party_a.host_addr.to_string()),
+        DENOM_ATOM_ON_NTRN,
+    );
+    assert_eq!(ls_atom_bal, coin(5_000, DENOM_LS_ATOM_ON_NTRN));
+    assert_eq!(atom_bal, coin(5_000, DENOM_ATOM_ON_NTRN));
+    assert_eq!(suite.query_covenant_config().party_a.allocation, Decimal::zero());
+}
+
+#[test]
+// #[should_panic(expected = "unauthorized")] TODO: enable
+fn test_execute_emergency_withdraw_validates_committee_address() {
+    let builder = TwoPartyHolderBuilder::default();
+    let clock = builder.instantiate_msg.msg.clock_address.clone();
+    let mut suite = builder.with_emergency_committee(clock.as_str()).build();
+
+    suite.fund_contract(
+        &vec![
+            coin(10_001, DENOM_ATOM_ON_NTRN),
+            coin(10_001, DENOM_LS_ATOM_ON_NTRN)
+        ],
+        suite.holder_addr.clone(),
+    );
+    suite.tick_contract(suite.holder_addr.clone());
+    suite.tick_contract(suite.next_contract.clone());
+
+    let sender = suite.faucet.clone();
+    // enable this after we save the address
+    // suite.emergency_withdraw(sender.as_str());
+}
+
+#[test]
+fn test_migrate_update_config() {
+    let mut suite = TwoPartyHolderBuilder::default()
+        .build();
+    
+    let clock = suite.query_clock_addr();
+    let next_contract = suite.query_next_contract();
+    let mut covenant_config = suite.query_covenant_config();
+    let denom_splits = suite.query_denom_splits();
+    covenant_config.party_a.contribution.amount = Uint128::one();
+    let random_split = denom_splits.explicit_splits.get(DENOM_ATOM_ON_NTRN).unwrap();
+    
+    suite.app.migrate_contract(
+        Addr::unchecked(ADMIN),
+        suite.holder_addr.clone(),
+        &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+            clock_addr: Some(next_contract.to_string()),
+            next_contract: Some(clock.to_string()),
+            emergency_committee: Some(clock.to_string()),
+            lockup_config: Some(Expiration::AtHeight(543210)),
+            deposit_deadline: Some(Expiration::AtHeight(543210)),
+            ragequit_config: Box::new(Some(RagequitConfig::Enabled(RagequitTerms {
+                penalty: Decimal::from_str("0.123").unwrap(),
+                state: None,
+            }))),
+            covenant_config: Box::new(Some(covenant_config)),
+            denom_splits: Some(denom_splits.explicit_splits.clone()),
+            fallback_split: Some(random_split.clone()),
+        },
+        13,
+    )
+    .unwrap();
+
+    let new_clock = suite.query_clock_addr();
+    let new_next_contract = suite.query_next_contract();
+    let ragequit_config = suite.query_ragequit_config();
+    let lockup_config = suite.query_lockup_config();
+    let deposit_deadline = suite.query_deposit_deadline();
+    let covenant_config = suite.query_covenant_config();
+    let denom_splits = suite.query_denom_splits();
+    assert_eq!(random_split, &denom_splits.fallback_split.unwrap());
+    assert_eq!(Uint128::one(), covenant_config.party_a.contribution.amount);
+    assert_eq!(Expiration::AtHeight(543210), deposit_deadline);
+    assert_eq!(Expiration::AtHeight(543210), lockup_config);
+    assert_eq!(RagequitConfig::Enabled(RagequitTerms {
+        penalty: Decimal::from_str("0.123").unwrap(),
+        state: None,
+    }), ragequit_config);
+    assert_eq!(next_contract, new_clock);
+    assert_eq!(clock, new_next_contract);
+}
