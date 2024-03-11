@@ -1,1019 +1,314 @@
-use cosmwasm_std::{coin, Addr, Uint128};
+use std::collections::BTreeMap;
+
+use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint64};
 use cw_multi_test::Executor;
 
-use crate::setup::{
-    base_suite::BaseSuiteMut, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
-    DENOM_LS_ATOM_ON_STRIDE,
-};
+use crate::setup::{base_suite::BaseSuiteMut, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
-use super::suite::Suite;
+use super::suite::TwoPartyCovenantBuilder;
 
 #[test]
-fn test_covenant() {
-    let mut suite = Suite::new_with_stable_pool();
-
-    suite.get_and_fund_depositors(coin(1_000_000_000_000_u128, DENOM_ATOM));
-
-    // Verify forwarders got their split from the splitter
-    let lp_forwarder_ica = suite.get_ica(suite.lp_forwarder_addr.clone());
-    let ls_forwarder_ica = suite.get_ica(suite.ls_forwarder_addr.clone());
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(lp_forwarder_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
-    }
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(ls_forwarder_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
-    }
-
-    let lp_forwarder_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(lp_forwarder_ica.clone(), DENOM_ATOM)
-        .unwrap();
-    let ls_forwarder_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(ls_forwarder_ica.clone(), DENOM_ATOM)
-        .unwrap();
-
-    assert_eq!(lp_forwarder_ica_balance.amount.u128(), 500_000_000_000_u128);
-    assert_eq!(ls_forwarder_ica_balance.amount.u128(), 500_000_000_000_u128);
-
-    // Wait for forwarders to forward the funds to the correct addrs
-    let lser_ica = suite.get_ica(suite.lser_addr.clone());
-
-    // lser_ica should get his half on stride (lsAtom on stride)
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(lser_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lser ICA to get his lsAtom");
-    }
-
-    // lper should get his atom (atom on neutron)
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(suite.lper_addr.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lser ICA to get his lsAtom");
-    }
-
-    // Make sure the correct denoms are received on the correct addrs
-    let lser_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(lser_ica, DENOM_LS_ATOM_ON_STRIDE)
-        .unwrap();
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_ATOM_ON_NTRN)
-        .unwrap();
-
-    assert_eq!(lser_ica_balance.amount.u128(), 500_000_000_000_u128);
-    assert_eq!(lper_balance.amount.u128(), 500_000_000_000_u128);
-
-    // TODO: Currently we need to manually send the LS tokens from stride to the lper
-    // TODO: When autopilot will be able to auto send over IBC, we can wait on the lper to receive both denoms
-    suite
-        .app
-        .execute_contract(
-            suite.admin.clone(),
-            suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
-                amount: 500_000_000_000_u128.into(),
-            },
-            &[],
-        )
-        .unwrap();
-
-    // We only check that lper got the ls tokens, as we already have the native atom check
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_LS_ATOM_ON_NTRN)
-        .unwrap();
-    assert_eq!(lper_balance.amount.u128(), 500_000_000_000_u128);
-
-    // Wait until lper provide liquidity
-    while suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_LS_ATOM_ON_NTRN)
-        .unwrap()
-        .amount
-        .u128()
-        > 100_000_000_000_u128
-    {
-        suite.tick("Wait for lper to provide liquidity");
-    }
-
-    suite.app.update_block(|b| {
-        b.height += 5;
-        b.time = b.time.plus_seconds(15)
-    });
-
-    // Verify lper has the lp tokens after providing liquidity
-    let lper_lp_token_balance = suite
-        .app
-        .wrap()
-        .query_wasm_smart::<cw20::BalanceResponse>(
-            suite.lp_token_addr.clone(),
-            &cw20::Cw20QueryMsg::Balance {
-                address: suite.lper_addr.to_string(),
-            },
-        )
-        .unwrap();
-
-    assert!(lper_lp_token_balance.balance > Uint128::zero());
-
-    // Try to claim, but we still in the lockup period so this should fail.
-    suite
-        .app
-        .execute_contract(
-            suite.party_local_receiver.clone(),
-            suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap_err();
-
-    // pass the lockup period, and try to withdraw the liquidity
-    suite.app.update_block(|b| {
-        b.height += 100000;
-        b.time = b.time.plus_seconds(100000 * 3)
-    });
-
-    suite
-        .app
-        .execute_contract(
-            suite.party_local_receiver.clone(),
-            suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap();
-
-    let router_addr = suite
-        .app
-        .wrap()
-        .query_wasm_smart::<Addr>(
-            suite.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
-        )
-        .unwrap();
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(suite.party_receiver.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for party_receiver to get funds");
-    }
-
-    let receiver_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.party_receiver.clone(), DENOM_ATOM)
-        .unwrap();
-
-    // We used pfm, so the receiver should have close to 1_000_000_000_000 uatom
-    assert!(receiver_balance.amount.u128() > 900_000_000_000_u128);
+fn test_instantiate_both_native_parties_astroport() {
+    let mut suite = TwoPartyCovenantBuilder::default().build();
 }
 
 #[test]
-fn test_covenant_with_xyk_pool() {
-    let mut suite = Suite::new_with_xyk_pool();
-
-    suite.get_and_fund_depositors(coin(1_000_000_000_000_u128, DENOM_ATOM));
-
-    // Verify forwarders got their split from the splitter
-    let lp_forwarder_ica = suite.get_ica(suite.lp_forwarder_addr.clone());
-    let ls_forwarder_ica = suite.get_ica(suite.ls_forwarder_addr.clone());
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(lp_forwarder_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
-    }
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(ls_forwarder_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
-    }
-
-    let lp_forwarder_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(lp_forwarder_ica.clone(), DENOM_ATOM)
-        .unwrap();
-    let ls_forwarder_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(ls_forwarder_ica.clone(), DENOM_ATOM)
-        .unwrap();
-
-    assert_eq!(lp_forwarder_ica_balance.amount.u128(), 500_000_000_000_u128);
-    assert_eq!(ls_forwarder_ica_balance.amount.u128(), 500_000_000_000_u128);
-
-    // Wait for forwarders to forward the funds to the correct addrs
-    let lser_ica = suite.get_ica(suite.lser_addr.clone());
-
-    // lser_ica should get his half on stride (lsAtom on stride)
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(lser_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lser ICA to get his lsAtom");
-    }
-
-    // lper should get his atom (atom on neutron)
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(suite.lper_addr.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lser ICA to get his lsAtom");
-    }
-
-    // Make sure the correct denoms are received on the correct addrs
-    let lser_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(lser_ica, DENOM_LS_ATOM_ON_STRIDE)
-        .unwrap();
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_ATOM_ON_NTRN)
-        .unwrap();
-
-    assert_eq!(lser_ica_balance.amount.u128(), 500_000_000_000_u128);
-    assert_eq!(lper_balance.amount.u128(), 500_000_000_000_u128);
-
-    // TODO: Currently we need to manually send the LS tokens from stride to the lper
-    // TODO: When autopilot will be able to auto send over IBC, we can wait on the lper to receive both denoms
-    suite
-        .app
-        .execute_contract(
-            suite.admin.clone(),
-            suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
-                amount: 500_000_000_000_u128.into(),
-            },
-            &[],
-        )
-        .unwrap();
-
-    // We only check that lper got the ls tokens, as we already have the native atom check
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_LS_ATOM_ON_NTRN)
-        .unwrap();
-    assert_eq!(lper_balance.amount.u128(), 500_000_000_000_u128);
-
-    // Wait until lper provide liquidity
-    while suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_LS_ATOM_ON_NTRN)
-        .unwrap()
-        .amount
-        .u128()
-        > 100_000_000_000_u128
-    {
-        suite.tick("Wait for lper to provide liquidity");
-    }
-
-    suite.app.update_block(|b| {
-        b.height += 5;
-        b.time = b.time.plus_seconds(15)
-    });
-
-    // Verify lper has the lp tokens after providing liquidity
-    let lper_lp_token_balance = suite
-        .app
-        .wrap()
-        .query_wasm_smart::<cw20::BalanceResponse>(
-            suite.lp_token_addr.clone(),
-            &cw20::Cw20QueryMsg::Balance {
-                address: suite.lper_addr.to_string(),
-            },
-        )
-        .unwrap();
-
-    assert!(lper_lp_token_balance.balance > Uint128::zero());
-
-    // Try to claim, but we still in the lockup period so this should fail.
-    suite
-        .app
-        .execute_contract(
-            suite.party_local_receiver.clone(),
-            suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap_err();
-
-    // pass the lockup period, and try to withdraw the liquidity
-    suite.app.update_block(|b| {
-        b.height += 100000;
-        b.time = b.time.plus_seconds(100000 * 3)
-    });
-
-    suite
-        .app
-        .execute_contract(
-            suite.party_local_receiver.clone(),
-            suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap();
-
-    let router_addr = suite
-        .app
-        .wrap()
-        .query_wasm_smart::<Addr>(
-            suite.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
-        )
-        .unwrap();
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(suite.party_receiver.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for party_receiver to get funds");
-    }
-
-    let receiver_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.party_receiver.clone(), DENOM_ATOM)
-        .unwrap();
-
-    // We used pfm, so the receiver should have close to 1_000_000_000_000 uatom
-    assert!(receiver_balance.amount.u128() > 900_000_000_000_u128);
+fn test_instantiate_party_a_interchain() {
+    let builder = TwoPartyCovenantBuilder::default();
+    let party_address = builder.instantiate_msg.msg.party_a_config.get_final_receiver_address();
+    builder
+        .with_party_a_config(covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(covenant_utils::InterchainCovenantParty {
+            party_receiver_addr: party_address.to_string(),
+            party_chain_connection_id: "connection-0".to_string(),
+            ibc_transfer_timeout: Uint64::new(100),
+            party_to_host_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
+            host_to_party_chain_channel_id: NTRN_HUB_CHANNEL.1.to_string(),
+            remote_chain_denom: DENOM_ATOM.to_string(),
+            addr: party_address.to_string(),
+            native_denom: DENOM_ATOM_ON_NTRN.to_string(),
+            contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
+            denom_to_pfm_map: BTreeMap::new(),
+        }))
+        .build();
 }
 
 #[test]
-fn test_covenant_with_uneven_pool() {
-    let mut suite = Suite::new_with_xyk_pool();
-
-    suite.astro_swap(coin(512_345_678_987, DENOM_ATOM_ON_NTRN));
-
-    suite.get_and_fund_depositors(coin(1_000_000_000_000_u128, DENOM_ATOM));
-
-    // Verify forwarders got their split from the splitter
-    let lp_forwarder_ica = suite.get_ica(suite.lp_forwarder_addr.clone());
-    let ls_forwarder_ica = suite.get_ica(suite.ls_forwarder_addr.clone());
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(lp_forwarder_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
-    }
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(ls_forwarder_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
-    }
-
-    let lp_forwarder_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(lp_forwarder_ica.clone(), DENOM_ATOM)
-        .unwrap();
-    let ls_forwarder_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(ls_forwarder_ica.clone(), DENOM_ATOM)
-        .unwrap();
-
-    assert_eq!(lp_forwarder_ica_balance.amount.u128(), 500_000_000_000_u128);
-    assert_eq!(ls_forwarder_ica_balance.amount.u128(), 500_000_000_000_u128);
-
-    // Wait for forwarders to forward the funds to the correct addrs
-    let lser_ica = suite.get_ica(suite.lser_addr.clone());
-
-    // lser_ica should get his half on stride (lsAtom on stride)
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(lser_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lser ICA to get his lsAtom");
-    }
-
-    // lper should get his atom (atom on neutron)
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(suite.lper_addr.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lser ICA to get his lsAtom");
-    }
-
-    // Make sure the correct denoms are received on the correct addrs
-    let lser_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(lser_ica, DENOM_LS_ATOM_ON_STRIDE)
-        .unwrap();
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_ATOM_ON_NTRN)
-        .unwrap();
-
-    assert_eq!(lser_ica_balance.amount.u128(), 500_000_000_000_u128);
-    assert_eq!(lper_balance.amount.u128(), 500_000_000_000_u128);
-
-    // TODO: Currently we need to manually send the LS tokens from stride to the lper
-    // TODO: When autopilot will be able to auto send over IBC, we can wait on the lper to receive both denoms
-    suite
-        .app
-        .execute_contract(
-            suite.admin.clone(),
-            suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
-                amount: 500_000_000_000_u128.into(),
-            },
-            &[],
-        )
-        .unwrap();
-
-    // We only check that lper got the ls tokens, as we already have the native atom check
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_LS_ATOM_ON_NTRN)
-        .unwrap();
-    assert_eq!(lper_balance.amount.u128(), 500_000_000_000_u128);
-
-    // Wait until lper provide liquidity
-    while suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_LS_ATOM_ON_NTRN)
-        .unwrap()
-        .amount
-        .u128()
-        > 100_000_000_000_u128
-    {
-        suite.tick("Wait for lper to provide liquidity");
-    }
-
-    suite.app.update_block(|b| {
-        b.height += 5;
-        b.time = b.time.plus_seconds(15)
-    });
-
-    // Verify lper has the lp tokens after providing liquidity
-    let lper_lp_token_balance = suite
-        .app
-        .wrap()
-        .query_wasm_smart::<cw20::BalanceResponse>(
-            suite.lp_token_addr.clone(),
-            &cw20::Cw20QueryMsg::Balance {
-                address: suite.lper_addr.to_string(),
-            },
-        )
-        .unwrap();
-    assert!(lper_lp_token_balance.balance > Uint128::zero());
-
-    // Try to claim, but we still in the lockup period so this should fail.
-    suite
-        .app
-        .execute_contract(
-            suite.party_local_receiver.clone(),
-            suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap_err();
-
-    // pass the lockup period, and try to withdraw the liquidity
-    suite.app.update_block(|b| {
-        b.height += 100000;
-        b.time = b.time.plus_seconds(100000 * 3)
-    });
-
-    suite
-        .app
-        .execute_contract(
-            suite.party_local_receiver.clone(),
-            suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap();
-
-    let router_addr = suite
-        .app
-        .wrap()
-        .query_wasm_smart::<Addr>(
-            suite.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
-        )
-        .unwrap();
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(suite.party_receiver.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for party_receiver to get funds");
-    }
-
-    let receiver_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.party_receiver.clone(), DENOM_ATOM)
-        .unwrap();
-
-    // We used pfm, so the receiver should have close to 1_000_000_000_000 uatom
-    assert!(receiver_balance.amount.u128() > 900_000_000_000_u128);
+fn test_instantiate_party_b_interchain() {
+    let builder = TwoPartyCovenantBuilder::default();
+    let party_address = builder.instantiate_msg.msg.party_b_config.get_final_receiver_address();
+    builder
+        .with_party_b_config(covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(covenant_utils::InterchainCovenantParty {
+            party_receiver_addr: party_address.to_string(),
+            party_chain_connection_id: "connection-0".to_string(),
+            ibc_transfer_timeout: Uint64::new(100),
+            party_to_host_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
+            host_to_party_chain_channel_id: NTRN_HUB_CHANNEL.1.to_string(),
+            remote_chain_denom: DENOM_ATOM.to_string(),
+            addr: party_address.to_string(),
+            native_denom: DENOM_ATOM_ON_NTRN.to_string(),
+            contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
+            denom_to_pfm_map: BTreeMap::new(),
+        }))
+        .build();
 }
 
 #[test]
-fn test_covenant_with_uneven_pool_stable() {
-    let mut suite = Suite::new_with_stable_pool();
-
-    suite.astro_swap(coin(512_345_678_987, DENOM_ATOM_ON_NTRN));
-    suite.astro_swap(coin(712_345_678_987, DENOM_LS_ATOM_ON_NTRN));
-
-    suite.get_and_fund_depositors(coin(1_000_000_000_000_u128, DENOM_ATOM));
-
-    // Verify forwarders got their split from the splitter
-    let lp_forwarder_ica = suite.get_ica(suite.lp_forwarder_addr.clone());
-    let ls_forwarder_ica = suite.get_ica(suite.ls_forwarder_addr.clone());
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(lp_forwarder_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
-    }
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(ls_forwarder_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
-    }
-
-    let lp_forwarder_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(lp_forwarder_ica.clone(), DENOM_ATOM)
-        .unwrap();
-    let ls_forwarder_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(ls_forwarder_ica.clone(), DENOM_ATOM)
-        .unwrap();
-
-    assert_eq!(lp_forwarder_ica_balance.amount.u128(), 500_000_000_000_u128);
-    assert_eq!(ls_forwarder_ica_balance.amount.u128(), 500_000_000_000_u128);
-
-    // Wait for forwarders to forward the funds to the correct addrs
-    let lser_ica = suite.get_ica(suite.lser_addr.clone());
-
-    // lser_ica should get his half on stride (lsAtom on stride)
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(lser_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lser ICA to get his lsAtom");
-    }
-
-    // lper should get his atom (atom on neutron)
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(suite.lper_addr.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lser ICA to get his lsAtom");
-    }
-
-    // Make sure the correct denoms are received on the correct addrs
-    let lser_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(lser_ica, DENOM_LS_ATOM_ON_STRIDE)
-        .unwrap();
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_ATOM_ON_NTRN)
-        .unwrap();
-
-    assert_eq!(lser_ica_balance.amount.u128(), 500_000_000_000_u128);
-    assert_eq!(lper_balance.amount.u128(), 500_000_000_000_u128);
-
-    // TODO: Currently we need to manually send the LS tokens from stride to the lper
-    // TODO: When autopilot will be able to auto send over IBC, we can wait on the lper to receive both denoms
-    suite
-        .app
-        .execute_contract(
-            suite.admin.clone(),
-            suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
-                amount: 500_000_000_000_u128.into(),
-            },
-            &[],
-        )
-        .unwrap();
-
-    // We only check that lper got the ls tokens, as we already have the native atom check
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_LS_ATOM_ON_NTRN)
-        .unwrap();
-    assert_eq!(lper_balance.amount.u128(), 500_000_000_000_u128);
-
-    // Wait until lper provide liquidity
-    while suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_LS_ATOM_ON_NTRN)
-        .unwrap()
-        .amount
-        .u128()
-        > 100_000_000_000_u128
-    {
-        suite.tick("Wait for lper to provide liquidity");
-    }
-
-    // We provided liquidty but the pool is out of range for our single sided liquidity, so we should have leftovers
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_all_balances(suite.lper_addr.clone())
-        .unwrap();
-    assert!(lper_balance.len() == 1);
-    assert!(lper_balance[0].amount.u128() > 10_000_000_u128);
-
-    suite.app.update_block(|b| {
-        b.height += 5;
-        b.time = b.time.plus_seconds(15)
-    });
-
-    // Verify lper has the lp tokens after providing liquidity
-    let lper_lp_token_balance = suite
-        .app
-        .wrap()
-        .query_wasm_smart::<cw20::BalanceResponse>(
-            suite.lp_token_addr.clone(),
-            &cw20::Cw20QueryMsg::Balance {
-                address: suite.lper_addr.to_string(),
-            },
-        )
-        .unwrap();
-    assert!(lper_lp_token_balance.balance > Uint128::zero());
-
-    // Try to claim, but we still in the lockup period so this should fail.
-    suite
-        .app
-        .execute_contract(
-            suite.party_local_receiver.clone(),
-            suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap_err();
-
-    // pass the lockup period, and try to withdraw the liquidity
-    suite.app.update_block(|b| {
-        b.height += 100000;
-        b.time = b.time.plus_seconds(100000 * 3)
-    });
-
-    suite
-        .app
-        .execute_contract(
-            suite.party_local_receiver.clone(),
-            suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap();
-
-    let router_addr = suite
-        .app
-        .wrap()
-        .query_wasm_smart::<Addr>(
-            suite.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
-        )
-        .unwrap();
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(suite.party_receiver.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for party_receiver to get funds");
-    }
-
-    let receiver_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.party_receiver.clone(), DENOM_ATOM)
-        .unwrap();
-
-    // We used pfm, so the receiver should have close to 1_000_000_000_000 uatom
-    assert!(receiver_balance.amount.u128() > 900_000_000_000_u128);
+fn test_instantiate_with_fallback_split() {
+    let builder = TwoPartyCovenantBuilder::default();
+    let fallback_split = builder.instantiate_msg.msg.splits.get(&DENOM_ATOM_ON_NTRN.to_string()).unwrap().clone();
+    builder
+        .with_fallback_split(Some(fallback_split))
+        .build();
 }
 
+
 #[test]
-fn test_covenant_with_single_sided() {
-    let mut suite = Suite::new_with_stable_pool();
+fn test_migrate_update_config_party_a_interchain() {
+    let builder = TwoPartyCovenantBuilder::default();
+    let party_address = builder.instantiate_msg.msg.party_a_config.get_final_receiver_address();
+    let mut suite = builder
+        .with_party_a_config(covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(covenant_utils::InterchainCovenantParty {
+            party_receiver_addr: party_address.to_string(),
+            party_chain_connection_id: "connection-0".to_string(),
+            ibc_transfer_timeout: Uint64::new(100),
+            party_to_host_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
+            host_to_party_chain_channel_id: NTRN_HUB_CHANNEL.1.to_string(),
+            remote_chain_denom: DENOM_ATOM.to_string(),
+            addr: party_address.to_string(),
+            native_denom: DENOM_ATOM_ON_NTRN.to_string(),
+            contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
+            denom_to_pfm_map: BTreeMap::new(),
+        }))
+        .build();
+    let random_address = suite.faucet.clone();
 
-    suite.astro_swap(coin(345_678_987, DENOM_ATOM_ON_NTRN));
+    let clock_migrate_msg = covenant_clock::msg::MigrateMsg::UpdateTickMaxGas { new_value: Uint64::new(500_000) };
+    let holder_migrate_msg = covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(random_address.to_string()),
+        next_contract: None,
+        emergency_committee: None,
+        lockup_config: None,
+        deposit_deadline: None,
+        ragequit_config: None.into(),
+        covenant_config: None.into(),
+        denom_splits: None,
+        fallback_split: None,
+    };
+    let astro_liquid_pooler_migrate_msg = covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(random_address.to_string()),
+        holder_address: None,
+        lp_config: None,
+    };
 
-    suite.get_and_fund_depositors(coin(1_000_000_000_000_u128, DENOM_ATOM));
+    let liquid_pooler_migrate_msg = covenant_two_party_pol::msg::LiquidPoolerMigrateMsg::Astroport(astro_liquid_pooler_migrate_msg.clone());
+    let party_a_interchain_router_migrate_msg = covenant_interchain_router::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(random_address.to_string()),
+        destination_config: None,
+        target_denoms: None,
+    };
+    let party_a_router_migrate_msg = covenant_two_party_pol::msg::RouterMigrateMsg::Interchain(party_a_interchain_router_migrate_msg.clone());
+    let party_b_native_router_migrate_msg = covenant_native_router::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(random_address.to_string()),
+        receiver_address: None,
+        target_denoms: None,
+    };
+    let party_b_router_migrate_msg = covenant_two_party_pol::msg::RouterMigrateMsg::Native(party_b_native_router_migrate_msg.clone());
+    let party_a_forwarder_migrate_msg = covenant_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(random_address.to_string()),
+        next_contract: None,
+        remote_chain_info: None.into(),
+        transfer_amount: None,
+    };
 
-    // Verify forwarders got their split from the splitter
-    let lp_forwarder_ica = suite.get_ica(suite.lp_forwarder_addr.clone());
-    let ls_forwarder_ica = suite.get_ica(suite.ls_forwarder_addr.clone());
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(lp_forwarder_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
-    }
-
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(ls_forwarder_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
-    }
-
-    let lp_forwarder_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(lp_forwarder_ica.clone(), DENOM_ATOM)
-        .unwrap();
-    let ls_forwarder_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(ls_forwarder_ica.clone(), DENOM_ATOM)
-        .unwrap();
-
-    assert_eq!(lp_forwarder_ica_balance.amount.u128(), 500_000_000_000_u128);
-    assert_eq!(ls_forwarder_ica_balance.amount.u128(), 500_000_000_000_u128);
-
-    // Wait for forwarders to forward the funds to the correct addrs
-    let lser_ica = suite.get_ica(suite.lser_addr.clone());
-
-    // lser_ica should get his half on stride (lsAtom on stride)
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(lser_ica.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lser ICA to get his lsAtom");
-    }
-
-    // lper should get his atom (atom on neutron)
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(suite.lper_addr.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for lser ICA to get his lsAtom");
-    }
-
-    // Make sure the correct denoms are received on the correct addrs
-    let lser_ica_balance = suite
-        .app
-        .wrap()
-        .query_balance(lser_ica, DENOM_LS_ATOM_ON_STRIDE)
-        .unwrap();
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_ATOM_ON_NTRN)
-        .unwrap();
-
-    assert_eq!(lser_ica_balance.amount.u128(), 500_000_000_000_u128);
-    assert_eq!(lper_balance.amount.u128(), 500_000_000_000_u128);
-
-    // TODO: Currently we need to manually send the LS tokens from stride to the lper
-    // TODO: When autopilot will be able to auto send over IBC, we can wait on the lper to receive both denoms
-    suite
-        .app
-        .execute_contract(
-            suite.admin.clone(),
-            suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
-                amount: 500_000_000_000_u128.into(),
-            },
-            &[],
-        )
-        .unwrap();
-
-    // We only check that lper got the ls tokens, as we already have the native atom check
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_LS_ATOM_ON_NTRN)
-        .unwrap();
-    assert_eq!(lper_balance.amount.u128(), 500_000_000_000_u128);
-
-    // Wait until lper provide liquidity
-    while suite
-        .app
-        .wrap()
-        .query_balance(suite.lper_addr.clone(), DENOM_LS_ATOM_ON_NTRN)
-        .unwrap()
-        .amount
-        .u128()
-        > 100_000_000_000_u128
-    {
-        suite.tick("Wait for lper to provide liquidity");
-    }
-
-    // do couple more ticks to provide single sided liquidity
-    suite.tick("Wait for lper to provide single sided liquidity");
-    suite.tick("Wait for lper to provide single sided liquidity");
-    suite.tick("Wait for lper to provide single sided liquidity");
-    suite.tick("Wait for lper to provide single sided liquidity");
-    suite.tick("Wait for lper to provide single sided liquidity");
-    suite.tick("Wait for lper to provide single sided liquidity");
-    suite.tick("Wait for lper to provide single sided liquidity");
-    suite.tick("Wait for lper to provide single sided liquidity");
-    suite.tick("Wait for lper to provide single sided liquidity");
-    suite.tick("Wait for lper to provide single sided liquidity");
-
-    // We provided liquidty but the pool is out of range for our single sided liquidity, so we should have leftovers
-    let lper_balance = suite
-        .app
-        .wrap()
-        .query_all_balances(suite.lper_addr.clone())
-        .unwrap();
-    assert!(lper_balance.is_empty());
-
-    suite.app.update_block(|b| {
-        b.height += 5;
-        b.time = b.time.plus_seconds(15)
+    let resp = suite.migrate_update(21, covenant_two_party_pol::msg::MigrateMsg::UpdateCovenant {
+        clock: Some(clock_migrate_msg.clone()),
+        holder: Some(holder_migrate_msg.clone()),
+        liquid_pooler: Some(liquid_pooler_migrate_msg.clone()),
+        party_a_router: Some(party_a_router_migrate_msg.clone()),
+        party_b_router: Some(party_b_router_migrate_msg.clone()),
+        party_a_forwarder: Some(party_a_forwarder_migrate_msg.clone()),
+        party_b_forwarder: None,
     });
 
-    // Verify lper has the lp tokens after providing liquidity
-    let lper_lp_token_balance = suite
-        .app
-        .wrap()
-        .query_wasm_smart::<cw20::BalanceResponse>(
-            suite.lp_token_addr.clone(),
-            &cw20::Cw20QueryMsg::Balance {
-                address: suite.lper_addr.to_string(),
-            },
-        )
-        .unwrap();
-    assert!(lper_lp_token_balance.balance > Uint128::zero());
+    resp.assert_event(&Event::new("wasm")
+        .add_attribute("clock_migrate", to_json_binary(&clock_migrate_msg).unwrap().to_string())
+        .add_attribute("party_a_router_migrate", to_json_binary(&party_a_interchain_router_migrate_msg).unwrap().to_string())
+        .add_attribute("party_b_router_migrate", to_json_binary(&party_b_native_router_migrate_msg).unwrap().to_string())
+        .add_attribute("party_a_forwarder_migrate", to_json_binary(&party_a_forwarder_migrate_msg).unwrap().to_string())
+        .add_attribute("holder_migrate", to_json_binary(&holder_migrate_msg).unwrap().to_string())
+        .add_attribute("liquid_pooler_migrate", to_json_binary(&astro_liquid_pooler_migrate_msg).unwrap().to_string())
+    );
 
-    // Try to claim, but we still in the lockup period so this should fail.
-    suite
-        .app
-        .execute_contract(
-            suite.party_local_receiver.clone(),
-            suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap_err();
+    let clock_address = suite.query_clock_address();
+    let holder_address = suite.query_holder_address();
+    let liquid_pooler_address = suite.query_liquid_pooler_address();
+    let party_a_router_address = suite.query_interchain_router_address("party_a");
+    let party_b_router_address = suite.query_interchain_router_address("party_b");
+    let party_a_forwarder_address = suite.query_ibc_forwarder_address("party_a");
+    
+    suite.tick_contract(suite.clock_addr.clone());
 
-    // pass the lockup period, and try to withdraw the liquidity
-    suite.app.update_block(|b| {
-        b.height += 100000;
-        b.time = b.time.plus_seconds(100000 * 3)
+    let app = suite.get_app();
+    
+    let clock_max_gas: Uint64 = app.wrap().query_wasm_smart(
+        clock_address,
+        &covenant_clock::msg::QueryMsg::TickMaxGas {},
+    ).unwrap();
+    assert_eq!(clock_max_gas, Uint64::new(500_000));
+
+    let holder_clock_address: Addr = app.wrap().query_wasm_smart(
+        holder_address,
+        &covenant_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+    ).unwrap();
+    assert_eq!(holder_clock_address, random_address);
+
+    let liquid_pooler_clock_address: Addr = app.wrap().query_wasm_smart(
+        liquid_pooler_address,
+        &covenant_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+    ).unwrap();
+    assert_eq!(liquid_pooler_clock_address, random_address);
+    
+    let party_a_router_clock_address: Addr = app.wrap().query_wasm_smart(
+        party_a_router_address,
+        &covenant_interchain_router::msg::QueryMsg::ClockAddress {},
+    ).unwrap();
+    assert_eq!(party_a_router_clock_address, random_address);
+
+    let party_b_router_clock_address: Addr = app.wrap().query_wasm_smart(
+        party_b_router_address,
+        &covenant_native_router::msg::QueryMsg::ClockAddress {},
+    ).unwrap();
+    assert_eq!(party_b_router_clock_address, random_address);
+
+    let party_a_forwarder_clock_address: Addr = app.wrap().query_wasm_smart(
+        party_a_forwarder_address,
+        &covenant_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+    ).unwrap();
+    assert_eq!(party_a_forwarder_clock_address, random_address);
+}
+
+
+#[test]
+fn test_migrate_update_config_party_b_interchain() {
+    let builder = TwoPartyCovenantBuilder::default();
+    let party_address = builder.instantiate_msg.msg.party_b_config.get_final_receiver_address();
+    let mut suite = builder
+        .with_party_b_config(covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(covenant_utils::InterchainCovenantParty {
+            party_receiver_addr: party_address.to_string(),
+            party_chain_connection_id: "connection-0".to_string(),
+            ibc_transfer_timeout: Uint64::new(100),
+            party_to_host_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
+            host_to_party_chain_channel_id: NTRN_HUB_CHANNEL.1.to_string(),
+            remote_chain_denom: DENOM_ATOM.to_string(),
+            addr: party_address.to_string(),
+            native_denom: DENOM_ATOM_ON_NTRN.to_string(),
+            contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
+            denom_to_pfm_map: BTreeMap::new(),
+        }))
+        .build();
+    let random_address = suite.faucet.clone();
+
+    let clock_migrate_msg = covenant_clock::msg::MigrateMsg::UpdateTickMaxGas { new_value: Uint64::new(500_000) };
+    let holder_migrate_msg = covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(random_address.to_string()),
+        next_contract: None,
+        emergency_committee: None,
+        lockup_config: None,
+        deposit_deadline: None,
+        ragequit_config: None.into(),
+        covenant_config: None.into(),
+        denom_splits: None,
+        fallback_split: None,
+    };
+    let astro_liquid_pooler_migrate_msg = covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(random_address.to_string()),
+        holder_address: None,
+        lp_config: None,
+    };
+
+    let liquid_pooler_migrate_msg = covenant_two_party_pol::msg::LiquidPoolerMigrateMsg::Astroport(astro_liquid_pooler_migrate_msg.clone());
+    let party_b_interchain_router_migrate_msg = covenant_interchain_router::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(random_address.to_string()),
+        destination_config: None,
+        target_denoms: None,
+    };
+    let party_b_router_migrate_msg = covenant_two_party_pol::msg::RouterMigrateMsg::Interchain(party_b_interchain_router_migrate_msg.clone());
+    let party_a_native_router_migrate_msg = covenant_native_router::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(random_address.to_string()),
+        receiver_address: None,
+        target_denoms: None,
+    };
+    let party_a_router_migrate_msg = covenant_two_party_pol::msg::RouterMigrateMsg::Native(party_a_native_router_migrate_msg.clone());
+    let party_b_forwarder_migrate_msg = covenant_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(random_address.to_string()),
+        next_contract: None,
+        remote_chain_info: None.into(),
+        transfer_amount: None,
+    };
+
+    let resp = suite.migrate_update(21, covenant_two_party_pol::msg::MigrateMsg::UpdateCovenant {
+        clock: Some(clock_migrate_msg.clone()),
+        holder: Some(holder_migrate_msg.clone()),
+        liquid_pooler: Some(liquid_pooler_migrate_msg.clone()),
+        party_a_router: Some(party_a_router_migrate_msg.clone()),
+        party_b_router: Some(party_b_router_migrate_msg.clone()),
+        party_b_forwarder: Some(party_b_forwarder_migrate_msg.clone()),
+        party_a_forwarder: None,
     });
 
-    suite
-        .app
-        .execute_contract(
-            suite.party_local_receiver.clone(),
-            suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap();
+    resp.assert_event(&Event::new("wasm")
+        .add_attribute("clock_migrate", to_json_binary(&clock_migrate_msg).unwrap().to_string())
+        .add_attribute("party_b_router_migrate", to_json_binary(&party_b_interchain_router_migrate_msg).unwrap().to_string())
+        .add_attribute("party_a_router_migrate", to_json_binary(&party_a_native_router_migrate_msg).unwrap().to_string())
+        .add_attribute("party_b_forwarder_migrate", to_json_binary(&party_b_forwarder_migrate_msg).unwrap().to_string())
+        .add_attribute("holder_migrate", to_json_binary(&holder_migrate_msg).unwrap().to_string())
+        .add_attribute("liquid_pooler_migrate", to_json_binary(&astro_liquid_pooler_migrate_msg).unwrap().to_string())
+    );
 
-    let router_addr = suite
-        .app
-        .wrap()
-        .query_wasm_smart::<Addr>(
-            suite.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
-        )
-        .unwrap();
+    let clock_address = suite.query_clock_address();
+    let holder_address = suite.query_holder_address();
+    let liquid_pooler_address = suite.query_liquid_pooler_address();
+    let party_a_router_address = suite.query_interchain_router_address("party_a");
+    let party_b_router_address = suite.query_interchain_router_address("party_b");
+    let party_b_forwarder_address = suite.query_ibc_forwarder_address("party_b");
+    
+    suite.tick_contract(suite.clock_addr.clone());
 
-    // let router_balances = suite
-    //     .app
-    //     .wrap()
-    //     .query_all_balances(router_addr.clone())
-    //     .unwrap();
-    // println!("router balances: {router_balances:?}");
+    let app = suite.get_app();
+    
+    let clock_max_gas: Uint64 = app.wrap().query_wasm_smart(
+        clock_address,
+        &covenant_clock::msg::QueryMsg::TickMaxGas {},
+    ).unwrap();
+    assert_eq!(clock_max_gas, Uint64::new(500_000));
 
-    while suite
-        .app
-        .wrap()
-        .query_all_balances(suite.party_receiver.clone())
-        .unwrap()
-        .is_empty()
-    {
-        suite.tick("Wait for party_receiver to get funds");
-    }
+    let holder_clock_address: Addr = app.wrap().query_wasm_smart(
+        holder_address,
+        &covenant_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+    ).unwrap();
+    assert_eq!(holder_clock_address, random_address);
 
-    let receiver_balance = suite
-        .app
-        .wrap()
-        .query_balance(suite.party_receiver.clone(), DENOM_ATOM)
-        .unwrap();
+    let liquid_pooler_clock_address: Addr = app.wrap().query_wasm_smart(
+        liquid_pooler_address,
+        &covenant_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+    ).unwrap();
+    assert_eq!(liquid_pooler_clock_address, random_address);
+    
+    let party_b_router_clock_address: Addr = app.wrap().query_wasm_smart(
+        party_b_router_address,
+        &covenant_interchain_router::msg::QueryMsg::ClockAddress {},
+    ).unwrap();
+    assert_eq!(party_b_router_clock_address, random_address);
 
-    // We used pfm, so the receiver should have close to 1_000_000_000_000 uatom
-    assert!(receiver_balance.amount.u128() > 900_000_000_000_u128);
+    let party_a_router_clock_address: Addr = app.wrap().query_wasm_smart(
+        party_a_router_address,
+        &covenant_native_router::msg::QueryMsg::ClockAddress {},
+    ).unwrap();
+    assert_eq!(party_a_router_clock_address, random_address);
+
+    let party_b_forwarder_clock_address: Addr = app.wrap().query_wasm_smart(
+        party_b_forwarder_address,
+        &covenant_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+    ).unwrap();
+    assert_eq!(party_b_forwarder_clock_address, random_address);
 }
