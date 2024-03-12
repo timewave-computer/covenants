@@ -448,7 +448,7 @@ impl Suite {
                     max_spread: Some(Decimal::bps(5000)),
                     to: None,
                 },
-                &vec![coin],
+                &[coin],
             )
             .unwrap();
     }

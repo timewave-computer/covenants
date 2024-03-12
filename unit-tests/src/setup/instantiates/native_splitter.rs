@@ -5,7 +5,6 @@ use covenant_utils::split::SplitConfig;
 
 use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
-
 pub struct NativeSplitterInstantiate {
     pub msg: covenant_native_splitter::msg::InstantiateMsg,
 }
@@ -19,7 +18,7 @@ impl From<NativeSplitterInstantiate> for covenant_native_splitter::msg::Instanti
 impl NativeSplitterInstantiate {
     pub fn new(
         clock_address: Addr,
-        splits: BTreeMap::<String, SplitConfig>,
+        splits: BTreeMap<String, SplitConfig>,
         fallback_split: Option<SplitConfig>,
     ) -> Self {
         Self {
@@ -27,7 +26,7 @@ impl NativeSplitterInstantiate {
                 clock_address,
                 splits,
                 fallback_split,
-            }
+            },
         }
     }
 
@@ -36,7 +35,7 @@ impl NativeSplitterInstantiate {
         self
     }
 
-    pub fn with_splits(&mut self, splits: BTreeMap::<String, SplitConfig>) -> &mut Self {
+    pub fn with_splits(&mut self, splits: BTreeMap<String, SplitConfig>) -> &mut Self {
         self.msg.splits = splits;
         self
     }
@@ -48,35 +47,22 @@ impl NativeSplitterInstantiate {
 }
 
 impl NativeSplitterInstantiate {
-    pub fn default(
-        clock_address: Addr,
-        party_a_addr: String,
-        party_b_addr: String,
-    ) -> Self {
+    pub fn default(clock_address: Addr, party_a_addr: String, party_b_addr: String) -> Self {
         let mut splits = BTreeMap::new();
-        splits.insert(
-            party_a_addr,
-            Decimal::from_str("0.5").unwrap(),
-        );
-        splits.insert(
-            party_b_addr,
-            Decimal::from_str("0.5").unwrap(),
-        );
+        splits.insert(party_a_addr, Decimal::from_str("0.5").unwrap());
+        splits.insert(party_b_addr, Decimal::from_str("0.5").unwrap());
 
         let split_config = SplitConfig { receivers: splits };
         let mut denom_to_split_config_map = BTreeMap::new();
         denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
         denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
 
-
-
-
         Self {
             msg: covenant_native_splitter::msg::InstantiateMsg {
                 clock_address,
                 splits: denom_to_split_config_map,
                 fallback_split: Some(split_config),
-            }
+            },
         }
     }
 }

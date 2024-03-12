@@ -2,7 +2,6 @@ use cw_utils::Expiration;
 
 use crate::setup::suite_builder::SuiteBuilder;
 
-
 pub struct SinglePartyHolderInstantiate {
     pub msg: covenant_single_party_pol_holder::msg::InstantiateMsg,
 }
@@ -28,7 +27,7 @@ impl SinglePartyHolderInstantiate {
                 emergency_committee_addr,
                 pooler_address,
                 lockup_period,
-            }
+            },
         }
     }
 
@@ -59,9 +58,7 @@ impl SinglePartyHolderInstantiate {
 }
 
 impl SinglePartyHolderInstantiate {
-    pub fn default(
-        pooler_address: String,
-    ) -> Self {
+    pub fn default(pooler_address: String) -> Self {
         Self {
             msg: covenant_single_party_pol_holder::msg::InstantiateMsg {
                 withdrawer: Some(pooler_address.to_string()),
@@ -69,7 +66,7 @@ impl SinglePartyHolderInstantiate {
                 emergency_committee_addr: Some(pooler_address.to_string()),
                 pooler_address,
                 lockup_period: Expiration::AtHeight(100000),
-            }
+            },
         }
     }
 }

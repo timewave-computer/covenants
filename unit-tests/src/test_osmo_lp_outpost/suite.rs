@@ -1,7 +1,10 @@
 use cosmwasm_std::{Addr, Coin};
 use cw_multi_test::{AppResponse, Executor};
 
-use crate::setup::{base_suite::BaseSuiteMut, instantiates::osmo_lp_outpost::OsmpLpOutpostInstantiate, suite_builder::SuiteBuilder, CustomApp};
+use crate::setup::{
+    base_suite::BaseSuiteMut, instantiates::osmo_lp_outpost::OsmpLpOutpostInstantiate,
+    suite_builder::SuiteBuilder, CustomApp,
+};
 
 pub struct OsmoLpOutpostBuilder {
     pub builder: SuiteBuilder,
@@ -10,7 +13,6 @@ pub struct OsmoLpOutpostBuilder {
 
 impl Default for OsmoLpOutpostBuilder {
     fn default() -> Self {
-
         Self {
             builder: SuiteBuilder::new(),
             instantiate_msg: OsmpLpOutpostInstantiate::default(),
@@ -24,7 +26,7 @@ impl OsmoLpOutpostBuilder {
             self.builder.osmo_lp_outpost_code_id,
             "outpost".to_string(),
             &self.instantiate_msg.msg,
-            &vec![],
+            &[],
         );
 
         Suite {
@@ -46,24 +48,36 @@ pub(super) struct Suite {
 }
 
 impl Suite {
-    pub fn provide_liquidity(&mut self, funds: Vec<Coin>, sender: Addr, config: covenant_outpost_osmo_liquid_pooler::msg::OutpostProvideLiquidityConfig) -> AppResponse {
-        self.app.execute_contract(
-            sender,
-            self.outpost.clone(),
-            &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity { config },
-            &funds,
-        )
-        .unwrap()
+    pub fn provide_liquidity(
+        &mut self,
+        funds: Vec<Coin>,
+        sender: Addr,
+        config: covenant_outpost_osmo_liquid_pooler::msg::OutpostProvideLiquidityConfig,
+    ) -> AppResponse {
+        self.app
+            .execute_contract(
+                sender,
+                self.outpost.clone(),
+                &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity { config },
+                &funds,
+            )
+            .unwrap()
     }
 
-    pub fn withdraw_liquidity(&mut self, funds: Vec<Coin>, sender: Addr, config: covenant_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig) -> AppResponse {
-        self.app.execute_contract(
-            sender,
-            self.outpost.clone(),
-            &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::WithdrawLiquidity { config },
-            &funds,
-        )
-        .unwrap()
+    pub fn withdraw_liquidity(
+        &mut self,
+        funds: Vec<Coin>,
+        sender: Addr,
+        config: covenant_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig,
+    ) -> AppResponse {
+        self.app
+            .execute_contract(
+                sender,
+                self.outpost.clone(),
+                &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::WithdrawLiquidity { config },
+                &funds,
+            )
+            .unwrap()
     }
 }
 

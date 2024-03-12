@@ -4,7 +4,6 @@ use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
 
 use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
-
 #[derive(Clone)]
 pub struct AstroLiquidPoolerInstantiate {
     pub msg: covenant_astroport_liquid_pooler::msg::InstantiateMsg,
@@ -56,12 +55,18 @@ impl AstroLiquidPoolerInstantiate {
         self
     }
 
-    pub fn with_assets(&mut self, assets: covenant_astroport_liquid_pooler::msg::AssetData) -> &mut Self {
+    pub fn with_assets(
+        &mut self,
+        assets: covenant_astroport_liquid_pooler::msg::AssetData,
+    ) -> &mut Self {
         self.msg.assets = assets;
         self
     }
 
-    pub fn with_single_side_lp_limits(&mut self, single_side_lp_limits: SingleSideLpLimits) -> &mut Self {
+    pub fn with_single_side_lp_limits(
+        &mut self,
+        single_side_lp_limits: SingleSideLpLimits,
+    ) -> &mut Self {
         self.msg.single_side_lp_limits = single_side_lp_limits;
         self
     }
@@ -83,11 +88,7 @@ impl AstroLiquidPoolerInstantiate {
 }
 
 impl AstroLiquidPoolerInstantiate {
-    pub fn default(
-        pool_address: String,
-        clock_address: String,
-        holder_address: String,
-    ) -> Self {
+    pub fn default(pool_address: String, clock_address: String, holder_address: String) -> Self {
         Self {
             msg: covenant_astroport_liquid_pooler::msg::InstantiateMsg {
                 pool_address,

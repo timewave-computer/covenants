@@ -4,7 +4,6 @@ use cw_utils::Expiration;
 
 use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
-
 pub struct SwapHolderInstantiate {
     pub msg: covenant_swap_holder::msg::InstantiateMsg,
 }
@@ -30,7 +29,7 @@ impl SwapHolderInstantiate {
                 lockup_config,
                 covenant_terms,
                 parties_config,
-            }
+            },
         }
     }
 
@@ -68,7 +67,7 @@ impl SwapHolderInstantiate {
         party_b_addr: Addr,
     ) -> Self {
         Self {
-            msg: covenant_swap_holder::msg::InstantiateMsg {            
+            msg: covenant_swap_holder::msg::InstantiateMsg {
                 clock_address,
                 next_contract,
                 lockup_config: Expiration::AtHeight(1000000),
@@ -88,7 +87,7 @@ impl SwapHolderInstantiate {
                         receiver_config: ReceiverConfig::Native(party_b_addr),
                     },
                 },
-            }
+            },
         }
     }
 }

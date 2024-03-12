@@ -5,7 +5,10 @@ use covenant_utils::split::SplitConfig;
 use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::native_splitter::NativeSplitterInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, NATIVE_SPLITTER_SALT
+    base_suite::{BaseSuite, BaseSuiteMut},
+    instantiates::native_splitter::NativeSplitterInstantiate,
+    suite_builder::SuiteBuilder,
+    CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, NATIVE_SPLITTER_SALT,
 };
 
 pub struct NativeSplitterBuilder {
@@ -21,7 +24,7 @@ impl Default for NativeSplitterBuilder {
         let native_splitter_addr =
             builder.get_contract_addr(builder.native_splitter_code_id, NATIVE_SPLITTER_SALT);
         println!("code {:?}", builder.native_splitter_code_id);
-        
+
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![native_splitter_addr.to_string()],
@@ -56,7 +59,7 @@ impl NativeSplitterBuilder {
         self
     }
 
-    pub fn with_splits(mut self, splits: BTreeMap::<String, SplitConfig>) -> Self {
+    pub fn with_splits(mut self, splits: BTreeMap<String, SplitConfig>) -> Self {
         self.instantiate_msg.with_splits(splits);
         self
     }
@@ -74,7 +77,8 @@ impl NativeSplitterBuilder {
             &[],
         );
 
-        let clock_addr = self.builder
+        let clock_addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -83,7 +87,8 @@ impl NativeSplitterBuilder {
             )
             .unwrap();
 
-        let splits: Vec<(String, SplitConfig)> = self.builder
+        let splits: Vec<(String, SplitConfig)> = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -93,10 +98,11 @@ impl NativeSplitterBuilder {
             .unwrap();
         let config_1 = splits[0].clone().1.receivers;
         let receivers: Vec<String> = config_1.keys().cloned().collect();
-        
+
         let split_map = BTreeMap::from_iter(splits);
 
-        let fallback_split = self.builder
+        let fallback_split = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -156,7 +162,8 @@ impl Suite {
     }
 
     pub fn query_all_splits(&mut self) -> BTreeMap<String, SplitConfig> {
-        let splits: Vec<(String, SplitConfig)> = self.app
+        let splits: Vec<(String, SplitConfig)> = self
+            .app
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
@@ -176,7 +183,7 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_deposit_address (&mut self) -> Addr {
+    pub fn query_deposit_address(&mut self) -> Addr {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -192,7 +199,7 @@ impl Suite {
                 self.faucet.clone(),
                 self.splitter.clone(),
                 &covenant_native_splitter::msg::ExecuteMsg::DistributeFallback { denoms },
-                &[]
+                &[],
             )
             .unwrap()
     }

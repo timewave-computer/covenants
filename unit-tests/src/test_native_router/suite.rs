@@ -4,7 +4,10 @@ use cosmwasm_std::Addr;
 use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::native_router::NativeRouterInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, NATIVE_ROUTER_SALT
+    base_suite::{BaseSuite, BaseSuiteMut},
+    instantiates::native_router::NativeRouterInstantiate,
+    suite_builder::SuiteBuilder,
+    CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, NATIVE_ROUTER_SALT,
 };
 
 pub struct NativeRouterBuilder {
@@ -34,10 +37,8 @@ impl Default for NativeRouterBuilder {
 
         let party_receiver = builder.get_random_addr();
 
-        let native_router_instantiate = NativeRouterInstantiate::default(
-            clock_addr,
-            party_receiver,
-        );
+        let native_router_instantiate =
+            NativeRouterInstantiate::default(clock_addr, party_receiver);
 
         Self {
             builder,
@@ -72,7 +73,8 @@ impl NativeRouterBuilder {
             &[],
         );
 
-        let clock_addr = self.builder
+        let clock_addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -81,7 +83,8 @@ impl NativeRouterBuilder {
             )
             .unwrap();
 
-        let receiver_addr = self.builder
+        let receiver_addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -90,7 +93,8 @@ impl NativeRouterBuilder {
             )
             .unwrap();
 
-        let denoms = self.builder
+        let denoms = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -108,7 +112,6 @@ impl NativeRouterBuilder {
             denoms,
             app: self.builder.build(),
         }
-
     }
 }
 

@@ -152,12 +152,10 @@ pub fn remote_splitter_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
 }
 
 pub fn osmo_lp_outpost_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
-    let exec = |
-        deps: DepsMut<NeutronQuery>,
-        env: Env,
-        info: MessageInfo,
-        msg: covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg
-    | {
+    let exec = |deps: DepsMut<NeutronQuery>,
+                env: Env,
+                info: MessageInfo,
+                msg: covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg| {
         execute_into_neutron(covenant_outpost_osmo_liquid_pooler::contract::execute(
             get_empty_depsmut(deps),
             env,
@@ -166,12 +164,10 @@ pub fn osmo_lp_outpost_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
         ))
     };
 
-    let init = |
-        deps: DepsMut<NeutronQuery>,
-        env: Env,
-        info: MessageInfo,
-        msg: covenant_outpost_osmo_liquid_pooler::msg::InstantiateMsg
-    | {
+    let init = |deps: DepsMut<NeutronQuery>,
+                env: Env,
+                info: MessageInfo,
+                msg: covenant_outpost_osmo_liquid_pooler::msg::InstantiateMsg| {
         execute_into_neutron(covenant_outpost_osmo_liquid_pooler::contract::instantiate(
             get_empty_depsmut(deps),
             env,
@@ -179,7 +175,6 @@ pub fn osmo_lp_outpost_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
             msg,
         ))
     };
-
 
     let reply = |deps: DepsMut<NeutronQuery>, env: Env, reply: Reply| {
         execute_into_neutron(covenant_outpost_osmo_liquid_pooler::contract::reply(
@@ -189,18 +184,13 @@ pub fn osmo_lp_outpost_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
         ))
     };
 
-    let query = |
-        deps: Deps<NeutronQuery>,
-        env: Env,
-        msg: covenant_outpost_osmo_liquid_pooler::msg::QueryMsg
-    | {
+    let query = |deps: Deps<NeutronQuery>,
+                 env: Env,
+                 msg: covenant_outpost_osmo_liquid_pooler::msg::QueryMsg| {
         covenant_outpost_osmo_liquid_pooler::contract::query(get_empty_deps(deps), env, msg)
     };
 
-    Box::new(
-        ContractWrapper::new(exec, init, query)
-        .with_reply(reply)
-    )
+    Box::new(ContractWrapper::new(exec, init, query).with_reply(reply))
 }
 
 pub fn native_router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {

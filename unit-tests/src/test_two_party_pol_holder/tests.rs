@@ -1,12 +1,17 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal, Event, Uint128};
-use covenant_two_party_pol_holder::msg::{ContractState, RagequitConfig, RagequitTerms, TwoPartyPolCovenantConfig};
+use covenant_two_party_pol_holder::msg::{
+    ContractState, RagequitConfig, RagequitTerms, TwoPartyPolCovenantConfig,
+};
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
 
-use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
+use crate::setup::{
+    base_suite::{BaseSuite, BaseSuiteMut},
+    ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+};
 
 use super::suite::TwoPartyHolderBuilder;
 
@@ -46,7 +51,12 @@ fn test_instantiate_validates_lockup_config() {
 #[should_panic]
 fn test_instantiate_validates_covenant_config_router_a_addr() {
     let mut default_builder = TwoPartyHolderBuilder::default();
-    default_builder.instantiate_msg.msg.covenant_config.party_a.router = "invalid".to_string();
+    default_builder
+        .instantiate_msg
+        .msg
+        .covenant_config
+        .party_a
+        .router = "invalid".to_string();
     default_builder.build();
 }
 
@@ -54,7 +64,12 @@ fn test_instantiate_validates_covenant_config_router_a_addr() {
 #[should_panic]
 fn test_instantiate_validates_covenant_config_router_b_addr() {
     let mut default_builder = TwoPartyHolderBuilder::default();
-    default_builder.instantiate_msg.msg.covenant_config.party_b.router = "invalid".to_string();
+    default_builder
+        .instantiate_msg
+        .msg
+        .covenant_config
+        .party_b
+        .router = "invalid".to_string();
     default_builder.build();
 }
 
@@ -62,31 +77,38 @@ fn test_instantiate_validates_covenant_config_router_b_addr() {
 #[should_panic(expected = "party allocations must add up to 1.0")]
 fn test_instantiate_validates_covenant_config_allocations() {
     let mut default_builder = TwoPartyHolderBuilder::default();
-    default_builder.instantiate_msg.msg.covenant_config.party_b.allocation = Decimal::from_str("1.1").unwrap();
+    default_builder
+        .instantiate_msg
+        .msg
+        .covenant_config
+        .party_b
+        .allocation = Decimal::from_str("1.1").unwrap();
     default_builder.build();
 }
-
 
 #[test]
 #[should_panic(expected = "Ragequit penalty must be in range of [0.0, 1.0)")]
 fn test_instantiate_validates_ragequit_config_range() {
     TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(RagequitTerms {
-            penalty: Decimal::from_str("1.1").unwrap(),
-            state: None,
-        }))
+        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+            RagequitTerms {
+                penalty: Decimal::from_str("1.1").unwrap(),
+                state: None,
+            },
+        ))
         .build();
 }
-
 
 #[test]
 #[should_panic(expected = "Ragequit penalty exceeds party allocation")]
 fn test_instantiate_validates_ragequit_config_party_allocations() {
     TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(RagequitTerms {
-            penalty: Decimal::from_str("0.6").unwrap(),
-            state: None,
-        }))
+        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+            RagequitTerms {
+                penalty: Decimal::from_str("0.6").unwrap(),
+                state: None,
+            },
+        ))
         .build();
 }
 
@@ -94,11 +116,16 @@ fn test_instantiate_validates_ragequit_config_party_allocations() {
 // #[should_panic] TODO: enable
 fn test_instantiate_validates_explicit_splits() {
     let mut default_builder = TwoPartyHolderBuilder::default();
-    let entry: BTreeMap<String, SplitConfig> = default_builder.instantiate_msg.msg.splits
+    let entry: BTreeMap<String, SplitConfig> = default_builder
+        .instantiate_msg
+        .msg
+        .splits
         .iter_mut()
         .map(|(denom, split)| {
             let val = split.receivers.last_key_value().unwrap().0;
-            split.receivers.insert(val.clone(), Decimal::from_str("0.6").unwrap());
+            split
+                .receivers
+                .insert(val.clone(), Decimal::from_str("0.6").unwrap());
             (denom.to_string(), split.clone())
         })
         .collect();
@@ -112,9 +139,19 @@ fn test_instantiate_validates_explicit_splits() {
 fn test_instantiate_validates_fallback_split() {
     let mut default_builder = TwoPartyHolderBuilder::default();
     let mut fallback_split = SplitConfig {
-        receivers: default_builder.instantiate_msg.msg.splits.last_key_value().unwrap().1.receivers.clone(),
+        receivers: default_builder
+            .instantiate_msg
+            .msg
+            .splits
+            .last_key_value()
+            .unwrap()
+            .1
+            .receivers
+            .clone(),
     };
-    fallback_split.receivers.insert("invalid".to_string(), Decimal::from_str("0.6").unwrap());
+    fallback_split
+        .receivers
+        .insert("invalid".to_string(), Decimal::from_str("0.6").unwrap());
     default_builder.instantiate_msg.msg.fallback_split = Some(fallback_split);
     default_builder.build();
 }
@@ -124,13 +161,15 @@ fn test_instantiate_validates_fallback_split() {
 fn test_execute_tick_validates_clock() {
     let mut suite = TwoPartyHolderBuilder::default().build();
 
-    suite.app.execute_contract(
-        suite.faucet.clone(),
-        suite.holder_addr.clone(),
-        &covenant_two_party_pol_holder::msg::ExecuteMsg::Tick {},
-        &[],
-    )
-    .unwrap();
+    suite
+        .app
+        .execute_contract(
+            suite.faucet.clone(),
+            suite.holder_addr.clone(),
+            &covenant_two_party_pol_holder::msg::ExecuteMsg::Tick {},
+            &[],
+        )
+        .unwrap();
 }
 
 #[test]
@@ -141,16 +180,16 @@ fn test_execute_tick_expired_deposit_refunds_both_parties() {
     suite.fund_contract(
         &vec![
             coin(10_000, DENOM_ATOM_ON_NTRN),
-            coin(10_000, DENOM_LS_ATOM_ON_NTRN)
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
 
-    suite.tick_contract(suite.holder_addr.clone())
-        .assert_event(&Event::new("wasm")
+    suite.tick_contract(suite.holder_addr.clone()).assert_event(
+        &Event::new("wasm")
             .add_attribute("method", "try_deposit")
-            .add_attribute("action", "refund")
-        );
+            .add_attribute("action", "refund"),
+    );
     suite.assert_balance(
         &suite.covenant_config.party_a.router,
         coin(10_000, DENOM_ATOM_ON_NTRN),
@@ -167,25 +206,20 @@ fn test_execute_tick_expired_deposit_refunds_party_a() {
     suite.expire_deposit_deadline();
 
     suite.fund_contract(
-        &vec![
-            coin(10_000, DENOM_ATOM_ON_NTRN),
-        ],
+        &vec![coin(10_000, DENOM_ATOM_ON_NTRN)],
         suite.holder_addr.clone(),
     );
 
-    suite.tick_contract(suite.holder_addr.clone())
-        .assert_event(&Event::new("wasm")
+    suite.tick_contract(suite.holder_addr.clone()).assert_event(
+        &Event::new("wasm")
             .add_attribute("method", "try_deposit")
-            .add_attribute("action", "refund")
-        );
+            .add_attribute("action", "refund"),
+    );
     suite.assert_balance(
         &suite.covenant_config.party_a.router,
         coin(10_000, DENOM_ATOM_ON_NTRN),
     );
-    suite.assert_balance(
-        &suite.holder_addr.clone(),
-        coin(0, DENOM_ATOM_ON_NTRN),
-    );
+    suite.assert_balance(suite.holder_addr.clone(), coin(0, DENOM_ATOM_ON_NTRN));
 }
 
 #[test]
@@ -194,36 +228,31 @@ fn test_execute_tick_expired_deposit_refunds_party_b() {
     suite.app.update_block(|b| b.height = 200000);
 
     suite.fund_contract(
-        &vec![
-            coin(10_000, DENOM_LS_ATOM_ON_NTRN),
-        ],
+        &vec![coin(10_000, DENOM_LS_ATOM_ON_NTRN)],
         suite.holder_addr.clone(),
     );
 
-    suite.tick_contract(suite.holder_addr.clone())
-        .assert_event(&Event::new("wasm")
+    suite.tick_contract(suite.holder_addr.clone()).assert_event(
+        &Event::new("wasm")
             .add_attribute("method", "try_deposit")
-            .add_attribute("action", "refund")
-        );
+            .add_attribute("action", "refund"),
+    );
     suite.assert_balance(
         &suite.covenant_config.party_b.router,
         coin(10_000, DENOM_LS_ATOM_ON_NTRN),
     );
-    suite.assert_balance(
-        &suite.holder_addr.clone(),
-        coin(0, DENOM_LS_ATOM_ON_NTRN),
-    );
+    suite.assert_balance(&suite.holder_addr.clone(), coin(0, DENOM_LS_ATOM_ON_NTRN));
 }
 
 #[test]
 fn test_execute_tick_expired_deposit_completes() {
     let mut suite = TwoPartyHolderBuilder::default().build();
     suite.app.update_block(|b| b.height = 200000);
-    suite.tick_contract(suite.holder_addr.clone())
-        .assert_event(&Event::new("wasm")
+    suite.tick_contract(suite.holder_addr.clone()).assert_event(
+        &Event::new("wasm")
             .add_attribute("method", "try_deposit")
-            .add_attribute("state", "complete")
-        );
+            .add_attribute("state", "complete"),
+    );
     let state = suite.query_contract_state();
     assert_eq!(state, ContractState::Complete {});
 }
@@ -236,7 +265,7 @@ fn test_execute_tick_deposit_validates_insufficient_deposits() {
     suite.fund_contract(
         &vec![
             coin(10_000, DENOM_ATOM_ON_NTRN),
-            coin(5_000, DENOM_LS_ATOM_ON_NTRN)
+            coin(5_000, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
@@ -249,7 +278,7 @@ fn test_execute_tick_expired_noop() {
     suite.fund_contract(
         &vec![
             coin(10_000, DENOM_ATOM_ON_NTRN),
-            coin(10_000, DENOM_LS_ATOM_ON_NTRN)
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
@@ -265,23 +294,24 @@ fn test_execute_tick_expired_noop() {
     suite.tick_contract(suite.holder_addr.clone()).assert_event(
         &Event::new("wasm")
             .add_attribute("method", "tick")
-            .add_attribute("contract_state", "expired")
-        );
+            .add_attribute("contract_state", "expired"),
+    );
 }
-
 
 #[test]
 fn test_execute_tick_ragequit_noop() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(RagequitTerms {
-            penalty: Decimal::from_str("0.05").unwrap(),
-            state: None,
-        }))
+        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+            RagequitTerms {
+                penalty: Decimal::from_str("0.05").unwrap(),
+                state: None,
+            },
+        ))
         .build();
     suite.fund_contract(
         &vec![
             coin(10_000, DENOM_ATOM_ON_NTRN),
-            coin(10_000, DENOM_LS_ATOM_ON_NTRN)
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
@@ -298,19 +328,18 @@ fn test_execute_tick_ragequit_noop() {
     suite.tick_contract(suite.holder_addr.clone()).assert_event(
         &Event::new("wasm")
             .add_attribute("method", "tick")
-            .add_attribute("contract_state", "ragequit")
-        );
+            .add_attribute("contract_state", "ragequit"),
+    );
 }
 
 #[test]
 #[should_panic(expected = "ragequit is disabled")]
 fn test_execute_ragequit_validates_ragequit_config() {
-    let mut suite = TwoPartyHolderBuilder::default()
-        .build();
+    let mut suite = TwoPartyHolderBuilder::default().build();
     suite.fund_contract(
         &vec![
             coin(10_000, DENOM_ATOM_ON_NTRN),
-            coin(10_000, DENOM_LS_ATOM_ON_NTRN)
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
@@ -327,10 +356,12 @@ fn test_execute_ragequit_validates_ragequit_config() {
 #[should_panic(expected = "covenant is not in active state")]
 fn test_execute_ragequit_validates_active_state() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(RagequitTerms {
-            penalty: Decimal::from_str("0.05").unwrap(),
-            state: None,
-        }))
+        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+            RagequitTerms {
+                penalty: Decimal::from_str("0.05").unwrap(),
+                state: None,
+            },
+        ))
         .build();
 
     suite.ragequit(&suite.covenant_config.party_a.host_addr.clone());
@@ -345,15 +376,17 @@ fn test_execute_ragequit_validates_withdraw_started() {
 #[should_panic(expected = "covenant is active but expired; tick to proceed")]
 fn test_execute_ragequit_validates_lockup_config_expiration() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(RagequitTerms {
-            penalty: Decimal::from_str("0.05").unwrap(),
-            state: None,
-        }))
+        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+            RagequitTerms {
+                penalty: Decimal::from_str("0.05").unwrap(),
+                state: None,
+            },
+        ))
         .build();
     suite.fund_contract(
         &vec![
             coin(10_000, DENOM_ATOM_ON_NTRN),
-            coin(10_000, DENOM_LS_ATOM_ON_NTRN)
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
@@ -370,15 +403,17 @@ fn test_execute_ragequit_validates_lockup_config_expiration() {
 #[should_panic(expected = "unauthorized")]
 fn test_execute_ragequit_validates_sender() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(RagequitTerms {
-            penalty: Decimal::from_str("0.05").unwrap(),
-            state: None,
-        }))
+        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+            RagequitTerms {
+                penalty: Decimal::from_str("0.05").unwrap(),
+                state: None,
+            },
+        ))
         .build();
     suite.fund_contract(
         &vec![
             coin(10_000, DENOM_ATOM_ON_NTRN),
-            coin(10_000, DENOM_LS_ATOM_ON_NTRN)
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
@@ -394,10 +429,12 @@ fn test_execute_ragequit_validates_sender() {
 #[should_panic(expected = "unauthorized")]
 fn test_execute_claim_unauthorized() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(RagequitTerms {
-            penalty: Decimal::from_str("0.05").unwrap(),
-            state: None,
-        }))
+        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+            RagequitTerms {
+                penalty: Decimal::from_str("0.05").unwrap(),
+                state: None,
+            },
+        ))
         .build();
     let clock = suite.clock_addr.clone();
 
@@ -408,15 +445,17 @@ fn test_execute_claim_unauthorized() {
 #[should_panic(expected = "Claimer already claimed his share")]
 fn test_execute_claim_with_null_allocation() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(RagequitTerms {
-            penalty: Decimal::from_str("0.05").unwrap(),
-            state: None,
-        }))
+        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+            RagequitTerms {
+                penalty: Decimal::from_str("0.05").unwrap(),
+                state: None,
+            },
+        ))
         .build();
     suite.fund_contract(
         &vec![
             coin(10_000, DENOM_ATOM_ON_NTRN),
-            coin(10_000, DENOM_LS_ATOM_ON_NTRN)
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
@@ -434,12 +473,11 @@ fn test_execute_claim_with_null_allocation() {
 #[test]
 #[should_panic(expected = "contract needs to be in ragequit or expired state in order to claim")]
 fn test_execute_claim_validates_claim_state() {
-    let mut suite = TwoPartyHolderBuilder::default()
-        .build();
+    let mut suite = TwoPartyHolderBuilder::default().build();
     suite.fund_contract(
         &vec![
             coin(10_000, DENOM_ATOM_ON_NTRN),
-            coin(10_000, DENOM_LS_ATOM_ON_NTRN)
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
@@ -448,15 +486,13 @@ fn test_execute_claim_validates_claim_state() {
     suite.claim(&suite.covenant_config.party_a.host_addr.clone());
 }
 
-
 #[test]
 fn test_execute_claim_happy() {
-    let mut suite = TwoPartyHolderBuilder::default()
-    .build();
+    let mut suite = TwoPartyHolderBuilder::default().build();
     suite.fund_contract(
         &vec![
             coin(10_001, DENOM_ATOM_ON_NTRN),
-            coin(10_001, DENOM_LS_ATOM_ON_NTRN)
+            coin(10_001, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
@@ -478,7 +514,10 @@ fn test_execute_claim_happy() {
     );
     assert_eq!(ls_atom_bal, coin(5_000, DENOM_LS_ATOM_ON_NTRN));
     assert_eq!(atom_bal, coin(5_000, DENOM_ATOM_ON_NTRN));
-    assert_eq!(suite.query_covenant_config().party_a.allocation, Decimal::zero());
+    assert_eq!(
+        suite.query_covenant_config().party_a.allocation,
+        Decimal::zero()
+    );
 }
 
 #[test]
@@ -491,7 +530,7 @@ fn test_execute_emergency_withdraw_validates_committee_address() {
     suite.fund_contract(
         &vec![
             coin(10_001, DENOM_ATOM_ON_NTRN),
-            coin(10_001, DENOM_LS_ATOM_ON_NTRN)
+            coin(10_001, DENOM_LS_ATOM_ON_NTRN),
         ],
         suite.holder_addr.clone(),
     );
@@ -505,36 +544,40 @@ fn test_execute_emergency_withdraw_validates_committee_address() {
 
 #[test]
 fn test_migrate_update_config() {
-    let mut suite = TwoPartyHolderBuilder::default()
-        .build();
-    
+    let mut suite = TwoPartyHolderBuilder::default().build();
+
     let clock = suite.query_clock_addr();
     let next_contract = suite.query_next_contract();
     let mut covenant_config = suite.query_covenant_config();
     let denom_splits = suite.query_denom_splits();
     covenant_config.party_a.contribution.amount = Uint128::one();
-    let random_split = denom_splits.explicit_splits.get(DENOM_ATOM_ON_NTRN).unwrap();
-    
-    suite.app.migrate_contract(
-        Addr::unchecked(ADMIN),
-        suite.holder_addr.clone(),
-        &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-            clock_addr: Some(next_contract.to_string()),
-            next_contract: Some(clock.to_string()),
-            emergency_committee: Some(clock.to_string()),
-            lockup_config: Some(Expiration::AtHeight(543210)),
-            deposit_deadline: Some(Expiration::AtHeight(543210)),
-            ragequit_config: Box::new(Some(RagequitConfig::Enabled(RagequitTerms {
-                penalty: Decimal::from_str("0.123").unwrap(),
-                state: None,
-            }))),
-            covenant_config: Box::new(Some(covenant_config)),
-            denom_splits: Some(denom_splits.explicit_splits.clone()),
-            fallback_split: Some(random_split.clone()),
-        },
-        13,
-    )
-    .unwrap();
+    let random_split = denom_splits
+        .explicit_splits
+        .get(DENOM_ATOM_ON_NTRN)
+        .unwrap();
+
+    suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.holder_addr.clone(),
+            &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+                clock_addr: Some(next_contract.to_string()),
+                next_contract: Some(clock.to_string()),
+                emergency_committee: Some(clock.to_string()),
+                lockup_config: Some(Expiration::AtHeight(543210)),
+                deposit_deadline: Some(Expiration::AtHeight(543210)),
+                ragequit_config: Box::new(Some(RagequitConfig::Enabled(RagequitTerms {
+                    penalty: Decimal::from_str("0.123").unwrap(),
+                    state: None,
+                }))),
+                covenant_config: Box::new(Some(covenant_config)),
+                denom_splits: Some(denom_splits.explicit_splits.clone()),
+                fallback_split: Some(random_split.clone()),
+            },
+            13,
+        )
+        .unwrap();
 
     let new_clock = suite.query_clock_addr();
     let new_next_contract = suite.query_next_contract();
@@ -547,10 +590,13 @@ fn test_migrate_update_config() {
     assert_eq!(Uint128::one(), covenant_config.party_a.contribution.amount);
     assert_eq!(Expiration::AtHeight(543210), deposit_deadline);
     assert_eq!(Expiration::AtHeight(543210), lockup_config);
-    assert_eq!(RagequitConfig::Enabled(RagequitTerms {
-        penalty: Decimal::from_str("0.123").unwrap(),
-        state: None,
-    }), ragequit_config);
+    assert_eq!(
+        RagequitConfig::Enabled(RagequitTerms {
+            penalty: Decimal::from_str("0.123").unwrap(),
+            state: None,
+        }),
+        ragequit_config
+    );
     assert_eq!(next_contract, new_clock);
     assert_eq!(clock, new_next_contract);
 }
