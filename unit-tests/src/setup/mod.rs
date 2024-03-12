@@ -1,9 +1,9 @@
 use const_format::concatcp;
-use cosmwasm_std::MemoryStorage;
-use cw_multi_test::{addons::MockApiBech32, App, BankKeeper, WasmKeeper};
+use cosmwasm_std::{Empty, MemoryStorage};
+use cw_multi_test::{addons::MockApiBech32, App, BankKeeper, DistributionKeeper, GovFailingModule, IbcFailingModule, StakeKeeper, Stargate, StargateAcceptingModule, StargateFailingModule, StargateMsg, StargateQuery, WasmKeeper};
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 
-use self::custom_module::NeutronKeeper;
+use self::{custom_keepers::CustomStargateKeeper, custom_module::NeutronKeeper};
 
 pub mod astro_contracts;
 pub mod base_suite;
@@ -11,6 +11,7 @@ pub mod contracts;
 pub mod custom_module;
 pub mod instantiates;
 pub mod suite_builder;
+pub mod custom_keepers;
 
 pub type CustomApp = App<
     BankKeeper,
@@ -18,6 +19,11 @@ pub type CustomApp = App<
     MemoryStorage,
     NeutronKeeper,
     WasmKeeper<NeutronMsg, NeutronQuery>,
+    StakeKeeper,
+    DistributionKeeper,
+    IbcFailingModule,
+    GovFailingModule,
+    CustomStargateKeeper<StargateMsg, StargateQuery, Empty>,
 >;
 
 // TODO: Notes

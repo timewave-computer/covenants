@@ -155,7 +155,6 @@ fn try_provide_liquidity(
 
     // collect the pool assets into cw coins
     let pool_assets = osmo_pool.get_pool_cw_coins()?;
-
     // get the total gamm shares cw_std coin
     let gamm_shares_coin = osmo_pool.get_gamm_cw_coin()?;
 
