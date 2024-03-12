@@ -7,7 +7,7 @@ pub trait BaseSuiteMut {
     fn get_app(&mut self) -> &mut CustomApp;
     fn get_clock_addr(&mut self) -> Addr;
     fn get_faucet_addr(&mut self) -> Addr;
-    
+
     fn tick_clock_debug(&mut self) {
         let clock_addr = self.get_clock_addr();
         let app = self.get_app();
@@ -57,8 +57,7 @@ pub trait BaseSuiteMut {
         let faucet = self.get_faucet_addr().clone();
         let app = self.get_app();
 
-        app.send_tokens(faucet, to, amount)
-            .unwrap();
+        app.send_tokens(faucet, to, amount).unwrap();
     }
 }
 

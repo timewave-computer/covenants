@@ -1,5 +1,4 @@
-use super::suite::{SwapHolderBuilder};
-
+use super::suite::SwapHolderBuilder;
 
 #[test]
 fn test_covenant() {

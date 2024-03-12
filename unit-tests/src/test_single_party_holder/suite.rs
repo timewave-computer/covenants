@@ -74,9 +74,8 @@ impl Default for SinglePartyHolderBuilder {
             &[],
         );
 
-        let holder_instantiate_msg = SinglePartyHolderInstantiate::default(
-            liquid_pooler_addr.to_string(),
-        );
+        let holder_instantiate_msg =
+            SinglePartyHolderInstantiate::default(liquid_pooler_addr.to_string());
 
         Self {
             builder,
@@ -119,8 +118,9 @@ impl SinglePartyHolderBuilder {
             &self.instantiate_msg.msg,
             &[],
         );
-        
-        let liquid_pooler_address: Addr = self.builder
+
+        let liquid_pooler_address: Addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -129,7 +129,8 @@ impl SinglePartyHolderBuilder {
             )
             .unwrap();
 
-        let clock_address = self.builder
+        let clock_address = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -138,7 +139,8 @@ impl SinglePartyHolderBuilder {
             )
             .unwrap();
 
-        let withdrawer = self.builder
+        let withdrawer = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -147,7 +149,8 @@ impl SinglePartyHolderBuilder {
             )
             .unwrap();
 
-        let withdraw_to = self.builder
+        let withdraw_to = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -186,50 +189,54 @@ pub(super) struct Suite {
 impl Suite {
     pub fn execute_claim(&mut self, sender: Addr) -> AppResponse {
         let holder = self.holder_addr.clone();
-        
-        self.app.execute_contract(
-            sender,
-            holder,
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
-            &[],
-        )
-        .unwrap()
+
+        self.app
+            .execute_contract(
+                sender,
+                holder,
+                &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+                &[],
+            )
+            .unwrap()
     }
 
     pub fn execute_distribute(&mut self, sender: Addr, funds: Vec<Coin>) -> AppResponse {
         let holder = self.holder_addr.clone();
-        
-        self.app.execute_contract(
-            sender,
-            holder,
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Distribute {},
-            &funds,
-        )
-        .unwrap()
+
+        self.app
+            .execute_contract(
+                sender,
+                holder,
+                &covenant_single_party_pol_holder::msg::ExecuteMsg::Distribute {},
+                &funds,
+            )
+            .unwrap()
     }
 
     pub fn execute_withdraw_failed(&mut self, sender: Addr) -> AppResponse {
         let holder = self.holder_addr.clone();
-        
-        self.app.execute_contract(
-            sender,
-            holder,
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::WithdrawFailed {},
-            &[],
-        )
-        .unwrap()
+
+        self.app
+            .execute_contract(
+                sender,
+                holder,
+                &covenant_single_party_pol_holder::msg::ExecuteMsg::WithdrawFailed {},
+                &[],
+            )
+            .unwrap()
     }
 
     pub fn execute_emergency_withdraw(&mut self, sender: Addr) -> AppResponse {
         let holder = self.holder_addr.clone();
-        
-        self.app.execute_contract(
-            sender,
-            holder,
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::EmergencyWithdraw {},
-            &[],
-        )
-        .unwrap()
+
+        self.app
+            .execute_contract(
+                sender,
+                holder,
+                &covenant_single_party_pol_holder::msg::ExecuteMsg::EmergencyWithdraw {},
+                &[],
+            )
+            .unwrap()
     }
 
     pub fn fund_contract_coins(&mut self, funds: Vec<Coin>, addr: Addr) {
@@ -238,17 +245,21 @@ impl Suite {
 
     pub fn enter_pool(&mut self) -> AppResponse {
         let pooler = self.liquid_pooler_address.clone();
-        let funds = vec![coin(1_000_000, DENOM_ATOM_ON_NTRN), coin(1_000_000, DENOM_LS_ATOM_ON_NTRN)];
+        let funds = vec![
+            coin(1_000_000, DENOM_ATOM_ON_NTRN),
+            coin(1_000_000, DENOM_LS_ATOM_ON_NTRN),
+        ];
         let clock = self.clock.clone();
         self.fund_contract(&funds, pooler.clone());
 
-        self.app.execute_contract(
-            clock,
-            pooler,
-            &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Tick {},
-            &[],
-        )
-        .unwrap()
+        self.app
+            .execute_contract(
+                clock,
+                pooler,
+                &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Tick {},
+                &[],
+            )
+            .unwrap()
     }
 
     pub fn query_withdrawer(&mut self) -> Option<Addr> {
@@ -291,7 +302,7 @@ impl BaseSuiteMut for Suite {
         // single party holder is not clocked
         Addr::unchecked("")
     }
-    
+
     fn get_faucet_addr(&mut self) -> Addr {
         self.faucet.clone()
     }

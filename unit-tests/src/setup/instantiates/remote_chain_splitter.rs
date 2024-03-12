@@ -4,10 +4,12 @@ use cosmwasm_std::{coin, Decimal, Uint128, Uint64};
 use covenant_utils::split::SplitConfig;
 use neutron_sdk::bindings::msg::IbcFee;
 
-use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN, NTRN_HUB_CHANNEL};
+use crate::setup::{
+    suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN,
+    NTRN_HUB_CHANNEL,
+};
 
 use super::clock;
-
 
 pub struct RemoteChainSplitterInstantiate {
     pub msg: covenant_remote_chain_splitter::msg::InstantiateMsg,
@@ -41,7 +43,7 @@ impl RemoteChainSplitterInstantiate {
                 ibc_fee,
                 ica_timeout,
                 ibc_transfer_timeout,
-            }
+            },
         }
     }
 
@@ -92,20 +94,10 @@ impl RemoteChainSplitterInstantiate {
 }
 
 impl RemoteChainSplitterInstantiate {
-    pub fn default(
-        clock_address: String,
-        party_a_addr: String,
-        party_b_addr: String,
-    ) -> Self {
+    pub fn default(clock_address: String, party_a_addr: String, party_b_addr: String) -> Self {
         let mut splits = BTreeMap::new();
-        splits.insert(
-            party_a_addr.to_string(),
-            Decimal::from_str("0.5").unwrap(),
-        );
-        splits.insert(
-            party_b_addr.to_string(),
-            Decimal::from_str("0.5").unwrap(),
-        );
+        splits.insert(party_a_addr.to_string(), Decimal::from_str("0.5").unwrap());
+        splits.insert(party_b_addr.to_string(), Decimal::from_str("0.5").unwrap());
 
         let split_config = SplitConfig { receivers: splits };
         let mut denom_to_split_config_map = BTreeMap::new();
@@ -126,7 +118,7 @@ impl RemoteChainSplitterInstantiate {
                 },
                 ica_timeout: Uint64::from(100u64),
                 ibc_transfer_timeout: Uint64::from(100u64),
-            }
+            },
         }
     }
 }

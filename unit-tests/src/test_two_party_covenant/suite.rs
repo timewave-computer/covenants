@@ -7,7 +7,15 @@ use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::{single_party_covenant::SinglePartyCovenantInstantiate, two_party_covenant::TwoPartyCovenantInstantiate}, suite_builder::SuiteBuilder, CustomApp, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_STRIDE, HUB_STRIDE_CHANNEL, NTRN_HUB_CHANNEL, NTRN_STRIDE_CHANNEL, SINGLE_PARTY_COVENANT_SALT, TWO_PARTY_COVENANT_SALT
+    base_suite::{BaseSuite, BaseSuiteMut},
+    instantiates::{
+        single_party_covenant::SinglePartyCovenantInstantiate,
+        two_party_covenant::TwoPartyCovenantInstantiate,
+    },
+    suite_builder::SuiteBuilder,
+    CustomApp, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+    DENOM_LS_ATOM_ON_STRIDE, HUB_STRIDE_CHANNEL, NTRN_HUB_CHANNEL, NTRN_STRIDE_CHANNEL,
+    SINGLE_PARTY_COVENANT_SALT, TWO_PARTY_COVENANT_SALT,
 };
 
 pub struct TwoPartyCovenantBuilder {
@@ -33,8 +41,8 @@ impl Default for TwoPartyCovenantBuilder {
             &builder,
             party_a_addr.clone(),
             party_b_addr.clone(),
-            pool_addr.clone(),  
-        );    
+            pool_addr.clone(),
+        );
 
         Self {
             builder,
@@ -50,7 +58,10 @@ impl TwoPartyCovenantBuilder {
         self
     }
 
-    pub fn with_ibc_fee(mut self, preset_ibc_fee: covenant_two_party_pol::msg::PresetIbcFee) -> Self {
+    pub fn with_ibc_fee(
+        mut self,
+        preset_ibc_fee: covenant_two_party_pol::msg::PresetIbcFee,
+    ) -> Self {
         self.instantiate_msg.with_ibc_fee(preset_ibc_fee);
         self
     }
@@ -64,7 +75,8 @@ impl TwoPartyCovenantBuilder {
     }
 
     pub fn with_clock_tick_max_gas(mut self, clock_tick_max_gas: Option<Uint64>) -> Self {
-        self.instantiate_msg.with_clock_tick_max_gas(clock_tick_max_gas);
+        self.instantiate_msg
+            .with_clock_tick_max_gas(clock_tick_max_gas);
         self
     }
 
@@ -80,7 +92,7 @@ impl TwoPartyCovenantBuilder {
         self.instantiate_msg.with_ragequit_config(ragequit_config);
         self
     }
-    
+
     pub fn with_deposit_deadline(mut self, deposit_deadline: Expiration) -> Self {
         self.instantiate_msg.with_deposit_deadline(deposit_deadline);
         self
@@ -124,31 +136,24 @@ impl TwoPartyCovenantBuilder {
         mut self,
         pool_price_config: covenant_utils::PoolPriceConfig,
     ) -> Self {
-        self.instantiate_msg.with_pool_price_config(pool_price_config);
+        self.instantiate_msg
+            .with_pool_price_config(pool_price_config);
         self
     }
 
-    pub fn with_splits(
-        mut self,
-        splits: BTreeMap<String, SplitConfig>,
-    ) -> Self {
+    pub fn with_splits(mut self, splits: BTreeMap<String, SplitConfig>) -> Self {
         self.instantiate_msg.with_splits(splits);
         self
     }
 
-    pub fn with_fallback_split(
-        mut self,
-        fallback_split: Option<SplitConfig>,
-    ) -> Self {
+    pub fn with_fallback_split(mut self, fallback_split: Option<SplitConfig>) -> Self {
         self.instantiate_msg.with_fallback_split(fallback_split);
         self
     }
 
-    pub fn with_emergency_committee(
-        mut self,
-        emergency_committee: Option<String>,
-    ) -> Self {
-        self.instantiate_msg.with_emergency_committee(emergency_committee);
+    pub fn with_emergency_committee(mut self, emergency_committee: Option<String>) -> Self {
+        self.instantiate_msg
+            .with_emergency_committee(emergency_committee);
         self
     }
 
@@ -156,7 +161,8 @@ impl TwoPartyCovenantBuilder {
         mut self,
         liquid_pooler_config: covenant_two_party_pol::msg::LiquidPoolerConfig,
     ) -> Self {
-        self.instantiate_msg.with_liquid_pooler_config(liquid_pooler_config);
+        self.instantiate_msg
+            .with_liquid_pooler_config(liquid_pooler_config);
         self
     }
 
@@ -168,7 +174,8 @@ impl TwoPartyCovenantBuilder {
             &[],
         );
 
-        let clock_addr = self.builder
+        let clock_addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -177,7 +184,8 @@ impl TwoPartyCovenantBuilder {
             )
             .unwrap();
 
-        let holder_addr = self.builder
+        let holder_addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -206,11 +214,14 @@ pub struct Suite {
     pub covenant_addr: Addr,
     pub clock_addr: Addr,
     pub holder_addr: Addr,
-
 }
 
 impl Suite {
-    pub fn migrate_update(&mut self, code: u64, msg: covenant_two_party_pol::msg::MigrateMsg) -> AppResponse {
+    pub fn migrate_update(
+        &mut self,
+        code: u64,
+        msg: covenant_two_party_pol::msg::MigrateMsg,
+    ) -> AppResponse {
         self.app
             .migrate_contract(
                 Addr::unchecked(ADMIN),
@@ -220,7 +231,7 @@ impl Suite {
             )
             .unwrap()
     }
-    
+
     pub fn query_clock_address(&self) -> Addr {
         self.app
             .wrap()
@@ -246,7 +257,9 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 self.covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::IbcForwarderAddress { party: party.to_string() },
+                &covenant_two_party_pol::msg::QueryMsg::IbcForwarderAddress {
+                    party: party.to_string(),
+                },
             )
             .unwrap()
     }
@@ -266,7 +279,9 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 self.covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::InterchainRouterAddress { party: party.to_string() },
+                &covenant_two_party_pol::msg::QueryMsg::InterchainRouterAddress {
+                    party: party.to_string(),
+                },
             )
             .unwrap()
     }
@@ -280,7 +295,7 @@ impl BaseSuiteMut for Suite {
     fn get_clock_addr(&mut self) -> Addr {
         self.clock_addr.clone()
     }
-    
+
     fn get_faucet_addr(&mut self) -> Addr {
         self.faucet.clone()
     }

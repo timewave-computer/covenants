@@ -1,4 +1,3 @@
-
 pub struct OsmpLpOutpostInstantiate {
     pub msg: covenant_outpost_osmo_liquid_pooler::msg::InstantiateMsg,
 }

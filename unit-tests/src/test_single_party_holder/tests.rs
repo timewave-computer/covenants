@@ -1,7 +1,10 @@
 use cosmwasm_std::{coin, Addr, Event};
 use cw_multi_test::Executor;
 
-use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
+use crate::setup::{
+    base_suite::{BaseSuite, BaseSuiteMut},
+    ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+};
 
 use super::suite::SinglePartyHolderBuilder;
 
@@ -144,11 +147,14 @@ fn test_execute_distribute_validates_liquidity_pooler() {
     let mut suite = SinglePartyHolderBuilder::default()
         .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
         .build();
-    
+
     let sender = suite.liquid_pooler_address.clone();
-    let funds = vec![coin(1_000_000, DENOM_ATOM_ON_NTRN), coin(1_000_000, DENOM_LS_ATOM_ON_NTRN)];
+    let funds = vec![
+        coin(1_000_000, DENOM_ATOM_ON_NTRN),
+        coin(1_000_000, DENOM_LS_ATOM_ON_NTRN),
+    ];
     suite.fund_contract_coins(funds.clone(), sender.clone());
-    
+
     let resp = suite.execute_distribute(sender, funds);
     println!("resp: {:?}", resp);
 }
@@ -160,7 +166,7 @@ fn test_execute_distribute_validates_withdraw_to_addr() {
         .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
         .with_withdraw_to(None)
         .build();
-    
+
     let sender = suite.liquid_pooler_address.clone();
     suite.execute_distribute(sender, vec![]);
 }
@@ -171,11 +177,11 @@ fn test_execute_distribute_ensures_two_denoms_sent() {
     let mut suite = SinglePartyHolderBuilder::default()
         .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
         .build();
-    
+
     let sender = suite.liquid_pooler_address.clone();
     let funds = vec![coin(1_000_000, DENOM_ATOM_ON_NTRN)];
     suite.fund_contract_coins(funds.clone(), sender.clone());
-    
+
     suite.execute_distribute(sender, funds);
 }
 
@@ -195,29 +201,31 @@ fn test_execute_withdraw_failed_removes_withdraw_state() {
 
 #[test]
 fn test_migrate_update_config() {
-    let mut suite = SinglePartyHolderBuilder::default()
-    .build();
+    let mut suite = SinglePartyHolderBuilder::default().build();
 
     let clock = suite.clock.to_string();
 
-    let resp = suite.app.migrate_contract(
-        Addr::unchecked(ADMIN),
-        suite.holder_addr.clone(),
-        &covenant_single_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-            withdrawer: Some(clock.to_string()),
-            withdraw_to: Some(clock.to_string()),
-            emergency_committee: Some(clock.to_string()),
-            pooler_address: Some(clock.to_string()),
-            lockup_period: None,
-        },
-        5,
-    )
-    .unwrap();
+    let resp = suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.holder_addr.clone(),
+            &covenant_single_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+                withdrawer: Some(clock.to_string()),
+                withdraw_to: Some(clock.to_string()),
+                emergency_committee: Some(clock.to_string()),
+                pooler_address: Some(clock.to_string()),
+                lockup_period: None,
+            },
+            5,
+        )
+        .unwrap();
 
-    resp.assert_event(&Event::new("wasm")
-        .add_attribute("withdrawer", clock.to_string())
-        .add_attribute("withdraw_to", clock.to_string())
-        .add_attribute("emergency_committee", clock.to_string())
-        .add_attribute("pool_address", clock)
+    resp.assert_event(
+        &Event::new("wasm")
+            .add_attribute("withdrawer", clock.to_string())
+            .add_attribute("withdraw_to", clock.to_string())
+            .add_attribute("emergency_committee", clock.to_string())
+            .add_attribute("pool_address", clock),
     );
 }

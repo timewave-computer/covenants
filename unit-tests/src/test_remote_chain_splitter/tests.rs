@@ -4,10 +4,12 @@ use cosmwasm_std::{coin, coins, Addr, Decimal};
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::Executor;
 
-use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN};
+use crate::setup::{
+    base_suite::{BaseSuite, BaseSuiteMut},
+    ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN,
+};
 
 use super::suite::RemoteChainSplitterBuilder;
-
 
 #[test]
 #[should_panic]
@@ -25,8 +27,13 @@ fn test_instantiate_validates_splits() {
     split_config.insert("b".to_string(), Decimal::percent(60));
 
     let mut invalid_splits = BTreeMap::new();
-    invalid_splits.insert(DENOM_ATOM_ON_NTRN.to_string(), SplitConfig { receivers: split_config });
-    
+    invalid_splits.insert(
+        DENOM_ATOM_ON_NTRN.to_string(),
+        SplitConfig {
+            receivers: split_config,
+        },
+    );
+
     RemoteChainSplitterBuilder::default()
         .with_splits(invalid_splits)
         .build();
@@ -35,28 +42,28 @@ fn test_instantiate_validates_splits() {
 #[test]
 #[should_panic(expected = "Caller is not the clock, only clock can tick contracts")]
 fn test_execute_tick_validates_clock() {
-    let mut suite = RemoteChainSplitterBuilder::default()
-        .build();
+    let mut suite = RemoteChainSplitterBuilder::default().build();
 
-    suite.app.execute_contract(
-        suite.faucet,
-        suite.splitter,
-        &covenant_remote_chain_splitter::msg::ExecuteMsg::Tick {},
-        &[]
-    )
-    .unwrap();
+    suite
+        .app
+        .execute_contract(
+            suite.faucet,
+            suite.splitter,
+            &covenant_remote_chain_splitter::msg::ExecuteMsg::Tick {},
+            &[],
+        )
+        .unwrap();
 }
 
 #[test]
 fn test_execute_tick_registers_ica() {
-    let mut suite = RemoteChainSplitterBuilder::default()
-        .build();
+    let mut suite = RemoteChainSplitterBuilder::default().build();
 
     let splitter = suite.splitter.clone();
     suite.fund_contract(&coins(1000000, DENOM_NTRN), splitter.clone());
-    
+
     assert!(suite.query_deposit_address(splitter.clone()).is_none());
-    
+
     suite.tick_contract(splitter.clone());
 
     assert!(suite.query_deposit_address(splitter.clone()).is_some());
@@ -65,22 +72,20 @@ fn test_execute_tick_registers_ica() {
 #[test]
 #[should_panic(expected = "forwarder ica not created not found")]
 fn test_execute_tick_split_funds_errors_if_receiver_deposit_address_unavailable() {
-    let mut suite = RemoteChainSplitterBuilder::default()
-        .build();
+    let mut suite = RemoteChainSplitterBuilder::default().build();
 
     let splitter = suite.splitter.clone();
     suite.fund_contract(&coins(1000000, DENOM_NTRN), splitter.clone());
-    
+
     assert!(suite.query_deposit_address(splitter.clone()).is_none());
-    
+
     suite.tick_contract(splitter.clone());
     suite.tick_contract(splitter);
 }
 
 #[test]
 fn test_execute_tick_splits_funds_happy() {
-    let mut suite = RemoteChainSplitterBuilder::default()
-        .build();
+    let mut suite = RemoteChainSplitterBuilder::default().build();
 
     let splitter = suite.splitter.clone();
     let receiver_1 = suite.receiver_1.clone();
@@ -101,9 +106,9 @@ fn test_execute_tick_splits_funds_happy() {
     let r1_ica = Addr::unchecked(suite.query_deposit_address(receiver_1.clone()).unwrap());
     let r2_ica = Addr::unchecked(suite.query_deposit_address(receiver_2.clone()).unwrap());
     let splitter_ica = Addr::unchecked(suite.query_deposit_address(splitter.clone()).unwrap());
-    
+
     let zero_bal = coin(0, DENOM_ATOM_ON_NTRN);
-    
+
     suite.assert_balance(&r1_ica, zero_bal.clone());
     suite.assert_balance(&r2_ica, zero_bal.clone());
     suite.assert_balance(&splitter_ica, zero_bal.clone());
@@ -123,33 +128,38 @@ fn test_execute_tick_splits_funds_happy() {
 
 #[test]
 fn test_migrate_update_config() {
-    let mut suite = RemoteChainSplitterBuilder::default()
-        .build();
+    let mut suite = RemoteChainSplitterBuilder::default().build();
 
     let mut remote_chain_info = suite.query_remote_chain_info();
     let mut split_config = suite.query_split_config();
 
     let mut split = split_config.get(DENOM_ATOM_ON_NTRN).unwrap().clone();
-    
-    split.receivers.insert(suite.receiver_1.to_string(), Decimal::from_str("0.1").unwrap());
-    split.receivers.insert(suite.receiver_2.to_string(), Decimal::from_str("0.9").unwrap());
 
-    
+    split.receivers.insert(
+        suite.receiver_1.to_string(),
+        Decimal::from_str("0.1").unwrap(),
+    );
+    split.receivers.insert(
+        suite.receiver_2.to_string(),
+        Decimal::from_str("0.9").unwrap(),
+    );
+
     split_config.insert(DENOM_ATOM_ON_NTRN.to_string(), split.clone());
-        
-    remote_chain_info.denom = DENOM_LS_ATOM_ON_NTRN.to_string();
-    suite.app.migrate_contract(
-        Addr::unchecked(ADMIN),
-        suite.splitter.clone(),
-        &covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
-            clock_addr: Some(suite.faucet.to_string()),
-            remote_chain_info: Some(remote_chain_info.clone()),
-            splits: Some(split_config.clone()),
-        },
-        6
-    )
-    .unwrap();
 
+    remote_chain_info.denom = DENOM_LS_ATOM_ON_NTRN.to_string();
+    suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.splitter.clone(),
+            &covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
+                clock_addr: Some(suite.faucet.to_string()),
+                remote_chain_info: Some(remote_chain_info.clone()),
+                splits: Some(split_config.clone()),
+            },
+            6,
+        )
+        .unwrap();
 
     let new_remote_chain_info = suite.query_remote_chain_info();
     let new_split_config = suite.query_split_config();
@@ -163,28 +173,34 @@ fn test_migrate_update_config() {
 #[test]
 #[should_panic(expected = "shares must add up to 1.0")]
 fn test_migrate_update_config_validates_splits() {
-    let mut suite = RemoteChainSplitterBuilder::default()
-        .build();
+    let mut suite = RemoteChainSplitterBuilder::default().build();
 
     let mut split_config = suite.query_split_config();
 
     let mut split = split_config.get(DENOM_ATOM_ON_NTRN).unwrap().clone();
 
-    split.receivers.insert(suite.receiver_1.to_string(), Decimal::from_str("0.41").unwrap());
-    split.receivers.insert(suite.receiver_2.to_string(), Decimal::from_str("0.9").unwrap());
-
+    split.receivers.insert(
+        suite.receiver_1.to_string(),
+        Decimal::from_str("0.41").unwrap(),
+    );
+    split.receivers.insert(
+        suite.receiver_2.to_string(),
+        Decimal::from_str("0.9").unwrap(),
+    );
 
     split_config.insert(DENOM_ATOM_ON_NTRN.to_string(), split.clone());
-        
-    suite.app.migrate_contract(
-        Addr::unchecked(ADMIN),
-        suite.splitter.clone(),
-        &covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
-            clock_addr: None,
-            remote_chain_info: None,
-            splits: Some(split_config.clone()),
-        },
-        6
-    )
-    .unwrap();
+
+    suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.splitter.clone(),
+            &covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
+                clock_addr: None,
+                remote_chain_info: None,
+                splits: Some(split_config.clone()),
+            },
+            6,
+        )
+        .unwrap();
 }

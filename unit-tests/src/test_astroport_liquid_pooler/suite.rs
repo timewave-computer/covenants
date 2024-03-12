@@ -5,7 +5,11 @@ use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
 use cw_multi_test::Executor;
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::astro_liquid_pooler::AstroLiquidPoolerInstantiate, suite_builder::SuiteBuilder, CustomApp, ADMIN, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, SINGLE_PARTY_HOLDER_SALT, TWO_PARTY_HOLDER_SALT
+    base_suite::{BaseSuite, BaseSuiteMut},
+    instantiates::astro_liquid_pooler::AstroLiquidPoolerInstantiate,
+    suite_builder::SuiteBuilder,
+    CustomApp, ADMIN, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN,
+    DENOM_LS_ATOM_ON_NTRN, SINGLE_PARTY_HOLDER_SALT, TWO_PARTY_HOLDER_SALT,
 };
 
 pub struct AstroLiquidPoolerBuilder {
@@ -25,10 +29,8 @@ impl Default for AstroLiquidPoolerBuilder {
         );
 
         let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
-        let liquid_pooler_addr = builder.get_contract_addr(
-            builder.astro_pooler_code_id,
-            ASTRO_LIQUID_POOLER_SALT,
-        );
+        let liquid_pooler_addr =
+            builder.get_contract_addr(builder.astro_pooler_code_id, ASTRO_LIQUID_POOLER_SALT);
 
         let holder_addr = builder.get_contract_addr(
             builder.single_party_holder_code_id,
@@ -76,13 +78,15 @@ impl Default for AstroLiquidPoolerBuilder {
 
 #[allow(dead_code)]
 impl AstroLiquidPoolerBuilder {
-    pub fn with_custom_astroport_pool(mut self, pair_type: PairType, coin_a: Coin, coin_b: Coin) -> Self {
-        let (pool_addr, _lp_token_addr) = self.builder.init_astro_pool(
-            pair_type,
-            coin_a,
-            coin_b,
-        );
-        self.instantiate_msg.with_pool_address(pool_addr.to_string());
+    pub fn with_custom_astroport_pool(
+        mut self,
+        pair_type: PairType,
+        coin_a: Coin,
+        coin_b: Coin,
+    ) -> Self {
+        let (pool_addr, _lp_token_addr) = self.builder.init_astro_pool(pair_type, coin_a, coin_b);
+        self.instantiate_msg
+            .with_pool_address(pool_addr.to_string());
         self
     }
 
@@ -97,7 +101,8 @@ impl AstroLiquidPoolerBuilder {
     }
 
     pub fn with_slippage_tolerance(mut self, slippage_tolerance: Option<Decimal>) -> Self {
-        self.instantiate_msg.with_slippage_tolerance(slippage_tolerance);
+        self.instantiate_msg
+            .with_slippage_tolerance(slippage_tolerance);
         self
     }
 
@@ -107,12 +112,14 @@ impl AstroLiquidPoolerBuilder {
     }
 
     pub fn with_single_side_lp_limits(mut self, single_side_lp_limits: SingleSideLpLimits) -> Self {
-        self.instantiate_msg.with_single_side_lp_limits(single_side_lp_limits);
+        self.instantiate_msg
+            .with_single_side_lp_limits(single_side_lp_limits);
         self
     }
 
     pub fn with_pool_price_config(mut self, pool_price_config: PoolPriceConfig) -> Self {
-        self.instantiate_msg.with_pool_price_config(pool_price_config);
+        self.instantiate_msg
+            .with_pool_price_config(pool_price_config);
         self
     }
 
@@ -134,25 +141,35 @@ impl AstroLiquidPoolerBuilder {
             &[],
         );
 
-        let clock_addr: Addr = self.builder
+        let clock_addr: Addr = self
+            .builder
             .app
             .wrap()
-            .query_wasm_smart(liquid_pooler_address.to_string(), &QueryMsg::ClockAddress {})
+            .query_wasm_smart(
+                liquid_pooler_address.to_string(),
+                &QueryMsg::ClockAddress {},
+            )
             .unwrap();
 
-        let holder_addr: Addr = self.builder
+        let holder_addr: Addr = self
+            .builder
             .app
             .wrap()
-            .query_wasm_smart(liquid_pooler_address.to_string(), &QueryMsg::HolderAddress {})
+            .query_wasm_smart(
+                liquid_pooler_address.to_string(),
+                &QueryMsg::HolderAddress {},
+            )
             .unwrap();
 
-        let lp_config: LpConfig = self.builder
+        let lp_config: LpConfig = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(liquid_pooler_address.to_string(), &QueryMsg::LpConfig {})
             .unwrap();
 
-        let provided_liquidity_info: ProvidedLiquidityInfo = self.builder
+        let provided_liquidity_info: ProvidedLiquidityInfo = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -198,8 +215,8 @@ impl Suite {
         app.execute_contract(
             sender.clone(),
             holder,
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {  },
-            &vec![],
+            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &[],
         )
         .unwrap();
     }
@@ -214,7 +231,9 @@ impl Suite {
             .unwrap()
     }
 
-    pub(crate) fn query_contract_state(&self) -> covenant_astroport_liquid_pooler::msg::ContractState {
+    pub(crate) fn query_contract_state(
+        &self,
+    ) -> covenant_astroport_liquid_pooler::msg::ContractState {
         self.get_app()
             .wrap()
             .query_wasm_smart(
@@ -253,7 +272,6 @@ impl Suite {
             )
             .unwrap()
     }
-
 }
 
 impl BaseSuiteMut for Suite {

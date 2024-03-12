@@ -6,7 +6,11 @@ use cw_storage_plus::KeyDeserialize;
 use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::ibc_forwarder::IbcForwarderInstantiate, suite_builder::SuiteBuilder, CustomApp, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_NTRN, IBC_FORWARDER_SALT, NATIVE_ROUTER_SALT, NTRN_HUB_CHANNEL
+    base_suite::{BaseSuite, BaseSuiteMut},
+    instantiates::ibc_forwarder::IbcForwarderInstantiate,
+    suite_builder::SuiteBuilder,
+    CustomApp, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_NTRN, IBC_FORWARDER_SALT,
+    NATIVE_ROUTER_SALT, NTRN_HUB_CHANNEL,
 };
 
 pub struct IbcForwarderBuilder {
@@ -20,12 +24,17 @@ impl IbcForwarderBuilder {
         let mut builder = SuiteBuilder::new();
 
         let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
-        let ibc_forwarder_addr = builder.get_contract_addr(builder.ibc_forwarder_code_id, IBC_FORWARDER_SALT);
-        let next_contract_addr = builder.get_contract_addr(builder.ibc_forwarder_code_id, "deposit_forwarder");
-        
+        let ibc_forwarder_addr =
+            builder.get_contract_addr(builder.ibc_forwarder_code_id, IBC_FORWARDER_SALT);
+        let next_contract_addr =
+            builder.get_contract_addr(builder.ibc_forwarder_code_id, "deposit_forwarder");
+
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
             tick_max_gas: None,
-            whitelist: vec![ibc_forwarder_addr.to_string(), next_contract_addr.to_string()],
+            whitelist: vec![
+                ibc_forwarder_addr.to_string(),
+                next_contract_addr.to_string(),
+            ],
         };
 
         builder.contract_init2(
@@ -35,10 +44,8 @@ impl IbcForwarderBuilder {
             &[],
         );
 
-        let next_contract_instantiate = IbcForwarderInstantiate::default(
-            clock_addr.to_string(),
-            clock_addr.to_string(),
-        );
+        let next_contract_instantiate =
+            IbcForwarderInstantiate::default(clock_addr.to_string(), clock_addr.to_string());
         builder.contract_init2(
             builder.ibc_forwarder_code_id,
             "deposit_forwarder",
@@ -73,7 +80,8 @@ impl IbcForwarderBuilder {
     }
 
     pub fn with_ibc_transfer_timeout(mut self, ibc_transfer_timeout: Uint64) -> Self {
-        self.instantiate_msg.with_ibc_transfer_timeout(ibc_transfer_timeout);
+        self.instantiate_msg
+            .with_ibc_transfer_timeout(ibc_transfer_timeout);
         self
     }
 
@@ -93,12 +101,14 @@ impl IbcForwarderBuilder {
     }
 
     pub fn with_remote_chain_connection_id(mut self, remote_chain_connection_id: String) -> Self {
-        self.instantiate_msg.with_remote_chain_connection_id(remote_chain_connection_id);
+        self.instantiate_msg
+            .with_remote_chain_connection_id(remote_chain_connection_id);
         self
     }
 
     pub fn with_remote_chain_channel_id(mut self, remote_chain_channel_id: String) -> Self {
-        self.instantiate_msg.with_remote_chain_channel_id(remote_chain_channel_id);
+        self.instantiate_msg
+            .with_remote_chain_channel_id(remote_chain_channel_id);
         self
     }
 
@@ -110,7 +120,8 @@ impl IbcForwarderBuilder {
             &[],
         );
 
-        let clock_addr = self.builder
+        let clock_addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -119,7 +130,8 @@ impl IbcForwarderBuilder {
             )
             .unwrap();
 
-        let remote_chain_info = self.builder
+        let remote_chain_info = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -128,7 +140,8 @@ impl IbcForwarderBuilder {
             )
             .unwrap();
 
-        let deposit_address = self.builder
+        let deposit_address = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -205,22 +218,18 @@ impl Suite {
     pub(crate) fn query_ica_address(&mut self, addr: Addr) -> Addr {
         self.app
             .wrap()
-            .query_wasm_smart(
-                addr,
-                &covenant_ibc_forwarder::msg::QueryMsg::IcaAddress {},
-            )
+            .query_wasm_smart(addr, &covenant_ibc_forwarder::msg::QueryMsg::IcaAddress {})
             .unwrap()
     }
 
     // temp fix until we add a query
     pub(crate) fn query_next_contract(&mut self) -> Addr {
-        let resp = self.app
+        let resp = self
+            .app
             .wrap()
-            .query_wasm_raw(
-                self.ibc_forwarder.clone(),
-                "next_contract".as_bytes(),
-            ).unwrap();
-        
+            .query_wasm_raw(self.ibc_forwarder.clone(), "next_contract".as_bytes())
+            .unwrap();
+
         let mut val = resp.unwrap().split_off(1);
         val.truncate(val.len() - 1);
         Addr::from_slice(&val).unwrap()
@@ -228,17 +237,15 @@ impl Suite {
 
     // temp fix until we add a query
     pub(crate) fn query_transfer_amount(&mut self) -> Uint128 {
-        let resp = self.app
+        let resp = self
+            .app
             .wrap()
-            .query_wasm_raw(
-                self.ibc_forwarder.clone(),
-                "transfer_amount".as_bytes(),
-            )
+            .query_wasm_raw(self.ibc_forwarder.clone(), "transfer_amount".as_bytes())
             .unwrap();
-        
+
         let mut val = resp.unwrap().split_off(1);
         val.truncate(val.len() - 1);
-        
+
         let transfer_amount = String::from_vec(val).unwrap();
 
         Uint128::from_str(&transfer_amount).unwrap()

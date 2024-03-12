@@ -14,10 +14,7 @@ impl From<ClockInstantiate> for covenant_clock::msg::InstantiateMsg {
 }
 
 impl ClockInstantiate {
-    pub fn new(
-        tick_max_gas: Option<Uint64>,
-        whitelist: Vec<String>,
-    ) -> Self {
+    pub fn new(tick_max_gas: Option<Uint64>, whitelist: Vec<String>) -> Self {
         Self {
             msg: covenant_clock::msg::InstantiateMsg {
                 tick_max_gas,
