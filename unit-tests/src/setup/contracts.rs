@@ -180,6 +180,15 @@ pub fn osmo_lp_outpost_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
         ))
     };
 
+
+    let reply = |deps: DepsMut<NeutronQuery>, env: Env, reply: Reply| {
+        execute_into_neutron(covenant_outpost_osmo_liquid_pooler::contract::reply(
+            get_empty_depsmut(deps),
+            env,
+            reply,
+        ))
+    };
+
     let query = |
         deps: Deps<NeutronQuery>,
         env: Env,
@@ -190,6 +199,7 @@ pub fn osmo_lp_outpost_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
 
     Box::new(
         ContractWrapper::new(exec, init, query)
+        .with_reply(reply)
     )
 }
 

@@ -1,26 +1,26 @@
 use cosmwasm_schema::serde::Serialize;
 use cosmwasm_std::{
-    coin, coins, instantiate2_address, to_json_binary, Addr, Api, CodeInfoResponse, Coin,
+    coin, coins, instantiate2_address, to_json_binary, Addr, Api, Binary, BlockInfo, CodeInfoResponse, Coin, Empty, QueryRequest, Timestamp
 };
 use cw_multi_test::{
-    addons::{MockAddressGenerator, MockApiBech32},
-    BasicAppBuilder, Executor, WasmKeeper,
+    addons::{MockAddressGenerator, MockApiBech32}, AcceptingModule, BasicAppBuilder, Executor, Module, Stargate, StargateAcceptingModule, StargateFailingModule, StargateMsg, StargateQuery, WasmKeeper
 };
 
+use osmosis_std::types::osmosis::gamm::v1beta1::QueryPoolResponse;
 use sha2::{Digest, Sha256};
 
 use super::{
     astro_contracts::{
         astro_coin_registry_contract, astro_factory_contract, astro_pair_stable_contract,
         astro_pair_xyk_contract, astro_token_contract, astro_whitelist_contract,
-    },
-    contracts::{
+    }, contracts::{
         astroport_pooler_contract, clock_contract, ibc_forwarder_contract, interchain_router_contract, native_router_contract, native_splitter_contract, osmo_lp_outpost_contract, remote_splitter_contract, single_party_covenant_contract, single_party_holder_contract, stride_lser_contract, swap_covenant_contract, swap_holder_contract, two_party_covenant_contract, two_party_holder_contract
-    },
-    custom_module::{NeutronKeeper, CHAIN_PREFIX},
-    CustomApp, ADMIN, ALL_DENOMS, DENOM_NTRN, FAUCET, HUB_OSMO_CHANNEL, HUB_STRIDE_CHANNEL,
-    NTRN_HUB_CHANNEL, NTRN_OSMO_CHANNEL, NTRN_STRIDE_CHANNEL,
+    }, custom_keepers::CustomStargateKeeper, custom_module::{NeutronKeeper, CHAIN_PREFIX}, CustomApp, ADMIN, ALL_DENOMS, DENOM_NTRN, FAUCET, HUB_OSMO_CHANNEL, HUB_STRIDE_CHANNEL, NTRN_HUB_CHANNEL, NTRN_OSMO_CHANNEL, NTRN_STRIDE_CHANNEL
 };
+
+
+pub type StargateKeeper = CustomStargateKeeper<StargateMsg, StargateQuery, Empty>;
+impl Stargate for StargateKeeper {}
 
 pub struct SuiteBuilder {
     pub faucet: Addr,
@@ -67,6 +67,7 @@ impl SuiteBuilder {
     pub fn new() -> Self {
         let mut app = BasicAppBuilder::new_custom()
             .with_custom(NeutronKeeper::new(CHAIN_PREFIX))
+            .with_stargate(StargateKeeper::new("execute", "query", "sudo"))
             .with_api(MockApiBech32::new(CHAIN_PREFIX))
             .with_wasm(WasmKeeper::default().with_address_generator(MockAddressGenerator))
             .build(|r, _, s| {

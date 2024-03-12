@@ -2144,6 +2144,7 @@ dependencies = [
  "cw20 0.15.1",
  "cw20-base",
  "neutron-sdk",
+ "osmosis-std 0.13.2",
  "prost 0.11.9",
  "prost-types 0.11.9",
  "sha2 0.9.9",
