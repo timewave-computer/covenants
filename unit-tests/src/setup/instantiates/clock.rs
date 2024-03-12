@@ -36,7 +36,7 @@ impl ClockInstantiate {
 
 impl ClockInstantiate {
     pub fn default(
-        builder: &SuiteBuilder,
+        _builder: &SuiteBuilder,
         tick_max_gas: Option<Uint64>,
         whitelist: Vec<String>,
     ) -> Self {

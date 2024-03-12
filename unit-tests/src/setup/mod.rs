@@ -2,8 +2,7 @@ use const_format::concatcp;
 use cosmwasm_std::{Empty, MemoryStorage};
 use cw_multi_test::{
     addons::MockApiBech32, App, BankKeeper, DistributionKeeper, GovFailingModule, IbcFailingModule,
-    StakeKeeper, Stargate, StargateAcceptingModule, StargateFailingModule, StargateMsg,
-    StargateQuery, WasmKeeper,
+    StakeKeeper, StargateMsg, StargateQuery, WasmKeeper,
 };
 use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 

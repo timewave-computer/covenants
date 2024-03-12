@@ -2,7 +2,7 @@ use cosmwasm_std::{Addr, Uint128};
 use covenant_utils::{CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig};
 use cw_utils::Expiration;
 
-use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
+use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 pub struct SwapHolderInstantiate {
     pub msg: covenant_swap_holder::msg::InstantiateMsg,

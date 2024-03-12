@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
 
-use cosmwasm_std::{coin, Addr, Coin, Decimal, StdResult, Uint64};
+use cosmwasm_std::{coin, Addr, Uint64};
 use covenant_two_party_pol::msg::Timeouts;
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::{AppResponse, Executor};
@@ -8,10 +8,7 @@ use cw_utils::Expiration;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
-    instantiates::{
-        single_party_covenant::SinglePartyCovenantInstantiate,
-        two_party_covenant::TwoPartyCovenantInstantiate,
-    },
+    instantiates::two_party_covenant::TwoPartyCovenantInstantiate,
     suite_builder::SuiteBuilder,
     CustomApp, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
     DENOM_LS_ATOM_ON_STRIDE, HUB_STRIDE_CHANNEL, NTRN_HUB_CHANNEL, NTRN_STRIDE_CHANNEL,

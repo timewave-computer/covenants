@@ -1,12 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 
-use cosmwasm_std::{Addr, Uint64};
+use cosmwasm_std::Addr;
 use covenant_utils::DestinationConfig;
 
 use crate::setup::{
     base_suite::BaseSuiteMut, instantiates::interchain_router::InterchainRouterInstantiate,
-    suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, INTERCHAIN_ROUTER_SALT,
-    NTRN_HUB_CHANNEL,
+    suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, INTERCHAIN_ROUTER_SALT,
 };
 
 pub struct InterchainRouterBuilder {
@@ -113,7 +112,7 @@ impl InterchainRouterBuilder {
 }
 
 #[allow(dead_code)]
-pub(super) struct Suite {
+pub struct Suite {
     pub app: CustomApp,
 
     pub faucet: Addr,

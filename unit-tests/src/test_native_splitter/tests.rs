@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{coin, coins, Addr, Decimal};
-use covenant_utils::split::{self, SplitConfig};
+use covenant_utils::split::SplitConfig;
 use cw_multi_test::Executor;
 
 use crate::setup::{
@@ -33,7 +33,7 @@ fn test_instantiate_validates_explicit_splits() {
 
 #[test]
 fn test_instantiate_validates_fallback_split() {
-    let suite = NativeSplitterBuilder::default().build();
+    let _suite = NativeSplitterBuilder::default().build();
     // should validate
 }
 

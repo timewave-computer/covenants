@@ -173,7 +173,7 @@ fn test_covenant() {
         )
         .unwrap();
 
-    let router_addr = suite
+    let _router_addr = suite
         .app
         .wrap()
         .query_wasm_smart::<Addr>(
@@ -367,7 +367,7 @@ fn test_covenant_with_xyk_pool() {
         )
         .unwrap();
 
-    let router_addr = suite
+    let _router_addr = suite
         .app
         .wrap()
         .query_wasm_smart::<Addr>(
@@ -562,7 +562,7 @@ fn test_covenant_with_uneven_pool() {
         )
         .unwrap();
 
-    let router_addr = suite
+    let _router_addr = suite
         .app
         .wrap()
         .query_wasm_smart::<Addr>(
@@ -767,7 +767,7 @@ fn test_covenant_with_uneven_pool_stable() {
         )
         .unwrap();
 
-    let router_addr = suite
+    let _router_addr = suite
         .app
         .wrap()
         .query_wasm_smart::<Addr>(
@@ -982,7 +982,7 @@ fn test_covenant_with_single_sided() {
         )
         .unwrap();
 
-    let router_addr = suite
+    let _router_addr = suite
         .app
         .wrap()
         .query_wasm_smart::<Addr>(

@@ -1,10 +1,7 @@
 use cosmwasm_std::{coin, Addr, Event};
 use cw_multi_test::Executor;
 
-use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut},
-    ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
-};
+use crate::setup::{base_suite::BaseSuite, ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 use super::suite::SinglePartyHolderBuilder;
 
@@ -112,7 +109,7 @@ fn test_execute_claim_happy() {
 
 #[test]
 fn test_execute_emergency_withdraw_validates_pending_withdrawals() {
-    let suite = SinglePartyHolderBuilder::default().build();
+    let _suite = SinglePartyHolderBuilder::default().build();
     // todo: should panic
 }
 
@@ -195,7 +192,7 @@ fn test_execute_withdraw_failed_authorizes_liquidity_pooler() {
 
 #[test]
 fn test_execute_withdraw_failed_removes_withdraw_state() {
-    let suite = SinglePartyHolderBuilder::default().build();
+    let _suite = SinglePartyHolderBuilder::default().build();
     // todo
 }
 

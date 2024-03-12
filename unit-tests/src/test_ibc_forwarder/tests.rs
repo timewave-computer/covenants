@@ -4,7 +4,6 @@ use cw_multi_test::Executor;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
-    instantiates::clock,
     ADMIN, DENOM_ATOM_ON_NTRN, DENOM_NTRN,
 };
 

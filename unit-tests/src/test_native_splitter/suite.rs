@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
 
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::Addr;
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::{AppResponse, Executor};
 
@@ -8,7 +8,7 @@ use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
     instantiates::native_splitter::NativeSplitterInstantiate,
     suite_builder::SuiteBuilder,
-    CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, NATIVE_SPLITTER_SALT,
+    CustomApp, CLOCK_SALT, NATIVE_SPLITTER_SALT,
 };
 
 pub struct NativeSplitterBuilder {
@@ -126,7 +126,7 @@ impl NativeSplitterBuilder {
 }
 
 #[allow(dead_code)]
-pub(super) struct Suite {
+pub struct Suite {
     pub app: CustomApp,
 
     pub faucet: Addr,

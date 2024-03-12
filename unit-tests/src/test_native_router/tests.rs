@@ -1,11 +1,9 @@
-use astroport::router;
 use cosmwasm_std::{coin, coins, Addr, Event};
 use cw_multi_test::Executor;
 
 use crate::{
     setup::{
         base_suite::{BaseSuite, BaseSuiteMut},
-        instantiates::clock,
         ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
     },
     test_native_router::suite::NativeRouterBuilder,

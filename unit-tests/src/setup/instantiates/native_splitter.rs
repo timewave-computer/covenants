@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, str::FromStr};
 use cosmwasm_std::{Addr, Decimal};
 use covenant_utils::split::SplitConfig;
 
-use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
+use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 pub struct NativeSplitterInstantiate {
     pub msg: covenant_native_splitter::msg::InstantiateMsg,

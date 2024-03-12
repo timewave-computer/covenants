@@ -1,10 +1,8 @@
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
 
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use covenant_two_party_pol_holder::msg::{
-    ContractState, DenomSplits, RagequitConfig, TwoPartyPolCovenantParty,
-};
+use covenant_two_party_pol_holder::msg::{ContractState, DenomSplits, RagequitConfig};
 use covenant_utils::{split::SplitConfig, PoolPriceConfig, SingleSideLpLimits};
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
@@ -244,7 +242,7 @@ impl TwoPartyHolderBuilder {
 }
 
 #[allow(dead_code)]
-pub(super) struct Suite {
+pub struct Suite {
     pub app: CustomApp,
 
     pub faucet: Addr,

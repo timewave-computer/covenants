@@ -5,11 +5,8 @@ use crate::setup::{
     suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
     NATIVE_SPLITTER_SALT, SWAP_HOLDER_SALT,
 };
-use cosmwasm_std::{Addr, Decimal, Uint128};
-use covenant_utils::{
-    split::SplitConfig, CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig,
-    SwapCovenantTerms,
-};
+use cosmwasm_std::{Addr, Decimal};
+use covenant_utils::{split::SplitConfig, CovenantPartiesConfig, CovenantTerms};
 use cw_utils::Expiration;
 
 pub struct SwapHolderBuilder {
@@ -182,7 +179,7 @@ impl SwapHolderBuilder {
 }
 
 #[allow(dead_code)]
-pub(super) struct Suite {
+pub struct Suite {
     pub app: CustomApp,
 
     pub faucet: Addr,

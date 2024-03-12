@@ -4,7 +4,7 @@ use cosmwasm_std::{coin, Addr, Decimal};
 use covenant_utils::split::SplitConfig;
 use cw_utils::Expiration;
 
-use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
+use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 #[derive(Clone)]
 pub struct TwoPartyHolderInstantiate {

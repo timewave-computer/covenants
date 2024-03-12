@@ -1,7 +1,5 @@
 use cw_utils::Expiration;
 
-use crate::setup::suite_builder::SuiteBuilder;
-
 pub struct SinglePartyHolderInstantiate {
     pub msg: covenant_single_party_pol_holder::msg::InstantiateMsg,
 }
