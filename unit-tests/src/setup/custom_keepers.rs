@@ -1,14 +1,11 @@
-use cosmos_sdk_proto::tendermint::serializers::from_str;
-use cosmos_sdk_proto::traits::MessageExt;
 use cosmwasm_schema::serde::de::DeserializeOwned;
-use cosmwasm_schema::serde::{self, Deserialize, Serialize};
+use cosmwasm_schema::serde::Serialize;
 use cosmwasm_std::{
-    coins, from_json, to_json_binary, to_json_string, to_json_vec, Addr, Api, Binary, BlockInfo,
-    CustomMsg, CustomQuery, Empty, Querier, Storage,
+    from_json, to_json_binary, Addr, Api, Binary, BlockInfo, CustomMsg, CustomQuery, Querier,
+    Storage,
 };
-use cw_multi_test::error::{bail, AnyError, AnyResult};
-use cw_multi_test::{AppResponse, CosmosRouter, Module, Stargate, StargateMsg, StargateQuery};
-use osmosis_std::shim::Any;
+use cw_multi_test::error::{AnyError, AnyResult};
+use cw_multi_test::{AppResponse, CosmosRouter, Module, StargateQuery};
 use osmosis_std::types::cosmos::base::v1beta1::Coin;
 use osmosis_std::types::osmosis::gamm::v1beta1::{
     PoolAsset, QueryCalcExitPoolCoinsFromSharesResponse, QueryCalcJoinPoolNoSwapSharesResponse,
@@ -53,7 +50,7 @@ where
         _router: &dyn CosmosRouter<ExecC = ExecC, QueryC = QueryC>,
         _block: &BlockInfo,
         _sender: Addr,
-        msg: Self::ExecT,
+        _msg: Self::ExecT,
     ) -> AnyResult<AppResponse>
     where
         ExecC: CustomMsg + DeserializeOwned + 'static,

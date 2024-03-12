@@ -1,17 +1,14 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint64};
-use cw_multi_test::Executor;
 
-use crate::setup::{
-    base_suite::BaseSuiteMut, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL,
-};
+use crate::setup::{base_suite::BaseSuiteMut, DENOM_ATOM, DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
 use super::suite::TwoPartyCovenantBuilder;
 
 #[test]
 fn test_instantiate_both_native_parties_astroport() {
-    let mut suite = TwoPartyCovenantBuilder::default().build();
+    let _suite = TwoPartyCovenantBuilder::default().build();
 }
 
 #[test]

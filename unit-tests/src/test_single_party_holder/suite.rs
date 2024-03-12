@@ -9,7 +9,7 @@ use crate::setup::{
     instantiates::single_party_holder::SinglePartyHolderInstantiate,
     suite_builder::SuiteBuilder,
     CustomApp, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
-    SINGLE_PARTY_HOLDER_SALT, TWO_PARTY_HOLDER_SALT,
+    SINGLE_PARTY_HOLDER_SALT,
 };
 
 pub struct SinglePartyHolderBuilder {
@@ -22,7 +22,7 @@ impl Default for SinglePartyHolderBuilder {
         let mut builder = SuiteBuilder::new();
 
         // init astro pools
-        let (pool_addr, lp_token_addr) = builder.init_astro_pool(
+        let (pool_addr, _lp_token_addr) = builder.init_astro_pool(
             astroport::factory::PairType::Stable {},
             coin(10_000_000_000_000, DENOM_ATOM_ON_NTRN),
             coin(10_000_000_000_000, DENOM_LS_ATOM_ON_NTRN),
@@ -173,7 +173,7 @@ impl SinglePartyHolderBuilder {
 }
 
 #[allow(dead_code)]
-pub(super) struct Suite {
+pub struct Suite {
     pub app: CustomApp,
 
     pub faucet: Addr,

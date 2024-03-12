@@ -4,12 +4,7 @@ use cosmwasm_std::{coin, Decimal, Uint128, Uint64};
 use covenant_utils::split::SplitConfig;
 use neutron_sdk::bindings::msg::IbcFee;
 
-use crate::setup::{
-    suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN,
-    NTRN_HUB_CHANNEL,
-};
-
-use super::clock;
+use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_NTRN, NTRN_HUB_CHANNEL};
 
 pub struct RemoteChainSplitterInstantiate {
     pub msg: covenant_remote_chain_splitter::msg::InstantiateMsg,

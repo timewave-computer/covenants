@@ -7,7 +7,7 @@ use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
     instantiates::native_router::NativeRouterInstantiate,
     suite_builder::SuiteBuilder,
-    CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, NATIVE_ROUTER_SALT,
+    CustomApp, CLOCK_SALT, NATIVE_ROUTER_SALT,
 };
 
 pub struct NativeRouterBuilder {
@@ -116,7 +116,7 @@ impl NativeRouterBuilder {
 }
 
 #[allow(dead_code)]
-pub(super) struct Suite {
+pub struct Suite {
     pub app: CustomApp,
 
     pub faucet: Addr,

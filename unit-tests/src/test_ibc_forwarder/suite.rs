@@ -1,6 +1,6 @@
-use std::{collections::BTreeSet, str::FromStr};
+use std::str::FromStr;
 
-use cosmwasm_std::{coin, Addr, Binary, Uint128, Uint64};
+use cosmwasm_std::{Addr, Uint128, Uint64};
 use covenant_utils::neutron::RemoteChainInfo;
 use cw_storage_plus::KeyDeserialize;
 use neutron_sdk::bindings::msg::IbcFee;
@@ -9,8 +9,7 @@ use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
     instantiates::ibc_forwarder::IbcForwarderInstantiate,
     suite_builder::SuiteBuilder,
-    CustomApp, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_NTRN, IBC_FORWARDER_SALT,
-    NATIVE_ROUTER_SALT, NTRN_HUB_CHANNEL,
+    CustomApp, CLOCK_SALT, IBC_FORWARDER_SALT,
 };
 
 pub struct IbcForwarderBuilder {
@@ -163,7 +162,7 @@ impl IbcForwarderBuilder {
 }
 
 #[allow(dead_code)]
-pub(crate) struct Suite {
+pub struct Suite {
     pub app: CustomApp,
 
     pub faucet: Addr,
