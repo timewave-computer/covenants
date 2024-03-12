@@ -1,16 +1,14 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal, Event, Uint128};
-use covenant_two_party_pol_holder::msg::{
-    ContractState, RagequitConfig, RagequitTerms, TwoPartyPolCovenantConfig,
-};
+use covenant_two_party_pol_holder::msg::{ContractState, RagequitConfig, RagequitTerms};
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
-    ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+    ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
 };
 
 use super::suite::TwoPartyHolderBuilder;
@@ -537,7 +535,7 @@ fn test_execute_emergency_withdraw_validates_committee_address() {
     suite.tick_contract(suite.holder_addr.clone());
     suite.tick_contract(suite.next_contract.clone());
 
-    let sender = suite.faucet.clone();
+    let _sender = suite.faucet.clone();
     // enable this after we save the address
     // suite.emergency_withdraw(sender.as_str());
 }

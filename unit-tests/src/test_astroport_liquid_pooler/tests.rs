@@ -1,13 +1,12 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{coin, coins, Addr, Decimal, Event, Uint128};
-use covenant_astroport_liquid_pooler::msg::{AssetData, LpConfig, ProvidedLiquidityInfo};
+use covenant_astroport_liquid_pooler::msg::{AssetData, ProvidedLiquidityInfo};
 use covenant_utils::PoolPriceConfig;
 use cw_multi_test::Executor;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
-    instantiates::clock,
     ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
 };
 

@@ -1,17 +1,14 @@
-use std::{collections::BTreeMap, str::FromStr};
+use std::collections::BTreeMap;
 
-use cosmwasm_std::{coin, Addr, Decimal, Uint128, Uint64};
-use covenant_utils::{
-    neutron::RemoteChainInfo,
-    split::{self, SplitConfig},
-};
+use cosmwasm_std::{coin, Addr, Uint128, Uint64};
+use covenant_utils::{neutron::RemoteChainInfo, split::SplitConfig};
 use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
     instantiates::remote_chain_splitter::RemoteChainSplitterInstantiate,
     suite_builder::SuiteBuilder,
-    CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN, NTRN_HUB_CHANNEL,
+    CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_NTRN, NTRN_HUB_CHANNEL,
     REMOTE_CHAIN_SPLITTER_SALT,
 };
 
@@ -205,7 +202,7 @@ impl RemoteChainSplitterBuilder {
 }
 
 #[allow(dead_code)]
-pub(super) struct Suite {
+pub struct Suite {
     pub app: CustomApp,
 
     pub faucet: Addr,

@@ -1,15 +1,12 @@
 use cosmwasm_schema::serde::Serialize;
 use cosmwasm_std::{
-    coin, coins, instantiate2_address, to_json_binary, Addr, Api, Binary, BlockInfo,
-    CodeInfoResponse, Coin, Empty, QueryRequest, Timestamp,
+    coin, coins, instantiate2_address, to_json_binary, Addr, Api, CodeInfoResponse, Coin, Empty,
 };
 use cw_multi_test::{
     addons::{MockAddressGenerator, MockApiBech32},
-    AcceptingModule, BasicAppBuilder, Executor, Module, Stargate, StargateAcceptingModule,
-    StargateFailingModule, StargateMsg, StargateQuery, WasmKeeper,
+    BasicAppBuilder, Executor, Stargate, StargateMsg, StargateQuery, WasmKeeper,
 };
 
-use osmosis_std::types::osmosis::gamm::v1beta1::QueryPoolResponse;
 use sha2::{Digest, Sha256};
 
 use super::{

@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use cosmwasm_std::{Addr, Uint64};
 use covenant_utils::DestinationConfig;
 
-use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
+use crate::setup::{DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
 pub struct InterchainRouterInstantiate {
     pub msg: covenant_interchain_router::msg::InstantiateMsg,

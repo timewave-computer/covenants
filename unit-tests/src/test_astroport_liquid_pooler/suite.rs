@@ -8,8 +8,8 @@ use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
     instantiates::astro_liquid_pooler::AstroLiquidPoolerInstantiate,
     suite_builder::SuiteBuilder,
-    CustomApp, ADMIN, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN,
-    DENOM_LS_ATOM_ON_NTRN, SINGLE_PARTY_HOLDER_SALT, TWO_PARTY_HOLDER_SALT,
+    CustomApp, ASTRO_LIQUID_POOLER_SALT, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+    SINGLE_PARTY_HOLDER_SALT,
 };
 
 pub struct AstroLiquidPoolerBuilder {
@@ -209,7 +209,7 @@ pub struct Suite {
 
 #[allow(dead_code)]
 impl Suite {
-    pub(crate) fn withdraw(&mut self, sender: &Addr, percentage: Option<Decimal>) {
+    pub(crate) fn withdraw(&mut self, sender: &Addr, _percentage: Option<Decimal>) {
         let holder = self.holder_addr.clone();
         let app = self.get_app();
         app.execute_contract(
