@@ -87,10 +87,7 @@ impl IbcForwarderInstantiate {
 }
 
 impl IbcForwarderInstantiate {
-    pub fn default(
-        clock_address: String,
-        next_contract: String,
-    ) -> Self {
+    pub fn default(clock_address: String, next_contract: String) -> Self {
         Self {
             msg: covenant_ibc_forwarder::msg::InstantiateMsg {
                 clock_address,

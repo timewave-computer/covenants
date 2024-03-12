@@ -3,7 +3,9 @@ use std::{collections::BTreeMap, str::FromStr};
 use cosmwasm_std::{coin, Addr, Decimal, Uint128, Uint64};
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_two_party_pol::msg::{CovenantPartyConfig, PresetIbcFee, Timeouts};
-use covenant_utils::{split::SplitConfig, NativeCovenantParty, PoolPriceConfig, SingleSideLpLimits};
+use covenant_utils::{
+    split::SplitConfig, NativeCovenantParty, PoolPriceConfig, SingleSideLpLimits,
+};
 use cw_utils::Expiration;
 
 use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
@@ -95,34 +97,22 @@ impl TwoPartyCovenantInstantiate {
         self
     }
 
-    pub fn with_pool_price_config(
-        &mut self,
-        pool_price_config: PoolPriceConfig,
-    ) -> &mut Self {
+    pub fn with_pool_price_config(&mut self, pool_price_config: PoolPriceConfig) -> &mut Self {
         self.msg.pool_price_config = pool_price_config;
         self
     }
 
-    pub fn with_splits(
-        &mut self,
-        splits: BTreeMap<String, SplitConfig>,
-    ) -> &mut Self {
+    pub fn with_splits(&mut self, splits: BTreeMap<String, SplitConfig>) -> &mut Self {
         self.msg.splits = splits;
         self
     }
 
-    pub fn with_fallback_split(
-        &mut self,
-        fallback_split: Option<SplitConfig>,
-    ) -> &mut Self {
+    pub fn with_fallback_split(&mut self, fallback_split: Option<SplitConfig>) -> &mut Self {
         self.msg.fallback_split = fallback_split;
         self
     }
 
-    pub fn with_emergency_committee(
-        &mut self,
-        emergency_committee: Option<String>,
-    ) -> &mut Self {
+    pub fn with_emergency_committee(&mut self, emergency_committee: Option<String>) -> &mut Self {
         self.msg.emergency_committee = emergency_committee;
         self
     }
@@ -153,20 +143,13 @@ impl TwoPartyCovenantInstantiate {
         };
 
         let mut splits = BTreeMap::new();
-        splits.insert(
-            party_a_addr.to_string(),
-            Decimal::from_str("0.5").unwrap(),
-        );
-        splits.insert(
-            party_b_addr.to_string(),
-            Decimal::from_str("0.5").unwrap(),
-        );
+        splits.insert(party_a_addr.to_string(), Decimal::from_str("0.5").unwrap());
+        splits.insert(party_b_addr.to_string(), Decimal::from_str("0.5").unwrap());
 
         let split_config = SplitConfig { receivers: splits };
         let mut denom_to_split_config_map = BTreeMap::new();
         denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
         denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
-
 
         Self {
             msg: covenant_two_party_pol::msg::InstantiateMsg {
@@ -206,17 +189,19 @@ impl TwoPartyCovenantInstantiate {
                 splits: denom_to_split_config_map,
                 fallback_split: None,
                 emergency_committee: None,
-                liquid_pooler_config: covenant_two_party_pol::msg::LiquidPoolerConfig::Astroport(AstroportLiquidPoolerConfig {
-                    pool_pair_type: astroport::factory::PairType::Stable {},
-                    pool_address: pool_address.to_string(),
-                    asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),
-                    asset_b_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
-                    single_side_lp_limits: SingleSideLpLimits {
-                        asset_a_limit: Uint128::new(10_000),
-                        asset_b_limit: Uint128::new(10_000),
+                liquid_pooler_config: covenant_two_party_pol::msg::LiquidPoolerConfig::Astroport(
+                    AstroportLiquidPoolerConfig {
+                        pool_pair_type: astroport::factory::PairType::Stable {},
+                        pool_address: pool_address.to_string(),
+                        asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),
+                        asset_b_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
+                        single_side_lp_limits: SingleSideLpLimits {
+                            asset_a_limit: Uint128::new(10_000),
+                            asset_b_limit: Uint128::new(10_000),
+                        },
                     },
-                }),
-            }
+                ),
+            },
         }
     }
 }

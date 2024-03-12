@@ -2,12 +2,18 @@ use cosmos_sdk_proto::tendermint::serializers::from_str;
 use cosmos_sdk_proto::traits::MessageExt;
 use cosmwasm_schema::serde::de::DeserializeOwned;
 use cosmwasm_schema::serde::{self, Deserialize, Serialize};
-use cosmwasm_std::{coins, from_json, to_json_binary, to_json_string, to_json_vec, Addr, Api, Binary, BlockInfo, CustomMsg, CustomQuery, Empty, Querier, Storage};
+use cosmwasm_std::{
+    coins, from_json, to_json_binary, to_json_string, to_json_vec, Addr, Api, Binary, BlockInfo,
+    CustomMsg, CustomQuery, Empty, Querier, Storage,
+};
 use cw_multi_test::error::{bail, AnyError, AnyResult};
 use cw_multi_test::{AppResponse, CosmosRouter, Module, Stargate, StargateMsg, StargateQuery};
 use osmosis_std::shim::Any;
 use osmosis_std::types::cosmos::base::v1beta1::Coin;
-use osmosis_std::types::osmosis::gamm::v1beta1::{PoolAsset, QueryCalcExitPoolCoinsFromSharesResponse, QueryCalcJoinPoolNoSwapSharesResponse, QueryCalcJoinPoolSharesResponse, QueryPoolResponse};
+use osmosis_std::types::osmosis::gamm::v1beta1::{
+    PoolAsset, QueryCalcExitPoolCoinsFromSharesResponse, QueryCalcJoinPoolNoSwapSharesResponse,
+    QueryCalcJoinPoolSharesResponse, QueryPoolResponse,
+};
 use prost::Message;
 
 use std::fmt::Debug;
@@ -16,7 +22,6 @@ use std::marker::PhantomData;
 use crate::setup::DENOM_LS_ATOM_ON_NTRN;
 
 use super::{DENOM_ATOM, DENOM_FALLBACK};
-
 
 pub struct CustomStargateKeeper<ExecT, QueryT, SudoT>(
     PhantomData<(ExecT, QueryT, SudoT)>,
@@ -106,21 +111,21 @@ where
                             denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
                         }),
                         weight: "50".to_string(),
-                    }
+                    },
                 ],
                 total_weight: "123123".to_string(),
             };
-    
+
             let pool_shim = osmosis_std::shim::Any {
                 type_url: "/osmosis.gamm.v1beta1.Pool".to_string(),
                 value: pool.encode_to_vec(),
             };
-    
+
             let response = QueryPoolResponse {
                 pool: Some(pool_shim),
             };
-            
-            return Ok(to_json_binary(&response).unwrap())
+
+            return Ok(to_json_binary(&response).unwrap());
         }
 
         if query.path == "/osmosis.gamm.v1beta1.Query/CalcExitPoolCoinsFromShares" {
@@ -134,11 +139,9 @@ where
                     denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
                 },
             ];
-            let response = QueryCalcExitPoolCoinsFromSharesResponse {
-                tokens_out,
-            };
+            let response = QueryCalcExitPoolCoinsFromSharesResponse { tokens_out };
 
-            return Ok(to_json_binary(&response).unwrap())
+            return Ok(to_json_binary(&response).unwrap());
         }
 
         if query.path == "/osmosis.gamm.v1beta1.Query/CalcJoinPoolShares" {
@@ -157,7 +160,7 @@ where
                 share_out_amount: "1".to_string(),
             };
 
-            return Ok(to_json_binary(&response).unwrap())
+            return Ok(to_json_binary(&response).unwrap());
         }
 
         if query.path == "/osmosis.gamm.v1beta1.Query/CalcJoinPoolNoSwapShares" {
@@ -176,7 +179,7 @@ where
                 shares_out: "1".to_string(),
             };
 
-            return Ok(to_json_binary(&response).unwrap())
+            return Ok(to_json_binary(&response).unwrap());
         }
 
         Err(AnyError::msg(self.2))

@@ -61,7 +61,10 @@ impl TwoPartyHolderInstantiate {
         self
     }
 
-    pub fn with_ragequit_config(&mut self, config: covenant_two_party_pol_holder::msg::RagequitConfig) -> &mut Self {
+    pub fn with_ragequit_config(
+        &mut self,
+        config: covenant_two_party_pol_holder::msg::RagequitConfig,
+    ) -> &mut Self {
         self.msg.ragequit_config = config;
         self
     }
@@ -71,7 +74,10 @@ impl TwoPartyHolderInstantiate {
         self
     }
 
-    pub fn with_covenant_config(&mut self, config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig) -> &mut Self {
+    pub fn with_covenant_config(
+        &mut self,
+        config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
+    ) -> &mut Self {
         self.msg.covenant_config = config;
         self
     }
@@ -80,7 +86,7 @@ impl TwoPartyHolderInstantiate {
         self.msg.splits = splits;
         self
     }
-    
+
     pub fn with_fallback_split(&mut self, split: SplitConfig) -> &mut Self {
         self.msg.fallback_split = Some(split);
         self
@@ -100,14 +106,8 @@ impl TwoPartyHolderInstantiate {
         party_b_addr: Addr,
     ) -> Self {
         let mut splits = BTreeMap::new();
-        splits.insert(
-            party_a_addr.to_string(),
-            Decimal::from_str("0.5").unwrap(),
-        );
-        splits.insert(
-            party_b_addr.to_string(),
-            Decimal::from_str("0.5").unwrap(),
-        );
+        splits.insert(party_a_addr.to_string(), Decimal::from_str("0.5").unwrap());
+        splits.insert(party_b_addr.to_string(), Decimal::from_str("0.5").unwrap());
 
         let split_config = SplitConfig { receivers: splits };
         let mut denom_to_split_config_map = BTreeMap::new();

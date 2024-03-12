@@ -1,11 +1,18 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint128, Uint64};
-use covenant_utils::{neutron::RemoteChainInfo, split::{self, SplitConfig}};
+use covenant_utils::{
+    neutron::RemoteChainInfo,
+    split::{self, SplitConfig},
+};
 use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::remote_chain_splitter::RemoteChainSplitterInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN, NTRN_HUB_CHANNEL, REMOTE_CHAIN_SPLITTER_SALT
+    base_suite::{BaseSuite, BaseSuiteMut},
+    instantiates::remote_chain_splitter::RemoteChainSplitterInstantiate,
+    suite_builder::SuiteBuilder,
+    CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN, NTRN_HUB_CHANNEL,
+    REMOTE_CHAIN_SPLITTER_SALT,
 };
 
 pub struct RemoteChainSplitterBuilder {
@@ -21,11 +28,17 @@ impl Default for RemoteChainSplitterBuilder {
         let remote_chain_splitter_addr =
             builder.get_contract_addr(builder.remote_splitter_code_id, REMOTE_CHAIN_SPLITTER_SALT);
 
-        let forwarder_a_addr = builder.get_contract_addr(builder.ibc_forwarder_code_id, "forwarder_a");
-        let forwarder_b_addr = builder.get_contract_addr(builder.ibc_forwarder_code_id, "forwarder_b");
+        let forwarder_a_addr =
+            builder.get_contract_addr(builder.ibc_forwarder_code_id, "forwarder_a");
+        let forwarder_b_addr =
+            builder.get_contract_addr(builder.ibc_forwarder_code_id, "forwarder_b");
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
             tick_max_gas: None,
-            whitelist: vec![remote_chain_splitter_addr.to_string(), forwarder_a_addr.to_string(), forwarder_b_addr.to_string()],
+            whitelist: vec![
+                remote_chain_splitter_addr.to_string(),
+                forwarder_a_addr.to_string(),
+                forwarder_b_addr.to_string(),
+            ],
         };
         builder.contract_init2(
             builder.clock_code_id,
@@ -49,7 +62,7 @@ impl Default for RemoteChainSplitterBuilder {
             ibc_transfer_timeout: Uint64::new(100),
             ica_timeout: Uint64::new(100),
         };
-    
+
         builder.contract_init2(
             builder.ibc_forwarder_code_id,
             "forwarder_a",
@@ -73,7 +86,6 @@ impl Default for RemoteChainSplitterBuilder {
             builder,
             instantiate_msg: remote_chain_splitter_instantiate,
         }
-
     }
 }
 
@@ -120,7 +132,8 @@ impl RemoteChainSplitterBuilder {
     }
 
     pub fn with_ibc_transfer_timeout(mut self, ibc_transfer_timeout: Uint64) -> Self {
-        self.instantiate_msg.with_ibc_transfer_timeout(ibc_transfer_timeout);
+        self.instantiate_msg
+            .with_ibc_transfer_timeout(ibc_transfer_timeout);
         self
     }
 
@@ -132,7 +145,8 @@ impl RemoteChainSplitterBuilder {
             &[],
         );
 
-        let clock_addr = self.builder
+        let clock_addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -141,7 +155,8 @@ impl RemoteChainSplitterBuilder {
             )
             .unwrap();
 
-        let split_config: Vec<(String, SplitConfig)> = self.builder
+        let split_config: Vec<(String, SplitConfig)> = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -153,10 +168,9 @@ impl RemoteChainSplitterBuilder {
         let receivers: Vec<String> = config_1.keys().cloned().collect();
 
         let splits = BTreeMap::from_iter(split_config);
-        
-        
 
-        let transfer_amount = self.builder
+        let transfer_amount = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -165,7 +179,8 @@ impl RemoteChainSplitterBuilder {
             )
             .unwrap();
 
-        let remote_chain_info = self.builder
+        let remote_chain_info = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -188,7 +203,6 @@ impl RemoteChainSplitterBuilder {
         }
     }
 }
-
 
 #[allow(dead_code)]
 pub(super) struct Suite {
@@ -239,7 +253,8 @@ impl Suite {
     }
 
     pub fn query_split_config(&self) -> BTreeMap<String, SplitConfig> {
-        let split_config: Vec<(String, SplitConfig)> = self.app
+        let split_config: Vec<(String, SplitConfig)> = self
+            .app
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),

@@ -84,7 +84,6 @@ impl Default for SwapHolderBuilder {
 
 #[allow(dead_code)]
 impl SwapHolderBuilder {
-
     pub fn with_clock_address(mut self, addr: &str) -> Self {
         self.instantiate_msg.with_clock_address(addr);
         self
@@ -118,7 +117,8 @@ impl SwapHolderBuilder {
             &[],
         );
 
-        let clock_addr = self.builder
+        let clock_addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -127,7 +127,8 @@ impl SwapHolderBuilder {
             )
             .unwrap();
 
-        let lockup_config = self.builder
+        let lockup_config = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -136,7 +137,8 @@ impl SwapHolderBuilder {
             )
             .unwrap();
 
-        let next_contract = self.builder
+        let next_contract = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -145,7 +147,8 @@ impl SwapHolderBuilder {
             )
             .unwrap();
 
-        let covenant_parties_config = self.builder
+        let covenant_parties_config = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -154,7 +157,8 @@ impl SwapHolderBuilder {
             )
             .unwrap();
 
-        let covenant_terms = self.builder
+        let covenant_terms = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(

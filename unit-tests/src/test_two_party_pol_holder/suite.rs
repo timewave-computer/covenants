@@ -2,7 +2,9 @@ use std::{collections::BTreeMap, str::FromStr};
 
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use covenant_two_party_pol_holder::msg::{ContractState, DenomSplits, RagequitConfig, TwoPartyPolCovenantParty};
+use covenant_two_party_pol_holder::msg::{
+    ContractState, DenomSplits, RagequitConfig, TwoPartyPolCovenantParty,
+};
 use covenant_utils::{split::SplitConfig, PoolPriceConfig, SingleSideLpLimits};
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
@@ -23,7 +25,7 @@ pub struct TwoPartyHolderBuilder {
 impl Default for TwoPartyHolderBuilder {
     fn default() -> Self {
         let mut builder = SuiteBuilder::new();
-        
+
         let holder_addr =
             builder.get_contract_addr(builder.two_party_holder_code_id, TWO_PARTY_HOLDER_SALT);
         let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
@@ -77,7 +79,6 @@ impl Default for TwoPartyHolderBuilder {
 
         let party_a_controller_addr = builder.get_random_addr();
         let party_b_controller_addr = builder.get_random_addr();
-      
 
         let holder_instantiate_msg = TwoPartyHolderInstantiate::default(
             clock_addr.to_string(),
@@ -85,7 +86,7 @@ impl Default for TwoPartyHolderBuilder {
             party_a_controller_addr,
             party_b_controller_addr,
         );
-        
+
         Self {
             builder,
             instantiate_msg: holder_instantiate_msg,
@@ -110,7 +111,10 @@ impl TwoPartyHolderBuilder {
         self
     }
 
-    pub fn with_ragequit_config(mut self, config: covenant_two_party_pol_holder::msg::RagequitConfig) -> Self {
+    pub fn with_ragequit_config(
+        mut self,
+        config: covenant_two_party_pol_holder::msg::RagequitConfig,
+    ) -> Self {
         self.instantiate_msg.with_ragequit_config(config);
         self
     }
@@ -120,7 +124,10 @@ impl TwoPartyHolderBuilder {
         self
     }
 
-    pub fn with_covenant_config(mut self, config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig) -> Self {
+    pub fn with_covenant_config(
+        mut self,
+        config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
+    ) -> Self {
         self.instantiate_msg.with_covenant_config(config);
         self
     }
@@ -129,7 +136,7 @@ impl TwoPartyHolderBuilder {
         self.instantiate_msg.with_splits(splits);
         self
     }
-    
+
     pub fn with_fallback_split(mut self, split: SplitConfig) -> Self {
         self.instantiate_msg.with_fallback_split(split);
         self
@@ -148,7 +155,8 @@ impl TwoPartyHolderBuilder {
             &[],
         );
 
-        let clock_addr = self.builder
+        let clock_addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -157,7 +165,8 @@ impl TwoPartyHolderBuilder {
             )
             .unwrap();
 
-        let ragequit_config = self.builder
+        let ragequit_config = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -166,7 +175,8 @@ impl TwoPartyHolderBuilder {
             )
             .unwrap();
 
-        let lockup_config = self.builder
+        let lockup_config = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -175,7 +185,8 @@ impl TwoPartyHolderBuilder {
             )
             .unwrap();
 
-        let deposit_deadline = self.builder
+        let deposit_deadline = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -184,7 +195,8 @@ impl TwoPartyHolderBuilder {
             )
             .unwrap();
 
-        let covenant_config = self.builder
+        let covenant_config = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -193,7 +205,8 @@ impl TwoPartyHolderBuilder {
             )
             .unwrap();
 
-        let denom_splits: DenomSplits = self.builder
+        let denom_splits: DenomSplits = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -202,7 +215,8 @@ impl TwoPartyHolderBuilder {
             )
             .unwrap();
 
-        let next_contract = self.builder
+        let next_contract = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -255,7 +269,7 @@ impl Suite {
         self.get_app().update_block(|b| match expiration {
             Expiration::AtHeight(h) => b.height = h,
             Expiration::AtTime(t) => b.time = t,
-            Expiration::Never {  } => (),
+            Expiration::Never {} => (),
         });
     }
 
@@ -264,72 +278,79 @@ impl Suite {
         self.get_app().update_block(|b| match expiration {
             Expiration::AtHeight(h) => b.height = h,
             Expiration::AtTime(t) => b.time = t,
-            Expiration::Never {  } => (),
+            Expiration::Never {} => (),
         });
     }
 
     pub fn ragequit(&mut self, sender: &str) -> AppResponse {
-        self.app.execute_contract(
-            Addr::unchecked(sender),
-            self.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::ExecuteMsg::Ragequit { },
-            &[],
-        )
-        .unwrap()
+        self.app
+            .execute_contract(
+                Addr::unchecked(sender),
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::ExecuteMsg::Ragequit {},
+                &[],
+            )
+            .unwrap()
     }
 
     pub fn claim(&mut self, sender: &str) -> AppResponse {
-        self.app.execute_contract(
-            Addr::unchecked(sender),
-            self.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::ExecuteMsg::Claim { },
-            &[],
-        )
-        .unwrap()
+        self.app
+            .execute_contract(
+                Addr::unchecked(sender),
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::ExecuteMsg::Claim {},
+                &[],
+            )
+            .unwrap()
     }
 
-
     pub fn distribute(&mut self, sender: &str) -> AppResponse {
-        self.app.execute_contract(
-            Addr::unchecked(sender),
-            self.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::ExecuteMsg::Distribute { },
-            &[],
-        )
-        .unwrap()
+        self.app
+            .execute_contract(
+                Addr::unchecked(sender),
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::ExecuteMsg::Distribute {},
+                &[],
+            )
+            .unwrap()
     }
 
     pub fn withdraw_failed(&mut self, sender: &str) -> AppResponse {
-        self.app.execute_contract(
-            Addr::unchecked(sender),
-            self.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::ExecuteMsg::WithdrawFailed { },
-            &[],
-        )
-        .unwrap()
+        self.app
+            .execute_contract(
+                Addr::unchecked(sender),
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::ExecuteMsg::WithdrawFailed {},
+                &[],
+            )
+            .unwrap()
     }
 
     pub fn emergency_withdraw(&mut self, sender: &str) -> AppResponse {
-        self.app.execute_contract(
-            Addr::unchecked(sender),
-            self.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::ExecuteMsg::EmergencyWithdraw { },
-            &[],
-        )
-        .unwrap()
+        self.app
+            .execute_contract(
+                Addr::unchecked(sender),
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::ExecuteMsg::EmergencyWithdraw {},
+                &[],
+            )
+            .unwrap()
     }
 
     pub fn distribute_fallback_split(&mut self, sender: &str, denoms: Vec<String>) -> AppResponse {
-        self.app.execute_contract(
-            Addr::unchecked(sender),
-            self.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::ExecuteMsg::DistributeFallbackSplit { denoms },
-            &[],
-        )
-        .unwrap()
+        self.app
+            .execute_contract(
+                Addr::unchecked(sender),
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::ExecuteMsg::DistributeFallbackSplit { denoms },
+                &[],
+            )
+            .unwrap()
     }
 
-    pub fn query_covenant_config(&mut self) -> covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig {
+    pub fn query_covenant_config(
+        &mut self,
+    ) -> covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -338,7 +359,6 @@ impl Suite {
             )
             .unwrap()
     }
-
 
     pub fn query_contract_state(&mut self) -> ContractState {
         self.app
@@ -358,7 +378,6 @@ impl Suite {
                 &covenant_two_party_pol_holder::msg::QueryMsg::RagequitConfig {},
             )
             .unwrap()
-    
     }
 
     pub fn query_lockup_config(&mut self) -> Expiration {

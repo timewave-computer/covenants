@@ -4,14 +4,15 @@ use cosmwasm_std::{Addr, Uint64};
 use covenant_utils::DestinationConfig;
 
 use crate::setup::{
-    base_suite::BaseSuiteMut, instantiates::interchain_router::InterchainRouterInstantiate, suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, INTERCHAIN_ROUTER_SALT, NTRN_HUB_CHANNEL
+    base_suite::BaseSuiteMut, instantiates::interchain_router::InterchainRouterInstantiate,
+    suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, INTERCHAIN_ROUTER_SALT,
+    NTRN_HUB_CHANNEL,
 };
 
 pub struct InterchainRouterBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: InterchainRouterInstantiate,
 }
-
 
 impl Default for InterchainRouterBuilder {
     fn default() -> Self {
@@ -34,11 +35,9 @@ impl Default for InterchainRouterBuilder {
 
         let party_receiver = builder.get_random_addr();
 
-        let interchain_router_instantiate = InterchainRouterInstantiate::default(
-            clock_addr,
-            party_receiver.to_string(),
-        );
-        
+        let interchain_router_instantiate =
+            InterchainRouterInstantiate::default(clock_addr, party_receiver.to_string());
+
         Self {
             builder,
             instantiate_msg: interchain_router_instantiate,
@@ -54,7 +53,8 @@ impl InterchainRouterBuilder {
     }
 
     pub fn with_destination_config(mut self, destination_config: DestinationConfig) -> Self {
-        self.instantiate_msg.with_destination_config(destination_config);
+        self.instantiate_msg
+            .with_destination_config(destination_config);
         self
     }
 
@@ -71,7 +71,8 @@ impl InterchainRouterBuilder {
             &[],
         );
 
-        let clock_addr = self.builder
+        let clock_addr = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -80,7 +81,8 @@ impl InterchainRouterBuilder {
             )
             .unwrap();
 
-        let receiver_config = self.builder
+        let receiver_config = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(
@@ -89,7 +91,8 @@ impl InterchainRouterBuilder {
             )
             .unwrap();
 
-        let denoms = self.builder
+        let denoms = self
+            .builder
             .app
             .wrap()
             .query_wasm_smart(

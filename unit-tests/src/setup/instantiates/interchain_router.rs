@@ -26,7 +26,7 @@ impl InterchainRouterInstantiate {
                 clock_address,
                 destination_config,
                 denoms,
-            }
+            },
         }
     }
 
@@ -47,10 +47,7 @@ impl InterchainRouterInstantiate {
 }
 
 impl InterchainRouterInstantiate {
-    pub fn default(
-        clock_address: Addr,
-        party_receiver: String,
-    ) -> Self {
+    pub fn default(clock_address: Addr, party_receiver: String) -> Self {
         let denoms = BTreeSet::from_iter(vec![DENOM_ATOM_ON_NTRN.to_string()]);
 
         let destination_config = DestinationConfig {
@@ -59,11 +56,7 @@ impl InterchainRouterInstantiate {
             ibc_transfer_timeout: Uint64::new(1000),
             denom_to_pfm_map: BTreeMap::new(),
         };
-        
-        Self::new(
-            clock_address,
-            destination_config,
-            denoms,
-        )
+
+        Self::new(clock_address, destination_config, denoms)
     }
 }
