@@ -48,3 +48,5 @@ astroport-factory              = { workspace = true }
 astroport-native-coin-registry = { workspace = true }
 astroport-pair-stable          = { workspace = true }
 astroport-pair             = { workspace = true }
+
+osmosis-std = "0.13.2"

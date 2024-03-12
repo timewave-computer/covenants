@@ -1,4 +1,5 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Coin};
+use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{base_suite::BaseSuiteMut, instantiates::osmo_lp_outpost::OsmpLpOutpostInstantiate, suite_builder::SuiteBuilder, CustomApp};
 
@@ -42,6 +43,28 @@ pub(super) struct Suite {
     pub faucet: Addr,
     pub admin: Addr,
     pub outpost: Addr,
+}
+
+impl Suite {
+    pub fn provide_liquidity(&mut self, funds: Vec<Coin>, sender: Addr, config: covenant_outpost_osmo_liquid_pooler::msg::OutpostProvideLiquidityConfig) -> AppResponse {
+        self.app.execute_contract(
+            sender,
+            self.outpost.clone(),
+            &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity { config },
+            &funds,
+        )
+        .unwrap()
+    }
+
+    pub fn withdraw_liquidity(&mut self, funds: Vec<Coin>, sender: Addr, config: covenant_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig) -> AppResponse {
+        self.app.execute_contract(
+            sender,
+            self.outpost.clone(),
+            &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::WithdrawLiquidity { config },
+            &funds,
+        )
+        .unwrap()
+    }
 }
 
 impl BaseSuiteMut for Suite {
