@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use crate::setup::{
-    base_suite::BaseSuiteMut, instantiates::swap_holder::SwapHolderInstantiate,
+    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::swap_holder::SwapHolderInstantiate,
     suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
     NATIVE_SPLITTER_SALT, SWAP_HOLDER_SALT,
 };
@@ -168,6 +168,7 @@ impl SwapHolderBuilder {
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
             clock_addr,
+            holder: holder_addr,
             lockup_config,
             next_contract,
             covenant_parties_config,
@@ -178,6 +179,88 @@ impl SwapHolderBuilder {
     }
 }
 
+impl Suite {
+    pub fn expire_lockup_config(&mut self) {
+        let lockup_config = self.lockup_config.clone();
+        let app = self.get_app();
+        match lockup_config {
+            Expiration::AtHeight(h) => app.update_block(|b| b.height = h),
+            Expiration::AtTime(t) => app.update_block(|b| b.time = t),
+            Expiration::Never {} => (),
+        };
+    }
+
+    pub fn query_next_contract(&self) -> Addr {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.holder.clone(),
+                &covenant_swap_holder::msg::QueryMsg::NextContract {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_lockup_config(&self) -> Expiration {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.holder.clone(),
+                &covenant_swap_holder::msg::QueryMsg::LockupConfig {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_covenant_parties_config(&self) -> CovenantPartiesConfig {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.holder.clone(),
+                &covenant_swap_holder::msg::QueryMsg::CovenantParties {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_covenant_terms(&self) -> CovenantTerms {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.holder.clone(),
+                &covenant_swap_holder::msg::QueryMsg::CovenantTerms {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_clock_address(&self) -> Addr {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.holder.clone(),
+                &covenant_swap_holder::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_contract_state(&self) -> covenant_swap_holder::msg::ContractState {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.holder.clone(),
+                &covenant_swap_holder::msg::QueryMsg::ContractState {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_deposit_address(&self) -> Option<Addr> {
+        self.get_app()
+            .wrap()
+            .query_wasm_smart(
+                self.holder.clone(),
+                &covenant_swap_holder::msg::QueryMsg::DepositAddress {},
+            )
+            .unwrap()
+    }
+}
+
 #[allow(dead_code)]
 pub struct Suite {
     pub app: CustomApp,
@@ -185,6 +268,7 @@ pub struct Suite {
     pub faucet: Addr,
     pub admin: Addr,
 
+    pub holder: Addr,
     pub clock_addr: Addr,
     pub lockup_config: Expiration,
     pub next_contract: Addr,
@@ -204,5 +288,11 @@ impl BaseSuiteMut for Suite {
 
     fn get_faucet_addr(&mut self) -> Addr {
         self.faucet.clone()
+    }
+}
+
+impl BaseSuite for Suite {
+    fn get_app(&self) -> &CustomApp {
+        &self.app
     }
 }
