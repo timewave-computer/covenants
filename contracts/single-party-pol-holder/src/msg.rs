@@ -56,6 +56,10 @@ pub enum QueryMsg {
     // Queries the pooler address
     #[returns(Addr)]
     PoolerAddress {},
+    #[returns(Addr)]
+    EmergencyCommitteeAddr {},
+    #[returns(Expiration)]
+    LockupConfig {}
 }
 
 #[cw_serde]
