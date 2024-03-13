@@ -427,6 +427,16 @@ impl Suite {
             )
             .unwrap()
     }
+
+    pub fn query_emergency_committee(&mut self) -> Addr {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_two_party_pol_holder::msg::QueryMsg::EmergencyCommittee {},
+            )
+            .unwrap()
+    }
 }
 
 impl BaseSuiteMut for Suite {
