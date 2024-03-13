@@ -444,6 +444,8 @@ pub enum QueryMsg {
     Config {},
     #[returns(DenomSplits)]
     DenomSplits {},
+    #[returns(Addr)]
+    EmergencyCommittee {},
 }
 
 #[cw_serde]
