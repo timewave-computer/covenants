@@ -1,5 +1,6 @@
 use cosmwasm_std::{coin, Addr, Event};
 use cw_multi_test::Executor;
+use cw_utils::Expiration;
 
 use crate::setup::{base_suite::BaseSuite, ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
@@ -197,6 +198,29 @@ fn test_execute_withdraw_failed_removes_withdraw_state() {
 }
 
 #[test]
+#[should_panic(expected = "The lockup period must be in the future")]
+fn test_migrate_update_config_validates_lockup_config() {
+    let mut suite = SinglePartyHolderBuilder::default().build();
+    let current_block = suite.get_app().block_info().height;
+    let past_expiration = Expiration::AtHeight(current_block - 1);
+
+    suite.app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.holder_addr.clone(),
+            &covenant_single_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+                withdrawer: None,
+                withdraw_to: None,
+                emergency_committee: None,
+                pooler_address: None,
+                lockup_period: Some(past_expiration),
+            },
+            5,
+        )
+        .unwrap();
+}
+
+#[test]
 fn test_migrate_update_config() {
     let mut suite = SinglePartyHolderBuilder::default().build();
 
@@ -212,7 +236,7 @@ fn test_migrate_update_config() {
                 withdraw_to: Some(clock.to_string()),
                 emergency_committee: Some(clock.to_string()),
                 pooler_address: Some(clock.to_string()),
-                lockup_period: None,
+                lockup_period: Some(Expiration::AtHeight(192837465)),
             },
             5,
         )
@@ -223,6 +247,18 @@ fn test_migrate_update_config() {
             .add_attribute("withdrawer", clock.to_string())
             .add_attribute("withdraw_to", clock.to_string())
             .add_attribute("emergency_committee", clock.to_string())
-            .add_attribute("pool_address", clock),
+            .add_attribute("pool_address", clock.to_string()),
     );
+
+    let withdrawer = suite.query_withdrawer().unwrap().to_string();
+    let withdraw_to = suite.query_withdraw_to().unwrap().to_string();
+    let emergency_committee = suite.query_emergency_committee().unwrap().to_string();
+    let pooler_address = suite.query_pooler_address().to_string();
+    let lockup_period = suite.query_lockup_period();
+
+    assert_eq!(clock, withdrawer);
+    assert_eq!(clock, withdraw_to);
+    assert_eq!(clock, emergency_committee);
+    assert_eq!(clock, pooler_address);
+    assert_eq!(Expiration::AtHeight(192837465), lockup_period);
 }
