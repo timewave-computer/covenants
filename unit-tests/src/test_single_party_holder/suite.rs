@@ -291,6 +291,26 @@ impl Suite {
             )
             .unwrap()
     }
+
+    pub fn query_emergency_committee(&mut self) -> Option<Addr> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_single_party_pol_holder::msg::QueryMsg::EmergencyCommitteeAddr {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_lockup_period(&mut self) -> Expiration {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.holder_addr.clone(),
+                &covenant_single_party_pol_holder::msg::QueryMsg::LockupConfig {},
+            )
+            .unwrap()
+    }
 }
 
 impl BaseSuiteMut for Suite {

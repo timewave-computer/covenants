@@ -52,6 +52,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Withdrawer {} => Ok(to_json_binary(&WITHDRAWER.may_load(deps.storage)?)?),
         QueryMsg::WithdrawTo {} => Ok(to_json_binary(&WITHDRAW_TO.may_load(deps.storage)?)?),
         QueryMsg::PoolerAddress {} => Ok(to_json_binary(&POOLER_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::EmergencyCommitteeAddr {} => Ok(to_json_binary(&EMERGENCY_COMMITTEE_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::LockupConfig {} => Ok(to_json_binary(&LOCKUP_PERIOD.load(deps.storage)?)?),
     }
 }
 
@@ -183,17 +185,11 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, Con
             }
 
             if let Some(expires) = lockup_period {
-                let curr_lockup = LOCKUP_PERIOD.load(deps.storage)?;
+                // validate that the new lockup period is in the future
                 ensure!(
-                    curr_lockup.is_expired(&env.block),
-                    ContractError::LockupPeriodIsExpired {}
-                );
-
-                ensure!(
-                    expires.is_expired(&env.block),
+                    !expires.is_expired(&env.block),
                     ContractError::MustBeFutureLockupPeriod {}
                 );
-
                 LOCKUP_PERIOD.save(deps.storage, &expires)?;
                 response = response.add_attribute("lockup_period", expires.to_string());
             }
