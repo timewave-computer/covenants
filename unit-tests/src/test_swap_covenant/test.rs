@@ -409,6 +409,8 @@ fn test_covenant_native_refund() {
         block.time = block.time.plus_hours(1_000_000);
         block.height += 1_000_000;
     });
+    // tick to trigger the expiration
+    suite.tick_contract(suite.holder_addr.clone());
 
     // Tick until receiver_a gets his split
     while suite.query_all_balances(&suite.party_a_receiver).is_empty() {
