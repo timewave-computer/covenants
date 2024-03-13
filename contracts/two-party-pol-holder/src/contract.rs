@@ -51,6 +51,11 @@ pub fn instantiate(
         ContractError::LockupValidationError {}
     );
 
+    if let Some(addr) = &msg.emergency_committee_addr {
+        let committee_addr = deps.api.addr_validate(addr)?;
+        EMERGENCY_COMMITTEE_ADDR.save(deps.storage, &committee_addr)?;
+    }
+
     msg.covenant_config.validate(deps.api)?;
     msg.ragequit_config.validate(
         msg.covenant_config.party_a.allocation,
@@ -571,6 +576,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Config {} => Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&env.contract.address)?),
         QueryMsg::DenomSplits {} => Ok(to_json_binary(&DENOM_SPLITS.load(deps.storage)?)?),
+        QueryMsg::EmergencyCommittee {} => Ok(to_json_binary(&EMERGENCY_COMMITTEE_ADDR.may_load(deps.storage)?)?),
     }
 }
 

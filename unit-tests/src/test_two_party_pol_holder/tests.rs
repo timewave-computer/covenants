@@ -30,6 +30,14 @@ fn test_instantiate_validates_clock_addr() {
 }
 
 #[test]
+#[should_panic]
+fn test_instantiate_validates_emergency_committee_addr() {
+    TwoPartyHolderBuilder::default()
+        .with_emergency_committee("invalid")
+        .build();
+}
+
+#[test]
 #[should_panic(expected = "deposit deadline is already past")]
 fn test_instantiate_validates_deposit_deadline() {
     TwoPartyHolderBuilder::default()
@@ -519,7 +527,7 @@ fn test_execute_claim_happy() {
 }
 
 #[test]
-// #[should_panic(expected = "unauthorized")] TODO: enable
+#[should_panic(expected = "unauthorized")]
 fn test_execute_emergency_withdraw_validates_committee_address() {
     let builder = TwoPartyHolderBuilder::default();
     let clock = builder.instantiate_msg.msg.clock_address.clone();
@@ -535,9 +543,42 @@ fn test_execute_emergency_withdraw_validates_committee_address() {
     suite.tick_contract(suite.holder_addr.clone());
     suite.tick_contract(suite.next_contract.clone());
 
-    let _sender = suite.faucet.clone();
-    // enable this after we save the address
-    // suite.emergency_withdraw(sender.as_str());
+    let sender = suite.faucet.clone();
+
+    suite.emergency_withdraw(sender.as_str());
+}
+
+#[test]
+fn test_execute_emergency_withdraw_happy() {
+    let builder = TwoPartyHolderBuilder::default();
+    let clock = builder.instantiate_msg.msg.clock_address.clone();
+    let mut suite = builder.with_emergency_committee(clock.as_str()).build();
+
+    suite.fund_contract(
+        &vec![
+            coin(10_001, DENOM_ATOM_ON_NTRN),
+            coin(10_001, DENOM_LS_ATOM_ON_NTRN),
+        ],
+        suite.holder_addr.clone(),
+    );
+    suite.tick_contract(suite.holder_addr.clone());
+    suite.tick_contract(suite.next_contract.clone());
+
+    suite.emergency_withdraw(clock.as_str());
+
+    let party_a = Addr::unchecked(suite.covenant_config.party_a.router.to_string());
+    let party_b = Addr::unchecked(suite.covenant_config.party_b.router.to_string());
+
+    let party_a_atom_bal = suite.query_balance(&party_a, DENOM_ATOM_ON_NTRN).amount;
+    let party_b_atom_bal = suite.query_balance(&party_b, DENOM_ATOM_ON_NTRN).amount;
+    let party_a_ls_atom_bal = suite.query_balance(&party_a, DENOM_LS_ATOM_ON_NTRN).amount;
+    let party_b_ls_atom_bal = suite.query_balance(&party_b, DENOM_LS_ATOM_ON_NTRN).amount;
+
+    assert_eq!(5000, party_a_atom_bal.u128());
+    assert_eq!(5000, party_b_atom_bal.u128());
+    assert_eq!(5000, party_a_ls_atom_bal.u128());
+    assert_eq!(5000, party_b_ls_atom_bal.u128());
+    assert!(matches!(suite.query_contract_state(), ContractState::Complete{}));
 }
 
 #[test]
@@ -584,6 +625,8 @@ fn test_migrate_update_config() {
     let deposit_deadline = suite.query_deposit_deadline();
     let covenant_config = suite.query_covenant_config();
     let denom_splits = suite.query_denom_splits();
+    let emergency_committee = suite.query_emergency_committee();
+
     assert_eq!(random_split, &denom_splits.fallback_split.unwrap());
     assert_eq!(Uint128::one(), covenant_config.party_a.contribution.amount);
     assert_eq!(Expiration::AtHeight(543210), deposit_deadline);
@@ -597,4 +640,5 @@ fn test_migrate_update_config() {
     );
     assert_eq!(next_contract, new_clock);
     assert_eq!(clock, new_next_contract);
+    assert_eq!(clock, emergency_committee);
 }
