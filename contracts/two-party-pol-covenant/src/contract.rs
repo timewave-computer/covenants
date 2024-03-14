@@ -187,7 +187,6 @@ pub fn instantiate(
             amount: config.contribution.amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         };
 
         messages.push(instantiate_msg.to_instantiate2_msg(
@@ -210,7 +209,6 @@ pub fn instantiate(
             amount: config.contribution.amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         };
 
         messages.push(instantiate_msg.to_instantiate2_msg(

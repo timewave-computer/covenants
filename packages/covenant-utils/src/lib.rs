@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
+use cosmos_sdk_proto::ibc;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     to_json_string, Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, Decimal, IbcMsg,
     IbcTimeout, StdError, StdResult, Timestamp, Uint128, Uint64,
 };
-use neutron::{default_ibc_ack_fee_amount, default_ibc_fee, default_ibc_timeout_fee_amount};
-use neutron_sdk::{bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight};
+use neutron_sdk::{bindings::msg::{IbcFee, NeutronMsg}, sudo::msg::RequestPacketTimeoutHeight};
 
 pub mod astroport;
 pub mod deadline;
@@ -207,10 +207,6 @@ pub struct PacketForwardMiddlewareConfig {
     pub hop_chain_receiver_address: String,
 }
 
-pub fn get_default_ibc_fee_requirement() -> Uint128 {
-    default_ibc_ack_fee_amount() + default_ibc_timeout_fee_amount()
-}
-
 pub fn get_default_ica_fee() -> Coin {
     Coin {
         denom: "untrn".to_string(),
@@ -231,17 +227,38 @@ pub struct ForwardMetadata {
     pub channel: String,
 }
 
+pub fn sum_fees(ibc_fee: &IbcFee) -> Uint128 {
+    let mut total_amount = Uint128::zero();
+
+    for coin in &ibc_fee.recv_fee {
+        total_amount += coin.amount;
+    }
+
+    for coin in &ibc_fee.ack_fee {
+        total_amount += coin.amount;
+    }
+
+    for coin in &ibc_fee.timeout_fee {
+        total_amount += coin.amount;
+    }
+
+    total_amount
+}
+
 impl DestinationConfig {
     pub fn get_ibc_transfer_messages_for_coins(
         &self,
         coins: Vec<Coin>,
         current_timestamp: Timestamp,
         sender_address: String,
+        ibc_fee: IbcFee,
     ) -> StdResult<Vec<CosmosMsg<NeutronMsg>>> {
         let mut messages: Vec<CosmosMsg<NeutronMsg>> = vec![];
         // we get the number of target denoms we have to reserve
         // neutron fees for
         let count = Uint128::from(1 + coins.len() as u128);
+
+        let total_fee = sum_fees(&ibc_fee);
 
         for coin in coins {
             let send_coin = if coin.denom != "untrn" {
@@ -250,7 +267,7 @@ impl DestinationConfig {
                 // if its neutron we're distributing we need to keep a
                 // reserve for ibc gas costs.
                 // this is safe because we pass target denoms.
-                let reserve_amount = count * get_default_ibc_fee_requirement();
+                let reserve_amount = count * total_fee;
                 if coin.amount > reserve_amount {
                     Some(Coin {
                         denom: coin.denom,
@@ -288,7 +305,7 @@ impl DestinationConfig {
                                         .to_string(),
                                 }),
                             })?,
-                            fee: default_ibc_fee(),
+                            fee: ibc_fee.clone(),
                         }))
                     }
                     None => {
@@ -307,7 +324,7 @@ impl DestinationConfig {
                                 .nanos(),
                             memo: format!("ibc_distribution: {:?}:{:?}", c.denom, c.amount,)
                                 .to_string(),
-                            fee: default_ibc_fee(),
+                            fee: ibc_fee.clone(),
                         }));
                     }
                 }

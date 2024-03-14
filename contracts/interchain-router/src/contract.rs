@@ -3,10 +3,10 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128
+    ensure, to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::neutron::get_ibc_fee_total_amount;
+use covenant_utils::sum_fees;
 use cw2::set_contract_version;
 use cw_utils::must_pay;
 use neutron_sdk::{
@@ -75,7 +75,7 @@ fn try_distribute_fallback(
     let explicit_denoms = TARGET_DENOMS.load(deps.storage)?;
 
     let min_fee_query_response: MinIbcFeeResponse = deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
-    let total_fee = get_ibc_fee_total_amount(min_fee_query_response);
+    let total_fee = sum_fees(&min_fee_query_response.min_fee);
 
     // the caller must cover the ibc fees
     match must_pay(&info, "untrn") {
@@ -97,10 +97,12 @@ fn try_distribute_fallback(
         available_balances.push(queried_coin);
     }
 
+    let min_ibc_fee: MinIbcFeeResponse = deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
     let fallback_distribution_messages = destination_config.get_ibc_transfer_messages_for_coins(
         available_balances,
         env.block.time,
         env.contract.address.to_string(),
+        min_ibc_fee.min_fee
     )?;
 
     Ok(Response::default()
@@ -141,11 +143,14 @@ fn try_route_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neu
             .collect(),
     };
 
+    let min_ibc_fee: MinIbcFeeResponse = deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
+
     // get transfer messages for each denom
     let messages = destination_config.get_ibc_transfer_messages_for_coins(
         denom_balances,
         env.block.time,
         env.contract.address.to_string(),
+        min_ibc_fee.min_fee,
     )?;
 
     Ok(Response::default()

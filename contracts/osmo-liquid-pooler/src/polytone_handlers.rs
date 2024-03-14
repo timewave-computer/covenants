@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coin, ensure, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, DepsMut, Empty, Env,
-    IbcMsg, IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg,
+    coin, ensure, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Empty, Env, IbcMsg, IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg
 };
 use covenant_utils::{
     polytone::{
@@ -11,7 +10,7 @@ use covenant_utils::{
     },
     withdraw_lp_helper::WithdrawLPMsgs,
 };
-use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
+use neutron_sdk::{bindings::{msg::NeutronMsg, query::NeutronQuery}, NeutronResult};
 use osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse;
 
 use crate::{
@@ -32,10 +31,14 @@ use polytone::callbacks::{
     ExecutionResponse,
 };
 
+type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
+type QueryDeps<'a> = Deps<'a, NeutronQuery>;
+
+
 /// attempts to advance the state machine. performs `info.sender` validation.
 pub fn try_handle_callback(
     env: Env,
-    deps: DepsMut,
+    deps: ExecuteDeps,
     info: MessageInfo,
     msg: CallbackMessage,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -56,7 +59,7 @@ pub fn try_handle_callback(
 
 fn process_query_callback(
     env: Env,
-    deps: DepsMut,
+    deps: ExecuteDeps,
     query_callback_result: Result<Vec<Binary>, ErrorResponse>,
     initiator_msg: Binary,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -80,7 +83,7 @@ fn process_query_callback(
 
 fn process_execute_callback(
     env: Env,
-    deps: DepsMut,
+    deps: ExecuteDeps,
     execute_callback_result: Result<ExecutionResponse, String>,
     initiator_msg: Binary,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -228,7 +231,7 @@ fn process_execute_callback(
 
 fn process_fatal_error_callback(
     env: Env,
-    deps: DepsMut,
+    deps: ExecuteDeps,
     response: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
     POLYTONE_CALLBACKS.save(
@@ -240,7 +243,7 @@ fn process_fatal_error_callback(
 }
 
 fn handle_withdraw_liquidity_proxy_balances_callback(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     query_callback_result: Result<Vec<Binary>, ErrorResponse>,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -304,7 +307,7 @@ fn handle_withdraw_liquidity_proxy_balances_callback(
 }
 
 fn handle_proxy_balances_callback(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     query_callback_result: Result<Vec<Binary>, ErrorResponse>,
 ) -> NeutronResult<Response<NeutronMsg>> {

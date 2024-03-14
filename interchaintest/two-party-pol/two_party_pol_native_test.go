@@ -443,10 +443,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
 				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
-				}
 
 				atomCoin := Coin{
 					Denom:  cosmosAtom.Config().Denom,
@@ -539,7 +535,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-happy",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig: CovenantPartyConfig{
@@ -801,10 +796,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
 				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
-				}
 
 				atomCoin := Coin{
 					Denom:  cosmosAtom.Config().Denom,
@@ -874,7 +865,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-ragequit",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
@@ -1085,10 +1075,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
 				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
-				}
 
 				atomCoin := Coin{
 					Denom:  cosmosAtom.Config().Denom,
@@ -1157,7 +1143,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-side-ragequit",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
@@ -1352,10 +1337,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
 				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
-				}
 
 				atomCoin := Coin{
 					Denom:  cosmosAtom.Config().Denom,
@@ -1424,7 +1405,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-side-happy",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},

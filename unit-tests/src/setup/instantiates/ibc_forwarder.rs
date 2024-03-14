@@ -21,7 +21,6 @@ impl IbcForwarderInstantiate {
         remote_chain_channel_id: String,
         denom: String,
         amount: Uint128,
-        ibc_fee: IbcFee,
         ibc_transfer_timeout: Uint64,
         ica_timeout: Uint64,
     ) -> Self {
@@ -33,7 +32,6 @@ impl IbcForwarderInstantiate {
                 remote_chain_channel_id,
                 denom,
                 amount,
-                ibc_fee,
                 ibc_transfer_timeout,
                 ica_timeout,
             },
@@ -70,11 +68,6 @@ impl IbcForwarderInstantiate {
         self
     }
 
-    pub fn with_ibc_fee(&mut self, addr: IbcFee) -> &mut Self {
-        self.msg.ibc_fee = addr;
-        self
-    }
-
     pub fn with_ibc_transfer_timeout(&mut self, addr: Uint64) -> &mut Self {
         self.msg.ibc_transfer_timeout = addr;
         self
@@ -96,11 +89,6 @@ impl IbcForwarderInstantiate {
                 remote_chain_channel_id: NTRN_HUB_CHANNEL.1.to_string(),
                 denom: DENOM_ATOM_ON_NTRN.to_string(),
                 amount: Uint128::new(100_000),
-                ibc_fee: IbcFee {
-                    recv_fee: vec![],
-                    ack_fee: vec![coin(100_000, DENOM_NTRN)],
-                    timeout_fee: vec![coin(100_000, DENOM_NTRN)],
-                },
                 ica_timeout: Uint64::from(100u64),
                 ibc_transfer_timeout: Uint64::from(100u64),
             },

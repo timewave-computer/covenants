@@ -3,6 +3,7 @@ use cosmwasm_std::{
     to_json_binary, Binary, CosmosMsg, Empty, QuerierWrapper, QueryRequest, StdError, StdResult,
     Uint64,
 };
+use neutron_sdk::bindings::query::NeutronQuery;
 use polytone::callbacks::CallbackRequest;
 
 #[cw_serde]
@@ -57,7 +58,7 @@ pub fn get_polytone_query_msg_binary(
 pub fn query_polytone_proxy_address(
     local_address: String,
     note_address: String,
-    querier: QuerierWrapper,
+    querier: QuerierWrapper<NeutronQuery>,
 ) -> Result<Option<String>, StdError> {
     let remote_address_query = PolytoneQueryMsg::RemoteAddress { local_address };
 

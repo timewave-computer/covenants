@@ -73,11 +73,6 @@ impl IbcForwarderBuilder {
         self
     }
 
-    pub fn with_ibc_fee(mut self, ibc_fee: IbcFee) -> Self {
-        self.instantiate_msg.with_ibc_fee(ibc_fee);
-        self
-    }
-
     pub fn with_ibc_transfer_timeout(mut self, ibc_transfer_timeout: Uint64) -> Self {
         self.instantiate_msg
             .with_ibc_transfer_timeout(ibc_transfer_timeout);

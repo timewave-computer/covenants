@@ -30,10 +30,6 @@ pub struct InstantiateMsg {
 
     pub splits: BTreeMap<String, SplitConfig>,
 
-    /// Neutron requires fees to be set to refund relayers for
-    /// submission of ack and timeout messages.
-    /// recv_fee and ack_fee paid in untrn from this contract
-    pub ibc_fee: IbcFee,
     /// Time in seconds for ICA SubmitTX messages from Neutron
     /// Note that ICA uses ordered channels, a timeout implies
     /// channel closed. We can reopen the channel by reregistering
