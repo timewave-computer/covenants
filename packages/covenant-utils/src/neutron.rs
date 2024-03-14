@@ -1,8 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Attribute, Binary, Coin, StdError, Uint128, Uint64};
+use cosmwasm_std::{Attribute, Binary, Coin, StdError, StdResult, Uint128, Uint64};
 use neutron_sdk::{
-    bindings::{msg::IbcFee, types::ProtobufAny},
-    NeutronResult,
+    bindings::{msg::IbcFee, types::ProtobufAny}, query::min_ibc_fee::MinIbcFeeResponse, NeutronResult
 };
 use prost::Message;
 
@@ -190,4 +189,11 @@ pub fn get_default_ica_fee() -> Coin {
         denom: "untrn".to_string(),
         amount: Uint128::new(1000000),
     }
+}
+
+pub fn get_ibc_fee_total_amount(min_fee_query_response: MinIbcFeeResponse) -> Uint128 {
+    let ack_fee_total: Uint128 = min_fee_query_response.min_fee.ack_fee.iter().map(|c| c.amount).sum();
+    let recv_fee_total: Uint128 = min_fee_query_response.min_fee.recv_fee.iter().map(|c| c.amount).sum();
+    let timeout_fee_total: Uint128 = min_fee_query_response.min_fee.timeout_fee.iter().map(|c| c.amount).sum();
+    ack_fee_total + recv_fee_total + timeout_fee_total
 }

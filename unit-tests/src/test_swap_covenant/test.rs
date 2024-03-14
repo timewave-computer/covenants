@@ -225,12 +225,12 @@ fn test_covenant_fallback_split() {
     suite
         .app
         .execute_contract(
-            suite.admin.clone(),
+            suite.fuacet.clone(),
             suite.splitter_addr.clone(),
             &covenant_native_splitter::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
-            &[],
+            &[coin(1000000, DENOM_NTRN)]
         )
         .unwrap();
 
@@ -238,24 +238,24 @@ fn test_covenant_fallback_split() {
     suite
         .app
         .execute_contract(
-            suite.admin.clone(),
+            suite.fuacet.clone(),
             suite.router_a_addr.clone(),
             &covenant_native_router::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
-            &[],
+            &[coin(1000000, DENOM_NTRN)]
         )
         .unwrap();
 
     suite
         .app
         .execute_contract(
-            suite.admin.clone(),
+            suite.fuacet.clone(),
             suite.router_b_addr.clone(),
             &covenant_native_router::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
-            &[],
+            &[coin(1000000, DENOM_NTRN)]
         )
         .unwrap();
 
@@ -319,12 +319,12 @@ fn test_covenant_interchain_fallback_split() {
     suite
         .app
         .execute_contract(
-            suite.admin.clone(),
+            suite.fuacet.clone(),
             suite.splitter_addr.clone(),
-            &covenant_native_splitter::msg::ExecuteMsg::DistributeFallback {
+            &covenant_interchain_router::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
-            &[],
+            &[coin(1000000, DENOM_NTRN)],
         )
         .unwrap();
 
@@ -332,24 +332,24 @@ fn test_covenant_interchain_fallback_split() {
     suite
         .app
         .execute_contract(
-            suite.admin.clone(),
+            suite.fuacet.clone(),
             suite.router_a_addr.clone(),
-            &covenant_native_router::msg::ExecuteMsg::DistributeFallback {
+            &covenant_interchain_router::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
-            &[],
+            &[coin(100000000, DENOM_NTRN)],
         )
         .unwrap();
 
     suite
         .app
         .execute_contract(
-            suite.admin.clone(),
+            suite.fuacet.clone(),
             suite.router_b_addr.clone(),
-            &covenant_native_router::msg::ExecuteMsg::DistributeFallback {
+            &covenant_interchain_router::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
-            &[],
+            &[coin(100000000, DENOM_NTRN)],
         )
         .unwrap();
 
