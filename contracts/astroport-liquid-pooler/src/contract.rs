@@ -124,10 +124,36 @@ fn try_withdraw(
         env.contract.address.to_string(),
     )?;
 
-    ensure!(
-        !lp_token_info.balance_response.balance.is_zero(),
-        ContractError::NoLpTokensAvailable {}
-    );
+    // if no lp tokens are available, we attempt to withdraw any available denoms
+    if lp_token_info.balance_response.balance.is_zero() {
+        let asset_a_bal = deps.querier.query_balance(
+            env.contract.address.to_string(),
+            lp_config.asset_data.asset_a_denom.as_str(),
+        )?;
+        let asset_b_bal = deps.querier.query_balance(
+            env.contract.address.to_string(),
+            lp_config.asset_data.asset_b_denom.as_str(),
+        )?;
+
+        let mut funds = vec![];
+
+        if !asset_a_bal.amount.is_zero() {
+            funds.push(asset_a_bal);
+        }
+
+        if !asset_b_bal.amount.is_zero() {
+            funds.push(asset_b_bal);
+        }
+
+        ensure!(!funds.is_empty(), ContractError::NothingToWithdraw {});
+
+        return Ok(Response::default()
+            .add_message(WasmMsg::Execute {
+                contract_addr: holder_addr.to_string(),
+                msg: to_json_binary(&WithdrawLPMsgs::Distribute {})?,
+                funds,
+            }))
+    }
 
     // If percentage is 100%, use the whole balance
     // If percentage is less than 100%, calculate the percentage of share we want to withdraw

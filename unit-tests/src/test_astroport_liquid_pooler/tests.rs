@@ -87,12 +87,35 @@ fn test_withdraw_validates_holder() {
 }
 
 #[test]
-#[should_panic(expected = "no lp tokens available")]
-fn test_withdraw_no_lp_tokens() {
+#[should_panic(expected = "no covenant denom or lp tokens available")]
+fn test_withdraw_no_lp_or_covenant_denoms() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
     let withdrawer = suite.clock_addr.clone();
 
     suite.withdraw(&withdrawer, None);
+}
+
+#[test]
+fn test_withdraw_no_lp_tokens_withdraws_covenant_assets() {
+    let mut suite = AstroLiquidPoolerBuilder::default().build();
+    suite.fund_contract(
+        &coins(500_000, DENOM_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+    suite.fund_contract(
+        &coins(500_000, DENOM_LS_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+
+    let withdrawer = suite.clock_addr.clone();
+
+    suite.assert_balance(suite.holder_addr.clone(), coin(0, DENOM_ATOM_ON_NTRN));
+    suite.assert_balance(suite.holder_addr.clone(), coin(0, DENOM_LS_ATOM_ON_NTRN));
+
+    suite.withdraw(&withdrawer, None);
+
+    suite.assert_balance(&suite.holder_addr.clone(), coin(500_000, DENOM_ATOM_ON_NTRN));
+    suite.assert_balance(&suite.holder_addr.clone(), coin(500_000, DENOM_LS_ATOM_ON_NTRN));
 }
 
 #[test]
