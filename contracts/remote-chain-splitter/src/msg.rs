@@ -13,7 +13,6 @@ use covenant_macros::{
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo, split::SplitConfig,
 };
-use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::state::CONTRACT_STATE;
 

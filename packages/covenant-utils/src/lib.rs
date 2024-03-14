@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use cosmos_sdk_proto::ibc;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
     to_json_string, Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, Decimal, IbcMsg,

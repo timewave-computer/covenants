@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Attribute, Binary, Coin, Deps, QueryRequest, StdError, Uint128, Uint64};
+use cosmwasm_std::{Attribute, Binary, Coin, QueryRequest, StdError, Uint128, Uint64};
 use neutron_sdk::{
-    bindings::{query::NeutronQuery, types::ProtobufAny}, query::min_ibc_fee::MinIbcFeeResponse, NeutronResult
+    bindings::{query::NeutronQuery, types::ProtobufAny}, NeutronResult
 };
 use prost::Message;
 
