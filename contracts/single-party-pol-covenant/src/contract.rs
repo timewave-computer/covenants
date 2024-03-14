@@ -148,7 +148,6 @@ pub fn instantiate(
         neutron_stride_ibc_connection_id: msg.ls_info.ls_neutron_connection_id.to_string(),
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         clock_address: clock_instantiate2_config.addr.to_string(),
         next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
     }
@@ -191,7 +190,6 @@ pub fn instantiate(
         remote_chain_connection_id: msg.remote_chain_splitter_config.connection_id,
         denom: msg.remote_chain_splitter_config.denom.to_string(),
         amount: msg.remote_chain_splitter_config.amount,
-        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
         splits,
@@ -220,7 +218,6 @@ pub fn instantiate(
             remote_chain_channel_id: config.party_to_host_chain_channel_id,
             denom: config.remote_chain_denom,
             amount: config.contribution.amount,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             ica_timeout: msg.timeouts.ica_timeout,
         };
@@ -241,7 +238,6 @@ pub fn instantiate(
             remote_chain_channel_id: config.party_to_host_chain_channel_id,
             denom: config.remote_chain_denom,
             amount: config.contribution.amount,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             ica_timeout: msg.timeouts.ica_timeout,
         };

@@ -368,11 +368,6 @@ func TestTokenSwap(t *testing.T) {
 				AtHeight: &depositBlock,
 			}
 
-			presetIbcFee := PresetIbcFee{
-				AckFee:     "100000",
-				TimeoutFee: "100000",
-			}
-
 			neutronReceiverAddr = neutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
 			hubReceiverAddr = gaiaUser.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 
@@ -423,7 +418,6 @@ func TestTokenSwap(t *testing.T) {
 			covenantMsg := CovenantInstantiateMsg{
 				Label:                       "swap-covenant",
 				Timeouts:                    timeouts,
-				PresetIbcFee:                presetIbcFee,
 				SwapCovenantContractCodeIds: codeIds,
 				LockupConfig:                lockupConfig,
 				PartyAConfig: CovenantPartyConfig{

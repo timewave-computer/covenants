@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{
-    coin, coins, from_json, to_json_binary, to_json_string, Addr, BalanceResponse, BankMsg,
-    BankQuery, StdError, StdResult, Storage, Uint128,
+    coin, coins, from_json, to_json_binary, to_json_string, Addr, BalanceResponse, BankMsg, BankQuery, QueryRequest, StdError, StdResult, Storage, Uint128
 };
 use covenant_ibc_forwarder::helpers::MsgTransfer;
 use covenant_stride_liquid_staker::helpers::Autopilot;
@@ -794,7 +793,6 @@ impl Module for NeutronKeeper {
             NeutronMsg::AddSchedule { .. } => unimplemented!(),
             NeutronMsg::RemoveSchedule { .. } => unimplemented!(),
             NeutronMsg::ResubmitFailure { .. } => unimplemented!(),
-            NeutronMsg::Dex(_) => unimplemented!(),
         }
     }
 
@@ -840,7 +838,6 @@ impl Module for NeutronKeeper {
             NeutronQuery::DenomAdmin { .. } => todo!(),
             NeutronQuery::BeforeSendHook { .. } => todo!(),
             NeutronQuery::Failures { .. } => todo!(),
-            NeutronQuery::Dex(_) => todo!(),
         }
     }
 

@@ -38,10 +38,6 @@ impl SwapCovenantInstantiate {
                 ica_timeout: 1000_u64.into(),
                 ibc_transfer_timeout: 1000_u64.into(),
             },
-            covenant_swap::msg::PresetIbcFee {
-                ack_fee: 100_000_u128.into(),
-                timeout_fee: 100_000_u128.into(),
-            },
             contract_codes,
             None,
             Expiration::AtHeight(mock_env().block.height + 1000),
@@ -115,7 +111,6 @@ impl SwapCovenantInstantiate {
     pub fn new(
         label: String,
         timeouts: covenant_swap::msg::Timeouts,
-        preset_ibc_fee: covenant_swap::msg::PresetIbcFee,
         contract_codes: covenant_swap::msg::SwapCovenantContractCodeIds,
         clock_tick_max_gas: Option<Uint64>,
         lockup_config: Expiration,
@@ -128,7 +123,6 @@ impl SwapCovenantInstantiate {
             msg: covenant_swap::msg::InstantiateMsg {
                 label,
                 timeouts,
-                preset_ibc_fee,
                 contract_codes,
                 clock_tick_max_gas,
                 lockup_config,
@@ -154,18 +148,6 @@ impl SwapCovenantInstantiate {
         self.msg.timeouts = covenant_swap::msg::Timeouts {
             ica_timeout: ica_timeout.into(),
             ibc_transfer_timeout: ibc_transfer_timeout.into(),
-        };
-        self
-    }
-
-    pub fn with_ibc_fee(
-        &mut self,
-        ack_fee: impl Into<Uint128>,
-        timeout_fee: impl Into<Uint128>,
-    ) -> &mut Self {
-        self.msg.preset_ibc_fee = covenant_swap::msg::PresetIbcFee {
-            ack_fee: ack_fee.into(),
-            timeout_fee: timeout_fee.into(),
         };
         self
     }

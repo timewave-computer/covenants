@@ -51,11 +51,6 @@ impl Default for RemoteChainSplitterBuilder {
             remote_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
             denom: DENOM_ATOM_ON_NTRN.to_string(),
             amount: Uint128::new(100),
-            ibc_fee: IbcFee {
-                recv_fee: vec![],
-                ack_fee: vec![coin(1u128, DENOM_NTRN)],
-                timeout_fee: vec![coin(1u128, DENOM_NTRN)],
-            },
             ibc_transfer_timeout: Uint64::new(100),
             ica_timeout: Uint64::new(100),
         };
@@ -115,11 +110,6 @@ impl RemoteChainSplitterBuilder {
 
     pub fn with_splits(mut self, splits: BTreeMap<String, SplitConfig>) -> Self {
         self.instantiate_msg.with_splits(splits);
-        self
-    }
-
-    pub fn with_ibc_fee(mut self, ibc_fee: IbcFee) -> Self {
-        self.instantiate_msg.with_ibc_fee(ibc_fee);
         self
     }
 

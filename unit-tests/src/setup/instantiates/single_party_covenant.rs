@@ -45,10 +45,6 @@ impl SinglePartyCovenantInstantiate {
                 ica_timeout: 1000_u64.into(),
                 ibc_transfer_timeout: 1000_u64.into(),
             },
-            covenant_single_party_pol::msg::PresetIbcFee {
-                ack_fee: 100_000_u128.into(),
-                timeout_fee: 100_000_u128.into(),
-            },
             contract_codes,
             None,
             Expiration::AtHeight(builder.app.block_info().height + 100000),
@@ -181,7 +177,6 @@ impl SinglePartyCovenantInstantiate {
     pub fn new(
         label: String,
         timeouts: covenant_single_party_pol::msg::Timeouts,
-        preset_ibc_fee: covenant_single_party_pol::msg::PresetIbcFee,
         contract_codes: covenant_single_party_pol::msg::CovenantContractCodeIds,
         clock_tick_max_gas: Option<Uint64>,
         lockup_period: Expiration,
@@ -198,7 +193,6 @@ impl SinglePartyCovenantInstantiate {
             msg: covenant_single_party_pol::msg::InstantiateMsg {
                 label,
                 timeouts,
-                preset_ibc_fee,
                 contract_codes,
                 clock_tick_max_gas,
                 lockup_period,
@@ -228,18 +222,6 @@ impl SinglePartyCovenantInstantiate {
         self.msg.timeouts = covenant_single_party_pol::msg::Timeouts {
             ica_timeout: ica_timeout.into(),
             ibc_transfer_timeout: ibc_transfer_timeout.into(),
-        };
-        self
-    }
-
-    pub fn with_ibc_fee(
-        &mut self,
-        ack_fee: impl Into<Uint128>,
-        timeout_fee: impl Into<Uint128>,
-    ) -> &mut Self {
-        self.msg.preset_ibc_fee = covenant_single_party_pol::msg::PresetIbcFee {
-            ack_fee: ack_fee.into(),
-            timeout_fee: timeout_fee.into(),
         };
         self
     }

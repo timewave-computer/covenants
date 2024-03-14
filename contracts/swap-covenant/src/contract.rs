@@ -195,7 +195,6 @@ pub fn instantiate(
             amount: msg.party_a_config.get_contribution().amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
             clock_address: clock_instantiate2_config.addr.to_string(),
             next_contract: holder_instantiate2_config.addr.to_string(),
         }
@@ -226,7 +225,6 @@ pub fn instantiate(
             amount: msg.party_b_config.get_contribution().amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
             clock_address: clock_instantiate2_config.addr.to_string(),
             next_contract: holder_instantiate2_config.addr.to_string(),
         }
