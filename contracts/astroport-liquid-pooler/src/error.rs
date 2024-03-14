@@ -49,6 +49,6 @@ pub enum ContractError {
     #[error("Only holder can withdraw the position")]
     NotHolder {},
 
-    #[error("no lp tokens available")]
-    NoLpTokensAvailable {},
+    #[error("no covenant denom or lp tokens available")]
+    NothingToWithdraw {},
 }
