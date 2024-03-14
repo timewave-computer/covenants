@@ -8,7 +8,6 @@ package covenant_swap
 type CovenantInstantiateMsg struct {
 	Label                       string                      `json:"label"`
 	Timeouts                    Timeouts                    `json:"timeouts"`
-	PresetIbcFee                PresetIbcFee                `json:"preset_ibc_fee"`
 	SwapCovenantContractCodeIds SwapCovenantContractCodeIds `json:"contract_codes"`
 	TickMaxGas                  string                      `json:"clock_tick_max_gas,omitempty"`
 	LockupConfig                Expiration                  `json:"lockup_config"`
@@ -75,11 +74,6 @@ type SplitConfig struct {
 type Timeouts struct {
 	IcaTimeout         string `json:"ica_timeout"`
 	IbcTransferTimeout string `json:"ibc_transfer_timeout"`
-}
-
-type PresetIbcFee struct {
-	AckFee     string `json:"ack_fee"`
-	TimeoutFee string `json:"timeout_fee"`
 }
 
 type PresetClockFields struct {

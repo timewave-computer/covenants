@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint128, Uint64};
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
-use covenant_two_party_pol::msg::{CovenantPartyConfig, PresetIbcFee, Timeouts};
+use covenant_two_party_pol::msg::{CovenantPartyConfig, Timeouts};
 use covenant_utils::{
     split::SplitConfig, NativeCovenantParty, PoolPriceConfig, SingleSideLpLimits,
 };
@@ -24,11 +24,6 @@ impl From<TwoPartyCovenantInstantiate> for covenant_two_party_pol::msg::Instanti
 impl TwoPartyCovenantInstantiate {
     pub fn with_timeouts(&mut self, timeouts: Timeouts) -> &mut Self {
         self.msg.timeouts = timeouts;
-        self
-    }
-
-    pub fn with_ibc_fee(&mut self, preset_ibc_fee: PresetIbcFee) -> &mut Self {
-        self.msg.preset_ibc_fee = preset_ibc_fee;
         self
     }
 
@@ -157,10 +152,6 @@ impl TwoPartyCovenantInstantiate {
                 timeouts: Timeouts {
                     ica_timeout: Uint64::new(100),
                     ibc_transfer_timeout: Uint64::new(100),
-                },
-                preset_ibc_fee: PresetIbcFee {
-                    ack_fee: Uint128::new(10_000),
-                    timeout_fee: Uint128::new(10_000),
                 },
                 contract_codes,
                 clock_tick_max_gas: None,

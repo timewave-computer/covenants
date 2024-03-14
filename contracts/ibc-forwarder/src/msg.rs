@@ -26,10 +26,6 @@ pub struct InstantiateMsg {
     pub denom: String,
     pub amount: Uint128,
 
-    /// neutron requires fees to be set to refund relayers for
-    /// submission of ack and timeout messages.
-    /// recv_fee and ack_fee paid in untrn from this contract
-    pub ibc_fee: IbcFee,
     /// timeout in seconds. this is used to craft a timeout timestamp
     /// that will be attached to the IBC transfer message from the ICA
     /// on the host chain to its destination. typically this timeout

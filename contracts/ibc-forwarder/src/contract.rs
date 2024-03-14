@@ -1,32 +1,25 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_json, to_json_binary, to_json_vec, Binary, Coin, CosmosMsg, CustomQuery, Deps, DepsMut,
-    Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
+    from_json, to_json_binary, to_json_vec, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::neutron::{
-    get_default_ica_fee, get_proto_coin, to_proto_msg_transfer, RemoteChainInfo, SudoPayload,
+    get_ictxs_module_params_query_msg, get_proto_coin, to_proto_msg_transfer, QueryParamsResponse, RemoteChainInfo, SudoPayload
 };
 use cw2::set_contract_version;
 use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
         query::NeutronQuery,
-    },
-    interchain_txs::helpers::get_port_id,
-    sudo::msg::SudoMsg,
-    NeutronError, NeutronResult,
+    }, interchain_txs::helpers::get_port_id, query::min_ibc_fee::MinIbcFeeResponse, sudo::msg::SudoMsg, NeutronError, NeutronResult
 };
 
 use crate::{
-    helpers::{get_next_memo, MsgTransfer},
-    msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::{
+    helpers::{get_next_memo, MsgTransfer}, msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg}, state::{
         CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
         REPLY_ID_STORAGE, SUDO_PAYLOAD, TRANSFER_AMOUNT,
-    },
-    sudo::{save_reply_payload, sudo_error, sudo_open_ack, sudo_response, sudo_timeout},
+    }, sudo::{save_reply_payload, sudo_error, sudo_open_ack, sudo_response, sudo_timeout}
 };
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ibc-forwarder";
@@ -52,10 +45,9 @@ pub fn instantiate(
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     TRANSFER_AMOUNT.save(deps.storage, &msg.amount)?;
     let remote_chain_info = RemoteChainInfo {
-        connection_id: msg.remote_chain_connection_id,
-        channel_id: msg.remote_chain_channel_id,
-        denom: msg.denom,
-        ibc_fee: msg.ibc_fee,
+        connection_id: msg.remote_chain_connection_id.to_string(),
+        channel_id: msg.remote_chain_channel_id.to_string(),
+        denom: msg.denom.to_string(),
         ica_timeout: msg.ica_timeout,
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
     };
@@ -67,7 +59,7 @@ pub fn instantiate(
         .add_attribute("method", "ibc_forwarder_instantiate")
         .add_attribute("next_contract", next_contract)
         .add_attribute("contract_state", "instantiated")
-        .add_attributes(remote_chain_info.get_response_attributes()))
+        .add_attributes(msg.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -100,11 +92,13 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 /// tries to register an ICA on the remote chain
 fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-    let register_fee: Option<Vec<Coin>> = Some(vec![get_default_ica_fee()]);
+
+    let ictxs_params_response: QueryParamsResponse = deps.querier.query(&get_ictxs_module_params_query_msg())?;
+
     let register_msg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
         INTERCHAIN_ACCOUNT_ID.to_string(),
-        register_fee,
+        Some(ictxs_params_response.params.register_fee),
     );
 
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
@@ -131,6 +125,8 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
             "Next contract is not ready for receiving the funds yet",
         )));
     };
+
+    let min_fee_query_response: MinIbcFeeResponse = deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
@@ -167,7 +163,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                 vec![protobuf_msg],
                 "".to_string(),
                 remote_chain_info.ica_timeout.u64(),
-                remote_chain_info.ibc_fee,
+                min_fee_query_response.min_fee,
             );
 
             // sudo callback msg
@@ -359,9 +355,8 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             }
 
             if let Some(rci) = *remote_chain_info {
-                let validated_rci = rci.validate()?;
-                REMOTE_CHAIN_INFO.save(deps.storage, &validated_rci)?;
-                resp = resp.add_attributes(validated_rci.get_response_attributes());
+                REMOTE_CHAIN_INFO.save(deps.storage, &rci)?;
+                resp = resp.add_attributes(rci.get_response_attributes());
             }
 
             if let Some(amount) = transfer_amount {

@@ -505,10 +505,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			depositDeadline := Expiration{
 				AtHeight: &depositBlock,
 			}
-			presetIbcFee := PresetIbcFee{
-				AckFee:     "10000",
-				TimeoutFee: "10000",
-			}
 
 			hubReceiverAddr := happyCaseHubAccount.Bech32Address(cosmosAtom.Config().Bech32Prefix)
 			osmoReceiverAddr := happyCaseOsmoAccount.Bech32Address(cosmosOsmosis.Config().Bech32Prefix)
@@ -644,7 +640,6 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			covenantInstantiateMsg := CovenantInstantiateMsg{
 				Label:           "covenant-osmo",
 				Timeouts:        timeouts,
-				PresetIbcFee:    presetIbcFee,
 				ContractCodeIds: codeIds,
 				LockupConfig:    lockupConfig,
 				PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},

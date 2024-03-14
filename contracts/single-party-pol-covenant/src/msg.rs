@@ -10,7 +10,6 @@ use covenant_utils::{
     ReceiverConfig,
 };
 use cw_utils::Expiration;
-use neutron_sdk::bindings::msg::IbcFee;
 
 const NEUTRON_DENOM: &str = "untrn";
 pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
@@ -19,7 +18,6 @@ pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 pub struct InstantiateMsg {
     pub label: String,
     pub timeouts: Timeouts,
-    pub preset_ibc_fee: PresetIbcFee,
     pub contract_codes: CovenantContractCodeIds,
     pub clock_tick_max_gas: Option<Uint64>,
     pub lockup_period: Expiration,
@@ -171,29 +169,6 @@ impl Default for Timeouts {
         Self {
             ica_timeout: Uint64::new(DEFAULT_TIMEOUT),
             ibc_transfer_timeout: Uint64::new(DEFAULT_TIMEOUT),
-        }
-    }
-}
-
-#[cw_serde]
-pub struct PresetIbcFee {
-    pub ack_fee: Uint128,
-    pub timeout_fee: Uint128,
-}
-
-impl PresetIbcFee {
-    pub fn to_ibc_fee(&self) -> IbcFee {
-        IbcFee {
-            // must be empty
-            recv_fee: vec![],
-            ack_fee: vec![cosmwasm_std::Coin {
-                denom: NEUTRON_DENOM.to_string(),
-                amount: self.ack_fee,
-            }],
-            timeout_fee: vec![cosmwasm_std::Coin {
-                denom: NEUTRON_DENOM.to_string(),
-                amount: self.timeout_fee,
-            }],
         }
     }
 }

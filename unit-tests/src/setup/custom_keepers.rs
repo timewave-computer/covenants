@@ -4,6 +4,7 @@ use cosmwasm_std::{
     from_json, to_json_binary, Addr, Api, Binary, BlockInfo, CustomMsg, CustomQuery, Querier,
     Storage,
 };
+use covenant_utils::neutron::{Params, QueryParamsResponse};
 use cw_multi_test::error::{AnyError, AnyResult};
 use cw_multi_test::{AppResponse, CosmosRouter, Module, StargateQuery};
 use osmosis_std::types::cosmos::base::v1beta1::Coin;
@@ -84,6 +85,20 @@ where
     ) -> AnyResult<Binary> {
         let query: StargateQuery = from_json(to_json_binary(&request).unwrap()).unwrap();
         // TODO: these mocks should be configurable on top-level SuiteBuilder config, pre build
+        if query.path == "/neutron.interchaintxs.v1.Query/Params" {
+            let response = QueryParamsResponse {
+                params: Params {
+                    msg_submit_tx_max_messages: cosmwasm_std::Uint64::new(1000),
+                    register_fee: vec![cosmwasm_std::Coin {
+                        amount: cosmwasm_std::Uint128::new(1000000),
+                        denom: "untrn".to_string(),
+                    }],
+                },
+            };
+
+            return Ok(to_json_binary(&response).unwrap());
+        }
+
         if query.path == "/osmosis.gamm.v1beta1.Query/Pool" {
             let pool = osmosis_std::types::osmosis::gamm::v1beta1::Pool {
                 address: "address".to_string(),

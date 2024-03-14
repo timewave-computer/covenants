@@ -2,9 +2,8 @@ use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, Decimal, Uint128, Uint64};
 use covenant_utils::split::SplitConfig;
-use neutron_sdk::bindings::msg::IbcFee;
 
-use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_NTRN, NTRN_HUB_CHANNEL};
+use crate::setup::{DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
 pub struct RemoteChainSplitterInstantiate {
     pub msg: covenant_remote_chain_splitter::msg::InstantiateMsg,
@@ -23,7 +22,6 @@ impl RemoteChainSplitterInstantiate {
         denom: String,
         amount: Uint128,
         splits: BTreeMap<String, SplitConfig>,
-        ibc_fee: IbcFee,
         ica_timeout: Uint64,
         ibc_transfer_timeout: Uint64,
     ) -> Self {
@@ -35,7 +33,6 @@ impl RemoteChainSplitterInstantiate {
                 denom,
                 amount,
                 splits,
-                ibc_fee,
                 ica_timeout,
                 ibc_transfer_timeout,
             },
@@ -72,11 +69,6 @@ impl RemoteChainSplitterInstantiate {
         self
     }
 
-    pub fn with_ibc_fee(&mut self, ibc_fee: IbcFee) -> &mut Self {
-        self.msg.ibc_fee = ibc_fee;
-        self
-    }
-
     pub fn with_ica_timeout(&mut self, ica_timeout: Uint64) -> &mut Self {
         self.msg.ica_timeout = ica_timeout;
         self
@@ -106,11 +98,6 @@ impl RemoteChainSplitterInstantiate {
                 denom: DENOM_ATOM_ON_NTRN.to_string(),
                 amount: Uint128::from(10000u128),
                 splits: denom_to_split_config_map,
-                ibc_fee: IbcFee {
-                    recv_fee: vec![],
-                    ack_fee: vec![coin(10000u128, DENOM_NTRN)],
-                    timeout_fee: vec![coin(10000u128, DENOM_NTRN)],
-                },
                 ica_timeout: Uint64::from(100u64),
                 ibc_transfer_timeout: Uint64::from(100u64),
             },

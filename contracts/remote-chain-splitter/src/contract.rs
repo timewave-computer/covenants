@@ -10,11 +10,12 @@ use cosmwasm_std::{
     MessageInfo, Reply, Response, StdError, StdResult, SubMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::neutron::{RemoteChainInfo, SudoPayload};
-use covenant_utils::{get_default_ica_fee, neutron};
+use covenant_utils::neutron::{get_ictxs_module_params_query_msg, QueryParamsResponse, RemoteChainInfo, SudoPayload};
+use covenant_utils::neutron;
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_txs::helpers::get_port_id;
+use neutron_sdk::query::min_ibc_fee::MinIbcFeeResponse;
 use neutron_sdk::sudo::msg::SudoMsg;
 use neutron_sdk::NeutronError;
 
@@ -56,7 +57,6 @@ pub fn instantiate(
         denom: msg.denom,
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
         ica_timeout: msg.ica_timeout,
-        ibc_fee: msg.ibc_fee,
     };
     REMOTE_CHAIN_INFO.save(deps.storage, &remote_chain_info)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
@@ -117,10 +117,12 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 
 fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
+    let ictxs_params_response: QueryParamsResponse = deps.querier.query(&get_ictxs_module_params_query_msg())?;
+
     let register: NeutronMsg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
         INTERCHAIN_ACCOUNT_ID.to_string(),
-        Some(vec![get_default_ica_fee()]),
+        Some(ictxs_params_response.params.register_fee),
     );
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
 
@@ -136,6 +138,7 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
     let amount = TRANSFER_AMOUNT.load(deps.storage)?;
+    let min_fee_query_response: MinIbcFeeResponse = deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -214,7 +217,7 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
                 vec![any_msg],
                 "".to_string(),
                 remote_chain_info.ica_timeout.u64(),
-                remote_chain_info.ibc_fee,
+                min_fee_query_response.min_fee,
             );
             let sudo_msg = msg_with_sudo_callback(
                 deps.branch(),

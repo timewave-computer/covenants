@@ -54,7 +54,7 @@ covenant-utils  = { path = "packages/covenant-utils" }
 # updated. to find cosmwasm_std's sha function:
 # ```cargo tree --package cosmwasm-std```
 sha2             = "0.9.9"
-neutron-sdk      = { git = "https://github.com/neutron-org/neutron-sdk", branch = "feat/cw-dex-bindings" }
+neutron-sdk      = { git = "https://github.com/neutron-org/neutron-sdk", tag = "v0.8.0" }
 cosmos-sdk-proto = { version = "0.14.0", default-features = false }
 protobuf         = { version = "3.2.0", features = ["with-bytes"] }
 serde-json-wasm  = { version = "0.4.1" }

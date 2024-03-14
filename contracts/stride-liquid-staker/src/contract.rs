@@ -8,6 +8,7 @@ use cosmwasm_std::{
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::neutron::{self, get_proto_coin, OpenAckVersion, RemoteChainInfo, SudoPayload};
 use cw2::set_contract_version;
+use neutron_sdk::query::min_ibc_fee::MinIbcFeeResponse;
 
 use crate::helpers::{Autopilot, AutopilotConfig};
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
@@ -57,7 +58,6 @@ pub fn instantiate(
         denom: msg.ls_denom,
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
         ica_timeout: msg.ica_timeout,
-        ibc_fee: msg.ibc_fee,
     };
     REMOTE_CHAIN_INFO.save(deps.storage, &remote_chain_info)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
@@ -148,6 +148,7 @@ fn try_execute_transfer(
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
+    let min_fee_query_response: MinIbcFeeResponse = deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -181,7 +182,7 @@ fn try_execute_transfer(
                 vec![protobuf],
                 "".to_string(),
                 remote_chain_info.ica_timeout.u64(),
-                remote_chain_info.ibc_fee,
+                min_fee_query_response.min_fee,
             );
 
             let sudo_msg = msg_with_sudo_callback(
@@ -463,9 +464,8 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             }
 
             if let Some(rci) = remote_chain_info {
-                let validated_rci = rci.validate()?;
-                REMOTE_CHAIN_INFO.save(deps.storage, &validated_rci)?;
-                resp = resp.add_attributes(validated_rci.get_response_attributes());
+                REMOTE_CHAIN_INFO.save(deps.storage, &rci)?;
+                resp = resp.add_attributes(rci.get_response_attributes());
             }
 
             Ok(resp)

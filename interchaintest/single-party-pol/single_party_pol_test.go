@@ -669,11 +669,6 @@ func TestSinglePartyPol(t *testing.T) {
 		})
 
 		t.Run("init covenant", func(t *testing.T) {
-			presetIbcFee := PresetIbcFee{
-				AckFee:     "100000",
-				TimeoutFee: "100000",
-			}
-
 			timeouts := Timeouts{
 				IcaTimeout:         "10000", // sec
 				IbcTransferTimeout: "10000", // sec
@@ -796,7 +791,6 @@ func TestSinglePartyPol(t *testing.T) {
 			covenantInstantiationMsg := CovenantInstantiationMsg{
 				Label:                     "single_party_pol_covenant",
 				Timeouts:                  timeouts,
-				PresetIbcFee:              presetIbcFee,
 				ContractCodeIds:           contractCodes,
 				LockupConfig:              lockupConfig,
 				LsInfo:                    lsInfo,

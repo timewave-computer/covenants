@@ -10,9 +10,8 @@ use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
     instantiates::two_party_covenant::TwoPartyCovenantInstantiate,
     suite_builder::SuiteBuilder,
-    CustomApp, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
-    DENOM_LS_ATOM_ON_STRIDE, HUB_STRIDE_CHANNEL, NTRN_HUB_CHANNEL, NTRN_STRIDE_CHANNEL,
-    SINGLE_PARTY_COVENANT_SALT, TWO_PARTY_COVENANT_SALT,
+    CustomApp, ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+    TWO_PARTY_COVENANT_SALT,
 };
 
 pub struct TwoPartyCovenantBuilder {
@@ -52,14 +51,6 @@ impl Default for TwoPartyCovenantBuilder {
 impl TwoPartyCovenantBuilder {
     pub fn with_timeouts(mut self, timeouts: Timeouts) -> Self {
         self.instantiate_msg.with_timeouts(timeouts);
-        self
-    }
-
-    pub fn with_ibc_fee(
-        mut self,
-        preset_ibc_fee: covenant_two_party_pol::msg::PresetIbcFee,
-    ) -> Self {
-        self.instantiate_msg.with_ibc_fee(preset_ibc_fee);
         self
     }
 

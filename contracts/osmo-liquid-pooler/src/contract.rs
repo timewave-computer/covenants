@@ -3,18 +3,18 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Deps,
-    DepsMut, Env, Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg,
+    ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal,
+    Env, Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig;
 use covenant_utils::{
-    neutron::default_ibc_fee, polytone::get_polytone_execute_msg_binary,
+    polytone::get_polytone_execute_msg_binary,
     withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata, PacketMetadata,
 };
 use cw2::set_contract_version;
 use neutron_sdk::{
-    bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight, NeutronResult,
+    bindings::{msg::{IbcFee, NeutronMsg}, query::NeutronQuery}, query::min_ibc_fee::{self, MinIbcFeeResponse}, sudo::msg::RequestPacketTimeoutHeight, NeutronResult
 };
 use polytone::callbacks::CallbackRequest;
 
@@ -45,9 +45,12 @@ pub(crate) const CREATE_PROXY_CALLBACK_ID: u8 = 3;
 pub(crate) const WITHDRAW_LIQUIDITY_CALLBACK_ID: u8 = 4;
 pub(crate) const WITHDRAW_LIQUIDITY_BALANCES_QUERY_CALLBACK_ID: u8 = 5;
 
+type ExecuteDeps<'a> = cosmwasm_std::DepsMut<'a, NeutronQuery>;
+type QueryDeps<'a> = cosmwasm_std::Deps<'a, NeutronQuery>;
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
@@ -104,7 +107,7 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
@@ -117,7 +120,7 @@ pub fn execute(
 }
 
 fn try_withdraw(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
     percent: Option<Decimal>,
@@ -198,7 +201,7 @@ fn try_withdraw(
 }
 
 /// attempts to advance the state machine. performs `info.sender` validation.
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
     // Verify caller is the clock
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
@@ -228,7 +231,7 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> NeutronResult<Respons
 }
 
 fn try_distribute(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     coins: Vec<Coin>,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -414,7 +417,7 @@ fn try_distribute(
     }
 }
 
-fn try_sync_proxy_balances(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_sync_proxy_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
     let mut lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
@@ -444,7 +447,7 @@ fn try_sync_proxy_balances(deps: DepsMut, env: Env) -> NeutronResult<Response<Ne
 /// state to `proxy_created`.
 /// see polytone_handlers `process_execute_callback` match statement
 /// handling the CREATE_PROXY_CALLBACK_ID for details.
-fn try_create_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_create_proxy(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
 
@@ -468,7 +471,7 @@ fn try_create_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMs
         .add_attribute("method", "try_create_proxy"))
 }
 
-fn try_deliver_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_deliver_funds(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let mut lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
 
     // check if both balances have a recent query
@@ -505,7 +508,7 @@ fn try_deliver_funds(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronM
     }
 }
 
-fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_fund_proxy(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let mut lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
     let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
@@ -538,13 +541,14 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
     }
 
     let mut transfer_messages = vec![];
-
+    let min_ibc_fee: MinIbcFeeResponse = deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
     if coin_1_bal.amount > Uint128::zero() {
         transfer_messages.push(get_ibc_transfer_message(
             ibc_config.party_1_chain_info,
             env.clone(),
             coin_1_bal,
             proxy_address.to_string(),
+            &min_ibc_fee.min_fee
         )?);
     }
     if coin_2_bal.amount > Uint128::zero() {
@@ -553,6 +557,7 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
             env,
             coin_2_bal,
             proxy_address,
+            &min_ibc_fee.min_fee,
         )?);
     }
 
@@ -561,7 +566,7 @@ fn try_fund_proxy(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>
         .add_attribute("method", "try_fund_proxy"))
 }
 
-fn try_provide_liquidity(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_provide_liquidity(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
     let mut lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
@@ -602,7 +607,7 @@ fn try_provide_liquidity(deps: DepsMut, env: Env) -> NeutronResult<Response<Neut
         .add_attribute("method", "try_lp"))
 }
 
-fn query_proxy_balances(deps: DepsMut, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn query_proxy_balances(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
     let proxy_address = PROXY_ADDRESS.load(deps.storage)?;
@@ -626,6 +631,7 @@ fn get_ibc_transfer_message(
     env: Env,
     coin: Coin,
     proxy_address: String,
+    ibc_fee: &IbcFee,
 ) -> StdResult<NeutronMsg> {
     // depending on whether pfm is configured,
     // we return a ibc transfer message
@@ -653,7 +659,7 @@ fn get_ibc_transfer_message(
                     channel: forward_metadata.channel,
                 }),
             })?,
-            fee: default_ibc_fee(),
+            fee: ibc_fee.clone(),
         }),
         // no pfm necessary, we do a regular transfer
         None => Ok(NeutronMsg::IbcTransfer {
@@ -672,13 +678,13 @@ fn get_ibc_transfer_message(
                 .plus_seconds(party_chain_info.ibc_timeout.u64())
                 .nanos(),
             memo: "".to_string(),
-            fee: default_ibc_fee(),
+            fee: ibc_fee.clone(),
         }),
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
@@ -705,7 +711,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Response> {
+pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> NeutronResult<Response> {
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
