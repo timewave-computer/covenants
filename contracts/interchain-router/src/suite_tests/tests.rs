@@ -4,15 +4,11 @@ use std::{
 };
 
 use cosmwasm_std::{
-    coin,
-    testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
-    Attribute, CosmosMsg, Empty, OwnedDeps, SubMsg, Uint128, Uint64,
+    coin, testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage}, to_json_binary, Attribute, CosmosMsg, Empty, OwnedDeps, SubMsg, Uint128, Uint64
 };
 use covenant_utils::DestinationConfig;
 use neutron_sdk::{
-    bindings::msg::{IbcFee, NeutronMsg},
-    sudo::msg::RequestPacketTimeoutHeight,
-    NeutronError,
+    bindings::msg::{IbcFee, NeutronMsg}, query::min_ibc_fee::MinIbcFeeResponse, sudo::msg::RequestPacketTimeoutHeight, NeutronError
 };
 
 use crate::{
@@ -87,14 +83,22 @@ fn test_unauthorized_tick() {
 }
 
 #[test]
-fn test_tick() {
+#[should_panic(expected = "caller must cover ibc fees: No funds sent")]
+fn test_tick_no_ibc_fee() {
     let usdc_coin = coin(100, "usdc");
     let random_coin_1 = coin(100, "denom1");
     let random_coin_2 = coin(100, "denom2");
     let random_coin_3 = coin(100, "denom3");
 
     let coins = vec![usdc_coin, random_coin_1, random_coin_2, random_coin_3];
-    let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)]);
+    let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)])
+        .with_custom_handler(|_| cosmwasm_std::SystemResult::Ok(to_json_binary(
+            &MinIbcFeeResponse { min_fee: IbcFee {
+                recv_fee: vec![],
+                ack_fee: vec![coin(100000, "untrn")],
+                timeout_fee: vec![coin(100000, "untrn")],
+            }}
+        ).into()));
 
     let mut deps = OwnedDeps {
         storage: MockStorage::default(),
@@ -105,7 +109,103 @@ fn test_tick() {
     // set the custom querier on our mock deps
     deps.querier = querier;
 
-    let info = mock_info(CLOCK_ADDR, &[]);
+    let no_ibc_fee_info = mock_info(CLOCK_ADDR, &[]);
+
+    instantiate(
+        deps.as_mut(),
+        mock_env(),
+        no_ibc_fee_info.clone(),
+        SuiteBuilder::default()
+            .with_denoms(vec!["usdc".to_string()])
+            .instantiate,
+    )
+    .unwrap();
+
+    execute(
+        deps.as_mut(),
+        mock_env(),
+        no_ibc_fee_info.clone(),
+        crate::msg::ExecuteMsg::DistributeFallback { denoms: vec!["denom1".to_string()] },
+    )
+    .unwrap();
+}
+
+
+#[test]
+#[should_panic(expected = "insufficient fees")]
+fn test_tick_insufficient_ibc_fee() {
+    let usdc_coin = coin(100, "usdc");
+    let random_coin_1 = coin(100, "denom1");
+    let random_coin_2 = coin(100, "denom2");
+    let random_coin_3 = coin(100, "denom3");
+
+    let coins = vec![usdc_coin, random_coin_1, random_coin_2, random_coin_3];
+    let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)])
+        .with_custom_handler(|_| cosmwasm_std::SystemResult::Ok(to_json_binary(
+            &MinIbcFeeResponse { min_fee: IbcFee {
+                recv_fee: vec![],
+                ack_fee: vec![coin(100000, "untrn")],
+                timeout_fee: vec![coin(100000, "untrn")],
+            }}
+        ).into()));
+
+    let mut deps = OwnedDeps {
+        storage: MockStorage::default(),
+        api: MockApi::default(),
+        querier: MockQuerier::new(&[]),
+        custom_query_type: PhantomData,
+    };
+    // set the custom querier on our mock deps
+    deps.querier = querier;
+
+    let no_ibc_fee_info = mock_info(CLOCK_ADDR, &[coin(100000, "untrn")]);
+
+    instantiate(
+        deps.as_mut(),
+        mock_env(),
+        no_ibc_fee_info.clone(),
+        SuiteBuilder::default()
+            .with_denoms(vec!["usdc".to_string()])
+            .instantiate,
+    )
+    .unwrap();
+
+    execute(
+        deps.as_mut(),
+        mock_env(),
+        no_ibc_fee_info.clone(),
+        crate::msg::ExecuteMsg::DistributeFallback { denoms: vec!["denom1".to_string()] },
+    )
+    .unwrap();
+}
+
+#[test]
+fn test_tick() {
+    let usdc_coin = coin(100, "usdc");
+    let random_coin_1 = coin(100, "denom1");
+    let random_coin_2 = coin(100, "denom2");
+    let random_coin_3 = coin(100, "denom3");
+
+    let coins = vec![usdc_coin, random_coin_1, random_coin_2, random_coin_3];
+    let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)])
+        .with_custom_handler(|_| cosmwasm_std::SystemResult::Ok(to_json_binary(
+            &MinIbcFeeResponse { min_fee: IbcFee {
+                recv_fee: vec![],
+                ack_fee: vec![coin(100000, "untrn")],
+                timeout_fee: vec![coin(100000, "untrn")],
+            }}
+        ).into()));
+
+    let mut deps = OwnedDeps {
+        storage: MockStorage::default(),
+        api: MockApi::default(),
+        querier: MockQuerier::new(&[]),
+        custom_query_type: PhantomData,
+    };
+    // set the custom querier on our mock deps
+    deps.querier = querier;
+
+    let info = mock_info(CLOCK_ADDR, &[coin(10000000, "untrn")]);
 
     instantiate(
         deps.as_mut(),

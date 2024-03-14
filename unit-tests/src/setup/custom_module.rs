@@ -17,11 +17,11 @@ use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
         query::NeutronQuery,
-    },
-    interchain_txs::helpers::get_port_id,
-    sudo::msg::RequestPacket,
+    }, interchain_txs::helpers::get_port_id, query::min_ibc_fee::MinIbcFeeResponse, sudo::msg::RequestPacket
 };
 use prost::Message;
+
+use super::DENOM_NTRN;
 
 pub const CHAIN_PREFIX: &str = "cosmos";
 
@@ -822,8 +822,16 @@ impl Module for NeutronKeeper {
                     .unwrap(),
             )
             .unwrap()),
-            NeutronQuery::MinIbcFee {} => todo!(),
-
+            NeutronQuery::MinIbcFee {} => Ok(to_json_binary(
+                &MinIbcFeeResponse {
+                    min_fee: neutron_sdk::bindings::msg::IbcFee {
+                        recv_fee: vec![],
+                        ack_fee: vec![coin(10000, DENOM_NTRN)],
+                        timeout_fee: vec![coin(10000, DENOM_NTRN)],
+                    },
+                })
+                .unwrap()
+            ),
             NeutronQuery::InterchainQueryResult { .. } => todo!(),
             NeutronQuery::RegisteredInterchainQueries { .. } => todo!(),
             NeutronQuery::RegisteredInterchainQuery { .. } => todo!(),
