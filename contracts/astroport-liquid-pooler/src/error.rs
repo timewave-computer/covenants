@@ -51,4 +51,7 @@ pub enum ContractError {
 
     #[error("no covenant denom or lp tokens available")]
     NothingToWithdraw {},
+
+    #[error("Withdraw percentage range must belong to range (0.0, 1.0]")]
+    WithdrawPercentageRangeError {},
 }

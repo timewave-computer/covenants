@@ -2,7 +2,7 @@ use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Coin, Decimal};
 use covenant_astroport_liquid_pooler::msg::{LpConfig, ProvidedLiquidityInfo, QueryMsg};
 use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
-use cw_multi_test::Executor;
+use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -209,7 +209,7 @@ pub struct Suite {
 
 #[allow(dead_code)]
 impl Suite {
-    pub(crate) fn withdraw(&mut self, sender: &Addr, _percentage: Option<Decimal>) {
+    pub(crate) fn withdraw(&mut self, sender: &Addr, _percentage: Option<Decimal>) -> AppResponse {
         let holder = self.holder_addr.clone();
         let app = self.get_app();
         app.execute_contract(
@@ -218,7 +218,7 @@ impl Suite {
             &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
-        .unwrap();
+        .unwrap()
     }
 
     pub(crate) fn query_provided_liquidity_info(&self) -> ProvidedLiquidityInfo {
