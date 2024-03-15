@@ -54,6 +54,38 @@ fn test_instantiate_validates_lockup_config() {
 }
 
 #[test]
+#[should_panic(expected = "Party contribution cannot be zero")]
+fn test_instantiate_validates_party_a_contribution_amount() {
+    let mut builder = TwoPartyHolderBuilder::default();
+    builder.instantiate_msg.msg.covenant_config.party_a.contribution.amount = Uint128::zero();
+    builder.build();
+}
+
+#[test]
+#[should_panic(expected = "Party contribution cannot be zero")]
+fn test_instantiate_validates_party_b_contribution_amount() {
+    let mut builder = TwoPartyHolderBuilder::default();
+    builder.instantiate_msg.msg.covenant_config.party_b.contribution.amount = Uint128::zero();
+    builder.build();
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_validates_party_a_host_addr() {
+    let mut builder = TwoPartyHolderBuilder::default();
+    builder.instantiate_msg.msg.covenant_config.party_a.host_addr = "invalid".to_string();
+    builder.build();
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_validates_party_b_host_addr() {
+    let mut builder = TwoPartyHolderBuilder::default();
+    builder.instantiate_msg.msg.covenant_config.party_b.host_addr = "invalid".to_string();
+    builder.build();
+}
+
+#[test]
 #[should_panic(expected = "cannot validate deposit and lockup expirations")]
 fn test_instantiate_validates_incompatible_deposit_and_lockup_expirations() {
     TwoPartyHolderBuilder::default()

@@ -276,9 +276,19 @@ impl TwoPartyPolCovenantConfig {
     pub fn validate(&self, api: &dyn Api) -> Result<(), ContractError> {
         api.addr_validate(&self.party_a.router)?;
         api.addr_validate(&self.party_b.router)?;
-        if self.party_a.allocation + self.party_b.allocation != Decimal::one() {
-            return Err(ContractError::AllocationValidationError {});
-        }
+        api.addr_validate(&self.party_a.host_addr)?;
+        api.addr_validate(&self.party_b.host_addr)?;
+
+        ensure!(
+            !self.party_a.contribution.amount.is_zero() && !self.party_b.contribution.amount.is_zero(),
+            ContractError::PartyContributionConfigError {}
+        );
+
+        ensure!(
+            self.party_a.allocation + self.party_b.allocation == Decimal::one(),
+            ContractError::AllocationValidationError {}
+        );
+
         Ok(())
     }
 

@@ -74,4 +74,7 @@ pub enum ContractError {
 
     #[error("Claimer already claimed his share")]
     PartyAllocationIsZero {},
+
+    #[error("Party contribution cannot be zero")]
+    PartyContributionConfigError {},
 }
