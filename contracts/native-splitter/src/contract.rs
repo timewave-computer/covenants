@@ -35,13 +35,14 @@ pub fn instantiate(
 
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
-        split.validate_shares()?;
+        split.validate_shares_and_receiver_addresses(deps.api)?;
         SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
     }
 
     // if a fallback split is provided we validate and store it
     if let Some(split) = msg.fallback_split {
         resp = resp.add_attributes(vec![split.get_response_attribute("fallback".to_string())]);
+        split.validate_shares_and_receiver_addresses(deps.api)?;
         FALLBACK_SPLIT.save(deps.storage, &split)?;
     } else {
         resp = resp.add_attribute("fallback", "None");

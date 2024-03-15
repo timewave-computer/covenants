@@ -67,7 +67,7 @@ pub fn instantiate(
     let mut split_resp_attributes: Vec<Attribute> = Vec::with_capacity(msg.splits.len());
 
     for (denom, split_config) in msg.splits {
-        split_config.validate_shares()?;
+        split_config.validate_shares_and_receiver_addresses(deps.api)?;
         split_resp_attributes.push(split_config.get_response_attribute(denom.to_string()));
         SPLIT_CONFIG_MAP.save(deps.storage, denom, &split_config)?;
     }
@@ -369,7 +369,7 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
                 for (denom, split) in splits {
                     // if denom had not yet been encountered we proceed, otherwise error
                     if encountered_denoms.insert(denom.to_string()) {
-                        split.validate_shares()?;
+                        split.validate_shares_and_receiver_addresses(deps.api)?;
                         split_resp_attributes.push(split.get_response_attribute(denom.to_string()));
                         SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
 

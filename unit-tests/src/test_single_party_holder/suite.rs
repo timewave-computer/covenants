@@ -239,6 +239,15 @@ impl Suite {
             .unwrap()
     }
 
+    pub fn expire_lockup(&mut self) {
+        let expiration = self.query_lockup_period();
+        self.app.update_block(|b| match expiration {
+            Expiration::AtHeight(h) => b.height = h + 1,
+            Expiration::AtTime(t) => b.time = t,
+            Expiration::Never {} => (),
+        })
+    }
+
     pub fn fund_contract_coins(&mut self, funds: Vec<Coin>, addr: Addr) {
         self.fund_contract(&funds, addr)
     }
