@@ -108,7 +108,7 @@ pub fn instantiate(
     denoms.insert(msg.covenant_party_config.native_denom.to_string());
 
     let router_instantiate2_msg = RouterInstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.clone(),
+        clock_address: clock_instantiate2_config.addr.to_string(),
         destination_config: DestinationConfig {
             local_to_destination_chain_channel_id: msg
                 .covenant_party_config
