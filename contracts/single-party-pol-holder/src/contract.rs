@@ -40,6 +40,10 @@ pub fn instantiate(
         resp = resp.add_attribute("emergency_committee", addr);
     };
 
+    ensure!(
+        !msg.lockup_period.is_expired(&_env.block),
+        ContractError::MustBeFutureLockupPeriod {}
+    );
     LOCKUP_PERIOD.save(deps.storage, &msg.lockup_period)?;
     POOLER_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.pooler_address)?)?;
 

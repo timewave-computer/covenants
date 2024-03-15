@@ -39,6 +39,14 @@ fn test_instantiate_invalid_emergency_committee_addr() {
 }
 
 #[test]
+#[should_panic(expected = "The lockup period must be in the future")]
+fn test_instantiate_validates_lockup_period() {
+    SinglePartyHolderBuilder::default()
+        .with_lockup_period(Expiration::AtHeight(1))
+        .build();
+}
+
+#[test]
 // #[should_panic(expected = "A withdraw process already started")]
 fn test_execute_claim_validates_pending_withdrawals() {
     // TODO: enable should_panic
