@@ -1,8 +1,8 @@
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{
-    ensure, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult,
+    ensure, to_json_binary, BankMsg, Binary, BlockInfo, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult
 };
 
 #[cfg(not(feature = "library"))]
@@ -12,6 +12,7 @@ use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::split::SplitConfig;
 use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
 use cw2::set_contract_version;
+use cw_utils::Expiration;
 
 use crate::msg::CovenantType;
 use crate::state::{WithdrawState, LIQUID_POOLER_ADDRESS, WITHDRAW_STATE};
@@ -42,14 +43,21 @@ pub fn instantiate(
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
+    // ensure that the deposit deadline is in the future
     ensure!(
         !msg.deposit_deadline.is_expired(&env.block),
         ContractError::DepositDeadlineValidationError {}
     );
-    ensure!(
-        !msg.lockup_config.is_expired(&env.block),
-        ContractError::LockupValidationError {}
-    );
+
+    // validate that lockup expiration is after the deposit deadline
+    match msg.deposit_deadline.partial_cmp(&msg.lockup_config) {
+        Some(ordering) => ensure!(
+            ordering == Ordering::Less,
+            ContractError::LockupValidationError {}
+        ),
+        // we validate incompatible expirations
+        None => return Err(ContractError::ExpirationValidationError {}),
+    };
 
     if let Some(addr) = &msg.emergency_committee_addr {
         let committee_addr = deps.api.addr_validate(addr)?;
