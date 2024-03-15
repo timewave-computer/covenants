@@ -21,10 +21,21 @@ fn test_instantiate_validates_clock_address() {
 
 #[test]
 #[should_panic(expected = "shares must add up to 1.0")]
-fn test_instantiate_validates_splits() {
+fn test_instantiate_validates_explicit_split_shares() {
+    let mut builder = RemoteChainSplitterBuilder::default();
+    let (denom, mut split_config) = builder.instantiate_msg.msg.splits.pop_first().unwrap();
+    let invalid_split_config: BTreeMap<String, Decimal> = split_config.receivers.iter_mut()
+        .map(|(k, _)| (k.to_string(), Decimal::percent(49)))
+        .collect();
+    builder.instantiate_msg.msg.splits.insert(denom, SplitConfig { receivers: invalid_split_config });
+    builder.build();
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_validates_explicit_split_receiver_addresses() {
     let mut split_config = BTreeMap::new();
-    split_config.insert("a".to_string(), Decimal::percent(50));
-    split_config.insert("b".to_string(), Decimal::percent(60));
+    split_config.insert("invalid_address".to_string(), Decimal::one());
 
     let mut invalid_splits = BTreeMap::new();
     invalid_splits.insert(
