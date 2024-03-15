@@ -48,10 +48,9 @@ fn test_instantiate_validates_pool_price_config() {
 }
 
 #[test]
-// TODO: uncomment this #[should_panic(expected = "Cannot Sub with 1000000 and 101000000")]
-fn test_withdraw_percentage_range() {
+#[should_panic(expected = "Withdraw percentage range must belong to range (0.0, 1.0]")]
+fn test_withdraw_validates_percentage_range_ceiling() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
-    let withdrawer = suite.clock_addr.clone();
 
     suite.fund_contract(
         &coins(1_000_000, DENOM_ATOM_ON_NTRN),
@@ -64,9 +63,45 @@ fn test_withdraw_percentage_range() {
 
     suite.tick_contract(suite.liquid_pooler_addr.clone());
 
-    // TODO: this should fail because of a percent validation in try_withdraw
-    // that validates 0 < percent <= 1
-    suite.withdraw(&withdrawer, Some(Decimal::from_str("101.0").unwrap()));
+    let holder = suite.holder_addr.clone();
+    suite.app.execute_contract(
+        holder.clone(),
+        suite.liquid_pooler_addr.clone(),
+        &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw {
+            percentage: Some(Decimal::from_str("101.0").unwrap()),
+        },
+        &[],
+    )
+    .unwrap();
+}
+
+
+#[test]
+#[should_panic(expected = "Withdraw percentage range must belong to range (0.0, 1.0]")]
+fn test_withdraw_validates_percentage_range_floor() {
+    let mut suite = AstroLiquidPoolerBuilder::default().build();
+
+    suite.fund_contract(
+        &coins(1_000_000, DENOM_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+    suite.fund_contract(
+        &coins(500_000, DENOM_LS_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+
+    suite.tick_contract(suite.liquid_pooler_addr.clone());
+
+    let holder = suite.holder_addr.clone();
+    suite.app.execute_contract(
+        holder.clone(),
+        suite.liquid_pooler_addr.clone(),
+        &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw {
+            percentage: Some(Decimal::from_str("0.0").unwrap()),
+        },
+        &[],
+    )
+    .unwrap();
 }
 
 #[test]
