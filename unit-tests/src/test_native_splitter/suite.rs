@@ -23,7 +23,6 @@ impl Default for NativeSplitterBuilder {
         let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
         let native_splitter_addr =
             builder.get_contract_addr(builder.native_splitter_code_id, NATIVE_SPLITTER_SALT);
-        println!("code {:?}", builder.native_splitter_code_id);
 
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
             tick_max_gas: None,
@@ -40,7 +39,7 @@ impl Default for NativeSplitterBuilder {
         let party_b_controller_addr = builder.get_random_addr();
 
         let native_splitter_instantiate = NativeSplitterInstantiate::default(
-            clock_addr,
+            clock_addr.to_string(),
             party_a_controller_addr.to_string(),
             party_b_controller_addr.to_string(),
         );
@@ -54,7 +53,7 @@ impl Default for NativeSplitterBuilder {
 
 #[allow(dead_code)]
 impl NativeSplitterBuilder {
-    pub fn with_clock_address(mut self, addr: Addr) -> Self {
+    pub fn with_clock_address(mut self, addr: String) -> Self {
         self.instantiate_msg.with_clock_address(addr);
         self
     }

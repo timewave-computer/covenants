@@ -8,7 +8,7 @@ use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::Split
 #[cw_serde]
 pub struct InstantiateMsg {
     /// address of the associated clock
-    pub clock_address: Addr,
+    pub clock_address: String,
     /// maps denom to its split configuration
     pub splits: BTreeMap<String, SplitConfig>,
     /// a split for all denoms that are not covered in the
