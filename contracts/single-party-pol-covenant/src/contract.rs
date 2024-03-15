@@ -320,7 +320,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             )?;
 
             Ok(to_json_binary(&ica)?)
-        }
+        },
+        QueryMsg::ContractCodes {} => Ok(to_json_binary(&CONTRACT_CODES.load(deps.storage)?)?),
     }
 }
 
@@ -329,6 +330,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
     deps.api.debug("WASMDEBUG: migrate");
     match msg {
         MigrateMsg::MigrateContracts {
+            codes,
             clock,
             ls_forwarder,
             lp_forwarder,
@@ -340,6 +342,13 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
         } => {
             let mut migrate_msgs = vec![];
             let mut resp = Response::default().add_attribute("method", "migrate_contracts");
+
+            if let Some(new_codes) = codes {
+                CONTRACT_CODES.save(deps.storage, &new_codes)?;
+                let code_binary = to_json_binary(&new_codes)?;
+                resp = resp.add_attribute("contract_codes_migrate", code_binary.to_base64());
+            }
+
             let contract_codes = CONTRACT_CODES.load(deps.storage)?;
 
             if let Some(clock) = clock {
