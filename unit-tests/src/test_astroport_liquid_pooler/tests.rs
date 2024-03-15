@@ -62,8 +62,8 @@ fn test_withdraw_validates_percentage_range_ceiling() {
     );
 
     suite.tick_contract(suite.liquid_pooler_addr.clone());
-
-    let holder = suite.holder_addr.clone();
+    suite.expire_lockup();
+    let holder: Addr = suite.holder_addr.clone();
     suite.app.execute_contract(
         holder.clone(),
         suite.liquid_pooler_addr.clone(),
@@ -126,7 +126,7 @@ fn test_withdraw_validates_holder() {
 fn test_withdraw_no_lp_or_covenant_denoms() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
     let withdrawer = suite.clock_addr.clone();
-
+    suite.expire_lockup();
     suite.withdraw(&withdrawer, None);
 }
 
@@ -146,7 +146,7 @@ fn test_withdraw_no_lp_tokens_withdraws_covenant_assets() {
 
     suite.assert_balance(suite.holder_addr.clone(), coin(0, DENOM_ATOM_ON_NTRN));
     suite.assert_balance(suite.holder_addr.clone(), coin(0, DENOM_LS_ATOM_ON_NTRN));
-
+    suite.expire_lockup();
     suite.withdraw(&withdrawer, None);
 
     suite.assert_balance(&suite.holder_addr.clone(), coin(500_000, DENOM_ATOM_ON_NTRN));
@@ -169,7 +169,7 @@ fn test_withdraw_no_percentage_defaults_to_full_position() {
     );
 
     suite.tick_contract(suite.liquid_pooler_addr.clone());
-
+    suite.expire_lockup();
     suite.withdraw(&withdrawer, None);
 
     suite.assert_balance(&holder, coin(500_000, DENOM_ATOM_ON_NTRN));

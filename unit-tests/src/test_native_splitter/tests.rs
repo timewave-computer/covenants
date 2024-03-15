@@ -13,22 +13,26 @@ use super::suite::NativeSplitterBuilder;
 
 #[test]
 #[should_panic(expected = "shares must add up to 1.0")]
-fn test_instantiate_validates_explicit_splits() {
-    let mut split_config = BTreeMap::new();
-    split_config.insert("a".to_string(), Decimal::percent(50));
-    split_config.insert("b".to_string(), Decimal::percent(60));
+fn test_instantiate_validates_explicit_split_shares() {
+    let mut builder = NativeSplitterBuilder::default();
+    let (denom, mut split_config) = builder.instantiate_msg.msg.splits.pop_first().unwrap();
+    let invalid_split_config: BTreeMap<String, Decimal> = split_config.receivers.iter_mut()
+        .map(|(k, _)| (k.to_string(), Decimal::percent(49)))
+        .collect();
+    builder.instantiate_msg.msg.splits.insert(denom, SplitConfig { receivers: invalid_split_config });
+    builder.build();
+}
 
-    let mut invalid_splits = BTreeMap::new();
-    invalid_splits.insert(
-        DENOM_ATOM_ON_NTRN.to_string(),
-        SplitConfig {
-            receivers: split_config,
-        },
-    );
-
-    NativeSplitterBuilder::default()
-        .with_splits(invalid_splits)
-        .build();
+#[test]
+#[should_panic]
+fn test_instantiate_validates_explicit_split_receiver_addresses() {
+    let mut builder = NativeSplitterBuilder::default();
+    let (denom, mut split_config) = builder.instantiate_msg.msg.splits.pop_first().unwrap();
+    let invalid_split_config: BTreeMap<String, Decimal> = split_config.receivers.iter_mut()
+        .map(|(k, v)| (format!("invalid_{:?}", k), v.clone()))
+        .collect();
+    builder.instantiate_msg.msg.splits.insert(denom, SplitConfig { receivers: invalid_split_config });
+    builder.build();
 }
 
 #[test]
@@ -40,9 +44,24 @@ fn test_instantiate_validates_clock_address() {
 }
 
 #[test]
-fn test_instantiate_validates_fallback_split() {
-    let _suite = NativeSplitterBuilder::default().build();
-    // should validate
+#[should_panic]
+fn test_instantiate_validates_fallback_split_receiver_addresses() {
+    let mut invalid_split_config = BTreeMap::new();
+    invalid_split_config.insert("invalid_address".to_string(), Decimal::one());
+    NativeSplitterBuilder::default()
+        .with_fallback_split(Some(SplitConfig { receivers: invalid_split_config }))
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "shares must add up to 1.0")]
+fn test_instantiate_validates_fallback_split_shares() {
+    let builder = NativeSplitterBuilder::default();
+    let mut invalid_split_config = BTreeMap::new();
+    invalid_split_config.insert(builder.instantiate_msg.msg.clock_address.to_string(), Decimal::percent(50));
+    builder
+        .with_fallback_split(Some(SplitConfig { receivers: invalid_split_config }))
+        .build();
 }
 
 #[test]

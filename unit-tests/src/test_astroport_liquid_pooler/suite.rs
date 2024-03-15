@@ -3,6 +3,7 @@ use cosmwasm_std::{coin, Addr, Coin, Decimal};
 use covenant_astroport_liquid_pooler::msg::{LpConfig, ProvidedLiquidityInfo, QueryMsg};
 use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
 use cw_multi_test::{AppResponse, Executor};
+use cw_utils::Expiration;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -42,7 +43,7 @@ impl Default for AstroLiquidPoolerBuilder {
             withdraw_to: Some(holder_addr.to_string()),
             emergency_committee_addr: None,
             pooler_address: liquid_pooler_addr.to_string(),
-            lockup_period: cw_utils::Expiration::AtHeight(12365),
+            lockup_period: cw_utils::Expiration::AtHeight(123665),
         };
 
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
@@ -219,6 +220,21 @@ impl Suite {
             &[],
         )
         .unwrap()
+    }
+
+    pub(crate) fn expire_lockup(&mut self) {
+        let holder = self.holder_addr.clone();
+        let expiration: Expiration = self.app.wrap().query_wasm_smart(
+            holder.to_string(),
+            &covenant_single_party_pol_holder::msg::QueryMsg::LockupConfig {},
+        )
+        .unwrap();
+        let app = self.get_app();
+        app.update_block(|b| match expiration {
+            Expiration::AtHeight(h) => b.height = h + 1,
+            Expiration::AtTime(t) => b.time = t,
+            Expiration::Never {} => (),
+        })
     }
 
     pub(crate) fn query_provided_liquidity_info(&self) -> ProvidedLiquidityInfo {

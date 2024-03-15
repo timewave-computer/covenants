@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    Attribute, BankMsg, Coin, CosmosMsg, Decimal, Fraction, StdError, StdResult, Uint128,
+    Api, Attribute, BankMsg, Coin, CosmosMsg, Decimal, Fraction, StdError, StdResult, Uint128
 };
 
 #[cw_serde]
@@ -63,10 +63,11 @@ impl SplitConfig {
     }
 
     /// Validate that all shares are added to one
-    pub fn validate_shares(&self) -> Result<(), StdError> {
+    pub fn validate_shares_and_receiver_addresses(&self, api: &dyn Api) -> Result<(), StdError> {
         let mut total_shares = Decimal::zero();
 
-        for (_, share) in self.receivers.clone() {
+        for (addr, share) in self.receivers.clone() {
+            api.addr_validate(&addr)?;
             total_shares += share;
         }
 

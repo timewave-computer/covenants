@@ -67,22 +67,21 @@ fn test_execute_claim_validates_lockup_period() {
 #[should_panic(expected = "No withdrawer address configured")]
 fn test_execute_claim_validates_withdrawer_set() {
     let mut suite = SinglePartyHolderBuilder::default()
-        .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
         .with_withdrawer(None)
         .build();
 
     let sender = suite.liquid_pooler_address.clone();
+    suite.expire_lockup();
     suite.execute_claim(sender);
 }
 
 #[test]
 #[should_panic(expected = "Unauthorized")]
 fn test_execute_claim_validates_withdrawer_addr() {
-    let mut suite = SinglePartyHolderBuilder::default()
-        .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
-        .build();
+    let mut suite = SinglePartyHolderBuilder::default().build();
 
     let sender = suite.faucet.clone();
+    suite.expire_lockup();
     suite.execute_claim(sender);
 }
 
@@ -91,24 +90,24 @@ fn test_execute_claim_validates_withdrawer_addr() {
 fn test_execute_claim_fails_with_no_withdraw_to() {
     let mut suite = SinglePartyHolderBuilder::default()
         .with_withdraw_to(None)
-        .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
         .build();
+    suite.expire_lockup();
 
     let sender = suite.liquid_pooler_address.clone();
+    suite.expire_lockup();
     suite.execute_claim(sender);
 }
 
 #[test]
 fn test_execute_claim_happy() {
-    let mut suite = SinglePartyHolderBuilder::default()
-        .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
-        .build();
+    let mut suite = SinglePartyHolderBuilder::default().build();
 
     suite.enter_pool();
 
     let sender = suite.liquid_pooler_address.clone();
     let bals = suite.query_all_balances(&suite.liquid_pooler_address);
     assert_eq!(bals.len(), 0);
+    suite.expire_lockup();
 
     suite.execute_claim(sender);
 
@@ -132,9 +131,7 @@ fn test_execute_emergency_withdraw_validates_emergency_committee() {
 
 #[test]
 fn test_execute_emergency_withdraw_happy() {
-    let mut suite = SinglePartyHolderBuilder::default()
-        .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
-        .build();
+    let mut suite = SinglePartyHolderBuilder::default().build();
 
     suite.enter_pool();
 
@@ -142,6 +139,7 @@ fn test_execute_emergency_withdraw_happy() {
     let bals = suite.query_all_balances(&suite.liquid_pooler_address);
     assert_eq!(bals.len(), 0);
 
+    suite.expire_lockup();
     suite.execute_emergency_withdraw(sender);
 
     let bals = suite.query_all_balances(&suite.liquid_pooler_address);
@@ -150,9 +148,7 @@ fn test_execute_emergency_withdraw_happy() {
 
 #[test]
 fn test_execute_distribute_validates_liquidity_pooler() {
-    let mut suite = SinglePartyHolderBuilder::default()
-        .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
-        .build();
+    let mut suite = SinglePartyHolderBuilder::default().build();
 
     let sender = suite.liquid_pooler_address.clone();
     let funds = vec![
@@ -160,7 +156,7 @@ fn test_execute_distribute_validates_liquidity_pooler() {
         coin(1_000_000, DENOM_LS_ATOM_ON_NTRN),
     ];
     suite.fund_contract_coins(funds.clone(), sender.clone());
-
+    suite.expire_lockup();
     let resp = suite.execute_distribute(sender, funds);
     println!("resp: {:?}", resp);
 }
@@ -169,24 +165,23 @@ fn test_execute_distribute_validates_liquidity_pooler() {
 #[should_panic(expected = "No withdraw_to address configured")]
 fn test_execute_distribute_validates_withdraw_to_addr() {
     let mut suite = SinglePartyHolderBuilder::default()
-        .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
         .with_withdraw_to(None)
         .build();
 
     let sender = suite.liquid_pooler_address.clone();
+    suite.expire_lockup();
     suite.execute_distribute(sender, vec![]);
 }
 
 #[test]
 #[should_panic(expected = "We expect 2 denoms to be received from the liquidity pooler")]
 fn test_execute_distribute_ensures_two_denoms_sent() {
-    let mut suite = SinglePartyHolderBuilder::default()
-        .with_lockup_period(cw_utils::Expiration::AtHeight(12312))
-        .build();
+    let mut suite = SinglePartyHolderBuilder::default().build();
 
     let sender = suite.liquid_pooler_address.clone();
     let funds = vec![coin(1_000_000, DENOM_ATOM_ON_NTRN)];
     suite.fund_contract_coins(funds.clone(), sender.clone());
+    suite.expire_lockup();
 
     suite.execute_distribute(sender, funds);
 }
