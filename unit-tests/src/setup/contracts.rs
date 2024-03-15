@@ -399,7 +399,17 @@ pub fn swap_covenant_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
         covenant_swap::contract::query(get_empty_deps(deps), env, msg)
     };
 
-    let contract = ContractWrapper::new(exec, init, query);
+    let migrate =
+        |deps: DepsMut<NeutronQuery>, env: Env, msg: covenant_swap::msg::MigrateMsg| {
+            execute_into_neutron(covenant_swap::contract::migrate(
+                get_empty_depsmut(deps),
+                env,
+                msg,
+            ))
+        };
+
+    let contract = ContractWrapper::new(exec, init, query)
+        .with_migrate(migrate);
     Box::new(contract)
 }
 

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Deps, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{Addr, Decimal, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_utils::{
@@ -11,7 +11,6 @@ use covenant_utils::{
 };
 use cw_utils::Expiration;
 
-const NEUTRON_DENOM: &str = "untrn";
 pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 
 #[cw_serde]
@@ -191,16 +190,19 @@ pub enum QueryMsg {
     PartyDepositAddress {},
     #[returns(Addr)]
     InterchainRouterAddress {},
+    #[returns(CovenantContractCodeIds)]
+    ContractCodes {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     MigrateContracts {
+        codes: Option<CovenantContractCodeIds>,
         clock: Option<covenant_clock::msg::MigrateMsg>,
         holder: Option<covenant_single_party_pol_holder::msg::MigrateMsg>,
         ls_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
         lp_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        splitter: Option<covenant_native_splitter::msg::MigrateMsg>,
+        splitter: Option<covenant_remote_chain_splitter::msg::MigrateMsg>,
         liquid_pooler: Option<LiquidPoolerMigrateMsg>,
         liquid_staker: Option<covenant_stride_liquid_staker::msg::MigrateMsg>,
         router: Option<covenant_interchain_router::msg::MigrateMsg>,

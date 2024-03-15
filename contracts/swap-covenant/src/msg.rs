@@ -182,11 +182,14 @@ pub enum QueryMsg {
     IbcForwarderAddress { party: String },
     #[returns(Addr)]
     PartyDepositAddress { party: String },
+    #[returns(CovenantContractCodes)]
+    ContractCodes {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateCovenant {
+        codes: Option<CovenantContractCodes>,
         clock: Option<covenant_clock::msg::MigrateMsg>,
         holder: Option<covenant_swap_holder::msg::MigrateMsg>,
         splitter: Option<covenant_native_splitter::msg::MigrateMsg>,
@@ -207,7 +210,7 @@ pub enum RouterMigrateMsg {
 }
 
 #[cw_serde]
-pub(crate) struct CovenantContractCodes {
+pub struct CovenantContractCodes {
     pub clock: u64,
     pub holder: u64,
     pub party_a_router: u64,
