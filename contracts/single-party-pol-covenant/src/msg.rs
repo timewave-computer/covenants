@@ -92,19 +92,18 @@ pub struct LsInfo {
 }
 
 impl CovenantPartyConfig {
-    pub fn to_receiver_config(&self, deps: Deps) -> StdResult<ReceiverConfig> {
+    pub fn to_receiver_config(&self) -> ReceiverConfig {
         match self {
-            CovenantPartyConfig::Interchain(config) => Ok(ReceiverConfig::Ibc(DestinationConfig {
+            CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
                 local_to_destination_chain_channel_id: config
                     .host_to_party_chain_channel_id
                     .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
                 denom_to_pfm_map: BTreeMap::new(),
-            })),
+            }),
             CovenantPartyConfig::Native(config) => {
-                let addr = deps.api.addr_validate(&config.party_receiver_addr)?;
-                Ok(ReceiverConfig::Native(addr))
+                ReceiverConfig::Native(config.party_receiver_addr.to_string())
             }
         }
     }
@@ -116,18 +115,18 @@ impl CovenantPartyConfig {
         }
     }
 
-    pub fn to_covenant_party(&self, deps: Deps) -> StdResult<CovenantParty> {
+    pub fn to_covenant_party(&self) -> CovenantParty {
         match self {
-            CovenantPartyConfig::Interchain(config) => Ok(CovenantParty {
+            CovenantPartyConfig::Interchain(config) => CovenantParty {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
-                receiver_config: self.to_receiver_config(deps)?,
-            }),
-            CovenantPartyConfig::Native(config) => Ok(CovenantParty {
+                receiver_config: self.to_receiver_config(),
+            },
+            CovenantPartyConfig::Native(config) => CovenantParty {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
-                receiver_config: self.to_receiver_config(deps)?,
-            }),
+                receiver_config: self.to_receiver_config(),
+            },
         }
     }
 

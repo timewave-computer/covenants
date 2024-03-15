@@ -79,12 +79,12 @@ impl SwapHolderInstantiate {
                     party_a: CovenantParty {
                         addr: party_a_addr.to_string(),
                         native_denom: DENOM_ATOM_ON_NTRN.to_string(),
-                        receiver_config: ReceiverConfig::Native(party_a_addr),
+                        receiver_config: ReceiverConfig::Native(party_a_addr.to_string()),
                     },
                     party_b: CovenantParty {
                         addr: party_b_addr.to_string(),
                         native_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
-                        receiver_config: ReceiverConfig::Native(party_b_addr),
+                        receiver_config: ReceiverConfig::Native(party_b_addr.to_string()),
                     },
                 },
             },

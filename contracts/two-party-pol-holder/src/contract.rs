@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{
-    ensure, to_json_binary, BankMsg, Binary, BlockInfo, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult
+    ensure, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult
 };
 
 #[cfg(not(feature = "library"))]
@@ -12,7 +12,6 @@ use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::split::SplitConfig;
 use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
 use cw2::set_contract_version;
-use cw_utils::Expiration;
 
 use crate::msg::CovenantType;
 use crate::state::{WithdrawState, LIQUID_POOLER_ADDRESS, WITHDRAW_STATE};
