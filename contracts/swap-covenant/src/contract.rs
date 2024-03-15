@@ -153,8 +153,8 @@ pub fn instantiate(
     let holder_instantiate2_msg = covenant_swap_holder::msg::InstantiateMsg {
         lockup_config: msg.lockup_config,
         parties_config: CovenantPartiesConfig {
-            party_a: msg.party_a_config.to_covenant_party(deps.as_ref())?,
-            party_b: msg.party_b_config.to_covenant_party(deps.as_ref())?,
+            party_a: msg.party_a_config.to_covenant_party(),
+            party_b: msg.party_b_config.to_covenant_party(),
         },
         covenant_terms: CovenantTerms::TokenSwap(SwapCovenantTerms {
             party_a_amount: msg.party_a_config.get_contribution().amount,
