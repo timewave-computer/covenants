@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::str::FromStr;
 
 use cosmos_sdk_proto::cosmos::bank::v1beta1::{Input, MsgMultiSend, Output};
 use cosmos_sdk_proto::cosmos::base::v1beta1::Coin;
@@ -7,7 +8,7 @@ use cosmos_sdk_proto::traits::Message;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, Fraction,
-    MessageInfo, Reply, Response, StdError, StdResult, SubMsg,
+    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::neutron::{get_ictxs_module_params_query_msg, QueryParamsResponse, RemoteChainInfo, SudoPayload};
@@ -64,19 +65,11 @@ pub fn instantiate(
 
     // validate each split and store it in a map
     let mut split_resp_attributes: Vec<Attribute> = Vec::with_capacity(msg.splits.len());
-    let mut encountered_denoms: HashSet<String> = HashSet::with_capacity(msg.splits.len());
 
     for (denom, split_config) in msg.splits {
-        // if denom had not yet been encountered we proceed, otherwise error
-        if encountered_denoms.insert(denom.to_string()) {
-            split_config.validate_shares()?;
-            split_resp_attributes.push(split_config.get_response_attribute(denom.to_string()));
-            SPLIT_CONFIG_MAP.save(deps.storage, denom, &split_config)?;
-        } else {
-            return Err(NeutronError::Std(StdError::GenericErr {
-                msg: format!("multiple {:?} entries", denom),
-            }));
-        }
+        split_config.validate_shares()?;
+        split_resp_attributes.push(split_config.get_response_attribute(denom.to_string()));
+        SPLIT_CONFIG_MAP.save(deps.storage, denom, &split_config)?;
     }
 
     Ok(Response::default()
@@ -149,6 +142,7 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
                 .receivers;
 
             let mut outputs: Vec<Output> = Vec::with_capacity(splits.len());
+            let mut total_allocated = Uint128::zero();
             for (split_receiver, share) in splits.iter() {
                 // query the ibc forwarders for their ICA addresses
                 // if either does not exist yet, error out
@@ -181,8 +175,17 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
                     address: receiver_ica,
                     coins: vec![coin.clone()],
                 };
-
+                total_allocated += amt;
                 outputs.push(output);
+            }
+
+            // if there is no leftover, nothing happens.
+            // otherwise we add the leftover to the first receiver.
+            if let Some(output) = outputs.first_mut() {
+                output.coins[0].amount = (
+                    Uint128::from_str(&output.coins[0].amount)? + (amount - total_allocated)
+                )
+                .to_string();
             }
 
             let mut inputs: Vec<Input> = Vec::new();
