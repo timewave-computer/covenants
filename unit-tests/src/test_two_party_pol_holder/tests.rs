@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::{coin, Addr, Decimal, Event, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Event, Timestamp, Uint128};
 use covenant_two_party_pol_holder::msg::{ContractState, RagequitConfig, RagequitTerms};
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::Executor;
@@ -46,10 +46,28 @@ fn test_instantiate_validates_deposit_deadline() {
 }
 
 #[test]
-#[should_panic(expected = "lockup deadline is already past")]
+#[should_panic(expected = "lockup deadline must be after the deposit deadline")]
 fn test_instantiate_validates_lockup_config() {
     TwoPartyHolderBuilder::default()
         .with_lockup_config(Expiration::AtHeight(1))
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "cannot validate deposit and lockup expirations")]
+fn test_instantiate_validates_incompatible_deposit_and_lockup_expirations() {
+    TwoPartyHolderBuilder::default()
+        .with_deposit_deadline(Expiration::AtHeight(200000))
+        .with_lockup_config(Expiration::AtTime(Timestamp::from_seconds(10000999990)))
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "lockup deadline must be after the deposit deadline")]
+fn test_instantiate_validates_deposit_deadline_prior_to_lockup_expiration() {
+    TwoPartyHolderBuilder::default()
+        .with_deposit_deadline(Expiration::AtHeight(200000))
+        .with_lockup_config(Expiration::AtHeight(100000))
         .build();
 }
 
