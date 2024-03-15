@@ -34,15 +34,18 @@ pub fn instantiate(
 ) -> NeutronResult<Response<NeutronMsg>> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    CLOCK_ADDRESS.save(deps.storage, &msg.clock_address)?;
+    let clock_address = deps.api.addr_validate(&msg.clock_address)?;
+    deps.api.addr_validate(&msg.destination_config.destination_receiver_addr)?;
+
+    CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
     DESTINATION_CONFIG.save(deps.storage, &msg.destination_config)?;
     TARGET_DENOMS.save(deps.storage, &msg.denoms)?;
 
     Ok(Response::default()
         .add_message(enqueue_msg(msg.clock_address.as_str())?)
         .add_attribute("method", "interchain_router_instantiate")
-        .add_attribute("clock_address", msg.clock_address.to_string()))
-    // .add_attributes(destination_config.get_response_attributes()))
+        .add_attribute("clock_address", clock_address.to_string())
+        .add_attributes(msg.destination_config.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

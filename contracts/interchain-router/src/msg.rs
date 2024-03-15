@@ -9,7 +9,7 @@ use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, DestinationC
 pub struct InstantiateMsg {
     /// address for the clock. this contract verifies
     /// that only the clock can execute ticks
-    pub clock_address: Addr,
+    pub clock_address: String,
     /// config that determines how to facilitate the ibc routing
     pub destination_config: DestinationConfig,
     /// specified denoms to route

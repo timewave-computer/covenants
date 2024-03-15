@@ -23,14 +23,14 @@ impl InterchainRouterInstantiate {
     ) -> Self {
         Self {
             msg: covenant_interchain_router::msg::InstantiateMsg {
-                clock_address,
+                clock_address: clock_address.to_string(),
                 destination_config,
                 denoms,
             },
         }
     }
 
-    pub fn with_clock_address(&mut self, addr: Addr) -> &mut Self {
+    pub fn with_clock_address(&mut self, addr: String) -> &mut Self {
         self.msg.clock_address = addr;
         self
     }

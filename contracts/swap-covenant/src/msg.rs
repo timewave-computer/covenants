@@ -102,7 +102,7 @@ impl CovenantPartyConfig {
                     denom_to_pfm_map: party.denom_to_pfm_map.clone(),
                 };
                 let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
-                    clock_address: clock_addr,
+                    clock_address: clock_addr.to_string(),
                     destination_config,
                     denoms: covenant_denoms,
                 };
