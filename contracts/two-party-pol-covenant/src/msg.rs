@@ -161,7 +161,7 @@ impl CovenantPartyConfig {
         match self {
             CovenantPartyConfig::Interchain(party) => {
                 let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
-                    clock_address: clock_addr,
+                    clock_address: clock_addr.to_string(),
                     destination_config: DestinationConfig {
                         local_to_destination_chain_channel_id: party
                             .host_to_party_chain_channel_id
