@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Coin, Decimal, StdResult};
+use covenant_single_party_pol::msg::CovenantContractCodeIds;
 use cw_multi_test::Executor;
 
 use crate::setup::{
@@ -460,5 +461,15 @@ impl Suite {
             self.covenant_addr.clone(),
             &covenant_single_party_pol::msg::QueryMsg::PartyDepositAddress {},
         )
+    }
+
+    pub fn query_contract_codes(&self) -> CovenantContractCodeIds {
+        self.app
+            .wrap()
+            .query_wasm_smart::<CovenantContractCodeIds>(
+                self.covenant_addr.clone(),
+                &covenant_two_party_pol::msg::QueryMsg::ContractCodes {},
+            )
+            .unwrap()
     }
 }

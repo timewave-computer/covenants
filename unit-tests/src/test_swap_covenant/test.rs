@@ -1,11 +1,8 @@
-use cosmwasm_std::{coin, coins, Uint128};
+use cosmwasm_std::{coin, coins, to_json_binary, Addr, Event, Uint128, Uint64};
 use cw_multi_test::Executor;
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut},
-    DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_FALLBACK, DENOM_FALLBACK_ON_HUB, DENOM_FALLBACK_ON_OSMO,
-    DENOM_HUB_ON_OSMO_FROM_NTRN, DENOM_NTRN, DENOM_NTRN_ON_HUB, DENOM_OSMO,
-    DENOM_OSMO_ON_HUB_FROM_NTRN, DENOM_OSMO_ON_NTRN,
+    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::ibc_forwarder, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_FALLBACK, DENOM_FALLBACK_ON_HUB, DENOM_FALLBACK_ON_OSMO, DENOM_HUB_ON_OSMO_FROM_NTRN, DENOM_NTRN, DENOM_NTRN_ON_HUB, DENOM_OSMO, DENOM_OSMO_ON_HUB_FROM_NTRN, DENOM_OSMO_ON_NTRN
 };
 
 use super::suite::Suite;
@@ -428,6 +425,112 @@ fn test_covenant_native_refund() {
 
     let receiver_b_balance_ntrn = suite.query_balance(&suite.party_b_receiver, DENOM_NTRN);
     assert_eq!(receiver_b_balance_ntrn.amount.u128(), 10_000_000_u128);
+}
+
+#[test]
+fn test_migrate_update_with_codes() {
+    let mut suite = Suite::new_with_2_native_configs();
+    let covenant_addr = suite.covenant_addr.to_string();
+
+    let mut contract_codes = suite.query_contract_codes();
+    contract_codes.clock = 1;
+
+    let native_router_migrate_msg = covenant_native_router::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(covenant_addr.to_string()),
+        target_denoms: None,
+        receiver_address: None,
+    };
+
+    let holder_migrate_msg = covenant_swap_holder::msg::MigrateMsg::UpdateConfig { 
+        clock_addr: Some(covenant_addr.to_string()),
+        next_contract: None,
+        lockup_config: None,
+        parites_config: Box::new(None),
+        covenant_terms: None,
+    };
+
+    let splitter_migrate_msg = covenant_native_splitter::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(covenant_addr.to_string()),
+        fallback_split: None,
+        splits: None,
+    };
+
+    let resp = suite.app.migrate_contract(
+        Addr::unchecked(ADMIN),
+        Addr::unchecked(covenant_addr),
+        &covenant_swap::msg::MigrateMsg::UpdateCovenant {
+            codes: Some(contract_codes.clone()),
+            clock: None,
+            holder: Some(holder_migrate_msg.clone()),
+            splitter: Some(splitter_migrate_msg.clone()),
+            party_a_router: Some(covenant_swap::msg::RouterMigrateMsg::Native(native_router_migrate_msg.clone())),
+            party_b_router: Some(covenant_swap::msg::RouterMigrateMsg::Native(native_router_migrate_msg.clone())),
+            party_a_forwarder: None,
+            party_b_forwarder: Box::new(None),
+        },
+        1,
+    )
+    .unwrap();
+
+    resp.assert_event(&Event::new("wasm")
+        .add_attribute("contract_codes_migrate", to_json_binary(&contract_codes).unwrap().to_base64())
+        .add_attribute("holder_migrate", to_json_binary(&holder_migrate_msg).unwrap().to_base64())
+        .add_attribute("splitter_migrate", to_json_binary(&splitter_migrate_msg).unwrap().to_base64())
+        .add_attribute("party_a_router_migrate", to_json_binary(&native_router_migrate_msg).unwrap().to_base64())
+        .add_attribute("party_b_router_migrate", to_json_binary(&native_router_migrate_msg).unwrap().to_base64())
+    );
+
+    let new_codes = suite.query_contract_codes();
+    assert_eq!(contract_codes, new_codes);
+}
+
+
+#[test]
+fn test_migrate_update_without_codes() {
+    let mut suite = Suite::new_with_2_interchain_configs();
+    let covenant_addr = suite.covenant_addr.to_string();
+
+    let interchain_router_migrate_msg = covenant_interchain_router::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(covenant_addr.to_string()),
+        target_denoms: None,
+        destination_config: None,
+    };
+
+    let ibc_forwarder_migrate_msg = covenant_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
+        clock_addr: Some(covenant_addr.to_string()),
+        next_contract: None,
+        remote_chain_info: Box::new(None),
+        transfer_amount: None,
+    };
+
+    let clock_migrate_msg = covenant_clock::msg::MigrateMsg::UpdateTickMaxGas { 
+        new_value: Uint64::new(50000),
+    };
+
+    let resp = suite.app.migrate_contract(
+        Addr::unchecked(ADMIN),
+        Addr::unchecked(covenant_addr),
+        &covenant_swap::msg::MigrateMsg::UpdateCovenant {
+            codes: None,
+            clock: Some(clock_migrate_msg.clone()),
+            holder: None,
+            splitter: None,
+            party_a_router: Some(covenant_swap::msg::RouterMigrateMsg::Interchain(interchain_router_migrate_msg.clone())),
+            party_b_router: Some(covenant_swap::msg::RouterMigrateMsg::Interchain(interchain_router_migrate_msg.clone())),
+            party_a_forwarder: Some(ibc_forwarder_migrate_msg.clone()),
+            party_b_forwarder: Box::new(Some(ibc_forwarder_migrate_msg.clone())),
+        },
+        1,
+    )
+    .unwrap();
+
+    resp.assert_event(&Event::new("wasm")
+        .add_attribute("clock_migrate", to_json_binary(&clock_migrate_msg).unwrap().to_base64())
+        .add_attribute("party_a_router_migrate", to_json_binary(&interchain_router_migrate_msg).unwrap().to_base64())
+        .add_attribute("party_b_router_migrate", to_json_binary(&interchain_router_migrate_msg).unwrap().to_base64())
+        .add_attribute("party_a_forwarder_migrate", to_json_binary(&ibc_forwarder_migrate_msg).unwrap().to_base64())
+        .add_attribute("party_b_forwarder_migrate", to_json_binary(&ibc_forwarder_migrate_msg).unwrap().to_base64())
+    );
 }
 
 // TODO: swap holder is using IBC transfer method isntead of the neutron msg, so this test is not working

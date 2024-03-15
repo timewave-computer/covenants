@@ -1,6 +1,7 @@
 use std::vec;
 
 use cosmwasm_std::{coins, Addr, Coin, Decimal, StdResult};
+use covenant_swap::msg::CovenantContractCodes;
 use cw_multi_test::Executor;
 
 use crate::setup::{
@@ -499,5 +500,15 @@ impl Suite {
                 party: party.to_string(),
             },
         )
+    }
+
+    pub fn query_contract_codes(&self) -> CovenantContractCodes {
+        self.app
+            .wrap()
+            .query_wasm_smart::<CovenantContractCodes>(
+                self.covenant_addr.clone(),
+                &covenant_swap::msg::QueryMsg::ContractCodes {},
+            )
+            .unwrap()
     }
 }

@@ -202,7 +202,7 @@ pub struct CovenantContractCodeIds {
 }
 
 #[cw_serde]
-pub(crate) struct CovenantContractCodes {
+pub struct CovenantContractCodes {
     pub clock: u64,
     pub holder: u64,
     pub liquid_pooler: u64,
@@ -265,11 +265,14 @@ pub enum QueryMsg {
     LiquidPoolerAddress {},
     #[returns(Addr)]
     PartyDepositAddress { party: String },
+    #[returns(CovenantContractCodes)]
+    ContractCodes {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateCovenant {
+        codes: Option<CovenantContractCodes>,
         clock: Option<covenant_clock::msg::MigrateMsg>,
         holder: Option<covenant_two_party_pol_holder::msg::MigrateMsg>,
         liquid_pooler: Option<LiquidPoolerMigrateMsg>,

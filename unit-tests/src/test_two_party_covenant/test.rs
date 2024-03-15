@@ -108,9 +108,6 @@ fn test_migrate_update_config_party_a_interchain() {
         .build();
     let random_address = suite.faucet.clone();
 
-    let clock_migrate_msg = covenant_clock::msg::MigrateMsg::UpdateTickMaxGas {
-        new_value: Uint64::new(500_000),
-    };
     let holder_migrate_msg = covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(random_address.to_string()),
         next_contract: None,
@@ -155,11 +152,13 @@ fn test_migrate_update_config_party_a_interchain() {
         remote_chain_info: None.into(),
         transfer_amount: None,
     };
-
+    let mut contract_codes = suite.query_contract_codes();
+    contract_codes.clock = 1;
     let resp = suite.migrate_update(
         21,
         covenant_two_party_pol::msg::MigrateMsg::UpdateCovenant {
-            clock: Some(clock_migrate_msg.clone()),
+            codes: Some(contract_codes.clone()),
+            clock: None,
             holder: Some(holder_migrate_msg.clone()),
             liquid_pooler: Some(liquid_pooler_migrate_msg.clone()),
             party_a_router: Some(party_a_router_migrate_msg.clone()),
@@ -172,8 +171,8 @@ fn test_migrate_update_config_party_a_interchain() {
     resp.assert_event(
         &Event::new("wasm")
             .add_attribute(
-                "clock_migrate",
-                to_json_binary(&clock_migrate_msg).unwrap().to_string(),
+                "contract_codes_migrate",
+                to_json_binary(&contract_codes).unwrap().to_string(),
             )
             .add_attribute(
                 "party_a_router_migrate",
@@ -205,22 +204,16 @@ fn test_migrate_update_config_party_a_interchain() {
             ),
     );
 
-    let clock_address = suite.query_clock_address();
     let holder_address = suite.query_holder_address();
     let liquid_pooler_address = suite.query_liquid_pooler_address();
     let party_a_router_address = suite.query_interchain_router_address("party_a");
     let party_b_router_address = suite.query_interchain_router_address("party_b");
     let party_a_forwarder_address = suite.query_ibc_forwarder_address("party_a");
+    let new_contract_codes = suite.query_contract_codes();
 
     suite.tick_contract(suite.clock_addr.clone());
 
     let app = suite.get_app();
-
-    let clock_max_gas: Uint64 = app
-        .wrap()
-        .query_wasm_smart(clock_address, &covenant_clock::msg::QueryMsg::TickMaxGas {})
-        .unwrap();
-    assert_eq!(clock_max_gas, Uint64::new(500_000));
 
     let holder_clock_address: Addr = app
         .wrap()
@@ -266,6 +259,8 @@ fn test_migrate_update_config_party_a_interchain() {
         )
         .unwrap();
     assert_eq!(party_a_forwarder_clock_address, random_address);
+
+    assert_eq!(new_contract_codes, contract_codes);
 }
 
 #[test]
@@ -343,10 +338,13 @@ fn test_migrate_update_config_party_b_interchain() {
         remote_chain_info: None.into(),
         transfer_amount: None,
     };
+    let mut contract_codes = suite.query_contract_codes();
+    contract_codes.party_a_forwarder = 1;
 
     let resp = suite.migrate_update(
         21,
         covenant_two_party_pol::msg::MigrateMsg::UpdateCovenant {
+            codes: Some(contract_codes.clone()),
             clock: Some(clock_migrate_msg.clone()),
             holder: Some(holder_migrate_msg.clone()),
             liquid_pooler: Some(liquid_pooler_migrate_msg.clone()),
@@ -359,6 +357,10 @@ fn test_migrate_update_config_party_b_interchain() {
 
     resp.assert_event(
         &Event::new("wasm")
+            .add_attribute(
+                "contract_codes_migrate",
+                to_json_binary(&contract_codes).unwrap().to_string(),
+            )
             .add_attribute(
                 "clock_migrate",
                 to_json_binary(&clock_migrate_msg).unwrap().to_string(),
@@ -399,7 +401,7 @@ fn test_migrate_update_config_party_b_interchain() {
     let party_a_router_address = suite.query_interchain_router_address("party_a");
     let party_b_router_address = suite.query_interchain_router_address("party_b");
     let party_b_forwarder_address = suite.query_ibc_forwarder_address("party_b");
-
+    let new_contract_codes = suite.query_contract_codes();
     suite.tick_contract(suite.clock_addr.clone());
 
     let app = suite.get_app();
@@ -454,4 +456,5 @@ fn test_migrate_update_config_party_b_interchain() {
         )
         .unwrap();
     assert_eq!(party_b_forwarder_clock_address, random_address);
+    assert_eq!(new_contract_codes, contract_codes);
 }

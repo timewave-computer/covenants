@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{coin, Addr, Uint64};
-use covenant_two_party_pol::msg::Timeouts;
+use covenant_two_party_pol::msg::{CovenantContractCodes, Timeouts};
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
@@ -270,6 +270,16 @@ impl Suite {
                 &covenant_two_party_pol::msg::QueryMsg::InterchainRouterAddress {
                     party: party.to_string(),
                 },
+            )
+            .unwrap()
+    }
+
+    pub fn query_contract_codes(&self) -> CovenantContractCodes {
+        self.app
+            .wrap()
+            .query_wasm_smart::<CovenantContractCodes>(
+                self.covenant_addr.clone(),
+                &covenant_two_party_pol::msg::QueryMsg::ContractCodes {},
             )
             .unwrap()
     }
