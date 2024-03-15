@@ -32,6 +32,14 @@ fn test_instantiate_validates_explicit_splits() {
 }
 
 #[test]
+#[should_panic]
+fn test_instantiate_validates_clock_address() {
+    NativeSplitterBuilder::default()
+        .with_clock_address("invalid_clock".to_string())
+        .build();
+}
+
+#[test]
 fn test_instantiate_validates_fallback_split() {
     let _suite = NativeSplitterBuilder::default().build();
     // should validate

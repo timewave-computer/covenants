@@ -29,7 +29,8 @@ pub fn instantiate(
 
     let mut resp = Response::default().add_attribute("method", "native_splitter_instantiate");
 
-    CLOCK_ADDRESS.save(deps.storage, &msg.clock_address)?;
+    let clock_address = deps.api.addr_validate(&msg.clock_address)?;
+    CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
     resp = resp.add_attribute("clock_addr", msg.clock_address.to_string());
 
     // we validate the splits and store them per-denom
@@ -46,7 +47,10 @@ pub fn instantiate(
         resp = resp.add_attribute("fallback", "None");
     }
 
-    Ok(resp.add_message(enqueue_msg(msg.clock_address.as_str())?))
+    Ok(resp
+        .add_message(enqueue_msg(msg.clock_address.as_str())?)
+        .add_attribute("clock_address", clock_address)
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

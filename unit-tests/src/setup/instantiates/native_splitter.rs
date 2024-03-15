@@ -17,7 +17,7 @@ impl From<NativeSplitterInstantiate> for covenant_native_splitter::msg::Instanti
 
 impl NativeSplitterInstantiate {
     pub fn new(
-        clock_address: Addr,
+        clock_address: String,
         splits: BTreeMap<String, SplitConfig>,
         fallback_split: Option<SplitConfig>,
     ) -> Self {
@@ -30,7 +30,7 @@ impl NativeSplitterInstantiate {
         }
     }
 
-    pub fn with_clock_address(&mut self, addr: Addr) -> &mut Self {
+    pub fn with_clock_address(&mut self, addr: String) -> &mut Self {
         self.msg.clock_address = addr;
         self
     }
@@ -47,7 +47,7 @@ impl NativeSplitterInstantiate {
 }
 
 impl NativeSplitterInstantiate {
-    pub fn default(clock_address: Addr, party_a_addr: String, party_b_addr: String) -> Self {
+    pub fn default(clock_address: String, party_a_addr: String, party_b_addr: String) -> Self {
         let mut splits = BTreeMap::new();
         splits.insert(party_a_addr, Decimal::from_str("0.5").unwrap());
         splits.insert(party_b_addr, Decimal::from_str("0.5").unwrap());

@@ -122,7 +122,7 @@ pub fn instantiate(
     )?;
 
     let splitter_instantiate2_msg = covenant_native_splitter::msg::InstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.clone(),
+        clock_address: clock_instantiate2_config.addr.to_string(),
         splits: remap_splits(
             msg.splits.clone(),
             (
