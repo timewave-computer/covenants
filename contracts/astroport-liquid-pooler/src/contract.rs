@@ -109,7 +109,11 @@ fn try_withdraw(
     percent: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     let percent = percent.unwrap_or(Decimal::one());
-    // Verify percentage is < 1 and > 0
+    ensure!(
+        percent > Decimal::zero() && percent <= Decimal::one(),
+        ContractError::WithdrawPercentageRangeError {}
+    );
+
     let holder_addr = HOLDER_ADDRESS
         .load(deps.storage)
         .map_err(|_| ContractError::MissingHolderError {})?;
