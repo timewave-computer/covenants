@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::{coin, coins, Addr, Decimal};
+use cosmwasm_std::{coin, coins, Addr, Decimal, Uint128};
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::Executor;
 
@@ -123,6 +123,63 @@ fn test_execute_tick_splits_funds_happy() {
 
     suite.assert_balance(&r1_ica, amount_halved.clone());
     suite.assert_balance(&r2_ica, amount_halved.clone());
+    suite.assert_balance(&splitter_ica, zero_bal.clone());
+}
+
+#[test]
+fn test_execute_tick_splits_with_no_leftover() {
+    let mut builder = RemoteChainSplitterBuilder::default().with_amount(Uint128::new(100));
+    let mut split_config = builder.instantiate_msg.msg.splits.get(DENOM_ATOM_ON_NTRN).unwrap().clone();
+    let mut first_entry = split_config.receivers.pop_first().unwrap();
+    let mut second_entry = split_config.receivers.pop_first().unwrap();
+
+    first_entry.1 = Decimal::from_str("0.107").unwrap();
+    second_entry.1 = Decimal::from_str("0.893").unwrap();
+
+    split_config.receivers.insert(first_entry.0, first_entry.1);
+    split_config.receivers.insert(second_entry.0, second_entry.1);
+
+    builder.instantiate_msg.msg.splits.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config);
+
+    let mut suite = builder.build();
+
+    let splitter = suite.splitter.clone();
+    let receiver_1 = suite.receiver_1.clone();
+    let receiver_2 = suite.receiver_2.clone();
+
+    suite.fund_contract(&coins(10000000, DENOM_NTRN), splitter.clone());
+    suite.fund_contract(&coins(1000000, DENOM_NTRN), receiver_1.clone());
+    suite.fund_contract(&coins(1000000, DENOM_NTRN), receiver_2.clone());
+
+    assert!(suite.query_deposit_address(splitter.clone()).is_none());
+    assert!(suite.query_deposit_address(receiver_1.clone()).is_none());
+    assert!(suite.query_deposit_address(receiver_2.clone()).is_none());
+
+    suite.tick_contract(splitter.clone());
+    suite.tick_contract(receiver_1.clone());
+    suite.tick_contract(receiver_2.clone());
+
+    let r1_ica = Addr::unchecked(suite.query_deposit_address(receiver_1.clone()).unwrap());
+    let r2_ica = Addr::unchecked(suite.query_deposit_address(receiver_2.clone()).unwrap());
+    let splitter_ica = Addr::unchecked(suite.query_deposit_address(splitter.clone()).unwrap());
+
+    let zero_bal = coin(0, DENOM_ATOM_ON_NTRN);
+
+    suite.assert_balance(&r1_ica, zero_bal.clone());
+    suite.assert_balance(&r2_ica, zero_bal.clone());
+    suite.assert_balance(&splitter_ica, zero_bal.clone());
+
+    let amount = coins(100, DENOM_ATOM_ON_NTRN);
+    let expected_first_coin = coin(11, DENOM_ATOM_ON_NTRN);
+    let expected_second_coin = coin(89, DENOM_ATOM_ON_NTRN);
+
+    suite.fund_contract(&amount, splitter_ica.clone());
+    suite.assert_balance(&splitter_ica, amount[0].clone());
+
+    suite.tick_contract(splitter);
+
+    suite.assert_balance(&r1_ica, expected_first_coin.clone());
+    suite.assert_balance(&r2_ica, expected_second_coin.clone());
     suite.assert_balance(&splitter_ica, zero_bal.clone());
 }
 
