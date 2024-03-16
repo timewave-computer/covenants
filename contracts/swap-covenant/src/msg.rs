@@ -75,6 +75,13 @@ impl CovenantPartyConfig {
         }
     }
 
+    pub fn get_native_denom(&self) -> String {
+        match self {
+            CovenantPartyConfig::Interchain(config) => config.native_denom.to_string(),
+            CovenantPartyConfig::Native(config) => config.native_denom.to_string(),
+        }
+    }
+
     pub fn get_contribution(&self) -> Coin {
         match self {
             CovenantPartyConfig::Interchain(config) => config.contribution.clone(),
