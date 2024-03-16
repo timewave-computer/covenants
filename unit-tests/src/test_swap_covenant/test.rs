@@ -2,10 +2,22 @@ use cosmwasm_std::{coin, coins, to_json_binary, Addr, Event, Uint128, Uint64};
 use cw_multi_test::Executor;
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::ibc_forwarder, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_FALLBACK, DENOM_FALLBACK_ON_HUB, DENOM_FALLBACK_ON_OSMO, DENOM_HUB_ON_OSMO_FROM_NTRN, DENOM_NTRN, DENOM_NTRN_ON_HUB, DENOM_OSMO, DENOM_OSMO_ON_HUB_FROM_NTRN, DENOM_OSMO_ON_NTRN
+    base_suite::{BaseSuite, BaseSuiteMut}, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_FALLBACK, DENOM_FALLBACK_ON_HUB, DENOM_FALLBACK_ON_OSMO, DENOM_HUB_ON_OSMO_FROM_NTRN, DENOM_NTRN, DENOM_NTRN_ON_HUB, DENOM_OSMO, DENOM_OSMO_ON_HUB_FROM_NTRN, DENOM_OSMO_ON_NTRN
 };
 
 use super::suite::Suite;
+
+#[test]
+#[should_panic(expected = "uatom contribution missing an explicit split configuration")]
+fn test_instantiate_validates_split_config_denom_1() {
+    Suite::new_with_split_denoms("invalid", DENOM_NTRN);
+}
+
+#[test]
+#[should_panic(expected = "untrn contribution missing an explicit split configuration")]
+fn test_instantiate_validates_split_config_denom_2() {
+    Suite::new_with_split_denoms(DENOM_ATOM_ON_NTRN, "invalid");
+}
 
 #[test]
 fn test_covenant() {

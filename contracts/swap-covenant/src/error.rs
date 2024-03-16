@@ -27,4 +27,7 @@ pub enum ContractError {
 
     #[error("{0}")]
     InstantiationError(#[from] Instantiate2AddressError),
+
+    #[error("{0} contribution missing an explicit split configuration (got {1})")]
+    DenomMisconfigurationError(String,String),
 }

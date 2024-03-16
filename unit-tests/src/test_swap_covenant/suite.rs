@@ -229,6 +229,51 @@ impl Suite {
         Self::build(builder, covenant_addr, party_a_receiver, party_b_receiver)
     }
 
+    pub fn new_with_split_denoms(denom_1: &str, denom_2: &str) -> Self {
+        let mut builder = SuiteBuilder::new();
+
+        let covenant_addr =
+            builder.get_contract_addr(builder.swap_covenant_code_id, SWAP_COVENANT_SALT);
+
+        let party_a_receiver = builder.get_random_addr();
+        let party_a_on_ntrn = builder.get_random_addr();
+        let party_b_receiver = builder.get_random_addr();
+
+        let recievers = vec![
+            (&party_a_receiver, Decimal::bps(5000)),
+            (&party_b_receiver, Decimal::bps(5000)),
+        ];
+        let splits = SwapCovenantInstantiate::get_split_custom(vec![
+            (denom_1, &recievers),
+            (denom_2, &recievers),
+        ]);
+        let party_a_config = SwapCovenantInstantiate::get_party_config_interchain(
+            &party_a_receiver,
+            &party_a_on_ntrn,
+            DENOM_ATOM,
+            DENOM_ATOM_ON_NTRN,
+            NTRN_HUB_CHANNEL.0,
+            NTRN_HUB_CHANNEL.1,
+            10_000_000_u128,
+        );
+        let party_b_config = SwapCovenantInstantiate::get_party_config_native(
+            &party_b_receiver,
+            DENOM_NTRN,
+            10_000_000_u128,
+        );
+        let init_msg =
+            SwapCovenantInstantiate::default(&builder, party_a_config, party_b_config, splits).msg;
+
+        builder.contract_init2(
+            builder.swap_covenant_code_id,
+            SWAP_COVENANT_SALT,
+            &init_msg,
+            &[],
+        );
+
+        Self::build(builder, covenant_addr, party_a_receiver, party_b_receiver)
+    }
+
     /// Init covenant with 2 native parties and 50% split of both denoms
     pub fn new_with_2_native_configs() -> Self {
         let mut builder = SuiteBuilder::new();
