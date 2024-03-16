@@ -88,31 +88,6 @@ pub struct CovenantParty {
 }
 
 impl CovenantParty {
-    pub fn get_refund_msg(self, amount: Uint128, block: &BlockInfo) -> CosmosMsg {
-        match self.receiver_config {
-            ReceiverConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
-                to_address: addr.to_string(),
-                amount: vec![cosmwasm_std::Coin {
-                    denom: self.native_denom,
-                    amount,
-                }],
-            }),
-            ReceiverConfig::Ibc(destination_config) => CosmosMsg::Ibc(IbcMsg::Transfer {
-                channel_id: destination_config.local_to_destination_chain_channel_id,
-                to_address: self.addr.to_string(),
-                amount: cosmwasm_std::Coin {
-                    denom: self.native_denom,
-                    amount,
-                },
-                timeout: IbcTimeout::with_timestamp(
-                    block
-                        .time
-                        .plus_seconds(destination_config.ibc_transfer_timeout.u64()),
-                ),
-            }),
-        }
-    }
-
     pub fn validate_addresses(&self, api: &dyn Api) -> StdResult<Addr> {
         match &self.receiver_config {
             ReceiverConfig::Native(addr) => api.addr_validate(&addr),

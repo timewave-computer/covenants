@@ -395,6 +395,7 @@ fn test_covenant_interchain_fallback_split() {
 #[test]
 fn test_covenant_native_refund() {
     let mut suite = Suite::new_with_2_native_configs();
+    let init_ntrn_router_balance = suite.query_balance(&suite.router_b_addr, DENOM_NTRN);
 
     // Wait until depositors are ready and fund them
     suite.get_and_fund_depositors(
@@ -436,7 +437,8 @@ fn test_covenant_native_refund() {
     assert_eq!(receiver_a_balance_atom.amount.u128(), 10_000_000_u128);
 
     let receiver_b_balance_ntrn = suite.query_balance(&suite.party_b_receiver, DENOM_NTRN);
-    assert_eq!(receiver_b_balance_ntrn.amount.u128(), 10_000_000_u128);
+    // router comes prefunded with some ntrn so we add that to the assertion
+    assert_eq!(receiver_b_balance_ntrn.amount.u128(), 10_000_000_u128 + init_ntrn_router_balance.amount.u128());
 }
 
 #[test]
@@ -459,6 +461,7 @@ fn test_migrate_update_with_codes() {
         lockup_config: None,
         parites_config: Box::new(None),
         covenant_terms: None,
+        refund_config: None,
     };
 
     let splitter_migrate_msg = covenant_native_splitter::msg::MigrateMsg::UpdateConfig {

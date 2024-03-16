@@ -5,6 +5,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     ensure, to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg
 };
+use covenant_swap_holder::msg::RefundConfig;
 use covenant_utils::{
     instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits,
     CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms,
@@ -172,6 +173,10 @@ pub fn instantiate(
         }),
         clock_address: clock_instantiate2_config.addr.to_string(),
         next_contract: splitter_instantiate2_config.addr.to_string(),
+        refund_config: RefundConfig {
+            party_a_refund_address: party_a_router_instantiate2_config.addr.to_string(),
+            party_b_refund_address: party_b_router_instantiate2_config.addr.to_string(),
+        },
     }
     .to_instantiate2_msg(
         &holder_instantiate2_config,

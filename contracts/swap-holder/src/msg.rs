@@ -26,6 +26,8 @@ pub struct InstantiateMsg {
     pub parties_config: CovenantPartiesConfig,
     /// terms of the covenant
     pub covenant_terms: CovenantTerms,
+    /// refund configuration containing party router adresses
+    pub refund_config: RefundConfig,
 }
 
 impl InstantiateMsg {
@@ -59,6 +61,12 @@ impl InstantiateMsg {
     }
 }
 
+#[cw_serde]
+pub struct RefundConfig {
+    pub party_a_refund_address: String,
+    pub party_b_refund_address: String,
+}
+
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {}
@@ -78,6 +86,8 @@ pub enum QueryMsg {
     CovenantTerms {},
     #[returns(ContractState)]
     ContractState {},
+    #[returns(RefundConfig)]
+    RefundConfig {},
 }
 
 #[cw_serde]
@@ -104,6 +114,7 @@ pub enum MigrateMsg {
         lockup_config: Option<Expiration>,
         parites_config: Box<Option<CovenantPartiesConfig>>,
         covenant_terms: Option<CovenantTerms>,
+        refund_config: Option<RefundConfig>,
     },
     UpdateCodeId {
         data: Option<Binary>,
