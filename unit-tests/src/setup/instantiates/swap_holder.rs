@@ -1,4 +1,5 @@
 use cosmwasm_std::{Addr, Uint128};
+use covenant_swap_holder::msg::RefundConfig;
 use covenant_utils::{CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig};
 use cw_utils::Expiration;
 
@@ -21,6 +22,7 @@ impl SwapHolderInstantiate {
         lockup_config: Expiration,
         covenant_terms: CovenantTerms,
         parties_config: CovenantPartiesConfig,
+        refund_config: RefundConfig,
     ) -> Self {
         Self {
             msg: covenant_swap_holder::msg::InstantiateMsg {
@@ -29,6 +31,7 @@ impl SwapHolderInstantiate {
                 lockup_config,
                 covenant_terms,
                 parties_config,
+                refund_config,
             },
         }
     }
@@ -57,6 +60,11 @@ impl SwapHolderInstantiate {
         self.msg.parties_config = config;
         self
     }
+
+    pub fn with_refund_config(&mut self, config: RefundConfig) -> &mut Self {
+        self.msg.refund_config = config;
+        self
+    }
 }
 
 impl SwapHolderInstantiate {
@@ -65,6 +73,8 @@ impl SwapHolderInstantiate {
         next_contract: String,
         party_a_addr: Addr,
         party_b_addr: Addr,
+        party_a_refund_address: String,
+        party_b_refund_address: String,
     ) -> Self {
         Self {
             msg: covenant_swap_holder::msg::InstantiateMsg {
@@ -86,6 +96,10 @@ impl SwapHolderInstantiate {
                         native_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
                         receiver_config: ReceiverConfig::Native(party_b_addr.to_string()),
                     },
+                },
+                refund_config: RefundConfig {
+                    party_a_refund_address,
+                    party_b_refund_address,
                 },
             },
         }
