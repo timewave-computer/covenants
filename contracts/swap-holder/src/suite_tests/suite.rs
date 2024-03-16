@@ -1,5 +1,5 @@
 use crate::{
-    msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg},
+    msg::{ContractState, ExecuteMsg, InstantiateMsg, QueryMsg, RefundConfig},
     suite_tests::mock_clock_deps_contract,
 };
 use cosmwasm_std::{Addr, Coin, Uint128};
@@ -63,6 +63,10 @@ impl Default for SuiteBuilder {
                     party_a_amount: Uint128::new(400),
                     party_b_amount: Uint128::new(20),
                 }),
+                refund_config: RefundConfig {
+                    party_a_refund_address: PARTY_A_ADDR.to_string(),
+                    party_b_refund_address: PARTY_B_ADDR.to_string(),
+                },
             },
             app: App::default(),
         }
