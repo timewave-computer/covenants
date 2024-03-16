@@ -120,6 +120,8 @@ fn try_emergency_withdraw(deps: DepsMut, info: MessageInfo) -> Result<Response, 
     let pooler_address = POOLER_ADDRESS.load(deps.storage)?;
     let withdraw_msg = generate_withdraw_msg(pooler_address.to_string(), None)?;
 
+    WITHDRAW_STATE.save(deps.storage, &true)?;
+
     Ok(Response::default().add_message(withdraw_msg))
 }
 

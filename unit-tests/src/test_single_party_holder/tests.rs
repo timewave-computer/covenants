@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Addr, Event};
+use cosmwasm_std::{coin, Addr, Event, Storage};
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
 
@@ -47,9 +47,20 @@ fn test_instantiate_validates_lockup_period() {
 }
 
 #[test]
-// #[should_panic(expected = "A withdraw process already started")]
+#[should_panic(expected = "A withdraw process already started")]
 fn test_execute_claim_validates_pending_withdrawals() {
-    // TODO: enable should_panic
+    let mut suite = SinglePartyHolderBuilder::default().build();
+
+    suite.enter_pool();
+
+    let sender = suite.liquid_pooler_address.clone();
+    suite.expire_lockup();
+
+    // manually setting the storage key to true
+    let withdraw_state_key = "\0\u{4}wasm\0Ocontract_data/cosmos1lxsjav25s55mnxkfzkmvhdkqpsnmlm9whwk8ctqawgj438kda96s54a6mlwithdraw_state".as_bytes();
+    suite.app.storage_mut().set(withdraw_state_key, "true".as_bytes());
+
+    suite.execute_claim(sender);
 }
 
 #[test]
@@ -116,9 +127,20 @@ fn test_execute_claim_happy() {
 }
 
 #[test]
+#[should_panic(expected = "A withdraw process already started")]
 fn test_execute_emergency_withdraw_validates_pending_withdrawals() {
-    let _suite = SinglePartyHolderBuilder::default().build();
-    // todo: should panic
+    let mut suite = SinglePartyHolderBuilder::default().build();
+
+    suite.enter_pool();
+
+    let sender = suite.liquid_pooler_address.clone();
+    suite.expire_lockup();
+
+    // manually setting the storage key to true
+    let withdraw_state_key = "\0\u{4}wasm\0Ocontract_data/cosmos1lxsjav25s55mnxkfzkmvhdkqpsnmlm9whwk8ctqawgj438kda96s54a6mlwithdraw_state".as_bytes();
+    suite.app.storage_mut().set(withdraw_state_key, "true".as_bytes());
+
+    suite.execute_emergency_withdraw(sender);
 }
 
 #[test]
