@@ -3,8 +3,7 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, WasmMsg,
+    ensure, to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg
 };
 use covenant_utils::{
     instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits,
@@ -120,6 +119,17 @@ pub fn instantiate(
         covenant_denoms.clone(),
         party_b_router_instantiate2_config.clone(),
     )?;
+
+    // we validate that denoms explicitly defined in splits are the
+    // same denoms that parties are expected to contribute
+    ensure!(
+        msg.splits.contains_key(&msg.party_a_config.get_native_denom()),
+        ContractError::DenomMisconfigurationError(msg.party_a_config.get_native_denom(), format!("{:?}", covenant_denoms))
+    );
+    ensure!(
+        msg.splits.contains_key(&msg.party_b_config.get_native_denom()),
+        ContractError::DenomMisconfigurationError(msg.party_b_config.get_native_denom(), format!("{:?}", covenant_denoms))
+    );
 
     let splitter_instantiate2_msg = covenant_native_splitter::msg::InstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
