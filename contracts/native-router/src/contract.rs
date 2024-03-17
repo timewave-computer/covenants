@@ -37,7 +37,6 @@ pub fn instantiate(
         .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "interchain_router_instantiate")
         .add_attribute("clock_address", clock_addr))
-    // .add_attributes(destination_config.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
