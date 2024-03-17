@@ -46,8 +46,6 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
     match msg {
         ExecuteMsg::Tick {} => {
             // Verify caller is the clock
@@ -154,8 +152,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: migrate");
-
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
