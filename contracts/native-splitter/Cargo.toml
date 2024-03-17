@@ -30,7 +30,3 @@ thiserror       = { workspace = true }
 schemars        = { workspace = true }
 serde-json-wasm = { workspace = true }
 serde           = { workspace = true }
-
-[dev-dependencies]
-cw-multi-test = { workspace = true }
-anyhow        = { workspace = true }

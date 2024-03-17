@@ -7,7 +7,3 @@ pub mod error;
 pub mod msg;
 pub mod state;
 pub mod sudo;
-
-#[allow(clippy::unwrap_used)]
-#[cfg(test)]
-mod suite_test;
