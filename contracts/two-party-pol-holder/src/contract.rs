@@ -652,7 +652,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
                 for (_, config) in &splits {
                     config.validate_shares_and_receiver_addresses(deps.api)?;
                 }
-                resp = resp.add_attribute("explicit_splist", format!("{:?}", splits));
+                resp = resp.add_attribute("explicit_splits", format!("{:?}", splits));
                 DENOM_SPLITS.update(deps.storage, |mut current_splits| -> StdResult<_> {
                     current_splits.explicit_splits = splits;
                     Ok(current_splits)

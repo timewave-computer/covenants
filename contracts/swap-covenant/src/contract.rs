@@ -42,9 +42,9 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    let mut resp = Response::default().add_attribute("method", "instantiate_swap_covenant");
 
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
-
     let covenant_denoms: BTreeSet<String> = msg.splits.keys().map(|k| k.to_string()).collect();
 
     // first we generate the instantiate2 addresses for each contract
@@ -77,18 +77,6 @@ pub fn instantiate(
         SPLITTER_SALT,
         &creator_address,
         msg.contract_codes.splitter_code,
-    )?;
-    let party_a_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
-        deps.as_ref(),
-        PARTY_A_FORWARDER_SALT,
-        &creator_address,
-        msg.contract_codes.ibc_forwarder_code,
-    )?;
-    let party_b_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
-        deps.as_ref(),
-        PARTY_B_FORWARDER_SALT,
-        &creator_address,
-        msg.contract_codes.ibc_forwarder_code,
     )?;
 
     CONTRACT_CODES.save(
@@ -196,6 +184,12 @@ pub fn instantiate(
     // its deposit address will be the holder contract. no
     // extra actions are neeed for that.
     if let CovenantPartyConfig::Interchain(config) = &msg.party_a_config {
+        let party_a_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
+            deps.as_ref(),
+            PARTY_A_FORWARDER_SALT,
+            &creator_address,
+            msg.contract_codes.ibc_forwarder_code,
+        )?;
         // store its forwarder contract address
         PARTY_A_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_a_forwarder_instantiate2_config.addr)?;
@@ -219,6 +213,10 @@ pub fn instantiate(
             format!("{}_party_a_ibc_forwarder", msg.label),
         )?;
         messages.push(instantiate_msg);
+        resp = resp.add_attribute(
+            "party_a_ibc_forwarder_address",
+            party_a_forwarder_instantiate2_config.addr.to_string(),
+        );
     }
 
     // if party B is an interchain party, we include it in the
@@ -226,6 +224,12 @@ pub fn instantiate(
     // its deposit address will be the holder contract. no
     // extra actions are neeed for that.
     if let CovenantPartyConfig::Interchain(config) = &msg.party_b_config {
+        let party_b_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
+            deps.as_ref(),
+            PARTY_B_FORWARDER_SALT,
+            &creator_address,
+            msg.contract_codes.ibc_forwarder_code,
+        )?;
         // store its forwarder contract address
         PARTY_B_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_b_forwarder_instantiate2_config.addr)?;
@@ -249,6 +253,10 @@ pub fn instantiate(
             format!("{}_party_b_ibc_forwarder", msg.label),
         )?;
         messages.push(instantiate_msg);
+        resp = resp.add_attribute(
+            "party_b_ibc_forwarder_address",
+            party_b_forwarder_instantiate2_config.addr.to_string(),
+        );
     }
 
     // include the clock in instantiation flow
@@ -273,8 +281,7 @@ pub fn instantiate(
     COVENANT_INTERCHAIN_SPLITTER_ADDR.save(deps.storage, &splitter_instantiate2_config.addr)?;
     COVENANT_SWAP_HOLDER_ADDR.save(deps.storage, &holder_instantiate2_config.addr)?;
 
-    Ok(Response::default()
-        .add_attribute("method", "instantiate_swap_covenant")
+    Ok(resp
         .add_attribute("clock_address", clock_instantiate2_config.addr.to_string())
         .add_attribute(
             "party_a_router_address",
@@ -291,14 +298,6 @@ pub fn instantiate(
         .add_attribute(
             "splitter_address",
             splitter_instantiate2_config.addr.to_string(),
-        )
-        .add_attribute(
-            "party_a_ibc_forwarder_address",
-            party_a_forwarder_instantiate2_config.addr.to_string(),
-        )
-        .add_attribute(
-            "party_b_ibc_forwarder_address",
-            party_b_forwarder_instantiate2_config.addr.to_string(),
         )
         .add_attribute("instantiation_messages", to_json_string(&messages)?)
         .add_messages(messages))
