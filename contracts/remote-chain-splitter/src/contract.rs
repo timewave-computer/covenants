@@ -87,8 +87,6 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
     }
@@ -312,9 +310,6 @@ fn get_ica(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: sudo: received sudo msg: {msg:?}").as_str());
-
     match msg {
         // For handling successful (non-error) acknowledgements.
         SudoMsg::Response { request, data } => sudo_response(deps, request, data),
@@ -342,7 +337,6 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<Neu
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
-    deps.api.debug("WASMDEBUG: migrate");
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
@@ -394,8 +388,6 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
         _ => Err(StdError::generic_err(format!(

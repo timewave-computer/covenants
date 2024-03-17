@@ -24,7 +24,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let mut resp = Response::default().add_attribute("method", "native_splitter_instantiate");
@@ -61,9 +60,6 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
-
     match msg {
         ExecuteMsg::Tick {} => {
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
@@ -173,8 +169,6 @@ pub fn query_split(deps: Deps, denom: String) -> Result<SplitConfig, StdError> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, StdError> {
-    deps.api.debug("WASMDEBUG: migrate");
-
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,

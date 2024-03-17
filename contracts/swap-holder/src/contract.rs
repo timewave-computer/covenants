@@ -225,7 +225,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
-    deps.api.debug("WASMDEBUG: migrate");
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,

@@ -24,8 +24,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: clock instantiate");
-
     let tick_max_gas = if let Some(tick_max_gas) = msg.tick_max_gas {
         // at least MIN_MAX_GAS, at most the relayer limit
         tick_max_gas.max(MIN_TICK_MAX_GAS).min(MAX_TICK_MAX_GAS)

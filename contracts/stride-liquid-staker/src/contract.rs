@@ -43,7 +43,6 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // validate the addresses
@@ -77,8 +76,6 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Transfer { amount } => {
@@ -279,9 +276,6 @@ fn _query_deposit_address(deps: Deps<NeutronQuery>, env: Env) -> Result<Option<S
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> Result<Response<NeutronMsg>, StdError> {
-    deps.api
-        .debug(format!("WASMDEBUG: sudo: received sudo msg: {msg:?}").as_str());
-
     match msg {
         // For handling successful (non-error) acknowledgements.
         SudoMsg::Response { request, data } => sudo_response(deps, request, data),
@@ -344,9 +338,6 @@ fn sudo_open_ack(
 }
 
 fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}",).as_str());
-
     // either of these errors will close the channel
     request
         .sequence
@@ -360,9 +351,6 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
 }
 
 fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
-
     // revert the state to Instantiated to force re-creation of ICA
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
@@ -371,11 +359,6 @@ fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResu
 }
 
 fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
-    deps.api
-        .debug(format!("WASMDEBUG: request packet: {request:?}").as_str());
-
     // either of these errors will close the channel
     request
         .sequence
@@ -406,8 +389,6 @@ fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResu
             .as_slice(),
     )
     .map_err(|e| StdError::generic_err(format!("failed to parse response: {e:?}")))?;
-    deps.api
-        .debug(format!("WASMDEBUG: reply msg: {resp:?}").as_str());
     let seq_id = resp.sequence_id;
     let channel_id = resp.channel;
     save_sudo_payload(deps.branch().storage, channel_id, seq_id, payload)?;
@@ -428,8 +409,6 @@ fn get_ica(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
         _ => Err(StdError::generic_err(format!(
@@ -441,8 +420,6 @@ pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<Neut
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
-    deps.api.debug("WASMDEBUG: migrate");
-
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,

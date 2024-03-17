@@ -21,7 +21,6 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    deps.api.debug("WASMDEBUG: holder instantiate");
     let mut resp = Response::default().add_attribute("method", "instantiate");
 
     // withdrawer is optional on instantiation; can be set later
@@ -34,7 +33,7 @@ pub fn instantiate(
         WITHDRAW_TO.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
         resp = resp.add_attribute("withdraw_to", addr);
     };
-    
+
     if let Some(addr) = msg.emergency_committee_addr {
         EMERGENCY_COMMITTEE_ADDR.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
         resp = resp.add_attribute("emergency_committee", addr);
@@ -158,8 +157,6 @@ fn try_withdraw_failed(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: migrate");
-
     match msg {
         MigrateMsg::UpdateConfig {
             withdrawer,

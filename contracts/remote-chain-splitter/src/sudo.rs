@@ -53,9 +53,6 @@ pub fn sudo_response(
     request: RequestPacket,
     data: Binary,
 ) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: sudo_response: sudo received: {request:?} {data:?}").as_str());
-
     // either of these errors will close the channel
     request
         .sequence
@@ -73,9 +70,6 @@ pub fn sudo_timeout(
     _env: Env,
     request: RequestPacket,
 ) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: sudo timeout request: {request:?}").as_str());
-
     // revert the state to Instantiated to force re-creation of ICA
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
@@ -88,11 +82,6 @@ pub fn sudo_error(
     request: RequestPacket,
     details: String,
 ) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: sudo error: {details}").as_str());
-    deps.api
-        .debug(format!("WASMDEBUG: request packet: {request:?}").as_str());
-
     // either of these errors will close the channel
     request
         .sequence
@@ -120,8 +109,6 @@ pub fn prepare_sudo_payload(
             .as_slice(),
     )
     .map_err(|e| StdError::generic_err(format!("failed to parse response: {e:?}")))?;
-    deps.api
-        .debug(format!("WASMDEBUG: reply msg: {resp:?}").as_str());
     let seq_id = resp.sequence_id;
     let channel_id = resp.channel;
     save_sudo_payload(deps.branch().storage, channel_id, seq_id, payload)?;
