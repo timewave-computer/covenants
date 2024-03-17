@@ -830,14 +830,14 @@ impl Module for NeutronKeeper {
                 })
                 .unwrap()
             ),
-            NeutronQuery::InterchainQueryResult { .. } => todo!(),
-            NeutronQuery::RegisteredInterchainQueries { .. } => todo!(),
-            NeutronQuery::RegisteredInterchainQuery { .. } => todo!(),
-            NeutronQuery::TotalBurnedNeutronsAmount {} => todo!(),
-            NeutronQuery::FullDenom { .. } => todo!(),
-            NeutronQuery::DenomAdmin { .. } => todo!(),
-            NeutronQuery::BeforeSendHook { .. } => todo!(),
-            NeutronQuery::Failures { .. } => todo!(),
+            NeutronQuery::InterchainQueryResult { .. } => unimplemented!(),
+            NeutronQuery::RegisteredInterchainQueries { .. } => unimplemented!(),
+            NeutronQuery::RegisteredInterchainQuery { .. } => unimplemented!(),
+            NeutronQuery::TotalBurnedNeutronsAmount {} => unimplemented!(),
+            NeutronQuery::FullDenom { .. } => unimplemented!(),
+            NeutronQuery::DenomAdmin { .. } => unimplemented!(),
+            NeutronQuery::BeforeSendHook { .. } => unimplemented!(),
+            NeutronQuery::Failures { .. } => unimplemented!(),
         }
     }
 
