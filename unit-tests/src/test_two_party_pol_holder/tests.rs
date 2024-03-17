@@ -253,6 +253,8 @@ fn test_execute_tick_expired_deposit_refunds_both_parties() {
         &suite.covenant_config.party_b.router,
         coin(10_000, DENOM_LS_ATOM_ON_NTRN),
     );
+
+    assert!(matches!(suite.query_contract_state(), ContractState::Complete {}));
 }
 
 #[test]
@@ -275,6 +277,7 @@ fn test_execute_tick_expired_deposit_refunds_party_a() {
         coin(10_000, DENOM_ATOM_ON_NTRN),
     );
     suite.assert_balance(suite.holder_addr.clone(), coin(0, DENOM_ATOM_ON_NTRN));
+    assert!(matches!(suite.query_contract_state(), ContractState::Complete {}));
 }
 
 #[test]
@@ -297,6 +300,7 @@ fn test_execute_tick_expired_deposit_refunds_party_b() {
         coin(10_000, DENOM_LS_ATOM_ON_NTRN),
     );
     suite.assert_balance(&suite.holder_addr.clone(), coin(0, DENOM_LS_ATOM_ON_NTRN));
+    assert!(matches!(suite.query_contract_state(), ContractState::Complete {}));
 }
 
 #[test]
@@ -308,8 +312,7 @@ fn test_execute_tick_expired_deposit_completes() {
             .add_attribute("method", "try_deposit")
             .add_attribute("state", "complete"),
     );
-    let state = suite.query_contract_state();
-    assert_eq!(state, ContractState::Complete {});
+    assert!(matches!(suite.query_contract_state(), ContractState::Complete {}));
 }
 
 #[test]

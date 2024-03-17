@@ -172,10 +172,14 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
 
     // if both parties already claimed everything we complete early
     if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
-        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
+        let dequeue_message = ContractState::complete_and_dequeue(deps, clock_address.as_str())?;
+
         return Ok(Response::default()
             .add_attribute("method", "try_claim")
-            .add_attribute("contract_state", "complete"));
+            .add_attribute("contract_state", "complete")
+            .add_message(dequeue_message)
+        );
     }
 
     // we exit early if contract is not in ragequit or expired state
@@ -310,14 +314,14 @@ fn try_withdraw_failed(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
 
 #[allow(clippy::too_many_arguments)]
 fn try_claim_share_based(
-    deps: DepsMut,
+    mut deps: DepsMut,
     mut claim_party: TwoPartyPolCovenantParty,
     mut counterparty: TwoPartyPolCovenantParty,
     funds: Vec<Coin>,
     mut covenant_config: TwoPartyPolCovenantConfig,
     denom_splits: DenomSplits,
 ) -> Result<Response, ContractError> {
-    let messages = denom_splits
+    let mut messages = denom_splits
         .get_single_receiver_distribution_messages(funds, claim_party.router.to_string());
 
     claim_party.allocation = Decimal::zero();
@@ -327,7 +331,9 @@ fn try_claim_share_based(
         counterparty.allocation = Decimal::one();
     } else {
         // otherwise both parties claimed everything and we can complete
-        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
+        let dequeue_message = ContractState::complete_and_dequeue(deps.branch(), clock_address.as_str())?;
+        messages.push(dequeue_message.into());
     };
 
     covenant_config.update_parties(claim_party, counterparty);
@@ -354,13 +360,16 @@ fn try_claim_side_based(
     counterparty.allocation = Decimal::zero();
     covenant_config.update_parties(claim_party, counterparty);
 
-    // update the states
+    // update the states and dequeue from the clock
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+    let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
+    let dequeue_message = ContractState::complete_and_dequeue(deps, clock_address.as_str())?;
 
     Ok(Response::default()
         .add_attribute("method", "claim_side_based")
-        .add_messages(messages))
+        .add_messages(messages)
+        .add_message(dequeue_message)
+    )
 }
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
@@ -372,10 +381,9 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     match state {
         ContractState::Instantiated => try_deposit(deps, env, info, clock_addr.as_str()),
         ContractState::Active => check_expiration(deps, env),
+        ContractState::Expired |
+        ContractState::Ragequit |
         ContractState::Complete => Ok(Response::default()
-            .add_attribute("method", "tick")
-            .add_attribute("contract_state", state.to_string())),
-        ContractState::Expired | ContractState::Ragequit => Ok(Response::default()
             .add_attribute("method", "tick")
             .add_attribute("contract_state", state.to_string())),
     }
@@ -407,14 +415,13 @@ fn try_deposit(
     // it is important to trigger this method before the expiry block
     // if deposit deadline is due we complete and refund
     if deposit_deadline.is_expired(&env.block) {
+        let dequeue_message = ContractState::complete_and_dequeue(deps.branch(), clock_addr)?;
         let refund_messages: Vec<CosmosMsg> =
             match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
                 // both balances empty, we complete
                 (true, true) => {
-                    let msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr)?;
-
                     return Ok(Response::default()
-                        .add_message(msg)
+                        .add_message(dequeue_message)
                         .add_attribute("method", "try_deposit")
                         .add_attribute("state", "complete"));
                 }
@@ -443,7 +450,8 @@ fn try_deposit(
         return Ok(Response::default()
             .add_attribute("method", "try_deposit")
             .add_attribute("action", "refund")
-            .add_messages(refund_messages));
+            .add_messages(refund_messages)
+            .add_message(dequeue_message));
     }
 
     if !party_a_fulfilled || !party_b_fulfilled {
