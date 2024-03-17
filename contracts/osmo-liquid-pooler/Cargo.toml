@@ -45,9 +45,3 @@ osmosis-std                         = "0.20.1"
 base64                              = { workspace = true }
 prost                               = { workspace = true }
 covenant-outpost-osmo-liquid-pooler = { workspace = true, features = ["library"] }
-
-# dev-dependencies
-[dev-dependencies]
-cw-multi-test                 = { workspace = true }
-cw1-whitelist                 = { workspace = true }
-covenant-two-party-pol-holder = { workspace = true }
