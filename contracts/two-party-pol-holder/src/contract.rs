@@ -645,10 +645,14 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
 
             if let Some(config) = *covenant_config {
                 COVENANT_CONFIG.save(deps.storage, &config)?;
-                resp = resp.add_attribute("todo", "todo");
+                resp = resp.add_attribute("covenant_config", format!("{:?}", config));
             }
 
             if let Some(splits) = denom_splits {
+                for (_, config) in &splits {
+                    config.validate_shares_and_receiver_addresses(deps.api)?;
+                }
+                resp = resp.add_attribute("explicit_splist", format!("{:?}", splits));
                 DENOM_SPLITS.update(deps.storage, |mut current_splits| -> StdResult<_> {
                     current_splits.explicit_splits = splits;
                     Ok(current_splits)
@@ -656,6 +660,8 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             }
 
             if let Some(split) = fallback_split {
+                split.validate_shares_and_receiver_addresses(deps.api)?;
+                resp = resp.add_attribute("fallback_split", format!("{:?}", split));
                 DENOM_SPLITS.update(deps.storage, |mut current_splits| -> StdResult<_> {
                     current_splits.fallback_split = Some(split);
                     Ok(current_splits)

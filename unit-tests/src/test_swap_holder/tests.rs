@@ -49,7 +49,7 @@ fn test_instantiate_validates_party_b_refund_addr() {
 }
 
 #[test]
-#[should_panic(expected = "Unauthorized")]
+#[should_panic(expected = "Caller is not the clock, only clock can tick contracts")]
 fn test_execute_tick_validates_clock() {
     let mut suite = SwapHolderBuilder::default().build();
 
