@@ -175,7 +175,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                     message: "try_forward_funds".to_string(),
                 },
             )?;
-            
+
             Ok(Response::default()
                 .add_attribute("method", "try_forward_funds")
                 .add_submessage(submsg))
@@ -249,9 +249,6 @@ fn get_ica(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: sudo: received sudo msg: {msg:?}").as_str());
-
     match msg {
         // For handling successful (non-error) acknowledgements.
         SudoMsg::Response { request, data } => sudo_response(deps, request, data),
@@ -282,8 +279,6 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<Neu
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
         _ => Err(StdError::generic_err(format!(
@@ -308,8 +303,6 @@ fn prepare_sudo_payload(
             .as_slice(),
     )
     .map_err(|e| StdError::generic_err(format!("failed to parse response: {e:?}")))?;
-    deps.api
-        .debug(format!("WASMDEBUG: reply msg: {resp:?}").as_str());
     let seq_id = resp.sequence_id;
     let channel_id = resp.channel;
     save_sudo_payload(deps.branch().storage, channel_id, seq_id, payload)?;
@@ -332,7 +325,6 @@ pub fn save_sudo_payload(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
-    deps.api.debug("WASMDEBUG: migrate");
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,

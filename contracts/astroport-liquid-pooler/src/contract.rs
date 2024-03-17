@@ -250,7 +250,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let pool_response: PoolResponse = deps
         .querier
         .query_wasm_smart(&lp_config.pool_address, &astroport::pair::QueryMsg::Pool {})?;
-    
+
     let (pool_token_a_bal, pool_token_b_bal) = get_pool_asset_amounts(
         pool_response.assets,
         lp_config.asset_data.asset_a_denom.as_str(),
@@ -484,8 +484,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Response> {
-    deps.api.debug("WASMDEBUG: migrate");
-
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
@@ -524,7 +522,6 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: reply");
     match msg.id {
         DOUBLE_SIDED_REPLY_ID => handle_double_sided_reply_id(deps, _env, msg),
         SINGLE_SIDED_REPLY_ID => handle_single_sided_reply_id(deps, _env, msg),

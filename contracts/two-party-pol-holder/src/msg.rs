@@ -492,7 +492,6 @@ impl RagequitConfig {
                 }
                 // then validate that rq penalty does not exceed either party allocations
                 if terms.penalty > a_allocation || terms.penalty > b_allocation {
-                    println!("huh");
                     return Err(ContractError::RagequitPenaltyExceedsPartyAllocationError {});
                 }
 

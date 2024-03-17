@@ -160,8 +160,6 @@ fn test_covenant_query_endpoint() {
             &covenant_utils::neutron::QueryMsg::DepositAddress {},
         )
         .unwrap();
-
-    println!("resp: {resp:?}");
 }
 
 #[test]

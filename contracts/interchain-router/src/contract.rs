@@ -55,8 +55,6 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
     match msg {
         ExecuteMsg::Tick {} => {
             // Verify caller is the clock
@@ -179,8 +177,6 @@ pub fn migrate(
     _env: Env,
     msg: MigrateMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    deps.api.debug("WASMDEBUG: migrate");
-
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
