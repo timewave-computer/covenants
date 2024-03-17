@@ -28,6 +28,7 @@ thiserror        = { workspace = true }
 covenant-macros  = { workspace = true }
 covenant-utils   = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
+neutron-sdk      = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }
