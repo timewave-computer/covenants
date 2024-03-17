@@ -26,7 +26,6 @@ cw2             = { workspace = true }
 serde           = { workspace = true }
 thiserror       = { workspace = true }
 neutron-sdk     = { workspace = true }
-# covenant-utils = { workspace = true, features=["library"] }
 
 [dev-dependencies]
 cw-multi-test         = { workspace = true }
