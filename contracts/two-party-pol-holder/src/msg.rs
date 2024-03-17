@@ -78,6 +78,7 @@ impl InstantiateMsg {
         ];
         attrs.extend(self.ragequit_config.get_response_attributes());
         attrs.extend(splits_attr);
+        attrs.extend(self.covenant_config.get_response_attributes());
         attrs
     }
 }
