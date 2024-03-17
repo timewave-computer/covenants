@@ -1,11 +1,10 @@
-use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
+use cosmwasm_std::{Coin, Timestamp, Uint128};
 use covenant_utils::{
     CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig, SwapCovenantTerms,
 };
 use cw_utils::Expiration;
 
 use crate::{
-    error::ContractError,
     msg::ContractState,
     suite_tests::suite::{
         DENOM_A, DENOM_B, INITIAL_BLOCK_HEIGHT, INITIAL_BLOCK_NANOS, PARTY_A_ADDR, PARTY_B_ADDR,
@@ -67,12 +66,12 @@ fn test_instantiate_past_lockup_block_time() {
 }
 
 #[test]
+#[should_panic(expected = "Caller is not the clock, only clock can tick contracts")]
 fn test_tick_unauthorized() {
-    let mut suite = SuiteBuilder::default().build();
-    println!("{}", suite.app.block_info().height);
-    let resp = suite.tick("not-the-clock").unwrap_err().downcast().unwrap();
-
-    assert!(matches!(resp, ContractError::Unauthorized {}))
+    SuiteBuilder::default()
+        .build()
+        .tick("not-the-clock")
+        .unwrap();
 }
 
 #[test]
