@@ -193,6 +193,7 @@ pub fn instantiate(
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
         splits,
+        fallback_address: msg.remote_chain_splitter_config.fallback_address,
     }
     .to_instantiate2_msg(
         &splitter_instantiate2_config,
@@ -220,6 +221,7 @@ pub fn instantiate(
             amount: config.contribution.amount,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             ica_timeout: msg.timeouts.ica_timeout,
+            fallback_address: config.fallback_address,
         };
         messages.push(instantiate_msg.to_instantiate2_msg(
             &ls_forwarder_instantiate2_config,
@@ -240,6 +242,7 @@ pub fn instantiate(
             amount: config.contribution.amount,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             ica_timeout: msg.timeouts.ica_timeout,
+            fallback_address: config.fallback_address,
         };
         messages.push(instantiate_msg.to_instantiate2_msg(
             &lp_forwarder_instantiate2_config,

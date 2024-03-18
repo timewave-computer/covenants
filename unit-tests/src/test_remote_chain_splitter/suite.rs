@@ -1,7 +1,8 @@
 use std::collections::BTreeMap;
 
-use cosmwasm_std::{Addr, Uint128, Uint64};
+use cosmwasm_std::{Addr, Coin, Uint128, Uint64};
 use covenant_utils::{neutron::RemoteChainInfo, split::SplitConfig};
+use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -51,6 +52,7 @@ impl Default for RemoteChainSplitterBuilder {
             amount: Uint128::new(100),
             ibc_transfer_timeout: Uint64::new(100),
             ica_timeout: Uint64::new(100),
+            fallback_address: None,
         };
 
         builder.contract_init2(
@@ -265,6 +267,37 @@ impl Suite {
             .query_wasm_smart(
                 addr,
                 &covenant_remote_chain_splitter::msg::QueryMsg::DepositAddress {},
+            )
+            .unwrap()
+    }
+
+    pub fn query_fallback_address(&self) -> Option<String> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.splitter.clone(),
+                &covenant_remote_chain_splitter::msg::QueryMsg::FallbackAddress {},
+            )
+            .unwrap()
+    }
+
+    pub fn distribute_fallback(&mut self, coins: Vec<Coin>, funds: Vec<Coin>) -> AppResponse {
+        self.app
+            .execute_contract(
+                self.faucet.clone(),
+                self.splitter.clone(),
+                &covenant_remote_chain_splitter::msg::ExecuteMsg::DistributeFallback { coins },
+                &funds,
+            )
+            .unwrap()
+    }
+
+    pub fn query_ica_address(&mut self, addr: Addr) -> Addr {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                addr,
+                &covenant_remote_chain_splitter::msg::QueryMsg::IcaAddress {},
             )
             .unwrap()
     }

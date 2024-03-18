@@ -51,6 +51,8 @@ pub const ALL_DENOMS: &[&str] = &[
     DENOM_FALLBACK,
     DENOM_ATOM_ON_NTRN,
     DENOM_LS_ATOM_ON_NTRN,
+    DENOM_FALLBACK_ON_HUB,
+    DENOM_OSMO_ON_HUB_FROM_NTRN,
 ];
 
 // Addrs

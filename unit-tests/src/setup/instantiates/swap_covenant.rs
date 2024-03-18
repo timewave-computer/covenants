@@ -45,6 +45,7 @@ impl SwapCovenantInstantiate {
             party_b_config,
             splits,
             None,
+            None,
         )
     }
 
@@ -69,6 +70,7 @@ impl SwapCovenantInstantiate {
                 native_denom: local_denom.to_string(),
                 contribution: coin(amount, remote_denom),
                 denom_to_pfm_map: BTreeMap::new(),
+                fallback_address: None,
             },
         )
     }
@@ -118,6 +120,7 @@ impl SwapCovenantInstantiate {
         party_b_config: covenant_swap::msg::CovenantPartyConfig,
         splits: BTreeMap<String, covenant_utils::split::SplitConfig>,
         fallback_split: Option<covenant_utils::split::SplitConfig>,
+        fallback_address: Option<String>,
     ) -> Self {
         Self {
             msg: covenant_swap::msg::InstantiateMsg {
@@ -130,6 +133,7 @@ impl SwapCovenantInstantiate {
                 party_b_config,
                 splits,
                 fallback_split,
+                fallback_address,
             },
         }
     }
@@ -201,6 +205,11 @@ impl SwapCovenantInstantiate {
         });
 
         self.msg.fallback_split = Some(covenant_utils::split::SplitConfig { receivers });
+        self
+    }
+
+    pub fn with_fallback_address(&mut self, addr: String) -> &mut Self {
+        self.msg.fallback_address = Some(addr);
         self
     }
 }

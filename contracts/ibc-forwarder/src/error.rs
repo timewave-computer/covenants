@@ -12,10 +12,19 @@ pub enum ContractError {
 
     #[error("Next contract is not ready for receiving the funds yet")]
     DepositAddressNotAvailable {},
+
+    #[error("Missing fallback address")]
+    MissingFallbackAddress {},
+
+    #[error("Cannot distribute target denom via fallback distribution")]
+    UnauthorizedDenomDistribution {},
+
+    #[error("Attempt to distribute duplicate denoms via fallback distribution")]
+    DuplicateDenomDistribution {},
 }
 
-impl ContractError {
-    pub fn to_neutron_std(&self) -> NeutronError {
-        NeutronError::Std(StdError::generic_err(self.to_string()))
+impl From<ContractError> for NeutronError {
+    fn from(value: ContractError) -> Self {
+        NeutronError::Std(StdError::generic_err(value.to_string()))
     }
 }

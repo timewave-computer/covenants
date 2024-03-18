@@ -24,6 +24,7 @@ impl RemoteChainSplitterInstantiate {
         splits: BTreeMap<String, SplitConfig>,
         ica_timeout: Uint64,
         ibc_transfer_timeout: Uint64,
+        fallback_address: Option<String>,
     ) -> Self {
         Self {
             msg: covenant_remote_chain_splitter::msg::InstantiateMsg {
@@ -35,6 +36,7 @@ impl RemoteChainSplitterInstantiate {
                 splits,
                 ica_timeout,
                 ibc_transfer_timeout,
+                fallback_address,
             },
         }
     }
@@ -74,6 +76,11 @@ impl RemoteChainSplitterInstantiate {
         self
     }
 
+    pub fn with_fallback_address(&mut self, fallback_address: Option<String>) -> &mut Self {
+        self.msg.fallback_address = fallback_address;
+        self
+    }
+
     pub fn with_ibc_transfer_timeout(&mut self, ibc_transfer_timeout: Uint64) -> &mut Self {
         self.msg.ibc_transfer_timeout = ibc_transfer_timeout;
         self
@@ -100,6 +107,7 @@ impl RemoteChainSplitterInstantiate {
                 splits: denom_to_split_config_map,
                 ica_timeout: Uint64::from(100u64),
                 ibc_transfer_timeout: Uint64::from(100u64),
+                fallback_address: None,
             },
         }
     }

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use std::str::FromStr;
 
 use cosmos_sdk_proto::cosmos::bank::v1beta1::{Input, MsgMultiSend, Output};
@@ -7,25 +7,30 @@ use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env, Fraction,
-    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128,
+    ensure, to_json_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env,
+    Fraction, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::neutron;
 use covenant_utils::neutron::{
-    get_ictxs_module_params_query_msg, QueryParamsResponse, RemoteChainInfo, SudoPayload,
+    get_ictxs_module_params_query_msg, get_proto_coin, QueryParamsResponse, RemoteChainInfo,
+    SudoPayload,
 };
+use covenant_utils::{neutron, sum_fees};
 use cw2::set_contract_version;
+use cw_utils::must_pay;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_txs::helpers::get_port_id;
 use neutron_sdk::query::min_ibc_fee::MinIbcFeeResponse;
 use neutron_sdk::sudo::msg::SudoMsg;
 use neutron_sdk::NeutronError;
 
-use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::error::ContractError;
+use crate::msg::{
+    ContractState, ExecuteMsg, FallbackAddressUpdateConfig, InstantiateMsg, MigrateMsg, QueryMsg,
+};
 use crate::state::{
-    save_reply_payload, CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO,
-    SPLIT_CONFIG_MAP, TRANSFER_AMOUNT,
+    save_reply_payload, CLOCK_ADDRESS, CONTRACT_STATE, FALLBACK_ADDRESS, INTERCHAIN_ACCOUNTS,
+    REMOTE_CHAIN_INFO, SPLIT_CONFIG_MAP, TRANSFER_AMOUNT,
 };
 use crate::sudo::{prepare_sudo_payload, sudo_error, sudo_open_ack, sudo_response, sudo_timeout};
 use neutron_sdk::{
@@ -64,6 +69,9 @@ pub fn instantiate(
     REMOTE_CHAIN_INFO.save(deps.storage, &remote_chain_info)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     TRANSFER_AMOUNT.save(deps.storage, &msg.amount)?;
+    if let Some(addr) = &msg.fallback_address {
+        FALLBACK_ADDRESS.save(deps.storage, addr)?;
+    }
 
     // validate each split and store it in a map
     let mut split_resp_attributes: Vec<Attribute> = Vec::with_capacity(msg.splits.len());
@@ -91,6 +99,106 @@ pub fn execute(
 ) -> NeutronResult<Response<NeutronMsg>> {
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
+        ExecuteMsg::DistributeFallback { coins } => try_distribute_fallback(deps, env, info, coins),
+    }
+}
+
+fn try_distribute_fallback(
+    mut deps: ExecuteDeps,
+    env: Env,
+    info: MessageInfo,
+    coins: Vec<cosmwasm_std::Coin>,
+) -> NeutronResult<Response<NeutronMsg>> {
+    // load the fallback address or error out if its not set
+    let destination = match FALLBACK_ADDRESS.may_load(deps.storage)? {
+        Some(addr) => addr,
+        None => return Err(ContractError::MissingFallbackAddress {}.into()),
+    };
+    let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
+
+    let min_fee_query_response: MinIbcFeeResponse =
+        deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
+    let total_fee_amount = sum_fees(&min_fee_query_response.min_fee);
+    // the caller must cover the ibc fees
+    match must_pay(&info, "untrn") {
+        Ok(amt) => ensure!(
+            amt >= total_fee_amount.checked_mul(Uint128::new(coins.len() as u128))?,
+            NeutronError::Std(StdError::generic_err("insufficient fees"))
+        ),
+        Err(_) => {
+            return Err(NeutronError::Std(StdError::generic_err(
+                "must cover ibc fees to distribute fallback denoms",
+            )))
+        }
+    };
+
+    // we iterate over coins to be distributed, validate them, and generate the proto coins to be sent
+    let mut encountered_denoms: BTreeSet<String> = BTreeSet::new();
+    let mut proto_coins: Vec<cosmos_sdk_proto::cosmos::base::v1beta1::Coin> = vec![];
+
+    for coin in coins {
+        // validate that target denom is not passed for fallback distribution
+        ensure!(
+            coin.denom != remote_chain_info.denom,
+            Into::<NeutronError>::into(ContractError::UnauthorizedDenomDistribution {})
+        );
+
+        // error out if denom is duplicated
+        ensure!(
+            encountered_denoms.insert(coin.denom.to_string()),
+            Into::<NeutronError>::into(ContractError::DuplicateDenomDistribution {})
+        );
+
+        proto_coins.push(get_proto_coin(coin.denom, coin.amount));
+    }
+
+    let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
+    let interchain_account = INTERCHAIN_ACCOUNTS.may_load(deps.storage, port_id.clone())?;
+    if let Some(Some((address, controller_conn_id))) = interchain_account {
+        let multi_send_msg = MsgMultiSend {
+            inputs: vec![Input {
+                address,
+                coins: proto_coins.clone(),
+            }],
+            outputs: vec![Output {
+                address: destination,
+                coins: proto_coins,
+            }],
+        };
+
+        let mut buf = Vec::with_capacity(multi_send_msg.encoded_len());
+        if let Err(e) = multi_send_msg.encode(&mut buf) {
+            return Err(NeutronError::Std(StdError::generic_err(format!(
+                "Encode error: {e:}",
+            ))));
+        }
+
+        let any_msg = ProtobufAny {
+            type_url: "/cosmos.bank.v1beta1.MsgMultiSend".to_string(),
+            value: Binary::from(buf),
+        };
+        let submit_msg = NeutronMsg::submit_tx(
+            controller_conn_id,
+            INTERCHAIN_ACCOUNT_ID.to_string(),
+            vec![any_msg],
+            "".to_string(),
+            remote_chain_info.ica_timeout.u64(),
+            min_fee_query_response.min_fee,
+        );
+        let sudo_msg = msg_with_sudo_callback(
+            deps.branch(),
+            submit_msg,
+            SudoPayload {
+                port_id,
+                message: "distribute_fallback_multisend".to_string(),
+            },
+        )?;
+
+        Ok(Response::default()
+            .add_attribute("method", "try_forward_fallback")
+            .add_submessages(vec![sudo_msg]))
+    } else {
+        Err(NeutronError::Std(StdError::generic_err("no ica found")))
     }
 }
 
@@ -198,7 +306,7 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
 
             let multi_send_msg = MsgMultiSend { inputs, outputs };
 
-            // Serialize the Delegate message.
+            // Serialize the multi send message.
             let mut buf = Vec::with_capacity(multi_send_msg.encoded_len());
 
             if let Err(e) = multi_send_msg.encode(&mut buf) {
@@ -279,6 +387,9 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
         QueryMsg::IcaAddress {} => Ok(to_json_binary(
             &get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
         )?),
+        QueryMsg::FallbackAddress {} => {
+            Ok(to_json_binary(&FALLBACK_ADDRESS.may_load(deps.storage)?)?)
+        }
     }
 }
 
@@ -342,6 +453,7 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             clock_addr,
             remote_chain_info,
             splits,
+            fallback_address,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
@@ -376,6 +488,19 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
                             "multiple {:?} entries",
                             denom
                         )));
+                    }
+                }
+            }
+
+            if let Some(config) = fallback_address {
+                match config {
+                    FallbackAddressUpdateConfig::ExplicitAddress(addr) => {
+                        FALLBACK_ADDRESS.save(deps.storage, &addr)?;
+                        resp = resp.add_attribute("fallback_address", addr);
+                    }
+                    FallbackAddressUpdateConfig::Disable {} => {
+                        FALLBACK_ADDRESS.remove(deps.storage);
+                        resp = resp.add_attribute("fallback_address", "removed");
                     }
                 }
             }

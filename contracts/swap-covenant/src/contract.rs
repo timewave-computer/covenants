@@ -214,6 +214,7 @@ pub fn instantiate(
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             clock_address: clock_instantiate2_config.addr.to_string(),
             next_contract: holder_instantiate2_config.addr.to_string(),
+            fallback_address: msg.fallback_address.clone(),
         }
         .to_instantiate2_msg(
             &party_a_forwarder_instantiate2_config,
@@ -254,6 +255,7 @@ pub fn instantiate(
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             clock_address: clock_instantiate2_config.addr.to_string(),
             next_contract: holder_instantiate2_config.addr.to_string(),
+            fallback_address: msg.fallback_address,
         }
         .to_instantiate2_msg(
             &party_b_forwarder_instantiate2_config,
