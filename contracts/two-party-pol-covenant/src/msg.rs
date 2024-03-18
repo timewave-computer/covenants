@@ -33,6 +33,7 @@ pub struct InstantiateMsg {
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee: Option<String>,
     pub liquid_pooler_config: LiquidPoolerConfig,
+    pub fallback_address: Option<String>,
 }
 
 #[cw_serde]

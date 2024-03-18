@@ -1055,6 +1055,7 @@ fn test_migrate_update_config_with_codes() {
         next_contract: None,
         remote_chain_info: Box::new(None),
         transfer_amount: None,
+        fallback_address: None,
     };
 
     let liquid_pooler_migrate_msg =
@@ -1075,6 +1076,7 @@ fn test_migrate_update_config_with_codes() {
             clock_addr: Some(covenant_addr.to_string()),
             remote_chain_info: None,
             splits: None,
+            fallback_address: None,
         };
 
     let resp = suite

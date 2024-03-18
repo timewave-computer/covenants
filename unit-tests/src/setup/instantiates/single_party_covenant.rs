@@ -85,6 +85,7 @@ impl SinglePartyCovenantInstantiate {
             native_denom: local_denom.to_string(),
             contribution: coin(amount, remote_denom),
             denom_to_pfm_map,
+            fallback_address: None,
         }
     }
 
@@ -140,6 +141,7 @@ impl SinglePartyCovenantInstantiate {
             amount: amount.into(),
             ls_share,
             native_share,
+            fallback_address: None,
         }
     }
 

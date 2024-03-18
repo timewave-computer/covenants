@@ -547,6 +547,7 @@ fn test_migrate_update_without_codes() {
         next_contract: None,
         remote_chain_info: Box::new(None),
         transfer_amount: None,
+        fallback_address: None,
     };
 
     let clock_migrate_msg = covenant_clock::msg::MigrateMsg::UpdateTickMaxGas {

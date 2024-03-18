@@ -21,6 +21,7 @@ pub struct InstantiateMsg {
     pub party_b_config: CovenantPartyConfig,
     pub splits: BTreeMap<String, SplitConfig>,
     pub fallback_split: Option<SplitConfig>,
+    pub fallback_address: Option<String>,
 }
 
 #[cw_serde]

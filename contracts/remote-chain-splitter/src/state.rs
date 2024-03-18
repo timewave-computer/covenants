@@ -21,6 +21,8 @@ pub const SPLIT_CONFIG_MAP: Map<String, SplitConfig> = Map::new("split_config");
 /// information needed for an ibc transfer to the remote chain
 pub const REMOTE_CHAIN_INFO: Item<RemoteChainInfo> = Item::new("r_c_info");
 
+pub const FALLBACK_ADDRESS: Item<String> = Item::new("fallback_address");
+
 /// interchain accounts storage in form of (port_id) -> (address, controller_connection_id)
 pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
