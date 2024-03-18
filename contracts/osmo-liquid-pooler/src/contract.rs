@@ -49,7 +49,6 @@ pub(crate) const PROVIDE_LIQUIDITY_CALLBACK_ID: u8 = 1;
 pub(crate) const PROXY_BALANCES_QUERY_CALLBACK_ID: u8 = 2;
 pub(crate) const CREATE_PROXY_CALLBACK_ID: u8 = 3;
 pub(crate) const WITHDRAW_LIQUIDITY_CALLBACK_ID: u8 = 4;
-pub(crate) const WITHDRAW_LIQUIDITY_BALANCES_QUERY_CALLBACK_ID: u8 = 5;
 
 type ExecuteDeps<'a> = cosmwasm_std::DepsMut<'a, NeutronQuery>;
 type QueryDeps<'a> = cosmwasm_std::Deps<'a, NeutronQuery>;
