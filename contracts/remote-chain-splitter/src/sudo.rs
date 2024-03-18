@@ -72,6 +72,7 @@ pub fn sudo_timeout(
 ) -> StdResult<Response<NeutronMsg>> {
     // revert the state to Instantiated to force re-creation of ICA
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+    INTERCHAIN_ACCOUNTS.clear(deps.storage);
 
     // returning Ok as this is anticipated. channel is already closed.
     Ok(Response::default())
