@@ -30,4 +30,3 @@ serde-json-wasm  = { workspace = true }
 serde            = { workspace = true }
 neutron-sdk      = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
-protobuf         = { workspace = true }

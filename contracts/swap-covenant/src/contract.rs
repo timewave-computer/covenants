@@ -3,7 +3,8 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg
+    ensure, to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, WasmMsg,
 };
 use covenant_swap_holder::msg::RefundConfig;
 use covenant_utils::{
@@ -111,12 +112,20 @@ pub fn instantiate(
     // we validate that denoms explicitly defined in splits are the
     // same denoms that parties are expected to contribute
     ensure!(
-        msg.splits.contains_key(&msg.party_a_config.get_native_denom()),
-        ContractError::DenomMisconfigurationError(msg.party_a_config.get_native_denom(), format!("{:?}", covenant_denoms))
+        msg.splits
+            .contains_key(&msg.party_a_config.get_native_denom()),
+        ContractError::DenomMisconfigurationError(
+            msg.party_a_config.get_native_denom(),
+            format!("{:?}", covenant_denoms)
+        )
     );
     ensure!(
-        msg.splits.contains_key(&msg.party_b_config.get_native_denom()),
-        ContractError::DenomMisconfigurationError(msg.party_b_config.get_native_denom(), format!("{:?}", covenant_denoms))
+        msg.splits
+            .contains_key(&msg.party_b_config.get_native_denom()),
+        ContractError::DenomMisconfigurationError(
+            msg.party_b_config.get_native_denom(),
+            format!("{:?}", covenant_denoms)
+        )
     );
 
     let splitter_instantiate2_msg = covenant_native_splitter::msg::InstantiateMsg {

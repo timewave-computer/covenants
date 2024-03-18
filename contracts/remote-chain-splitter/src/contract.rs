@@ -11,8 +11,10 @@ use cosmwasm_std::{
     MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::neutron::{get_ictxs_module_params_query_msg, QueryParamsResponse, RemoteChainInfo, SudoPayload};
 use covenant_utils::neutron;
+use covenant_utils::neutron::{
+    get_ictxs_module_params_query_msg, QueryParamsResponse, RemoteChainInfo, SudoPayload,
+};
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_txs::helpers::get_port_id;
@@ -108,7 +110,8 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 
 fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-    let ictxs_params_response: QueryParamsResponse = deps.querier.query(&get_ictxs_module_params_query_msg())?;
+    let ictxs_params_response: QueryParamsResponse =
+        deps.querier.query(&get_ictxs_module_params_query_msg())?;
 
     let register: NeutronMsg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
@@ -129,7 +132,8 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
     let amount = TRANSFER_AMOUNT.load(deps.storage)?;
-    let min_fee_query_response: MinIbcFeeResponse = deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
+    let min_fee_query_response: MinIbcFeeResponse =
+        deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -180,10 +184,9 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
             // if there is no leftover, nothing happens.
             // otherwise we add the leftover to the first receiver.
             if let Some(output) = outputs.first_mut() {
-                output.coins[0].amount = (
-                    Uint128::from_str(&output.coins[0].amount)? + (amount - total_allocated)
-                )
-                .to_string();
+                output.coins[0].amount = (Uint128::from_str(&output.coins[0].amount)?
+                    + (amount - total_allocated))
+                    .to_string();
             }
 
             let mut inputs: Vec<Input> = Vec::new();

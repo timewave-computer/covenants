@@ -3,7 +3,6 @@ use std::str::FromStr;
 use cosmwasm_std::{Addr, Uint128, Uint64};
 use covenant_utils::neutron::RemoteChainInfo;
 use cw_storage_plus::KeyDeserialize;
-use neutron_sdk::bindings::msg::IbcFee;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},

@@ -1,5 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128
+    to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, Uint128,
 };
 use covenant_utils::CovenantTerms;
 
@@ -7,7 +8,8 @@ use crate::{
     error::ContractError,
     msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_TERMS, LOCKUP_CONFIG, NEXT_CONTRACT, PARTIES_CONFIG, REFUND_CONFIG,
+        CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_TERMS, LOCKUP_CONFIG, NEXT_CONTRACT,
+        PARTIES_CONFIG, REFUND_CONFIG,
     },
 };
 #[cfg(not(feature = "library"))]
@@ -35,8 +37,10 @@ pub fn instantiate(
             "past lockup config",
         )));
     }
-    deps.api.addr_validate(&msg.refund_config.party_a_refund_address)?;
-    deps.api.addr_validate(&msg.refund_config.party_b_refund_address)?;
+    deps.api
+        .addr_validate(&msg.refund_config.party_a_refund_address)?;
+    deps.api
+        .addr_validate(&msg.refund_config.party_b_refund_address)?;
 
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
@@ -155,51 +159,48 @@ fn try_refund(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response,
 
     let refund_config = REFUND_CONFIG.load(deps.storage)?;
 
-    let messages: Vec<CosmosMsg> = match (party_a_coin.amount.is_zero(), party_b_coin.amount.is_zero()) {
-        // both balances being zero means that either:
-        // 1. neither party deposited any funds in the first place
-        // 2. we have refunded both parties
-        // either way, this indicates completion
-        (true, true) => {
-            let msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?;
+    let messages: Vec<CosmosMsg> =
+        match (party_a_coin.amount.is_zero(), party_b_coin.amount.is_zero()) {
+            // both balances being zero means that either:
+            // 1. neither party deposited any funds in the first place
+            // 2. we have refunded both parties
+            // either way, this indicates completion
+            (true, true) => {
+                let msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?;
 
-            return Ok(Response::default()
-                .add_message(msg)
-                .add_attribute("method", "try_refund")
-                .add_attribute("result", "nothing_to_refund")
-                .add_attribute("contract_state", "complete"));
-        }
-        // party A failed to deposit. refund party B
-        (true, false) => vec![
-            BankMsg::Send {
+                return Ok(Response::default()
+                    .add_message(msg)
+                    .add_attribute("method", "try_refund")
+                    .add_attribute("result", "nothing_to_refund")
+                    .add_attribute("contract_state", "complete"));
+            }
+            // party A failed to deposit. refund party B
+            (true, false) => vec![BankMsg::Send {
                 to_address: refund_config.party_b_refund_address,
                 amount: vec![party_b_coin],
             }
-            .into(),
-        ],
-        // party B failed to deposit. refund party A
-        (false, true) => vec![
-            BankMsg::Send {
+            .into()],
+            // party B failed to deposit. refund party A
+            (false, true) => vec![BankMsg::Send {
                 to_address: refund_config.party_a_refund_address,
                 amount: vec![party_a_coin],
             }
-            .into(),
-        ],
-        // not enough balances to perform the covenant swap.
-        // refund denoms to both parties.
-        (false, false) => vec![
-            BankMsg::Send {
-                to_address: refund_config.party_a_refund_address,
-                amount: vec![party_a_coin],
-            }
-            .into(),
-            BankMsg::Send {
-                to_address: refund_config.party_b_refund_address,
-                amount: vec![party_b_coin],
-            }
-            .into(),
-        ],
-    };
+            .into()],
+            // not enough balances to perform the covenant swap.
+            // refund denoms to both parties.
+            (false, false) => vec![
+                BankMsg::Send {
+                    to_address: refund_config.party_a_refund_address,
+                    amount: vec![party_a_coin],
+                }
+                .into(),
+                BankMsg::Send {
+                    to_address: refund_config.party_b_refund_address,
+                    amount: vec![party_b_coin],
+                }
+                .into(),
+            ],
+        };
 
     Ok(Response::default()
         .add_attribute("method", "try_refund")

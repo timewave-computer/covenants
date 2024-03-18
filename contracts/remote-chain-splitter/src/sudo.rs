@@ -49,9 +49,9 @@ pub fn sudo_open_ack(
 }
 
 pub fn sudo_response(
-    deps: ExecuteDeps,
+    _deps: ExecuteDeps,
     request: RequestPacket,
-    data: Binary,
+    _data: Binary,
 ) -> StdResult<Response<NeutronMsg>> {
     // either of these errors will close the channel
     request
@@ -68,7 +68,7 @@ pub fn sudo_response(
 pub fn sudo_timeout(
     deps: ExecuteDeps,
     _env: Env,
-    request: RequestPacket,
+    _request: RequestPacket,
 ) -> StdResult<Response<NeutronMsg>> {
     // revert the state to Instantiated to force re-creation of ICA
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
@@ -78,9 +78,9 @@ pub fn sudo_timeout(
 }
 
 pub fn sudo_error(
-    deps: ExecuteDeps,
+    _deps: ExecuteDeps,
     request: RequestPacket,
-    details: String,
+    _details: String,
 ) -> StdResult<Response<NeutronMsg>> {
     // either of these errors will close the channel
     request

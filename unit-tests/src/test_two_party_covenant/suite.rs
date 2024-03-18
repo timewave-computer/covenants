@@ -10,8 +10,7 @@ use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
     instantiates::two_party_covenant::TwoPartyCovenantInstantiate,
     suite_builder::SuiteBuilder,
-    CustomApp, ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
-    TWO_PARTY_COVENANT_SALT,
+    CustomApp, ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, TWO_PARTY_COVENANT_SALT,
 };
 
 pub struct TwoPartyCovenantBuilder {

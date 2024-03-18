@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    coin, ensure, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Empty, Env, IbcMsg, IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg
+    coin, ensure, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, DepsMut, Empty, Env,
+    IbcMsg, IbcTimeout, MessageInfo, QueryRequest, Response, StdResult, Uint128, Uint64, WasmMsg,
 };
 use covenant_utils::{
     polytone::{
@@ -10,7 +11,10 @@ use covenant_utils::{
     },
     withdraw_lp_helper::WithdrawLPMsgs,
 };
-use neutron_sdk::{bindings::{msg::NeutronMsg, query::NeutronQuery}, NeutronResult};
+use neutron_sdk::{
+    bindings::{msg::NeutronMsg, query::NeutronQuery},
+    NeutronResult,
+};
 use osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse;
 
 use crate::{
@@ -32,8 +36,6 @@ use polytone::callbacks::{
 };
 
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
-type QueryDeps<'a> = Deps<'a, NeutronQuery>;
-
 
 /// attempts to advance the state machine. performs `info.sender` validation.
 pub fn try_handle_callback(

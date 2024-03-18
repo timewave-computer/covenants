@@ -4,11 +4,16 @@ use std::{
 };
 
 use cosmwasm_std::{
-    coin, testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage}, to_json_binary, Attribute, CosmosMsg, Empty, OwnedDeps, SubMsg, Uint128, Uint64
+    coin,
+    testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
+    to_json_binary, Attribute, CosmosMsg, Empty, OwnedDeps, SubMsg, Uint128, Uint64,
 };
 use covenant_utils::DestinationConfig;
 use neutron_sdk::{
-    bindings::msg::{IbcFee, NeutronMsg}, query::min_ibc_fee::MinIbcFeeResponse, sudo::msg::RequestPacketTimeoutHeight, NeutronError
+    bindings::msg::{IbcFee, NeutronMsg},
+    query::min_ibc_fee::MinIbcFeeResponse,
+    sudo::msg::RequestPacketTimeoutHeight,
+    NeutronError,
 };
 
 use crate::{
@@ -92,13 +97,18 @@ fn test_tick_no_ibc_fee() {
 
     let coins = vec![usdc_coin, random_coin_1, random_coin_2, random_coin_3];
     let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)])
-        .with_custom_handler(|_| cosmwasm_std::SystemResult::Ok(to_json_binary(
-            &MinIbcFeeResponse { min_fee: IbcFee {
-                recv_fee: vec![],
-                ack_fee: vec![coin(100000, "untrn")],
-                timeout_fee: vec![coin(100000, "untrn")],
-            }}
-        ).into()));
+        .with_custom_handler(|_| {
+            cosmwasm_std::SystemResult::Ok(
+                to_json_binary(&MinIbcFeeResponse {
+                    min_fee: IbcFee {
+                        recv_fee: vec![],
+                        ack_fee: vec![coin(100000, "untrn")],
+                        timeout_fee: vec![coin(100000, "untrn")],
+                    },
+                })
+                .into(),
+            )
+        });
 
     let mut deps = OwnedDeps {
         storage: MockStorage::default(),
@@ -125,11 +135,12 @@ fn test_tick_no_ibc_fee() {
         deps.as_mut(),
         mock_env(),
         no_ibc_fee_info.clone(),
-        crate::msg::ExecuteMsg::DistributeFallback { denoms: vec!["denom1".to_string()] },
+        crate::msg::ExecuteMsg::DistributeFallback {
+            denoms: vec!["denom1".to_string()],
+        },
     )
     .unwrap();
 }
-
 
 #[test]
 #[should_panic(expected = "insufficient fees")]
@@ -141,13 +152,18 @@ fn test_tick_insufficient_ibc_fee() {
 
     let coins = vec![usdc_coin, random_coin_1, random_coin_2, random_coin_3];
     let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)])
-        .with_custom_handler(|_| cosmwasm_std::SystemResult::Ok(to_json_binary(
-            &MinIbcFeeResponse { min_fee: IbcFee {
-                recv_fee: vec![],
-                ack_fee: vec![coin(100000, "untrn")],
-                timeout_fee: vec![coin(100000, "untrn")],
-            }}
-        ).into()));
+        .with_custom_handler(|_| {
+            cosmwasm_std::SystemResult::Ok(
+                to_json_binary(&MinIbcFeeResponse {
+                    min_fee: IbcFee {
+                        recv_fee: vec![],
+                        ack_fee: vec![coin(100000, "untrn")],
+                        timeout_fee: vec![coin(100000, "untrn")],
+                    },
+                })
+                .into(),
+            )
+        });
 
     let mut deps = OwnedDeps {
         storage: MockStorage::default(),
@@ -174,7 +190,9 @@ fn test_tick_insufficient_ibc_fee() {
         deps.as_mut(),
         mock_env(),
         no_ibc_fee_info.clone(),
-        crate::msg::ExecuteMsg::DistributeFallback { denoms: vec!["denom1".to_string()] },
+        crate::msg::ExecuteMsg::DistributeFallback {
+            denoms: vec!["denom1".to_string()],
+        },
     )
     .unwrap();
 }
@@ -188,13 +206,18 @@ fn test_tick() {
 
     let coins = vec![usdc_coin, random_coin_1, random_coin_2, random_coin_3];
     let querier: MockQuerier<Empty> = MockQuerier::new(&[("cosmos2contract", &coins)])
-        .with_custom_handler(|_| cosmwasm_std::SystemResult::Ok(to_json_binary(
-            &MinIbcFeeResponse { min_fee: IbcFee {
-                recv_fee: vec![],
-                ack_fee: vec![coin(100000, "untrn")],
-                timeout_fee: vec![coin(100000, "untrn")],
-            }}
-        ).into()));
+        .with_custom_handler(|_| {
+            cosmwasm_std::SystemResult::Ok(
+                to_json_binary(&MinIbcFeeResponse {
+                    min_fee: IbcFee {
+                        recv_fee: vec![],
+                        ack_fee: vec![coin(100000, "untrn")],
+                        timeout_fee: vec![coin(100000, "untrn")],
+                    },
+                })
+                .into(),
+            )
+        });
 
     let mut deps = OwnedDeps {
         storage: MockStorage::default(),

@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{coin, Addr, Decimal, Deps, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{coin, Addr, Decimal, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};

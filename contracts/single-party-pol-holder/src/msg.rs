@@ -59,7 +59,7 @@ pub enum QueryMsg {
     #[returns(Addr)]
     EmergencyCommitteeAddr {},
     #[returns(Expiration)]
-    LockupConfig {}
+    LockupConfig {},
 }
 
 #[cw_serde]

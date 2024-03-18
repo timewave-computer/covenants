@@ -28,5 +28,4 @@ cw-storage-plus = { workspace = true }
 cw2             = { workspace = true }
 thiserror       = { workspace = true }
 schemars        = { workspace = true }
-serde-json-wasm = { workspace = true }
 serde           = { workspace = true }

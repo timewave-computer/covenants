@@ -1,7 +1,6 @@
-use cosmwasm_std::{coin, Uint128, Uint64};
-use neutron_sdk::bindings::msg::IbcFee;
+use cosmwasm_std::{Uint128, Uint64};
 
-use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_NTRN, NTRN_HUB_CHANNEL};
+use crate::setup::{DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
 pub struct IbcForwarderInstantiate {
     pub msg: covenant_ibc_forwarder::msg::InstantiateMsg,

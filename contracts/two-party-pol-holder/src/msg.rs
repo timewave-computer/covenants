@@ -281,7 +281,8 @@ impl TwoPartyPolCovenantConfig {
         api.addr_validate(&self.party_b.host_addr)?;
 
         ensure!(
-            !self.party_a.contribution.amount.is_zero() && !self.party_b.contribution.amount.is_zero(),
+            !self.party_a.contribution.amount.is_zero()
+                && !self.party_b.contribution.amount.is_zero(),
             ContractError::PartyContributionConfigError {}
         );
 
