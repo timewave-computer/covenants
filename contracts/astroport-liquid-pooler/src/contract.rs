@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    QuerierWrapper, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::{astroport::query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
@@ -10,12 +10,11 @@ use cw2::set_contract_version;
 
 use astroport::{
     asset::{Asset, PairInfo},
-    factory::PairType,
     pair::{Cw20HookMsg, ExecuteMsg::ProvideLiquidity, PoolResponse},
     DecimalCheckedOps,
 };
 use cw20::Cw20ExecuteMsg;
-use cw_utils::parse_reply_instantiate_data;
+use cw_utils::parse_reply_execute_data;
 
 use crate::{
     error::ContractError,
@@ -49,6 +48,16 @@ pub fn instantiate(
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     let holder_addr = deps.api.addr_validate(&msg.holder_address)?;
+
+    // validate that the pool did not migrate to a new pair type
+    let pool_response: PairInfo = deps
+        .querier
+        .query_wasm_smart(pool_addr.to_string(), &astroport::pair::QueryMsg::Pair {})?;
+
+    ensure!(
+        pool_response.pair_type.eq(&msg.pair_type),
+        ContractError::PairTypeMismatch {}
+    );
 
     // contract starts at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
@@ -114,10 +123,7 @@ fn try_withdraw(
         ContractError::WithdrawPercentageRangeError {}
     );
 
-    let holder_addr = HOLDER_ADDRESS
-        .load(deps.storage)
-        .map_err(|_| ContractError::MissingHolderError {})?;
-
+    let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
     ensure!(info.sender == holder_addr, ContractError::NotHolder {});
 
     // Query LP position of the LPer
@@ -217,34 +223,12 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     }
 }
 
-fn validate_pair_type(
-    querier: QuerierWrapper,
-    pool: String,
-    pair_type: &PairType,
-) -> Result<(), ContractError> {
-    let pool_response: PairInfo =
-        querier.query_wasm_smart(pool, &astroport::pair::QueryMsg::Pair {})?;
-
-    ensure!(
-        &pool_response.pair_type == pair_type,
-        ContractError::PairTypeMismatch {}
-    );
-    Ok(())
-}
-
 /// method which attempts to provision liquidity to the pool.
 /// if both desired asset balances are non-zero, double sided liquidity
 /// is provided.
 /// otherwise, single-sided liquidity provision is attempted.
 fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let lp_config = LP_CONFIG.load(deps.storage)?;
-
-    // validate that the pool did not migrate to a new pair type
-    validate_pair_type(
-        deps.querier,
-        lp_config.pool_address.to_string(),
-        &lp_config.pair_type,
-    )?;
 
     let pool_response: PoolResponse = deps
         .querier
@@ -535,7 +519,7 @@ fn handle_double_sided_reply_id(
     _env: Env,
     msg: Reply,
 ) -> Result<Response, ContractError> {
-    match parse_reply_instantiate_data(msg) {
+    match parse_reply_execute_data(msg) {
         Ok(response) => Ok(Response::default()
             .add_attribute("method", "handle_double_sided_reply_id")
             .add_attribute(
@@ -556,7 +540,7 @@ fn handle_single_sided_reply_id(
     _env: Env,
     msg: Reply,
 ) -> Result<Response, ContractError> {
-    match parse_reply_instantiate_data(msg) {
+    match parse_reply_execute_data(msg) {
         Ok(response) => Ok(Response::default()
             .add_attribute("method", "handle_single_sided_reply_id")
             .add_attribute(
