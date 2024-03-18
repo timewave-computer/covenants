@@ -1,10 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    to_json_binary, Addr, Binary, DepsMut, StdError, StdResult, Uint128, Uint64, WasmMsg,
-};
-use covenant_clock::helpers::dequeue_msg;
+use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
@@ -13,8 +10,6 @@ use covenant_macros::{
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo, split::SplitConfig,
 };
-
-use crate::state::CONTRACT_STATE;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -84,14 +79,6 @@ pub enum QueryMsg {
 pub enum ContractState {
     Instantiated,
     IcaCreated,
-    Completed,
-}
-
-impl ContractState {
-    pub fn complete_and_dequeue(deps: DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
-        CONTRACT_STATE.save(deps.storage, &ContractState::Completed)?;
-        dequeue_msg(clock_addr)
-    }
 }
 
 #[cw_serde]
