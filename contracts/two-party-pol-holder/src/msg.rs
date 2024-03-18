@@ -1,6 +1,5 @@
 use std::{collections::BTreeMap, fmt};
 
-use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     ensure, to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut,
@@ -517,22 +516,4 @@ pub struct RagequitTerms {
 pub struct RagequitState {
     pub coins: Vec<Coin>,
     pub rq_party: TwoPartyPolCovenantParty,
-}
-
-impl RagequitState {
-    pub fn from_share_response(
-        assets: Vec<Asset>,
-        rq_party: TwoPartyPolCovenantParty,
-    ) -> Result<RagequitState, StdError> {
-        let mut rq_coins: Vec<Coin> = vec![];
-        for asset in assets {
-            let coin = asset.to_coin()?;
-            rq_coins.push(coin);
-        }
-
-        Ok(RagequitState {
-            coins: rq_coins,
-            rq_party,
-        })
-    }
 }
