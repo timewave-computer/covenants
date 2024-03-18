@@ -22,3 +22,4 @@ pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
 
 pub const REPLY_ID_STORAGE: Item<Vec<u8>> = Item::new("reply_queue_id");
 pub const SUDO_PAYLOAD: Map<(String, u64), Vec<u8>> = Map::new("sudo_payload");
+pub const FALLBACK_ADDRESS: Item<String> = Item::new("fallback_address");

@@ -33,6 +33,7 @@ fn test_instantiate_party_a_interchain() {
                     native_denom: DENOM_ATOM_ON_NTRN.to_string(),
                     contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
                     denom_to_pfm_map: BTreeMap::new(),
+                    fallback_address: None,
                 },
             ),
         )
@@ -61,6 +62,7 @@ fn test_instantiate_party_b_interchain() {
                     native_denom: DENOM_ATOM_ON_NTRN.to_string(),
                     contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
                     denom_to_pfm_map: BTreeMap::new(),
+                    fallback_address: None,
                 },
             ),
         )
@@ -102,6 +104,7 @@ fn test_migrate_update_config_party_a_interchain() {
                     native_denom: DENOM_ATOM_ON_NTRN.to_string(),
                     contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
                     denom_to_pfm_map: BTreeMap::new(),
+                    fallback_address: None,
                 },
             ),
         )
@@ -151,6 +154,7 @@ fn test_migrate_update_config_party_a_interchain() {
         next_contract: None,
         remote_chain_info: None.into(),
         transfer_amount: None,
+        fallback_address: None,
     };
     let mut contract_codes = suite.query_contract_codes();
     contract_codes.clock = 1;
@@ -285,6 +289,7 @@ fn test_migrate_update_config_party_b_interchain() {
                     native_denom: DENOM_ATOM_ON_NTRN.to_string(),
                     contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
                     denom_to_pfm_map: BTreeMap::new(),
+                    fallback_address: None,
                 },
             ),
         )
@@ -337,6 +342,7 @@ fn test_migrate_update_config_party_b_interchain() {
         next_contract: None,
         remote_chain_info: None.into(),
         transfer_amount: None,
+        fallback_address: None,
     };
     let mut contract_codes = suite.query_contract_codes();
     contract_codes.party_a_forwarder = 1;

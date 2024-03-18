@@ -182,6 +182,7 @@ pub fn instantiate(
             amount: config.contribution.amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+            fallback_address: msg.fallback_address.clone(),
         };
 
         messages.push(instantiate_msg.to_instantiate2_msg(
@@ -214,6 +215,7 @@ pub fn instantiate(
             amount: config.contribution.amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
+            fallback_address: msg.fallback_address,
         };
 
         messages.push(instantiate_msg.to_instantiate2_msg(

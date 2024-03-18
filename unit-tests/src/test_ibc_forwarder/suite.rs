@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{Addr, Uint128, Uint64};
+use cosmwasm_std::{Addr, Coin, Uint128, Uint64};
 use covenant_utils::neutron::RemoteChainInfo;
+use cw_multi_test::{AppResponse, Executor};
 use cw_storage_plus::KeyDeserialize;
 
 use crate::setup::{
@@ -69,6 +70,11 @@ impl IbcForwarderBuilder {
 
     pub fn with_amount(mut self, amount: Uint128) -> Self {
         self.instantiate_msg.with_amount(amount);
+        self
+    }
+
+    pub fn with_fallback_address(mut self, fallback_address: String) -> Self {
+        self.instantiate_msg.with_fallback_address(fallback_address);
         self
     }
 
@@ -228,6 +234,16 @@ impl Suite {
         Addr::from_slice(&val).unwrap()
     }
 
+    pub fn query_fallback_address(&mut self) -> Option<String> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.ibc_forwarder.clone(),
+                &covenant_ibc_forwarder::msg::QueryMsg::FallbackAddress {},
+            )
+            .unwrap()
+    }
+
     // temp fix until we add a query
     pub(crate) fn query_transfer_amount(&mut self) -> Uint128 {
         let resp = self
@@ -242,6 +258,26 @@ impl Suite {
         let transfer_amount = String::from_vec(val).unwrap();
 
         Uint128::from_str(&transfer_amount).unwrap()
+    }
+
+    pub fn query_admin_address(&mut self) -> String {
+        self.app
+            .wrap()
+            .query_wasm_contract_info(self.ibc_forwarder.to_string())
+            .unwrap()
+            .admin
+            .unwrap()
+    }
+
+    pub fn distribute_fallback(&mut self, coins: Vec<Coin>, funds: Vec<Coin>) -> AppResponse {
+        self.app
+            .execute_contract(
+                self.faucet.clone(),
+                self.ibc_forwarder.clone(),
+                &covenant_ibc_forwarder::msg::ExecuteMsg::DistributeFallback { coins },
+                &funds,
+            )
+            .unwrap()
     }
 }
 

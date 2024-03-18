@@ -192,6 +192,7 @@ impl TwoPartyCovenantInstantiate {
                         },
                     },
                 ),
+                fallback_address: None,
             },
         }
     }

@@ -1,12 +1,14 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, coins, Addr, Decimal, Uint128};
+use covenant_remote_chain_splitter::msg::FallbackAddressUpdateConfig;
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::Executor;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
-    ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN,
+    ADMIN, DENOM_ATOM_ON_NTRN, DENOM_FALLBACK_ON_HUB, DENOM_LS_ATOM_ON_NTRN, DENOM_NTRN,
+    DENOM_OSMO_ON_HUB_FROM_NTRN,
 };
 
 use super::suite::RemoteChainSplitterBuilder;
@@ -243,6 +245,9 @@ fn test_migrate_update_config() {
                 clock_addr: Some(suite.faucet.to_string()),
                 remote_chain_info: Some(remote_chain_info.clone()),
                 splits: Some(split_config.clone()),
+                fallback_address: Some(FallbackAddressUpdateConfig::ExplicitAddress(
+                    suite.faucet.to_string(),
+                )),
             },
             6,
         )
@@ -251,10 +256,38 @@ fn test_migrate_update_config() {
     let new_remote_chain_info = suite.query_remote_chain_info();
     let new_split_config = suite.query_split_config();
     let clock_addr = suite.query_clock_address();
+    let fallback_addr = suite.query_fallback_address().unwrap();
 
     assert_eq!(suite.faucet, clock_addr);
     assert_eq!(remote_chain_info, new_remote_chain_info);
     assert_eq!(split_config, new_split_config);
+    assert_eq!(suite.faucet, fallback_addr);
+}
+
+#[test]
+fn test_migrate_update_config_disable_fallback() {
+    let mut builder = RemoteChainSplitterBuilder::default();
+    builder.instantiate_msg.msg.fallback_address =
+        Some(builder.instantiate_msg.msg.clock_address.to_string());
+    let mut suite = builder.build();
+
+    suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.splitter.clone(),
+            &covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
+                clock_addr: None,
+                remote_chain_info: None,
+                splits: None,
+                fallback_address: Some(FallbackAddressUpdateConfig::Disable {}),
+            },
+            6,
+        )
+        .unwrap();
+
+    let fallback_addr = suite.query_fallback_address();
+    assert!(fallback_addr.is_none());
 }
 
 #[test]
@@ -286,8 +319,217 @@ fn test_migrate_update_config_validates_splits() {
                 clock_addr: None,
                 remote_chain_info: None,
                 splits: Some(split_config.clone()),
+                fallback_address: None,
             },
             6,
         )
         .unwrap();
+}
+
+#[test]
+#[should_panic(expected = "Missing fallback address")]
+fn test_distribute_fallback_errors_without_fallback_address() {
+    let mut suite = RemoteChainSplitterBuilder::default().build();
+
+    let splitter_addr = suite.splitter.clone();
+
+    // fund forwarder to register the ica
+    suite.fund_contract(&coins(2_000_000, DENOM_NTRN), splitter_addr.clone());
+
+    // register ica
+    suite.tick_contract(splitter_addr.clone());
+
+    // try to distribute fallback denom
+    suite.distribute_fallback(
+        vec![coin(100_000, DENOM_ATOM_ON_NTRN.to_string())],
+        coins(1_000_000, DENOM_NTRN),
+    );
+}
+
+#[test]
+#[should_panic(expected = "Cannot distribute target denom via fallback distribution")]
+fn test_distribute_fallback_validates_denom() {
+    let mut builder = RemoteChainSplitterBuilder::default();
+    builder.instantiate_msg.msg.fallback_address =
+        Some(builder.instantiate_msg.msg.clock_address.to_string());
+    let mut suite = builder.build();
+
+    let splitter_addr = suite.splitter.clone();
+
+    // fund splitter to register the ica
+    suite.fund_contract(&coins(2_000_000, DENOM_NTRN), splitter_addr.clone());
+
+    // register ica
+    suite.tick_contract(splitter_addr.clone());
+
+    let splitter_ica = suite.query_ica_address(splitter_addr.clone());
+
+    // fund the ica with sufficient amount of DENOM_ATOM_ON_NTRN
+    suite.fund_contract(&coins(100_000, DENOM_ATOM_ON_NTRN), splitter_ica.clone());
+    suite.assert_balance(&splitter_ica, coin(100_000, DENOM_ATOM_ON_NTRN));
+
+    // try to distribute fallback denom
+    suite.distribute_fallback(
+        vec![coin(100_000, DENOM_ATOM_ON_NTRN.to_string())],
+        coins(1_000_000, DENOM_NTRN),
+    );
+}
+
+#[test]
+#[should_panic(expected = "must cover ibc fees to distribute fallback denoms")]
+fn test_distribute_fallback_validates_ibc_fee_coverage() {
+    let mut builder = RemoteChainSplitterBuilder::default();
+    builder.instantiate_msg.msg.fallback_address =
+        Some(builder.instantiate_msg.msg.clock_address.to_string());
+    let mut suite = builder.build();
+
+    let splitter_addr = suite.splitter.clone();
+
+    // fund forwarder to register the ica
+    suite.fund_contract(&coins(2_000_000, DENOM_NTRN), splitter_addr.clone());
+
+    // register ica
+    suite.tick_contract(splitter_addr.clone());
+
+    let forwarder_ica = suite.query_ica_address(splitter_addr.clone());
+
+    // fund the ica with sufficient amount of DENOM_ATOM_ON_NTRN
+    suite.fund_contract(&coins(100_000, DENOM_ATOM_ON_NTRN), forwarder_ica.clone());
+    suite.assert_balance(&forwarder_ica, coin(100_000, DENOM_ATOM_ON_NTRN));
+
+    // try to distribute fallback denom
+    suite.distribute_fallback(vec![coin(100_000, DENOM_ATOM_ON_NTRN.to_string())], vec![]);
+}
+
+#[test]
+#[should_panic(expected = "insufficient fees")]
+fn test_distribute_fallback_validates_insufficient_ibc_fee_coverage() {
+    let mut builder = RemoteChainSplitterBuilder::default();
+    builder.instantiate_msg.msg.fallback_address =
+        Some(builder.instantiate_msg.msg.clock_address.to_string());
+    let mut suite = builder.build();
+
+    let splitter_addr = suite.splitter.clone();
+
+    // fund forwarder to register the ica
+    suite.fund_contract(&coins(2_000_000, DENOM_NTRN), splitter_addr.clone());
+
+    // register ica
+    suite.tick_contract(splitter_addr.clone());
+
+    let forwarder_ica = suite.query_ica_address(splitter_addr.clone());
+
+    // fund the ica with sufficient amount of DENOM_ATOM_ON_NTRN
+    suite.fund_contract(&coins(100_000, DENOM_ATOM_ON_NTRN), forwarder_ica.clone());
+    suite.assert_balance(&forwarder_ica, coin(100_000, DENOM_ATOM_ON_NTRN));
+
+    // try to distribute fallback denom
+    suite.distribute_fallback(
+        vec![coin(100_000, DENOM_ATOM_ON_NTRN.to_string())],
+        coins(5_000, DENOM_NTRN),
+    );
+}
+
+#[test]
+#[should_panic(expected = "Attempt to distribute duplicate denoms via fallback distribution")]
+fn test_distribute_fallback_validates_duplicate_input_denoms() {
+    let mut builder = RemoteChainSplitterBuilder::default();
+    builder.instantiate_msg.msg.fallback_address =
+        Some(builder.instantiate_msg.msg.clock_address.to_string());
+    let mut suite = builder.build();
+
+    let splitter_addr = suite.splitter.clone();
+
+    // fund forwarder to register the ica
+    suite.fund_contract(&coins(2_000_000, DENOM_NTRN), splitter_addr.clone());
+
+    // register ica
+    suite.tick_contract(splitter_addr.clone());
+
+    let forwarder_ica = suite.query_ica_address(splitter_addr.clone());
+
+    // fund the ica with sufficient amount of DENOM_ATOM_ON_NTRN
+    suite.fund_contract(
+        &coins(100_000, DENOM_FALLBACK_ON_HUB),
+        forwarder_ica.clone(),
+    );
+    suite.assert_balance(&forwarder_ica, coin(100_000, DENOM_FALLBACK_ON_HUB));
+
+    // try to distribute fallback denom
+    suite.distribute_fallback(
+        vec![
+            coin(100_000, DENOM_FALLBACK_ON_HUB.to_string()),
+            coin(100_000, DENOM_FALLBACK_ON_HUB.to_string()),
+        ],
+        coins(1_000_000, DENOM_NTRN),
+    );
+
+    // assert that the funds were in fact forwarded
+    suite.assert_balance(&forwarder_ica, coin(0, DENOM_FALLBACK_ON_HUB));
+}
+
+#[test]
+#[should_panic(expected = "no ica found")]
+fn test_distribute_fallback_validates_ica_exists() {
+    let mut builder = RemoteChainSplitterBuilder::default();
+    builder.instantiate_msg.msg.fallback_address =
+        Some(builder.instantiate_msg.msg.clock_address.to_string());
+    let mut suite = builder.build();
+
+    // try to distribute fallback denom
+    suite.distribute_fallback(
+        vec![coin(100_000, DENOM_FALLBACK_ON_HUB.to_string())],
+        coins(1_000_000, DENOM_NTRN),
+    );
+}
+
+#[test]
+fn test_distribute_fallback_happy() {
+    let mut builder = RemoteChainSplitterBuilder::default();
+    builder.instantiate_msg.msg.fallback_address =
+        Some(builder.instantiate_msg.msg.clock_address.to_string());
+    let mut suite = builder.build();
+
+    let splitter_addr = suite.splitter.clone();
+
+    // fund forwarder to register the ica
+    suite.fund_contract(&coins(3_000_000, DENOM_NTRN), splitter_addr.clone());
+
+    // register ica
+    suite.tick_contract(splitter_addr.clone());
+
+    let forwarder_ica = suite.query_ica_address(splitter_addr.clone());
+
+    // fund the ica with sufficient amount of DENOM_FALLBACK_ON_HUB and
+    suite.fund_contract(
+        &coins(100_000, DENOM_FALLBACK_ON_HUB),
+        forwarder_ica.clone(),
+    );
+    suite.fund_contract(
+        &coins(100_000, DENOM_OSMO_ON_HUB_FROM_NTRN),
+        forwarder_ica.clone(),
+    );
+    suite.assert_balance(&forwarder_ica, coin(100_000, DENOM_FALLBACK_ON_HUB));
+    suite.assert_balance(&forwarder_ica, coin(100_000, DENOM_OSMO_ON_HUB_FROM_NTRN));
+
+    // try to distribute fallback denom
+    suite.distribute_fallback(
+        vec![
+            coin(100_000, DENOM_FALLBACK_ON_HUB.to_string()),
+            coin(100_000, DENOM_OSMO_ON_HUB_FROM_NTRN),
+        ],
+        vec![coin(2_000_000, DENOM_NTRN)],
+    );
+
+    // assert that the funds were in fact forwarded
+    suite.assert_balance(&forwarder_ica, coin(0, DENOM_ATOM_ON_NTRN));
+    suite.assert_balance(&forwarder_ica, coin(0, DENOM_OSMO_ON_HUB_FROM_NTRN));
+    suite.assert_balance(
+        suite.clock_addr.to_string(),
+        coin(100_000, DENOM_FALLBACK_ON_HUB),
+    );
+    suite.assert_balance(
+        suite.clock_addr.to_string(),
+        coin(100_000, DENOM_OSMO_ON_HUB_FROM_NTRN),
+    );
 }

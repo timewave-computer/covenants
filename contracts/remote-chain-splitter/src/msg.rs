@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Binary, Coin, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
@@ -36,6 +36,8 @@ pub struct InstantiateMsg {
     /// if the ICA times out, the destination chain receiving the funds
     /// will also receive the IBC packet with an expired timestamp.
     pub ibc_transfer_timeout: Uint64,
+    // fallback address on the remote chain
+    pub fallback_address: Option<String>,
 }
 
 impl InstantiateMsg {
@@ -58,7 +60,9 @@ impl InstantiateMsg {
 
 #[clocked]
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    DistributeFallback { coins: Vec<Coin> },
+}
 
 #[covenant_clock_address]
 #[covenant_remote_chain]
@@ -73,6 +77,8 @@ pub enum QueryMsg {
     SplitConfig {},
     #[returns(Uint128)]
     TransferAmount {},
+    #[returns(Option<String>)]
+    FallbackAddress {},
 }
 
 #[cw_serde]
@@ -82,11 +88,18 @@ pub enum ContractState {
 }
 
 #[cw_serde]
+pub enum FallbackAddressUpdateConfig {
+    ExplicitAddress(String),
+    Disable {},
+}
+
+#[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
         remote_chain_info: Option<RemoteChainInfo>,
         splits: Option<BTreeMap<String, SplitConfig>>,
+        fallback_address: Option<FallbackAddressUpdateConfig>,
     },
     UpdateCodeId {
         data: Option<Binary>,

@@ -22,6 +22,7 @@ impl IbcForwarderInstantiate {
         amount: Uint128,
         ibc_transfer_timeout: Uint64,
         ica_timeout: Uint64,
+        fallback_address: Option<String>,
     ) -> Self {
         Self {
             msg: covenant_ibc_forwarder::msg::InstantiateMsg {
@@ -33,6 +34,7 @@ impl IbcForwarderInstantiate {
                 amount,
                 ibc_transfer_timeout,
                 ica_timeout,
+                fallback_address,
             },
         }
     }
@@ -67,6 +69,11 @@ impl IbcForwarderInstantiate {
         self
     }
 
+    pub fn with_fallback_address(&mut self, addr: String) -> &mut Self {
+        self.msg.fallback_address = Some(addr);
+        self
+    }
+
     pub fn with_ibc_transfer_timeout(&mut self, addr: Uint64) -> &mut Self {
         self.msg.ibc_transfer_timeout = addr;
         self
@@ -90,6 +97,7 @@ impl IbcForwarderInstantiate {
                 amount: Uint128::new(100_000),
                 ica_timeout: Uint64::from(100u64),
                 ibc_transfer_timeout: Uint64::from(100u64),
+                fallback_address: None,
             },
         }
     }

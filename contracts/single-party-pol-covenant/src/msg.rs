@@ -80,6 +80,7 @@ pub struct RemoteChainSplitterConfig {
     pub amount: Uint128,
     pub ls_share: Decimal,
     pub native_share: Decimal,
+    pub fallback_address: Option<String>,
 }
 
 #[cw_serde]

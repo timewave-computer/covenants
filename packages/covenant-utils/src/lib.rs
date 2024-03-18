@@ -41,6 +41,8 @@ pub struct InterchainCovenantParty {
     pub contribution: Coin,
     /// configuration for unwinding the denoms via pfm
     pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    /// fallback refund address on the remote chain
+    pub fallback_address: Option<String>,
 }
 
 #[cw_serde]
