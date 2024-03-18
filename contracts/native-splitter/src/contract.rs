@@ -49,8 +49,7 @@ pub fn instantiate(
 
     Ok(resp
         .add_message(enqueue_msg(msg.clock_address.as_str())?)
-        .add_attribute("clock_address", clock_address)
-    )
+        .add_attribute("clock_address", clock_address))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

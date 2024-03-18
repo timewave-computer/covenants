@@ -1,5 +1,3 @@
-#![warn(clippy::unwrap_used, clippy::expect_used)]
-
 extern crate core;
 
 pub mod contract;
@@ -9,4 +7,4 @@ pub mod state;
 
 #[allow(clippy::unwrap_used)]
 #[cfg(test)]
-mod suite_tests;
+pub mod suite_tests;

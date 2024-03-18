@@ -36,7 +36,6 @@ thiserror       = { workspace = true }
 # ```cargo tree --package cosmwasm-std```
 sha2           = { workspace = true }
 neutron-sdk    = { workspace = true }
-protobuf       = { workspace = true }
 schemars       = { workspace = true }
 bech32         = { workspace = true }
 astroport      = { workspace = true }

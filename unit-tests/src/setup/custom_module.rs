@@ -1,7 +1,8 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{
-    coin, coins, from_json, to_json_binary, to_json_string, Addr, BalanceResponse, BankMsg, BankQuery, QueryRequest, StdError, StdResult, Storage, Uint128
+    coin, coins, from_json, to_json_binary, to_json_string, Addr, BalanceResponse, BankMsg,
+    BankQuery, StdError, StdResult, Storage, Uint128,
 };
 use covenant_ibc_forwarder::helpers::MsgTransfer;
 use covenant_stride_liquid_staker::helpers::Autopilot;
@@ -16,7 +17,10 @@ use neutron_sdk::{
     bindings::{
         msg::{MsgSubmitTxResponse, NeutronMsg},
         query::NeutronQuery,
-    }, interchain_txs::helpers::get_port_id, query::min_ibc_fee::MinIbcFeeResponse, sudo::msg::RequestPacket
+    },
+    interchain_txs::helpers::get_port_id,
+    query::min_ibc_fee::MinIbcFeeResponse,
+    sudo::msg::RequestPacket,
 };
 use prost::Message;
 
@@ -820,16 +824,14 @@ impl Module for NeutronKeeper {
                     .unwrap(),
             )
             .unwrap()),
-            NeutronQuery::MinIbcFee {} => Ok(to_json_binary(
-                &MinIbcFeeResponse {
-                    min_fee: neutron_sdk::bindings::msg::IbcFee {
-                        recv_fee: vec![],
-                        ack_fee: vec![coin(10000, DENOM_NTRN)],
-                        timeout_fee: vec![coin(10000, DENOM_NTRN)],
-                    },
-                })
-                .unwrap()
-            ),
+            NeutronQuery::MinIbcFee {} => Ok(to_json_binary(&MinIbcFeeResponse {
+                min_fee: neutron_sdk::bindings::msg::IbcFee {
+                    recv_fee: vec![],
+                    ack_fee: vec![coin(10000, DENOM_NTRN)],
+                    timeout_fee: vec![coin(10000, DENOM_NTRN)],
+                },
+            })
+            .unwrap()),
             NeutronQuery::InterchainQueryResult { .. } => unimplemented!(),
             NeutronQuery::RegisteredInterchainQueries { .. } => unimplemented!(),
             NeutronQuery::RegisteredInterchainQuery { .. } => unimplemented!(),

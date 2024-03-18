@@ -64,17 +64,18 @@ fn test_withdraw_validates_percentage_range_ceiling() {
     suite.tick_contract(suite.liquid_pooler_addr.clone());
     suite.expire_lockup();
     let holder: Addr = suite.holder_addr.clone();
-    suite.app.execute_contract(
-        holder.clone(),
-        suite.liquid_pooler_addr.clone(),
-        &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw {
-            percentage: Some(Decimal::from_str("101.0").unwrap()),
-        },
-        &[],
-    )
-    .unwrap();
+    suite
+        .app
+        .execute_contract(
+            holder.clone(),
+            suite.liquid_pooler_addr.clone(),
+            &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw {
+                percentage: Some(Decimal::from_str("101.0").unwrap()),
+            },
+            &[],
+        )
+        .unwrap();
 }
-
 
 #[test]
 #[should_panic(expected = "Withdraw percentage range must belong to range (0.0, 1.0]")]
@@ -93,15 +94,17 @@ fn test_withdraw_validates_percentage_range_floor() {
     suite.tick_contract(suite.liquid_pooler_addr.clone());
 
     let holder = suite.holder_addr.clone();
-    suite.app.execute_contract(
-        holder.clone(),
-        suite.liquid_pooler_addr.clone(),
-        &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw {
-            percentage: Some(Decimal::from_str("0.0").unwrap()),
-        },
-        &[],
-    )
-    .unwrap();
+    suite
+        .app
+        .execute_contract(
+            holder.clone(),
+            suite.liquid_pooler_addr.clone(),
+            &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw {
+                percentage: Some(Decimal::from_str("0.0").unwrap()),
+            },
+            &[],
+        )
+        .unwrap();
 }
 
 #[test]
@@ -149,8 +152,11 @@ fn test_withdraw_no_lp_tokens_withdraws_covenant_assets() {
     suite.expire_lockup();
     suite.withdraw(&withdrawer, None);
 
-    suite.assert_balance(&suite.holder_addr.clone(), coin(500_000, DENOM_ATOM_ON_NTRN));
-    suite.assert_balance(&suite.holder_addr.clone(), coin(500_000, DENOM_LS_ATOM_ON_NTRN));
+    suite.assert_balance(suite.holder_addr.clone(), coin(500_000, DENOM_ATOM_ON_NTRN));
+    suite.assert_balance(
+        suite.holder_addr.clone(),
+        coin(500_000, DENOM_LS_ATOM_ON_NTRN),
+    );
 }
 
 #[test]
@@ -281,11 +287,11 @@ fn test_provide_liquidity_single_side_asset_a() {
     suite.tick_contract(suite.liquid_pooler_addr.clone());
 
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(70_000, DENOM_ATOM_ON_NTRN),
     );
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(0, DENOM_LS_ATOM_ON_NTRN),
     );
     assert_eq!(
@@ -300,11 +306,11 @@ fn test_provide_liquidity_single_side_asset_a() {
         .tick_contract(suite.liquid_pooler_addr.clone())
         .assert_event(&Event::new("wasm").add_attribute("method", "single_side_lp"));
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(0, DENOM_ATOM_ON_NTRN),
     );
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(0, DENOM_LS_ATOM_ON_NTRN),
     );
     assert_eq!(
@@ -331,11 +337,11 @@ fn test_provide_liquidity_single_side_asset_a_exceeds_limits() {
     suite.tick_contract(suite.liquid_pooler_addr.clone());
 
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(500_000, DENOM_ATOM_ON_NTRN),
     );
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(0, DENOM_LS_ATOM_ON_NTRN),
     );
     assert_eq!(
@@ -374,11 +380,11 @@ fn test_provide_liquidity_single_side_asset_b() {
     suite.tick_contract(suite.liquid_pooler_addr.clone());
 
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(0, DENOM_ATOM_ON_NTRN),
     );
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(70_000, DENOM_LS_ATOM_ON_NTRN),
     );
     assert_eq!(
@@ -393,11 +399,11 @@ fn test_provide_liquidity_single_side_asset_b() {
         .tick_contract(suite.liquid_pooler_addr.clone())
         .assert_event(&Event::new("wasm").add_attribute("method", "single_side_lp"));
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(0, DENOM_ATOM_ON_NTRN),
     );
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(0, DENOM_LS_ATOM_ON_NTRN),
     );
     assert_eq!(
@@ -425,11 +431,11 @@ fn test_provide_liquidity_single_side_asset_b_exceeds_limits() {
     suite.tick_contract(suite.liquid_pooler_addr.clone());
 
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(0, DENOM_ATOM_ON_NTRN),
     );
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(500_000, DENOM_LS_ATOM_ON_NTRN),
     );
     assert_eq!(
@@ -468,11 +474,11 @@ fn test_provide_liquidity_double_side_excess_a_denom() {
     suite.tick_contract(suite.liquid_pooler_addr.clone());
 
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(500_000, DENOM_ATOM_ON_NTRN),
     );
     suite.assert_balance(
-        &suite.liquid_pooler_addr.clone(),
+        suite.liquid_pooler_addr.clone(),
         coin(0, DENOM_LS_ATOM_ON_NTRN),
     );
     assert_eq!(

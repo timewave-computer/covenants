@@ -3,7 +3,8 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Attribute, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult
+    to_json_binary, Attribute, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Response, StdError, StdResult,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use cw2::set_contract_version;
@@ -81,10 +82,13 @@ fn try_distribute_fallback(
 
     let bank_sends: Vec<CosmosMsg> = available_balances
         .into_iter()
-        .map(|c| BankMsg::Send {
-            to_address: receiver_address.to_string(),
-            amount: vec![c],
-        }.into())
+        .map(|c| {
+            BankMsg::Send {
+                to_address: receiver_address.to_string(),
+                amount: vec![c],
+            }
+            .into()
+        })
         .collect();
 
     Ok(Response::default()
@@ -127,10 +131,13 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
 
     let bank_sends: Vec<CosmosMsg> = denom_balances
         .into_iter()
-        .map(|c| BankMsg::Send {
-            to_address: receiver_addr.to_string(),
-            amount: vec![c],
-        }.into())
+        .map(|c| {
+            BankMsg::Send {
+                to_address: receiver_addr.to_string(),
+                amount: vec![c],
+            }
+            .into()
+        })
         .collect();
 
     Ok(Response::default()

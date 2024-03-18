@@ -2,7 +2,8 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{
-    ensure, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult
+    ensure, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Response, StdError, StdResult,
 };
 
 #[cfg(not(feature = "library"))]
@@ -178,8 +179,7 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
         return Ok(Response::default()
             .add_attribute("method", "try_claim")
             .add_attribute("contract_state", "complete")
-            .add_message(dequeue_message)
-        );
+            .add_message(dequeue_message));
     }
 
     // we exit early if contract is not in ragequit or expired state
@@ -332,7 +332,8 @@ fn try_claim_share_based(
     } else {
         // otherwise both parties claimed everything and we can complete
         let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
-        let dequeue_message = ContractState::complete_and_dequeue(deps.branch(), clock_address.as_str())?;
+        let dequeue_message =
+            ContractState::complete_and_dequeue(deps.branch(), clock_address.as_str())?;
         messages.push(dequeue_message.into());
     };
 
@@ -368,8 +369,7 @@ fn try_claim_side_based(
     Ok(Response::default()
         .add_attribute("method", "claim_side_based")
         .add_messages(messages)
-        .add_message(dequeue_message)
-    )
+        .add_message(dequeue_message))
 }
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
@@ -381,11 +381,11 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     match state {
         ContractState::Instantiated => try_deposit(deps, env, info, clock_addr.as_str()),
         ContractState::Active => check_expiration(deps, env),
-        ContractState::Expired |
-        ContractState::Ragequit |
-        ContractState::Complete => Ok(Response::default()
-            .add_attribute("method", "tick")
-            .add_attribute("contract_state", state.to_string())),
+        ContractState::Expired | ContractState::Ragequit | ContractState::Complete => {
+            Ok(Response::default()
+                .add_attribute("method", "tick")
+                .add_attribute("contract_state", state.to_string()))
+        }
     }
 }
 
@@ -591,7 +591,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Config {} => Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&env.contract.address)?),
         QueryMsg::DenomSplits {} => Ok(to_json_binary(&DENOM_SPLITS.load(deps.storage)?)?),
-        QueryMsg::EmergencyCommittee {} => Ok(to_json_binary(&EMERGENCY_COMMITTEE_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::EmergencyCommittee {} => Ok(to_json_binary(
+            &EMERGENCY_COMMITTEE_ADDR.may_load(deps.storage)?,
+        )?),
     }
 }
 
@@ -656,7 +658,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             }
 
             if let Some(splits) = denom_splits {
-                for (_, config) in &splits {
+                for config in splits.values() {
                     config.validate_shares_and_receiver_addresses(deps.api)?;
                 }
                 resp = resp.add_attribute("explicit_splits", format!("{:?}", splits));

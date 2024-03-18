@@ -16,10 +16,17 @@ use super::suite::NativeSplitterBuilder;
 fn test_instantiate_validates_explicit_split_shares() {
     let mut builder = NativeSplitterBuilder::default();
     let (denom, mut split_config) = builder.instantiate_msg.msg.splits.pop_first().unwrap();
-    let invalid_split_config: BTreeMap<String, Decimal> = split_config.receivers.iter_mut()
+    let invalid_split_config: BTreeMap<String, Decimal> = split_config
+        .receivers
+        .iter_mut()
         .map(|(k, _)| (k.to_string(), Decimal::percent(49)))
         .collect();
-    builder.instantiate_msg.msg.splits.insert(denom, SplitConfig { receivers: invalid_split_config });
+    builder.instantiate_msg.msg.splits.insert(
+        denom,
+        SplitConfig {
+            receivers: invalid_split_config,
+        },
+    );
     builder.build();
 }
 
@@ -28,10 +35,17 @@ fn test_instantiate_validates_explicit_split_shares() {
 fn test_instantiate_validates_explicit_split_receiver_addresses() {
     let mut builder = NativeSplitterBuilder::default();
     let (denom, mut split_config) = builder.instantiate_msg.msg.splits.pop_first().unwrap();
-    let invalid_split_config: BTreeMap<String, Decimal> = split_config.receivers.iter_mut()
-        .map(|(k, v)| (format!("invalid_{:?}", k), v.clone()))
+    let invalid_split_config: BTreeMap<String, Decimal> = split_config
+        .receivers
+        .iter_mut()
+        .map(|(k, v)| (format!("invalid_{:?}", k), *v))
         .collect();
-    builder.instantiate_msg.msg.splits.insert(denom, SplitConfig { receivers: invalid_split_config });
+    builder.instantiate_msg.msg.splits.insert(
+        denom,
+        SplitConfig {
+            receivers: invalid_split_config,
+        },
+    );
     builder.build();
 }
 
@@ -49,7 +63,9 @@ fn test_instantiate_validates_fallback_split_receiver_addresses() {
     let mut invalid_split_config = BTreeMap::new();
     invalid_split_config.insert("invalid_address".to_string(), Decimal::one());
     NativeSplitterBuilder::default()
-        .with_fallback_split(Some(SplitConfig { receivers: invalid_split_config }))
+        .with_fallback_split(Some(SplitConfig {
+            receivers: invalid_split_config,
+        }))
         .build();
 }
 
@@ -58,9 +74,14 @@ fn test_instantiate_validates_fallback_split_receiver_addresses() {
 fn test_instantiate_validates_fallback_split_shares() {
     let builder = NativeSplitterBuilder::default();
     let mut invalid_split_config = BTreeMap::new();
-    invalid_split_config.insert(builder.instantiate_msg.msg.clock_address.to_string(), Decimal::percent(50));
+    invalid_split_config.insert(
+        builder.instantiate_msg.msg.clock_address.to_string(),
+        Decimal::percent(50),
+    );
     builder
-        .with_fallback_split(Some(SplitConfig { receivers: invalid_split_config }))
+        .with_fallback_split(Some(SplitConfig {
+            receivers: invalid_split_config,
+        }))
         .build();
 }
 

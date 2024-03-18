@@ -2,9 +2,13 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    to_json_string, Addr, Api, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, Decimal, IbcMsg, IbcTimeout, StdError, StdResult, Timestamp, Uint128, Uint64
+    to_json_string, Addr, Api, Attribute, Coin, CosmosMsg, Decimal, StdError, StdResult, Timestamp,
+    Uint128, Uint64,
 };
-use neutron_sdk::{bindings::msg::{IbcFee, NeutronMsg}, sudo::msg::RequestPacketTimeoutHeight};
+use neutron_sdk::{
+    bindings::msg::{IbcFee, NeutronMsg},
+    sudo::msg::RequestPacketTimeoutHeight,
+};
 
 pub mod astroport;
 pub mod deadline;
@@ -90,10 +94,10 @@ pub struct CovenantParty {
 impl CovenantParty {
     pub fn validate_addresses(&self, api: &dyn Api) -> StdResult<Addr> {
         match &self.receiver_config {
-            ReceiverConfig::Native(addr) => api.addr_validate(&addr),
+            ReceiverConfig::Native(addr) => api.addr_validate(addr),
             ReceiverConfig::Ibc(destination_config) => {
                 api.addr_validate(&destination_config.destination_receiver_addr)
-            },
+            }
         }
     }
 }

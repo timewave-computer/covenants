@@ -3,18 +3,24 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal,
-    Env, Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg,
+    ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Env,
+    Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig;
 use covenant_utils::{
-    polytone::get_polytone_execute_msg_binary,
-    withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata, PacketMetadata,
+    polytone::get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata,
+    PacketMetadata,
 };
 use cw2::set_contract_version;
 use neutron_sdk::{
-    bindings::{msg::{IbcFee, NeutronMsg}, query::NeutronQuery}, query::min_ibc_fee::{self, MinIbcFeeResponse}, sudo::msg::RequestPacketTimeoutHeight, NeutronResult
+    bindings::{
+        msg::{IbcFee, NeutronMsg},
+        query::NeutronQuery,
+    },
+    query::min_ibc_fee::MinIbcFeeResponse,
+    sudo::msg::RequestPacketTimeoutHeight,
+    NeutronResult,
 };
 use polytone::callbacks::CallbackRequest;
 
@@ -548,7 +554,7 @@ fn try_fund_proxy(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neutron
             env.clone(),
             coin_1_bal,
             proxy_address.to_string(),
-            &min_ibc_fee.min_fee
+            &min_ibc_fee.min_fee,
         )?);
     }
     if coin_2_bal.amount > Uint128::zero() {

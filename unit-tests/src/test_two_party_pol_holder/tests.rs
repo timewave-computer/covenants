@@ -7,7 +7,8 @@ use cw_multi_test::Executor;
 use cw_utils::Expiration;
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut}, ADMIN, DENOM_ATOM_ON_NTRN, DENOM_FALLBACK, DENOM_LS_ATOM_ON_NTRN
+    base_suite::{BaseSuite, BaseSuiteMut},
+    ADMIN, DENOM_ATOM_ON_NTRN, DENOM_FALLBACK, DENOM_LS_ATOM_ON_NTRN,
 };
 
 use super::suite::TwoPartyHolderBuilder;
@@ -56,7 +57,13 @@ fn test_instantiate_validates_lockup_config() {
 #[should_panic(expected = "Party contribution cannot be zero")]
 fn test_instantiate_validates_party_a_contribution_amount() {
     let mut builder = TwoPartyHolderBuilder::default();
-    builder.instantiate_msg.msg.covenant_config.party_a.contribution.amount = Uint128::zero();
+    builder
+        .instantiate_msg
+        .msg
+        .covenant_config
+        .party_a
+        .contribution
+        .amount = Uint128::zero();
     builder.build();
 }
 
@@ -64,7 +71,13 @@ fn test_instantiate_validates_party_a_contribution_amount() {
 #[should_panic(expected = "Party contribution cannot be zero")]
 fn test_instantiate_validates_party_b_contribution_amount() {
     let mut builder = TwoPartyHolderBuilder::default();
-    builder.instantiate_msg.msg.covenant_config.party_b.contribution.amount = Uint128::zero();
+    builder
+        .instantiate_msg
+        .msg
+        .covenant_config
+        .party_b
+        .contribution
+        .amount = Uint128::zero();
     builder.build();
 }
 
@@ -72,7 +85,12 @@ fn test_instantiate_validates_party_b_contribution_amount() {
 #[should_panic]
 fn test_instantiate_validates_party_a_host_addr() {
     let mut builder = TwoPartyHolderBuilder::default();
-    builder.instantiate_msg.msg.covenant_config.party_a.host_addr = "invalid".to_string();
+    builder
+        .instantiate_msg
+        .msg
+        .covenant_config
+        .party_a
+        .host_addr = "invalid".to_string();
     builder.build();
 }
 
@@ -80,7 +98,12 @@ fn test_instantiate_validates_party_a_host_addr() {
 #[should_panic]
 fn test_instantiate_validates_party_b_host_addr() {
     let mut builder = TwoPartyHolderBuilder::default();
-    builder.instantiate_msg.msg.covenant_config.party_b.host_addr = "invalid".to_string();
+    builder
+        .instantiate_msg
+        .msg
+        .covenant_config
+        .party_b
+        .host_addr = "invalid".to_string();
     builder.build();
 }
 
@@ -233,7 +256,7 @@ fn test_execute_tick_expired_deposit_refunds_both_parties() {
     suite.expire_deposit_deadline();
 
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_000, DENOM_ATOM_ON_NTRN),
             coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -254,7 +277,10 @@ fn test_execute_tick_expired_deposit_refunds_both_parties() {
         coin(10_000, DENOM_LS_ATOM_ON_NTRN),
     );
 
-    assert!(matches!(suite.query_contract_state(), ContractState::Complete {}));
+    assert!(matches!(
+        suite.query_contract_state(),
+        ContractState::Complete {}
+    ));
 }
 
 #[test]
@@ -263,7 +289,7 @@ fn test_execute_tick_expired_deposit_refunds_party_a() {
     suite.expire_deposit_deadline();
 
     suite.fund_contract(
-        &vec![coin(10_000, DENOM_ATOM_ON_NTRN)],
+        &[coin(10_000, DENOM_ATOM_ON_NTRN)],
         suite.holder_addr.clone(),
     );
 
@@ -277,7 +303,10 @@ fn test_execute_tick_expired_deposit_refunds_party_a() {
         coin(10_000, DENOM_ATOM_ON_NTRN),
     );
     suite.assert_balance(suite.holder_addr.clone(), coin(0, DENOM_ATOM_ON_NTRN));
-    assert!(matches!(suite.query_contract_state(), ContractState::Complete {}));
+    assert!(matches!(
+        suite.query_contract_state(),
+        ContractState::Complete {}
+    ));
 }
 
 #[test]
@@ -286,7 +315,7 @@ fn test_execute_tick_expired_deposit_refunds_party_b() {
     suite.app.update_block(|b| b.height = 200000);
 
     suite.fund_contract(
-        &vec![coin(10_000, DENOM_LS_ATOM_ON_NTRN)],
+        &[coin(10_000, DENOM_LS_ATOM_ON_NTRN)],
         suite.holder_addr.clone(),
     );
 
@@ -299,8 +328,11 @@ fn test_execute_tick_expired_deposit_refunds_party_b() {
         &suite.covenant_config.party_b.router,
         coin(10_000, DENOM_LS_ATOM_ON_NTRN),
     );
-    suite.assert_balance(&suite.holder_addr.clone(), coin(0, DENOM_LS_ATOM_ON_NTRN));
-    assert!(matches!(suite.query_contract_state(), ContractState::Complete {}));
+    suite.assert_balance(suite.holder_addr.clone(), coin(0, DENOM_LS_ATOM_ON_NTRN));
+    assert!(matches!(
+        suite.query_contract_state(),
+        ContractState::Complete {}
+    ));
 }
 
 #[test]
@@ -312,7 +344,10 @@ fn test_execute_tick_expired_deposit_completes() {
             .add_attribute("method", "try_deposit")
             .add_attribute("state", "complete"),
     );
-    assert!(matches!(suite.query_contract_state(), ContractState::Complete {}));
+    assert!(matches!(
+        suite.query_contract_state(),
+        ContractState::Complete {}
+    ));
 }
 
 #[test]
@@ -321,7 +356,7 @@ fn test_execute_tick_deposit_validates_insufficient_deposits() {
     let mut suite = TwoPartyHolderBuilder::default().build();
 
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_000, DENOM_ATOM_ON_NTRN),
             coin(5_000, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -334,7 +369,7 @@ fn test_execute_tick_deposit_validates_insufficient_deposits() {
 fn test_execute_tick_expired_noop() {
     let mut suite = TwoPartyHolderBuilder::default().build();
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_000, DENOM_ATOM_ON_NTRN),
             coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -367,7 +402,7 @@ fn test_execute_tick_ragequit_noop() {
         ))
         .build();
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_000, DENOM_ATOM_ON_NTRN),
             coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -395,7 +430,7 @@ fn test_execute_tick_ragequit_noop() {
 fn test_execute_ragequit_validates_ragequit_config() {
     let mut suite = TwoPartyHolderBuilder::default().build();
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_000, DENOM_ATOM_ON_NTRN),
             coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -442,7 +477,7 @@ fn test_execute_ragequit_validates_lockup_config_expiration() {
         ))
         .build();
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_000, DENOM_ATOM_ON_NTRN),
             coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -469,7 +504,7 @@ fn test_execute_ragequit_validates_sender() {
         ))
         .build();
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_000, DENOM_ATOM_ON_NTRN),
             coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -480,7 +515,7 @@ fn test_execute_ragequit_validates_sender() {
 
     assert_eq!(suite.query_contract_state(), ContractState::Active {});
 
-    suite.ragequit(&suite.faucet.to_string());
+    suite.ragequit(suite.faucet.clone().as_ref());
 }
 
 #[test]
@@ -511,7 +546,7 @@ fn test_execute_claim_with_null_allocation() {
         ))
         .build();
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_000, DENOM_ATOM_ON_NTRN),
             coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -533,7 +568,7 @@ fn test_execute_claim_with_null_allocation() {
 fn test_execute_claim_validates_claim_state() {
     let mut suite = TwoPartyHolderBuilder::default().build();
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_000, DENOM_ATOM_ON_NTRN),
             coin(10_000, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -548,7 +583,7 @@ fn test_execute_claim_validates_claim_state() {
 fn test_execute_claim_happy() {
     let mut suite = TwoPartyHolderBuilder::default().build();
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_001, DENOM_ATOM_ON_NTRN),
             coin(10_001, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -586,7 +621,7 @@ fn test_execute_emergency_withdraw_validates_committee_address() {
     let mut suite = builder.with_emergency_committee(clock.as_str()).build();
 
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_001, DENOM_ATOM_ON_NTRN),
             coin(10_001, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -607,7 +642,7 @@ fn test_execute_emergency_withdraw_happy() {
     let mut suite = builder.with_emergency_committee(clock.as_str()).build();
 
     suite.fund_contract(
-        &vec![
+        &[
             coin(10_001, DENOM_ATOM_ON_NTRN),
             coin(10_001, DENOM_LS_ATOM_ON_NTRN),
         ],
@@ -630,7 +665,10 @@ fn test_execute_emergency_withdraw_happy() {
     assert_eq!(5000, party_b_atom_bal.u128());
     assert_eq!(5000, party_a_ls_atom_bal.u128());
     assert_eq!(5000, party_b_ls_atom_bal.u128());
-    assert!(matches!(suite.query_contract_state(), ContractState::Complete{}));
+    assert!(matches!(
+        suite.query_contract_state(),
+        ContractState::Complete {}
+    ));
 }
 
 #[test]
@@ -650,15 +688,29 @@ fn test_distribute_fallback_with_no_fallback_split_noop_happy() {
 
     suite.distribute_fallback_split(&sender, vec![DENOM_FALLBACK.to_string()]);
 
-    suite.assert_balance(suite.holder_addr.to_string(), coin(1_000_000, DENOM_FALLBACK));
+    suite.assert_balance(
+        suite.holder_addr.to_string(),
+        coin(1_000_000, DENOM_FALLBACK),
+    );
 }
-
 
 #[test]
 fn test_distribute_fallback_happy() {
     let mut builder = TwoPartyHolderBuilder::default();
-    let router_a_addr = builder.instantiate_msg.msg.covenant_config.party_a.router.to_string();
-    let router_b_addr = builder.instantiate_msg.msg.covenant_config.party_b.router.to_string();
+    let router_a_addr = builder
+        .instantiate_msg
+        .msg
+        .covenant_config
+        .party_a
+        .router
+        .to_string();
+    let router_b_addr = builder
+        .instantiate_msg
+        .msg
+        .covenant_config
+        .party_b
+        .router
+        .to_string();
     builder.instantiate_msg.msg.fallback_split = Some(SplitConfig {
         receivers: vec![
             (router_a_addr.to_string(), Decimal::percent(50)),
@@ -773,9 +825,7 @@ fn test_migrate_update_config_invalid_fallback_split() {
                 ragequit_config: Box::new(None),
                 covenant_config: Box::new(None),
                 denom_splits: None,
-                fallback_split: Some(SplitConfig {
-                    receivers
-                }),
+                fallback_split: Some(SplitConfig { receivers }),
             },
             13,
         )
@@ -787,9 +837,7 @@ fn test_migrate_update_config_invalid_fallback_split() {
 fn test_migrate_update_config_invalid_explicit_splits() {
     let mut suite = TwoPartyHolderBuilder::default().build();
 
-    let mut explicit_splits = suite.query_denom_splits()
-        .explicit_splits
-        .clone();
+    let mut explicit_splits = suite.query_denom_splits().explicit_splits.clone();
 
     let mut receivers = explicit_splits
         .get(DENOM_ATOM_ON_NTRN)
@@ -828,44 +876,48 @@ fn test_migrate_update_config_invalid_explicit_splits() {
 #[should_panic(expected = "lockup config is already past")]
 fn test_migrate_update_config_validates_lockup_config_expiration() {
     let mut suite = TwoPartyHolderBuilder::default().build();
-    suite.app.migrate_contract(
-        Addr::unchecked(ADMIN),
-        suite.holder_addr.clone(),
-        &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-            clock_addr: None,
-            next_contract: None,
-            emergency_committee: None,
-            lockup_config: Some(Expiration::AtHeight(1)),
-            deposit_deadline: None,
-            ragequit_config: Box::new(None),
-            covenant_config: Box::new(None),
-            denom_splits: None,
-            fallback_split: None,
-        },
-        13,
-    )
-    .unwrap();
+    suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.holder_addr.clone(),
+            &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+                clock_addr: None,
+                next_contract: None,
+                emergency_committee: None,
+                lockup_config: Some(Expiration::AtHeight(1)),
+                deposit_deadline: None,
+                ragequit_config: Box::new(None),
+                covenant_config: Box::new(None),
+                denom_splits: None,
+                fallback_split: None,
+            },
+            13,
+        )
+        .unwrap();
 }
 
 #[test]
 #[should_panic(expected = "deposit deadline is already past")]
 fn test_migrate_update_config_validates_deposit_deadline_expiration() {
     let mut suite = TwoPartyHolderBuilder::default().build();
-    suite.app.migrate_contract(
-        Addr::unchecked(ADMIN),
-        suite.holder_addr.clone(),
-        &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-            clock_addr: None,
-            next_contract: None,
-            emergency_committee: None,
-            lockup_config: None,
-            deposit_deadline: Some(Expiration::AtHeight(1)),
-            ragequit_config: Box::new(None),
-            covenant_config: Box::new(None),
-            denom_splits: None,
-            fallback_split: None,
-        },
-        13,
-    )
-    .unwrap();
+    suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.holder_addr.clone(),
+            &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+                clock_addr: None,
+                next_contract: None,
+                emergency_committee: None,
+                lockup_config: None,
+                deposit_deadline: Some(Expiration::AtHeight(1)),
+                ragequit_config: Box::new(None),
+                covenant_config: Box::new(None),
+                denom_splits: None,
+                fallback_split: None,
+            },
+            13,
+        )
+        .unwrap();
 }

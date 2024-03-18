@@ -264,8 +264,7 @@ pub fn instantiate(
             party_b_router_instantiate2_config.addr,
         )
         .add_attribute("holder_addr", holder_instantiate2_config.addr)
-        .add_messages(messages)
-    )
+        .add_messages(messages))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

@@ -320,7 +320,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             )?;
 
             Ok(to_json_binary(&ica)?)
-        },
+        }
         QueryMsg::ContractCodes {} => Ok(to_json_binary(&CONTRACT_CODES.load(deps.storage)?)?),
     }
 }

@@ -3,17 +3,23 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    ensure, to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::sum_fees;
 use cw2::set_contract_version;
 use cw_utils::must_pay;
 use neutron_sdk::{
-    bindings::{msg::NeutronMsg, query::NeutronQuery}, query::min_ibc_fee::MinIbcFeeResponse, NeutronError, NeutronResult
+    bindings::{msg::NeutronMsg, query::NeutronQuery},
+    query::min_ibc_fee::MinIbcFeeResponse,
+    NeutronError, NeutronResult,
 };
 
-use crate::{error::ContractError, state::{DESTINATION_CONFIG, TARGET_DENOMS}};
+use crate::{
+    error::ContractError,
+    state::{DESTINATION_CONFIG, TARGET_DENOMS},
+};
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::CLOCK_ADDRESS,
@@ -35,7 +41,8 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let clock_address = deps.api.addr_validate(&msg.clock_address)?;
-    deps.api.addr_validate(&msg.destination_config.destination_receiver_addr)?;
+    deps.api
+        .addr_validate(&msg.destination_config.destination_receiver_addr)?;
 
     CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
     DESTINATION_CONFIG.save(deps.storage, &msg.destination_config)?;
@@ -61,7 +68,9 @@ pub fn execute(
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
             try_route_balances(deps, env)
         }
-        ExecuteMsg::DistributeFallback { denoms } => try_distribute_fallback(deps, env, info, denoms),
+        ExecuteMsg::DistributeFallback { denoms } => {
+            try_distribute_fallback(deps, env, info, denoms)
+        }
     }
 }
 
@@ -75,12 +84,16 @@ fn try_distribute_fallback(
     let destination_config = DESTINATION_CONFIG.load(deps.storage)?;
     let explicit_denoms = TARGET_DENOMS.load(deps.storage)?;
 
-    let min_fee_query_response: MinIbcFeeResponse = deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
+    let min_fee_query_response: MinIbcFeeResponse =
+        deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
     let total_fee = sum_fees(&min_fee_query_response.min_fee);
 
     // the caller must cover the ibc fees
     match must_pay(&info, "untrn") {
-        Ok(amt) => ensure!(amt >= total_fee, NeutronError::Std(StdError::generic_err("insufficient fees"))),
+        Ok(amt) => ensure!(
+            amt >= total_fee,
+            NeutronError::Std(StdError::generic_err("insufficient fees"))
+        ),
         Err(e) => return Err(ContractError::IbcFeeError(e).to_neutron_std()),
     };
 
@@ -103,7 +116,7 @@ fn try_distribute_fallback(
         available_balances,
         env.block.time,
         env.contract.address.to_string(),
-        min_ibc_fee.min_fee
+        min_ibc_fee.min_fee,
     )?;
 
     Ok(Response::default()
