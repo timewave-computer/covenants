@@ -48,6 +48,18 @@ fn test_instantiate_validates_pool_price_config() {
 }
 
 #[test]
+#[should_panic(expected = "Pair type mismatch")]
+fn test_instantiate_validates_pool_pair_type() {
+    AstroLiquidPoolerBuilder::default()
+        .with_custom_astroport_pool(
+            astroport::factory::PairType::Xyk {},
+            coin(1_000_000, DENOM_ATOM_ON_NTRN),
+            coin(1_000_000, DENOM_LS_ATOM_ON_NTRN),
+        )
+        .build();
+}
+
+#[test]
 #[should_panic(expected = "Withdraw percentage range must belong to range (0.0, 1.0]")]
 fn test_withdraw_validates_percentage_range_ceiling() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
@@ -377,7 +389,11 @@ fn test_provide_liquidity_single_side_asset_b() {
         suite.liquid_pooler_addr.clone(),
     );
 
-    suite.tick_contract(suite.liquid_pooler_addr.clone());
+    let double_sided_response = suite.tick_contract(suite.liquid_pooler_addr.clone());
+    double_sided_response
+        .assert_event(&Event::new("wasm").add_attribute("method", "double_side_lp"));
+    double_sided_response
+        .assert_event(&Event::new("wasm").add_attribute("method", "handle_double_sided_reply_id"));
 
     suite.assert_balance(
         suite.liquid_pooler_addr.clone(),
@@ -395,9 +411,11 @@ fn test_provide_liquidity_single_side_asset_b() {
         }
     );
 
-    suite
-        .tick_contract(suite.liquid_pooler_addr.clone())
-        .assert_event(&Event::new("wasm").add_attribute("method", "single_side_lp"));
+    let app_response = suite.tick_contract(suite.liquid_pooler_addr.clone());
+    app_response.assert_event(&Event::new("wasm").add_attribute("method", "single_side_lp"));
+    app_response
+        .assert_event(&Event::new("wasm").add_attribute("method", "handle_single_sided_reply_id"));
+
     suite.assert_balance(
         suite.liquid_pooler_addr.clone(),
         coin(0, DENOM_ATOM_ON_NTRN),
