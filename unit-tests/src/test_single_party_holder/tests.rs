@@ -58,7 +58,10 @@ fn test_execute_claim_validates_pending_withdrawals() {
 
     // manually setting the storage key to true
     let withdraw_state_key = "\0\u{4}wasm\0Ocontract_data/cosmos1lxsjav25s55mnxkfzkmvhdkqpsnmlm9whwk8ctqawgj438kda96s54a6mlwithdraw_state".as_bytes();
-    suite.app.storage_mut().set(withdraw_state_key, "true".as_bytes());
+    suite
+        .app
+        .storage_mut()
+        .set(withdraw_state_key, "true".as_bytes());
 
     suite.execute_claim(sender);
 }
@@ -138,7 +141,10 @@ fn test_execute_emergency_withdraw_validates_pending_withdrawals() {
 
     // manually setting the storage key to true
     let withdraw_state_key = "\0\u{4}wasm\0Ocontract_data/cosmos1lxsjav25s55mnxkfzkmvhdkqpsnmlm9whwk8ctqawgj438kda96s54a6mlwithdraw_state".as_bytes();
-    suite.app.storage_mut().set(withdraw_state_key, "true".as_bytes());
+    suite
+        .app
+        .storage_mut()
+        .set(withdraw_state_key, "true".as_bytes());
 
     suite.execute_emergency_withdraw(sender);
 }
@@ -229,7 +235,8 @@ fn test_migrate_update_config_validates_lockup_config() {
     let current_block = suite.get_app().block_info().height;
     let past_expiration = Expiration::AtHeight(current_block - 1);
 
-    suite.app
+    suite
+        .app
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),

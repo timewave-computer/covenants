@@ -1,8 +1,9 @@
 use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint128, Uint64};
-use cw_multi_test::Executor;
+use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
-    base_suite::BaseSuiteMut, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_STRIDE
+    base_suite::BaseSuiteMut, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+    DENOM_LS_ATOM_ON_STRIDE,
 };
 
 use super::suite::Suite;
@@ -10,6 +11,23 @@ use super::suite::Suite;
 #[test]
 fn test_covenant() {
     let mut suite = Suite::new_with_stable_pool();
+    let resp: AppResponse = suite
+        .app
+        .execute_contract(
+            suite.admin.clone(),
+            suite.lser_addr.clone(),
+            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
+                amount: 500_000_000_000_u128.into(),
+            },
+            &[],
+        )
+        .unwrap();
+
+    resp.assert_event(
+        &Event::new("wasm")
+            .add_attribute("method", "try_permisionless_transfer")
+            .add_attribute("ica_status", "not_created"),
+    );
 
     suite.get_and_fund_depositors(coin(1_000_000_000_000_u128, DENOM_ATOM));
 
@@ -34,7 +52,7 @@ fn test_covenant() {
         .unwrap()
         .is_empty()
     {
-        suite.tick("Wait for lp_forwarder ICA to get its split");
+        suite.tick("Wait for ls_forwarder ICA to get its split");
     }
 
     let lp_forwarder_ica_balance = suite
@@ -1039,11 +1057,12 @@ fn test_migrate_update_config_with_codes() {
         transfer_amount: None,
     };
 
-    let liquid_pooler_migrate_msg = covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(covenant_addr.to_string()),
-        holder_address: None,
-        lp_config: None,
-    };
+    let liquid_pooler_migrate_msg =
+        covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
+            clock_addr: Some(covenant_addr.to_string()),
+            holder_address: None,
+            lp_config: None,
+        };
 
     let liquid_staker_migrate_msg = covenant_stride_liquid_staker::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
@@ -1051,40 +1070,77 @@ fn test_migrate_update_config_with_codes() {
         remote_chain_info: None,
     };
 
-    let remote_chain_splitter_migrate_msg = covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(covenant_addr.to_string()),
-        remote_chain_info: None,
-        splits: None,
-    };
+    let remote_chain_splitter_migrate_msg =
+        covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
+            clock_addr: Some(covenant_addr.to_string()),
+            remote_chain_info: None,
+            splits: None,
+        };
 
-    let resp = suite.app.migrate_contract(
-        Addr::unchecked(ADMIN),
-        covenant_addr,
-        &covenant_single_party_pol::msg::MigrateMsg::MigrateContracts {
-            codes: Some(contract_codes.clone()),
-            clock: None,
-            holder: Some(holder_migrate_msg.clone()),
-            ls_forwarder: Some(ibc_forwarder_migrate_msg.clone()),
-            lp_forwarder: Some(ibc_forwarder_migrate_msg.clone()),
-            splitter: Some(remote_chain_splitter_migrate_msg.clone()),
-            liquid_pooler: Some(
-                covenant_single_party_pol::msg::LiquidPoolerMigrateMsg::Astroport(liquid_pooler_migrate_msg.clone())
+    let resp = suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            covenant_addr,
+            &covenant_single_party_pol::msg::MigrateMsg::MigrateContracts {
+                codes: Some(contract_codes.clone()),
+                clock: None,
+                holder: Some(holder_migrate_msg.clone()),
+                ls_forwarder: Some(ibc_forwarder_migrate_msg.clone()),
+                lp_forwarder: Some(ibc_forwarder_migrate_msg.clone()),
+                splitter: Some(remote_chain_splitter_migrate_msg.clone()),
+                liquid_pooler: Some(
+                    covenant_single_party_pol::msg::LiquidPoolerMigrateMsg::Astroport(
+                        liquid_pooler_migrate_msg.clone(),
+                    ),
+                ),
+                liquid_staker: Some(liquid_staker_migrate_msg.clone()),
+                router: None,
+            },
+            2,
+        )
+        .unwrap();
+
+    resp.assert_event(
+        &Event::new("wasm")
+            .add_attribute(
+                "contract_codes_migrate",
+                to_json_binary(&contract_codes).unwrap().to_base64(),
+            )
+            .add_attribute(
+                "ls_forwarder_migrate",
+                to_json_binary(&ibc_forwarder_migrate_msg)
+                    .unwrap()
+                    .to_base64(),
+            )
+            .add_attribute(
+                "lp_forwarder_migrate",
+                to_json_binary(&ibc_forwarder_migrate_msg)
+                    .unwrap()
+                    .to_base64(),
+            )
+            .add_attribute(
+                "liquid_pooler_migrate",
+                to_json_binary(&liquid_pooler_migrate_msg)
+                    .unwrap()
+                    .to_base64(),
+            )
+            .add_attribute(
+                "liquid_staker_migrate",
+                to_json_binary(&liquid_staker_migrate_msg)
+                    .unwrap()
+                    .to_base64(),
+            )
+            .add_attribute(
+                "splitter_migrate",
+                to_json_binary(&remote_chain_splitter_migrate_msg)
+                    .unwrap()
+                    .to_base64(),
+            )
+            .add_attribute(
+                "holder_migrate",
+                to_json_binary(&holder_migrate_msg).unwrap().to_base64(),
             ),
-            liquid_staker: Some(liquid_staker_migrate_msg.clone()),
-            router: None,
-        },
-        2,
-    )
-    .unwrap();
-
-    resp.assert_event(&Event::new("wasm")
-        .add_attribute("contract_codes_migrate", to_json_binary(&contract_codes).unwrap().to_base64())
-        .add_attribute("ls_forwarder_migrate", to_json_binary(&ibc_forwarder_migrate_msg).unwrap().to_base64())
-        .add_attribute("lp_forwarder_migrate", to_json_binary(&ibc_forwarder_migrate_msg).unwrap().to_base64())
-        .add_attribute("liquid_pooler_migrate", to_json_binary(&liquid_pooler_migrate_msg).unwrap().to_base64())
-        .add_attribute("liquid_staker_migrate", to_json_binary(&liquid_staker_migrate_msg).unwrap().to_base64())
-        .add_attribute("splitter_migrate", to_json_binary(&remote_chain_splitter_migrate_msg).unwrap().to_base64())
-        .add_attribute("holder_migrate", to_json_binary(&holder_migrate_msg).unwrap().to_base64())
     );
 
     let new_codes = suite.query_contract_codes();
@@ -1096,32 +1152,43 @@ fn test_migrate_update_config_no_codes() {
     let mut suite = Suite::new_with_stable_pool();
     let covenant_addr = suite.covenant_addr.clone();
 
-    let clock_migrate_msg = covenant_clock::msg::MigrateMsg::UpdateTickMaxGas { new_value: Uint64::new(50000) };
+    let clock_migrate_msg = covenant_clock::msg::MigrateMsg::UpdateTickMaxGas {
+        new_value: Uint64::new(50000),
+    };
     let router_migrate_msg = covenant_interchain_router::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
         destination_config: None,
         target_denoms: None,
     };
-    let resp = suite.app.migrate_contract(
-        Addr::unchecked(ADMIN),
-        covenant_addr,
-        &covenant_single_party_pol::msg::MigrateMsg::MigrateContracts {
-            codes: None,
-            clock: Some(clock_migrate_msg.clone()),
-            holder: None,
-            ls_forwarder: None,
-            lp_forwarder: None,
-            splitter: None,
-            liquid_pooler: None,
-            liquid_staker: None,
-            router: Some(router_migrate_msg.clone()),
-        },
-        2,
-    )
-    .unwrap();
+    let resp = suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            covenant_addr,
+            &covenant_single_party_pol::msg::MigrateMsg::MigrateContracts {
+                codes: None,
+                clock: Some(clock_migrate_msg.clone()),
+                holder: None,
+                ls_forwarder: None,
+                lp_forwarder: None,
+                splitter: None,
+                liquid_pooler: None,
+                liquid_staker: None,
+                router: Some(router_migrate_msg.clone()),
+            },
+            2,
+        )
+        .unwrap();
 
-    resp.assert_event(&Event::new("wasm")
-        .add_attribute("clock_migrate", to_json_binary(&clock_migrate_msg).unwrap().to_base64())
-        .add_attribute("router_migrate", to_json_binary(&router_migrate_msg).unwrap().to_base64())
+    resp.assert_event(
+        &Event::new("wasm")
+            .add_attribute(
+                "clock_migrate",
+                to_json_binary(&clock_migrate_msg).unwrap().to_base64(),
+            )
+            .add_attribute(
+                "router_migrate",
+                to_json_binary(&router_migrate_msg).unwrap().to_base64(),
+            ),
     );
 }

@@ -1,4 +1,4 @@
-use cosmwasm_std::{from_json, to_json_vec, Addr, Binary, Order, StdResult, Storage, Uint128};
+use cosmwasm_std::{from_json, to_json_vec, Addr, Binary, Order, StdResult, Storage};
 use covenant_utils::neutron::{RemoteChainInfo, SudoPayload};
 use cw_storage_plus::{Item, Map};
 
@@ -12,8 +12,6 @@ pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
 /// next contract address to forward the liquid staked funds to
 pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");
 
-pub const TRANSFER_AMOUNT: Item<Uint128> = Item::new("transfer_amount");
-
 /// information needed for an ibc transfer to the remote chain
 pub const REMOTE_CHAIN_INFO: Item<RemoteChainInfo> = Item::new("r_c_info");
 
@@ -22,8 +20,6 @@ pub const INTERCHAIN_ACCOUNTS: Map<String, Option<(String, String)>> =
     Map::new("interchain_accounts");
 
 /// interchain transaction responses - ack/err/timeout state to query later
-// pub const ACKNOWLEDGEMENT_RESULTS: Map<(String, u64), AcknowledgementResult> =
-//     Map::new("acknowledgement_results");
 pub const REPLY_ID_STORAGE: Item<Vec<u8>> = Item::new("reply_queue_id");
 pub const SUDO_PAYLOAD: Map<(String, u64), Vec<u8>> = Map::new("sudo_payload");
 pub const ERRORS_QUEUE: Map<u32, String> = Map::new("errors_queue");

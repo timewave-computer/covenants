@@ -55,7 +55,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Withdrawer {} => Ok(to_json_binary(&WITHDRAWER.may_load(deps.storage)?)?),
         QueryMsg::WithdrawTo {} => Ok(to_json_binary(&WITHDRAW_TO.may_load(deps.storage)?)?),
         QueryMsg::PoolerAddress {} => Ok(to_json_binary(&POOLER_ADDRESS.may_load(deps.storage)?)?),
-        QueryMsg::EmergencyCommitteeAddr {} => Ok(to_json_binary(&EMERGENCY_COMMITTEE_ADDR.may_load(deps.storage)?)?),
+        QueryMsg::EmergencyCommitteeAddr {} => Ok(to_json_binary(
+            &EMERGENCY_COMMITTEE_ADDR.may_load(deps.storage)?,
+        )?),
         QueryMsg::LockupConfig {} => Ok(to_json_binary(&LOCKUP_PERIOD.load(deps.storage)?)?),
     }
 }

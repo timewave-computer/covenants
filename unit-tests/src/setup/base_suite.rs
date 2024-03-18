@@ -53,7 +53,7 @@ pub trait BaseSuiteMut {
         .unwrap()
     }
 
-    fn fund_contract(&mut self, amount: &Vec<Coin>, to: Addr) {
+    fn fund_contract(&mut self, amount: &[Coin], to: Addr) {
         let faucet = self.get_faucet_addr().clone();
         let app = self.get_app();
 

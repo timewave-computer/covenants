@@ -5,9 +5,6 @@
 pub mod setup;
 
 #[cfg(test)]
-pub mod test;
-
-#[cfg(test)]
 pub mod test_astroport_liquid_pooler;
 #[cfg(test)]
 pub mod test_ibc_forwarder;

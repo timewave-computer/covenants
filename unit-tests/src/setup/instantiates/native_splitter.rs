@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::Decimal;
 use covenant_utils::split::SplitConfig;
 
 use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};

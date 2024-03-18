@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    Api, Attribute, BankMsg, Coin, CosmosMsg, Decimal, Fraction, StdError, StdResult, Uint128
+    Api, Attribute, BankMsg, Coin, CosmosMsg, Decimal, Fraction, StdError, StdResult, Uint128,
 };
 
 #[cw_serde]

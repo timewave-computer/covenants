@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Coin, Deps, StdResult, Uint64, WasmMsg};
+use cosmwasm_std::{Addr, Binary, Coin, StdResult, Uint64, WasmMsg};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty,
     DestinationConfig, InterchainCovenantParty, NativeCovenantParty, ReceiverConfig,

@@ -1,9 +1,14 @@
-use std::{collections::{BTreeMap, BTreeSet}, str::FromStr};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    str::FromStr,
+};
 
 use crate::setup::{
-    base_suite::{BaseSuite, BaseSuiteMut}, instantiates::swap_holder::SwapHolderInstantiate,
-    suite_builder::SuiteBuilder, CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
-    NATIVE_SPLITTER_SALT, SWAP_HOLDER_SALT,
+    base_suite::{BaseSuite, BaseSuiteMut},
+    instantiates::swap_holder::SwapHolderInstantiate,
+    suite_builder::SuiteBuilder,
+    CustomApp, CLOCK_SALT, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN, NATIVE_SPLITTER_SALT,
+    SWAP_HOLDER_SALT,
 };
 use cosmwasm_std::{Addr, Decimal};
 use covenant_swap_holder::msg::RefundConfig;
@@ -27,8 +32,10 @@ impl Default for SwapHolderBuilder {
         let party_a_controller_addr = builder.get_random_addr();
         let party_b_controller_addr = builder.get_random_addr();
 
-        let party_a_router_addr = builder.get_contract_addr(builder.native_router_code_id, "party_a");
-        let party_b_router_addr = builder.get_contract_addr(builder.native_router_code_id, "party_b");
+        let party_a_router_addr =
+            builder.get_contract_addr(builder.native_router_code_id, "party_a");
+        let party_b_router_addr =
+            builder.get_contract_addr(builder.native_router_code_id, "party_b");
 
         let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
             tick_max_gas: None,
@@ -45,7 +52,10 @@ impl Default for SwapHolderBuilder {
             &clock_instantiate_msg,
             &[],
         );
-        let denom_set = BTreeSet::from_iter(vec![DENOM_ATOM_ON_NTRN.to_string(), DENOM_LS_ATOM_ON_NTRN.to_string()]);
+        let denom_set = BTreeSet::from_iter(vec![
+            DENOM_ATOM_ON_NTRN.to_string(),
+            DENOM_LS_ATOM_ON_NTRN.to_string(),
+        ]);
         builder.contract_init2(
             builder.native_router_code_id,
             "party_a",
@@ -213,7 +223,7 @@ impl SwapHolderBuilder {
 
 impl Suite {
     pub fn expire_lockup_config(&mut self) {
-        let lockup_config = self.lockup_config.clone();
+        let lockup_config = self.lockup_config;
         let app = self.get_app();
         match lockup_config {
             Expiration::AtHeight(h) => app.update_block(|b| b.height = h),

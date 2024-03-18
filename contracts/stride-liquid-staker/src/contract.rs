@@ -145,7 +145,8 @@ fn try_execute_transfer(
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
-    let min_fee_query_response: MinIbcFeeResponse = deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
+    let min_fee_query_response: MinIbcFeeResponse =
+        deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
 
     match interchain_account {
         Some((address, controller_conn_id)) => {
@@ -337,7 +338,11 @@ fn sudo_open_ack(
     Ok(Response::default().add_attribute("method", "sudo_open_ack"))
 }
 
-fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> StdResult<Response<NeutronMsg>> {
+fn sudo_response(
+    _deps: ExecuteDeps,
+    request: RequestPacket,
+    _data: Binary,
+) -> StdResult<Response<NeutronMsg>> {
     // either of these errors will close the channel
     request
         .sequence
@@ -350,7 +355,11 @@ fn sudo_response(deps: ExecuteDeps, request: RequestPacket, data: Binary) -> Std
     Ok(Response::default().add_attribute("method", "sudo_response"))
 }
 
-fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResult<Response<NeutronMsg>> {
+fn sudo_timeout(
+    deps: ExecuteDeps,
+    _env: Env,
+    _request: RequestPacket,
+) -> StdResult<Response<NeutronMsg>> {
     // revert the state to Instantiated to force re-creation of ICA
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
@@ -358,7 +367,11 @@ fn sudo_timeout(deps: ExecuteDeps, _env: Env, request: RequestPacket) -> StdResu
     Ok(Response::default())
 }
 
-fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> StdResult<Response<NeutronMsg>> {
+fn sudo_error(
+    _deps: ExecuteDeps,
+    request: RequestPacket,
+    _details: String,
+) -> StdResult<Response<NeutronMsg>> {
     // either of these errors will close the channel
     request
         .sequence
@@ -378,7 +391,11 @@ fn sudo_error(deps: ExecuteDeps, request: RequestPacket, details: String) -> Std
 // allows you "attach" some payload to your SubmitTx message
 // and process this payload when an acknowledgement for the SubmitTx message
 // is received in Sudo handler
-fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
+fn prepare_sudo_payload(
+    mut deps: ExecuteDeps,
+    _env: Env,
+    msg: Reply,
+) -> StdResult<Response<NeutronMsg>> {
     let payload = read_reply_payload(deps.storage)?;
     let resp: MsgSubmitTxResponse = serde_json_wasm::from_slice(
         msg.result

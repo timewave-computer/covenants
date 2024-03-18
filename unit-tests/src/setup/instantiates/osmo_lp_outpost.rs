@@ -16,8 +16,8 @@ impl OsmpLpOutpostInstantiate {
     }
 }
 
-impl OsmpLpOutpostInstantiate {
-    pub fn default() -> Self {
+impl Default for OsmpLpOutpostInstantiate {
+    fn default() -> Self {
         Self::new()
     }
 }

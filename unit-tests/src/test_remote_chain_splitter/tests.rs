@@ -24,10 +24,17 @@ fn test_instantiate_validates_clock_address() {
 fn test_instantiate_validates_explicit_split_shares() {
     let mut builder = RemoteChainSplitterBuilder::default();
     let (denom, mut split_config) = builder.instantiate_msg.msg.splits.pop_first().unwrap();
-    let invalid_split_config: BTreeMap<String, Decimal> = split_config.receivers.iter_mut()
+    let invalid_split_config: BTreeMap<String, Decimal> = split_config
+        .receivers
+        .iter_mut()
         .map(|(k, _)| (k.to_string(), Decimal::percent(49)))
         .collect();
-    builder.instantiate_msg.msg.splits.insert(denom, SplitConfig { receivers: invalid_split_config });
+    builder.instantiate_msg.msg.splits.insert(
+        denom,
+        SplitConfig {
+            receivers: invalid_split_config,
+        },
+    );
     builder.build();
 }
 
@@ -140,7 +147,13 @@ fn test_execute_tick_splits_funds_happy() {
 #[test]
 fn test_execute_tick_splits_with_no_leftover() {
     let mut builder = RemoteChainSplitterBuilder::default().with_amount(Uint128::new(100));
-    let mut split_config = builder.instantiate_msg.msg.splits.get(DENOM_ATOM_ON_NTRN).unwrap().clone();
+    let mut split_config = builder
+        .instantiate_msg
+        .msg
+        .splits
+        .get(DENOM_ATOM_ON_NTRN)
+        .unwrap()
+        .clone();
     let mut first_entry = split_config.receivers.pop_first().unwrap();
     let mut second_entry = split_config.receivers.pop_first().unwrap();
 
@@ -148,9 +161,15 @@ fn test_execute_tick_splits_with_no_leftover() {
     second_entry.1 = Decimal::from_str("0.893").unwrap();
 
     split_config.receivers.insert(first_entry.0, first_entry.1);
-    split_config.receivers.insert(second_entry.0, second_entry.1);
+    split_config
+        .receivers
+        .insert(second_entry.0, second_entry.1);
 
-    builder.instantiate_msg.msg.splits.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config);
+    builder
+        .instantiate_msg
+        .msg
+        .splits
+        .insert(DENOM_ATOM_ON_NTRN.to_string(), split_config);
 
     let mut suite = builder.build();
 

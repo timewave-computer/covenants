@@ -151,12 +151,11 @@ fn try_withdraw(
 
         ensure!(!funds.is_empty(), ContractError::NothingToWithdraw {});
 
-        return Ok(Response::default()
-            .add_message(WasmMsg::Execute {
-                contract_addr: holder_addr.to_string(),
-                msg: to_json_binary(&WithdrawLPMsgs::Distribute {})?,
-                funds,
-            }))
+        return Ok(Response::default().add_message(WasmMsg::Execute {
+            contract_addr: holder_addr.to_string(),
+            msg: to_json_binary(&WithdrawLPMsgs::Distribute {})?,
+            funds,
+        }));
     }
 
     // If percentage is 100%, use the whole balance

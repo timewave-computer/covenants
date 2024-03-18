@@ -224,11 +224,14 @@ impl Suite {
 
     pub(crate) fn expire_lockup(&mut self) {
         let holder = self.holder_addr.clone();
-        let expiration: Expiration = self.app.wrap().query_wasm_smart(
-            holder.to_string(),
-            &covenant_single_party_pol_holder::msg::QueryMsg::LockupConfig {},
-        )
-        .unwrap();
+        let expiration: Expiration = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder.to_string(),
+                &covenant_single_party_pol_holder::msg::QueryMsg::LockupConfig {},
+            )
+            .unwrap();
         let app = self.get_app();
         app.update_block(|b| match expiration {
             Expiration::AtHeight(h) => b.height = h + 1,

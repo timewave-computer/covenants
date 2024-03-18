@@ -4,7 +4,10 @@ use covenant_utils::{CovenantTerms, SwapCovenantTerms};
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
 
-use crate::setup::{base_suite::{BaseSuite, BaseSuiteMut}, ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
+use crate::setup::{
+    base_suite::{BaseSuite, BaseSuiteMut},
+    ADMIN, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
+};
 
 use super::suite::SwapHolderBuilder;
 
@@ -36,7 +39,11 @@ fn test_instantiate_validates_lockup_config() {
 #[should_panic]
 fn test_instantiate_validates_party_a_refund_addr() {
     let mut builder = SwapHolderBuilder::default();
-    builder.instantiate_msg.msg.refund_config.party_a_refund_address = "invalid".to_string();
+    builder
+        .instantiate_msg
+        .msg
+        .refund_config
+        .party_a_refund_address = "invalid".to_string();
     builder.build();
 }
 
@@ -44,7 +51,11 @@ fn test_instantiate_validates_party_a_refund_addr() {
 #[should_panic]
 fn test_instantiate_validates_party_b_refund_addr() {
     let mut builder = SwapHolderBuilder::default();
-    builder.instantiate_msg.msg.refund_config.party_b_refund_address = "invalid".to_string();
+    builder
+        .instantiate_msg
+        .msg
+        .refund_config
+        .party_b_refund_address = "invalid".to_string();
     builder.build();
 }
 
@@ -53,13 +64,15 @@ fn test_instantiate_validates_party_b_refund_addr() {
 fn test_execute_tick_validates_clock() {
     let mut suite = SwapHolderBuilder::default().build();
 
-    suite.app.execute_contract(
-        suite.admin,
-        suite.holder.clone(),
-        &covenant_swap_holder::msg::ExecuteMsg::Tick {},
-        &[],
-    )
-    .unwrap();
+    suite
+        .app
+        .execute_contract(
+            suite.admin,
+            suite.holder.clone(),
+            &covenant_swap_holder::msg::ExecuteMsg::Tick {},
+            &[],
+        )
+        .unwrap();
 }
 
 #[test]
@@ -70,7 +83,7 @@ fn test_execute_tick_instantiated_expires() {
     suite.tick_contract(suite.holder.clone());
 
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Expired{}));
+    assert!(matches!(contract_state, ContractState::Expired {}));
 }
 
 #[test]
@@ -102,7 +115,7 @@ fn test_execute_tick_instantiated_forwards_and_completes() {
     suite.tick_contract(suite.holder.clone());
 
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Complete{}));
+    assert!(matches!(contract_state, ContractState::Complete {}));
 }
 
 #[test]
@@ -112,14 +125,13 @@ fn test_execute_expired_refund_both_parties() {
     suite.fund_contract(&coins(10_000, DENOM_ATOM_ON_NTRN), suite.holder.clone());
     suite.fund_contract(&coins(10_000, DENOM_LS_ATOM_ON_NTRN), suite.holder.clone());
 
-
     suite.assert_balance(suite.holder.clone(), coin(10_000, DENOM_ATOM_ON_NTRN));
     suite.assert_balance(suite.holder.clone(), coin(10_000, DENOM_LS_ATOM_ON_NTRN));
 
     suite.expire_lockup_config();
     suite.tick_contract(suite.holder.clone());
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Expired{}));
+    assert!(matches!(contract_state, ContractState::Expired {}));
 
     suite.tick_contract(suite.holder.clone());
     suite.assert_balance(suite.holder.clone(), coin(0, DENOM_ATOM_ON_NTRN));
@@ -127,13 +139,18 @@ fn test_execute_expired_refund_both_parties() {
 
     suite.tick_contract(suite.holder.clone());
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Complete{}));
+    assert!(matches!(contract_state, ContractState::Complete {}));
 
     let refund_config = suite.query_refund_config();
-    suite.assert_balance(refund_config.party_a_refund_address, coin(10_000, DENOM_ATOM_ON_NTRN));
-    suite.assert_balance(refund_config.party_b_refund_address, coin(10_000, DENOM_LS_ATOM_ON_NTRN));
+    suite.assert_balance(
+        refund_config.party_a_refund_address,
+        coin(10_000, DENOM_ATOM_ON_NTRN),
+    );
+    suite.assert_balance(
+        refund_config.party_b_refund_address,
+        coin(10_000, DENOM_LS_ATOM_ON_NTRN),
+    );
 }
-
 
 #[test]
 fn test_execute_expired_refund_party_a() {
@@ -145,19 +162,21 @@ fn test_execute_expired_refund_party_a() {
     suite.expire_lockup_config();
     suite.tick_contract(suite.holder.clone());
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Expired{}));
+    assert!(matches!(contract_state, ContractState::Expired {}));
 
     suite.tick_contract(suite.holder.clone());
     suite.assert_balance(suite.holder.clone(), coin(0, DENOM_ATOM_ON_NTRN));
 
     suite.tick_contract(suite.holder.clone());
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Complete{}));
+    assert!(matches!(contract_state, ContractState::Complete {}));
 
     let refund_config = suite.query_refund_config();
-    suite.assert_balance(refund_config.party_a_refund_address, coin(10_000, DENOM_ATOM_ON_NTRN));
+    suite.assert_balance(
+        refund_config.party_a_refund_address,
+        coin(10_000, DENOM_ATOM_ON_NTRN),
+    );
 }
-
 
 #[test]
 fn test_execute_expired_refund_party_b() {
@@ -169,19 +188,21 @@ fn test_execute_expired_refund_party_b() {
     suite.expire_lockup_config();
     suite.tick_contract(suite.holder.clone());
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Expired{}));
+    assert!(matches!(contract_state, ContractState::Expired {}));
 
     suite.tick_contract(suite.holder.clone());
     suite.assert_balance(suite.holder.clone(), coin(0, DENOM_LS_ATOM_ON_NTRN));
 
     suite.tick_contract(suite.holder.clone());
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Complete{}));
+    assert!(matches!(contract_state, ContractState::Complete {}));
 
     let refund_config = suite.query_refund_config();
-    suite.assert_balance(refund_config.party_b_refund_address, coin(10_000, DENOM_LS_ATOM_ON_NTRN));
+    suite.assert_balance(
+        refund_config.party_b_refund_address,
+        coin(10_000, DENOM_LS_ATOM_ON_NTRN),
+    );
 }
-
 
 #[test]
 fn test_execute_expired_no_refund_completes() {
@@ -192,7 +213,7 @@ fn test_execute_expired_no_refund_completes() {
     suite.tick_contract(suite.holder.clone());
 
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Complete{}));
+    assert!(matches!(contract_state, ContractState::Complete {}));
 }
 
 #[test]
@@ -204,11 +225,11 @@ fn test_execute_tick_on_complete_noop() {
     suite.tick_contract(suite.holder.clone());
 
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Complete{}));
+    assert!(matches!(contract_state, ContractState::Complete {}));
 
-    suite.tick_contract(suite.holder.clone()).assert_event(
-        &Event::new("wasm").add_attribute("contract_state", "completed")
-    );
+    suite
+        .tick_contract(suite.holder.clone())
+        .assert_event(&Event::new("wasm").add_attribute("contract_state", "completed"));
 }
 
 #[test]
@@ -229,55 +250,62 @@ fn test_migrate_update_config() {
         party_a_refund_address: clock_address.to_string(),
         party_b_refund_address: clock_address.to_string(),
     };
-    let resp = suite.app.migrate_contract(
-        Addr::unchecked(ADMIN),
-        suite.holder.clone(),
-        &covenant_swap_holder::msg::MigrateMsg::UpdateConfig {
-            clock_addr: Some(next_contract.to_string()),
-            next_contract: Some(clock_address.to_string()),
-            lockup_config: Some(new_expiration.clone()),
-            parites_config: Box::new(Some(parties_config.clone())),
-            covenant_terms: Some(new_covenant_terms.clone()),
-            refund_config: Some(new_refund_config.clone())
-        },
-        4,
-    )
-    .unwrap();
+    let resp = suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.holder.clone(),
+            &covenant_swap_holder::msg::MigrateMsg::UpdateConfig {
+                clock_addr: Some(next_contract.to_string()),
+                next_contract: Some(clock_address.to_string()),
+                lockup_config: Some(new_expiration),
+                parites_config: Box::new(Some(parties_config.clone())),
+                covenant_terms: Some(new_covenant_terms.clone()),
+                refund_config: Some(new_refund_config.clone()),
+            },
+            4,
+        )
+        .unwrap();
 
-    resp.assert_event(&Event::new("wasm")
-        .add_attribute("clock_addr", next_contract.to_string())
-        .add_attribute("next_contract", clock_address.to_string())
-        .add_attribute("lockup_config", new_expiration.to_string())
-        .add_attribute("parites_config", format!("{parties_config:?}"))
-        .add_attribute("covenant_terms", format!("{new_covenant_terms:?}"))
-        .add_attribute("refund_config", format!("{new_refund_config:?}"))
+    resp.assert_event(
+        &Event::new("wasm")
+            .add_attribute("clock_addr", next_contract.to_string())
+            .add_attribute("next_contract", clock_address.to_string())
+            .add_attribute("lockup_config", new_expiration.to_string())
+            .add_attribute("parites_config", format!("{parties_config:?}"))
+            .add_attribute("covenant_terms", format!("{new_covenant_terms:?}"))
+            .add_attribute("refund_config", format!("{new_refund_config:?}")),
     );
 
     assert_eq!(suite.query_clock_address(), next_contract);
     assert_eq!(suite.query_next_contract(), clock_address);
-    assert_eq!(suite.query_contract_state(), ContractState::Instantiated{});
-    assert_eq!(suite.query_covenant_parties_config().party_a.native_denom, "new_native_denom");
+    assert_eq!(suite.query_contract_state(), ContractState::Instantiated {});
+    assert_eq!(
+        suite.query_covenant_parties_config().party_a.native_denom,
+        "new_native_denom"
+    );
     assert_eq!(suite.query_covenant_terms(), new_covenant_terms);
     assert_eq!(suite.query_refund_config(), new_refund_config);
 }
-
 
 #[test]
 #[should_panic(expected = "lockup config is already past")]
 fn test_migrate_update_config_validates_lockup_config_expiration() {
     let mut suite = SwapHolderBuilder::default().build();
-    suite.app.migrate_contract(
-        Addr::unchecked(ADMIN),
-        suite.holder.clone(),
-        &covenant_swap_holder::msg::MigrateMsg::UpdateConfig {
-            clock_addr: None,
-            next_contract: None,
-            lockup_config: Some(Expiration::AtHeight(1)),
-            parites_config: Box::new(None),
-            covenant_terms: None,
-            refund_config: None,
-        },
-        4,
-    )
-    .unwrap();
+    suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.holder.clone(),
+            &covenant_swap_holder::msg::MigrateMsg::UpdateConfig {
+                clock_addr: None,
+                next_contract: None,
+                lockup_config: Some(Expiration::AtHeight(1)),
+                parites_config: Box::new(None),
+                covenant_terms: None,
+                refund_config: None,
+            },
+            4,
+        )
+        .unwrap();
 }

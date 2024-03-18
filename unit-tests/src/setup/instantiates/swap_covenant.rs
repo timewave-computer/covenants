@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cosmwasm_std::{coin, testing::mock_env, Addr, Decimal, Uint128, Uint64};
+use cosmwasm_std::{coin, testing::mock_env, Addr, Decimal, Uint64};
 use cw_utils::Expiration;
 
 use crate::setup::suite_builder::SuiteBuilder;
