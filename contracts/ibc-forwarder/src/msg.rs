@@ -1,15 +1,10 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, Binary, DepsMut, StdError, StdResult, Uint128, Uint64, WasmMsg,
-};
-use covenant_clock::helpers::dequeue_msg;
+use cosmwasm_std::{to_json_binary, Addr, Attribute, Binary, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
 };
 use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo};
-
-use crate::state::CONTRACT_STATE;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -111,15 +106,6 @@ pub enum ContractState {
     Instantiated,
     /// ICA was created, funds are ready to be forwarded
     IcaCreated,
-    /// forwarder is complete
-    Complete,
-}
-
-impl ContractState {
-    pub fn complete_and_dequeue(deps: DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
-        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-        dequeue_msg(clock_addr)
-    }
 }
 
 /// SudoPayload is a type that stores information about a transaction that we try to execute
