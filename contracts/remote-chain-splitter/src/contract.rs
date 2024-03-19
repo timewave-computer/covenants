@@ -15,7 +15,7 @@ use covenant_utils::neutron::{
     get_ictxs_module_params_query_msg, get_proto_coin, QueryParamsResponse, RemoteChainInfo,
     SudoPayload,
 };
-use covenant_utils::{neutron, sum_fees};
+use covenant_utils::{neutron, soft_validate_remote_chain_addr, sum_fees};
 use cw2::set_contract_version;
 use cw_utils::must_pay;
 use neutron_sdk::bindings::types::ProtobufAny;
@@ -70,6 +70,7 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
     TRANSFER_AMOUNT.save(deps.storage, &msg.amount)?;
     if let Some(addr) = &msg.fallback_address {
+        soft_validate_remote_chain_addr(deps.api, addr)?;
         FALLBACK_ADDRESS.save(deps.storage, addr)?;
     }
 

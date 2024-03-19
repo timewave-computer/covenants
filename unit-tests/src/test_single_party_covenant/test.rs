@@ -1,4 +1,5 @@
 use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint128, Uint64};
+use covenant_utils::neutron::RemoteChainInfo;
 use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
@@ -1065,10 +1066,17 @@ fn test_migrate_update_config_with_codes() {
             lp_config: None,
         };
 
+    let new_remote_chain_info = RemoteChainInfo {
+        connection_id: "connection-id".to_string(),
+        channel_id: "channel-id".to_string(),
+        denom: "denom".to_string(),
+        ibc_transfer_timeout: Uint64::one(),
+        ica_timeout: Uint64::one(),
+    };
     let liquid_staker_migrate_msg = covenant_stride_liquid_staker::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
-        next_contract: None,
-        remote_chain_info: None,
+        next_contract: Some(covenant_addr.to_string()),
+        remote_chain_info: Some(new_remote_chain_info),
     };
 
     let remote_chain_splitter_migrate_msg =
