@@ -951,7 +951,7 @@ func TestSinglePartyPol(t *testing.T) {
 				println("holderLpTokenBal: ", holderLpTokenBal)
 				println("neutronUserLpTokenBal: ", neutronUserLpTokenBal)
 
-				if liquidPoolerLpTokenBal == 0 {
+				if neutronUserLpTokenBal == 0 {
 					testCtx.TickStride(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 				} else {
 					break

@@ -19,7 +19,7 @@ use neutron_sdk::{
 use crate::{
     contract::{execute, instantiate},
     msg::MigrateMsg,
-    suite_tests::suite::{DEFAULT_CHANNEL, DEFAULT_RECEIVER},
+    suite_tests::suite::DEFAULT_CHANNEL,
 };
 
 use super::suite::{SuiteBuilder, CLOCK_ADDR};
@@ -36,7 +36,7 @@ fn test_instantiate_and_query_all() {
     assert_eq!(
         DestinationConfig {
             local_to_destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
-            destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
+            destination_receiver_addr: suite.destination_addr.to_string(),
             ibc_transfer_timeout: Uint64::new(10),
             denom_to_pfm_map: BTreeMap::new(),
         },
@@ -211,8 +211,8 @@ fn test_tick() {
                 to_json_binary(&MinIbcFeeResponse {
                     min_fee: IbcFee {
                         recv_fee: vec![],
-                        ack_fee: vec![coin(100000, "untrn")],
-                        timeout_fee: vec![coin(100000, "untrn")],
+                        ack_fee: vec![coin(100_000, "untrn")],
+                        timeout_fee: vec![coin(100_000, "untrn")],
                     },
                 })
                 .into(),
@@ -230,13 +230,12 @@ fn test_tick() {
 
     let info = mock_info(CLOCK_ADDR, &[coin(10000000, "untrn")]);
 
+    let sb = SuiteBuilder::default().with_denoms(vec!["usdc".to_string()]);
     instantiate(
         deps.as_mut(),
         mock_env(),
         info.clone(),
-        SuiteBuilder::default()
-            .with_denoms(vec!["usdc".to_string()])
-            .instantiate,
+        sb.instantiate.clone(),
     )
     .unwrap();
 
@@ -337,7 +336,11 @@ fn test_tick() {
                     source_channel: "channel-1".to_string(),
                     token: cosmwasm_std::Coin::new(100, "denom1".to_string()),
                     sender: "cosmos2contract".to_string(),
-                    receiver: "receiver".to_string(),
+                    receiver: sb
+                        .instantiate
+                        .destination_config
+                        .destination_receiver_addr
+                        .to_string(),
                     timeout_height: RequestPacketTimeoutHeight {
                         revision_number: None,
                         revision_height: None

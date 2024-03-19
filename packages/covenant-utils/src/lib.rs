@@ -94,11 +94,19 @@ pub struct CovenantParty {
 }
 
 impl CovenantParty {
-    pub fn validate_addresses(&self, api: &dyn Api) -> StdResult<Addr> {
+    pub fn validate_receiver_address(&self, api: &dyn Api) -> StdResult<Addr> {
         match &self.receiver_config {
             ReceiverConfig::Native(addr) => api.addr_validate(addr),
             ReceiverConfig::Ibc(destination_config) => {
-                api.addr_validate(&destination_config.destination_receiver_addr)
+                match soft_validate_remote_chain_addr(
+                    api,
+                    &destination_config.destination_receiver_addr,
+                ) {
+                    Ok(_) => Ok(Addr::unchecked(
+                        &destination_config.destination_receiver_addr,
+                    )),
+                    Err(e) => Err(e),
+                }
             }
         }
     }
@@ -144,8 +152,8 @@ impl CovenantPartiesConfig {
     }
 
     pub fn validate_party_addresses(&self, api: &dyn Api) -> StdResult<()> {
-        self.party_a.validate_addresses(api)?;
-        self.party_b.validate_addresses(api)?;
+        self.party_a.validate_receiver_address(api)?;
+        self.party_b.validate_receiver_address(api)?;
         Ok(())
     }
 }
@@ -365,4 +373,32 @@ pub struct SingleSideLpLimits {
 pub struct PoolPriceConfig {
     pub expected_spot_price: Decimal,
     pub acceptable_price_spread: Decimal,
+}
+
+/// soft validation for addresses on remote chains.
+/// skips the bech32 prefix and variant checks.
+pub fn soft_validate_remote_chain_addr(api: &dyn Api, addr: &str) -> StdResult<()> {
+    let (_prefix, decoded, _variant) = bech32::decode(addr).map_err(|e| {
+        StdError::generic_err(format!(
+            "soft_addr_validation for address {:?} failed to bech32 decode: {:?}",
+            addr,
+            e.to_string()
+        ))
+    })?;
+    let decoded_bytes = <Vec<u8> as bech32::FromBase32>::from_base32(&decoded).map_err(|e| {
+        StdError::generic_err(format!(
+            "soft_addr_validation for address {:?} failed to get bytes from base32: {:?}",
+            addr,
+            e.to_string()
+        ))
+    })?;
+
+    match api.addr_humanize(&decoded_bytes.into()) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(StdError::generic_err(format!(
+            "soft_addr_validation for address {:?} failed to addr_humanize: {:?}",
+            addr,
+            e.to_string()
+        ))),
+    }
 }

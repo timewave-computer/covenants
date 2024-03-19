@@ -245,7 +245,6 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
             Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?)
         }
         QueryMsg::NextMemo {} => {
-            // let next_contract = NEXT_CONTRACT.load(deps.storage)?;
             // 1. receiver = query ICA
             let ica = get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0;
 
@@ -264,15 +263,6 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
             Ok(to_json_binary(&autopilot_str)?)
         }
     }
-}
-
-fn _query_deposit_address(deps: Deps<NeutronQuery>, env: Env) -> Result<Option<String>, StdError> {
-    let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
-
-    // here we cover three cases:
-    INTERCHAIN_ACCOUNTS
-        .may_load(deps.storage, key)
-        .map(|entry| entry.flatten().map(|x| x.0))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

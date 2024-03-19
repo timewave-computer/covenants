@@ -492,7 +492,7 @@ fn test_migrate_update_with_codes() {
                 party_b_router: Some(covenant_swap::msg::RouterMigrateMsg::Native(
                     native_router_migrate_msg.clone(),
                 )),
-                party_a_forwarder: None,
+                party_a_forwarder: Box::new(None),
                 party_b_forwarder: Box::new(None),
             },
             1,
@@ -570,7 +570,7 @@ fn test_migrate_update_without_codes() {
                 party_b_router: Some(covenant_swap::msg::RouterMigrateMsg::Interchain(
                     interchain_router_migrate_msg.clone(),
                 )),
-                party_a_forwarder: Some(ibc_forwarder_migrate_msg.clone()),
+                party_a_forwarder: Box::new(Some(ibc_forwarder_migrate_msg.clone())),
                 party_b_forwarder: Box::new(Some(ibc_forwarder_migrate_msg.clone())),
             },
             1,

@@ -498,7 +498,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 
 			currentHeight := testCtx.GetNeutronHeight()
 			depositBlock := Block(currentHeight + 200)
-			lockupBlock := Block(currentHeight + 200)
+			lockupBlock := Block(currentHeight + 210)
 			lockupConfig := Expiration{
 				AtHeight: &lockupBlock,
 			}
@@ -541,13 +541,13 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 			}
 
 			denomSplits := map[string]SplitConfig{
-				neutronAtomIbcDenom: SplitConfig{
+				neutronAtomIbcDenom: {
 					Receivers: map[string]string{
 						hubReceiverAddr:  "0.5",
 						osmoReceiverAddr: "0.5",
 					},
 				},
-				neutronOsmoIbcDenom: SplitConfig{
+				neutronOsmoIbcDenom: {
 					Receivers: map[string]string{
 						hubReceiverAddr:  "0.5",
 						osmoReceiverAddr: "0.5",

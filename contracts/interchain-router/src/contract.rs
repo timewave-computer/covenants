@@ -7,7 +7,7 @@ use cosmwasm_std::{
     StdResult,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::sum_fees;
+use covenant_utils::{soft_validate_remote_chain_addr, sum_fees};
 use cw2::set_contract_version;
 use cw_utils::must_pay;
 use neutron_sdk::{
@@ -41,8 +41,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let clock_address = deps.api.addr_validate(&msg.clock_address)?;
-    deps.api
-        .addr_validate(&msg.destination_config.destination_receiver_addr)?;
+    soft_validate_remote_chain_addr(deps.api, &msg.destination_config.destination_receiver_addr)?;
 
     CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
     DESTINATION_CONFIG.save(deps.storage, &msg.destination_config)?;
