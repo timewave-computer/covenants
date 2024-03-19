@@ -84,10 +84,6 @@ pub struct DecimalRange {
 }
 
 impl DecimalRange {
-    pub fn new(min: Decimal, max: Decimal) -> Self {
-        DecimalRange { min, max }
-    }
-
     pub fn try_from(mid: Decimal, delta: Decimal) -> Result<DecimalRange, ContractError> {
         Ok(DecimalRange {
             min: mid.checked_sub(delta)?,
