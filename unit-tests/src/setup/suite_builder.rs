@@ -1,6 +1,10 @@
+use std::str::FromStr;
+
+use astroport::pair_concentrated::ConcentratedPoolParams;
 use cosmwasm_schema::serde::Serialize;
 use cosmwasm_std::{
-    coin, coins, instantiate2_address, to_json_binary, Addr, Api, CodeInfoResponse, Coin, Empty,
+    coin, coins, instantiate2_address, to_json_binary, Addr, Api, CodeInfoResponse, Coin, Decimal,
+    Empty,
 };
 use cw_multi_test::{
     addons::{MockAddressGenerator, MockApiBech32},
@@ -11,7 +15,8 @@ use sha2::{Digest, Sha256};
 
 use super::{
     astro_contracts::{
-        astro_coin_registry_contract, astro_factory_contract, astro_pair_stable_contract,
+        astro_coin_registry_contract, astro_factory_contract,
+        astro_pair_custom_concentrated_contract, astro_pair_stable_contract,
         astro_pair_xyk_contract, astro_token_contract, astro_whitelist_contract,
     },
     contracts::{
@@ -64,6 +69,7 @@ pub struct SuiteBuilder {
     pub astro_pair_stable_code_id: u64,
     pub astro_pair_xyk_code_id: u64,
     pub astro_coin_registry_code_id: u64,
+    pub astro_pair_concentrated_code_id: u64,
 }
 impl Default for SuiteBuilder {
     fn default() -> Self {
@@ -132,6 +138,8 @@ impl SuiteBuilder {
         let astro_factory_code_id = app.store_code(astro_factory_contract());
         let astro_pair_stable_code_id = app.store_code(astro_pair_stable_contract());
         let astro_pair_xyk_code_id = app.store_code(astro_pair_xyk_contract());
+        let astro_pair_concentrated_code_id =
+            app.store_code(astro_pair_custom_concentrated_contract());
         let astro_coin_registry_code_id = app.store_code(astro_coin_registry_contract());
 
         let two_party_covenant_code_id = app.store_code(two_party_covenant_contract());
@@ -166,6 +174,7 @@ impl SuiteBuilder {
             astro_pair_stable_code_id,
             astro_pair_xyk_code_id,
             astro_coin_registry_code_id,
+            astro_pair_concentrated_code_id,
         }
     }
 
@@ -224,6 +233,14 @@ impl SuiteBuilder {
                     is_disabled: false,
                     is_generator_disabled: true,
                 },
+                astroport::factory::PairConfig {
+                    code_id: self.astro_pair_concentrated_code_id,
+                    pair_type: astroport::factory::PairType::Custom("concentrated".to_string()),
+                    total_fee_bps: 0,
+                    maker_fee_bps: 0,
+                    is_disabled: false,
+                    is_generator_disabled: false,
+                },
             ],
             token_code_id: self.astro_token_code_id,
             fee_address: None,
@@ -269,7 +286,19 @@ impl SuiteBuilder {
                 .unwrap()
             }
             astroport::factory::PairType::Custom(_) => {
-                panic!("suite-builder: custom pair type is not supported")
+                let default_params = ConcentratedPoolParams {
+                    amp: Decimal::from_ratio(40u128, 1u128),
+                    gamma: Decimal::from_ratio(145u128, 1000000u128),
+                    mid_fee: Decimal::from_str("0.0026").unwrap(),
+                    out_fee: Decimal::from_str("0.0045").unwrap(),
+                    fee_gamma: Decimal::from_ratio(23u128, 100000u128),
+                    repeg_profit_threshold: Decimal::from_ratio(2u128, 1000000u128),
+                    min_price_scale_delta: Decimal::from_ratio(146u128, 1000000u128),
+                    price_scale: Decimal::one(),
+                    ma_half_time: 600,
+                    track_asset_balances: None,
+                };
+                to_json_binary(&default_params).unwrap()
             }
         };
 
