@@ -79,6 +79,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "astroport-pair-concentrated"
+version = "1.2.13"
+source = "git+https://github.com/astroport-fi/astroport-core.git?rev=700f66d#700f66d677a173686cb15cb9cb8c7a4d20c84ad8"
+dependencies = [
+ "astroport",
+ "astroport-factory",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 0.15.1",
+ "cw-utils 0.15.1",
+ "cw2 0.15.1",
+ "cw20",
+ "itertools 0.10.5",
+ "thiserror",
+]
+
+[[package]]
 name = "astroport-pair-stable"
 version = "2.1.4"
 source = "git+https://github.com/astroport-fi/astroport-core.git?rev=700f66d#700f66d677a173686cb15cb9cb8c7a4d20c84ad8"
@@ -1904,6 +1921,7 @@ dependencies = [
  "astroport-factory",
  "astroport-native-coin-registry",
  "astroport-pair",
+ "astroport-pair-concentrated",
  "astroport-pair-stable",
  "astroport-token",
  "astroport-whitelist",

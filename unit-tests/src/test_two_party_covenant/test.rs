@@ -159,7 +159,7 @@ fn test_migrate_update_config_party_a_interchain() {
     let mut contract_codes = suite.query_contract_codes();
     contract_codes.clock = 1;
     let resp = suite.migrate_update(
-        21,
+        22,
         covenant_two_party_pol::msg::MigrateMsg::UpdateCovenant {
             codes: Some(contract_codes.clone()),
             clock: None,
@@ -348,7 +348,7 @@ fn test_migrate_update_config_party_b_interchain() {
     contract_codes.party_a_forwarder = 1;
 
     let resp = suite.migrate_update(
-        21,
+        22,
         covenant_two_party_pol::msg::MigrateMsg::UpdateCovenant {
             codes: Some(contract_codes.clone()),
             clock: Some(clock_migrate_msg.clone()),

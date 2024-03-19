@@ -38,11 +38,22 @@ fn test_instantiate_validates_holder_address() {
 
 #[test]
 #[should_panic(expected = "Cannot Sub with 1 and 2")]
-fn test_instantiate_validates_pool_price_config() {
+fn test_instantiate_validates_pool_price_config_upper_bound() {
     AstroLiquidPoolerBuilder::default()
         .with_pool_price_config(PoolPriceConfig {
             expected_spot_price: Decimal::from_str("1.0").unwrap(),
             acceptable_price_spread: Decimal::from_str("2.0").unwrap(),
+        })
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "Cannot Sub with 0.5 and 0.6")]
+fn test_instantiate_validates_pool_price_config_lower_bound() {
+    AstroLiquidPoolerBuilder::default()
+        .with_pool_price_config(PoolPriceConfig {
+            expected_spot_price: Decimal::from_str("0.5").unwrap(),
+            acceptable_price_spread: Decimal::from_str("0.6").unwrap(),
         })
         .build();
 }
@@ -284,7 +295,7 @@ fn test_provide_liquidity_no_assets() {
 }
 
 #[test]
-fn test_provide_liquidity_single_side_asset_a() {
+fn test_provide_stable_liquidity_single_side_asset_a() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
 
     suite.fund_contract(
@@ -332,6 +343,186 @@ fn test_provide_liquidity_single_side_asset_a() {
             provided_amount_b: Uint128::new(500_000)
         }
     );
+}
+
+#[test]
+fn test_provide_custom_concentrated_liquidity_single_side_asset_a() {
+    let custom_concentrated_pair_type =
+        astroport::factory::PairType::Custom("concentrated".to_string());
+    let mut suite = AstroLiquidPoolerBuilder::default()
+        .with_custom_astroport_pool(
+            custom_concentrated_pair_type.clone(),
+            coin(1_000_000_000, DENOM_ATOM_ON_NTRN),
+            coin(1_000_000_000, DENOM_LS_ATOM_ON_NTRN),
+        )
+        .with_pair_type(custom_concentrated_pair_type)
+        .build();
+
+    suite.fund_contract(
+        &coins(570_000, DENOM_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+    suite.fund_contract(
+        &coins(500_000, DENOM_LS_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+
+    suite.tick_contract(suite.liquid_pooler_addr.clone());
+
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(70_000, DENOM_ATOM_ON_NTRN),
+    );
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_LS_ATOM_ON_NTRN),
+    );
+    assert_eq!(
+        suite.query_provided_liquidity_info(),
+        ProvidedLiquidityInfo {
+            provided_amount_a: Uint128::new(500_000),
+            provided_amount_b: Uint128::new(500_000)
+        }
+    );
+
+    suite
+        .tick_contract(suite.liquid_pooler_addr.clone())
+        .assert_event(&Event::new("wasm").add_attribute("method", "single_side_lp"));
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_ATOM_ON_NTRN),
+    );
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_LS_ATOM_ON_NTRN),
+    );
+    assert_eq!(
+        suite.query_provided_liquidity_info(),
+        ProvidedLiquidityInfo {
+            provided_amount_a: Uint128::new(570_000),
+            provided_amount_b: Uint128::new(500_000)
+        }
+    );
+}
+
+#[test]
+fn test_provide_xyk_liquidity_single_side_asset_a() {
+    let mut suite = AstroLiquidPoolerBuilder::default()
+        .with_custom_astroport_pool(
+            astroport::factory::PairType::Xyk {},
+            coin(1_000_000_000, DENOM_ATOM_ON_NTRN),
+            coin(1_000_000_000, DENOM_LS_ATOM_ON_NTRN),
+        )
+        .with_pair_type(astroport::factory::PairType::Xyk {})
+        .build();
+
+    suite.fund_contract(
+        &coins(570_000, DENOM_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+    suite.fund_contract(
+        &coins(500_000, DENOM_LS_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+
+    // first tick double-side lps
+    suite.tick_contract(suite.liquid_pooler_addr.clone());
+
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(70_000, DENOM_ATOM_ON_NTRN),
+    );
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_LS_ATOM_ON_NTRN),
+    );
+    assert_eq!(
+        suite.query_provided_liquidity_info(),
+        ProvidedLiquidityInfo {
+            provided_amount_a: Uint128::new(500_000),
+            provided_amount_b: Uint128::new(500_000)
+        }
+    );
+
+    // second tick swaps and then double side lps
+    suite.tick_contract(suite.liquid_pooler_addr.clone());
+
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_ATOM_ON_NTRN),
+    );
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_LS_ATOM_ON_NTRN),
+    );
+
+    let provided_liquidity_info = suite.query_provided_liquidity_info();
+    assert_eq!(
+        provided_liquidity_info.provided_amount_a,
+        Uint128::new(500_000 + 70_000 / 2)
+    );
+    // minus fees
+    assert!(provided_liquidity_info.provided_amount_b > Uint128::new(534_000));
+}
+
+#[test]
+fn test_provide_xyk_liquidity_single_side_asset_b() {
+    let mut suite = AstroLiquidPoolerBuilder::default()
+        .with_custom_astroport_pool(
+            astroport::factory::PairType::Xyk {},
+            coin(1_000_000_000, DENOM_ATOM_ON_NTRN),
+            coin(1_000_000_000, DENOM_LS_ATOM_ON_NTRN),
+        )
+        .with_pair_type(astroport::factory::PairType::Xyk {})
+        .build();
+
+    suite.fund_contract(
+        &coins(570_000, DENOM_LS_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+    suite.fund_contract(
+        &coins(500_000, DENOM_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+
+    // first tick double-side lps
+    suite.tick_contract(suite.liquid_pooler_addr.clone());
+
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(70_000, DENOM_LS_ATOM_ON_NTRN),
+    );
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_ATOM_ON_NTRN),
+    );
+    assert_eq!(
+        suite.query_provided_liquidity_info(),
+        ProvidedLiquidityInfo {
+            provided_amount_a: Uint128::new(500_000),
+            provided_amount_b: Uint128::new(500_000)
+        }
+    );
+
+    // second tick swaps and then double side lps
+    suite.tick_contract(suite.liquid_pooler_addr.clone());
+
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_ATOM_ON_NTRN),
+    );
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_LS_ATOM_ON_NTRN),
+    );
+
+    let provided_liquidity_info = suite.query_provided_liquidity_info();
+    assert_eq!(
+        provided_liquidity_info.provided_amount_b,
+        Uint128::new(500_000 + 70_000 / 2)
+    );
+    // minus fees
+    assert!(provided_liquidity_info.provided_amount_a > Uint128::new(534_000));
 }
 
 #[test]

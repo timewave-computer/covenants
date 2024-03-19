@@ -178,6 +178,60 @@ pub fn astro_pair_stable_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery
     )
 }
 
+pub fn astro_pair_custom_concentrated_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
+    let exec = |deps: DepsMut<NeutronQuery>,
+                env: Env,
+                info: MessageInfo,
+                msg: astroport::pair::ExecuteMsg| {
+        execute_into_neutron(astroport_pair_concentrated::contract::execute(
+            get_empty_depsmut(deps),
+            env,
+            info,
+            msg,
+        ))
+    };
+
+    let init = |deps: DepsMut<NeutronQuery>,
+                env: Env,
+                info: MessageInfo,
+                msg: astroport::pair::InstantiateMsg| {
+        execute_into_neutron(astroport_pair_concentrated::contract::instantiate(
+            get_empty_depsmut(deps),
+            env,
+            info,
+            msg,
+        ))
+    };
+
+    let query =
+        |deps: Deps<NeutronQuery>, env: Env, msg: astroport::pair_concentrated::QueryMsg| {
+            astroport_pair_concentrated::queries::query(get_empty_deps(deps), env, msg)
+        };
+
+    let migrate =
+        |deps: DepsMut<NeutronQuery>, env: Env, msg: astroport::pair_concentrated::MigrateMsg| {
+            execute_into_neutron(astroport_pair_concentrated::contract::migrate(
+                get_empty_depsmut(deps),
+                env,
+                msg,
+            ))
+        };
+
+    let reply = |deps: DepsMut<NeutronQuery>, env: Env, reply: Reply| {
+        execute_into_neutron(astroport_pair_concentrated::contract::reply(
+            get_empty_depsmut(deps),
+            env,
+            reply,
+        ))
+    };
+
+    Box::new(
+        ContractWrapper::new(exec, init, query)
+            .with_migrate(migrate)
+            .with_reply(reply),
+    )
+}
+
 pub fn astro_pair_xyk_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let exec = |deps: DepsMut<NeutronQuery>,
                 env: Env,
