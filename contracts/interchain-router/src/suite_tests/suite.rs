@@ -16,8 +16,7 @@ use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 use super::mock_clock_neutron_deps_contract;
 
 pub const ADMIN: &str = "admin";
-pub const DEFAULT_RECEIVER: &str = "receiver";
-pub const CLOCK_ADDR: &str = "clock";
+pub const CLOCK_ADDR: &str = "neutron19yz8hu6dand9lchzrcwezug763h770cv8sfen7kc7gw0jtdqha8qsl7tp9";
 pub const DEFAULT_CHANNEL: &str = "channel-1";
 
 fn router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
@@ -46,6 +45,7 @@ type CustomApp = App<
 pub struct Suite {
     pub app: CustomApp,
     pub router: Addr,
+    pub destination_addr: Addr,
 }
 
 pub struct SuiteBuilder {
@@ -55,12 +55,19 @@ pub struct SuiteBuilder {
 
 impl Default for SuiteBuilder {
     fn default() -> Self {
+        let hrp = "cosmos";
+
+        let canonical_address: Vec<u8> = vec![1; 90];
+        let base32_address = bech32::ToBase32::to_base32(&canonical_address);
+        let destination_address =
+            bech32::encode(hrp, base32_address, bech32::Variant::Bech32).unwrap();
+
         Self {
             instantiate: InstantiateMsg {
                 clock_address: CLOCK_ADDR.to_string(),
                 destination_config: DestinationConfig {
                     local_to_destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
-                    destination_receiver_addr: DEFAULT_RECEIVER.to_string(),
+                    destination_receiver_addr: destination_address.to_string(),
                     ibc_transfer_timeout: Uint64::new(10),
                     denom_to_pfm_map: BTreeMap::new(),
                 },
@@ -82,6 +89,7 @@ impl SuiteBuilder {
     pub fn build(mut self) -> Suite {
         let mut app = BasicAppBuilder::<NeutronMsg, NeutronQuery>::new_custom()
             .with_ibc(IbcAcceptingModule::new())
+            .with_api(MockApi::default().with_prefix("cosmos"))
             .build(|_, _, _| ());
 
         let router_code = app.store_code(router_contract());
@@ -113,7 +121,15 @@ impl SuiteBuilder {
             )
             .unwrap();
 
-        Suite { app, router }
+        Suite {
+            app,
+            router,
+            destination_addr: Addr::unchecked(
+                self.instantiate
+                    .destination_config
+                    .destination_receiver_addr,
+            ),
+        }
     }
 }
 

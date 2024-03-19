@@ -733,6 +733,7 @@ name = "covenant-utils"
 version = "1.0.0"
 dependencies = [
  "astroport",
+ "bech32",
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",

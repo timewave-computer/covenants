@@ -513,7 +513,7 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight := testCtx.GetNeutronHeight()
 				depositBlock = Block(currentHeight + 180)
-				lockupBlock = Block(currentHeight + 180)
+				lockupBlock = Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -706,7 +706,7 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("tick until holder sends funds to LiquidPooler and receives LP tokens in return", func(t *testing.T) {
 				for {
-					if testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress) == 0 {
+					if testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress) == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					} else {
 						break
@@ -999,11 +999,11 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("tick until holder sends funds to LPer and receives LP tokens in return", func(t *testing.T) {
+			t.Run("tick until holder sends funds to LPer and liquidity is provided", func(t *testing.T) {
 				for {
-					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress)
+					lperLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
 
-					if holderLpTokenBal == 0 {
+					if lperLpTokenBal == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					} else {
 						break
@@ -1295,12 +1295,12 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
+			t.Run("tick until holder sends the funds to LPer it provides liquidity", func(t *testing.T) {
 				for {
-					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress)
-					println("holder lp token balance: ", holderLpTokenBal)
+					lperLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
+					println("liquid pooler lp token balance: ", lperLpTokenBal)
 
-					if holderLpTokenBal == 0 {
+					if lperLpTokenBal == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					} else {
 						break
@@ -1555,12 +1555,12 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
+			t.Run("tick until holder sends the funds to LPer and it provides liquidity", func(t *testing.T) {
 				for {
-					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress)
-					println("holder lp token balance: ", holderLpTokenBal)
+					lperLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
+					println("liquid pooler lp token balance: ", lperLpTokenBal)
 
-					if holderLpTokenBal == 0 {
+					if lperLpTokenBal == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					} else {
 						break

@@ -21,3 +21,4 @@ astroport        = { workspace = true }
 polytone         = "1.0.0"
 covenant-macros  = { workspace = true }
 sha2             = { workspace = true }
+bech32           = { workspace = true }
