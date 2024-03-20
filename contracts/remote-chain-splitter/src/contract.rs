@@ -7,14 +7,15 @@ use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, Attribute, Binary, CosmosMsg, CustomQuery, Deps, DepsMut, Env,
-    Fraction, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128,
+    ensure, to_json_binary, Attribute, Binary, Deps, DepsMut, Env, Fraction, MessageInfo, Reply,
+    Response, StdError, StdResult, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::neutron::{
-    get_ictxs_module_params_query_msg, get_proto_coin, QueryParamsResponse, RemoteChainInfo,
-    SudoPayload,
+use covenant_utils::ica::{
+    get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee, sudo_error,
+    sudo_open_ack, sudo_response, sudo_timeout,
 };
+use covenant_utils::neutron::{get_proto_coin, RemoteChainInfo, SudoPayload};
 use covenant_utils::{neutron, soft_validate_remote_chain_addr, sum_fees};
 use cw2::set_contract_version;
 use cw_utils::must_pay;
@@ -29,10 +30,9 @@ use crate::msg::{
     ContractState, ExecuteMsg, FallbackAddressUpdateConfig, InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use crate::state::{
-    save_reply_payload, CLOCK_ADDRESS, CONTRACT_STATE, FALLBACK_ADDRESS, INTERCHAIN_ACCOUNTS,
-    REMOTE_CHAIN_INFO, SPLIT_CONFIG_MAP, TRANSFER_AMOUNT,
+    RemoteChainSplitteIcaStateHelper, CLOCK_ADDRESS, CONTRACT_STATE, FALLBACK_ADDRESS,
+    INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO, SPLIT_CONFIG_MAP, TRANSFER_AMOUNT,
 };
-use crate::sudo::{prepare_sudo_payload, sudo_error, sudo_open_ack, sudo_response, sudo_timeout};
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
     NeutronResult,
@@ -45,7 +45,7 @@ const INTERCHAIN_ACCOUNT_ID: &str = "rc-ica";
 const CONTRACT_NAME: &str = "crates.io:covenant-remote-chain-splitter";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-const SUDO_PAYLOAD_REPLY_ID: u64 = 1u64;
+pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -187,12 +187,14 @@ fn try_distribute_fallback(
             min_fee_query_response.min_fee,
         );
         let sudo_msg = msg_with_sudo_callback(
+            &RemoteChainSplitteIcaStateHelper,
             deps.branch(),
             submit_msg,
             SudoPayload {
                 port_id,
                 message: "distribute_fallback_multisend".to_string(),
             },
+            SUDO_PAYLOAD_REPLY_ID,
         )?;
 
         Ok(Response::default()
@@ -216,13 +218,12 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 
 fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-    let ictxs_params_response: QueryParamsResponse =
-        deps.querier.query(&get_ictxs_module_params_query_msg())?;
+    let ica_registration_fee = query_ica_registration_fee(deps.querier)?;
 
     let register: NeutronMsg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
         INTERCHAIN_ACCOUNT_ID.to_string(),
-        Some(ictxs_params_response.params.register_fee),
+        Some(ica_registration_fee),
     );
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
 
@@ -330,12 +331,14 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
                 min_fee_query_response.min_fee,
             );
             let sudo_msg = msg_with_sudo_callback(
+                &RemoteChainSplitteIcaStateHelper,
                 deps.branch(),
                 submit_msg,
                 SudoPayload {
                     port_id,
                     message: "split_funds_msg".to_string(),
                 },
+                SUDO_PAYLOAD_REPLY_ID,
             )?;
             Ok(Response::default()
                 .add_attribute("method", "try_split_funds")
@@ -351,15 +354,6 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
                 .add_attribute("error", "no_ica_found"))
         }
     }
-}
-
-fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
-    deps: ExecuteDeps,
-    msg: C,
-    payload: SudoPayload,
-) -> StdResult<SubMsg<T>> {
-    save_reply_payload(deps.storage, payload)?;
-    Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -386,7 +380,13 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
             Ok(to_json_binary(&TRANSFER_AMOUNT.may_load(deps.storage)?)?)
         }
         QueryMsg::IcaAddress {} => Ok(to_json_binary(
-            &get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
+            &get_ica(
+                &RemoteChainSplitteIcaStateHelper,
+                deps.storage,
+                env.contract.address.as_str(),
+                INTERCHAIN_ACCOUNT_ID,
+            )?
+            .0,
         )?),
         QueryMsg::FallbackAddress {} => {
             Ok(to_json_binary(&FALLBACK_ADDRESS.may_load(deps.storage)?)?)
@@ -408,27 +408,17 @@ fn query_deposit_address(deps: QueryDeps, env: Env) -> Result<Option<String>, St
         .map(|entry| entry.flatten().map(|x| x.0))
 }
 
-fn get_ica(
-    deps: Deps<impl CustomQuery>,
-    env: &Env,
-    interchain_account_id: &str,
-) -> Result<(String, String), StdError> {
-    let key = get_port_id(env.contract.address.as_str(), interchain_account_id);
-
-    INTERCHAIN_ACCOUNTS
-        .load(deps.storage, key)?
-        .ok_or_else(|| StdError::generic_err("Interchain account is not created yet"))
-}
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<NeutronMsg>> {
     match msg {
         // For handling successful (non-error) acknowledgements.
-        SudoMsg::Response { request, data } => sudo_response(deps, request, data),
+        SudoMsg::Response { request, data } => sudo_response(request, data),
         // For handling error acknowledgements.
-        SudoMsg::Error { request, details } => sudo_error(deps, request, details),
+        SudoMsg::Error { request, details } => sudo_error(request, details),
         // For handling error timeouts.
-        SudoMsg::Timeout { request } => sudo_timeout(deps, env, request),
+        SudoMsg::Timeout { request } => {
+            sudo_timeout(&RemoteChainSplitteIcaStateHelper, deps, env, request)
+        }
         // For handling successful registering of ICA
         SudoMsg::OpenAck {
             port_id,
@@ -436,6 +426,7 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<Neu
             counterparty_channel_id,
             counterparty_version,
         } => sudo_open_ack(
+            &RemoteChainSplitteIcaStateHelper,
             deps,
             env,
             port_id,
@@ -520,7 +511,9 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
     match msg.id {
-        SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
+        SUDO_PAYLOAD_REPLY_ID => {
+            prepare_sudo_payload(&RemoteChainSplitteIcaStateHelper, deps, env, msg)
+        }
         _ => Err(StdError::generic_err(format!(
             "unsupported reply message id {}",
             msg.id

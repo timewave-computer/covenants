@@ -4,7 +4,7 @@ use cosmwasm_std::{
     from_json, to_json_binary, Addr, Api, Binary, BlockInfo, CustomMsg, CustomQuery, Querier,
     Storage,
 };
-use covenant_utils::neutron::{Params, QueryParamsResponse};
+use covenant_utils::ica::{Params, QueryParamsResponse};
 use cw_multi_test::error::{AnyError, AnyResult};
 use cw_multi_test::{AppResponse, CosmosRouter, Module, StargateQuery};
 use osmosis_std::types::cosmos::base::v1beta1::Coin;
