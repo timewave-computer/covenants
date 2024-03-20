@@ -123,11 +123,3 @@ pub enum ContractState {
     /// ICA was created, funds are ready to be forwarded
     IcaCreated,
 }
-
-/// SudoPayload is a type that stores information about a transaction that we try to execute
-/// on the host chain. This is a type introduced for our convenience.
-#[cw_serde]
-pub struct SudoPayload {
-    pub message: String,
-    pub port_id: String,
-}

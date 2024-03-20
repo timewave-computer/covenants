@@ -2,27 +2,29 @@ use cosmos_sdk_proto::ibc::applications::transfer::v1::MsgTransfer;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coins, to_json_binary, to_json_string, Binary, Coin, CosmosMsg, CustomQuery, Deps, DepsMut,
-    Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128,
+    coins, to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdError, StdResult, Uint128,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::neutron::{self, get_proto_coin, OpenAckVersion, RemoteChainInfo, SudoPayload};
+use covenant_utils::ica::{
+    get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee, sudo_error,
+    sudo_open_ack, sudo_response, sudo_timeout,
+};
+use covenant_utils::neutron::{self, get_proto_coin, RemoteChainInfo, SudoPayload};
 use cw2::set_contract_version;
 use neutron_sdk::query::min_ibc_fee::MinIbcFeeResponse;
 
 use crate::helpers::{Autopilot, AutopilotConfig};
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{
-    read_reply_payload, save_reply_payload, save_sudo_payload, CLOCK_ADDRESS, CONTRACT_STATE,
-    INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
+    LiquidStakerIcaStateHelper, CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT,
+    REMOTE_CHAIN_INFO,
 };
+pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1u64;
 use neutron_sdk::{
-    bindings::{
-        msg::{MsgSubmitTxResponse, NeutronMsg},
-        query::NeutronQuery,
-    },
+    bindings::{msg::NeutronMsg, query::NeutronQuery},
     interchain_txs::helpers::get_port_id,
-    sudo::msg::{RequestPacket, SudoMsg},
+    sudo::msg::SudoMsg,
     NeutronError, NeutronResult,
 };
 
@@ -30,8 +32,6 @@ const INTERCHAIN_ACCOUNT_ID: &str = "stride-ica";
 
 const CONTRACT_NAME: &str = "crates.io:covenant-stride-liquid-staker";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-const SUDO_PAYLOAD_REPLY_ID: u64 = 1u64;
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
@@ -79,7 +79,12 @@ pub fn execute(
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Transfer { amount } => {
-            let ica_address = get_ica(deps.as_ref(), &env, INTERCHAIN_ACCOUNT_ID);
+            let ica_address = get_ica(
+                &LiquidStakerIcaStateHelper,
+                deps.storage,
+                env.contract.address.as_ref(),
+                INTERCHAIN_ACCOUNT_ID,
+            );
             match ica_address {
                 Ok(_) => try_execute_transfer(deps, env, info, amount),
                 Err(_) => Ok(Response::default()
@@ -105,11 +110,11 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 /// registers an interchain account on stride with port_id associated with `INTERCHAIN_ACCOUNT_ID`
 fn try_register_stride_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-    let register_fee: Option<Vec<Coin>> = Some(coins(1000001, "untrn"));
+    let ica_registration_fee = query_ica_registration_fee(deps.querier)?;
     let register: NeutronMsg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
         INTERCHAIN_ACCOUNT_ID.to_string(),
-        register_fee,
+        Some(ica_registration_fee),
     );
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
 
@@ -182,14 +187,16 @@ fn try_execute_transfer(
                 remote_chain_info.ica_timeout.u64(),
                 min_fee_query_response.min_fee,
             );
-
+            let state_helper = LiquidStakerIcaStateHelper;
             let sudo_msg = msg_with_sudo_callback(
+                &state_helper,
                 deps,
                 submit_msg,
                 SudoPayload {
                     port_id,
                     message: "permisionless_transfer".to_string(),
                 },
+                SUDO_PAYLOAD_REPLY_ID,
             )?;
             Ok(Response::default()
                 .add_submessage(sudo_msg)
@@ -207,25 +214,28 @@ fn try_execute_transfer(
     }
 }
 
-fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
-    deps: ExecuteDeps,
-    msg: C,
-    payload: SudoPayload,
-) -> StdResult<SubMsg<T>> {
-    save_reply_payload(deps.storage, payload)?;
-    Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
-}
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
         QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::IcaAddress {} => Ok(to_json_binary(
-            &get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
+            &get_ica(
+                &LiquidStakerIcaStateHelper,
+                deps.storage,
+                env.contract.address.as_str(),
+                INTERCHAIN_ACCOUNT_ID,
+            )?
+            .0,
         )?),
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => {
-            let ica = get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0;
+            let ica = get_ica(
+                &LiquidStakerIcaStateHelper,
+                deps.storage,
+                env.contract.address.as_str(),
+                INTERCHAIN_ACCOUNT_ID,
+            )?
+            .0;
 
             let autopilot = Autopilot {
                 autopilot: AutopilotConfig {
@@ -246,7 +256,13 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
         }
         QueryMsg::NextMemo {} => {
             // 1. receiver = query ICA
-            let ica = get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0;
+            let ica = get_ica(
+                &LiquidStakerIcaStateHelper,
+                deps.storage,
+                env.contract.address.as_str(),
+                INTERCHAIN_ACCOUNT_ID,
+            )?
+            .0;
 
             let autopilot = Autopilot {
                 autopilot: AutopilotConfig {
@@ -269,13 +285,15 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
 pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> Result<Response<NeutronMsg>, StdError> {
     match msg {
         // For handling successful (non-error) acknowledgements.
-        SudoMsg::Response { request, data } => sudo_response(deps, request, data),
+        SudoMsg::Response { request, data } => sudo_response(request, data),
 
         // For handling error acknowledgements.
-        SudoMsg::Error { request, details } => sudo_error(deps, request, details),
+        SudoMsg::Error { request, details } => sudo_error(request, details),
 
         // For handling error timeouts.
-        SudoMsg::Timeout { request } => sudo_timeout(deps, env, request),
+        SudoMsg::Timeout { request } => {
+            sudo_timeout(&LiquidStakerIcaStateHelper, deps, env, request)
+        }
 
         // For handling successful registering of ICA
         SudoMsg::OpenAck {
@@ -284,6 +302,7 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> Result<Response<Neutro
             counterparty_channel_id,
             counterparty_version,
         } => sudo_open_ack(
+            &LiquidStakerIcaStateHelper,
             deps,
             env,
             port_id,
@@ -295,129 +314,10 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> Result<Response<Neutro
     }
 }
 
-// handler
-fn sudo_open_ack(
-    deps: ExecuteDeps,
-    _env: Env,
-    port_id: String,
-    _channel_id: String,
-    _counterparty_channel_id: String,
-    counterparty_version: String,
-) -> StdResult<Response<NeutronMsg>> {
-    // The version variable contains a JSON value with multiple fields,
-    // including the generated account address.
-    let parsed_version: Result<OpenAckVersion, _> =
-        serde_json_wasm::from_str(counterparty_version.as_str());
-
-    // get the parsed OpenAckVersion or return an error if we fail
-    let Ok(parsed_version) = parsed_version else {
-        return Err(StdError::generic_err("Can't parse counterparty_version"));
-    };
-
-    // Update the storage record associated with the interchain account.
-    INTERCHAIN_ACCOUNTS.save(
-        deps.storage,
-        port_id,
-        &Some((
-            parsed_version.clone().address,
-            parsed_version.controller_connection_id,
-        )),
-    )?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::IcaCreated)?;
-
-    Ok(Response::default().add_attribute("method", "sudo_open_ack"))
-}
-
-fn sudo_response(
-    _deps: ExecuteDeps,
-    request: RequestPacket,
-    _data: Binary,
-) -> StdResult<Response<NeutronMsg>> {
-    // either of these errors will close the channel
-    request
-        .sequence
-        .ok_or_else(|| StdError::generic_err("sequence not found"))?;
-
-    request
-        .source_channel
-        .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
-
-    Ok(Response::default().add_attribute("method", "sudo_response"))
-}
-
-fn sudo_timeout(
-    deps: ExecuteDeps,
-    _env: Env,
-    _request: RequestPacket,
-) -> StdResult<Response<NeutronMsg>> {
-    // revert the state to Instantiated to force re-creation of ICA
-    CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
-
-    // returning Ok as this is anticipated. channel is already closed.
-    Ok(Response::default())
-}
-
-fn sudo_error(
-    _deps: ExecuteDeps,
-    request: RequestPacket,
-    _details: String,
-) -> StdResult<Response<NeutronMsg>> {
-    // either of these errors will close the channel
-    request
-        .sequence
-        .ok_or_else(|| StdError::generic_err("sequence not found"))?;
-
-    request
-        .source_channel
-        .ok_or_else(|| StdError::generic_err("channel_id not found"))?;
-
-    Ok(Response::default().add_attribute("method", "sudo_error"))
-}
-
-// prepare_sudo_payload is called from reply handler
-// The method is used to extract sequence id and channel from SubmitTxResponse to
-// process sudo payload defined in msg_with_sudo_callback later in Sudo handler.
-// Such flow msg_with_sudo_callback() -> reply() -> prepare_sudo_payload() -> sudo()
-// allows you "attach" some payload to your SubmitTx message
-// and process this payload when an acknowledgement for the SubmitTx message
-// is received in Sudo handler
-fn prepare_sudo_payload(
-    mut deps: ExecuteDeps,
-    _env: Env,
-    msg: Reply,
-) -> StdResult<Response<NeutronMsg>> {
-    let payload = read_reply_payload(deps.storage)?;
-    let resp: MsgSubmitTxResponse = serde_json_wasm::from_slice(
-        msg.result
-            .into_result()
-            .map_err(StdError::generic_err)?
-            .data
-            .ok_or_else(|| StdError::generic_err("no result"))?
-            .as_slice(),
-    )
-    .map_err(|e| StdError::generic_err(format!("failed to parse response: {e:?}")))?;
-    let seq_id = resp.sequence_id;
-    let channel_id = resp.channel;
-    save_sudo_payload(deps.branch().storage, channel_id, seq_id, payload)?;
-    Ok(Response::new())
-}
-
-fn get_ica(
-    deps: Deps<impl CustomQuery>,
-    env: &Env,
-    interchain_account_id: &str,
-) -> Result<(String, String), StdError> {
-    let key = get_port_id(env.contract.address.as_str(), interchain_account_id);
-
-    INTERCHAIN_ACCOUNTS
-        .load(deps.storage, key)?
-        .ok_or_else(|| StdError::generic_err("Interchain account is not created yet"))
-}
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
     match msg.id {
-        SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
+        SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(&LiquidStakerIcaStateHelper, deps, env, msg),
         _ => Err(StdError::generic_err(format!(
             "unsupported reply message id {}",
             msg.id
