@@ -15,10 +15,11 @@ use covenant_utils::ica::{
     get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee, sudo_error,
     sudo_open_ack, sudo_response, sudo_timeout,
 };
-use covenant_utils::neutron::{get_proto_coin, RemoteChainInfo, SudoPayload};
-use covenant_utils::{neutron, soft_validate_remote_chain_addr, sum_fees};
+use covenant_utils::neutron::{
+    assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, RemoteChainInfo, SudoPayload,
+};
+use covenant_utils::{neutron, soft_validate_remote_chain_addr};
 use cw2::set_contract_version;
-use cw_utils::must_pay;
 use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_txs::helpers::get_port_id;
 use neutron_sdk::query::min_ibc_fee::MinIbcFeeResponse;
@@ -116,22 +117,9 @@ fn try_distribute_fallback(
         None => return Err(ContractError::MissingFallbackAddress {}.into()),
     };
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
+    let ibc_fee_response = query_ibc_fee(deps.querier)?;
 
-    let min_fee_query_response: MinIbcFeeResponse =
-        deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
-    let total_fee_amount = sum_fees(&min_fee_query_response.min_fee);
-    // the caller must cover the ibc fees
-    match must_pay(&info, "untrn") {
-        Ok(amt) => ensure!(
-            amt >= total_fee_amount.checked_mul(Uint128::new(coins.len() as u128))?,
-            NeutronError::Std(StdError::generic_err("insufficient fees"))
-        ),
-        Err(_) => {
-            return Err(NeutronError::Std(StdError::generic_err(
-                "must cover ibc fees to distribute fallback denoms",
-            )))
-        }
-    };
+    assert_ibc_fee_coverage(info, ibc_fee_response.total_ntrn_fee, Uint128::one())?;
 
     // we iterate over coins to be distributed, validate them, and generate the proto coins to be sent
     let mut encountered_denoms: BTreeSet<String> = BTreeSet::new();
@@ -184,7 +172,7 @@ fn try_distribute_fallback(
             vec![any_msg],
             "".to_string(),
             remote_chain_info.ica_timeout.u64(),
-            min_fee_query_response.min_fee,
+            ibc_fee_response.ibc_fee,
         );
         let sudo_msg = msg_with_sudo_callback(
             &RemoteChainSplitteIcaStateHelper,

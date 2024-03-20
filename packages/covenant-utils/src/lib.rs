@@ -5,6 +5,7 @@ use cosmwasm_std::{
     to_json_string, Addr, Api, Attribute, Coin, CosmosMsg, Decimal, StdError, StdResult, Timestamp,
     Uint128, Uint64,
 };
+use neutron::flatten_ibc_fee_total_amount;
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
     sudo::msg::RequestPacketTimeoutHeight,
@@ -230,24 +231,6 @@ pub struct ForwardMetadata {
     pub channel: String,
 }
 
-pub fn sum_fees(ibc_fee: &IbcFee) -> Uint128 {
-    let mut total_amount = Uint128::zero();
-
-    for coin in &ibc_fee.recv_fee {
-        total_amount += coin.amount;
-    }
-
-    for coin in &ibc_fee.ack_fee {
-        total_amount += coin.amount;
-    }
-
-    for coin in &ibc_fee.timeout_fee {
-        total_amount += coin.amount;
-    }
-
-    total_amount
-}
-
 impl DestinationConfig {
     pub fn get_ibc_transfer_messages_for_coins(
         &self,
@@ -261,7 +244,7 @@ impl DestinationConfig {
         // neutron fees for
         let count = Uint128::from(1 + coins.len() as u128);
 
-        let total_fee = sum_fees(&ibc_fee);
+        let total_fee = flatten_ibc_fee_total_amount(&ibc_fee);
 
         for coin in coins {
             let send_coin = if coin.denom != "untrn" {

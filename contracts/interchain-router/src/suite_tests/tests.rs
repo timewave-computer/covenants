@@ -88,7 +88,7 @@ fn test_unauthorized_tick() {
 }
 
 #[test]
-#[should_panic(expected = "caller must cover ibc fees: No funds sent")]
+#[should_panic(expected = "must cover ibc fees to distribute fallback denoms")]
 fn test_tick_no_ibc_fee() {
     let usdc_coin = coin(100, "usdc");
     let random_coin_1 = coin(100, "denom1");

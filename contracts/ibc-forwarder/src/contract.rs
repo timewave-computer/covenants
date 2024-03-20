@@ -13,15 +13,15 @@ use covenant_utils::{
         get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee,
         sudo_error, sudo_open_ack, sudo_response, sudo_timeout,
     },
-    neutron::{get_proto_coin, to_proto_msg_transfer, RemoteChainInfo, SudoPayload},
-    sum_fees,
+    neutron::{
+        assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, to_proto_msg_transfer,
+        RemoteChainInfo, SudoPayload,
+    },
 };
 use cw2::set_contract_version;
-use cw_utils::must_pay;
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery, types::ProtobufAny},
     interchain_txs::helpers::get_port_id,
-    query::min_ibc_fee::MinIbcFeeResponse,
     sudo::msg::SudoMsg,
     NeutronError, NeutronResult,
 };
@@ -107,21 +107,8 @@ fn try_distribute_fallback(
     };
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
 
-    let min_fee_query_response: MinIbcFeeResponse =
-        deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
-    let total_fee_amount = sum_fees(&min_fee_query_response.min_fee);
-    // the caller must cover the ibc fees
-    match must_pay(&info, "untrn") {
-        Ok(amt) => ensure!(
-            amt >= total_fee_amount.checked_mul(Uint128::new(coins.len() as u128))?,
-            NeutronError::Std(StdError::generic_err("insufficient fees"))
-        ),
-        Err(_) => {
-            return Err(NeutronError::Std(StdError::generic_err(
-                "must cover ibc fees to distribute fallback denoms",
-            )))
-        }
-    };
+    let min_ibc_fee_config = query_ibc_fee(deps.querier)?;
+    assert_ibc_fee_coverage(info, min_ibc_fee_config.total_ntrn_fee, Uint128::one())?;
 
     // we iterate over coins to be distributed, validate them, and generate the proto coins to be sent
     let mut encountered_denoms: BTreeSet<String> = BTreeSet::new();
@@ -176,7 +163,7 @@ fn try_distribute_fallback(
             vec![any_msg],
             "".to_string(),
             remote_chain_info.ica_timeout.u64(),
-            min_fee_query_response.min_fee,
+            min_ibc_fee_config.ibc_fee,
         );
         let state_helper = IbcForwarderIcaStateHelper;
         let sudo_msg = msg_with_sudo_callback(
@@ -246,8 +233,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
         )));
     };
 
-    let min_fee_query_response: MinIbcFeeResponse =
-        deps.querier.query(&NeutronQuery::MinIbcFee {}.into())?;
+    let min_fee_query_response = query_ibc_fee(deps.querier)?;
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
@@ -284,7 +270,7 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                 vec![protobuf_msg],
                 "".to_string(),
                 remote_chain_info.ica_timeout.u64(),
-                min_fee_query_response.min_fee,
+                min_fee_query_response.ibc_fee,
             );
 
             // sudo callback msg
