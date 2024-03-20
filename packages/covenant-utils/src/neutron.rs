@@ -1,7 +1,11 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Attribute, Binary, StdError, Uint128, Uint64};
+use cosmwasm_std::{
+    Attribute, Binary, MessageInfo, QuerierWrapper, StdError, StdResult, Uint128, Uint64,
+};
+use cw_utils::must_pay;
 use neutron_sdk::{
-    bindings::types::ProtobufAny,
+    bindings::{msg::IbcFee, query::NeutronQuery, types::ProtobufAny},
+    query::min_ibc_fee::MinIbcFeeResponse,
     NeutronResult,
 };
 use prost::Message;
@@ -125,4 +129,61 @@ pub fn to_proto_msg_multi_send(msg: impl Message) -> NeutronResult<ProtobufAny> 
         type_url: "/cosmos.bank.v1beta1.MsgMultiSend".to_string(),
         value: Binary::from(buf),
     })
+}
+
+#[cw_serde]
+pub struct MinIbcFeeConfig {
+    pub ibc_fee: IbcFee,
+    pub total_ntrn_fee: Uint128,
+}
+
+pub fn query_ibc_fee(querier: QuerierWrapper<'_, NeutronQuery>) -> StdResult<MinIbcFeeConfig> {
+    let min_fee_query_response: MinIbcFeeResponse =
+        querier.query(&NeutronQuery::MinIbcFee {}.into())?;
+    let total_fee_amount = flatten_ibc_fee_total_amount(&min_fee_query_response.min_fee);
+
+    Ok(MinIbcFeeConfig {
+        ibc_fee: min_fee_query_response.min_fee,
+        total_ntrn_fee: total_fee_amount,
+    })
+}
+
+pub fn flatten_ibc_fee_total_amount(ibc_fee: &IbcFee) -> Uint128 {
+    let mut total_amount = Uint128::zero();
+
+    for coin in &ibc_fee.recv_fee {
+        total_amount += coin.amount;
+    }
+
+    for coin in &ibc_fee.ack_fee {
+        total_amount += coin.amount;
+    }
+
+    for coin in &ibc_fee.timeout_fee {
+        total_amount += coin.amount;
+    }
+
+    total_amount
+}
+
+/// assertion helper that checks if the caller has covered ibc fees
+/// for `count` number of transactions
+pub fn assert_ibc_fee_coverage(
+    info: MessageInfo,
+    total_fee: Uint128,
+    count: Uint128,
+) -> StdResult<()> {
+    // the caller must cover the ibc fees
+    match must_pay(&info, "untrn") {
+        Ok(amt) => {
+            if amt < total_fee.checked_mul(count)? {
+                Err(StdError::generic_err("insufficient fees"))
+            } else {
+                Ok(())
+            }
+        }
+        Err(_) => Err(StdError::generic_err(
+            "must cover ibc fees to distribute fallback denoms",
+        )),
+    }
 }
