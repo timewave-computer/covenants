@@ -12,6 +12,7 @@ use neutron_sdk::{
 
 pub mod astroport;
 pub mod deadline;
+pub mod ica;
 pub mod instantiate2_helper;
 pub mod liquid_pooler_withdraw;
 pub mod neutron;

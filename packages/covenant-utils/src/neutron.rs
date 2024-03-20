@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Attribute, Binary, Coin, QueryRequest, StdError, Uint128, Uint64};
+use cosmwasm_std::{Attribute, Binary, StdError, Uint128, Uint64};
 use neutron_sdk::{
-    bindings::{query::NeutronQuery, types::ProtobufAny},
+    bindings::types::ProtobufAny,
     NeutronResult,
 };
 use prost::Message;
@@ -125,23 +125,4 @@ pub fn to_proto_msg_multi_send(msg: impl Message) -> NeutronResult<ProtobufAny> 
         type_url: "/cosmos.bank.v1beta1.MsgMultiSend".to_string(),
         value: Binary::from(buf),
     })
-}
-
-// manual definitions for neutron ictxs module
-#[cw_serde]
-pub struct Params {
-    pub msg_submit_tx_max_messages: Uint64,
-    pub register_fee: Vec<Coin>,
-}
-
-#[cw_serde]
-pub struct QueryParamsResponse {
-    pub params: Params,
-}
-
-pub fn get_ictxs_module_params_query_msg() -> QueryRequest<NeutronQuery> {
-    QueryRequest::Stargate {
-        path: "/neutron.interchaintxs.v1.Query/Params".to_string(),
-        data: Binary(Vec::new()),
-    }
 }
