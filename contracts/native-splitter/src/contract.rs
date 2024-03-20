@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
-    StdResult,
+    ensure, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response,
+    StdError, StdResult,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::split::SplitConfig;
@@ -101,17 +101,13 @@ fn try_distribute_fallback(
     let mut distribution_messages: Vec<CosmosMsg> = vec![];
 
     if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
-        let explicit_denoms = SPLIT_CONFIG_MAP
-            .range(deps.storage, None, None, Order::Ascending)
-            .map(|split| Ok(split?.0))
-            .collect::<Result<Vec<String>, ContractError>>()?;
-
         for denom in denoms {
             // we do not distribute the main covenant denoms
             // according to the fallback split
-            if explicit_denoms.contains(&denom) {
-                return Err(StdError::generic_err("unauthorized denom distribution").into());
-            }
+            ensure!(
+                !SPLIT_CONFIG_MAP.has(deps.storage, denom.to_string()),
+                ContractError::Std(StdError::generic_err("unauthorized denom distribution"))
+            );
 
             let balance = deps
                 .querier
