@@ -39,6 +39,57 @@ an address.
 Second case - an address is returned. We then store that address, and advance
 the state machine to `ProxyCreated`.
 
+```md
+     t      = 1
+     state  = instantiated
+     action = try_create_proxy
+
+                  ───────────outgoing message flow─────────────▶
+
+     ┌───────────────────────────────┐    ┌────────────────────────────────────┐
+     │neutron                        │    │osmosis                             │
+     │                               │    │                                    │
+     │  ┌─────────────┐              │    │                                    │
+     │  │ osmo liquid │              │    │              ┌───────┐             │
+     │  │   pooler    │              │    │              │ proxy │             │
+     │  └─────────────┘              │    │              └───────┘             │
+     │         │                     │    │                  ▲                 │
+     │         │                     │    │                  │                 │
+     │         │                     │    │            1.2. create             │
+     │ 1. create_proxy               │    │                  │                 │
+     │         │                     │    │                  │                 │
+     │         │     ┌────────┐      1.1. execute        ┌───────┐             │
+     │         └────▶│  note  │──────┼─msgs = []────────▶│ voice │             │
+     │               └────────┘      │    │              └───────┘             │
+     │                               │    │                                    │
+     │                               │    │                                    │
+     │                               │    │                                    │
+     │                               │    │                                    │
+     └───────────────────────────────┘    └────────────────────────────────────┘
+
+                  ◀──────────callback message flow──────────────
+
+    ┌───────────────────────────────┐     ┌────────────────────────────────────┐
+    │neutron                        │     │osmosis                             │
+    │                               │     │                                    │
+    │  ┌─────────────┐              │     │              ┌───────┐             │
+    │  │ osmo liquid │              │     │              │ proxy │             │
+    │  │   pooler    │◀───┐         │     │              └───────┘             │
+    │  └─────────────┘    │         │     │                  │                 │
+    │                 1.3. proxy    │     │                  │                 │
+    │                   created     │     │               1. ok                │
+    │                     │         │     │                  │                 │
+    │                     │         │     │                  ▼                 │
+    │                ┌────────┐     │     │              ┌───────┐             │
+    │             ┌─▶│  note  │◀────┼─1.1. return ───────│ voice │             │
+    │             │  └────────┘     │  proxy addr        └───────┘             │
+    │             │       │         │     │                                    │
+    │         1.2. save   │         │     │                                    │
+    │       proxy address─┘         │     │                                    │
+    │                               │     │                                    │
+    │                               │     │                                    │
+    └───────────────────────────────┘     └────────────────────────────────────┘
+```
 
 ### 2. `ProxyCreated`
 
@@ -57,23 +108,112 @@ three query requests of our proxy address to our note - one for each of the
 relevant denoms (e.g. ATOM, OSMO, and the relevant LP token). Once again we attach
 a callback request.
 
+```md
+    t        = 2
+    state    = proxy_created
+    action   = try_deliver_funds
+    balances = []
+
+                 ───────────outgoing message flow─────────────▶
+
+    ┌───────────────────────────────┐    ┌────────────────────────────────────┐
+    │neutron                        │    │osmosis  1.3. execute bank balance  │
+    │                               │    │           ┌──queries on self       │
+    │  ┌─────────────┐              │    │           │             │          │
+    │  │ osmo liquid │              │    │           │  ┌───────┐  │          │
+    │  │   pooler    │              │    │           └──│ proxy │◀─┘          │
+    │  └─────────────┘              │    │              └───────┘             │
+    │         │                     │    │                  ▲                 │
+    │ 1. query d1, d2, lp           │    │                  │                 │
+    │   token balances              │    │            1.2. execute            │
+    │         │                     │    │              queries               │
+    │         │                  1.1. query msgs =          │                 │
+    │         │     ┌────────┐      [d1_query,          ┌───────┐             │
+    │         └────▶│  note  │──────┼d2_query, ────────▶│ voice │             │
+    │               └────────┘      │lp_query]          └───────┘             │
+    │                               │    │                                    │
+    │                               │    │                                    │
+    │                               │    │                                    │
+    │                               │    │                                    │
+    └───────────────────────────────┘    └────────────────────────────────────┘
+```
+
 Once the balances get queried on osmosis, voice submits the query results to our
 note. Note then calls into our contract callback handler, in which we deserialize
 the query responses and reflect the fresh balances in our storage.
+```md
+                  ◀──────────callback message flow──────────────
+
+    ┌───────────────────────────────┐     ┌────────────────────────────────────┐
+    │neutron                        │     │osmosis                             │
+    │                               │     │                                    │
+    │  ┌─────────────┐              │     │              ┌───────┐             │
+    │  │ osmo liquid │              │     │              │ proxy │             │
+    │  │   pooler    │◀───┐         │     │              └───────┘             │
+    │  └─────────────┘    │         │     │                  │                 │
+    │                 1.3. proxy    │     │              1. query              │
+    │                  balances     │     │              results               │
+    │                  callback     │     │                  │                 │
+    │                     │         │     │                  ▼                 │
+    │                ┌────────┐     │     │              ┌───────┐             │
+    │                │  note  │◀────┼──1.1. query ───────│ voice │             │
+    │                └────────┘     │   results          └───────┘             │
+    │                               │     │                                    │
+    │                               │     │                                    │
+    │                               │     │                                    │
+    │                               │     │                                    │
+    │                               │     │                                    │
+    └───────────────────────────────┘     └────────────────────────────────────┘
+```
 
 After balances are fresh - we once again try to deliver funds. This time we can
 see that our proxy has no/insufficient tokens for our desired liquidity provision.
 
 We then query our own balances of relevant tokens, and attempt to transfer them
-directly to our proxy over ibc, without using polytone.
+directly to our proxy over ibc, without using polytone. Along with submitting
+these ibc send messages, we clear our latest proxy balances storage to re-trigger
+a query on next tick.
 
-Upon next tick, if the transfers went well, the contract will not have enough funds
-to fund the proxy (as they have already been transferred). This will trigger a
-re-query of our proxy balances.
+```md
+    t        = 3
+    state    = proxy_created
+    action   = try_deliver_funds
+    balances = [(d1, 0), (d2, 0), (lp, 0)]
 
-The tick after that will assert that the latest proxy balances match our expectations
-for providing liquidity. The state is then advanced to `ProxyFunded`. If balances are
-insufficient, we will try to ibc fund the proxy again, restarting the flow.
+                 ───────────outgoing message flow─────────────▶
+
+    ┌───────────────────────────────┐    ┌────────────────────────────────────┐
+    │neutron                        │    │osmosis                             │
+    │                               │    │                                    │
+    │                               │    │                                    │
+    │                               │    │                                    │
+    │                               │    │                                    │
+    │      ┌─────────────┐          │    │                                    │
+    │      │ osmo liquid │         1. ibc send          ┌───────┐             │
+    │   ┌─▶│   pooler    │─────────(d1, 100) + ────────▶│ proxy │             │
+    │   │  └─────────────┘          (d2, 120)           └───────┘             │
+    │   │         │                 │    │                                    │
+    │   1.1. clear│                 │    │                                    │
+    │   └─latest ─┘                 │    │                                    │
+    │    balances                   │    │                                    │
+    │                               │    │                                    │
+    │                               │    │                                    │
+    │                               │    │                                    │
+    │                               │    │                                    │
+    │                               │    │                                    │
+    └───────────────────────────────┘    └────────────────────────────────────┘
+```
+
+Upon next tick, regardless of the ibc transfer outcome, the contract will not
+have any knowledge of the proxy balances as we erased them in the previous step.
+This will trigger the same query process as we performed upon entering `ProxyCreated`
+state.
+
+Once the proxy balances query concludes its round trip, the next tick coming into
+the liquid pooler will assert whether the proxy balances are what we expect them to
+be in order to begin the liquidity provision process. If that is the case, we advance
+the contract state to `ProxyFunded`. If balances are insufficient, we will try to
+fund the proxy over ibc again, restarting the flow.
 
 ### 3. `ProxyFunded`
 
@@ -90,9 +230,57 @@ We submit these two messages in order: first we attempt to provide liquidity, an
 after that we query the proxy balances. If providing liquidity succeeded, we will
 see that reflected by the available gamm token (and reduced target denoms) balance.
 
-Now, remember that callback we receive from note after querying the proxy balances?
-It does one more thing. After deserializing and updating our latest proxy balances,
-it checks if there are any LP tokens in the proxy. Nothing happens in case where
-that balance is 0. Otherwise, however, we submit a polytone message to the note,
-which instructs the proxy to perform an ibc transfer of those balances back to this
-contract.
+This process repeats for as long as the liquid pooler is configured to with the
+`funding_expiration` field.
+
+```md
+     t      = 4
+     state  = proxy_funded
+     action = try_provide_liquidity
+
+                  ───────────outgoing message flow─────────────▶
+
+     ┌───────────────────────────────┐    ┌────────────────────────────────────┐
+     │neutron                        │    │osmosis  ┌──1.5. return lp ──┐      │
+     │                               │    │         │      tokens       │      │
+     │  ┌─────────────┐              │    │ 1.6.─┐  │                   │      │
+     │  │ osmo liquid │              │    │query │  ▼               ┌───────┐  │
+     │  │   pooler    │              │    │ bals┌┴──────┐ 1.3. enter│ osmo  │  │
+     │  └─────────────┘              │    │ └──▶│ proxy │────pool──▶│outpost│  │
+     │         │                     │    │     └───────┘           └───────┘  │
+     │         │                     │    │         ▲                   │      │
+     │ 1. LP and query               │    │         │                   │      │
+     │    balances                   │    │         └───┐         1.4. provide │
+     │         │                     │    │      1.2. lp, query     liquidity  │
+     │         │                     │    │             │               │      │
+     │         │  ┌────────┐         │ 1.1.         ┌───────┐           ▼      │
+     │         └─▶│  note  │───execute msgs = [lp]─▶│ voice │     ┌───────────┐│
+     │            └────────┘   query msgs = [query] └───────┘     │ gamm pool ││
+     │                               │    │                       └───────────┘│
+     │                               │    │                                    │
+     │                               │    │                                    │
+     └───────────────────────────────┘    └────────────────────────────────────┘
+
+                  ◀──────────callback message flow──────────────
+
+    ┌───────────────────────────────┐     ┌────────────────────────────────────┐
+    │neutron                        │     │osmosis                             │
+    │                               │     │                                    │
+    │  ┌─────────────┐              │     │              ┌───────┐             │
+    │  │ osmo liquid │              │     │              │ proxy │             │
+    │  │   pooler    │◀───┐         │     │              └───────┘             │
+    │  └─────────────┘  1.2. lp     │     │                  │                 │
+    │                 callback +    │     │                 1.                 │
+    │                  balances     │     │              balances              │
+    │                   update      │     │              response              │
+    │                     │         │     │                  ▼                 │
+    │                ┌────────┐     │     │              ┌───────┐             │
+    │                │  note  │◀────┼1.1. balances ──────│ voice │             │
+    │                └────────┘     │   response         └───────┘             │
+    │                               │     │                                    │
+    │                               │     │                                    │
+    │                               │     │                                    │
+    │                               │     │                                    │
+    │                               │     │                                    │
+    └───────────────────────────────┘     └────────────────────────────────────┘
+```
