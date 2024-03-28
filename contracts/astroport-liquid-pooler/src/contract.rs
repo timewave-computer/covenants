@@ -591,12 +591,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.result {
-        SubMsgResult::Ok(val) => {
-            // astroport only sets SubMsgResponse data in case it's a multi-hop swap.
-            // we only deal with direct swaps so we ignore the data.
-            let response = Response::default()
-                .add_attribute("reply_id", msg.id.to_string())
-                .add_events(val.events);
+        SubMsgResult::Ok(_) => {
+            let response = Response::default().add_attribute("reply_id", msg.id.to_string());
 
             match msg.id {
                 DOUBLE_SIDED_REPLY_ID => handle_double_sided_reply_id(response),
