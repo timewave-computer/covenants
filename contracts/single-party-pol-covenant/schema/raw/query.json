@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "clock_address"
+      ],
+      "properties": {
+        "clock_address": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "holder_address"
+      ],
+      "properties": {
+        "holder_address": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "ibc_forwarder_address"
+      ],
+      "properties": {
+        "ibc_forwarder_address": {
+          "type": "object",
+          "required": [
+            "ty"
+          ],
+          "properties": {
+            "ty": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "liquid_pooler_address"
+      ],
+      "properties": {
+        "liquid_pooler_address": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "liquid_staker_address"
+      ],
+      "properties": {
+        "liquid_staker_address": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "splitter_address"
+      ],
+      "properties": {
+        "splitter_address": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "party_deposit_address"
+      ],
+      "properties": {
+        "party_deposit_address": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "interchain_router_address"
+      ],
+      "properties": {
+        "interchain_router_address": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "contract_codes"
+      ],
+      "properties": {
+        "contract_codes": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

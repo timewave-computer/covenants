@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ContractState",
+  "oneOf": [
+    {
+      "description": "contract is instantiated and awaiting for deposits from both parties involved",
+      "type": "string",
+      "enum": [
+        "instantiated"
+      ]
+    },
+    {
+      "description": "funds have been forwarded to the LP module. from the perspective of this contract that indicates an active LP position.",
+      "type": "string",
+      "enum": [
+        "active"
+      ]
+    },
+    {
+      "description": "one of the parties have initiated ragequit. the remaining counterparty with an active position is free to exit at any time.",
+      "type": "string",
+      "enum": [
+        "ragequit"
+      ]
+    },
+    {
+      "description": "covenant has reached its expiration date.",
+      "type": "string",
+      "enum": [
+        "expired"
+      ]
+    },
+    {
+      "description": "underlying funds have been withdrawn.",
+      "type": "string",
+      "enum": [
+        "complete"
+      ]
+    }
+  ]
+}

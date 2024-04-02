@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "description": "Returns true if `address` is in the queue, and false otherwise.",
+      "type": "object",
+      "required": [
+        "is_queued"
+      ],
+      "properties": {
+        "is_queued": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Paginated query for all the elements in the queue. Returns elements in asending order by address in the form (address, timestamp) where timestamp is the nanosecond unix timestamp at which address was added to the queue.",
+      "type": "object",
+      "required": [
+        "queue"
+      ],
+      "properties": {
+        "queue": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Queries the current tick max gas, as set during instantiation and updated via migration.",
+      "type": "object",
+      "required": [
+        "tick_max_gas"
+      ],
+      "properties": {
+        "tick_max_gas": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Queries if the contract is paused.",
+      "type": "object",
+      "required": [
+        "paused"
+      ],
+      "properties": {
+        "paused": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Queries if the contract is paused.",
+      "type": "object",
+      "required": [
+        "whitelist"
+      ],
+      "properties": {
+        "whitelist": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

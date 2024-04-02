@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CovenantContractCodeIds",
+  "type": "object",
+  "required": [
+    "clock_code",
+    "holder_code",
+    "ibc_forwarder_code",
+    "interchain_router_code",
+    "liquid_pooler_code",
+    "liquid_staker_code",
+    "remote_chain_splitter_code"
+  ],
+  "properties": {
+    "clock_code": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "holder_code": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "ibc_forwarder_code": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "interchain_router_code": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "liquid_pooler_code": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "liquid_staker_code": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "remote_chain_splitter_code": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false
+}

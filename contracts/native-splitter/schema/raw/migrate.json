@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MigrateMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "update_config"
+      ],
+      "properties": {
+        "update_config": {
+          "type": "object",
+          "properties": {
+            "clock_addr": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "fallback_split": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/SplitConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "splits": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": {
+                "$ref": "#/definitions/SplitConfig"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_code_id"
+      ],
+      "properties": {
+        "update_code_id": {
+          "type": "object",
+          "properties": {
+            "data": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Binary"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "SplitConfig": {
+      "type": "object",
+      "required": [
+        "receivers"
+      ],
+      "properties": {
+        "receivers": {
+          "description": "map receiver address to its share of the split",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Decimal"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
