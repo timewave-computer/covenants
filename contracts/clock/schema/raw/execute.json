@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "description": "Enqueues the message sender for ticks (serialized as messages in the form `{\"tick\": {}}`). The sender will continue to receive ticks until sending a `Dequeue {}` message. Only callable if the message sender is not currently enqueued and is a contract.",
+      "type": "object",
+      "required": [
+        "enqueue"
+      ],
+      "properties": {
+        "enqueue": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Dequeues the message sender stopping them from receiving ticks. Only callable if the message sender is currently enqueued.",
+      "type": "object",
+      "required": [
+        "dequeue"
+      ],
+      "properties": {
+        "dequeue": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Wakes the state machine up. The caller should check the sender of the tick is the clock if they'd like to pause when the clock does.",
+      "type": "object",
+      "required": [
+        "tick"
+      ],
+      "properties": {
+        "tick": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}
