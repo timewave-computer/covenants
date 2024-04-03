@@ -3,8 +3,7 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Env,
-    Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg,
+    ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Env, Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig;
@@ -12,17 +11,15 @@ use covenant_utils::{
     polytone::get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata,
     PacketMetadata,
 };
-use cw2::set_contract_version;
+use cw2::{get_contract_version, set_contract_version};
 use neutron_sdk::{
     bindings::{
         msg::{IbcFee, NeutronMsg},
         query::NeutronQuery,
-    },
-    query::min_ibc_fee::MinIbcFeeResponse,
-    sudo::msg::RequestPacketTimeoutHeight,
-    NeutronResult,
+    }, query::min_ibc_fee::MinIbcFeeResponse, sudo::msg::RequestPacketTimeoutHeight, NeutronError, NeutronResult
 };
 use polytone::callbacks::CallbackRequest;
+use semver::Version;
 
 use crate::{
     error::ContractError,
@@ -756,10 +753,19 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> NeutronResult<R
             Ok(response)
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
-            // This is a migrate message to update code id,
-            // Data is optional base64 that we can parse to any data we would like in the future
-            // let data: SomeStruct = from_binary(&data)?;
-            Ok(Response::default())
+            let version: Version = match CONTRACT_VERSION.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(NeutronError::Std(StdError::generic_err(e.to_string()))),
+            };
+
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(NeutronError::Std(StdError::generic_err(e.to_string()))),
+            };
+            if storage_version < version {
+                set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+            }
+            Ok(Response::new())
         }
     }
 }

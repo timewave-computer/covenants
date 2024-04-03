@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Coin, Decimal, Uint128, Uint64};
+use cosmwasm_std::{Binary, Coin, Decimal, Uint128, Uint64};
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
 use crate::error::ContractError;
@@ -46,6 +46,13 @@ pub struct CallerContext {
     pub pool_denom_1: String,
     pub pool_denom_2: String,
     pub gamm_denom: String,
+}
+
+#[cw_serde]
+pub enum MigrateMsg {
+    UpdateCodeId {
+        data: Option<Binary>,
+    },
 }
 
 #[cw_serde]

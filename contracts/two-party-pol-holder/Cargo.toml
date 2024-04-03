@@ -30,3 +30,4 @@ astroport       = { workspace = true }
 cw20            = { workspace = true }
 cw-utils        = { workspace = true }
 covenant-utils  = { workspace = true }
+semver          = { workspace = true }

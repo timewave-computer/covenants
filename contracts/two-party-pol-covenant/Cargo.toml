@@ -45,3 +45,4 @@ covenant-two-party-pol-holder    = { workspace = true, features = ["library"] }
 covenant-astroport-liquid-pooler = { workspace = true, features = ["library"] }
 covenant-osmo-liquid-pooler      = { workspace = true, features = ["library"] }
 astroport                        = { workspace = true }
+semver          = { workspace = true }

@@ -3,8 +3,7 @@ use std::str::FromStr;
 use crate::{
     error::ContractError,
     msg::{
-        CallerContext, ExecuteMsg, InstantiateMsg, OsmosisPool, OutpostProvideLiquidityConfig,
-        OutpostWithdrawLiquidityConfig, QueryMsg,
+        CallerContext, ExecuteMsg, InstantiateMsg, MigrateMsg, OsmosisPool, OutpostProvideLiquidityConfig, OutpostWithdrawLiquidityConfig, QueryMsg
     },
     state::PENDING_REPLY,
 };
@@ -15,7 +14,7 @@ use cosmwasm_std::{
     ensure, to_json_string, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
     Fraction, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128,
 };
-use cw2::set_contract_version;
+use cw2::{get_contract_version, set_contract_version};
 use cw_utils::must_pay;
 use osmosis_std::{
     shim::Any,
@@ -30,6 +29,7 @@ use osmosis_std::{
         },
     },
 };
+use semver::Version;
 
 const CONTRACT_NAME: &str = "crates.io:covenant-outpost-osmo-liquid-pooler";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -411,4 +411,26 @@ fn apply_slippage(slippage: Decimal, coin: Coin) -> Result<Coin, ContractError> 
         denom: coin.denom,
         amount: coin.amount - applied_slippage_amount,
     })
+}
+
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    match msg {
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            let version: Version = match CONTRACT_VERSION.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(ContractError::Std(StdError::generic_err(e.to_string()))),
+            };
+
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(ContractError::Std(StdError::generic_err(e.to_string()))),
+            };
+            if storage_version < version {
+                set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+            }
+            Ok(Response::new())
+        },
+    }
 }

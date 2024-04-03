@@ -18,7 +18,7 @@ use covenant_utils::{
         RemoteChainInfo, SudoPayload,
     },
 };
-use cw2::set_contract_version;
+use cw2::{get_contract_version, set_contract_version};
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery, types::ProtobufAny},
     interchain_txs::helpers::get_port_id,
@@ -26,6 +26,7 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 use prost::Message;
+use semver::Version;
 
 use crate::state::{IbcForwarderIcaStateHelper, FALLBACK_ADDRESS};
 use crate::{error::ContractError, msg::FallbackAddressUpdateConfig};
@@ -439,7 +440,19 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
             Ok(resp)
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
-            unimplemented!()
+            let version: Version = match CONTRACT_VERSION.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(StdError::generic_err(e.to_string())),
+            };
+
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(StdError::generic_err(e.to_string())),
+            };
+            if storage_version < version {
+                set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+            }
+            Ok(Response::new())
         }
     }
 }

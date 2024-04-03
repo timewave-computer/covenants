@@ -43,3 +43,4 @@ polytone    = { workspace = true }
 osmosis-std                         = "0.20.1"
 prost                               = { workspace = true }
 covenant-outpost-osmo-liquid-pooler = { workspace = true, features = ["library"] }
+semver          = { workspace = true }

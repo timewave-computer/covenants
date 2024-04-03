@@ -43,3 +43,4 @@ covenant-native-splitter     = { workspace = true, features = ["library"] }
 covenant-ibc-forwarder       = { workspace = true, features = ["library"] }
 covenant-interchain-router   = { workspace = true, features = ["library"] }
 covenant-native-router       = { workspace = true, features = ["library"] }
+semver                       = { workspace = true }

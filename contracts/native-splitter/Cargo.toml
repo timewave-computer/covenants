@@ -29,3 +29,4 @@ cw2             = { workspace = true }
 thiserror       = { workspace = true }
 schemars        = { workspace = true }
 serde           = { workspace = true }
+semver          = { workspace = true }

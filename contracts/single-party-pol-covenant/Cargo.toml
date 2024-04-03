@@ -44,3 +44,4 @@ covenant-stride-liquid-staker    = { workspace = true, features = ["library"] }
 covenant-remote-chain-splitter   = { workspace = true, features = ["library"] }
 covenant-osmo-liquid-pooler      = { workspace = true, features = ["library"] }
 astroport                        = { workspace = true }
+semver          = { workspace = true }
