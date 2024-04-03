@@ -41,3 +41,4 @@ bech32         = { workspace = true }
 astroport      = { workspace = true }
 cw20           = { workspace = true }
 covenant-utils = { workspace = true }
+semver         = { workspace = true }

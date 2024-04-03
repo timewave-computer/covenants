@@ -1,11 +1,10 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
+    coin, ensure, from_json, to_json_binary, Addr, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg
 };
-use covenant_utils::{astroport::query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
-use cw2::set_contract_version;
+use covenant_utils::{astroport::query_astro_pool_token, migrate_helper::get_recover_msg, withdraw_lp_helper::WithdrawLPMsgs};
+use cw2::{get_contract_version, set_contract_version};
 use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use astroport::{
@@ -15,6 +14,7 @@ use astroport::{
     DecimalCheckedOps,
 };
 use cw20::Cw20ExecuteMsg;
+use semver::Version;
 
 use crate::{
     error::ContractError,
@@ -25,7 +25,7 @@ use crate::{
     state::{HOLDER_ADDRESS, LP_CONFIG, PROVIDED_LIQUIDITY_INFO},
 };
 
-use neutron_sdk::NeutronResult;
+use neutron_sdk::NeutronError;
 
 use crate::state::{CLOCK_ADDRESS, CONTRACT_STATE};
 
@@ -109,6 +109,33 @@ pub fn execute(
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Withdraw { percentage } => try_withdraw(deps, env, info, percentage),
+        ExecuteMsg::RecoverFunds { denoms } => {
+            let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
+
+            // query the holder for emergency commitee address
+            let commitee_raw_query = deps.querier.query_wasm_raw(
+                holder_addr.to_string(),
+                b"e_c_a".as_slice(),
+            )?;
+            let emergency_commitee: Addr = if let Some(resp) = commitee_raw_query {
+                let resp: Addr = from_json(resp)?;
+                resp
+            } else {
+                return Err(ContractError::Std(StdError::generic_err("emergency committee address not found")))
+            };
+
+            // validate emergency committee as caller
+            ensure!(
+                info.sender == emergency_commitee,
+                ContractError::Std(StdError::generic_err("only emergency committee can recover funds"))
+            );
+
+            // collect available denom coins into a bank send
+            let recover_msg = get_recover_msg(deps, env, denoms, emergency_commitee.to_string())?;
+            Ok(Response::new()
+                .add_message(recover_msg)
+            )
+        },
     }
 }
 
@@ -554,7 +581,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
@@ -583,10 +610,19 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
             Ok(response)
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
-            // This is a migrate message to update code id,
-            // Data is optional base64 that we can parse to any data we would like in the future
-            // let data: SomeStruct = from_binary(&data)?;
-            Ok(Response::default())
+            let version: Version = match CONTRACT_VERSION.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(ContractError::NeutronError(NeutronError::Std(StdError::generic_err(e.to_string())))),
+            };
+
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(ContractError::NeutronError(NeutronError::Std(StdError::generic_err(e.to_string())))),
+            };
+            if storage_version < version {
+                set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+            }
+            Ok(Response::new())
         }
     }
 }

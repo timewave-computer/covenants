@@ -89,7 +89,7 @@ cw20-base       = { version = "0.15.1" }
 proc-macro2     = "1"
 quote           = "1"
 syn             = "1"
-
+semver          = "1"
 astroport = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 
 # dev-dependencies

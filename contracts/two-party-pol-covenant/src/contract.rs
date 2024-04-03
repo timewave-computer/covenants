@@ -3,8 +3,7 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, WasmMsg,
+    to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg
 };
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits};
 use cw2::set_contract_version;
@@ -14,8 +13,7 @@ use valence_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfi
 use crate::{
     error::ContractError,
     msg::{
-        CovenantPartyConfig, InstantiateMsg, LiquidPoolerMigrateMsg, MigrateMsg, QueryMsg,
-        RouterMigrateMsg,
+        CovenantPartyConfig, InstantiateMsg, LiquidPoolerMigrateMsg, MigrateMsg, QueryMsg, RouterMigrateMsg
     },
     state::{
         CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
