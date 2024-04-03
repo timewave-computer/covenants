@@ -33,3 +33,4 @@ thiserror = { workspace = true }
 schemars = { workspace = true }
 osmosis-std = "0.13.2"
 prost = { workspace = true }
+semver          = { workspace = true }

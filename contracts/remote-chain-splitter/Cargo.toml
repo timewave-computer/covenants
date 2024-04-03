@@ -31,3 +31,4 @@ serde            = { workspace = true }
 neutron-sdk      = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
 cw-utils         = { workspace = true }
+semver          = { workspace = true }

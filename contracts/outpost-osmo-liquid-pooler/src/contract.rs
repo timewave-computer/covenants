@@ -15,7 +15,7 @@ use cosmwasm_std::{
     ensure, to_json_string, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
     Fraction, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128,
 };
-use cw2::set_contract_version;
+use cw2::{get_contract_version, set_contract_version};
 use cw_utils::must_pay;
 use osmosis_std::{
     shim::Any,
@@ -30,6 +30,7 @@ use osmosis_std::{
         },
     },
 };
+use semver::Version;
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -335,14 +336,23 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(_deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
     match msg {
         MigrateMsg::UpdateCodeId { data: _ } => {
-            // This is a migrate message to update code id,
-            // Data is optional base64 that we can parse to any data we would like in the future
-            // let data: SomeStruct = from_binary(&data)?;
-            Ok(Response::default())
-        }
+            let version: Version = match CONTRACT_VERSION.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(StdError::generic_err(e.to_string())),
+            };
+
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(StdError::generic_err(e.to_string())),
+            };
+            if storage_version < version {
+                set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+            }
+            Ok(Response::new())
+        },
     }
 }
 

@@ -10,8 +10,9 @@ use covenant_utils::{
     instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits,
     CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms,
 };
-use cw2::set_contract_version;
 use valence_swap_holder::msg::RefundConfig;
+use cw2::{get_contract_version, set_contract_version};
+use semver::Version;
 
 use crate::{
     error::ContractError,
@@ -481,10 +482,19 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             Ok(resp.add_messages(migrate_msgs))
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
-            // This is a migrate message to update code id,
-            // Data is optional base64 that we can parse to any data we would like in the future
-            // let data: SomeStruct = from_binary(&data)?;
-            Ok(Response::default())
+            let version: Version = match CONTRACT_VERSION.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(StdError::generic_err(e.to_string())),
+            };
+
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(StdError::generic_err(e.to_string())),
+            };
+            if storage_version < version {
+                set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+            }
+            Ok(Response::new())
         }
     }
 }

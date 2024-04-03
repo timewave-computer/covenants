@@ -49,12 +49,14 @@ pub struct CallerContext {
 }
 
 #[cw_serde]
-pub enum QueryMsg {}
+pub enum MigrateMsg {
+    UpdateCodeId {
+        data: Option<Binary>,
+    },
+}
 
 #[cw_serde]
-pub enum MigrateMsg {
-    UpdateCodeId { data: Option<Binary> },
-}
+pub enum QueryMsg {}
 
 pub trait OsmosisPool {
     fn validate_pool_assets_length(&self) -> Result<(), ContractError>;

@@ -10,15 +10,16 @@ use covenant_utils::{
     neutron::{assert_ibc_fee_coverage, query_ibc_fee},
     soft_validate_remote_chain_addr,
 };
-use cw2::set_contract_version;
+use cw2::{get_contract_version, set_contract_version};
 use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
     query::min_ibc_fee::MinIbcFeeResponse,
     NeutronError, NeutronResult,
 };
 use valence_clock::helpers::{enqueue_msg, verify_clock};
+use semver::Version;
 
-use crate::state::{DESTINATION_CONFIG, TARGET_DENOMS};
+use crate::{error::ContractError, state::{DESTINATION_CONFIG, TARGET_DENOMS}};
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::CLOCK_ADDRESS,
@@ -210,10 +211,19 @@ pub fn migrate(
             Ok(response)
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
-            // This is a migrate message to update code id,
-            // Data is optional base64 that we can parse to any data we would like in the future
-            // let data: SomeStruct = from_binary(&data)?;
-            Ok(Response::default().add_attribute("method", "update_interchain_router"))
+            let version: Version = match CONTRACT_VERSION.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(ContractError::Std(StdError::generic_err(e.to_string())).to_neutron_std()),
+            };
+
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+                Ok(v) => v,
+                Err(e) => return Err(ContractError::Std(StdError::generic_err(e.to_string())).to_neutron_std()),
+            };
+            if storage_version < version {
+                set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+            }
+            Ok(Response::new())
         }
     }
 }

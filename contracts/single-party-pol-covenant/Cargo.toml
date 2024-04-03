@@ -44,3 +44,4 @@ valence-stride-liquid-staker     = { workspace = true, features = ["library"] }
 valence-remote-chain-splitter    = { workspace = true, features = ["library"] }
 valence-osmo-liquid-pooler       = { workspace = true, features = ["library"] }
 astroport                        = { workspace = true }
+semver          = { workspace = true }

@@ -45,3 +45,4 @@ valence-two-party-pol-holder    = { workspace = true, features = ["library"] }
 valence-astroport-liquid-pooler = { workspace = true, features = ["library"] }
 valence-osmo-liquid-pooler      = { workspace = true, features = ["library"] }
 astroport                        = { workspace = true }
+semver          = { workspace = true }

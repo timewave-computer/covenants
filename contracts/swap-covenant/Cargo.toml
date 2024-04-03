@@ -43,3 +43,4 @@ valence-native-splitter     = { workspace = true, features = ["library"] }
 valence-ibc-forwarder       = { workspace = true, features = ["library"] }
 valence-interchain-router   = { workspace = true, features = ["library"] }
 valence-native-router       = { workspace = true, features = ["library"] }
+semver                       = { workspace = true }
