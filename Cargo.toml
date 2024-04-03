@@ -9,7 +9,7 @@ resolver = "2"
 [workspace.package]
 edition    = "2021"
 license    = "BSD-3"
-version    = "1.0.0"
+version    = "1.0.1"
 repository = "https://github.com/timewave-computer/covenants"
 # rust-version = "1.71.0"
 
@@ -82,7 +82,7 @@ cw20-base       = { version = "0.15.1" }
 proc-macro2     = "1"
 quote           = "1"
 syn             = "1"
-
+semver          = "1"
 astroport = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 
 # dev-dependencies

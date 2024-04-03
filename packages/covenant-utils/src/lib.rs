@@ -20,6 +20,7 @@ pub mod neutron;
 pub mod polytone;
 pub mod split;
 pub mod withdraw_lp_helper;
+pub mod migrate_helper;
 
 #[cw_serde]
 pub struct InterchainCovenantParty {

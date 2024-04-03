@@ -186,7 +186,9 @@ impl AssetData {
 #[clocked]
 #[covenant_lper_withdraw]
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    RecoverFunds { denoms: Vec<String> },
+}
 
 #[covenant_clock_address]
 #[covenant_deposit_address]
