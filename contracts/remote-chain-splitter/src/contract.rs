@@ -7,14 +7,14 @@ use cosmos_sdk_proto::traits::Message;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, Attribute, Binary, Deps, DepsMut, Env, Fraction, MessageInfo, Reply,
-    Response, StdError, StdResult, Uint128,
+    ensure, from_json, to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, Fraction, MessageInfo, Reply, Response, StdError, StdResult, Uint128
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::ica::{
     get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee, sudo_error,
     sudo_open_ack, sudo_response, sudo_timeout,
 };
+use covenant_utils::migrate_helper::get_recover_msg;
 use covenant_utils::neutron::{
     assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, RemoteChainInfo, SudoPayload,
 };
@@ -103,6 +103,46 @@ pub fn execute(
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::DistributeFallback { coins } => try_distribute_fallback(deps, env, info, coins),
+        ExecuteMsg::RecoverFunds { denoms } => {
+            let covenant_addr = deps.querier.query_wasm_contract_info(
+                env.contract.address.as_str()
+            )?
+            .creator;
+
+            let holder_addr = if let Some(resp) = deps.querier.query_wasm_raw(
+                covenant_addr,
+                b"covenant_two_party_pol_holder_addr".as_slice(),
+            )? {
+                let resp: Addr = from_json(resp)?;
+                resp
+            } else {
+                return Err(ContractError::Std(StdError::generic_err("holder address not found")).into())
+            };
+
+            // query the holder for emergency commitee address
+            let commitee_raw_query = deps.querier.query_wasm_raw(
+                holder_addr.to_string(),
+                b"e_c_a".as_slice(),
+            )?;
+            let emergency_commitee: Addr = if let Some(resp) = commitee_raw_query {
+                let resp: Addr = from_json(resp)?;
+                resp
+            } else {
+                return Err(ContractError::Std(StdError::generic_err("emergency committee address not found")).into())
+            };
+
+            // validate emergency committee as caller
+            ensure!(
+                info.sender == emergency_commitee,
+                ContractError::Std(StdError::generic_err("only emergency committee can recover funds"))
+            );
+
+            // collect available denom coins into a bank send
+            let recover_msg = get_recover_msg(deps.into_empty(), env, denoms, emergency_commitee.to_string())?;
+            Ok(Response::new()
+                .add_message(recover_msg)
+            )
+        },
     }
 }
 

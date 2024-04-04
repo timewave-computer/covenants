@@ -3,13 +3,12 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Env, Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg
+    ensure, from_json, to_json_binary, to_json_string, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, Env, Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig;
 use covenant_utils::{
-    polytone::get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata,
-    PacketMetadata,
+    migrate_helper::get_recover_msg, polytone::get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata, PacketMetadata
 };
 use cw2::{get_contract_version, set_contract_version};
 use neutron_sdk::{
@@ -118,6 +117,33 @@ pub fn execute(
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Callback(callback_msg) => try_handle_callback(env, deps, info, callback_msg),
         ExecuteMsg::Withdraw { percentage } => try_withdraw(deps, env, info, percentage),
+        ExecuteMsg::RecoverFunds { denoms } => {
+            let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
+
+            // query the holder for emergency commitee address
+            let commitee_raw_query = deps.querier.query_wasm_raw(
+                holder_addr.to_string(),
+                b"e_c_a".as_slice(),
+            )?;
+            let emergency_commitee: Addr = if let Some(resp) = commitee_raw_query {
+                let resp: Addr = from_json(resp)?;
+                resp
+            } else {
+                return Err(ContractError::Std(StdError::generic_err("emergency committee address not found")).to_neutron_std())
+            };
+
+            // validate emergency committee as caller
+            ensure!(
+                info.sender == emergency_commitee,
+                ContractError::Std(StdError::generic_err("only emergency committee can recover funds")).to_neutron_std()
+            );
+
+            // collect available denom coins into a bank send
+            let recover_msg = get_recover_msg(deps.into_empty(), env, denoms, emergency_commitee.to_string())?;
+            Ok(Response::new()
+                .add_message(recover_msg)
+            )
+        },
     }
 }
 

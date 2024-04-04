@@ -269,6 +269,7 @@ impl PartyDenomInfo {
 pub enum ExecuteMsg {
     // polytone callback listener
     Callback(CallbackMessage),
+    RecoverFunds { denoms: Vec<String> },
 }
 
 #[covenant_clock_address]
