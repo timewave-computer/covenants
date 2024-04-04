@@ -38,6 +38,7 @@ impl InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     DistributeFallback { denoms: Vec<String> },
+    RecoverFunds { denoms: Vec<String> },
 }
 
 #[covenant_clock_address]
