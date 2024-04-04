@@ -81,6 +81,7 @@ impl InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     DistributeFallback { coins: Vec<Coin> },
+    RecoverFunds { denoms: Vec<String> },
 }
 
 #[cw_serde]

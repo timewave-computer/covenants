@@ -1625,6 +1625,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "covenant-macros",
+ "covenant-utils",
  "cw-fifo",
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
