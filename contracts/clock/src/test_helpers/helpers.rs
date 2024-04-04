@@ -28,6 +28,7 @@ pub fn mock_neutron_clock_execute(
         crate::msg::ExecuteMsg::Enqueue {} => Ok(Response::default()),
         crate::msg::ExecuteMsg::Dequeue {} => Ok(Response::default()),
         crate::msg::ExecuteMsg::Tick {} => Ok(Response::default()),
+        crate::msg::ExecuteMsg::RecoverFunds { denoms: _ } => Ok(Response::default()),
     }
 }
 

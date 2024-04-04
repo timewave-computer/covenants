@@ -1,8 +1,9 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint64, WasmMsg
+    ensure, from_json, to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint64, WasmMsg
 };
+use covenant_utils::migrate_helper::get_recover_msg;
 use cw2::{get_contract_version, set_contract_version};
 use semver::Version;
 
@@ -52,7 +53,7 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
@@ -112,7 +113,47 @@ pub fn execute(
             Ok(Response::default()
                 .add_attribute("method", "execute_dequeue")
                 .add_attribute("sender", info.sender))
-        }
+        },
+        ExecuteMsg::RecoverFunds { denoms } => {
+            let covenant_addr = deps.querier.query_wasm_contract_info(
+                env.contract.address.as_str()
+            )?
+            .creator;
+
+            let holder_addr = if let Some(resp) = deps.querier.query_wasm_raw(
+                covenant_addr,
+                b"holder".as_slice(),
+            )? {
+                let resp: Addr = from_json(resp)?;
+                resp
+            } else {
+                return Err(ContractError::Std(StdError::generic_err("holder address not found")))
+            };
+
+            // query the holder for emergency commitee address
+            let commitee_raw_query = deps.querier.query_wasm_raw(
+                holder_addr.to_string(),
+                b"e_c_a".as_slice(),
+            )?;
+            let emergency_commitee: Addr = if let Some(resp) = commitee_raw_query {
+                let resp: Addr = from_json(resp)?;
+                resp
+            } else {
+                return Err(ContractError::Std(StdError::generic_err("emergency committee address not found")))
+            };
+
+            // validate emergency committee as caller
+            ensure!(
+                info.sender == emergency_commitee,
+                ContractError::Std(StdError::generic_err("only emergency committee can recover funds"))
+            );
+
+            // collect available denom coins into a bank send
+            let recover_msg = get_recover_msg(deps, env, denoms, emergency_commitee.to_string())?;
+            Ok(Response::new()
+                .add_message(recover_msg)
+            )
+        },
     }
 }
 
