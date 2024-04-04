@@ -122,7 +122,7 @@ pub fn execute(
 
             let holder_addr = if let Some(resp) = deps.querier.query_wasm_raw(
                 covenant_addr,
-                b"holder".as_slice(),
+                b"covenant_two_party_pol_holder_addr".as_slice(),
             )? {
                 let resp: Addr = from_json(resp)?;
                 resp
