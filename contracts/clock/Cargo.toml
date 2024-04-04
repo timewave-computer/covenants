@@ -27,6 +27,7 @@ serde           = { workspace = true }
 thiserror       = { workspace = true }
 neutron-sdk     = { workspace = true }
 semver          = { workspace = true }
+covenant-utils  = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test         = { workspace = true }
