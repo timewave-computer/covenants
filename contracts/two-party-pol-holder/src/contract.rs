@@ -379,24 +379,74 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
 
     match state {
-        ContractState::Instantiated => try_deposit(deps, env, info, clock_addr.as_str()),
+        ContractState::Instantiated => try_deposit(deps, env, info),
         ContractState::Active => check_expiration(deps, env),
-        ContractState::Expired | ContractState::Ragequit | ContractState::Complete => {
-            Ok(Response::default()
-                .add_attribute("method", "tick")
-                .add_attribute("contract_state", state.to_string()))
-        }
+        ContractState::Expired | ContractState::Ragequit => Ok(Response::default()
+            .add_attribute("method", "tick")
+            .add_attribute("contract_state", state.to_string())),
+        ContractState::Complete => try_refund(deps, env),
     }
 }
 
-fn try_deposit(
-    mut deps: DepsMut,
-    env: Env,
-    _info: MessageInfo,
-    clock_addr: &str,
-) -> Result<Response, ContractError> {
+/// attempts to route any available covenant party contribution denoms to
+/// the parties that were responsible for contributing that denom.
+fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let config = COVENANT_CONFIG.load(deps.storage)?;
+
+    // assert the balances
+    let party_a_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        config.party_a.contribution.denom,
+    )?;
+    let party_b_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        config.party_b.contribution.denom,
+    )?;
+
+    let refund_messages: Vec<CosmosMsg> =
+        match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
+            // both balances empty, nothing to refund
+            (true, true) => vec![],
+            // refund party B
+            (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
+                to_address: config.party_b.router,
+                amount: vec![party_b_bal],
+            })],
+            // refund party A
+            (false, true) => vec![CosmosMsg::Bank(BankMsg::Send {
+                to_address: config.party_a.router,
+                amount: vec![party_a_bal],
+            })],
+            // refund both
+            (false, false) => vec![
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: config.party_a.router.to_string(),
+                    amount: vec![party_a_bal],
+                }),
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: config.party_b.router,
+                    amount: vec![party_b_bal],
+                }),
+            ],
+        };
+
+    Ok(Response::default()
+        .add_attribute("contract_state", "complete")
+        .add_attribute("method", "try_refund")
+        .add_messages(refund_messages))
+}
+
+fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
+    if deposit_deadline.is_expired(&env.block) {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        return Ok(Response::default()
+            .add_attribute("method", "try_deposit")
+            .add_attribute("deposit_deadline", "expired")
+            .add_attribute("action", "complete"));
+    }
+
+    let config = COVENANT_CONFIG.load(deps.storage)?;
 
     // assert the balances
     let party_a_bal = deps.querier.query_balance(
@@ -410,49 +460,6 @@ fn try_deposit(
 
     let party_a_fulfilled = config.party_a.contribution.amount <= party_a_bal.amount;
     let party_b_fulfilled = config.party_b.contribution.amount <= party_b_bal.amount;
-
-    // note: even if both parties deposit their funds in time,
-    // it is important to trigger this method before the expiry block
-    // if deposit deadline is due we complete and refund
-    if deposit_deadline.is_expired(&env.block) {
-        let dequeue_message = ContractState::complete_and_dequeue(deps.branch(), clock_addr)?;
-        let refund_messages: Vec<CosmosMsg> =
-            match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
-                // both balances empty, we complete
-                (true, true) => {
-                    return Ok(Response::default()
-                        .add_message(dequeue_message)
-                        .add_attribute("method", "try_deposit")
-                        .add_attribute("state", "complete"));
-                }
-                // refund party B
-                (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
-                    to_address: config.party_b.router,
-                    amount: vec![party_b_bal],
-                })],
-                // refund party A
-                (false, true) => vec![CosmosMsg::Bank(BankMsg::Send {
-                    to_address: config.party_a.router,
-                    amount: vec![party_a_bal],
-                })],
-                // refund both
-                (false, false) => vec![
-                    CosmosMsg::Bank(BankMsg::Send {
-                        to_address: config.party_a.router.to_string(),
-                        amount: vec![party_a_bal],
-                    }),
-                    CosmosMsg::Bank(BankMsg::Send {
-                        to_address: config.party_b.router,
-                        amount: vec![party_b_bal],
-                    }),
-                ],
-            };
-        return Ok(Response::default()
-            .add_attribute("method", "try_deposit")
-            .add_attribute("action", "refund")
-            .add_messages(refund_messages)
-            .add_message(dequeue_message));
-    }
 
     if !party_a_fulfilled || !party_b_fulfilled {
         // if deposit deadline is not yet due and both parties did not fulfill we error
