@@ -266,8 +266,21 @@ fn test_execute_tick_expired_deposit_refunds_both_parties() {
     suite.tick_contract(suite.holder_addr.clone()).assert_event(
         &Event::new("wasm")
             .add_attribute("method", "try_deposit")
-            .add_attribute("action", "refund"),
+            .add_attribute("deposit_deadline", "expired")
+            .add_attribute("action", "complete"),
     );
+
+    assert!(matches!(
+        suite.query_contract_state(),
+        ContractState::Complete {}
+    ));
+
+    suite.tick_contract(suite.holder_addr.clone()).assert_event(
+        &Event::new("wasm")
+            .add_attribute("contract_state", "complete")
+            .add_attribute("method", "try_refund"),
+    );
+
     suite.assert_balance(
         &suite.covenant_config.party_a.router,
         coin(10_000, DENOM_ATOM_ON_NTRN),
@@ -296,8 +309,21 @@ fn test_execute_tick_expired_deposit_refunds_party_a() {
     suite.tick_contract(suite.holder_addr.clone()).assert_event(
         &Event::new("wasm")
             .add_attribute("method", "try_deposit")
-            .add_attribute("action", "refund"),
+            .add_attribute("deposit_deadline", "expired")
+            .add_attribute("action", "complete"),
     );
+
+    assert!(matches!(
+        suite.query_contract_state(),
+        ContractState::Complete {}
+    ));
+
+    suite.tick_contract(suite.holder_addr.clone()).assert_event(
+        &Event::new("wasm")
+            .add_attribute("contract_state", "complete")
+            .add_attribute("method", "try_refund"),
+    );
+
     suite.assert_balance(
         &suite.covenant_config.party_a.router,
         coin(10_000, DENOM_ATOM_ON_NTRN),
@@ -322,8 +348,21 @@ fn test_execute_tick_expired_deposit_refunds_party_b() {
     suite.tick_contract(suite.holder_addr.clone()).assert_event(
         &Event::new("wasm")
             .add_attribute("method", "try_deposit")
-            .add_attribute("action", "refund"),
+            .add_attribute("deposit_deadline", "expired")
+            .add_attribute("action", "complete"),
     );
+
+    assert!(matches!(
+        suite.query_contract_state(),
+        ContractState::Complete {}
+    ));
+
+    suite.tick_contract(suite.holder_addr.clone()).assert_event(
+        &Event::new("wasm")
+            .add_attribute("contract_state", "complete")
+            .add_attribute("method", "try_refund"),
+    );
+
     suite.assert_balance(
         &suite.covenant_config.party_b.router,
         coin(10_000, DENOM_LS_ATOM_ON_NTRN),
@@ -342,12 +381,19 @@ fn test_execute_tick_expired_deposit_completes() {
     suite.tick_contract(suite.holder_addr.clone()).assert_event(
         &Event::new("wasm")
             .add_attribute("method", "try_deposit")
-            .add_attribute("state", "complete"),
+            .add_attribute("deposit_deadline", "expired")
+            .add_attribute("action", "complete"),
     );
     assert!(matches!(
         suite.query_contract_state(),
         ContractState::Complete {}
     ));
+    // no funds in the contract to refund, therefore noop
+    suite.tick_contract(suite.holder_addr.clone()).assert_event(
+        &Event::new("wasm")
+            .add_attribute("contract_state", "complete")
+            .add_attribute("method", "try_refund"),
+    );
 }
 
 #[test]
