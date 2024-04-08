@@ -95,17 +95,6 @@ fn test_execute_tick_instantiated_validates_sufficient_funds() {
 }
 
 #[test]
-// #[should_panic(expected = "Next contract is not ready for receiving the funds yet")]
-fn test_execute_tick_instantiated_validates_next_contract_deposit_addr() {
-    // let mut suite = SwapHolderBuilder::default().build();
-
-    // suite.fund_contract(&coins(100000, DENOM_ATOM_ON_NTRN), suite.holder.clone());
-    // suite.fund_contract(&coins(100000, DENOM_LS_ATOM_ON_NTRN), suite.holder.clone());
-
-    // suite.tick_contract(suite.holder.clone());
-}
-
-#[test]
 fn test_execute_tick_instantiated_forwards_and_completes() {
     let mut suite = SwapHolderBuilder::default().build();
 
@@ -139,7 +128,7 @@ fn test_execute_expired_refund_both_parties() {
 
     suite.tick_contract(suite.holder.clone());
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Complete {}));
+    assert!(matches!(contract_state, ContractState::Expired {}));
 
     let refund_config = suite.query_refund_config();
     suite.assert_balance(
@@ -169,7 +158,7 @@ fn test_execute_expired_refund_party_a() {
 
     suite.tick_contract(suite.holder.clone());
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Complete {}));
+    assert!(matches!(contract_state, ContractState::Expired {}));
 
     let refund_config = suite.query_refund_config();
     suite.assert_balance(
@@ -195,7 +184,7 @@ fn test_execute_expired_refund_party_b() {
 
     suite.tick_contract(suite.holder.clone());
     let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Complete {}));
+    assert!(matches!(contract_state, ContractState::Expired {}));
 
     let refund_config = suite.query_refund_config();
     suite.assert_balance(
@@ -205,23 +194,11 @@ fn test_execute_expired_refund_party_b() {
 }
 
 #[test]
-fn test_execute_expired_no_refund_completes() {
-    let mut suite = SwapHolderBuilder::default().build();
-
-    suite.expire_lockup_config();
-    suite.tick_contract(suite.holder.clone());
-    suite.tick_contract(suite.holder.clone());
-
-    let contract_state = suite.query_contract_state();
-    assert!(matches!(contract_state, ContractState::Complete {}));
-}
-
-#[test]
 fn test_execute_tick_on_complete_noop() {
     let mut suite = SwapHolderBuilder::default().build();
+    suite.fund_contract(&coins(100_000, DENOM_LS_ATOM_ON_NTRN), suite.holder.clone());
+    suite.fund_contract(&coins(100_000, DENOM_ATOM_ON_NTRN), suite.holder.clone());
 
-    suite.expire_lockup_config();
-    suite.tick_contract(suite.holder.clone());
     suite.tick_contract(suite.holder.clone());
 
     let contract_state = suite.query_contract_state();
@@ -229,7 +206,7 @@ fn test_execute_tick_on_complete_noop() {
 
     suite
         .tick_contract(suite.holder.clone())
-        .assert_event(&Event::new("wasm").add_attribute("contract_state", "completed"));
+        .assert_event(&Event::new("wasm").add_attribute("contract_state", "complete"));
 }
 
 #[test]
