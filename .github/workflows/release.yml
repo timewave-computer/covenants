@@ -1,0 +1,39 @@
+name: Release Contracts
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install cargo-run-script
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-run-script
+      - name: Run cargo optimize
+        uses: actions-rs/cargo@v1
+        with:
+          command: run-script
+          args: optimize
+      - name: Get release ID
+        id: get_release
+        uses: bruceadams/get-release@v1.3.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Upload optimized wasm
+        uses: svenstaro/upload-release-action@2.9.0
+            
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ./artifacts/*
+          tag: ${{ github.ref }}
+          overwrite: true
+          file_glob: true
