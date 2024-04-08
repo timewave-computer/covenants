@@ -242,7 +242,7 @@ fn test_provide_liquidity_validates_pair_type() {
 }
 
 #[test]
-#[should_panic(expected = "Denominator must not be zero")]
+#[should_panic(expected = "all pool assets must be non-zero")]
 fn test_provide_liquidity_determine_pool_ratio_asset_b_denom_invalid() {
     let mut suite = AstroLiquidPoolerBuilder::default()
         .with_assets(AssetData {
