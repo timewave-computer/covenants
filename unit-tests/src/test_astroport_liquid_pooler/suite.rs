@@ -39,8 +39,8 @@ impl Default for AstroLiquidPoolerBuilder {
         );
 
         let holder_instantiate_msg = covenant_single_party_pol_holder::msg::InstantiateMsg {
-            withdrawer: Some(clock_addr.to_string()),
-            withdraw_to: Some(holder_addr.to_string()),
+            withdrawer: clock_addr.to_string(),
+            withdraw_to: holder_addr.to_string(),
             emergency_committee_addr: None,
             pooler_address: liquid_pooler_addr.to_string(),
             lockup_period: cw_utils::Expiration::AtHeight(123665),

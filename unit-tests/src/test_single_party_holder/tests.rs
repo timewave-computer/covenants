@@ -10,7 +10,7 @@ use super::suite::SinglePartyHolderBuilder;
 #[should_panic]
 fn test_instantiate_validates_withdrawer() {
     SinglePartyHolderBuilder::default()
-        .with_withdrawer(Some("0Oo0Oo".to_string()))
+        .with_withdrawer("0Oo0Oo".to_string())
         .build();
 }
 
@@ -26,7 +26,7 @@ fn test_instantiate_invalid_liquid_pooler_addr() {
 #[should_panic]
 fn test_instantiate_invalid_withdraw_to_addr() {
     SinglePartyHolderBuilder::default()
-        .with_withdraw_to(Some("0Oo0Oo".to_string()))
+        .with_withdraw_to("0Oo0Oo".to_string())
         .build();
 }
 
@@ -78,36 +78,11 @@ fn test_execute_claim_validates_lockup_period() {
 }
 
 #[test]
-#[should_panic(expected = "No withdrawer address configured")]
-fn test_execute_claim_validates_withdrawer_set() {
-    let mut suite = SinglePartyHolderBuilder::default()
-        .with_withdrawer(None)
-        .build();
-
-    let sender = suite.liquid_pooler_address.clone();
-    suite.expire_lockup();
-    suite.execute_claim(sender);
-}
-
-#[test]
 #[should_panic(expected = "Unauthorized")]
 fn test_execute_claim_validates_withdrawer_addr() {
     let mut suite = SinglePartyHolderBuilder::default().build();
 
     let sender = suite.faucet.clone();
-    suite.expire_lockup();
-    suite.execute_claim(sender);
-}
-
-#[test]
-#[should_panic(expected = "No withdraw_to address configured")]
-fn test_execute_claim_fails_with_no_withdraw_to() {
-    let mut suite = SinglePartyHolderBuilder::default()
-        .with_withdraw_to(None)
-        .build();
-    suite.expire_lockup();
-
-    let sender = suite.liquid_pooler_address.clone();
     suite.expire_lockup();
     suite.execute_claim(sender);
 }
@@ -187,18 +162,6 @@ fn test_execute_distribute_validates_liquidity_pooler() {
     suite.expire_lockup();
     let resp = suite.execute_distribute(sender, funds);
     println!("resp: {:?}", resp);
-}
-
-#[test]
-#[should_panic(expected = "No withdraw_to address configured")]
-fn test_execute_distribute_validates_withdraw_to_addr() {
-    let mut suite = SinglePartyHolderBuilder::default()
-        .with_withdraw_to(None)
-        .build();
-
-    let sender = suite.liquid_pooler_address.clone();
-    suite.expire_lockup();
-    suite.execute_distribute(sender, vec![]);
 }
 
 #[test]

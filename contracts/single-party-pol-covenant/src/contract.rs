@@ -127,8 +127,8 @@ pub fn instantiate(
     )?;
 
     let holder_instantiate2_msg = HolderInstantiateMsg {
-        withdrawer: Some(msg.covenant_party_config.addr.to_string()),
-        withdraw_to: Some(router_instantiate2_config.addr.to_string()),
+        withdrawer: msg.covenant_party_config.addr.to_string(),
+        withdraw_to: router_instantiate2_config.addr.to_string(),
         emergency_committee_addr: msg.emergency_committee.clone(),
         lockup_period: msg.lockup_period,
         pooler_address: liquid_pooler_instantiate2_config.addr.to_string(),

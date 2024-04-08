@@ -21,32 +21,33 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    let mut resp = Response::default().add_attribute("method", "instantiate");
 
-    // withdrawer is optional on instantiation; can be set later
-    if let Some(addr) = msg.withdrawer {
-        WITHDRAWER.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
-        resp = resp.add_attribute("withdrawer", addr);
-    };
+    let withdrawer = deps.api.addr_validate(&msg.withdrawer)?;
+    let withdraw_to = deps.api.addr_validate(&msg.withdraw_to)?;
+    let liquidity_pooler_address = deps.api.addr_validate(&msg.pooler_address)?;
 
-    if let Some(addr) = msg.withdraw_to {
-        WITHDRAW_TO.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
-        resp = resp.add_attribute("withdraw_to", addr);
-    };
-
-    if let Some(addr) = msg.emergency_committee_addr {
-        EMERGENCY_COMMITTEE_ADDR.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
-        resp = resp.add_attribute("emergency_committee", addr);
-    };
+    WITHDRAWER.save(deps.storage, &withdrawer)?;
+    WITHDRAW_TO.save(deps.storage, &withdraw_to)?;
+    POOLER_ADDRESS.save(deps.storage, &liquidity_pooler_address)?;
 
     ensure!(
         !msg.lockup_period.is_expired(&_env.block),
         ContractError::MustBeFutureLockupPeriod {}
     );
     LOCKUP_PERIOD.save(deps.storage, &msg.lockup_period)?;
-    POOLER_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.pooler_address)?)?;
 
-    Ok(resp.add_attribute("pool_address", msg.pooler_address))
+    let resp = Response::default()
+        .add_attribute("method", "instantiate")
+        .add_attribute("pool_address", liquidity_pooler_address)
+        .add_attribute("withdrawer", withdrawer)
+        .add_attribute("withdraw_to", withdraw_to);
+
+    if let Some(addr) = msg.emergency_committee_addr {
+        EMERGENCY_COMMITTEE_ADDR.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
+        Ok(resp.add_attribute("emergency_committee", addr))
+    } else {
+        Ok(resp)
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -88,14 +89,8 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
         ContractError::LockupPeriodNotOver(lockup_period.to_string())
     );
 
-    let withdrawer = WITHDRAWER
-        .load(deps.storage)
-        .map_err(|_| ContractError::NoWithdrawer {})?;
+    let withdrawer = WITHDRAWER.load(deps.storage)?;
     ensure!(info.sender == withdrawer, ContractError::Unauthorized {});
-
-    WITHDRAW_TO
-        .load(deps.storage)
-        .map_err(|_| ContractError::NoWithdrawTo {})?;
 
     let pooler_address = POOLER_ADDRESS.load(deps.storage)?;
 
@@ -128,14 +123,13 @@ fn try_emergency_withdraw(deps: DepsMut, info: MessageInfo) -> Result<Response, 
 
 fn try_distribute(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let pooler_addr = POOLER_ADDRESS.load(deps.storage)?;
+    let withdraw_to_addr = WITHDRAW_TO.load(deps.storage)?;
+
+    // only liquid pooler should call this method
     ensure!(info.sender == pooler_addr, ContractError::Unauthorized {});
-
-    let withdraw_to_addr = WITHDRAW_TO
-        .load(deps.storage)
-        .map_err(|_| ContractError::NoWithdrawTo {})?;
-
     ensure!(info.funds.len() == 2, ContractError::InvalidFunds {});
 
+    // clear the pending withdraw state
     WITHDRAW_STATE.remove(deps.storage);
 
     let send_msg = BankMsg::Send {
@@ -167,7 +161,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, Con
             lockup_period,
             emergency_committee,
         } => {
-            let mut response = Response::default().add_attribute("method", "update_withdrawer");
+            let mut response = Response::default().add_attribute("method", "update_config");
 
             if let Some(addr) = withdrawer {
                 WITHDRAWER.save(deps.storage, &deps.api.addr_validate(&addr)?)?;

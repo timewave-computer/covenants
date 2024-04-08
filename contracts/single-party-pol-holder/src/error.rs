@@ -12,12 +12,6 @@ pub enum ContractError {
     #[error("A withdraw process already started")]
     WithdrawAlreadyStarted {},
 
-    #[error("No withdrawer address configured")]
-    NoWithdrawer {},
-
-    #[error("No withdraw_to address configured")]
-    NoWithdrawTo {},
-
     #[error("The position is still locked, unlock at: {0}")]
     LockupPeriodNotOver(String),
 
