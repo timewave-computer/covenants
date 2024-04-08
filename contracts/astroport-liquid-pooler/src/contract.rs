@@ -240,7 +240,10 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         lp_config.asset_data.asset_a_denom.as_str(),
         lp_config.asset_data.asset_b_denom.as_str(),
     )?;
+
+    // `get_pool_asset_amounts` ensures that both a and b balances are non-zero so this is safe
     let a_to_b_ratio = Decimal::from_ratio(pool_token_a_bal, pool_token_b_bal);
+
     // validate the current pool ratio against our expectations
     lp_config
         .expected_pool_ratio_range
@@ -528,6 +531,10 @@ fn get_pool_asset_amounts(
             // found a token balance
             a_bal = coin.amount;
         }
+    }
+
+    if a_bal.is_zero() || b_bal.is_zero() {
+        return Err(StdError::generic_err("all pool assets must be non-zero"));
     }
 
     Ok((a_bal, b_bal))
