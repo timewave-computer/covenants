@@ -86,12 +86,12 @@ impl Default for SinglePartyHolderBuilder {
 
 #[allow(dead_code)]
 impl SinglePartyHolderBuilder {
-    pub fn with_withdrawer(mut self, addr: Option<String>) -> Self {
+    pub fn with_withdrawer(mut self, addr: String) -> Self {
         self.instantiate_msg.with_withdrawer(addr);
         self
     }
 
-    pub fn with_withdraw_to(mut self, addr: Option<String>) -> Self {
+    pub fn with_withdraw_to(mut self, addr: String) -> Self {
         self.instantiate_msg.with_withdraw_to(addr);
         self
     }
