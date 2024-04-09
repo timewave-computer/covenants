@@ -4,7 +4,7 @@ use astroport::{
 };
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    ensure, to_json_binary, Addr, Attribute, Binary, Decimal, StdResult, Uint128, WasmMsg,
+    ensure, to_json_binary, Addr, Attribute, Binary, Coin, Decimal, StdResult, Uint128, WasmMsg,
 };
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
@@ -218,8 +218,8 @@ pub enum MigrateMsg {
 /// keeps track of provided asset liquidities in `Uint128`.
 #[cw_serde]
 pub struct ProvidedLiquidityInfo {
-    pub provided_amount_a: Uint128,
-    pub provided_amount_b: Uint128,
+    pub provided_coin_a: Coin,
+    pub provided_coin_b: Coin,
 }
 
 /// state of the LP state machine
