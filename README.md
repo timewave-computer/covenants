@@ -1,5 +1,7 @@
 # Covenants 
 
+[![Check Set-Up & Build](https://github.com/timewave-computer/covenants/actions/workflows/check.yml/badge.svg)](https://github.com/timewave-computer/covenants/actions/workflows/check.yml)
+
 **Covenants are interchain agreements**. They allow IBC enabled parties to establish multilateral alliances. Examples of covenants:
 
 * 🤝 token swap agreements between protocols
