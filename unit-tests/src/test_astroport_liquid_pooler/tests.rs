@@ -320,8 +320,8 @@ fn test_provide_stable_liquidity_single_side_asset_a() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 
@@ -339,8 +339,8 @@ fn test_provide_stable_liquidity_single_side_asset_a() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(570_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(570_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 }
@@ -380,8 +380,8 @@ fn test_provide_custom_concentrated_liquidity_single_side_asset_a() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 
@@ -399,8 +399,8 @@ fn test_provide_custom_concentrated_liquidity_single_side_asset_a() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(570_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(570_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 }
@@ -439,8 +439,8 @@ fn test_provide_xyk_liquidity_single_side_asset_a() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 
@@ -458,11 +458,11 @@ fn test_provide_xyk_liquidity_single_side_asset_a() {
 
     let provided_liquidity_info = suite.query_provided_liquidity_info();
     assert_eq!(
-        provided_liquidity_info.provided_amount_a,
+        provided_liquidity_info.provided_coin_a.amount,
         Uint128::new(500_000 + 70_000 / 2)
     );
     // minus fees
-    assert!(provided_liquidity_info.provided_amount_b > Uint128::new(534_000));
+    assert!(provided_liquidity_info.provided_coin_b.amount > Uint128::new(534_000));
 }
 
 #[test]
@@ -499,8 +499,8 @@ fn test_provide_xyk_liquidity_single_side_asset_b() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 
@@ -518,14 +518,15 @@ fn test_provide_xyk_liquidity_single_side_asset_b() {
 
     let provided_liquidity_info = suite.query_provided_liquidity_info();
     assert_eq!(
-        provided_liquidity_info.provided_amount_b,
+        provided_liquidity_info.provided_coin_b.amount,
         Uint128::new(500_000 + 70_000 / 2)
     );
     // minus fees
-    assert!(provided_liquidity_info.provided_amount_a > Uint128::new(534_000));
+    assert!(provided_liquidity_info.provided_coin_a.amount > Uint128::new(534_000));
 }
 
 #[test]
+#[should_panic(expected = "Single side LP limit exceeded")]
 fn test_provide_liquidity_single_side_asset_a_exceeds_limits() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
 
@@ -550,19 +551,74 @@ fn test_provide_liquidity_single_side_asset_a_exceeds_limits() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 
-    suite
-        .tick_contract(suite.liquid_pooler_addr.clone())
-        .assert_event(&Event::new("wasm").add_attribute("status", "not enough funds"));
+    suite.tick_contract(suite.liquid_pooler_addr.clone());
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
+        }
+    );
+}
+
+#[test]
+fn test_provide_liquidity_single_side_validates_single_side_limits() {
+    let mut suite = AstroLiquidPoolerBuilder::default().build();
+
+    suite.fund_contract(
+        &coins(500_000, DENOM_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+    suite.fund_contract(
+        &coins(570_000, DENOM_LS_ATOM_ON_NTRN),
+        suite.liquid_pooler_addr.clone(),
+    );
+
+    let double_sided_response = suite.tick_contract(suite.liquid_pooler_addr.clone());
+    double_sided_response
+        .assert_event(&Event::new("wasm").add_attribute("method", "double_side_lp"));
+    double_sided_response
+        .assert_event(&Event::new("wasm").add_attribute("method", "handle_double_sided_reply_id"));
+
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_ATOM_ON_NTRN),
+    );
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(70_000, DENOM_LS_ATOM_ON_NTRN),
+    );
+    assert_eq!(
+        suite.query_provided_liquidity_info(),
+        ProvidedLiquidityInfo {
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
+        }
+    );
+
+    let app_response = suite.tick_contract(suite.liquid_pooler_addr.clone());
+    app_response.assert_event(&Event::new("wasm").add_attribute("method", "single_side_lp"));
+    app_response
+        .assert_event(&Event::new("wasm").add_attribute("method", "handle_single_sided_reply_id"));
+
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_ATOM_ON_NTRN),
+    );
+    suite.assert_balance(
+        suite.liquid_pooler_addr.clone(),
+        coin(0, DENOM_LS_ATOM_ON_NTRN),
+    );
+    assert_eq!(
+        suite.query_provided_liquidity_info(),
+        ProvidedLiquidityInfo {
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(570_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 }
@@ -597,8 +653,8 @@ fn test_provide_liquidity_single_side_asset_b() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 
@@ -618,13 +674,14 @@ fn test_provide_liquidity_single_side_asset_b() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(570_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(570_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 }
 
 #[test]
+#[should_panic(expected = "Single side LP limit exceeded")]
 fn test_provide_liquidity_single_side_asset_b_exceeds_limits() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
 
@@ -650,19 +707,17 @@ fn test_provide_liquidity_single_side_asset_b_exceeds_limits() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 
-    suite
-        .tick_contract(suite.liquid_pooler_addr.clone())
-        .assert_event(&Event::new("wasm").add_attribute("status", "not enough funds"));
+    suite.tick_contract(suite.liquid_pooler_addr.clone());
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 }
@@ -693,8 +748,8 @@ fn test_provide_liquidity_double_side_excess_a_denom() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 }
@@ -725,8 +780,8 @@ fn test_provide_liquidity_double_side_excess_b_denom() {
     assert_eq!(
         suite.query_provided_liquidity_info(),
         ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::new(500_000),
-            provided_amount_b: Uint128::new(500_000)
+            provided_coin_a: coin(500_000, DENOM_ATOM_ON_NTRN),
+            provided_coin_b: coin(500_000, DENOM_LS_ATOM_ON_NTRN)
         }
     );
 }
