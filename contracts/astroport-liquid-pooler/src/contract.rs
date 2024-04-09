@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
+    coin, ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
 };
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::{astroport::query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
@@ -87,8 +87,8 @@ pub fn instantiate(
     PROVIDED_LIQUIDITY_INFO.save(
         deps.storage,
         &ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::zero(),
-            provided_amount_b: Uint128::zero(),
+            provided_coin_a: coin(0, lp_config.asset_data.asset_a_denom.as_str()),
+            provided_coin_b: coin(0, lp_config.asset_data.asset_b_denom.as_str()),
         },
     )?;
 
@@ -258,13 +258,35 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         env.contract.address.to_string(),
         lp_config.asset_data.asset_b_denom.as_str(),
     )?;
+    let assets = lp_config
+        .asset_data
+        .to_asset_vec(coin_a.amount, coin_b.amount);
 
     // depending on available balances we attempt a different action:
     match (coin_a.amount.is_zero(), coin_b.amount.is_zero()) {
-        // exactly one balance is non-zero, we attempt single-side
-        (true, false) | (false, true) => {
+        // asset_b balance is non-zero, we attempt single-side
+        (true, false) => {
+            ensure!(
+                coin_b.amount <= lp_config.single_side_lp_limits.asset_b_limit,
+                ContractError::SingleSideLpLimitError {}
+            );
+
             let single_sided_submsgs =
-                try_get_single_side_lp_submsg(deps.branch(), env, (coin_a, coin_b), lp_config)?;
+                try_get_single_side_lp_submsg(deps.branch(), env, coin_b, assets, lp_config)?;
+            if !single_sided_submsgs.is_empty() {
+                return Ok(Response::default()
+                    .add_submessages(single_sided_submsgs)
+                    .add_attribute("method", "single_side_lp"));
+            }
+        }
+        // asset_a balance is non-zero, we attempt single-side
+        (false, true) => {
+            ensure!(
+                coin_a.amount <= lp_config.single_side_lp_limits.asset_a_limit,
+                ContractError::SingleSideLpLimitError {}
+            );
+            let single_sided_submsgs =
+                try_get_single_side_lp_submsg(deps.branch(), env, coin_a, assets, lp_config)?;
             if !single_sided_submsgs.is_empty() {
                 return Ok(Response::default()
                     .add_submessages(single_sided_submsgs)
@@ -347,8 +369,8 @@ fn try_get_double_side_lp_submsg(
     PROVIDED_LIQUIDITY_INFO.update(
         deps.storage,
         |mut info: ProvidedLiquidityInfo| -> StdResult<_> {
-            info.provided_amount_b = info.provided_amount_b.checked_add(b_coin.amount)?;
-            info.provided_amount_a = info.provided_amount_a.checked_add(a_coin.amount)?;
+            info.provided_coin_b.amount = info.provided_coin_b.amount.checked_add(b_coin.amount)?;
+            info.provided_coin_a.amount = info.provided_coin_a.amount.checked_add(a_coin.amount)?;
             Ok(info)
         },
     )?;
@@ -364,41 +386,37 @@ fn try_get_double_side_lp_submsg(
 }
 
 /// attempts to build a single sided `ProvideLiquidity` message.
-/// pool ratio does not get validated here. as long as the single
-/// side asset amount being provided is within our predefined
-/// single-side liquidity limits, we provide it.
+/// pool ratio and single-side limit validations are performed by
+/// the calling method.
 fn try_get_single_side_lp_submsg(
     deps: DepsMut,
     env: Env,
-    (coin_a, coin_b): (Coin, Coin),
+    coin: Coin,
+    mut assets: Vec<Asset>,
     lp_config: LpConfig,
 ) -> Result<Vec<SubMsg>, ContractError> {
-    let mut assets = lp_config
-        .asset_data
-        .to_asset_vec(coin_a.amount, coin_b.amount);
-
     match lp_config.pair_type {
         // xyk pools do not allow for automatic single-sided liquidity provision.
         // we therefore perform a manual swap with 1/2 of the available denom, and execute
         // two-sided lp provision with the resulting assets.
         PairType::Xyk {} => {
-            // find the offer asset and halve its amount. the halved coin amount here is
-            // the floor of the division result, so it is safe to assume that after the
-            // swap we will have at least the same amount of the offer asset left.
-            let (offer_asset, offer_coin, mut ask_asset) = if coin_a.amount.is_zero() {
-                let halved_coin = Coin {
-                    denom: coin_b.denom.clone(),
-                    amount: coin_b.amount / Uint128::from(2u128),
-                };
-                assets[1].amount /= Uint128::from(2u128);
-                (assets[1].clone(), halved_coin, assets[0].clone())
-            } else {
-                let halved_coin = Coin {
-                    denom: coin_a.denom.clone(),
-                    amount: coin_a.amount / Uint128::from(2u128),
-                };
-                assets[0].amount /= Uint128::from(2u128);
-                (assets[0].clone(), halved_coin, assets[1].clone())
+            // we halve the non-zero coin we have in order to swap it for the other denom.
+            // the halved coin amount here is the floor of the division result,
+            // so it is safe to assume that after the swap we will have at least
+            // the same amount of the offer asset left.
+            let halved_coin = Coin {
+                denom: coin.denom.clone(),
+                amount: coin.amount / Uint128::from(2u128),
+            };
+
+            let (offer_asset, offer_coin, mut ask_asset) = {
+                if assets[0].to_coin()?.denom == halved_coin.denom {
+                    assets[0].amount = halved_coin.amount;
+                    (assets[0].clone(), halved_coin, assets[1].clone())
+                } else {
+                    assets[1].amount = halved_coin.amount;
+                    (assets[1].clone(), halved_coin, assets[0].clone())
+                }
             };
 
             // we simulate a swap with 1/2 of the offer asset
@@ -426,14 +444,16 @@ fn try_get_single_side_lp_submsg(
             .into();
 
             PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
-                if offer_coin.denom == coin_a.denom {
-                    info.provided_amount_a =
-                        info.provided_amount_a.checked_add(offer_coin.amount)?;
-                    info.provided_amount_b = info.provided_amount_b.checked_add(ask_coin.amount)?;
+                if offer_coin.denom == info.provided_coin_a.denom {
+                    info.provided_coin_a.amount =
+                        info.provided_coin_a.amount.checked_add(offer_coin.amount)?;
+                    info.provided_coin_b.amount =
+                        info.provided_coin_b.amount.checked_add(ask_coin.amount)?;
                 } else {
-                    info.provided_amount_b =
-                        info.provided_amount_b.checked_add(offer_coin.amount)?;
-                    info.provided_amount_a = info.provided_amount_a.checked_add(ask_coin.amount)?;
+                    info.provided_coin_b.amount =
+                        info.provided_coin_b.amount.checked_add(offer_coin.amount)?;
+                    info.provided_coin_a.amount =
+                        info.provided_coin_a.amount.checked_add(ask_coin.amount)?;
                 }
                 Ok(info)
             })?;
@@ -464,52 +484,28 @@ fn try_get_single_side_lp_submsg(
                 receiver: Some(env.contract.address.to_string()),
             };
 
-            // now we try to submit the message for either B or A token single side liquidity
-            if coin_a.amount.is_zero()
-                && coin_b.amount <= lp_config.single_side_lp_limits.asset_b_limit
-            {
-                // update the provided liquidity info
-                PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
-                    info.provided_amount_b = info.provided_amount_b.checked_add(coin_b.amount)?;
-                    Ok(info)
-                })?;
+            // update the provided liquidity info
+            PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+                if coin.denom == info.provided_coin_a.denom {
+                    info.provided_coin_a.amount =
+                        info.provided_coin_a.amount.checked_add(coin.amount)?;
+                } else {
+                    info.provided_coin_b.amount =
+                        info.provided_coin_b.amount.checked_add(coin.amount)?;
+                }
+                Ok(info)
+            })?;
 
-                // if available ls token amount is within single side limits we build a single side msg
-                let submsg = SubMsg::reply_on_success(
-                    CosmosMsg::Wasm(WasmMsg::Execute {
-                        contract_addr: lp_config.pool_address.to_string(),
-                        msg: to_json_binary(&single_sided_liq_msg)?,
-                        funds: vec![coin_b],
-                    }),
-                    SINGLE_SIDED_REPLY_ID,
-                );
+            let submsg = SubMsg::reply_on_success(
+                CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: lp_config.pool_address.to_string(),
+                    msg: to_json_binary(&single_sided_liq_msg)?,
+                    funds: vec![coin],
+                }),
+                SINGLE_SIDED_REPLY_ID,
+            );
 
-                return Ok(vec![submsg]);
-            }
-
-            if coin_b.amount.is_zero()
-                && coin_a.amount <= lp_config.single_side_lp_limits.asset_a_limit
-            {
-                // update the provided liquidity info
-                PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
-                    info.provided_amount_a = info.provided_amount_a.checked_add(coin_a.amount)?;
-                    Ok(info)
-                })?;
-
-                // if available A token amount is within single side limits we build a single side msg
-                let submsg = SubMsg::reply_on_success(
-                    CosmosMsg::Wasm(WasmMsg::Execute {
-                        contract_addr: lp_config.pool_address.to_string(),
-                        msg: to_json_binary(&single_sided_liq_msg)?,
-                        funds: vec![coin_a],
-                    }),
-                    SINGLE_SIDED_REPLY_ID,
-                );
-
-                return Ok(vec![submsg]);
-            }
-            // if neither a nor b token single side lp message was built, we just go back and wait
-            Ok(vec![])
+            Ok(vec![submsg])
         }
     }
 }
