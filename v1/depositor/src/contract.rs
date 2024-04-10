@@ -152,8 +152,7 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
 /// helper that serializes a MsgTransfer to protobuf
 fn to_proto_msg_transfer(msg: impl Message) -> NeutronResult<ProtobufAny> {
     // Serialize the Transfer message
-    let mut buf = Vec::new();
-    buf.reserve(msg.encoded_len());
+    let mut buf = Vec::with_capacity(msg.encoded_len());
     if let Err(e) = msg.encode(&mut buf) {
         return Err(StdError::generic_err(format!("Encode error: {e}")).into());
     }
