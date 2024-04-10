@@ -1,4 +1,4 @@
-use astroport::asset::{Asset, AssetInfo};
+use astroport::asset::AssetInfo;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Attribute, Binary, Decimal, Uint128};
 use covenant_clock_derive::clocked;

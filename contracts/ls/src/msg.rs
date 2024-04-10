@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Attribute, Binary, Coin, StdError, Uint128, Uint64};
+use cosmwasm_std::{Attribute, Binary, Coin, StdError, Uint128, Uint64};
 use covenant_clock_derive::clocked;
 use neutron_sdk::bindings::msg::IbcFee;
 
