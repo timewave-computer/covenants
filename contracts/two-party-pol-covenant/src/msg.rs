@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{coin, Addr, Decimal, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{coin, Addr, Binary, Decimal, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
@@ -270,6 +270,7 @@ pub enum QueryMsg {
     ContractCodes {},
 }
 
+#[allow(clippy::large_enum_variant)]
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateCovenant {
@@ -281,6 +282,9 @@ pub enum MigrateMsg {
         party_b_router: Option<RouterMigrateMsg>,
         party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
         party_b_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
     },
 }
 
