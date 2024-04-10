@@ -11,7 +11,7 @@ use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::{
     ica::{
         get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee,
-        sudo_error, sudo_open_ack, sudo_response, sudo_timeout,
+        sudo_error, sudo_open_ack, sudo_response, sudo_timeout, INTERCHAIN_ACCOUNT_ID,
     },
     neutron::{
         assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, to_proto_msg_transfer,
@@ -40,7 +40,6 @@ use crate::{
 
 const CONTRACT_NAME: &str = "crates.io:covenant-ibc-forwarder";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1;
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;

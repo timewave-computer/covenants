@@ -13,7 +13,7 @@ use cosmwasm_std::{
 use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::ica::{
     get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee, sudo_error,
-    sudo_open_ack, sudo_response, sudo_timeout,
+    sudo_open_ack, sudo_response, sudo_timeout, INTERCHAIN_ACCOUNT_ID,
 };
 use covenant_utils::neutron::{
     assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, RemoteChainInfo, SudoPayload,
@@ -42,7 +42,6 @@ use neutron_sdk::{
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
-const INTERCHAIN_ACCOUNT_ID: &str = "rc-ica";
 const CONTRACT_NAME: &str = "crates.io:covenant-remote-chain-splitter";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
