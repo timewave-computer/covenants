@@ -1,7 +1,7 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Binary, Uint128, Uint64};
+use cosmwasm_std::{Addr, Binary, Uint128, Uint64};
 use covenant_clock_derive::clocked;
-use neutron_sdk::bindings::msg::IbcFee;
+use neutron_sdk::bindings::{msg::IbcFee, query::QueryInterchainAccountAddressResponse};
 
 #[cw_serde]
 pub struct InstantiateMsg {

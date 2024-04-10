@@ -1,4 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::Uint64;
 
 #[cw_serde]
 pub enum Mode {
