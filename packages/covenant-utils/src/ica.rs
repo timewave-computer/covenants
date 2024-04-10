@@ -16,6 +16,8 @@ use crate::neutron::{OpenAckVersion, SudoPayload};
 
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 
+pub const INTERCHAIN_ACCOUNT_ID: &str = "valence-ica";
+
 pub trait IcaStateHelper {
     fn reset_state(&self, storage: &mut dyn Storage) -> StdResult<()>;
     fn clear_ica(&self, storage: &mut dyn Storage) -> StdResult<()>;
