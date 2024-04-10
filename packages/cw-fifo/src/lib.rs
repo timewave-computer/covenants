@@ -63,9 +63,10 @@ where
             .mapping
             .range(storage, None, None, cosmwasm_std::Order::Ascending)
             .next()
-            .transpose()? else {
-		return Ok(None)
-	    };
+            .transpose()?
+        else {
+            return Ok(None);
+        };
         self.mapping.remove(storage, time)?;
         Ok(Some(t))
     }

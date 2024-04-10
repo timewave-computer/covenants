@@ -165,8 +165,7 @@ fn try_execute_transfer(
     };
 
     // Serialize the Transfer message
-    let mut buf = Vec::new();
-    buf.reserve(msg.encoded_len());
+    let mut buf = Vec::with_capacity(msg.encoded_len());
     if let Err(e) = msg.encode(&mut buf) {
         return Err(StdError::generic_err(format!("Encode error: {e}",)).into());
     }
