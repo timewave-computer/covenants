@@ -11,7 +11,7 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
+      - name: checkout sources
         uses: actions/checkout@v3
 
       - name: Install stable toolchain
@@ -21,7 +21,6 @@ jobs:
           toolchain: 1.76.0
           override: true
           components: rustfmt, clippy
-      
       - name: Run cargo fmt
         uses: actions-rs/cargo@v1
         with:
