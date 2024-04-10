@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Coin, Decimal, Uint128, Uint64};
+use cosmwasm_std::{Binary, Coin, Decimal, Uint128, Uint64};
 use osmosis_std::types::osmosis::gamm::v1beta1::Pool;
 
 use crate::error::ContractError;
@@ -50,6 +50,11 @@ pub struct CallerContext {
 
 #[cw_serde]
 pub enum QueryMsg {}
+
+#[cw_serde]
+pub enum MigrateMsg {
+    UpdateCodeId { data: Option<Binary> },
+}
 
 pub trait OsmosisPool {
     fn validate_pool_assets_length(&self) -> Result<(), ContractError>;

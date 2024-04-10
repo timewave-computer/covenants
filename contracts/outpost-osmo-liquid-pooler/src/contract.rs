@@ -3,8 +3,8 @@ use std::str::FromStr;
 use crate::{
     error::ContractError,
     msg::{
-        CallerContext, ExecuteMsg, InstantiateMsg, OsmosisPool, OutpostProvideLiquidityConfig,
-        OutpostWithdrawLiquidityConfig, QueryMsg,
+        CallerContext, ExecuteMsg, InstantiateMsg, MigrateMsg, OsmosisPool,
+        OutpostProvideLiquidityConfig, OutpostWithdrawLiquidityConfig, QueryMsg,
     },
     state::PENDING_REPLY,
 };
@@ -331,6 +331,18 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
     match msg.id {
         OSMO_POOL_REPLY_ID => handle_pool_interaction_reply(deps, env),
         _ => Err(ContractError::UnknownReplyId(msg.id)),
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    match msg {
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
+        }
     }
 }
 
