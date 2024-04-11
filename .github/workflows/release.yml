@@ -52,7 +52,7 @@ jobs:
         run: |
           wget -O neutrond https://github.com/neutron-org/neutron/releases/download/v3.0.2/neutrond-linux-amd64
           chmod +x ./neutrond
-          ./neutrond config chain-id neutrond-1
+          ./neutrond config chain-id neutron-1
           ./neutrond config node https://neutron-rpc.publicnode.com:443
           ./neutrond config keyring-backend test
           echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }} | ./neutrond keys import tw_ci_neutron tw_ci_neutron.key
@@ -68,7 +68,7 @@ jobs:
 
       - name: Join code IDs & checksums
         run: |
-          jq '[JOIN(INDEX(input[]; .code_hash); .[]; .code_hash; add)]' checksums.json code_ids.json | jq '.[] | [.contract, .code_id] | @tsv' | column -t -s '\t' > contract_code_ids.txt
+          jq '[JOIN(INDEX(input[]; .code_hash); .[]; .code_hash; add)]' checksums.json code_ids.json | jq -r '.[] | [.contract, .code_id] | @tsv' | column -t -s '\t' > contract_code_ids.txt
       
       - name: Append code IDs to release notes
         uses: softprops/action-gh-release@v2
