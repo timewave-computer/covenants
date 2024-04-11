@@ -9,7 +9,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      packages: write
+      contents: write
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
