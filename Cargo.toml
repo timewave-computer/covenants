@@ -6,6 +6,13 @@ members = [
 ]
 resolver = "2"
 
+[workspace.metadata.scripts]
+optimize = """docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/optimizer:0.15.1
+"""
+
 [workspace.package]
 edition    = "2021"
 license    = "BSD-3"
