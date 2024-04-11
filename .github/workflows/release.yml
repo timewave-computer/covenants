@@ -63,7 +63,7 @@ jobs:
       
       - name: Get contract code IDs
         run: |
-          ./neutrond query wasm list-code --reverse --output json | jq -c '.code_infos[] | select(.creator == "${{ variables.TW_CI_NEUTRON_KEY_ADDR }}") | {code_id: .code_id, code_hash: .data_hash|ascii_downcase}' | jq -s . > code_ids.json
+          ./neutrond query wasm list-code --reverse --output json | jq -c '.code_infos[] | select(.creator == "${{ vars.TW_CI_NEUTRON_KEY_ADDR }}") | {code_id: .code_id, code_hash: .data_hash|ascii_downcase}' | jq -s . > code_ids.json
 
       - name: Join code IDs & checksums
         run: |
