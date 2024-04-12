@@ -82,12 +82,12 @@ impl TwoPartyCovenantInstantiate {
         self
     }
 
-    pub fn with_party_a_share(&mut self, party_a_share: Uint64) -> &mut Self {
+    pub fn with_party_a_share(&mut self, party_a_share: Decimal) -> &mut Self {
         self.msg.party_a_share = party_a_share;
         self
     }
 
-    pub fn with_party_b_share(&mut self, party_b_share: Uint64) -> &mut Self {
+    pub fn with_party_b_share(&mut self, party_b_share: Decimal) -> &mut Self {
         self.msg.party_b_share = party_b_share;
         self
     }
@@ -171,8 +171,8 @@ impl TwoPartyCovenantInstantiate {
                     contribution: coin(10_000, DENOM_LS_ATOM_ON_NTRN),
                 }),
                 covenant_type: covenant_two_party_pol_holder::msg::CovenantType::Share {},
-                party_a_share: Uint64::new(50),
-                party_b_share: Uint64::new(50),
+                party_a_share: Decimal::from_str("0.5").unwrap(),
+                party_b_share: Decimal::from_str("0.5").unwrap(),
                 pool_price_config: PoolPriceConfig {
                     expected_spot_price: Decimal::from_str("1.0").unwrap(),
                     acceptable_price_spread: Decimal::from_str("0.1").unwrap(),

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cosmwasm_std::{coin, Addr, Uint64};
+use cosmwasm_std::{coin, Addr, Decimal, Uint64};
 use covenant_two_party_pol::msg::{CovenantContractCodes, Timeouts};
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::{AppResponse, Executor};
@@ -109,12 +109,12 @@ impl TwoPartyCovenantBuilder {
         self
     }
 
-    pub fn with_party_a_share(mut self, party_a_share: Uint64) -> Self {
+    pub fn with_party_a_share(mut self, party_a_share: Decimal) -> Self {
         self.instantiate_msg.with_party_a_share(party_a_share);
         self
     }
 
-    pub fn with_party_b_share(mut self, party_b_share: Uint64) -> Self {
+    pub fn with_party_b_share(mut self, party_b_share: Decimal) -> Self {
         self.instantiate_msg.with_party_b_share(party_b_share);
         self
     }
