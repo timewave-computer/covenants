@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{coin, Addr, Binary, Decimal, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{coin, Addr, Binary, Decimal, StdResult, Uint64, WasmMsg};
 use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
 use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
@@ -26,8 +26,8 @@ pub struct InstantiateMsg {
     pub covenant_type: CovenantType,
     pub ragequit_config: Option<RagequitConfig>,
     pub deposit_deadline: Expiration,
-    pub party_a_share: Uint64,
-    pub party_b_share: Uint64,
+    pub party_a_share: Decimal,
+    pub party_b_share: Decimal,
     pub pool_price_config: PoolPriceConfig,
     pub splits: BTreeMap<String, SplitConfig>,
     pub fallback_split: Option<SplitConfig>,
@@ -112,7 +112,7 @@ impl CovenantPartyConfig {
 
     pub fn to_two_party_pol_party(
         &self,
-        party_share: Uint64,
+        allocation: Decimal,
         router: String,
     ) -> TwoPartyPolCovenantParty {
         match &self {
@@ -123,14 +123,14 @@ impl CovenantPartyConfig {
                 ),
                 host_addr: config.addr.to_string(),
                 controller_addr: config.party_receiver_addr.to_string(),
-                allocation: Decimal::from_ratio(party_share, Uint128::new(100)),
+                allocation,
                 router,
             },
             CovenantPartyConfig::Native(config) => TwoPartyPolCovenantParty {
                 contribution: config.contribution.clone(),
                 host_addr: config.addr.to_string(),
                 controller_addr: config.party_receiver_addr.to_string(),
-                allocation: Decimal::from_ratio(party_share, Uint128::new(100)),
+                allocation,
                 router,
             },
         }
