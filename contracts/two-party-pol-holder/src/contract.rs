@@ -403,32 +403,21 @@ fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         config.party_b.contribution.denom,
     )?;
 
-    let refund_messages: Vec<CosmosMsg> =
-        match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
-            // both balances empty, nothing to refund
-            (true, true) => vec![],
-            // refund party B
-            (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
-                to_address: config.party_b.router,
-                amount: vec![party_b_bal],
-            })],
-            // refund party A
-            (false, true) => vec![CosmosMsg::Bank(BankMsg::Send {
-                to_address: config.party_a.router,
-                amount: vec![party_a_bal],
-            })],
-            // refund both
-            (false, false) => vec![
-                CosmosMsg::Bank(BankMsg::Send {
-                    to_address: config.party_a.router.to_string(),
-                    amount: vec![party_a_bal],
-                }),
-                CosmosMsg::Bank(BankMsg::Send {
-                    to_address: config.party_b.router,
-                    amount: vec![party_b_bal],
-                }),
-            ],
-        };
+    let mut refund_messages: Vec<CosmosMsg> = vec![];
+    // refund party A if they deposited any funds
+    if !party_a_bal.amount.is_zero() {
+        refund_messages.push(CosmosMsg::Bank(BankMsg::Send {
+            to_address: config.party_a.router.to_string(),
+            amount: vec![party_a_bal],
+        }));
+    }
+    // refund party B if they deposited any funds
+    if !party_b_bal.amount.is_zero() {
+        refund_messages.push(CosmosMsg::Bank(BankMsg::Send {
+            to_address: config.party_b.router.to_string(),
+            amount: vec![party_b_bal],
+        }));
+    }
 
     Ok(Response::default()
         .add_attribute("contract_state", "complete")
