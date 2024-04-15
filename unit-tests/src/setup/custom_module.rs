@@ -4,8 +4,6 @@ use cosmwasm_std::{
     coin, coins, from_json, to_json_binary, to_json_string, Addr, BalanceResponse, BankMsg,
     BankQuery, StdError, StdResult, Storage, Uint128,
 };
-use covenant_ibc_forwarder::helpers::MsgTransfer;
-use covenant_stride_liquid_staker::helpers::Autopilot;
 use cw_multi_test::{
     addons::MockApiBech32,
     error::{bail, AnyError},
@@ -23,6 +21,8 @@ use neutron_sdk::{
     sudo::msg::RequestPacket,
 };
 use prost::Message;
+use valence_ibc_forwarder::helpers::MsgTransfer;
+use valence_stride_liquid_staker::helpers::Autopilot;
 
 use super::DENOM_NTRN;
 

@@ -2,15 +2,15 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{coin, Addr, Binary, Decimal, StdResult, Uint64, WasmMsg};
-use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
-use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
-use covenant_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty,
     DestinationConfig, InterchainCovenantParty, NativeCovenantParty, PoolPriceConfig,
     ReceiverConfig,
 };
 use cw_utils::Expiration;
+use valence_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
+use valence_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
+use valence_two_party_pol_holder::msg::{CovenantType, RagequitConfig, TwoPartyPolCovenantParty};
 
 pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 
@@ -160,7 +160,7 @@ impl CovenantPartyConfig {
     ) -> StdResult<WasmMsg> {
         match self {
             CovenantPartyConfig::Interchain(party) => {
-                let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
+                let instantiate_msg = valence_interchain_router::msg::InstantiateMsg {
                     clock_address: clock_addr.to_string(),
                     destination_config: DestinationConfig {
                         local_to_destination_chain_channel_id: party
@@ -175,7 +175,7 @@ impl CovenantPartyConfig {
                 Ok(instantiate_msg.to_instantiate2_msg(&instantiate2_helper, admin_addr, label)?)
             }
             CovenantPartyConfig::Native(party) => {
-                let instantiate_msg = covenant_native_router::msg::InstantiateMsg {
+                let instantiate_msg = valence_native_router::msg::InstantiateMsg {
                     clock_address: clock_addr.to_string(),
                     receiver_address: party.party_receiver_addr.to_string(),
                     denoms,
@@ -275,13 +275,13 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateCovenant {
         codes: Option<CovenantContractCodes>,
-        clock: Option<covenant_clock::msg::MigrateMsg>,
-        holder: Option<covenant_two_party_pol_holder::msg::MigrateMsg>,
+        clock: Option<valence_clock::msg::MigrateMsg>,
+        holder: Option<valence_two_party_pol_holder::msg::MigrateMsg>,
         liquid_pooler: Option<LiquidPoolerMigrateMsg>,
         party_a_router: Option<RouterMigrateMsg>,
         party_b_router: Option<RouterMigrateMsg>,
-        party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        party_b_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
+        party_a_forwarder: Option<valence_ibc_forwarder::msg::MigrateMsg>,
+        party_b_forwarder: Option<valence_ibc_forwarder::msg::MigrateMsg>,
     },
     UpdateCodeId {
         data: Option<Binary>,
@@ -290,12 +290,12 @@ pub enum MigrateMsg {
 
 #[cw_serde]
 pub enum LiquidPoolerMigrateMsg {
-    Osmosis(covenant_osmo_liquid_pooler::msg::MigrateMsg),
-    Astroport(covenant_astroport_liquid_pooler::msg::MigrateMsg),
+    Osmosis(valence_osmo_liquid_pooler::msg::MigrateMsg),
+    Astroport(valence_astroport_liquid_pooler::msg::MigrateMsg),
 }
 
 #[cw_serde]
 pub enum RouterMigrateMsg {
-    Interchain(covenant_interchain_router::msg::MigrateMsg),
-    Native(covenant_native_router::msg::MigrateMsg),
+    Interchain(valence_interchain_router::msg::MigrateMsg),
+    Native(valence_native_router::msg::MigrateMsg),
 }

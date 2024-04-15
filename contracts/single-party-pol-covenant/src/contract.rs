@@ -6,14 +6,14 @@ use cosmwasm_std::{
     to_json_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     WasmMsg,
 };
-use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
-use covenant_interchain_router::msg::InstantiateMsg as RouterInstantiateMsg;
-use covenant_remote_chain_splitter::msg::InstantiateMsg as SplitterInstantiateMsg;
-use covenant_single_party_pol_holder::msg::InstantiateMsg as HolderInstantiateMsg;
-use covenant_stride_liquid_staker::msg::InstantiateMsg as LiquidStakerInstantiateMsg;
 use covenant_utils::split::SplitConfig;
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, DestinationConfig};
 use cw2::set_contract_version;
+use valence_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
+use valence_interchain_router::msg::InstantiateMsg as RouterInstantiateMsg;
+use valence_remote_chain_splitter::msg::InstantiateMsg as SplitterInstantiateMsg;
+use valence_single_party_pol_holder::msg::InstantiateMsg as HolderInstantiateMsg;
+use valence_stride_liquid_staker::msg::InstantiateMsg as LiquidStakerInstantiateMsg;
 
 use crate::msg::LiquidPoolerMigrateMsg;
 use crate::{
@@ -25,7 +25,7 @@ use crate::{
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-single-party-pol";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub(crate) const CLOCK_SALT: &[u8] = b"clock";
@@ -251,7 +251,7 @@ pub fn instantiate(
         )?);
     };
 
-    let clock_instantiate2_msg = covenant_clock::msg::InstantiateMsg {
+    let clock_instantiate2_msg = valence_clock::msg::InstantiateMsg {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: clock_whitelist,
     }

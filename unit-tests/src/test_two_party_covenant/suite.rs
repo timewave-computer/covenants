@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint64};
-use covenant_two_party_pol::msg::{CovenantContractCodes, Timeouts};
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
+use valence_covenant_two_party_pol::msg::{CovenantContractCodes, Timeouts};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -55,7 +55,7 @@ impl TwoPartyCovenantBuilder {
 
     pub fn with_contract_codes(
         mut self,
-        contract_codes: covenant_two_party_pol::msg::CovenantContractCodeIds,
+        contract_codes: valence_covenant_two_party_pol::msg::CovenantContractCodeIds,
     ) -> Self {
         self.instantiate_msg.with_contract_codes(contract_codes);
         self
@@ -74,7 +74,7 @@ impl TwoPartyCovenantBuilder {
 
     pub fn with_ragequit_config(
         mut self,
-        ragequit_config: Option<covenant_two_party_pol_holder::msg::RagequitConfig>,
+        ragequit_config: Option<valence_two_party_pol_holder::msg::RagequitConfig>,
     ) -> Self {
         self.instantiate_msg.with_ragequit_config(ragequit_config);
         self
@@ -87,7 +87,7 @@ impl TwoPartyCovenantBuilder {
 
     pub fn with_party_a_config(
         mut self,
-        party_a_config: covenant_two_party_pol::msg::CovenantPartyConfig,
+        party_a_config: valence_covenant_two_party_pol::msg::CovenantPartyConfig,
     ) -> Self {
         self.instantiate_msg.with_party_a_config(party_a_config);
         self
@@ -95,7 +95,7 @@ impl TwoPartyCovenantBuilder {
 
     pub fn with_party_b_config(
         mut self,
-        party_b_config: covenant_two_party_pol::msg::CovenantPartyConfig,
+        party_b_config: valence_covenant_two_party_pol::msg::CovenantPartyConfig,
     ) -> Self {
         self.instantiate_msg.with_party_b_config(party_b_config);
         self
@@ -103,7 +103,7 @@ impl TwoPartyCovenantBuilder {
 
     pub fn with_covenant_type(
         mut self,
-        covenant_type: covenant_two_party_pol_holder::msg::CovenantType,
+        covenant_type: valence_two_party_pol_holder::msg::CovenantType,
     ) -> Self {
         self.instantiate_msg.with_covenant_type(covenant_type);
         self
@@ -146,7 +146,7 @@ impl TwoPartyCovenantBuilder {
 
     pub fn with_liquid_pooler_config(
         mut self,
-        liquid_pooler_config: covenant_two_party_pol::msg::LiquidPoolerConfig,
+        liquid_pooler_config: valence_covenant_two_party_pol::msg::LiquidPoolerConfig,
     ) -> Self {
         self.instantiate_msg
             .with_liquid_pooler_config(liquid_pooler_config);
@@ -167,7 +167,7 @@ impl TwoPartyCovenantBuilder {
             .wrap()
             .query_wasm_smart(
                 covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::ClockAddress {},
+                &valence_covenant_two_party_pol::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -177,7 +177,7 @@ impl TwoPartyCovenantBuilder {
             .wrap()
             .query_wasm_smart(
                 covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::HolderAddress {},
+                &valence_covenant_two_party_pol::msg::QueryMsg::HolderAddress {},
             )
             .unwrap();
 
@@ -207,7 +207,7 @@ impl Suite {
     pub fn migrate_update(
         &mut self,
         code: u64,
-        msg: covenant_two_party_pol::msg::MigrateMsg,
+        msg: valence_covenant_two_party_pol::msg::MigrateMsg,
     ) -> AppResponse {
         self.app
             .migrate_contract(
@@ -224,7 +224,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::ClockAddress {},
+                &valence_covenant_two_party_pol::msg::QueryMsg::ClockAddress {},
             )
             .unwrap()
     }
@@ -234,7 +234,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::HolderAddress {},
+                &valence_covenant_two_party_pol::msg::QueryMsg::HolderAddress {},
             )
             .unwrap()
     }
@@ -244,7 +244,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 self.covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::IbcForwarderAddress {
+                &valence_covenant_two_party_pol::msg::QueryMsg::IbcForwarderAddress {
                     party: party.to_string(),
                 },
             )
@@ -256,7 +256,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 self.covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::LiquidPoolerAddress {},
+                &valence_covenant_two_party_pol::msg::QueryMsg::LiquidPoolerAddress {},
             )
             .unwrap()
     }
@@ -266,7 +266,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 self.covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::InterchainRouterAddress {
+                &valence_covenant_two_party_pol::msg::QueryMsg::InterchainRouterAddress {
                     party: party.to_string(),
                 },
             )
@@ -278,7 +278,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<CovenantContractCodes>(
                 self.covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::ContractCodes {},
+                &valence_covenant_two_party_pol::msg::QueryMsg::ContractCodes {},
             )
             .unwrap()
     }

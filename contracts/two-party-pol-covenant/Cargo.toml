@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-two-party-pol"
+name        = "valence-covenant-two-party-pol"
 edition     = { workspace = true }
 authors     = ["benskey bekauz@protonmail.com"]
 description = "Two Party POL covenant"
@@ -36,12 +36,12 @@ serde-json-wasm                  = { workspace = true }
 prost                            = { workspace = true }
 prost-types                      = { workspace = true }
 bech32                           = { workspace = true }
-covenant-clock                   = { workspace = true, features = ["library"] }
+valence-clock                   = { workspace = true, features = ["library"] }
 covenant-utils                   = { workspace = true }
-covenant-ibc-forwarder           = { workspace = true, features = ["library"] }
-covenant-interchain-router       = { workspace = true, features = ["library"] }
-covenant-native-router           = { workspace = true, features = ["library"] }
-covenant-two-party-pol-holder    = { workspace = true, features = ["library"] }
-covenant-astroport-liquid-pooler = { workspace = true, features = ["library"] }
-covenant-osmo-liquid-pooler      = { workspace = true, features = ["library"] }
+valence-ibc-forwarder           = { workspace = true, features = ["library"] }
+valence-interchain-router       = { workspace = true, features = ["library"] }
+valence-native-router           = { workspace = true, features = ["library"] }
+valence-two-party-pol-holder    = { workspace = true, features = ["library"] }
+valence-astroport-liquid-pooler = { workspace = true, features = ["library"] }
+valence-osmo-liquid-pooler      = { workspace = true, features = ["library"] }
 astroport                        = { workspace = true }

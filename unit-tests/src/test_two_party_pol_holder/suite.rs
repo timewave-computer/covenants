@@ -2,10 +2,10 @@ use std::collections::BTreeMap;
 
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use covenant_two_party_pol_holder::msg::{ContractState, DenomSplits, RagequitConfig};
 use covenant_utils::{split::SplitConfig, PoolPriceConfig, SingleSideLpLimits};
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
+use valence_two_party_pol_holder::msg::{ContractState, DenomSplits, RagequitConfig};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -37,7 +37,7 @@ impl Default for TwoPartyHolderBuilder {
             coin(10_000_000_000_000, DENOM_LS_ATOM_ON_NTRN),
         );
 
-        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+        let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![holder_addr.to_string(), liquid_pooler_addr.to_string()],
         };
@@ -48,11 +48,11 @@ impl Default for TwoPartyHolderBuilder {
             &[],
         );
 
-        let liquid_pooler_instantiate_msg = covenant_astroport_liquid_pooler::msg::InstantiateMsg {
+        let liquid_pooler_instantiate_msg = valence_astroport_liquid_pooler::msg::InstantiateMsg {
             pool_address: pool_addr.to_string(),
             clock_address: clock_addr.to_string(),
             slippage_tolerance: None,
-            assets: covenant_astroport_liquid_pooler::msg::AssetData {
+            assets: valence_astroport_liquid_pooler::msg::AssetData {
                 asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),
                 asset_b_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
             },
@@ -111,7 +111,7 @@ impl TwoPartyHolderBuilder {
 
     pub fn with_ragequit_config(
         mut self,
-        config: covenant_two_party_pol_holder::msg::RagequitConfig,
+        config: valence_two_party_pol_holder::msg::RagequitConfig,
     ) -> Self {
         self.instantiate_msg.with_ragequit_config(config);
         self
@@ -124,7 +124,7 @@ impl TwoPartyHolderBuilder {
 
     pub fn with_covenant_config(
         mut self,
-        config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
+        config: valence_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
     ) -> Self {
         self.instantiate_msg.with_covenant_config(config);
         self
@@ -159,7 +159,7 @@ impl TwoPartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+                &valence_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -169,7 +169,7 @@ impl TwoPartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::RagequitConfig {},
+                &valence_two_party_pol_holder::msg::QueryMsg::RagequitConfig {},
             )
             .unwrap();
 
@@ -179,7 +179,7 @@ impl TwoPartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::LockupConfig {},
+                &valence_two_party_pol_holder::msg::QueryMsg::LockupConfig {},
             )
             .unwrap();
 
@@ -189,7 +189,7 @@ impl TwoPartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::DepositDeadline {},
+                &valence_two_party_pol_holder::msg::QueryMsg::DepositDeadline {},
             )
             .unwrap();
 
@@ -199,7 +199,7 @@ impl TwoPartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::Config {},
+                &valence_two_party_pol_holder::msg::QueryMsg::Config {},
             )
             .unwrap();
 
@@ -209,7 +209,7 @@ impl TwoPartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::DenomSplits {},
+                &valence_two_party_pol_holder::msg::QueryMsg::DenomSplits {},
             )
             .unwrap();
 
@@ -219,7 +219,7 @@ impl TwoPartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::NextContract {},
+                &valence_two_party_pol_holder::msg::QueryMsg::NextContract {},
             )
             .unwrap();
 
@@ -253,9 +253,9 @@ pub struct Suite {
     pub clock_addr: Addr,
     pub next_contract: Addr,
     pub lockup_config: Expiration,
-    pub ragequit_config: covenant_two_party_pol_holder::msg::RagequitConfig,
+    pub ragequit_config: valence_two_party_pol_holder::msg::RagequitConfig,
     pub deposit_deadline: Expiration,
-    pub covenant_config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
+    pub covenant_config: valence_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
     pub splits: BTreeMap<String, SplitConfig>,
     pub fallback_split: Option<SplitConfig>,
     pub emergency_committee_addr: Option<String>,
@@ -285,7 +285,7 @@ impl Suite {
             .execute_contract(
                 Addr::unchecked(sender),
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::ExecuteMsg::Ragequit {},
+                &valence_two_party_pol_holder::msg::ExecuteMsg::Ragequit {},
                 &[],
             )
             .unwrap()
@@ -296,7 +296,7 @@ impl Suite {
             .execute_contract(
                 Addr::unchecked(sender),
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::ExecuteMsg::Claim {},
+                &valence_two_party_pol_holder::msg::ExecuteMsg::Claim {},
                 &[],
             )
             .unwrap()
@@ -307,7 +307,7 @@ impl Suite {
             .execute_contract(
                 Addr::unchecked(sender),
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::ExecuteMsg::Distribute {},
+                &valence_two_party_pol_holder::msg::ExecuteMsg::Distribute {},
                 &[],
             )
             .unwrap()
@@ -318,7 +318,7 @@ impl Suite {
             .execute_contract(
                 Addr::unchecked(sender),
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::ExecuteMsg::WithdrawFailed {},
+                &valence_two_party_pol_holder::msg::ExecuteMsg::WithdrawFailed {},
                 &[],
             )
             .unwrap()
@@ -329,7 +329,7 @@ impl Suite {
             .execute_contract(
                 Addr::unchecked(sender),
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::ExecuteMsg::EmergencyWithdraw {},
+                &valence_two_party_pol_holder::msg::ExecuteMsg::EmergencyWithdraw {},
                 &[],
             )
             .unwrap()
@@ -340,7 +340,7 @@ impl Suite {
             .execute_contract(
                 Addr::unchecked(sender),
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::ExecuteMsg::DistributeFallbackSplit { denoms },
+                &valence_two_party_pol_holder::msg::ExecuteMsg::DistributeFallbackSplit { denoms },
                 &[],
             )
             .unwrap()
@@ -348,12 +348,12 @@ impl Suite {
 
     pub fn query_covenant_config(
         &mut self,
-    ) -> covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig {
+    ) -> valence_two_party_pol_holder::msg::TwoPartyPolCovenantConfig {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::Config {},
+                &valence_two_party_pol_holder::msg::QueryMsg::Config {},
             )
             .unwrap()
     }
@@ -363,7 +363,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::ContractState {},
+                &valence_two_party_pol_holder::msg::QueryMsg::ContractState {},
             )
             .unwrap()
     }
@@ -373,7 +373,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::RagequitConfig {},
+                &valence_two_party_pol_holder::msg::QueryMsg::RagequitConfig {},
             )
             .unwrap()
     }
@@ -383,7 +383,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::LockupConfig {},
+                &valence_two_party_pol_holder::msg::QueryMsg::LockupConfig {},
             )
             .unwrap()
     }
@@ -393,7 +393,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+                &valence_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
             )
             .unwrap()
     }
@@ -403,7 +403,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::NextContract {},
+                &valence_two_party_pol_holder::msg::QueryMsg::NextContract {},
             )
             .unwrap()
     }
@@ -413,7 +413,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::DepositDeadline {},
+                &valence_two_party_pol_holder::msg::QueryMsg::DepositDeadline {},
             )
             .unwrap()
     }
@@ -423,7 +423,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::DenomSplits {},
+                &valence_two_party_pol_holder::msg::QueryMsg::DenomSplits {},
             )
             .unwrap()
     }
@@ -433,7 +433,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_two_party_pol_holder::msg::QueryMsg::EmergencyCommittee {},
+                &valence_two_party_pol_holder::msg::QueryMsg::EmergencyCommittee {},
             )
             .unwrap()
     }

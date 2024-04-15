@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-osmo-liquid-pooler"
+name        = "valence-osmo-liquid-pooler"
 authors     = ["benskey bekauz@protonmail.com"]
 description = "Osmosis liquid pooler contract for covenants"
 license     = { workspace = true }
@@ -21,7 +21,7 @@ library = []
 
 [dependencies]
 covenant-macros = { workspace = true }
-covenant-clock  = { workspace = true, features = ["library"] }
+valence-clock  = { workspace = true, features = ["library"] }
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
 cw-storage-plus = { workspace = true }
@@ -42,4 +42,4 @@ cw20        = { workspace = true }
 polytone    = { workspace = true }
 osmosis-std                         = "0.20.1"
 prost                               = { workspace = true }
-covenant-outpost-osmo-liquid-pooler = { workspace = true, features = ["library"] }
+valence-outpost-osmo-liquid-pooler = { workspace = true, features = ["library"] }

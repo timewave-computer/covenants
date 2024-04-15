@@ -10,7 +10,7 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{PAUSED, QUEUE, TICK_MAX_GAS, WHITELIST};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-clock";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const MIN_TICK_MAX_GAS: Uint64 = Uint64::new(200_000);

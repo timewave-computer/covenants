@@ -95,7 +95,7 @@ fn test_execute_tick_validates_clock() {
         .execute_contract(
             suite.faucet,
             suite.splitter,
-            &covenant_native_splitter::msg::ExecuteMsg::Tick {},
+            &valence_native_splitter::msg::ExecuteMsg::Tick {},
             &[],
         )
         .unwrap();
@@ -194,7 +194,7 @@ fn test_migrate_update_config() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.splitter.clone(),
-            &covenant_native_splitter::msg::MigrateMsg::UpdateConfig {
+            &valence_native_splitter::msg::MigrateMsg::UpdateConfig {
                 clock_addr: Some(suite.faucet.to_string()),
                 fallback_split: Some(splits.get(DENOM_LS_ATOM_ON_NTRN).unwrap().clone()),
                 splits: Some(splits.clone()),

@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-outpost-osmo-liquid-pooler"
+name        = "valence-outpost-osmo-liquid-pooler"
 authors     = ["benskey bekauz@protonmail.com"]
 description = "Osmosis outpost for liquid pooler contract for covenants"
 license     = { workspace = true }

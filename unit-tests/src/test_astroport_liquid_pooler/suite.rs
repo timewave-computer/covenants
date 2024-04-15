@@ -1,9 +1,9 @@
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Coin, Decimal};
-use covenant_astroport_liquid_pooler::msg::{LpConfig, ProvidedLiquidityInfo, QueryMsg};
 use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
+use valence_astroport_liquid_pooler::msg::{LpConfig, ProvidedLiquidityInfo, QueryMsg};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -38,7 +38,7 @@ impl Default for AstroLiquidPoolerBuilder {
             SINGLE_PARTY_HOLDER_SALT,
         );
 
-        let holder_instantiate_msg = covenant_single_party_pol_holder::msg::InstantiateMsg {
+        let holder_instantiate_msg = valence_single_party_pol_holder::msg::InstantiateMsg {
             withdrawer: clock_addr.to_string(),
             withdraw_to: holder_addr.to_string(),
             emergency_committee_addr: None,
@@ -46,7 +46,7 @@ impl Default for AstroLiquidPoolerBuilder {
             lockup_period: cw_utils::Expiration::AtHeight(123665),
         };
 
-        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+        let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![liquid_pooler_addr.to_string()],
         };
@@ -107,7 +107,7 @@ impl AstroLiquidPoolerBuilder {
         self
     }
 
-    pub fn with_assets(mut self, assets: covenant_astroport_liquid_pooler::msg::AssetData) -> Self {
+    pub fn with_assets(mut self, assets: valence_astroport_liquid_pooler::msg::AssetData) -> Self {
         self.instantiate_msg.with_assets(assets);
         self
     }
@@ -216,7 +216,7 @@ impl Suite {
         app.execute_contract(
             sender.clone(),
             holder,
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap()
@@ -229,7 +229,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 holder.to_string(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::LockupConfig {},
+                &valence_single_party_pol_holder::msg::QueryMsg::LockupConfig {},
             )
             .unwrap();
         let app = self.get_app();
@@ -245,19 +245,19 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.liquid_pooler_addr.clone(),
-                &covenant_astroport_liquid_pooler::msg::QueryMsg::ProvidedLiquidityInfo {},
+                &valence_astroport_liquid_pooler::msg::QueryMsg::ProvidedLiquidityInfo {},
             )
             .unwrap()
     }
 
     pub(crate) fn query_contract_state(
         &self,
-    ) -> covenant_astroport_liquid_pooler::msg::ContractState {
+    ) -> valence_astroport_liquid_pooler::msg::ContractState {
         self.get_app()
             .wrap()
             .query_wasm_smart(
                 self.liquid_pooler_addr.clone(),
-                &covenant_astroport_liquid_pooler::msg::QueryMsg::ContractState {},
+                &valence_astroport_liquid_pooler::msg::QueryMsg::ContractState {},
             )
             .unwrap()
     }
@@ -267,7 +267,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.liquid_pooler_addr.clone(),
-                &covenant_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+                &valence_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
             )
             .unwrap()
     }
@@ -277,7 +277,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.liquid_pooler_addr.clone(),
-                &covenant_astroport_liquid_pooler::msg::QueryMsg::HolderAddress {},
+                &valence_astroport_liquid_pooler::msg::QueryMsg::HolderAddress {},
             )
             .unwrap()
     }
@@ -287,7 +287,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.liquid_pooler_addr.clone(),
-                &covenant_astroport_liquid_pooler::msg::QueryMsg::LpConfig {},
+                &valence_astroport_liquid_pooler::msg::QueryMsg::LpConfig {},
             )
             .unwrap()
     }

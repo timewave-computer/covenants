@@ -8,13 +8,13 @@ use cosmwasm_std::{
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
 };
-use covenant_outpost_osmo_liquid_pooler::msg::OutpostProvideLiquidityConfig;
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, ForwardMetadata, PoolPriceConfig,
     SingleSideLpLimits,
 };
 use cw_utils::{Duration, Expiration};
 use polytone::callbacks::CallbackMessage;
+use valence_outpost_osmo_liquid_pooler::msg::OutpostProvideLiquidityConfig;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -175,7 +175,7 @@ impl LiquidityProvisionConfig {
         Ok(WasmMsg::Execute {
             contract_addr: self.outpost.to_string(),
             msg: to_json_binary(
-                &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity {
+                &valence_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity {
                     config: outpost_config,
                 },
             )?,

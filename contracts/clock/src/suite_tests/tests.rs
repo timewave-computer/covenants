@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, StdError, Uint64};
-use covenant_clock_tester::msg::Mode;
+use valence_clock_tester::msg::Mode;
 
 use crate::contract::DEFAULT_TICK_MAX_GAS;
 use crate::error::ContractError;

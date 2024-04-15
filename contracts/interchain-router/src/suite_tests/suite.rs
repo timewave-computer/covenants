@@ -99,7 +99,7 @@ impl SuiteBuilder {
             .instantiate_contract(
                 clock_code,
                 Addr::unchecked(ADMIN),
-                &covenant_clock::msg::InstantiateMsg {
+                &valence_clock::msg::InstantiateMsg {
                     tick_max_gas: None,
                     whitelist: vec![],
                 },

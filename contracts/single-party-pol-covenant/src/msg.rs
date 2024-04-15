@@ -2,14 +2,14 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Decimal, StdResult, Uint128, Uint64, WasmMsg};
-use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
-use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, CovenantParty, DestinationConfig,
     InterchainCovenantParty, NativeCovenantParty, PacketForwardMiddlewareConfig, PoolPriceConfig,
     ReceiverConfig,
 };
 use cw_utils::Expiration;
+use valence_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
+use valence_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 
 pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 
@@ -200,14 +200,14 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     MigrateContracts {
         codes: Option<CovenantContractCodeIds>,
-        clock: Option<covenant_clock::msg::MigrateMsg>,
-        holder: Option<covenant_single_party_pol_holder::msg::MigrateMsg>,
-        ls_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        lp_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        splitter: Option<covenant_remote_chain_splitter::msg::MigrateMsg>,
+        clock: Option<valence_clock::msg::MigrateMsg>,
+        holder: Option<valence_single_party_pol_holder::msg::MigrateMsg>,
+        ls_forwarder: Option<valence_ibc_forwarder::msg::MigrateMsg>,
+        lp_forwarder: Option<valence_ibc_forwarder::msg::MigrateMsg>,
+        splitter: Option<valence_remote_chain_splitter::msg::MigrateMsg>,
         liquid_pooler: Option<LiquidPoolerMigrateMsg>,
-        liquid_staker: Option<covenant_stride_liquid_staker::msg::MigrateMsg>,
-        router: Option<covenant_interchain_router::msg::MigrateMsg>,
+        liquid_staker: Option<valence_stride_liquid_staker::msg::MigrateMsg>,
+        router: Option<valence_interchain_router::msg::MigrateMsg>,
     },
     UpdateCodeId {
         data: Option<Binary>,
@@ -216,6 +216,6 @@ pub enum MigrateMsg {
 
 #[cw_serde]
 pub enum LiquidPoolerMigrateMsg {
-    Osmosis(covenant_osmo_liquid_pooler::msg::MigrateMsg),
-    Astroport(covenant_astroport_liquid_pooler::msg::MigrateMsg),
+    Osmosis(valence_osmo_liquid_pooler::msg::MigrateMsg),
+    Astroport(valence_astroport_liquid_pooler::msg::MigrateMsg),
 }

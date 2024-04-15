@@ -1,21 +1,21 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint128, Uint64};
-use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
-use covenant_two_party_pol::msg::{CovenantPartyConfig, Timeouts};
 use covenant_utils::{
     split::SplitConfig, NativeCovenantParty, PoolPriceConfig, SingleSideLpLimits,
 };
 use cw_utils::Expiration;
+use valence_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
+use valence_covenant_two_party_pol::msg::{CovenantPartyConfig, Timeouts};
 
 use crate::setup::{suite_builder::SuiteBuilder, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 #[derive(Clone)]
 pub struct TwoPartyCovenantInstantiate {
-    pub msg: covenant_two_party_pol::msg::InstantiateMsg,
+    pub msg: valence_covenant_two_party_pol::msg::InstantiateMsg,
 }
 
-impl From<TwoPartyCovenantInstantiate> for covenant_two_party_pol::msg::InstantiateMsg {
+impl From<TwoPartyCovenantInstantiate> for valence_covenant_two_party_pol::msg::InstantiateMsg {
     fn from(value: TwoPartyCovenantInstantiate) -> Self {
         value.msg
     }
@@ -29,7 +29,7 @@ impl TwoPartyCovenantInstantiate {
 
     pub fn with_contract_codes(
         &mut self,
-        contract_codes: covenant_two_party_pol::msg::CovenantContractCodeIds,
+        contract_codes: valence_covenant_two_party_pol::msg::CovenantContractCodeIds,
     ) -> &mut Self {
         self.msg.contract_codes = contract_codes;
         self
@@ -47,7 +47,7 @@ impl TwoPartyCovenantInstantiate {
 
     pub fn with_ragequit_config(
         &mut self,
-        ragequit_config: Option<covenant_two_party_pol_holder::msg::RagequitConfig>,
+        ragequit_config: Option<valence_two_party_pol_holder::msg::RagequitConfig>,
     ) -> &mut Self {
         self.msg.ragequit_config = ragequit_config;
         self
@@ -60,7 +60,7 @@ impl TwoPartyCovenantInstantiate {
 
     pub fn with_party_a_config(
         &mut self,
-        party_a_config: covenant_two_party_pol::msg::CovenantPartyConfig,
+        party_a_config: valence_covenant_two_party_pol::msg::CovenantPartyConfig,
     ) -> &mut Self {
         self.msg.party_a_config = party_a_config;
         self
@@ -68,7 +68,7 @@ impl TwoPartyCovenantInstantiate {
 
     pub fn with_party_b_config(
         &mut self,
-        party_b_config: covenant_two_party_pol::msg::CovenantPartyConfig,
+        party_b_config: valence_covenant_two_party_pol::msg::CovenantPartyConfig,
     ) -> &mut Self {
         self.msg.party_b_config = party_b_config;
         self
@@ -76,7 +76,7 @@ impl TwoPartyCovenantInstantiate {
 
     pub fn with_covenant_type(
         &mut self,
-        covenant_type: covenant_two_party_pol_holder::msg::CovenantType,
+        covenant_type: valence_two_party_pol_holder::msg::CovenantType,
     ) -> &mut Self {
         self.msg.covenant_type = covenant_type;
         self
@@ -114,7 +114,7 @@ impl TwoPartyCovenantInstantiate {
 
     pub fn with_liquid_pooler_config(
         &mut self,
-        liquid_pooler_config: covenant_two_party_pol::msg::LiquidPoolerConfig,
+        liquid_pooler_config: valence_covenant_two_party_pol::msg::LiquidPoolerConfig,
     ) -> &mut Self {
         self.msg.liquid_pooler_config = liquid_pooler_config;
         self
@@ -128,7 +128,7 @@ impl TwoPartyCovenantInstantiate {
         party_b_addr: Addr,
         pool_address: Addr,
     ) -> Self {
-        let contract_codes = covenant_two_party_pol::msg::CovenantContractCodeIds {
+        let contract_codes = valence_covenant_two_party_pol::msg::CovenantContractCodeIds {
             ibc_forwarder_code: builder.ibc_forwarder_code_id,
             interchain_router_code: builder.interchain_router_code_id,
             holder_code: builder.two_party_holder_code_id,
@@ -147,8 +147,8 @@ impl TwoPartyCovenantInstantiate {
         denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
 
         Self {
-            msg: covenant_two_party_pol::msg::InstantiateMsg {
-                label: "covenant_two_party_pol".to_string(),
+            msg: valence_covenant_two_party_pol::msg::InstantiateMsg {
+                label: "valence_covenant_two_party_pol".to_string(),
                 timeouts: Timeouts {
                     ica_timeout: Uint64::new(100),
                     ibc_transfer_timeout: Uint64::new(100),
@@ -170,7 +170,7 @@ impl TwoPartyCovenantInstantiate {
                     addr: party_b_addr.to_string(),
                     contribution: coin(10_000, DENOM_LS_ATOM_ON_NTRN),
                 }),
-                covenant_type: covenant_two_party_pol_holder::msg::CovenantType::Share {},
+                covenant_type: valence_two_party_pol_holder::msg::CovenantType::Share {},
                 party_a_share: Decimal::from_str("0.5").unwrap(),
                 party_b_share: Decimal::from_str("0.5").unwrap(),
                 pool_price_config: PoolPriceConfig {
@@ -180,18 +180,19 @@ impl TwoPartyCovenantInstantiate {
                 splits: denom_to_split_config_map,
                 fallback_split: None,
                 emergency_committee: None,
-                liquid_pooler_config: covenant_two_party_pol::msg::LiquidPoolerConfig::Astroport(
-                    AstroportLiquidPoolerConfig {
-                        pool_pair_type: astroport::factory::PairType::Stable {},
-                        pool_address: pool_address.to_string(),
-                        asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),
-                        asset_b_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
-                        single_side_lp_limits: SingleSideLpLimits {
-                            asset_a_limit: Uint128::new(10_000),
-                            asset_b_limit: Uint128::new(10_000),
+                liquid_pooler_config:
+                    valence_covenant_two_party_pol::msg::LiquidPoolerConfig::Astroport(
+                        AstroportLiquidPoolerConfig {
+                            pool_pair_type: astroport::factory::PairType::Stable {},
+                            pool_address: pool_address.to_string(),
+                            asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),
+                            asset_b_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
+                            single_side_lp_limits: SingleSideLpLimits {
+                                asset_a_limit: Uint128::new(10_000),
+                                asset_b_limit: Uint128::new(10_000),
+                            },
                         },
-                    },
-                ),
+                    ),
                 fallback_address: None,
             },
         }
