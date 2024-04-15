@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{coin, coins, Decimal, Uint128, Uint64};
-use covenant_outpost_osmo_liquid_pooler::msg::{
+use valence_outpost_osmo_liquid_pooler::msg::{
     OutpostProvideLiquidityConfig, OutpostWithdrawLiquidityConfig,
 };
 

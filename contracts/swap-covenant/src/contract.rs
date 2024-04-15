@@ -6,12 +6,12 @@ use cosmwasm_std::{
     ensure, to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, WasmMsg,
 };
-use covenant_swap_holder::msg::RefundConfig;
 use covenant_utils::{
     instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits,
     CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms,
 };
 use cw2::set_contract_version;
+use valence_swap_holder::msg::RefundConfig;
 
 use crate::{
     error::ContractError,
@@ -23,7 +23,7 @@ use crate::{
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:swap-covenant";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub(crate) const CLOCK_SALT: &[u8] = b"clock";
@@ -128,7 +128,7 @@ pub fn instantiate(
         )
     );
 
-    let splitter_instantiate2_msg = covenant_native_splitter::msg::InstantiateMsg {
+    let splitter_instantiate2_msg = valence_native_splitter::msg::InstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
         splits: remap_splits(
             msg.splits.clone(),
@@ -157,7 +157,7 @@ pub fn instantiate(
         format!("{}_interchain_splitter", msg.label),
     )?;
 
-    let holder_instantiate2_msg = covenant_swap_holder::msg::InstantiateMsg {
+    let holder_instantiate2_msg = valence_swap_holder::msg::InstantiateMsg {
         lockup_config: msg.lockup_config,
         parties_config: CovenantPartiesConfig {
             party_a: msg.party_a_config.to_covenant_party(),
@@ -205,7 +205,7 @@ pub fn instantiate(
         clock_whitelist.push(party_a_forwarder_instantiate2_config.addr.to_string());
         // generate its instantiate2 message and add it to the list
         // of instantiation messages
-        let instantiate_msg = covenant_ibc_forwarder::msg::InstantiateMsg {
+        let instantiate_msg = valence_ibc_forwarder::msg::InstantiateMsg {
             remote_chain_connection_id: config.party_chain_connection_id.to_string(),
             remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
             denom: config.remote_chain_denom.to_string(),
@@ -246,7 +246,7 @@ pub fn instantiate(
         clock_whitelist.push(party_b_forwarder_instantiate2_config.addr.to_string());
         // generate its instantiate2 message and add it to the list
         // of instantiation messages
-        let instantiate_msg = covenant_ibc_forwarder::msg::InstantiateMsg {
+        let instantiate_msg = valence_ibc_forwarder::msg::InstantiateMsg {
             remote_chain_connection_id: config.party_chain_connection_id.to_string(),
             remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
             denom: config.remote_chain_denom.to_string(),
@@ -272,7 +272,7 @@ pub fn instantiate(
     // include the clock in instantiation flow
     messages.insert(
         0,
-        covenant_clock::msg::InstantiateMsg {
+        valence_clock::msg::InstantiateMsg {
             tick_max_gas: msg.clock_tick_max_gas,
             whitelist: clock_whitelist,
         }

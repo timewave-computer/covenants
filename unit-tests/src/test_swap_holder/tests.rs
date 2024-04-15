@@ -1,8 +1,8 @@
 use cosmwasm_std::{coin, coins, Addr, Event, Uint128};
-use covenant_swap_holder::msg::{ContractState, RefundConfig};
 use covenant_utils::{CovenantTerms, SwapCovenantTerms};
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
+use valence_swap_holder::msg::{ContractState, RefundConfig};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -69,7 +69,7 @@ fn test_execute_tick_validates_clock() {
         .execute_contract(
             suite.admin,
             suite.holder.clone(),
-            &covenant_swap_holder::msg::ExecuteMsg::Tick {},
+            &valence_swap_holder::msg::ExecuteMsg::Tick {},
             &[],
         )
         .unwrap();
@@ -232,7 +232,7 @@ fn test_migrate_update_config() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.holder.clone(),
-            &covenant_swap_holder::msg::MigrateMsg::UpdateConfig {
+            &valence_swap_holder::msg::MigrateMsg::UpdateConfig {
                 clock_addr: Some(next_contract.to_string()),
                 next_contract: Some(clock_address.to_string()),
                 lockup_config: Some(new_expiration),
@@ -274,7 +274,7 @@ fn test_migrate_update_config_validates_lockup_config_expiration() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.holder.clone(),
-            &covenant_swap_holder::msg::MigrateMsg::UpdateConfig {
+            &valence_swap_holder::msg::MigrateMsg::UpdateConfig {
                 clock_addr: None,
                 next_contract: None,
                 lockup_config: Some(Expiration::AtHeight(1)),

@@ -6,10 +6,10 @@ use cosmwasm_std::{
     to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult, WasmMsg,
 };
-use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
-use covenant_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits};
 use cw2::set_contract_version;
+use valence_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
+use valence_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};
 
 use crate::{
     error::ContractError,
@@ -24,7 +24,7 @@ use crate::{
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const CLOCK_SALT: &[u8] = b"clock";
@@ -86,7 +86,7 @@ pub fn instantiate(
     clock_whitelist.push(party_b_router_instantiate2_config.addr.to_string());
     clock_whitelist.push(liquid_pooler_instantiate2_config.addr.to_string());
 
-    let holder_instantiate2_msg = covenant_two_party_pol_holder::msg::InstantiateMsg {
+    let holder_instantiate2_msg = valence_two_party_pol_holder::msg::InstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
         lockup_config: msg.lockup_config,
         next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
@@ -229,7 +229,7 @@ pub fn instantiate(
         );
     }
 
-    let clock_instantiate2_msg = covenant_clock::msg::InstantiateMsg {
+    let clock_instantiate2_msg = valence_clock::msg::InstantiateMsg {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: clock_whitelist,
     }

@@ -16,7 +16,7 @@ pub trait BaseSuiteMut {
             .execute_contract(
                 app.api().addr_make(ADMIN),
                 clock_addr,
-                &covenant_clock::msg::ExecuteMsg::Tick {},
+                &valence_clock::msg::ExecuteMsg::Tick {},
                 &[],
             )
             .unwrap();
@@ -33,7 +33,7 @@ pub trait BaseSuiteMut {
             .execute_contract(
                 app.api().addr_make(ADMIN),
                 clock_addr,
-                &covenant_clock::msg::ExecuteMsg::Tick {},
+                &valence_clock::msg::ExecuteMsg::Tick {},
                 &[],
             )
             .unwrap();
@@ -47,7 +47,7 @@ pub trait BaseSuiteMut {
         app.execute_contract(
             clock_addr,
             contract,
-            &covenant_clock::msg::ExecuteMsg::Tick {},
+            &valence_clock::msg::ExecuteMsg::Tick {},
             &[],
         )
         .unwrap()

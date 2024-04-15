@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-two-party-pol-holder"
+name        = "valence-two-party-pol-holder"
 authors     = ["benskey bekauz@protonmail.com"]
 description = "Two party POL holder module for covenants"
 edition     = { workspace = true }
@@ -21,7 +21,7 @@ covenant-macros = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
 cw-storage-plus = { workspace = true }
-covenant-clock  = { workspace = true, features = ["library"] }
+valence-clock  = { workspace = true, features = ["library"] }
 cw2             = { workspace = true }
 thiserror       = { workspace = true }
 schemars        = { workspace = true }

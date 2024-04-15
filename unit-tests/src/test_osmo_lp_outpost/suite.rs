@@ -2,20 +2,20 @@ use cosmwasm_std::{Addr, Coin};
 use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
-    base_suite::BaseSuiteMut, instantiates::osmo_lp_outpost::OsmpLpOutpostInstantiate,
+    base_suite::BaseSuiteMut, instantiates::osmo_lp_outpost::OsmoLpOutpostInstantiate,
     suite_builder::SuiteBuilder, CustomApp,
 };
 
 pub struct OsmoLpOutpostBuilder {
     pub builder: SuiteBuilder,
-    pub instantiate_msg: OsmpLpOutpostInstantiate,
+    pub instantiate_msg: OsmoLpOutpostInstantiate,
 }
 
 impl Default for OsmoLpOutpostBuilder {
     fn default() -> Self {
         Self {
             builder: SuiteBuilder::new(),
-            instantiate_msg: OsmpLpOutpostInstantiate::default(),
+            instantiate_msg: OsmoLpOutpostInstantiate::default(),
         }
     }
 }
@@ -52,13 +52,13 @@ impl Suite {
         &mut self,
         funds: Vec<Coin>,
         sender: Addr,
-        config: covenant_outpost_osmo_liquid_pooler::msg::OutpostProvideLiquidityConfig,
+        config: valence_outpost_osmo_liquid_pooler::msg::OutpostProvideLiquidityConfig,
     ) -> AppResponse {
         self.app
             .execute_contract(
                 sender,
                 self.outpost.clone(),
-                &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity { config },
+                &valence_outpost_osmo_liquid_pooler::msg::ExecuteMsg::ProvideLiquidity { config },
                 &funds,
             )
             .unwrap()
@@ -68,13 +68,13 @@ impl Suite {
         &mut self,
         funds: Vec<Coin>,
         sender: Addr,
-        config: covenant_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig,
+        config: valence_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig,
     ) -> AppResponse {
         self.app
             .execute_contract(
                 sender,
                 self.outpost.clone(),
-                &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::WithdrawLiquidity { config },
+                &valence_outpost_osmo_liquid_pooler::msg::ExecuteMsg::WithdrawLiquidity { config },
                 &funds,
             )
             .unwrap()

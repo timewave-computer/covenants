@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{coin, coins, Addr, Decimal, Event, Uint128};
-use covenant_astroport_liquid_pooler::msg::{AssetData, ProvidedLiquidityInfo};
 use covenant_utils::PoolPriceConfig;
 use cw_multi_test::Executor;
+use valence_astroport_liquid_pooler::msg::{AssetData, ProvidedLiquidityInfo};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -92,7 +92,7 @@ fn test_withdraw_validates_percentage_range_ceiling() {
         .execute_contract(
             holder.clone(),
             suite.liquid_pooler_addr.clone(),
-            &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw {
+            &valence_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw {
                 percentage: Some(Decimal::from_str("101.0").unwrap()),
             },
             &[],
@@ -122,7 +122,7 @@ fn test_withdraw_validates_percentage_range_floor() {
         .execute_contract(
             holder.clone(),
             suite.liquid_pooler_addr.clone(),
-            &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw {
+            &valence_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw {
                 percentage: Some(Decimal::from_str("0.0").unwrap()),
             },
             &[],
@@ -141,7 +141,7 @@ fn test_withdraw_validates_holder() {
         .execute_contract(
             not_the_holder,
             suite.liquid_pooler_addr.clone(),
-            &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw { percentage: None },
+            &valence_astroport_liquid_pooler::msg::ExecuteMsg::Withdraw { percentage: None },
             &[],
         )
         .unwrap();
@@ -216,7 +216,7 @@ fn test_tick_unauthorized() {
         .execute_contract(
             unauthorized_sender,
             suite.liquid_pooler_addr.clone(),
-            &covenant_clock::msg::ExecuteMsg::Tick {},
+            &valence_clock::msg::ExecuteMsg::Tick {},
             &[],
         )
         .unwrap();
@@ -801,7 +801,7 @@ fn test_migrate_update_config() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             liquid_pooler,
-            &covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
+            &valence_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
                 clock_addr: Some(holder.to_string()),
                 holder_address: Some(clock.to_string()),
                 lp_config: Some(Box::new(lp_config)),
@@ -820,6 +820,6 @@ fn test_migrate_update_config() {
     assert_eq!(clock_address, holder);
     assert_eq!(
         contract_state,
-        covenant_astroport_liquid_pooler::msg::ContractState::Instantiated {}
+        valence_astroport_liquid_pooler::msg::ContractState::Instantiated {}
     );
 }

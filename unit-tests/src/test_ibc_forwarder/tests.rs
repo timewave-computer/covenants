@@ -1,6 +1,6 @@
 use cosmwasm_std::{coin, coins, Addr, Uint128};
-use covenant_ibc_forwarder::msg::{ContractState, FallbackAddressUpdateConfig};
 use cw_multi_test::Executor;
+use valence_ibc_forwarder::msg::{ContractState, FallbackAddressUpdateConfig};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -35,7 +35,7 @@ fn test_tick_validates_clock() {
         .execute_contract(
             forwarder_addr.clone(),
             forwarder_addr.clone(),
-            &covenant_ibc_forwarder::msg::ExecuteMsg::Tick {},
+            &valence_ibc_forwarder::msg::ExecuteMsg::Tick {},
             &[],
         )
         .unwrap();
@@ -383,7 +383,7 @@ fn test_migrate_update_config() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             forwarder_addr.clone(),
-            &covenant_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
+            &valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
                 clock_addr: Some(next_contract.to_string()),
                 next_contract: Some(clock_addr.to_string()),
                 remote_chain_info: Box::new(Some(remote_chain_info)),
@@ -415,7 +415,7 @@ fn test_migrate_update_config_remove_fallback() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.ibc_forwarder.clone(),
-            &covenant_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
+            &valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
                 clock_addr: None,
                 next_contract: None,
                 remote_chain_info: Box::new(None),

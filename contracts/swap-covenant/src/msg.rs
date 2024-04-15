@@ -108,7 +108,7 @@ impl CovenantPartyConfig {
                     ibc_transfer_timeout: party.ibc_transfer_timeout,
                     denom_to_pfm_map: party.denom_to_pfm_map.clone(),
                 };
-                let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
+                let instantiate_msg = valence_interchain_router::msg::InstantiateMsg {
                     clock_address: clock_addr.to_string(),
                     destination_config,
                     denoms: covenant_denoms,
@@ -116,7 +116,7 @@ impl CovenantPartyConfig {
                 Ok(instantiate_msg.to_instantiate2_msg(&instantiate2_helper, admin, label)?)
             }
             CovenantPartyConfig::Native(party) => {
-                let instantiate_msg = covenant_native_router::msg::InstantiateMsg {
+                let instantiate_msg = valence_native_router::msg::InstantiateMsg {
                     clock_address: clock_addr.to_string(),
                     receiver_address: party.party_receiver_addr.to_string(),
                     denoms: covenant_denoms,
@@ -198,13 +198,13 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateCovenant {
         codes: Option<CovenantContractCodes>,
-        clock: Option<covenant_clock::msg::MigrateMsg>,
-        holder: Option<covenant_swap_holder::msg::MigrateMsg>,
-        splitter: Option<covenant_native_splitter::msg::MigrateMsg>,
+        clock: Option<valence_clock::msg::MigrateMsg>,
+        holder: Option<valence_swap_holder::msg::MigrateMsg>,
+        splitter: Option<valence_native_splitter::msg::MigrateMsg>,
         party_a_router: Option<RouterMigrateMsg>,
         party_b_router: Option<RouterMigrateMsg>,
-        party_a_forwarder: Box<Option<covenant_ibc_forwarder::msg::MigrateMsg>>,
-        party_b_forwarder: Box<Option<covenant_ibc_forwarder::msg::MigrateMsg>>,
+        party_a_forwarder: Box<Option<valence_ibc_forwarder::msg::MigrateMsg>>,
+        party_b_forwarder: Box<Option<valence_ibc_forwarder::msg::MigrateMsg>>,
     },
     UpdateCodeId {
         data: Option<Binary>,
@@ -213,8 +213,8 @@ pub enum MigrateMsg {
 
 #[cw_serde]
 pub enum RouterMigrateMsg {
-    Interchain(covenant_interchain_router::msg::MigrateMsg),
-    Native(covenant_native_router::msg::MigrateMsg),
+    Interchain(valence_interchain_router::msg::MigrateMsg),
+    Native(valence_native_router::msg::MigrateMsg),
 }
 
 #[cw_serde]

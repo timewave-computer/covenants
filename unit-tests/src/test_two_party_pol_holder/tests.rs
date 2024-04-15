@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, coins, Addr, Decimal, Event, Timestamp, Uint128};
-use covenant_two_party_pol_holder::msg::{ContractState, RagequitConfig, RagequitTerms};
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
+use valence_two_party_pol_holder::msg::{ContractState, RagequitConfig, RagequitTerms};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -168,7 +168,7 @@ fn test_instantiate_validates_covenant_config_allocations() {
 #[should_panic(expected = "Ragequit penalty must be in range of [0.0, 1.0)")]
 fn test_instantiate_validates_ragequit_config_range() {
     TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+        .with_ragequit_config(valence_two_party_pol_holder::msg::RagequitConfig::Enabled(
             RagequitTerms {
                 penalty: Decimal::from_str("1.1").unwrap(),
                 state: None,
@@ -181,7 +181,7 @@ fn test_instantiate_validates_ragequit_config_range() {
 #[should_panic(expected = "Ragequit penalty exceeds party allocation")]
 fn test_instantiate_validates_ragequit_config_party_allocations() {
     TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+        .with_ragequit_config(valence_two_party_pol_holder::msg::RagequitConfig::Enabled(
             RagequitTerms {
                 penalty: Decimal::from_str("0.6").unwrap(),
                 state: None,
@@ -244,7 +244,7 @@ fn test_execute_tick_validates_clock() {
         .execute_contract(
             suite.faucet.clone(),
             suite.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::ExecuteMsg::Tick {},
+            &valence_two_party_pol_holder::msg::ExecuteMsg::Tick {},
             &[],
         )
         .unwrap();
@@ -440,7 +440,7 @@ fn test_execute_tick_expired_noop() {
 #[test]
 fn test_execute_tick_ragequit_noop() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+        .with_ragequit_config(valence_two_party_pol_holder::msg::RagequitConfig::Enabled(
             RagequitTerms {
                 penalty: Decimal::from_str("0.05").unwrap(),
                 state: None,
@@ -495,7 +495,7 @@ fn test_execute_ragequit_validates_ragequit_config() {
 #[should_panic(expected = "covenant is not in active state")]
 fn test_execute_ragequit_validates_active_state() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+        .with_ragequit_config(valence_two_party_pol_holder::msg::RagequitConfig::Enabled(
             RagequitTerms {
                 penalty: Decimal::from_str("0.05").unwrap(),
                 state: None,
@@ -515,7 +515,7 @@ fn test_execute_ragequit_validates_withdraw_started() {
 #[should_panic(expected = "covenant is active but expired; tick to proceed")]
 fn test_execute_ragequit_validates_lockup_config_expiration() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+        .with_ragequit_config(valence_two_party_pol_holder::msg::RagequitConfig::Enabled(
             RagequitTerms {
                 penalty: Decimal::from_str("0.05").unwrap(),
                 state: None,
@@ -542,7 +542,7 @@ fn test_execute_ragequit_validates_lockup_config_expiration() {
 #[should_panic(expected = "unauthorized")]
 fn test_execute_ragequit_validates_sender() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+        .with_ragequit_config(valence_two_party_pol_holder::msg::RagequitConfig::Enabled(
             RagequitTerms {
                 penalty: Decimal::from_str("0.05").unwrap(),
                 state: None,
@@ -568,7 +568,7 @@ fn test_execute_ragequit_validates_sender() {
 #[should_panic(expected = "unauthorized")]
 fn test_execute_claim_unauthorized() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+        .with_ragequit_config(valence_two_party_pol_holder::msg::RagequitConfig::Enabled(
             RagequitTerms {
                 penalty: Decimal::from_str("0.05").unwrap(),
                 state: None,
@@ -584,7 +584,7 @@ fn test_execute_claim_unauthorized() {
 #[should_panic(expected = "Claimer already claimed his share")]
 fn test_execute_claim_with_null_allocation() {
     let mut suite = TwoPartyHolderBuilder::default()
-        .with_ragequit_config(covenant_two_party_pol_holder::msg::RagequitConfig::Enabled(
+        .with_ragequit_config(valence_two_party_pol_holder::msg::RagequitConfig::Enabled(
             RagequitTerms {
                 penalty: Decimal::from_str("0.05").unwrap(),
                 state: None,
@@ -798,7 +798,7 @@ fn test_migrate_update_config() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+            &valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
                 clock_addr: Some(next_contract.to_string()),
                 next_contract: Some(clock.to_string()),
                 emergency_committee: Some(clock.to_string()),
@@ -862,7 +862,7 @@ fn test_migrate_update_config_invalid_fallback_split() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+            &valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
                 clock_addr: None,
                 next_contract: None,
                 emergency_committee: None,
@@ -902,7 +902,7 @@ fn test_migrate_update_config_invalid_explicit_splits() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+            &valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
                 clock_addr: None,
                 next_contract: None,
                 emergency_committee: None,
@@ -927,7 +927,7 @@ fn test_migrate_update_config_validates_lockup_config_expiration() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+            &valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
                 clock_addr: None,
                 next_contract: None,
                 emergency_committee: None,
@@ -952,7 +952,7 @@ fn test_migrate_update_config_validates_deposit_deadline_expiration() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
-            &covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+            &valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
                 clock_addr: None,
                 next_contract: None,
                 emergency_committee: None,

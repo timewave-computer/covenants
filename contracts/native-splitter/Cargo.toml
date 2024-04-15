@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-native-splitter"
+name        = "valence-native-splitter"
 authors     = ["benskey bekauz@protonmail.com"]
 description = "Native Splitter module for covenants"
 edition     = { workspace = true }
@@ -23,7 +23,7 @@ covenant-macros = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
 covenant-utils  = { workspace = true }
-covenant-clock  = { workspace = true, features = ["library"] }
+valence-clock  = { workspace = true, features = ["library"] }
 cw-storage-plus = { workspace = true }
 cw2             = { workspace = true }
 thiserror       = { workspace = true }

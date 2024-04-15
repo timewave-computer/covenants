@@ -17,7 +17,7 @@ fn test_covenant() {
         .execute_contract(
             suite.admin.clone(),
             suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
+            &valence_stride_liquid_staker::msg::ExecuteMsg::Transfer {
                 amount: 500_000_000_000_u128.into(),
             },
             &[],
@@ -117,7 +117,7 @@ fn test_covenant() {
         .execute_contract(
             suite.admin.clone(),
             suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
+            &valence_stride_liquid_staker::msg::ExecuteMsg::Transfer {
                 amount: 500_000_000_000_u128.into(),
             },
             &[],
@@ -170,7 +170,7 @@ fn test_covenant() {
         .execute_contract(
             suite.party_local_receiver.clone(),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap_err();
@@ -186,7 +186,7 @@ fn test_covenant() {
         .execute_contract(
             suite.party_local_receiver.clone(),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap();
@@ -196,7 +196,7 @@ fn test_covenant() {
         .wrap()
         .query_wasm_smart::<Addr>(
             suite.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
+            &valence_covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
         )
         .unwrap();
 
@@ -311,7 +311,7 @@ fn test_covenant_with_xyk_pool() {
         .execute_contract(
             suite.admin.clone(),
             suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
+            &valence_stride_liquid_staker::msg::ExecuteMsg::Transfer {
                 amount: 500_000_000_000_u128.into(),
             },
             &[],
@@ -364,7 +364,7 @@ fn test_covenant_with_xyk_pool() {
         .execute_contract(
             suite.party_local_receiver.clone(),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap_err();
@@ -380,7 +380,7 @@ fn test_covenant_with_xyk_pool() {
         .execute_contract(
             suite.party_local_receiver.clone(),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap();
@@ -390,7 +390,7 @@ fn test_covenant_with_xyk_pool() {
         .wrap()
         .query_wasm_smart::<Addr>(
             suite.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
+            &valence_covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
         )
         .unwrap();
 
@@ -507,7 +507,7 @@ fn test_covenant_with_uneven_pool() {
         .execute_contract(
             suite.admin.clone(),
             suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
+            &valence_stride_liquid_staker::msg::ExecuteMsg::Transfer {
                 amount: 500_000_000_000_u128.into(),
             },
             &[],
@@ -559,7 +559,7 @@ fn test_covenant_with_uneven_pool() {
         .execute_contract(
             suite.party_local_receiver.clone(),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap_err();
@@ -575,7 +575,7 @@ fn test_covenant_with_uneven_pool() {
         .execute_contract(
             suite.party_local_receiver.clone(),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap();
@@ -585,7 +585,7 @@ fn test_covenant_with_uneven_pool() {
         .wrap()
         .query_wasm_smart::<Addr>(
             suite.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
+            &valence_covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
         )
         .unwrap();
 
@@ -703,7 +703,7 @@ fn test_covenant_with_uneven_pool_stable() {
         .execute_contract(
             suite.admin.clone(),
             suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
+            &valence_stride_liquid_staker::msg::ExecuteMsg::Transfer {
                 amount: 500_000_000_000_u128.into(),
             },
             &[],
@@ -764,7 +764,7 @@ fn test_covenant_with_uneven_pool_stable() {
         .execute_contract(
             suite.party_local_receiver.clone(),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap_err();
@@ -780,7 +780,7 @@ fn test_covenant_with_uneven_pool_stable() {
         .execute_contract(
             suite.party_local_receiver.clone(),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap();
@@ -790,7 +790,7 @@ fn test_covenant_with_uneven_pool_stable() {
         .wrap()
         .query_wasm_smart::<Addr>(
             suite.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
+            &valence_covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
         )
         .unwrap();
 
@@ -907,7 +907,7 @@ fn test_covenant_with_single_sided() {
         .execute_contract(
             suite.admin.clone(),
             suite.lser_addr.clone(),
-            &covenant_stride_liquid_staker::msg::ExecuteMsg::Transfer {
+            &valence_stride_liquid_staker::msg::ExecuteMsg::Transfer {
                 amount: 500_000_000_000_u128.into(),
             },
             &[],
@@ -979,7 +979,7 @@ fn test_covenant_with_single_sided() {
         .execute_contract(
             suite.party_local_receiver.clone(),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap_err();
@@ -995,7 +995,7 @@ fn test_covenant_with_single_sided() {
         .execute_contract(
             suite.party_local_receiver.clone(),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+            &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
             &[],
         )
         .unwrap();
@@ -1005,7 +1005,7 @@ fn test_covenant_with_single_sided() {
         .wrap()
         .query_wasm_smart::<Addr>(
             suite.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
+            &valence_covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
         )
         .unwrap();
 
@@ -1043,7 +1043,7 @@ fn test_migrate_update_config_with_codes() {
     let mut contract_codes = suite.query_contract_codes();
     contract_codes.clock_code = 69;
 
-    let holder_migrate_msg = covenant_single_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+    let holder_migrate_msg = valence_single_party_pol_holder::msg::MigrateMsg::UpdateConfig {
         withdrawer: Some(covenant_addr.to_string()),
         withdraw_to: None,
         emergency_committee: None,
@@ -1051,7 +1051,7 @@ fn test_migrate_update_config_with_codes() {
         lockup_period: None,
     };
 
-    let ibc_forwarder_migrate_msg = covenant_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
+    let ibc_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
         next_contract: None,
         remote_chain_info: Box::new(None),
@@ -1060,7 +1060,7 @@ fn test_migrate_update_config_with_codes() {
     };
 
     let liquid_pooler_migrate_msg =
-        covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
+        valence_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
             clock_addr: Some(covenant_addr.to_string()),
             holder_address: None,
             lp_config: None,
@@ -1073,14 +1073,14 @@ fn test_migrate_update_config_with_codes() {
         ibc_transfer_timeout: Uint64::one(),
         ica_timeout: Uint64::one(),
     };
-    let liquid_staker_migrate_msg = covenant_stride_liquid_staker::msg::MigrateMsg::UpdateConfig {
+    let liquid_staker_migrate_msg = valence_stride_liquid_staker::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
         next_contract: Some(covenant_addr.to_string()),
         remote_chain_info: Some(new_remote_chain_info),
     };
 
     let remote_chain_splitter_migrate_msg =
-        covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
+        valence_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
             clock_addr: Some(covenant_addr.to_string()),
             remote_chain_info: None,
             splits: None,
@@ -1092,7 +1092,7 @@ fn test_migrate_update_config_with_codes() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             covenant_addr,
-            &covenant_single_party_pol::msg::MigrateMsg::MigrateContracts {
+            &valence_covenant_single_party_pol::msg::MigrateMsg::MigrateContracts {
                 codes: Some(contract_codes.clone()),
                 clock: None,
                 holder: Some(holder_migrate_msg.clone()),
@@ -1100,7 +1100,7 @@ fn test_migrate_update_config_with_codes() {
                 lp_forwarder: Some(ibc_forwarder_migrate_msg.clone()),
                 splitter: Some(remote_chain_splitter_migrate_msg.clone()),
                 liquid_pooler: Some(
-                    covenant_single_party_pol::msg::LiquidPoolerMigrateMsg::Astroport(
+                    valence_covenant_single_party_pol::msg::LiquidPoolerMigrateMsg::Astroport(
                         liquid_pooler_migrate_msg.clone(),
                     ),
                 ),
@@ -1162,10 +1162,10 @@ fn test_migrate_update_config_no_codes() {
     let mut suite = Suite::new_with_stable_pool();
     let covenant_addr = suite.covenant_addr.clone();
 
-    let clock_migrate_msg = covenant_clock::msg::MigrateMsg::UpdateTickMaxGas {
+    let clock_migrate_msg = valence_clock::msg::MigrateMsg::UpdateTickMaxGas {
         new_value: Uint64::new(50000),
     };
-    let router_migrate_msg = covenant_interchain_router::msg::MigrateMsg::UpdateConfig {
+    let router_migrate_msg = valence_interchain_router::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
         destination_config: None,
         target_denoms: None,
@@ -1175,7 +1175,7 @@ fn test_migrate_update_config_no_codes() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             covenant_addr,
-            &covenant_single_party_pol::msg::MigrateMsg::MigrateContracts {
+            &valence_covenant_single_party_pol::msg::MigrateMsg::MigrateContracts {
                 codes: None,
                 clock: Some(clock_migrate_msg.clone()),
                 holder: None,

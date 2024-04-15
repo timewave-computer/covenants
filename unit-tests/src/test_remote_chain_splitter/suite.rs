@@ -28,7 +28,7 @@ impl Default for RemoteChainSplitterBuilder {
             builder.get_contract_addr(builder.ibc_forwarder_code_id, "forwarder_a");
         let forwarder_b_addr =
             builder.get_contract_addr(builder.ibc_forwarder_code_id, "forwarder_b");
-        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+        let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![
                 remote_chain_splitter_addr.to_string(),
@@ -43,7 +43,7 @@ impl Default for RemoteChainSplitterBuilder {
             &[],
         );
 
-        let default_forwarder_instantiate_msg = covenant_ibc_forwarder::msg::InstantiateMsg {
+        let default_forwarder_instantiate_msg = valence_ibc_forwarder::msg::InstantiateMsg {
             clock_address: clock_addr.to_string(),
             next_contract: clock_addr.to_string(),
             remote_chain_connection_id: "connection-0".to_string(),
@@ -138,7 +138,7 @@ impl RemoteChainSplitterBuilder {
             .wrap()
             .query_wasm_smart(
                 remote_chain_splitter_address.clone(),
-                &covenant_remote_chain_splitter::msg::QueryMsg::ClockAddress {},
+                &valence_remote_chain_splitter::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -148,7 +148,7 @@ impl RemoteChainSplitterBuilder {
             .wrap()
             .query_wasm_smart(
                 remote_chain_splitter_address.clone(),
-                &covenant_remote_chain_splitter::msg::QueryMsg::SplitConfig {},
+                &valence_remote_chain_splitter::msg::QueryMsg::SplitConfig {},
             )
             .unwrap();
         let config_1 = split_config[0].clone().1.receivers;
@@ -162,7 +162,7 @@ impl RemoteChainSplitterBuilder {
             .wrap()
             .query_wasm_smart(
                 remote_chain_splitter_address.clone(),
-                &covenant_remote_chain_splitter::msg::QueryMsg::TransferAmount {},
+                &valence_remote_chain_splitter::msg::QueryMsg::TransferAmount {},
             )
             .unwrap();
 
@@ -172,7 +172,7 @@ impl RemoteChainSplitterBuilder {
             .wrap()
             .query_wasm_smart(
                 remote_chain_splitter_address.clone(),
-                &covenant_remote_chain_splitter::msg::QueryMsg::RemoteChainInfo {},
+                &valence_remote_chain_splitter::msg::QueryMsg::RemoteChainInfo {},
             )
             .unwrap();
 
@@ -214,17 +214,17 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_remote_chain_splitter::msg::QueryMsg::ClockAddress {},
+                &valence_remote_chain_splitter::msg::QueryMsg::ClockAddress {},
             )
             .unwrap()
     }
 
-    pub fn query_contract_state(&self) -> covenant_remote_chain_splitter::msg::ContractState {
+    pub fn query_contract_state(&self) -> valence_remote_chain_splitter::msg::ContractState {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_remote_chain_splitter::msg::QueryMsg::ContractState {},
+                &valence_remote_chain_splitter::msg::QueryMsg::ContractState {},
             )
             .unwrap()
     }
@@ -234,7 +234,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_remote_chain_splitter::msg::QueryMsg::RemoteChainInfo {},
+                &valence_remote_chain_splitter::msg::QueryMsg::RemoteChainInfo {},
             )
             .unwrap()
     }
@@ -245,7 +245,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_remote_chain_splitter::msg::QueryMsg::SplitConfig {},
+                &valence_remote_chain_splitter::msg::QueryMsg::SplitConfig {},
             )
             .unwrap();
         BTreeMap::from_iter(split_config)
@@ -256,7 +256,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_remote_chain_splitter::msg::QueryMsg::TransferAmount {},
+                &valence_remote_chain_splitter::msg::QueryMsg::TransferAmount {},
             )
             .unwrap()
     }
@@ -266,7 +266,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 addr,
-                &covenant_remote_chain_splitter::msg::QueryMsg::DepositAddress {},
+                &valence_remote_chain_splitter::msg::QueryMsg::DepositAddress {},
             )
             .unwrap()
     }
@@ -276,7 +276,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_remote_chain_splitter::msg::QueryMsg::FallbackAddress {},
+                &valence_remote_chain_splitter::msg::QueryMsg::FallbackAddress {},
             )
             .unwrap()
     }
@@ -286,7 +286,7 @@ impl Suite {
             .execute_contract(
                 self.faucet.clone(),
                 self.splitter.clone(),
-                &covenant_remote_chain_splitter::msg::ExecuteMsg::DistributeFallback { coins },
+                &valence_remote_chain_splitter::msg::ExecuteMsg::DistributeFallback { coins },
                 &funds,
             )
             .unwrap()
@@ -297,7 +297,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 addr,
-                &covenant_remote_chain_splitter::msg::QueryMsg::IcaAddress {},
+                &valence_remote_chain_splitter::msg::QueryMsg::IcaAddress {},
             )
             .unwrap()
     }

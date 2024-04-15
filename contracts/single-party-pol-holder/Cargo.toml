@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-single-party-pol-holder"
+name        = "valence-single-party-pol-holder"
 authors     = ["udit <udit.vira@gmail.com>"]
 description = "A holder can hold funds in a covenant"
 edition     = { workspace = true }

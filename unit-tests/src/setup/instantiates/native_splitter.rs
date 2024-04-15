@@ -6,10 +6,10 @@ use covenant_utils::split::SplitConfig;
 use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 pub struct NativeSplitterInstantiate {
-    pub msg: covenant_native_splitter::msg::InstantiateMsg,
+    pub msg: valence_native_splitter::msg::InstantiateMsg,
 }
 
-impl From<NativeSplitterInstantiate> for covenant_native_splitter::msg::InstantiateMsg {
+impl From<NativeSplitterInstantiate> for valence_native_splitter::msg::InstantiateMsg {
     fn from(value: NativeSplitterInstantiate) -> Self {
         value.msg
     }
@@ -22,7 +22,7 @@ impl NativeSplitterInstantiate {
         fallback_split: Option<SplitConfig>,
     ) -> Self {
         Self {
-            msg: covenant_native_splitter::msg::InstantiateMsg {
+            msg: valence_native_splitter::msg::InstantiateMsg {
                 clock_address,
                 splits,
                 fallback_split,
@@ -58,7 +58,7 @@ impl NativeSplitterInstantiate {
         denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
 
         Self {
-            msg: covenant_native_splitter::msg::InstantiateMsg {
+            msg: valence_native_splitter::msg::InstantiateMsg {
                 clock_address,
                 splits: denom_to_split_config_map,
                 fallback_split: Some(split_config),
