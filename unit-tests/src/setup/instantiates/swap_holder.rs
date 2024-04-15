@@ -1,15 +1,15 @@
 use cosmwasm_std::{Addr, Uint128};
-use covenant_swap_holder::msg::RefundConfig;
 use covenant_utils::{CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig};
 use cw_utils::Expiration;
+use valence_swap_holder::msg::RefundConfig;
 
 use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 pub struct SwapHolderInstantiate {
-    pub msg: covenant_swap_holder::msg::InstantiateMsg,
+    pub msg: valence_swap_holder::msg::InstantiateMsg,
 }
 
-impl From<SwapHolderInstantiate> for covenant_swap_holder::msg::InstantiateMsg {
+impl From<SwapHolderInstantiate> for valence_swap_holder::msg::InstantiateMsg {
     fn from(value: SwapHolderInstantiate) -> Self {
         value.msg
     }
@@ -25,7 +25,7 @@ impl SwapHolderInstantiate {
         refund_config: RefundConfig,
     ) -> Self {
         Self {
-            msg: covenant_swap_holder::msg::InstantiateMsg {
+            msg: valence_swap_holder::msg::InstantiateMsg {
                 clock_address,
                 next_contract,
                 lockup_config,
@@ -77,7 +77,7 @@ impl SwapHolderInstantiate {
         party_b_refund_address: String,
     ) -> Self {
         Self {
-            msg: covenant_swap_holder::msg::InstantiateMsg {
+            msg: valence_swap_holder::msg::InstantiateMsg {
                 clock_address,
                 next_contract,
                 lockup_config: Expiration::AtHeight(1000000),

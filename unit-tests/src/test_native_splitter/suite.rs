@@ -24,7 +24,7 @@ impl Default for NativeSplitterBuilder {
         let native_splitter_addr =
             builder.get_contract_addr(builder.native_splitter_code_id, NATIVE_SPLITTER_SALT);
 
-        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+        let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![native_splitter_addr.to_string()],
         };
@@ -82,7 +82,7 @@ impl NativeSplitterBuilder {
             .wrap()
             .query_wasm_smart(
                 native_splitter_address.clone(),
-                &covenant_native_splitter::msg::QueryMsg::ClockAddress {},
+                &valence_native_splitter::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -92,7 +92,7 @@ impl NativeSplitterBuilder {
             .wrap()
             .query_wasm_smart(
                 native_splitter_address.clone(),
-                &covenant_native_splitter::msg::QueryMsg::Splits {},
+                &valence_native_splitter::msg::QueryMsg::Splits {},
             )
             .unwrap();
         let config_1 = splits[0].clone().1.receivers;
@@ -106,7 +106,7 @@ impl NativeSplitterBuilder {
             .wrap()
             .query_wasm_smart(
                 native_splitter_address.clone(),
-                &covenant_native_splitter::msg::QueryMsg::FallbackSplit {},
+                &valence_native_splitter::msg::QueryMsg::FallbackSplit {},
             )
             .unwrap();
 
@@ -145,7 +145,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_native_splitter::msg::QueryMsg::ClockAddress {},
+                &valence_native_splitter::msg::QueryMsg::ClockAddress {},
             )
             .unwrap()
     }
@@ -155,7 +155,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_native_splitter::msg::QueryMsg::DenomSplit { denom },
+                &valence_native_splitter::msg::QueryMsg::DenomSplit { denom },
             )
             .unwrap()
     }
@@ -166,7 +166,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_native_splitter::msg::QueryMsg::Splits {},
+                &valence_native_splitter::msg::QueryMsg::Splits {},
             )
             .unwrap();
         BTreeMap::from_iter(splits)
@@ -177,7 +177,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_native_splitter::msg::QueryMsg::FallbackSplit {},
+                &valence_native_splitter::msg::QueryMsg::FallbackSplit {},
             )
             .unwrap()
     }
@@ -187,7 +187,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &covenant_native_splitter::msg::QueryMsg::DepositAddress {},
+                &valence_native_splitter::msg::QueryMsg::DepositAddress {},
             )
             .unwrap()
     }
@@ -197,7 +197,7 @@ impl Suite {
             .execute_contract(
                 self.faucet.clone(),
                 self.splitter.clone(),
-                &covenant_native_splitter::msg::ExecuteMsg::DistributeFallback { denoms },
+                &valence_native_splitter::msg::ExecuteMsg::DistributeFallback { denoms },
                 &[],
             )
             .unwrap()

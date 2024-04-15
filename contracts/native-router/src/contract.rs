@@ -6,8 +6,8 @@ use cosmwasm_std::{
     to_json_binary, Attribute, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
     Response, StdError, StdResult,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use cw2::set_contract_version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::{
     error::ContractError,
@@ -15,7 +15,7 @@ use crate::{
     state::{CLOCK_ADDRESS, RECEIVER_ADDRESS, TARGET_DENOMS},
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-native-router";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]

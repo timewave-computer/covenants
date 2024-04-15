@@ -31,7 +31,7 @@ use osmosis_std::{
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-outpost-osmo-liquid-pooler";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const OSMO_POOL_REPLY_ID: u64 = 1;
 

@@ -1,10 +1,10 @@
 use cw_utils::Expiration;
 
 pub struct SinglePartyHolderInstantiate {
-    pub msg: covenant_single_party_pol_holder::msg::InstantiateMsg,
+    pub msg: valence_single_party_pol_holder::msg::InstantiateMsg,
 }
 
-impl From<SinglePartyHolderInstantiate> for covenant_single_party_pol_holder::msg::InstantiateMsg {
+impl From<SinglePartyHolderInstantiate> for valence_single_party_pol_holder::msg::InstantiateMsg {
     fn from(value: SinglePartyHolderInstantiate) -> Self {
         value.msg
     }
@@ -19,7 +19,7 @@ impl SinglePartyHolderInstantiate {
         lockup_period: Expiration,
     ) -> Self {
         Self {
-            msg: covenant_single_party_pol_holder::msg::InstantiateMsg {
+            msg: valence_single_party_pol_holder::msg::InstantiateMsg {
                 withdrawer,
                 withdraw_to,
                 emergency_committee_addr,
@@ -58,7 +58,7 @@ impl SinglePartyHolderInstantiate {
 impl SinglePartyHolderInstantiate {
     pub fn default(pooler_address: String) -> Self {
         Self {
-            msg: covenant_single_party_pol_holder::msg::InstantiateMsg {
+            msg: valence_single_party_pol_holder::msg::InstantiateMsg {
                 withdrawer: pooler_address.to_string(),
                 withdraw_to: pooler_address.to_string(),
                 emergency_committee_addr: Some(pooler_address.to_string()),

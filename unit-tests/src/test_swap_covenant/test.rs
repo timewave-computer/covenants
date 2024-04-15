@@ -239,7 +239,7 @@ fn test_covenant_fallback_split() {
         .execute_contract(
             suite.fuacet.clone(),
             suite.splitter_addr.clone(),
-            &covenant_native_splitter::msg::ExecuteMsg::DistributeFallback {
+            &valence_native_splitter::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
             &[coin(1000000, DENOM_NTRN)],
@@ -252,7 +252,7 @@ fn test_covenant_fallback_split() {
         .execute_contract(
             suite.fuacet.clone(),
             suite.router_a_addr.clone(),
-            &covenant_native_router::msg::ExecuteMsg::DistributeFallback {
+            &valence_native_router::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
             &[coin(1000000, DENOM_NTRN)],
@@ -264,7 +264,7 @@ fn test_covenant_fallback_split() {
         .execute_contract(
             suite.fuacet.clone(),
             suite.router_b_addr.clone(),
-            &covenant_native_router::msg::ExecuteMsg::DistributeFallback {
+            &valence_native_router::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
             &[coin(1000000, DENOM_NTRN)],
@@ -333,7 +333,7 @@ fn test_covenant_interchain_fallback_split() {
         .execute_contract(
             suite.fuacet.clone(),
             suite.splitter_addr.clone(),
-            &covenant_interchain_router::msg::ExecuteMsg::DistributeFallback {
+            &valence_interchain_router::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
             &[coin(1000000, DENOM_NTRN)],
@@ -346,7 +346,7 @@ fn test_covenant_interchain_fallback_split() {
         .execute_contract(
             suite.fuacet.clone(),
             suite.router_a_addr.clone(),
-            &covenant_interchain_router::msg::ExecuteMsg::DistributeFallback {
+            &valence_interchain_router::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
             &[coin(100000000, DENOM_NTRN)],
@@ -358,7 +358,7 @@ fn test_covenant_interchain_fallback_split() {
         .execute_contract(
             suite.fuacet.clone(),
             suite.router_b_addr.clone(),
-            &covenant_interchain_router::msg::ExecuteMsg::DistributeFallback {
+            &valence_interchain_router::msg::ExecuteMsg::DistributeFallback {
                 denoms: vec![DENOM_FALLBACK.to_string()],
             },
             &[coin(100000000, DENOM_NTRN)],
@@ -396,7 +396,7 @@ fn test_covenant_interchain_fallback_split() {
 }
 
 #[test]
-fn test_covenant_native_refund() {
+fn test_valence_native_refund() {
     let mut suite = Suite::new_with_2_native_configs();
     let init_ntrn_router_balance = suite.query_balance(&suite.router_b_addr, DENOM_NTRN);
 
@@ -455,13 +455,13 @@ fn test_migrate_update_with_codes() {
     let mut contract_codes = suite.query_contract_codes();
     contract_codes.clock = 1;
 
-    let native_router_migrate_msg = covenant_native_router::msg::MigrateMsg::UpdateConfig {
+    let native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
         target_denoms: None,
         receiver_address: None,
     };
 
-    let holder_migrate_msg = covenant_swap_holder::msg::MigrateMsg::UpdateConfig {
+    let holder_migrate_msg = valence_swap_holder::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
         next_contract: None,
         lockup_config: None,
@@ -470,7 +470,7 @@ fn test_migrate_update_with_codes() {
         refund_config: None,
     };
 
-    let splitter_migrate_msg = covenant_native_splitter::msg::MigrateMsg::UpdateConfig {
+    let splitter_migrate_msg = valence_native_splitter::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
         fallback_split: None,
         splits: None,
@@ -481,15 +481,15 @@ fn test_migrate_update_with_codes() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             Addr::unchecked(covenant_addr),
-            &covenant_swap::msg::MigrateMsg::UpdateCovenant {
+            &valence_covenant_swap::msg::MigrateMsg::UpdateCovenant {
                 codes: Some(contract_codes.clone()),
                 clock: None,
                 holder: Some(holder_migrate_msg.clone()),
                 splitter: Some(splitter_migrate_msg.clone()),
-                party_a_router: Some(covenant_swap::msg::RouterMigrateMsg::Native(
+                party_a_router: Some(valence_covenant_swap::msg::RouterMigrateMsg::Native(
                     native_router_migrate_msg.clone(),
                 )),
-                party_b_router: Some(covenant_swap::msg::RouterMigrateMsg::Native(
+                party_b_router: Some(valence_covenant_swap::msg::RouterMigrateMsg::Native(
                     native_router_migrate_msg.clone(),
                 )),
                 party_a_forwarder: Box::new(None),
@@ -536,13 +536,13 @@ fn test_migrate_update_without_codes() {
     let mut suite = Suite::new_with_2_interchain_configs();
     let covenant_addr = suite.covenant_addr.to_string();
 
-    let interchain_router_migrate_msg = covenant_interchain_router::msg::MigrateMsg::UpdateConfig {
+    let interchain_router_migrate_msg = valence_interchain_router::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
         target_denoms: None,
         destination_config: None,
     };
 
-    let ibc_forwarder_migrate_msg = covenant_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
+    let ibc_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(covenant_addr.to_string()),
         next_contract: None,
         remote_chain_info: Box::new(None),
@@ -550,7 +550,7 @@ fn test_migrate_update_without_codes() {
         fallback_address: None,
     };
 
-    let clock_migrate_msg = covenant_clock::msg::MigrateMsg::UpdateTickMaxGas {
+    let clock_migrate_msg = valence_clock::msg::MigrateMsg::UpdateTickMaxGas {
         new_value: Uint64::new(50000),
     };
 
@@ -559,15 +559,15 @@ fn test_migrate_update_without_codes() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             Addr::unchecked(covenant_addr),
-            &covenant_swap::msg::MigrateMsg::UpdateCovenant {
+            &valence_covenant_swap::msg::MigrateMsg::UpdateCovenant {
                 codes: None,
                 clock: Some(clock_migrate_msg.clone()),
                 holder: None,
                 splitter: None,
-                party_a_router: Some(covenant_swap::msg::RouterMigrateMsg::Interchain(
+                party_a_router: Some(valence_covenant_swap::msg::RouterMigrateMsg::Interchain(
                     interchain_router_migrate_msg.clone(),
                 )),
-                party_b_router: Some(covenant_swap::msg::RouterMigrateMsg::Interchain(
+                party_b_router: Some(valence_covenant_swap::msg::RouterMigrateMsg::Interchain(
                     interchain_router_migrate_msg.clone(),
                 )),
                 party_a_forwarder: Box::new(Some(ibc_forwarder_migrate_msg.clone())),

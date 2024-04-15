@@ -6,8 +6,6 @@ use cosmwasm_std::{
     ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Env,
     Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig;
 use covenant_utils::{
     polytone::get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata,
     PacketMetadata,
@@ -23,6 +21,8 @@ use neutron_sdk::{
     NeutronResult,
 };
 use polytone::callbacks::CallbackRequest;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
+use valence_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig;
 
 use crate::{
     error::ContractError,
@@ -42,7 +42,7 @@ use crate::{
 
 use crate::state::{CLOCK_ADDRESS, CONTRACT_STATE};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-osmo-liquid-pooler";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub(crate) const PROVIDE_LIQUIDITY_CALLBACK_ID: u8 = 1;
@@ -167,7 +167,7 @@ fn try_withdraw(
     let exit_pool_message: CosmosMsg = WasmMsg::Execute {
         contract_addr: lp_config.outpost.to_string(),
         msg: to_json_binary(
-            &covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg::WithdrawLiquidity {
+            &valence_outpost_osmo_liquid_pooler::msg::ExecuteMsg::WithdrawLiquidity {
                 config: OutpostWithdrawLiquidityConfig {
                     pool_id: lp_config.pool_id,
                 },

@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-stride-liquid-staker"
+name        = "valence-stride-liquid-staker"
 authors     = ["benskey bekauz@protonmail.com", "Art3mix <yan.maya90@gmail.com>"]
 description = "Liquid Staker module for stride covenant"
 edition     = { workspace = true }
@@ -18,7 +18,7 @@ library = []
 
 [dependencies]
 covenant-macros  = { workspace = true }
-covenant-clock   = { workspace = true, features = ["library"] }
+valence-clock   = { workspace = true, features = ["library"] }
 covenant-utils   = { workspace = true }
 cosmwasm-schema  = { workspace = true }
 cosmwasm-std     = { workspace = true }

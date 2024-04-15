@@ -361,371 +361,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "covenant-astroport-liquid-pooler"
-version = "1.0.0"
-dependencies = [
- "astroport",
- "bech32",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "cw20",
- "neutron-sdk",
- "schemars",
- "serde",
- "sha2 0.9.9",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-clock"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock-tester",
- "covenant-macros",
- "cw-fifo",
- "cw-multi-test",
- "cw-storage-plus 1.2.0",
- "cw2 1.1.2",
- "neutron-sdk",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-clock-tester"
-version = "1.0.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-storage-plus 1.2.0",
- "cw2 1.1.2",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-ibc-forwarder"
-version = "1.0.0"
-dependencies = [
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types 0.11.9",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "sha2 0.9.9",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-interchain-router"
-version = "1.0.0"
-dependencies = [
- "anyhow",
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-multi-test",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types 0.11.9",
- "schemars",
- "serde",
- "sha2 0.9.9",
- "thiserror",
-]
-
-[[package]]
 name = "covenant-macros"
 version = "1.0.0"
 dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "covenant-native-router"
-version = "1.0.0"
-dependencies = [
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw2 1.1.2",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types 0.11.9",
- "schemars",
- "serde",
- "sha2 0.9.9",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-native-splitter"
-version = "1.0.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw2 1.1.2",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-osmo-liquid-pooler"
-version = "1.0.0"
-dependencies = [
- "bech32",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-outpost-osmo-liquid-pooler",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "cw20",
- "neutron-sdk",
- "osmosis-std 0.20.1",
- "polytone",
- "prost 0.11.9",
- "schemars",
- "serde",
- "sha2 0.9.9",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-outpost-osmo-liquid-pooler"
-version = "1.0.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "osmosis-std 0.13.2",
- "prost 0.11.9",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-remote-chain-splitter"
-version = "1.0.0"
-dependencies = [
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "neutron-sdk",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-single-party-pol"
-version = "1.0.0"
-dependencies = [
- "astroport",
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-astroport-liquid-pooler",
- "covenant-clock",
- "covenant-ibc-forwarder",
- "covenant-interchain-router",
- "covenant-osmo-liquid-pooler",
- "covenant-remote-chain-splitter",
- "covenant-single-party-pol-holder",
- "covenant-stride-liquid-staker",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types 0.11.9",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "sha2 0.9.9",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-single-party-pol-holder"
-version = "1.0.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-stride-liquid-staker"
-version = "1.0.0"
-dependencies = [
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw2 1.1.2",
- "neutron-sdk",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-swap"
-version = "1.0.0"
-dependencies = [
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-ibc-forwarder",
- "covenant-interchain-router",
- "covenant-native-router",
- "covenant-native-splitter",
- "covenant-swap-holder",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types 0.11.9",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "sha2 0.9.9",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-swap-holder"
-version = "1.0.0"
-dependencies = [
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "neutron-sdk",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-two-party-pol"
-version = "1.0.0"
-dependencies = [
- "astroport",
- "bech32",
- "cosmos-sdk-proto 0.14.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-astroport-liquid-pooler",
- "covenant-clock",
- "covenant-ibc-forwarder",
- "covenant-interchain-router",
- "covenant-native-router",
- "covenant-osmo-liquid-pooler",
- "covenant-two-party-pol-holder",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "neutron-sdk",
- "prost 0.11.9",
- "prost-types 0.11.9",
- "schemars",
- "serde",
- "serde-json-wasm 0.4.1",
- "sha2 0.9.9",
- "thiserror",
-]
-
-[[package]]
-name = "covenant-two-party-pol-holder"
-version = "1.0.0"
-dependencies = [
- "astroport",
- "cosmwasm-schema",
- "cosmwasm-std",
- "covenant-clock",
- "covenant-macros",
- "covenant-utils",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw2 1.1.2",
- "cw20",
- "schemars",
- "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -1932,22 +1573,6 @@ dependencies = [
  "cosmos-sdk-proto 0.14.0",
  "cosmwasm-schema",
  "cosmwasm-std",
- "covenant-astroport-liquid-pooler",
- "covenant-clock",
- "covenant-ibc-forwarder",
- "covenant-interchain-router",
- "covenant-native-router",
- "covenant-native-splitter",
- "covenant-osmo-liquid-pooler",
- "covenant-outpost-osmo-liquid-pooler",
- "covenant-remote-chain-splitter",
- "covenant-single-party-pol",
- "covenant-single-party-pol-holder",
- "covenant-stride-liquid-staker",
- "covenant-swap",
- "covenant-swap-holder",
- "covenant-two-party-pol",
- "covenant-two-party-pol-holder",
  "covenant-utils",
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
@@ -1960,6 +1585,381 @@ dependencies = [
  "prost 0.11.9",
  "prost-types 0.11.9",
  "sha2 0.9.9",
+ "valence-astroport-liquid-pooler",
+ "valence-clock",
+ "valence-covenant-single-party-pol",
+ "valence-covenant-swap",
+ "valence-covenant-two-party-pol",
+ "valence-ibc-forwarder",
+ "valence-interchain-router",
+ "valence-native-router",
+ "valence-native-splitter",
+ "valence-osmo-liquid-pooler",
+ "valence-outpost-osmo-liquid-pooler",
+ "valence-remote-chain-splitter",
+ "valence-single-party-pol-holder",
+ "valence-stride-liquid-staker",
+ "valence-swap-holder",
+ "valence-two-party-pol-holder",
+]
+
+[[package]]
+name = "valence-astroport-liquid-pooler"
+version = "1.0.0"
+dependencies = [
+ "astroport",
+ "bech32",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "cw20",
+ "neutron-sdk",
+ "schemars",
+ "serde",
+ "sha2 0.9.9",
+ "thiserror",
+ "valence-clock",
+]
+
+[[package]]
+name = "valence-clock"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "cw-fifo",
+ "cw-multi-test",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "serde",
+ "thiserror",
+ "valence-clock-tester",
+]
+
+[[package]]
+name = "valence-clock-tester"
+version = "1.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "thiserror",
+]
+
+[[package]]
+name = "valence-covenant-single-party-pol"
+version = "1.0.0"
+dependencies = [
+ "astroport",
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types 0.11.9",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "sha2 0.9.9",
+ "thiserror",
+ "valence-astroport-liquid-pooler",
+ "valence-clock",
+ "valence-ibc-forwarder",
+ "valence-interchain-router",
+ "valence-osmo-liquid-pooler",
+ "valence-remote-chain-splitter",
+ "valence-single-party-pol-holder",
+ "valence-stride-liquid-staker",
+]
+
+[[package]]
+name = "valence-covenant-swap"
+version = "1.0.0"
+dependencies = [
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types 0.11.9",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "sha2 0.9.9",
+ "thiserror",
+ "valence-clock",
+ "valence-ibc-forwarder",
+ "valence-interchain-router",
+ "valence-native-router",
+ "valence-native-splitter",
+ "valence-swap-holder",
+]
+
+[[package]]
+name = "valence-covenant-two-party-pol"
+version = "1.0.0"
+dependencies = [
+ "astroport",
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types 0.11.9",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "sha2 0.9.9",
+ "thiserror",
+ "valence-astroport-liquid-pooler",
+ "valence-clock",
+ "valence-ibc-forwarder",
+ "valence-interchain-router",
+ "valence-native-router",
+ "valence-osmo-liquid-pooler",
+ "valence-two-party-pol-holder",
+]
+
+[[package]]
+name = "valence-ibc-forwarder"
+version = "1.0.0"
+dependencies = [
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types 0.11.9",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "sha2 0.9.9",
+ "thiserror",
+ "valence-clock",
+]
+
+[[package]]
+name = "valence-interchain-router"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-multi-test",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types 0.11.9",
+ "schemars",
+ "serde",
+ "sha2 0.9.9",
+ "thiserror",
+ "valence-clock",
+]
+
+[[package]]
+name = "valence-native-router"
+version = "1.0.0"
+dependencies = [
+ "bech32",
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "prost 0.11.9",
+ "prost-types 0.11.9",
+ "schemars",
+ "serde",
+ "sha2 0.9.9",
+ "thiserror",
+ "valence-clock",
+]
+
+[[package]]
+name = "valence-native-splitter"
+version = "1.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "schemars",
+ "serde",
+ "thiserror",
+ "valence-clock",
+]
+
+[[package]]
+name = "valence-osmo-liquid-pooler"
+version = "1.0.0"
+dependencies = [
+ "bech32",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "cw20",
+ "neutron-sdk",
+ "osmosis-std 0.20.1",
+ "polytone",
+ "prost 0.11.9",
+ "schemars",
+ "serde",
+ "sha2 0.9.9",
+ "thiserror",
+ "valence-clock",
+ "valence-outpost-osmo-liquid-pooler",
+]
+
+[[package]]
+name = "valence-outpost-osmo-liquid-pooler"
+version = "1.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "osmosis-std 0.13.2",
+ "prost 0.11.9",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "valence-remote-chain-splitter"
+version = "1.0.0"
+dependencies = [
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "thiserror",
+ "valence-clock",
+]
+
+[[package]]
+name = "valence-single-party-pol-holder"
+version = "1.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "valence-stride-liquid-staker"
+version = "1.0.0"
+dependencies = [
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "schemars",
+ "serde",
+ "serde-json-wasm 0.4.1",
+ "thiserror",
+ "valence-clock",
+]
+
+[[package]]
+name = "valence-swap-holder"
+version = "1.0.0"
+dependencies = [
+ "cosmos-sdk-proto 0.14.0",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "neutron-sdk",
+ "serde",
+ "thiserror",
+ "valence-clock",
+]
+
+[[package]]
+name = "valence-two-party-pol-holder"
+version = "1.0.0"
+dependencies = [
+ "astroport",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "covenant-macros",
+ "covenant-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "cw20",
+ "schemars",
+ "serde",
+ "thiserror",
+ "valence-clock",
 ]
 
 [[package]]

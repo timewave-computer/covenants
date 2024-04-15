@@ -24,7 +24,7 @@ impl Default for NativeRouterBuilder {
         let native_router_addr =
             builder.get_contract_addr(builder.native_router_code_id, NATIVE_ROUTER_SALT);
 
-        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+        let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![native_router_addr.to_string()],
         };
@@ -79,7 +79,7 @@ impl NativeRouterBuilder {
             .wrap()
             .query_wasm_smart(
                 native_router_address.clone(),
-                &covenant_native_router::msg::QueryMsg::ClockAddress {},
+                &valence_native_router::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -89,7 +89,7 @@ impl NativeRouterBuilder {
             .wrap()
             .query_wasm_smart(
                 native_router_address.clone(),
-                &covenant_native_router::msg::QueryMsg::ReceiverConfig {},
+                &valence_native_router::msg::QueryMsg::ReceiverConfig {},
             )
             .unwrap();
 
@@ -99,7 +99,7 @@ impl NativeRouterBuilder {
             .wrap()
             .query_wasm_smart(
                 native_router_address.clone(),
-                &covenant_native_router::msg::QueryMsg::TargetDenoms {},
+                &valence_native_router::msg::QueryMsg::TargetDenoms {},
             )
             .unwrap();
 
@@ -134,7 +134,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.router_addr.clone(),
-                &covenant_native_router::msg::QueryMsg::ReceiverConfig {},
+                &valence_native_router::msg::QueryMsg::ReceiverConfig {},
             )
             .unwrap()
     }
@@ -144,7 +144,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.router_addr.clone(),
-                &covenant_native_router::msg::QueryMsg::ClockAddress {},
+                &valence_native_router::msg::QueryMsg::ClockAddress {},
             )
             .unwrap()
     }
@@ -154,7 +154,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.router_addr.clone(),
-                &covenant_native_router::msg::QueryMsg::TargetDenoms {},
+                &valence_native_router::msg::QueryMsg::TargetDenoms {},
             )
             .unwrap()
     }
@@ -164,7 +164,7 @@ impl Suite {
             .execute_contract(
                 self.receiver_addr.clone(),
                 self.router_addr.clone(),
-                &covenant_native_router::msg::ExecuteMsg::DistributeFallback { denoms },
+                &valence_native_router::msg::ExecuteMsg::DistributeFallback { denoms },
                 &[],
             )
             .unwrap()

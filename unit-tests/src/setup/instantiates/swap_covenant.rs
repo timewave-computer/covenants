@@ -7,10 +7,10 @@ use crate::setup::suite_builder::SuiteBuilder;
 
 #[derive(Clone)]
 pub struct SwapCovenantInstantiate {
-    pub msg: covenant_swap::msg::InstantiateMsg,
+    pub msg: valence_covenant_swap::msg::InstantiateMsg,
 }
 
-impl From<SwapCovenantInstantiate> for covenant_swap::msg::InstantiateMsg {
+impl From<SwapCovenantInstantiate> for valence_covenant_swap::msg::InstantiateMsg {
     fn from(value: SwapCovenantInstantiate) -> Self {
         value.msg
     }
@@ -19,11 +19,11 @@ impl From<SwapCovenantInstantiate> for covenant_swap::msg::InstantiateMsg {
 impl SwapCovenantInstantiate {
     pub fn default(
         builder: &SuiteBuilder,
-        party_a_config: covenant_swap::msg::CovenantPartyConfig,
-        party_b_config: covenant_swap::msg::CovenantPartyConfig,
+        party_a_config: valence_covenant_swap::msg::CovenantPartyConfig,
+        party_b_config: valence_covenant_swap::msg::CovenantPartyConfig,
         splits: BTreeMap<String, covenant_utils::split::SplitConfig>,
     ) -> Self {
-        let contract_codes = covenant_swap::msg::SwapCovenantContractCodeIds {
+        let contract_codes = valence_covenant_swap::msg::SwapCovenantContractCodeIds {
             ibc_forwarder_code: builder.ibc_forwarder_code_id,
             interchain_router_code: builder.interchain_router_code_id,
             native_router_code: builder.native_router_code_id,
@@ -34,7 +34,7 @@ impl SwapCovenantInstantiate {
 
         Self::new(
             "swap_covenant".to_string(),
-            covenant_swap::msg::Timeouts {
+            valence_covenant_swap::msg::Timeouts {
                 ica_timeout: 1000_u64.into(),
                 ibc_transfer_timeout: 1000_u64.into(),
             },
@@ -57,8 +57,8 @@ impl SwapCovenantInstantiate {
         local_to_remote_channel_id: &str,
         remote_to_local_channel_id: &str,
         amount: u128,
-    ) -> covenant_swap::msg::CovenantPartyConfig {
-        covenant_swap::msg::CovenantPartyConfig::Interchain(
+    ) -> valence_covenant_swap::msg::CovenantPartyConfig {
+        valence_covenant_swap::msg::CovenantPartyConfig::Interchain(
             covenant_utils::InterchainCovenantParty {
                 party_receiver_addr: remote_recevier.to_string(),
                 party_chain_connection_id: "conn-1".to_string(),
@@ -79,13 +79,15 @@ impl SwapCovenantInstantiate {
         recevier: &Addr,
         denom: &str,
         amount: u128,
-    ) -> covenant_swap::msg::CovenantPartyConfig {
-        covenant_swap::msg::CovenantPartyConfig::Native(covenant_utils::NativeCovenantParty {
-            party_receiver_addr: recevier.to_string(),
-            native_denom: denom.to_string(),
-            addr: recevier.to_string(),
-            contribution: coin(amount, denom),
-        })
+    ) -> valence_covenant_swap::msg::CovenantPartyConfig {
+        valence_covenant_swap::msg::CovenantPartyConfig::Native(
+            covenant_utils::NativeCovenantParty {
+                party_receiver_addr: recevier.to_string(),
+                native_denom: denom.to_string(),
+                addr: recevier.to_string(),
+                contribution: coin(amount, denom),
+            },
+        )
     }
 
     pub fn get_split_custom(
@@ -112,18 +114,18 @@ impl SwapCovenantInstantiate {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         label: String,
-        timeouts: covenant_swap::msg::Timeouts,
-        contract_codes: covenant_swap::msg::SwapCovenantContractCodeIds,
+        timeouts: valence_covenant_swap::msg::Timeouts,
+        contract_codes: valence_covenant_swap::msg::SwapCovenantContractCodeIds,
         clock_tick_max_gas: Option<Uint64>,
         lockup_config: Expiration,
-        party_a_config: covenant_swap::msg::CovenantPartyConfig,
-        party_b_config: covenant_swap::msg::CovenantPartyConfig,
+        party_a_config: valence_covenant_swap::msg::CovenantPartyConfig,
+        party_b_config: valence_covenant_swap::msg::CovenantPartyConfig,
         splits: BTreeMap<String, covenant_utils::split::SplitConfig>,
         fallback_split: Option<covenant_utils::split::SplitConfig>,
         fallback_address: Option<String>,
     ) -> Self {
         Self {
-            msg: covenant_swap::msg::InstantiateMsg {
+            msg: valence_covenant_swap::msg::InstantiateMsg {
                 label,
                 timeouts,
                 contract_codes,
@@ -149,7 +151,7 @@ impl SwapCovenantInstantiate {
         ica_timeout: impl Into<Uint64>,
         ibc_transfer_timeout: impl Into<Uint64>,
     ) -> &mut Self {
-        self.msg.timeouts = covenant_swap::msg::Timeouts {
+        self.msg.timeouts = valence_covenant_swap::msg::Timeouts {
             ica_timeout: ica_timeout.into(),
             ibc_transfer_timeout: ibc_transfer_timeout.into(),
         };
@@ -158,7 +160,7 @@ impl SwapCovenantInstantiate {
 
     pub fn with_contract_codes(
         &mut self,
-        codes: covenant_swap::msg::SwapCovenantContractCodeIds,
+        codes: valence_covenant_swap::msg::SwapCovenantContractCodeIds,
     ) -> &mut Self {
         self.msg.contract_codes = codes;
         self
@@ -176,7 +178,7 @@ impl SwapCovenantInstantiate {
 
     pub fn with_party_a_config(
         &mut self,
-        config: covenant_swap::msg::CovenantPartyConfig,
+        config: valence_covenant_swap::msg::CovenantPartyConfig,
     ) -> &mut Self {
         self.msg.party_a_config = config;
         self
@@ -184,7 +186,7 @@ impl SwapCovenantInstantiate {
 
     pub fn with_party_b_config(
         &mut self,
-        config: covenant_swap::msg::CovenantPartyConfig,
+        config: valence_covenant_swap::msg::CovenantPartyConfig,
     ) -> &mut Self {
         self.msg.party_b_config = config;
         self

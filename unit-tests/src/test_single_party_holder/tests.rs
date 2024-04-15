@@ -203,7 +203,7 @@ fn test_migrate_update_config_validates_lockup_config() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+            &valence_single_party_pol_holder::msg::MigrateMsg::UpdateConfig {
                 withdrawer: None,
                 withdraw_to: None,
                 emergency_committee: None,
@@ -226,7 +226,7 @@ fn test_migrate_update_config() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
-            &covenant_single_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+            &valence_single_party_pol_holder::msg::MigrateMsg::UpdateConfig {
                 withdrawer: Some(clock.to_string()),
                 withdraw_to: Some(clock.to_string()),
                 emergency_committee: Some(clock.to_string()),

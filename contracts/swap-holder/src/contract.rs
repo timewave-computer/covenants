@@ -14,10 +14,10 @@ use crate::{
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use cw2::set_contract_version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-swap-holder";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]

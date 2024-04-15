@@ -4,10 +4,10 @@ use crate::setup::suite_builder::SuiteBuilder;
 
 #[derive(Clone)]
 pub struct ClockInstantiate {
-    pub msg: covenant_clock::msg::InstantiateMsg,
+    pub msg: valence_clock::msg::InstantiateMsg,
 }
 
-impl From<ClockInstantiate> for covenant_clock::msg::InstantiateMsg {
+impl From<ClockInstantiate> for valence_clock::msg::InstantiateMsg {
     fn from(value: ClockInstantiate) -> Self {
         value.msg
     }
@@ -16,7 +16,7 @@ impl From<ClockInstantiate> for covenant_clock::msg::InstantiateMsg {
 impl ClockInstantiate {
     pub fn new(tick_max_gas: Option<Uint64>, whitelist: Vec<String>) -> Self {
         Self {
-            msg: covenant_clock::msg::InstantiateMsg {
+            msg: valence_clock::msg::InstantiateMsg {
                 tick_max_gas,
                 whitelist,
             },
@@ -41,7 +41,7 @@ impl ClockInstantiate {
         whitelist: Vec<String>,
     ) -> Self {
         Self {
-            msg: covenant_clock::msg::InstantiateMsg {
+            msg: valence_clock::msg::InstantiateMsg {
                 tick_max_gas,
                 whitelist,
             },

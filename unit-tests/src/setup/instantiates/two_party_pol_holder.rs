@@ -8,10 +8,10 @@ use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 #[derive(Clone)]
 pub struct TwoPartyHolderInstantiate {
-    pub msg: covenant_two_party_pol_holder::msg::InstantiateMsg,
+    pub msg: valence_two_party_pol_holder::msg::InstantiateMsg,
 }
 
-impl From<TwoPartyHolderInstantiate> for covenant_two_party_pol_holder::msg::InstantiateMsg {
+impl From<TwoPartyHolderInstantiate> for valence_two_party_pol_holder::msg::InstantiateMsg {
     fn from(value: TwoPartyHolderInstantiate) -> Self {
         value.msg
     }
@@ -23,15 +23,15 @@ impl TwoPartyHolderInstantiate {
         clock_address: String,
         next_contract: String,
         lockup_config: Expiration,
-        ragequit_config: covenant_two_party_pol_holder::msg::RagequitConfig,
+        ragequit_config: valence_two_party_pol_holder::msg::RagequitConfig,
         deposit_deadline: Expiration,
-        covenant_config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
+        covenant_config: valence_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
         splits: BTreeMap<String, SplitConfig>,
         fallback_split: Option<SplitConfig>,
         emergency_committee_addr: Option<String>,
     ) -> Self {
         Self {
-            msg: covenant_two_party_pol_holder::msg::InstantiateMsg {
+            msg: valence_two_party_pol_holder::msg::InstantiateMsg {
                 clock_address,
                 next_contract,
                 lockup_config,
@@ -63,7 +63,7 @@ impl TwoPartyHolderInstantiate {
 
     pub fn with_ragequit_config(
         &mut self,
-        config: covenant_two_party_pol_holder::msg::RagequitConfig,
+        config: valence_two_party_pol_holder::msg::RagequitConfig,
     ) -> &mut Self {
         self.msg.ragequit_config = config;
         self
@@ -76,7 +76,7 @@ impl TwoPartyHolderInstantiate {
 
     pub fn with_covenant_config(
         &mut self,
-        config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
+        config: valence_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
     ) -> &mut Self {
         self.msg.covenant_config = config;
         self
@@ -115,28 +115,28 @@ impl TwoPartyHolderInstantiate {
         denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
 
         Self {
-            msg: covenant_two_party_pol_holder::msg::InstantiateMsg {
+            msg: valence_two_party_pol_holder::msg::InstantiateMsg {
                 clock_address,
                 next_contract,
                 lockup_config: Expiration::AtHeight(200000),
-                ragequit_config: covenant_two_party_pol_holder::msg::RagequitConfig::Disabled {},
+                ragequit_config: valence_two_party_pol_holder::msg::RagequitConfig::Disabled {},
                 deposit_deadline: Expiration::AtHeight(100000),
-                covenant_config: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantConfig {
-                    party_a: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantParty {
+                covenant_config: valence_two_party_pol_holder::msg::TwoPartyPolCovenantConfig {
+                    party_a: valence_two_party_pol_holder::msg::TwoPartyPolCovenantParty {
                         contribution: coin(10_000, DENOM_ATOM_ON_NTRN),
                         host_addr: party_a_addr.to_string(),
                         controller_addr: party_a_addr.to_string(),
                         allocation: Decimal::from_str("0.5").unwrap(),
                         router: party_a_addr.to_string(),
                     },
-                    party_b: covenant_two_party_pol_holder::msg::TwoPartyPolCovenantParty {
+                    party_b: valence_two_party_pol_holder::msg::TwoPartyPolCovenantParty {
                         contribution: coin(10_000, DENOM_LS_ATOM_ON_NTRN),
                         host_addr: party_b_addr.to_string(),
                         controller_addr: party_b_addr.to_string(),
                         allocation: Decimal::from_str("0.5").unwrap(),
                         router: party_b_addr.to_string(),
                     },
-                    covenant_type: covenant_two_party_pol_holder::msg::CovenantType::Share {},
+                    covenant_type: valence_two_party_pol_holder::msg::CovenantType::Share {},
                 },
                 splits: denom_to_split_config_map,
                 fallback_split: None,

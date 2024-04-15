@@ -18,22 +18,22 @@ colored          = "1.9.4"
 const_format     = "0.2.32"
 cosmos-sdk-proto = { workspace = true }
 
-covenant-remote-chain-splitter      = { workspace = true }
-covenant-ibc-forwarder              = { workspace = true }
-covenant-clock                      = { workspace = true }
-covenant-stride-liquid-staker       = { workspace = true }
-covenant-native-splitter            = { workspace = true }
-covenant-swap-holder                = { workspace = true }
-covenant-swap                       = { workspace = true }
-covenant-interchain-router          = { workspace = true }
-covenant-two-party-pol-holder       = { workspace = true }
-covenant-two-party-pol              = { workspace = true }
-covenant-astroport-liquid-pooler    = { workspace = true }
-covenant-native-router              = { workspace = true }
-covenant-outpost-osmo-liquid-pooler = { workspace = true }
-covenant-single-party-pol           = { workspace = true }
-covenant-single-party-pol-holder    = { workspace = true }
-covenant-osmo-liquid-pooler         = { workspace = true }
+valence-remote-chain-splitter      = { workspace = true }
+valence-ibc-forwarder              = { workspace = true }
+valence-clock                      = { workspace = true }
+valence-stride-liquid-staker       = { workspace = true }
+valence-native-splitter            = { workspace = true }
+valence-swap-holder                = { workspace = true }
+valence-covenant-swap                       = { workspace = true }
+valence-interchain-router          = { workspace = true }
+valence-two-party-pol-holder       = { workspace = true }
+valence-covenant-two-party-pol              = { workspace = true }
+valence-astroport-liquid-pooler    = { workspace = true }
+valence-native-router              = { workspace = true }
+valence-outpost-osmo-liquid-pooler = { workspace = true }
+valence-covenant-single-party-pol           = { workspace = true }
+valence-single-party-pol-holder    = { workspace = true }
+valence-osmo-liquid-pooler         = { workspace = true }
 
 covenant-utils = { workspace = true }
 

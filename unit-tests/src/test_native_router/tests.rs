@@ -38,7 +38,7 @@ fn test_execute_tick_validates_clock_addr() {
         .execute_contract(
             not_the_clock,
             router,
-            &covenant_native_router::msg::ExecuteMsg::Tick {},
+            &valence_native_router::msg::ExecuteMsg::Tick {},
             &[],
         )
         .unwrap();
@@ -151,7 +151,7 @@ fn test_migrate_update_config() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             router_addr,
-            &covenant_native_router::msg::MigrateMsg::UpdateConfig {
+            &valence_native_router::msg::MigrateMsg::UpdateConfig {
                 clock_addr: Some(receiver_addr.to_string()),
                 receiver_address: Some(clock_addr.to_string()),
                 target_denoms: Some(target_denoms.clone().into_iter().collect()),

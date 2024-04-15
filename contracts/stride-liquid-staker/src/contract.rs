@@ -5,7 +5,6 @@ use cosmwasm_std::{
     to_json_binary, to_json_string, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
     StdError, StdResult, Uint128,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::ica::{
     get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee, sudo_error,
     sudo_open_ack, sudo_response, sudo_timeout, INTERCHAIN_ACCOUNT_ID,
@@ -13,6 +12,7 @@ use covenant_utils::ica::{
 use covenant_utils::neutron::{self, get_proto_coin, RemoteChainInfo, SudoPayload};
 use cw2::set_contract_version;
 use neutron_sdk::query::min_ibc_fee::MinIbcFeeResponse;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::helpers::{Autopilot, AutopilotConfig};
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
@@ -28,7 +28,7 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-stride-liquid-staker";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;

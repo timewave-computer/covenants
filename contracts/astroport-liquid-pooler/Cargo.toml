@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-astroport-liquid-pooler"
+name        = "valence-astroport-liquid-pooler"
 authors     = ["benskey bekauz@protonmail.com"]
 description = "Astroport liquid pooler contract for covenants"
 license     = { workspace = true }
@@ -21,7 +21,7 @@ library = []
 
 [dependencies]
 covenant-macros = { workspace = true }
-covenant-clock  = { workspace = true, features = ["library"] }
+valence-clock  = { workspace = true, features = ["library"] }
 
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
