@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-clock"
+name        = "valence-clock"
 authors     = ["ekez <ekez@withoutdoing.com>"]
 description = "A clock that advances the covenant state machine."
 edition     = { workspace = true }
@@ -30,4 +30,4 @@ neutron-sdk     = { workspace = true }
 [dev-dependencies]
 cw-multi-test         = { workspace = true }
 anyhow                = { workspace = true }
-covenant-clock-tester = { workspace = true, features = ["library"] }
+valence-clock-tester = { workspace = true, features = ["library"] }

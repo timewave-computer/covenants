@@ -6,10 +6,10 @@ use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
 #[derive(Clone)]
 pub struct AstroLiquidPoolerInstantiate {
-    pub msg: covenant_astroport_liquid_pooler::msg::InstantiateMsg,
+    pub msg: valence_astroport_liquid_pooler::msg::InstantiateMsg,
 }
 
-impl From<AstroLiquidPoolerInstantiate> for covenant_astroport_liquid_pooler::msg::InstantiateMsg {
+impl From<AstroLiquidPoolerInstantiate> for valence_astroport_liquid_pooler::msg::InstantiateMsg {
     fn from(value: AstroLiquidPoolerInstantiate) -> Self {
         value.msg
     }
@@ -20,14 +20,14 @@ impl AstroLiquidPoolerInstantiate {
         pool_address: String,
         clock_address: String,
         slippage_tolerance: Option<Decimal>,
-        assets: covenant_astroport_liquid_pooler::msg::AssetData,
+        assets: valence_astroport_liquid_pooler::msg::AssetData,
         single_side_lp_limits: SingleSideLpLimits,
         pool_price_config: PoolPriceConfig,
         pair_type: PairType,
         holder_address: String,
     ) -> Self {
         Self {
-            msg: covenant_astroport_liquid_pooler::msg::InstantiateMsg {
+            msg: valence_astroport_liquid_pooler::msg::InstantiateMsg {
                 pool_address,
                 clock_address,
                 slippage_tolerance,
@@ -57,7 +57,7 @@ impl AstroLiquidPoolerInstantiate {
 
     pub fn with_assets(
         &mut self,
-        assets: covenant_astroport_liquid_pooler::msg::AssetData,
+        assets: valence_astroport_liquid_pooler::msg::AssetData,
     ) -> &mut Self {
         self.msg.assets = assets;
         self
@@ -90,11 +90,11 @@ impl AstroLiquidPoolerInstantiate {
 impl AstroLiquidPoolerInstantiate {
     pub fn default(pool_address: String, clock_address: String, holder_address: String) -> Self {
         Self {
-            msg: covenant_astroport_liquid_pooler::msg::InstantiateMsg {
+            msg: valence_astroport_liquid_pooler::msg::InstantiateMsg {
                 pool_address,
                 clock_address,
                 slippage_tolerance: None,
-                assets: covenant_astroport_liquid_pooler::msg::AssetData {
+                assets: valence_astroport_liquid_pooler::msg::AssetData {
                     asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),
                     asset_b_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
                 },

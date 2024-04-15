@@ -28,7 +28,7 @@ impl IbcForwarderBuilder {
         let next_contract_addr =
             builder.get_contract_addr(builder.ibc_forwarder_code_id, "deposit_forwarder");
 
-        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+        let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![
                 ibc_forwarder_addr.to_string(),
@@ -125,7 +125,7 @@ impl IbcForwarderBuilder {
             .wrap()
             .query_wasm_smart(
                 ibc_forwarder_address.clone(),
-                &covenant_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -135,7 +135,7 @@ impl IbcForwarderBuilder {
             .wrap()
             .query_wasm_smart(
                 ibc_forwarder_address.clone(),
-                &covenant_ibc_forwarder::msg::QueryMsg::RemoteChainInfo {},
+                &valence_ibc_forwarder::msg::QueryMsg::RemoteChainInfo {},
             )
             .unwrap();
 
@@ -145,7 +145,7 @@ impl IbcForwarderBuilder {
             .wrap()
             .query_wasm_smart(
                 ibc_forwarder_address.clone(),
-                &covenant_ibc_forwarder::msg::QueryMsg::DepositAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::DepositAddress {},
             )
             .unwrap();
 
@@ -179,7 +179,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.ibc_forwarder.clone(),
-                &covenant_ibc_forwarder::msg::QueryMsg::DepositAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::DepositAddress {},
             )
             .unwrap()
     }
@@ -189,7 +189,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.ibc_forwarder.clone(),
-                &covenant_ibc_forwarder::msg::QueryMsg::RemoteChainInfo {},
+                &valence_ibc_forwarder::msg::QueryMsg::RemoteChainInfo {},
             )
             .unwrap()
     }
@@ -199,17 +199,17 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.ibc_forwarder.clone(),
-                &covenant_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::ClockAddress {},
             )
             .unwrap()
     }
 
-    pub(crate) fn query_contract_state(&mut self) -> covenant_ibc_forwarder::msg::ContractState {
+    pub(crate) fn query_contract_state(&mut self) -> valence_ibc_forwarder::msg::ContractState {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.ibc_forwarder.clone(),
-                &covenant_ibc_forwarder::msg::QueryMsg::ContractState {},
+                &valence_ibc_forwarder::msg::QueryMsg::ContractState {},
             )
             .unwrap()
     }
@@ -217,7 +217,7 @@ impl Suite {
     pub(crate) fn query_ica_address(&mut self, addr: Addr) -> Addr {
         self.app
             .wrap()
-            .query_wasm_smart(addr, &covenant_ibc_forwarder::msg::QueryMsg::IcaAddress {})
+            .query_wasm_smart(addr, &valence_ibc_forwarder::msg::QueryMsg::IcaAddress {})
             .unwrap()
     }
 
@@ -239,7 +239,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.ibc_forwarder.clone(),
-                &covenant_ibc_forwarder::msg::QueryMsg::FallbackAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::FallbackAddress {},
             )
             .unwrap()
     }
@@ -274,7 +274,7 @@ impl Suite {
             .execute_contract(
                 self.faucet.clone(),
                 self.ibc_forwarder.clone(),
-                &covenant_ibc_forwarder::msg::ExecuteMsg::DistributeFallback { coins },
+                &valence_ibc_forwarder::msg::ExecuteMsg::DistributeFallback { coins },
                 &funds,
             )
             .unwrap()

@@ -1,5 +1,5 @@
 [package]
-name    = "covenant-clock-tester"
+name    = "valence-clock-tester"
 authors = ["ekez <ekez@withoutdoing.com>"]
 edition = { workspace = true }
 license = { workspace = true }

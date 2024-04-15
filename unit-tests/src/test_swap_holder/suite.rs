@@ -11,9 +11,9 @@ use crate::setup::{
     SWAP_HOLDER_SALT,
 };
 use cosmwasm_std::{Addr, Decimal};
-use covenant_swap_holder::msg::RefundConfig;
 use covenant_utils::{split::SplitConfig, CovenantPartiesConfig, CovenantTerms};
 use cw_utils::Expiration;
+use valence_swap_holder::msg::RefundConfig;
 
 pub struct SwapHolderBuilder {
     pub builder: SuiteBuilder,
@@ -37,7 +37,7 @@ impl Default for SwapHolderBuilder {
         let party_b_router_addr =
             builder.get_contract_addr(builder.native_router_code_id, "party_b");
 
-        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+        let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![
                 holder_addr.to_string(),
@@ -59,7 +59,7 @@ impl Default for SwapHolderBuilder {
         builder.contract_init2(
             builder.native_router_code_id,
             "party_a",
-            &covenant_native_router::msg::InstantiateMsg {
+            &valence_native_router::msg::InstantiateMsg {
                 clock_address: clock_addr.to_string(),
                 receiver_address: party_a_controller_addr.to_string(),
                 denoms: denom_set.clone(),
@@ -69,7 +69,7 @@ impl Default for SwapHolderBuilder {
         builder.contract_init2(
             builder.native_router_code_id,
             "party_b",
-            &covenant_native_router::msg::InstantiateMsg {
+            &valence_native_router::msg::InstantiateMsg {
                 clock_address: clock_addr.to_string(),
                 receiver_address: party_b_controller_addr.to_string(),
                 denoms: denom_set.clone(),
@@ -92,7 +92,7 @@ impl Default for SwapHolderBuilder {
         denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
         denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
 
-        let native_splitter_instantiate_msg = covenant_native_splitter::msg::InstantiateMsg {
+        let native_splitter_instantiate_msg = valence_native_splitter::msg::InstantiateMsg {
             clock_address: clock_addr.to_string(),
             splits: denom_to_split_config_map,
             fallback_split: None,
@@ -162,7 +162,7 @@ impl SwapHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_swap_holder::msg::QueryMsg::ClockAddress {},
+                &valence_swap_holder::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -172,7 +172,7 @@ impl SwapHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_swap_holder::msg::QueryMsg::LockupConfig {},
+                &valence_swap_holder::msg::QueryMsg::LockupConfig {},
             )
             .unwrap();
 
@@ -182,7 +182,7 @@ impl SwapHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_swap_holder::msg::QueryMsg::NextContract {},
+                &valence_swap_holder::msg::QueryMsg::NextContract {},
             )
             .unwrap();
 
@@ -192,7 +192,7 @@ impl SwapHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_swap_holder::msg::QueryMsg::CovenantParties {},
+                &valence_swap_holder::msg::QueryMsg::CovenantParties {},
             )
             .unwrap();
 
@@ -202,7 +202,7 @@ impl SwapHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_swap_holder::msg::QueryMsg::CovenantTerms {},
+                &valence_swap_holder::msg::QueryMsg::CovenantTerms {},
             )
             .unwrap();
 
@@ -237,7 +237,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder.clone(),
-                &covenant_swap_holder::msg::QueryMsg::NextContract {},
+                &valence_swap_holder::msg::QueryMsg::NextContract {},
             )
             .unwrap()
     }
@@ -247,7 +247,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder.clone(),
-                &covenant_swap_holder::msg::QueryMsg::LockupConfig {},
+                &valence_swap_holder::msg::QueryMsg::LockupConfig {},
             )
             .unwrap()
     }
@@ -257,7 +257,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder.clone(),
-                &covenant_swap_holder::msg::QueryMsg::CovenantParties {},
+                &valence_swap_holder::msg::QueryMsg::CovenantParties {},
             )
             .unwrap()
     }
@@ -267,7 +267,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder.clone(),
-                &covenant_swap_holder::msg::QueryMsg::CovenantTerms {},
+                &valence_swap_holder::msg::QueryMsg::CovenantTerms {},
             )
             .unwrap()
     }
@@ -277,17 +277,17 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder.clone(),
-                &covenant_swap_holder::msg::QueryMsg::ClockAddress {},
+                &valence_swap_holder::msg::QueryMsg::ClockAddress {},
             )
             .unwrap()
     }
 
-    pub fn query_contract_state(&self) -> covenant_swap_holder::msg::ContractState {
+    pub fn query_contract_state(&self) -> valence_swap_holder::msg::ContractState {
         self.get_app()
             .wrap()
             .query_wasm_smart(
                 self.holder.clone(),
-                &covenant_swap_holder::msg::QueryMsg::ContractState {},
+                &valence_swap_holder::msg::QueryMsg::ContractState {},
             )
             .unwrap()
     }
@@ -297,7 +297,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder.clone(),
-                &covenant_swap_holder::msg::QueryMsg::DepositAddress {},
+                &valence_swap_holder::msg::QueryMsg::DepositAddress {},
             )
             .unwrap()
     }
@@ -307,7 +307,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder.clone(),
-                &covenant_swap_holder::msg::QueryMsg::RefundConfig {},
+                &valence_swap_holder::msg::QueryMsg::RefundConfig {},
             )
             .unwrap()
     }

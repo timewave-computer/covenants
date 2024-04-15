@@ -4,9 +4,9 @@ use cosmwasm_std::{
     coin, ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
     MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::{astroport::query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
 use cw2::set_contract_version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use astroport::{
     asset::{Asset, PairInfo},
@@ -29,7 +29,7 @@ use neutron_sdk::NeutronResult;
 
 use crate::state::{CLOCK_ADDRESS, CONTRACT_STATE};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-astroport-liquid-pooler";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const DOUBLE_SIDED_REPLY_ID: u64 = 321u64;

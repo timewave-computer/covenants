@@ -6,15 +6,15 @@ use cosmwasm_std::{
     ensure, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response,
     StdError, StdResult,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::split::SplitConfig;
 use cw2::set_contract_version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{CLOCK_ADDRESS, FALLBACK_SPLIT, SPLIT_CONFIG_MAP};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-native-splitter";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]

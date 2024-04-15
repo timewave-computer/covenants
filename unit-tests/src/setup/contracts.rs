@@ -70,8 +70,8 @@ pub fn clock_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let exec = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_clock::msg::ExecuteMsg| {
-        execute_into_neutron(covenant_clock::contract::execute(
+                msg: valence_clock::msg::ExecuteMsg| {
+        execute_into_neutron(valence_clock::contract::execute(
             get_empty_depsmut(deps),
             env,
             info,
@@ -82,8 +82,8 @@ pub fn clock_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_clock::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_clock::contract::instantiate(
+                msg: valence_clock::msg::InstantiateMsg| {
+        execute_into_neutron(valence_clock::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -91,12 +91,12 @@ pub fn clock_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
         ))
     };
 
-    let query = |deps: Deps<NeutronQuery>, env: Env, msg: covenant_clock::msg::QueryMsg| {
-        covenant_clock::contract::query(get_empty_deps(deps), env, msg)
+    let query = |deps: Deps<NeutronQuery>, env: Env, msg: valence_clock::msg::QueryMsg| {
+        valence_clock::contract::query(get_empty_deps(deps), env, msg)
     };
 
-    let migrate = |deps: DepsMut<NeutronQuery>, env: Env, msg: covenant_clock::msg::MigrateMsg| {
-        execute_into_neutron(covenant_clock::contract::migrate(
+    let migrate = |deps: DepsMut<NeutronQuery>, env: Env, msg: valence_clock::msg::MigrateMsg| {
+        execute_into_neutron(valence_clock::contract::migrate(
             get_empty_depsmut(deps),
             env,
             msg,
@@ -104,7 +104,7 @@ pub fn clock_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     };
 
     let reply = |deps: DepsMut<NeutronQuery>, env: Env, reply: Reply| {
-        execute_into_neutron(covenant_clock::contract::reply(
+        execute_into_neutron(valence_clock::contract::reply(
             get_empty_depsmut(deps),
             env,
             reply,
@@ -119,35 +119,35 @@ pub fn clock_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
 
 pub fn ibc_forwarder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let contract = ContractWrapper::new(
-        covenant_ibc_forwarder::contract::execute,
-        covenant_ibc_forwarder::contract::instantiate,
-        covenant_ibc_forwarder::contract::query,
+        valence_ibc_forwarder::contract::execute,
+        valence_ibc_forwarder::contract::instantiate,
+        valence_ibc_forwarder::contract::query,
     )
-    .with_reply(covenant_ibc_forwarder::contract::reply)
-    .with_sudo(covenant_ibc_forwarder::contract::sudo)
-    .with_migrate(covenant_ibc_forwarder::contract::migrate);
+    .with_reply(valence_ibc_forwarder::contract::reply)
+    .with_sudo(valence_ibc_forwarder::contract::sudo)
+    .with_migrate(valence_ibc_forwarder::contract::migrate);
     Box::new(contract)
 }
 
 pub fn interchain_router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let contract = ContractWrapper::new(
-        covenant_interchain_router::contract::execute,
-        covenant_interchain_router::contract::instantiate,
-        covenant_interchain_router::contract::query,
+        valence_interchain_router::contract::execute,
+        valence_interchain_router::contract::instantiate,
+        valence_interchain_router::contract::query,
     )
-    .with_migrate(covenant_interchain_router::contract::migrate);
+    .with_migrate(valence_interchain_router::contract::migrate);
     Box::new(contract)
 }
 
 pub fn remote_splitter_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let contract = ContractWrapper::new(
-        covenant_remote_chain_splitter::contract::execute,
-        covenant_remote_chain_splitter::contract::instantiate,
-        covenant_remote_chain_splitter::contract::query,
+        valence_remote_chain_splitter::contract::execute,
+        valence_remote_chain_splitter::contract::instantiate,
+        valence_remote_chain_splitter::contract::query,
     )
-    .with_reply(covenant_remote_chain_splitter::contract::reply)
-    .with_sudo(covenant_remote_chain_splitter::contract::sudo)
-    .with_migrate(covenant_remote_chain_splitter::contract::migrate);
+    .with_reply(valence_remote_chain_splitter::contract::reply)
+    .with_sudo(valence_remote_chain_splitter::contract::sudo)
+    .with_migrate(valence_remote_chain_splitter::contract::migrate);
     Box::new(contract)
 }
 
@@ -155,8 +155,8 @@ pub fn osmo_lp_outpost_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
     let exec = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_outpost_osmo_liquid_pooler::msg::ExecuteMsg| {
-        execute_into_neutron(covenant_outpost_osmo_liquid_pooler::contract::execute(
+                msg: valence_outpost_osmo_liquid_pooler::msg::ExecuteMsg| {
+        execute_into_neutron(valence_outpost_osmo_liquid_pooler::contract::execute(
             get_empty_depsmut(deps),
             env,
             info,
@@ -167,8 +167,8 @@ pub fn osmo_lp_outpost_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_outpost_osmo_liquid_pooler::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_outpost_osmo_liquid_pooler::contract::instantiate(
+                msg: valence_outpost_osmo_liquid_pooler::msg::InstantiateMsg| {
+        execute_into_neutron(valence_outpost_osmo_liquid_pooler::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -177,7 +177,7 @@ pub fn osmo_lp_outpost_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
     };
 
     let reply = |deps: DepsMut<NeutronQuery>, env: Env, reply: Reply| {
-        execute_into_neutron(covenant_outpost_osmo_liquid_pooler::contract::reply(
+        execute_into_neutron(valence_outpost_osmo_liquid_pooler::contract::reply(
             get_empty_depsmut(deps),
             env,
             reply,
@@ -186,8 +186,8 @@ pub fn osmo_lp_outpost_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
 
     let query = |deps: Deps<NeutronQuery>,
                  env: Env,
-                 msg: covenant_outpost_osmo_liquid_pooler::msg::QueryMsg| {
-        covenant_outpost_osmo_liquid_pooler::contract::query(get_empty_deps(deps), env, msg)
+                 msg: valence_outpost_osmo_liquid_pooler::msg::QueryMsg| {
+        valence_outpost_osmo_liquid_pooler::contract::query(get_empty_deps(deps), env, msg)
     };
 
     Box::new(ContractWrapper::new(exec, init, query).with_reply(reply))
@@ -197,8 +197,8 @@ pub fn native_router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let exec = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_native_router::msg::ExecuteMsg| {
-        execute_into_neutron(covenant_native_router::contract::execute(
+                msg: valence_native_router::msg::ExecuteMsg| {
+        execute_into_neutron(valence_native_router::contract::execute(
             get_empty_depsmut(deps),
             env,
             info,
@@ -209,8 +209,8 @@ pub fn native_router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_native_router::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_native_router::contract::instantiate(
+                msg: valence_native_router::msg::InstantiateMsg| {
+        execute_into_neutron(valence_native_router::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -218,13 +218,13 @@ pub fn native_router_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
         ))
     };
 
-    let query = |deps: Deps<NeutronQuery>, env: Env, msg: covenant_native_router::msg::QueryMsg| {
-        covenant_native_router::contract::query(get_empty_deps(deps), env, msg)
+    let query = |deps: Deps<NeutronQuery>, env: Env, msg: valence_native_router::msg::QueryMsg| {
+        valence_native_router::contract::query(get_empty_deps(deps), env, msg)
     };
 
     let migrate =
-        |deps: DepsMut<NeutronQuery>, env: Env, msg: covenant_native_router::msg::MigrateMsg| {
-            execute_into_neutron(covenant_native_router::contract::migrate(
+        |deps: DepsMut<NeutronQuery>, env: Env, msg: valence_native_router::msg::MigrateMsg| {
+            execute_into_neutron(valence_native_router::contract::migrate(
                 get_empty_depsmut(deps),
                 env,
                 msg,
@@ -239,8 +239,8 @@ pub fn native_splitter_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
     let exec = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_native_splitter::msg::ExecuteMsg| {
-        execute_into_neutron(covenant_native_splitter::contract::execute(
+                msg: valence_native_splitter::msg::ExecuteMsg| {
+        execute_into_neutron(valence_native_splitter::contract::execute(
             get_empty_depsmut(deps),
             env,
             info,
@@ -251,8 +251,8 @@ pub fn native_splitter_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_native_splitter::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_native_splitter::contract::instantiate(
+                msg: valence_native_splitter::msg::InstantiateMsg| {
+        execute_into_neutron(valence_native_splitter::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -261,13 +261,13 @@ pub fn native_splitter_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>>
     };
 
     let query =
-        |deps: Deps<NeutronQuery>, env: Env, msg: covenant_native_splitter::msg::QueryMsg| {
-            covenant_native_splitter::contract::query(get_empty_deps(deps), env, msg)
+        |deps: Deps<NeutronQuery>, env: Env, msg: valence_native_splitter::msg::QueryMsg| {
+            valence_native_splitter::contract::query(get_empty_deps(deps), env, msg)
         };
 
     let migrate =
-        |deps: DepsMut<NeutronQuery>, env: Env, msg: covenant_native_splitter::msg::MigrateMsg| {
-            execute_into_neutron(covenant_native_splitter::contract::migrate(
+        |deps: DepsMut<NeutronQuery>, env: Env, msg: valence_native_splitter::msg::MigrateMsg| {
+            execute_into_neutron(valence_native_splitter::contract::migrate(
                 get_empty_depsmut(deps),
                 env,
                 msg,
@@ -290,8 +290,8 @@ pub fn single_party_covenant_contract() -> Box<dyn Contract<NeutronMsg, NeutronQ
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_single_party_pol::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_single_party_pol::contract::instantiate(
+                msg: valence_covenant_single_party_pol::msg::InstantiateMsg| {
+        execute_into_neutron(valence_covenant_single_party_pol::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -299,19 +299,21 @@ pub fn single_party_covenant_contract() -> Box<dyn Contract<NeutronMsg, NeutronQ
         ))
     };
 
-    let query =
-        |deps: Deps<NeutronQuery>, env: Env, msg: covenant_single_party_pol::msg::QueryMsg| {
-            covenant_single_party_pol::contract::query(get_empty_deps(deps), env, msg)
-        };
+    let query = |deps: Deps<NeutronQuery>,
+                 env: Env,
+                 msg: valence_covenant_single_party_pol::msg::QueryMsg| {
+        valence_covenant_single_party_pol::contract::query(get_empty_deps(deps), env, msg)
+    };
 
-    let migrate =
-        |deps: DepsMut<NeutronQuery>, env: Env, msg: covenant_single_party_pol::msg::MigrateMsg| {
-            execute_into_neutron(covenant_single_party_pol::contract::migrate(
-                get_empty_depsmut(deps),
-                env,
-                msg,
-            ))
-        };
+    let migrate = |deps: DepsMut<NeutronQuery>,
+                   env: Env,
+                   msg: valence_covenant_single_party_pol::msg::MigrateMsg| {
+        execute_into_neutron(valence_covenant_single_party_pol::contract::migrate(
+            get_empty_depsmut(deps),
+            env,
+            msg,
+        ))
+    };
 
     let contract = ContractWrapper::new(exec, init, query).with_migrate(migrate);
     Box::new(contract)
@@ -321,8 +323,8 @@ pub fn single_party_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQue
     let exec = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_single_party_pol_holder::msg::ExecuteMsg| {
-        execute_into_neutron(covenant_single_party_pol_holder::contract::execute(
+                msg: valence_single_party_pol_holder::msg::ExecuteMsg| {
+        execute_into_neutron(valence_single_party_pol_holder::contract::execute(
             get_empty_depsmut(deps),
             env,
             info,
@@ -333,8 +335,8 @@ pub fn single_party_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQue
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_single_party_pol_holder::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_single_party_pol_holder::contract::instantiate(
+                msg: valence_single_party_pol_holder::msg::InstantiateMsg| {
+        execute_into_neutron(valence_single_party_pol_holder::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -344,14 +346,14 @@ pub fn single_party_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQue
 
     let query = |deps: Deps<NeutronQuery>,
                  env: Env,
-                 msg: covenant_single_party_pol_holder::msg::QueryMsg| {
-        covenant_single_party_pol_holder::contract::query(get_empty_deps(deps), env, msg)
+                 msg: valence_single_party_pol_holder::msg::QueryMsg| {
+        valence_single_party_pol_holder::contract::query(get_empty_deps(deps), env, msg)
     };
 
     let migrate = |deps: DepsMut<NeutronQuery>,
                    env: Env,
-                   msg: covenant_single_party_pol_holder::msg::MigrateMsg| {
-        execute_into_neutron(covenant_single_party_pol_holder::contract::migrate(
+                   msg: valence_single_party_pol_holder::msg::MigrateMsg| {
+        execute_into_neutron(valence_single_party_pol_holder::contract::migrate(
             get_empty_depsmut(deps),
             env,
             msg,
@@ -364,13 +366,13 @@ pub fn single_party_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQue
 
 pub fn stride_lser_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let contract = ContractWrapper::new(
-        covenant_stride_liquid_staker::contract::execute,
-        covenant_stride_liquid_staker::contract::instantiate,
-        covenant_stride_liquid_staker::contract::query,
+        valence_stride_liquid_staker::contract::execute,
+        valence_stride_liquid_staker::contract::instantiate,
+        valence_stride_liquid_staker::contract::query,
     )
-    .with_reply(covenant_stride_liquid_staker::contract::reply)
-    .with_sudo(covenant_stride_liquid_staker::contract::sudo)
-    .with_migrate(covenant_stride_liquid_staker::contract::migrate);
+    .with_reply(valence_stride_liquid_staker::contract::reply)
+    .with_sudo(valence_stride_liquid_staker::contract::sudo)
+    .with_migrate(valence_stride_liquid_staker::contract::migrate);
     Box::new(contract)
 }
 
@@ -386,8 +388,8 @@ pub fn swap_covenant_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_swap::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_swap::contract::instantiate(
+                msg: valence_covenant_swap::msg::InstantiateMsg| {
+        execute_into_neutron(valence_covenant_swap::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -395,17 +397,18 @@ pub fn swap_covenant_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
         ))
     };
 
-    let query = |deps: Deps<NeutronQuery>, env: Env, msg: covenant_swap::msg::QueryMsg| {
-        covenant_swap::contract::query(get_empty_deps(deps), env, msg)
+    let query = |deps: Deps<NeutronQuery>, env: Env, msg: valence_covenant_swap::msg::QueryMsg| {
+        valence_covenant_swap::contract::query(get_empty_deps(deps), env, msg)
     };
 
-    let migrate = |deps: DepsMut<NeutronQuery>, env: Env, msg: covenant_swap::msg::MigrateMsg| {
-        execute_into_neutron(covenant_swap::contract::migrate(
-            get_empty_depsmut(deps),
-            env,
-            msg,
-        ))
-    };
+    let migrate =
+        |deps: DepsMut<NeutronQuery>, env: Env, msg: valence_covenant_swap::msg::MigrateMsg| {
+            execute_into_neutron(valence_covenant_swap::contract::migrate(
+                get_empty_depsmut(deps),
+                env,
+                msg,
+            ))
+        };
 
     let contract = ContractWrapper::new(exec, init, query).with_migrate(migrate);
     Box::new(contract)
@@ -415,8 +418,8 @@ pub fn swap_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let exec = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_swap_holder::msg::ExecuteMsg| {
-        execute_into_neutron(covenant_swap_holder::contract::execute(
+                msg: valence_swap_holder::msg::ExecuteMsg| {
+        execute_into_neutron(valence_swap_holder::contract::execute(
             get_empty_depsmut(deps),
             env,
             info,
@@ -427,8 +430,8 @@ pub fn swap_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_swap_holder::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_swap_holder::contract::instantiate(
+                msg: valence_swap_holder::msg::InstantiateMsg| {
+        execute_into_neutron(valence_swap_holder::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -436,13 +439,13 @@ pub fn swap_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>> {
         ))
     };
 
-    let query = |deps: Deps<NeutronQuery>, env: Env, msg: covenant_swap_holder::msg::QueryMsg| {
-        covenant_swap_holder::contract::query(get_empty_deps(deps), env, msg)
+    let query = |deps: Deps<NeutronQuery>, env: Env, msg: valence_swap_holder::msg::QueryMsg| {
+        valence_swap_holder::contract::query(get_empty_deps(deps), env, msg)
     };
 
     let migrate =
-        |deps: DepsMut<NeutronQuery>, env: Env, msg: covenant_swap_holder::msg::MigrateMsg| {
-            execute_into_neutron(covenant_swap_holder::contract::migrate(
+        |deps: DepsMut<NeutronQuery>, env: Env, msg: valence_swap_holder::msg::MigrateMsg| {
+            execute_into_neutron(valence_swap_holder::contract::migrate(
                 get_empty_depsmut(deps),
                 env,
                 msg,
@@ -465,8 +468,8 @@ pub fn two_party_covenant_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuer
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_two_party_pol::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_two_party_pol::contract::instantiate(
+                msg: valence_covenant_two_party_pol::msg::InstantiateMsg| {
+        execute_into_neutron(valence_covenant_two_party_pol::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -474,18 +477,20 @@ pub fn two_party_covenant_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuer
         ))
     };
 
-    let query = |deps: Deps<NeutronQuery>, env: Env, msg: covenant_two_party_pol::msg::QueryMsg| {
-        covenant_two_party_pol::contract::query(get_empty_deps(deps), env, msg)
-    };
-
-    let migrate =
-        |deps: DepsMut<NeutronQuery>, env: Env, msg: covenant_two_party_pol::msg::MigrateMsg| {
-            execute_into_neutron(covenant_two_party_pol::contract::migrate(
-                get_empty_depsmut(deps),
-                env,
-                msg,
-            ))
+    let query =
+        |deps: Deps<NeutronQuery>, env: Env, msg: valence_covenant_two_party_pol::msg::QueryMsg| {
+            valence_covenant_two_party_pol::contract::query(get_empty_deps(deps), env, msg)
         };
+
+    let migrate = |deps: DepsMut<NeutronQuery>,
+                   env: Env,
+                   msg: valence_covenant_two_party_pol::msg::MigrateMsg| {
+        execute_into_neutron(valence_covenant_two_party_pol::contract::migrate(
+            get_empty_depsmut(deps),
+            env,
+            msg,
+        ))
+    };
 
     let contract = ContractWrapper::new(exec, init, query).with_migrate(migrate);
     Box::new(contract)
@@ -495,8 +500,8 @@ pub fn two_party_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>
     let exec = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_two_party_pol_holder::msg::ExecuteMsg| {
-        execute_into_neutron(covenant_two_party_pol_holder::contract::execute(
+                msg: valence_two_party_pol_holder::msg::ExecuteMsg| {
+        execute_into_neutron(valence_two_party_pol_holder::contract::execute(
             get_empty_depsmut(deps),
             env,
             info,
@@ -507,8 +512,8 @@ pub fn two_party_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_two_party_pol_holder::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_two_party_pol_holder::contract::instantiate(
+                msg: valence_two_party_pol_holder::msg::InstantiateMsg| {
+        execute_into_neutron(valence_two_party_pol_holder::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -517,14 +522,14 @@ pub fn two_party_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>
     };
 
     let query =
-        |deps: Deps<NeutronQuery>, env: Env, msg: covenant_two_party_pol_holder::msg::QueryMsg| {
-            covenant_two_party_pol_holder::contract::query(get_empty_deps(deps), env, msg)
+        |deps: Deps<NeutronQuery>, env: Env, msg: valence_two_party_pol_holder::msg::QueryMsg| {
+            valence_two_party_pol_holder::contract::query(get_empty_deps(deps), env, msg)
         };
 
     let migrate = |deps: DepsMut<NeutronQuery>,
                    env: Env,
-                   msg: covenant_two_party_pol_holder::msg::MigrateMsg| {
-        execute_into_neutron(covenant_two_party_pol_holder::contract::migrate(
+                   msg: valence_two_party_pol_holder::msg::MigrateMsg| {
+        execute_into_neutron(valence_two_party_pol_holder::contract::migrate(
             get_empty_depsmut(deps),
             env,
             msg,
@@ -539,8 +544,8 @@ pub fn astroport_pooler_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>
     let exec = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_astroport_liquid_pooler::msg::ExecuteMsg| {
-        execute_into_neutron(covenant_astroport_liquid_pooler::contract::execute(
+                msg: valence_astroport_liquid_pooler::msg::ExecuteMsg| {
+        execute_into_neutron(valence_astroport_liquid_pooler::contract::execute(
             get_empty_depsmut(deps),
             env,
             info,
@@ -551,8 +556,8 @@ pub fn astroport_pooler_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>
     let init = |deps: DepsMut<NeutronQuery>,
                 env: Env,
                 info: MessageInfo,
-                msg: covenant_astroport_liquid_pooler::msg::InstantiateMsg| {
-        execute_into_neutron(covenant_astroport_liquid_pooler::contract::instantiate(
+                msg: valence_astroport_liquid_pooler::msg::InstantiateMsg| {
+        execute_into_neutron(valence_astroport_liquid_pooler::contract::instantiate(
             get_empty_depsmut(deps),
             env,
             info,
@@ -562,12 +567,12 @@ pub fn astroport_pooler_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>
 
     let query = |deps: Deps<NeutronQuery>,
                  env: Env,
-                 msg: covenant_astroport_liquid_pooler::msg::QueryMsg| {
-        covenant_astroport_liquid_pooler::contract::query(get_empty_deps(deps), env, msg)
+                 msg: valence_astroport_liquid_pooler::msg::QueryMsg| {
+        valence_astroport_liquid_pooler::contract::query(get_empty_deps(deps), env, msg)
     };
 
     let reply = |deps: DepsMut<NeutronQuery>, env: Env, reply: Reply| {
-        execute_into_neutron(covenant_astroport_liquid_pooler::contract::reply(
+        execute_into_neutron(valence_astroport_liquid_pooler::contract::reply(
             get_empty_depsmut(deps),
             env,
             reply,
@@ -576,8 +581,8 @@ pub fn astroport_pooler_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>
 
     let migrate = |deps: DepsMut<NeutronQuery>,
                    env: Env,
-                   msg: covenant_astroport_liquid_pooler::msg::MigrateMsg| {
-        execute_into_neutron(covenant_astroport_liquid_pooler::contract::migrate(
+                   msg: valence_astroport_liquid_pooler::msg::MigrateMsg| {
+        execute_into_neutron(valence_astroport_liquid_pooler::contract::migrate(
             get_empty_depsmut(deps),
             env,
             msg,

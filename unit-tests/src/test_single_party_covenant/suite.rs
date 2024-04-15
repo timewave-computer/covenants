@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Coin, Decimal, StdResult};
-use covenant_single_party_pol::msg::CovenantContractCodeIds;
 use cw_multi_test::Executor;
+use valence_covenant_single_party_pol::msg::CovenantContractCodeIds;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -74,7 +74,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 covenant_addr.clone(),
-                &covenant_single_party_pol::msg::QueryMsg::ClockAddress {},
+                &valence_covenant_single_party_pol::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -83,7 +83,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 covenant_addr.clone(),
-                &covenant_single_party_pol::msg::QueryMsg::HolderAddress {},
+                &valence_covenant_single_party_pol::msg::QueryMsg::HolderAddress {},
             )
             .unwrap();
 
@@ -92,7 +92,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 covenant_addr.clone(),
-                &covenant_single_party_pol::msg::QueryMsg::SplitterAddress {},
+                &valence_covenant_single_party_pol::msg::QueryMsg::SplitterAddress {},
             )
             .unwrap();
         builder.fund_with_ntrn(&splitter_addr, 2_000_000_u128);
@@ -102,7 +102,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 covenant_addr.clone(),
-                &covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
+                &valence_covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
             )
             .unwrap();
         builder.fund_with_ntrn(&router_addr, 2_000_000_u128);
@@ -112,7 +112,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 covenant_addr.clone(),
-                &covenant_single_party_pol::msg::QueryMsg::LiquidStakerAddress {},
+                &valence_covenant_single_party_pol::msg::QueryMsg::LiquidStakerAddress {},
             )
             .unwrap();
         builder.fund_with_ntrn(&lser_addr, 2_000_000_u128);
@@ -122,7 +122,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 covenant_addr.clone(),
-                &covenant_single_party_pol::msg::QueryMsg::IbcForwarderAddress {
+                &valence_covenant_single_party_pol::msg::QueryMsg::IbcForwarderAddress {
                     ty: "ls".to_string(),
                 },
             )
@@ -134,7 +134,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 covenant_addr.clone(),
-                &covenant_single_party_pol::msg::QueryMsg::LiquidPoolerAddress {},
+                &valence_covenant_single_party_pol::msg::QueryMsg::LiquidPoolerAddress {},
             )
             .unwrap();
         let lp_forwarder_addr = builder
@@ -142,7 +142,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 covenant_addr.clone(),
-                &covenant_single_party_pol::msg::QueryMsg::IbcForwarderAddress {
+                &valence_covenant_single_party_pol::msg::QueryMsg::IbcForwarderAddress {
                     ty: "lp".to_string(),
                 },
             )
@@ -416,7 +416,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 &addr,
-                &covenant_remote_chain_splitter::msg::QueryMsg::IcaAddress {},
+                &valence_remote_chain_splitter::msg::QueryMsg::IcaAddress {},
             )
             .is_err()
         {
@@ -427,7 +427,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 addr,
-                &covenant_remote_chain_splitter::msg::QueryMsg::IcaAddress {},
+                &valence_remote_chain_splitter::msg::QueryMsg::IcaAddress {},
             )
             .unwrap()
     }
@@ -459,7 +459,7 @@ impl Suite {
     pub fn query_deposit_addr(&self) -> StdResult<Addr> {
         self.app.wrap().query_wasm_smart(
             self.covenant_addr.clone(),
-            &covenant_single_party_pol::msg::QueryMsg::PartyDepositAddress {},
+            &valence_covenant_single_party_pol::msg::QueryMsg::PartyDepositAddress {},
         )
     }
 
@@ -468,7 +468,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<CovenantContractCodeIds>(
                 self.covenant_addr.clone(),
-                &covenant_two_party_pol::msg::QueryMsg::ContractCodes {},
+                &valence_covenant_two_party_pol::msg::QueryMsg::ContractCodes {},
             )
             .unwrap()
     }

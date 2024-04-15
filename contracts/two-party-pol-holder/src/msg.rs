@@ -5,13 +5,13 @@ use cosmwasm_std::{
     ensure, to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut,
     StdError, StdResult, WasmMsg,
 };
-use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
 use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig};
 use cw_utils::Expiration;
+use valence_clock::helpers::dequeue_msg;
 
 use crate::{error::ContractError, state::CONTRACT_STATE};
 

@@ -1,22 +1,22 @@
-pub struct OsmpLpOutpostInstantiate {
-    pub msg: covenant_outpost_osmo_liquid_pooler::msg::InstantiateMsg,
+pub struct OsmoLpOutpostInstantiate {
+    pub msg: valence_outpost_osmo_liquid_pooler::msg::InstantiateMsg,
 }
 
-impl From<OsmpLpOutpostInstantiate> for covenant_outpost_osmo_liquid_pooler::msg::InstantiateMsg {
-    fn from(value: OsmpLpOutpostInstantiate) -> Self {
+impl From<OsmoLpOutpostInstantiate> for valence_outpost_osmo_liquid_pooler::msg::InstantiateMsg {
+    fn from(value: OsmoLpOutpostInstantiate) -> Self {
         value.msg
     }
 }
 
-impl OsmpLpOutpostInstantiate {
+impl OsmoLpOutpostInstantiate {
     pub fn new() -> Self {
         Self {
-            msg: covenant_outpost_osmo_liquid_pooler::msg::InstantiateMsg {},
+            msg: valence_outpost_osmo_liquid_pooler::msg::InstantiateMsg {},
         }
     }
 }
 
-impl Default for OsmpLpOutpostInstantiate {
+impl Default for OsmoLpOutpostInstantiate {
     fn default() -> Self {
         Self::new()
     }

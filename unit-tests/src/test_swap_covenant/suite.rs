@@ -1,8 +1,8 @@
 use std::vec;
 
 use cosmwasm_std::{coins, Addr, Coin, Decimal, StdResult};
-use covenant_swap::msg::CovenantContractCodes;
 use cw_multi_test::Executor;
+use valence_covenant_swap::msg::CovenantContractCodes;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -62,7 +62,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 covenant_addr.clone(),
-                &covenant_swap::msg::QueryMsg::ClockAddress {},
+                &valence_covenant_swap::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -71,7 +71,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 covenant_addr.clone(),
-                &covenant_swap::msg::QueryMsg::HolderAddress {},
+                &valence_covenant_swap::msg::QueryMsg::HolderAddress {},
             )
             .unwrap();
 
@@ -80,7 +80,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 covenant_addr.clone(),
-                &covenant_swap::msg::QueryMsg::InterchainRouterAddress {
+                &valence_covenant_swap::msg::QueryMsg::InterchainRouterAddress {
                     party: "party_a".to_string(),
                 },
             )
@@ -91,7 +91,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 covenant_addr.clone(),
-                &covenant_swap::msg::QueryMsg::InterchainRouterAddress {
+                &valence_covenant_swap::msg::QueryMsg::InterchainRouterAddress {
                     party: "party_b".to_string(),
                 },
             )
@@ -102,13 +102,13 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<Addr>(
                 covenant_addr.clone(),
-                &covenant_swap::msg::QueryMsg::SplitterAddress {},
+                &valence_covenant_swap::msg::QueryMsg::SplitterAddress {},
             )
             .unwrap();
 
         if let Ok(ibc_forwarder) = builder.app.wrap().query_wasm_smart::<Addr>(
             covenant_addr.clone(),
-            &covenant_swap::msg::QueryMsg::IbcForwarderAddress {
+            &valence_covenant_swap::msg::QueryMsg::IbcForwarderAddress {
                 party: "party_a".to_string(),
             },
         ) {
@@ -124,7 +124,7 @@ impl Suite {
 
         if let Ok(ibc_forwarder) = builder.app.wrap().query_wasm_smart::<Addr>(
             covenant_addr.clone(),
-            &covenant_swap::msg::QueryMsg::IbcForwarderAddress {
+            &valence_covenant_swap::msg::QueryMsg::IbcForwarderAddress {
                 party: "party_b".to_string(),
             },
         ) {
@@ -141,7 +141,7 @@ impl Suite {
         // fund routers
         if let Ok(router) = builder.app.wrap().query_wasm_smart::<Addr>(
             covenant_addr.clone(),
-            &covenant_swap::msg::QueryMsg::InterchainRouterAddress {
+            &valence_covenant_swap::msg::QueryMsg::InterchainRouterAddress {
                 party: "party_a".to_string(),
             },
         ) {
@@ -153,7 +153,7 @@ impl Suite {
 
         if let Ok(router) = builder.app.wrap().query_wasm_smart::<Addr>(
             covenant_addr.clone(),
-            &covenant_swap::msg::QueryMsg::InterchainRouterAddress {
+            &valence_covenant_swap::msg::QueryMsg::InterchainRouterAddress {
                 party: "party_b".to_string(),
             },
         ) {
@@ -541,7 +541,7 @@ impl Suite {
     pub fn query_deposit_addr(&self, party: &str) -> StdResult<Addr> {
         self.app.wrap().query_wasm_smart(
             self.covenant_addr.clone(),
-            &covenant_swap::msg::QueryMsg::PartyDepositAddress {
+            &valence_covenant_swap::msg::QueryMsg::PartyDepositAddress {
                 party: party.to_string(),
             },
         )
@@ -552,7 +552,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart::<CovenantContractCodes>(
                 self.covenant_addr.clone(),
-                &covenant_swap::msg::QueryMsg::ContractCodes {},
+                &valence_covenant_swap::msg::QueryMsg::ContractCodes {},
             )
             .unwrap()
     }

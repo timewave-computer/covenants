@@ -6,9 +6,9 @@ use covenant_utils::split::SplitConfig;
 use crate::setup::{DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
 pub struct RemoteChainSplitterInstantiate {
-    pub msg: covenant_remote_chain_splitter::msg::InstantiateMsg,
+    pub msg: valence_remote_chain_splitter::msg::InstantiateMsg,
 }
-impl From<RemoteChainSplitterInstantiate> for covenant_remote_chain_splitter::msg::InstantiateMsg {
+impl From<RemoteChainSplitterInstantiate> for valence_remote_chain_splitter::msg::InstantiateMsg {
     fn from(value: RemoteChainSplitterInstantiate) -> Self {
         value.msg
     }
@@ -27,7 +27,7 @@ impl RemoteChainSplitterInstantiate {
         fallback_address: Option<String>,
     ) -> Self {
         Self {
-            msg: covenant_remote_chain_splitter::msg::InstantiateMsg {
+            msg: valence_remote_chain_splitter::msg::InstantiateMsg {
                 clock_address,
                 remote_chain_connection_id,
                 remote_chain_channel_id,
@@ -98,7 +98,7 @@ impl RemoteChainSplitterInstantiate {
         denom_to_split_config_map.insert(DENOM_ATOM_ON_NTRN.to_string(), split_config.clone());
 
         Self {
-            msg: covenant_remote_chain_splitter::msg::InstantiateMsg {
+            msg: valence_remote_chain_splitter::msg::InstantiateMsg {
                 clock_address,
                 remote_chain_connection_id: "connection-0".to_string(),
                 remote_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),

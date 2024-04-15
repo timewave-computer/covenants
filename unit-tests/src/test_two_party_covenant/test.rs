@@ -21,7 +21,7 @@ fn test_instantiate_party_a_interchain() {
         .get_final_receiver_address();
     builder
         .with_party_a_config(
-            covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(
+            valence_covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(
                 covenant_utils::InterchainCovenantParty {
                     party_receiver_addr: party_address.to_string(),
                     party_chain_connection_id: "connection-0".to_string(),
@@ -50,7 +50,7 @@ fn test_instantiate_party_b_interchain() {
         .get_final_receiver_address();
     builder
         .with_party_b_config(
-            covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(
+            valence_covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(
                 covenant_utils::InterchainCovenantParty {
                     party_receiver_addr: party_address.to_string(),
                     party_chain_connection_id: "connection-0".to_string(),
@@ -92,7 +92,7 @@ fn test_migrate_update_config_party_a_interchain() {
         .get_final_receiver_address();
     let mut suite = builder
         .with_party_a_config(
-            covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(
+            valence_covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(
                 covenant_utils::InterchainCovenantParty {
                     party_receiver_addr: party_address.to_string(),
                     party_chain_connection_id: "connection-0".to_string(),
@@ -111,7 +111,7 @@ fn test_migrate_update_config_party_a_interchain() {
         .build();
     let random_address = suite.faucet.clone();
 
-    let holder_migrate_msg = covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+    let holder_migrate_msg = valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(random_address.to_string()),
         next_contract: None,
         emergency_committee: None,
@@ -123,33 +123,35 @@ fn test_migrate_update_config_party_a_interchain() {
         fallback_split: None,
     };
     let astro_liquid_pooler_migrate_msg =
-        covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
+        valence_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
             clock_addr: Some(random_address.to_string()),
             holder_address: None,
             lp_config: None,
         };
 
-    let liquid_pooler_migrate_msg = covenant_two_party_pol::msg::LiquidPoolerMigrateMsg::Astroport(
-        astro_liquid_pooler_migrate_msg.clone(),
-    );
+    let liquid_pooler_migrate_msg =
+        valence_covenant_two_party_pol::msg::LiquidPoolerMigrateMsg::Astroport(
+            astro_liquid_pooler_migrate_msg.clone(),
+        );
     let party_a_interchain_router_migrate_msg =
-        covenant_interchain_router::msg::MigrateMsg::UpdateConfig {
+        valence_interchain_router::msg::MigrateMsg::UpdateConfig {
             clock_addr: Some(random_address.to_string()),
             destination_config: None,
             target_denoms: None,
         };
-    let party_a_router_migrate_msg = covenant_two_party_pol::msg::RouterMigrateMsg::Interchain(
-        party_a_interchain_router_migrate_msg.clone(),
-    );
-    let party_b_native_router_migrate_msg = covenant_native_router::msg::MigrateMsg::UpdateConfig {
+    let party_a_router_migrate_msg =
+        valence_covenant_two_party_pol::msg::RouterMigrateMsg::Interchain(
+            party_a_interchain_router_migrate_msg.clone(),
+        );
+    let party_b_native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(random_address.to_string()),
         receiver_address: None,
         target_denoms: None,
     };
-    let party_b_router_migrate_msg = covenant_two_party_pol::msg::RouterMigrateMsg::Native(
+    let party_b_router_migrate_msg = valence_covenant_two_party_pol::msg::RouterMigrateMsg::Native(
         party_b_native_router_migrate_msg.clone(),
     );
-    let party_a_forwarder_migrate_msg = covenant_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
+    let party_a_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(random_address.to_string()),
         next_contract: None,
         remote_chain_info: None.into(),
@@ -160,7 +162,7 @@ fn test_migrate_update_config_party_a_interchain() {
     contract_codes.clock = 1;
     let resp = suite.migrate_update(
         22,
-        covenant_two_party_pol::msg::MigrateMsg::UpdateCovenant {
+        valence_covenant_two_party_pol::msg::MigrateMsg::UpdateCovenant {
             codes: Some(contract_codes.clone()),
             clock: None,
             holder: Some(holder_migrate_msg.clone()),
@@ -223,7 +225,7 @@ fn test_migrate_update_config_party_a_interchain() {
         .wrap()
         .query_wasm_smart(
             holder_address,
-            &covenant_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+            &valence_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
         )
         .unwrap();
     assert_eq!(holder_clock_address, random_address);
@@ -232,7 +234,7 @@ fn test_migrate_update_config_party_a_interchain() {
         .wrap()
         .query_wasm_smart(
             liquid_pooler_address,
-            &covenant_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+            &valence_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
         )
         .unwrap();
     assert_eq!(liquid_pooler_clock_address, random_address);
@@ -241,7 +243,7 @@ fn test_migrate_update_config_party_a_interchain() {
         .wrap()
         .query_wasm_smart(
             party_a_router_address,
-            &covenant_interchain_router::msg::QueryMsg::ClockAddress {},
+            &valence_interchain_router::msg::QueryMsg::ClockAddress {},
         )
         .unwrap();
     assert_eq!(party_a_router_clock_address, random_address);
@@ -250,7 +252,7 @@ fn test_migrate_update_config_party_a_interchain() {
         .wrap()
         .query_wasm_smart(
             party_b_router_address,
-            &covenant_native_router::msg::QueryMsg::ClockAddress {},
+            &valence_native_router::msg::QueryMsg::ClockAddress {},
         )
         .unwrap();
     assert_eq!(party_b_router_clock_address, random_address);
@@ -259,7 +261,7 @@ fn test_migrate_update_config_party_a_interchain() {
         .wrap()
         .query_wasm_smart(
             party_a_forwarder_address,
-            &covenant_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+            &valence_ibc_forwarder::msg::QueryMsg::ClockAddress {},
         )
         .unwrap();
     assert_eq!(party_a_forwarder_clock_address, random_address);
@@ -277,7 +279,7 @@ fn test_migrate_update_config_party_b_interchain() {
         .get_final_receiver_address();
     let mut suite = builder
         .with_party_b_config(
-            covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(
+            valence_covenant_two_party_pol::msg::CovenantPartyConfig::Interchain(
                 covenant_utils::InterchainCovenantParty {
                     party_receiver_addr: party_address.to_string(),
                     party_chain_connection_id: "connection-0".to_string(),
@@ -296,10 +298,10 @@ fn test_migrate_update_config_party_b_interchain() {
         .build();
     let random_address = suite.faucet.clone();
 
-    let clock_migrate_msg = covenant_clock::msg::MigrateMsg::UpdateTickMaxGas {
+    let clock_migrate_msg = valence_clock::msg::MigrateMsg::UpdateTickMaxGas {
         new_value: Uint64::new(500_000),
     };
-    let holder_migrate_msg = covenant_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
+    let holder_migrate_msg = valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(random_address.to_string()),
         next_contract: None,
         emergency_committee: None,
@@ -311,33 +313,35 @@ fn test_migrate_update_config_party_b_interchain() {
         fallback_split: None,
     };
     let astro_liquid_pooler_migrate_msg =
-        covenant_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
+        valence_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
             clock_addr: Some(random_address.to_string()),
             holder_address: None,
             lp_config: None,
         };
 
-    let liquid_pooler_migrate_msg = covenant_two_party_pol::msg::LiquidPoolerMigrateMsg::Astroport(
-        astro_liquid_pooler_migrate_msg.clone(),
-    );
+    let liquid_pooler_migrate_msg =
+        valence_covenant_two_party_pol::msg::LiquidPoolerMigrateMsg::Astroport(
+            astro_liquid_pooler_migrate_msg.clone(),
+        );
     let party_b_interchain_router_migrate_msg =
-        covenant_interchain_router::msg::MigrateMsg::UpdateConfig {
+        valence_interchain_router::msg::MigrateMsg::UpdateConfig {
             clock_addr: Some(random_address.to_string()),
             destination_config: None,
             target_denoms: None,
         };
-    let party_b_router_migrate_msg = covenant_two_party_pol::msg::RouterMigrateMsg::Interchain(
-        party_b_interchain_router_migrate_msg.clone(),
-    );
-    let party_a_native_router_migrate_msg = covenant_native_router::msg::MigrateMsg::UpdateConfig {
+    let party_b_router_migrate_msg =
+        valence_covenant_two_party_pol::msg::RouterMigrateMsg::Interchain(
+            party_b_interchain_router_migrate_msg.clone(),
+        );
+    let party_a_native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(random_address.to_string()),
         receiver_address: None,
         target_denoms: None,
     };
-    let party_a_router_migrate_msg = covenant_two_party_pol::msg::RouterMigrateMsg::Native(
+    let party_a_router_migrate_msg = valence_covenant_two_party_pol::msg::RouterMigrateMsg::Native(
         party_a_native_router_migrate_msg.clone(),
     );
-    let party_b_forwarder_migrate_msg = covenant_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
+    let party_b_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
         clock_addr: Some(random_address.to_string()),
         next_contract: None,
         remote_chain_info: None.into(),
@@ -349,7 +353,7 @@ fn test_migrate_update_config_party_b_interchain() {
 
     let resp = suite.migrate_update(
         22,
-        covenant_two_party_pol::msg::MigrateMsg::UpdateCovenant {
+        valence_covenant_two_party_pol::msg::MigrateMsg::UpdateCovenant {
             codes: Some(contract_codes.clone()),
             clock: Some(clock_migrate_msg.clone()),
             holder: Some(holder_migrate_msg.clone()),
@@ -414,7 +418,7 @@ fn test_migrate_update_config_party_b_interchain() {
 
     let clock_max_gas: Uint64 = app
         .wrap()
-        .query_wasm_smart(clock_address, &covenant_clock::msg::QueryMsg::TickMaxGas {})
+        .query_wasm_smart(clock_address, &valence_clock::msg::QueryMsg::TickMaxGas {})
         .unwrap();
     assert_eq!(clock_max_gas, Uint64::new(500_000));
 
@@ -422,7 +426,7 @@ fn test_migrate_update_config_party_b_interchain() {
         .wrap()
         .query_wasm_smart(
             holder_address,
-            &covenant_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+            &valence_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
         )
         .unwrap();
     assert_eq!(holder_clock_address, random_address);
@@ -431,7 +435,7 @@ fn test_migrate_update_config_party_b_interchain() {
         .wrap()
         .query_wasm_smart(
             liquid_pooler_address,
-            &covenant_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+            &valence_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
         )
         .unwrap();
     assert_eq!(liquid_pooler_clock_address, random_address);
@@ -440,7 +444,7 @@ fn test_migrate_update_config_party_b_interchain() {
         .wrap()
         .query_wasm_smart(
             party_b_router_address,
-            &covenant_interchain_router::msg::QueryMsg::ClockAddress {},
+            &valence_interchain_router::msg::QueryMsg::ClockAddress {},
         )
         .unwrap();
     assert_eq!(party_b_router_clock_address, random_address);
@@ -449,7 +453,7 @@ fn test_migrate_update_config_party_b_interchain() {
         .wrap()
         .query_wasm_smart(
             party_a_router_address,
-            &covenant_native_router::msg::QueryMsg::ClockAddress {},
+            &valence_native_router::msg::QueryMsg::ClockAddress {},
         )
         .unwrap();
     assert_eq!(party_a_router_clock_address, random_address);
@@ -458,7 +462,7 @@ fn test_migrate_update_config_party_b_interchain() {
         .wrap()
         .query_wasm_smart(
             party_b_forwarder_address,
-            &covenant_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+            &valence_ibc_forwarder::msg::QueryMsg::ClockAddress {},
         )
         .unwrap();
     assert_eq!(party_b_forwarder_clock_address, random_address);

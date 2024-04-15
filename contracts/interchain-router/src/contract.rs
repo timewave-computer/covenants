@@ -6,7 +6,6 @@ use cosmwasm_std::{
     to_json_binary, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult, Uint128,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::{
     neutron::{assert_ibc_fee_coverage, query_ibc_fee},
     soft_validate_remote_chain_addr,
@@ -17,6 +16,7 @@ use neutron_sdk::{
     query::min_ibc_fee::MinIbcFeeResponse,
     NeutronError, NeutronResult,
 };
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::state::{DESTINATION_CONFIG, TARGET_DENOMS};
 use crate::{
@@ -27,7 +27,7 @@ use crate::{
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
 
-const CONTRACT_NAME: &str = "crates.io:covenant-interchain-router";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]

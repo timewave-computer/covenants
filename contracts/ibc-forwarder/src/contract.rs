@@ -7,7 +7,6 @@ use cosmwasm_std::{
     ensure, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
     StdResult, Uint128,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::{
     ica::{
         get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee,
@@ -26,6 +25,7 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 use prost::Message;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::state::{IbcForwarderIcaStateHelper, FALLBACK_ADDRESS};
 use crate::{error::ContractError, msg::FallbackAddressUpdateConfig};
@@ -38,7 +38,7 @@ use crate::{
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-ibc-forwarder";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1;
 

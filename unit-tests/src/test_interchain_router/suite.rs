@@ -21,7 +21,7 @@ impl Default for InterchainRouterBuilder {
         let interchain_router_addr =
             builder.get_contract_addr(builder.interchain_router_code_id, INTERCHAIN_ROUTER_SALT);
 
-        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+        let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![interchain_router_addr.to_string()],
         };
@@ -76,7 +76,7 @@ impl InterchainRouterBuilder {
             .wrap()
             .query_wasm_smart(
                 interchain_router_address.clone(),
-                &covenant_interchain_router::msg::QueryMsg::ClockAddress {},
+                &valence_interchain_router::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -86,7 +86,7 @@ impl InterchainRouterBuilder {
             .wrap()
             .query_wasm_smart(
                 interchain_router_address.clone(),
-                &covenant_interchain_router::msg::QueryMsg::ReceiverConfig {},
+                &valence_interchain_router::msg::QueryMsg::ReceiverConfig {},
             )
             .unwrap();
 
@@ -96,7 +96,7 @@ impl InterchainRouterBuilder {
             .wrap()
             .query_wasm_smart(
                 interchain_router_address.clone(),
-                &covenant_interchain_router::msg::QueryMsg::TargetDenoms {},
+                &valence_interchain_router::msg::QueryMsg::TargetDenoms {},
             )
             .unwrap();
 

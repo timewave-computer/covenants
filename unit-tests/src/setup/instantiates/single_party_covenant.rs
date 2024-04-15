@@ -10,10 +10,12 @@ use crate::setup::{
 
 #[derive(Clone)]
 pub struct SinglePartyCovenantInstantiate {
-    pub msg: covenant_single_party_pol::msg::InstantiateMsg,
+    pub msg: valence_covenant_single_party_pol::msg::InstantiateMsg,
 }
 
-impl From<SinglePartyCovenantInstantiate> for covenant_single_party_pol::msg::InstantiateMsg {
+impl From<SinglePartyCovenantInstantiate>
+    for valence_covenant_single_party_pol::msg::InstantiateMsg
+{
     fn from(value: SinglePartyCovenantInstantiate) -> Self {
         value.msg
     }
@@ -22,14 +24,14 @@ impl From<SinglePartyCovenantInstantiate> for covenant_single_party_pol::msg::In
 impl SinglePartyCovenantInstantiate {
     pub fn default(
         builder: &SuiteBuilder,
-        ls_forwarder_config: covenant_single_party_pol::msg::CovenantPartyConfig,
-        lp_forwarder_config: covenant_single_party_pol::msg::CovenantPartyConfig,
-        remote_splitter: covenant_single_party_pol::msg::RemoteChainSplitterConfig,
+        ls_forwarder_config: valence_covenant_single_party_pol::msg::CovenantPartyConfig,
+        lp_forwarder_config: valence_covenant_single_party_pol::msg::CovenantPartyConfig,
+        remote_splitter: valence_covenant_single_party_pol::msg::RemoteChainSplitterConfig,
         covenant_party: covenant_utils::InterchainCovenantParty,
-        pooler_config: covenant_single_party_pol::msg::LiquidPoolerConfig,
+        pooler_config: valence_covenant_single_party_pol::msg::LiquidPoolerConfig,
         pool_price_config: covenant_utils::PoolPriceConfig,
     ) -> Self {
-        let contract_codes = covenant_single_party_pol::msg::CovenantContractCodeIds {
+        let contract_codes = valence_covenant_single_party_pol::msg::CovenantContractCodeIds {
             ibc_forwarder_code: builder.ibc_forwarder_code_id,
             interchain_router_code: builder.interchain_router_code_id,
             holder_code: builder.single_party_holder_code_id,
@@ -41,14 +43,14 @@ impl SinglePartyCovenantInstantiate {
 
         Self::new(
             "single_party_covenant".to_string(),
-            covenant_single_party_pol::msg::Timeouts {
+            valence_covenant_single_party_pol::msg::Timeouts {
                 ica_timeout: 1000_u64.into(),
                 ibc_transfer_timeout: 1000_u64.into(),
             },
             contract_codes,
             None,
             Expiration::AtHeight(builder.app.block_info().height + 100000),
-            covenant_single_party_pol::msg::LsInfo {
+            valence_covenant_single_party_pol::msg::LsInfo {
                 ls_denom: DENOM_LS_ATOM_ON_STRIDE.to_string(),
                 ls_denom_on_neutron: DENOM_LS_ATOM_ON_NTRN.to_string(),
                 ls_chain_to_neutron_channel_id: NTRN_STRIDE_CHANNEL.1.to_string(),
@@ -97,8 +99,8 @@ impl SinglePartyCovenantInstantiate {
         local_to_remote_channel_id: &str,
         remote_to_local_channel_id: &str,
         amount: u128,
-    ) -> covenant_single_party_pol::msg::CovenantPartyConfig {
-        covenant_single_party_pol::msg::CovenantPartyConfig::Interchain(
+    ) -> valence_covenant_single_party_pol::msg::CovenantPartyConfig {
+        valence_covenant_single_party_pol::msg::CovenantPartyConfig::Interchain(
             SinglePartyCovenantInstantiate::get_covenant_party(
                 remote_recevier,
                 local_recevier,
@@ -116,8 +118,8 @@ impl SinglePartyCovenantInstantiate {
         recevier: &Addr,
         denom: &str,
         amount: u128,
-    ) -> covenant_single_party_pol::msg::CovenantPartyConfig {
-        covenant_single_party_pol::msg::CovenantPartyConfig::Native(
+    ) -> valence_covenant_single_party_pol::msg::CovenantPartyConfig {
+        valence_covenant_single_party_pol::msg::CovenantPartyConfig::Native(
             covenant_utils::NativeCovenantParty {
                 party_receiver_addr: recevier.to_string(),
                 native_denom: denom.to_string(),
@@ -133,8 +135,8 @@ impl SinglePartyCovenantInstantiate {
         amount: impl Into<Uint128>,
         ls_share: Decimal,
         native_share: Decimal,
-    ) -> covenant_single_party_pol::msg::RemoteChainSplitterConfig {
-        covenant_single_party_pol::msg::RemoteChainSplitterConfig {
+    ) -> valence_covenant_single_party_pol::msg::RemoteChainSplitterConfig {
+        valence_covenant_single_party_pol::msg::RemoteChainSplitterConfig {
             channel_id: channel_id.into(),
             connection_id: "conn-1".to_string(),
             denom: denom.into(),
@@ -151,9 +153,9 @@ impl SinglePartyCovenantInstantiate {
         pool_addr: &Addr,
         pool_pair_type: astroport::factory::PairType,
         single_side_lp_limits: covenant_utils::SingleSideLpLimits,
-    ) -> covenant_single_party_pol::msg::LiquidPoolerConfig {
-        covenant_single_party_pol::msg::LiquidPoolerConfig::Astroport(
-            covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig {
+    ) -> valence_covenant_single_party_pol::msg::LiquidPoolerConfig {
+        valence_covenant_single_party_pol::msg::LiquidPoolerConfig::Astroport(
+            valence_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig {
                 pool_pair_type,
                 pool_address: pool_addr.to_string(),
                 asset_a_denom: denom_a.into(),
@@ -178,21 +180,21 @@ impl SinglePartyCovenantInstantiate {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         label: String,
-        timeouts: covenant_single_party_pol::msg::Timeouts,
-        contract_codes: covenant_single_party_pol::msg::CovenantContractCodeIds,
+        timeouts: valence_covenant_single_party_pol::msg::Timeouts,
+        contract_codes: valence_covenant_single_party_pol::msg::CovenantContractCodeIds,
         clock_tick_max_gas: Option<Uint64>,
         lockup_period: Expiration,
-        ls_info: covenant_single_party_pol::msg::LsInfo,
-        ls_forwarder_config: covenant_single_party_pol::msg::CovenantPartyConfig,
-        lp_forwarder_config: covenant_single_party_pol::msg::CovenantPartyConfig,
+        ls_info: valence_covenant_single_party_pol::msg::LsInfo,
+        ls_forwarder_config: valence_covenant_single_party_pol::msg::CovenantPartyConfig,
+        lp_forwarder_config: valence_covenant_single_party_pol::msg::CovenantPartyConfig,
         pool_price_config: covenant_utils::PoolPriceConfig,
-        remote_chain_splitter_config: covenant_single_party_pol::msg::RemoteChainSplitterConfig,
+        remote_chain_splitter_config: valence_covenant_single_party_pol::msg::RemoteChainSplitterConfig,
         emergency_committee: Option<String>,
         covenant_party_config: covenant_utils::InterchainCovenantParty,
-        liquid_pooler_config: covenant_single_party_pol::msg::LiquidPoolerConfig,
+        liquid_pooler_config: valence_covenant_single_party_pol::msg::LiquidPoolerConfig,
     ) -> Self {
         Self {
-            msg: covenant_single_party_pol::msg::InstantiateMsg {
+            msg: valence_covenant_single_party_pol::msg::InstantiateMsg {
                 label,
                 timeouts,
                 contract_codes,
@@ -221,7 +223,7 @@ impl SinglePartyCovenantInstantiate {
         ica_timeout: impl Into<Uint64>,
         ibc_transfer_timeout: impl Into<Uint64>,
     ) -> &mut Self {
-        self.msg.timeouts = covenant_single_party_pol::msg::Timeouts {
+        self.msg.timeouts = valence_covenant_single_party_pol::msg::Timeouts {
             ica_timeout: ica_timeout.into(),
             ibc_transfer_timeout: ibc_transfer_timeout.into(),
         };
@@ -230,7 +232,7 @@ impl SinglePartyCovenantInstantiate {
 
     pub fn with_contract_codes(
         &mut self,
-        codes: covenant_single_party_pol::msg::CovenantContractCodeIds,
+        codes: valence_covenant_single_party_pol::msg::CovenantContractCodeIds,
     ) -> &mut Self {
         self.msg.contract_codes = codes;
         self

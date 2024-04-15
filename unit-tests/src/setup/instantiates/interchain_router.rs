@@ -6,10 +6,10 @@ use covenant_utils::DestinationConfig;
 use crate::setup::{DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
 pub struct InterchainRouterInstantiate {
-    pub msg: covenant_interchain_router::msg::InstantiateMsg,
+    pub msg: valence_interchain_router::msg::InstantiateMsg,
 }
 
-impl From<InterchainRouterInstantiate> for covenant_interchain_router::msg::InstantiateMsg {
+impl From<InterchainRouterInstantiate> for valence_interchain_router::msg::InstantiateMsg {
     fn from(value: InterchainRouterInstantiate) -> Self {
         value.msg
     }
@@ -22,7 +22,7 @@ impl InterchainRouterInstantiate {
         denoms: BTreeSet<String>,
     ) -> Self {
         Self {
-            msg: covenant_interchain_router::msg::InstantiateMsg {
+            msg: valence_interchain_router::msg::InstantiateMsg {
                 clock_address: clock_address.to_string(),
                 destination_config,
                 denoms,

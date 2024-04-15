@@ -36,7 +36,7 @@ impl Default for SinglePartyHolderBuilder {
             builder.get_contract_addr(builder.astro_pooler_code_id, ASTRO_LIQUID_POOLER_SALT);
         let clock_addr = builder.get_contract_addr(builder.clock_code_id, CLOCK_SALT);
 
-        let clock_instantiate_msg = covenant_clock::msg::InstantiateMsg {
+        let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![liquid_pooler_addr.to_string()],
         };
@@ -47,11 +47,11 @@ impl Default for SinglePartyHolderBuilder {
             &[],
         );
 
-        let liquid_pooler_instantiate_msg = covenant_astroport_liquid_pooler::msg::InstantiateMsg {
+        let liquid_pooler_instantiate_msg = valence_astroport_liquid_pooler::msg::InstantiateMsg {
             pool_address: pool_addr.to_string(),
             clock_address: clock_addr.to_string(),
             slippage_tolerance: None,
-            assets: covenant_astroport_liquid_pooler::msg::AssetData {
+            assets: valence_astroport_liquid_pooler::msg::AssetData {
                 asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),
                 asset_b_denom: DENOM_LS_ATOM_ON_NTRN.to_string(),
             },
@@ -125,7 +125,7 @@ impl SinglePartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::PoolerAddress {},
+                &valence_single_party_pol_holder::msg::QueryMsg::PoolerAddress {},
             )
             .unwrap();
 
@@ -135,7 +135,7 @@ impl SinglePartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 liquid_pooler_address.to_string(),
-                &covenant_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+                &valence_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
             )
             .unwrap();
 
@@ -145,7 +145,7 @@ impl SinglePartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::Withdrawer {},
+                &valence_single_party_pol_holder::msg::QueryMsg::Withdrawer {},
             )
             .unwrap();
 
@@ -155,7 +155,7 @@ impl SinglePartyHolderBuilder {
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::WithdrawTo {},
+                &valence_single_party_pol_holder::msg::QueryMsg::WithdrawTo {},
             )
             .unwrap();
 
@@ -194,7 +194,7 @@ impl Suite {
             .execute_contract(
                 sender,
                 holder,
-                &covenant_single_party_pol_holder::msg::ExecuteMsg::Claim {},
+                &valence_single_party_pol_holder::msg::ExecuteMsg::Claim {},
                 &[],
             )
             .unwrap()
@@ -207,7 +207,7 @@ impl Suite {
             .execute_contract(
                 sender,
                 holder,
-                &covenant_single_party_pol_holder::msg::ExecuteMsg::Distribute {},
+                &valence_single_party_pol_holder::msg::ExecuteMsg::Distribute {},
                 &funds,
             )
             .unwrap()
@@ -220,7 +220,7 @@ impl Suite {
             .execute_contract(
                 sender,
                 holder,
-                &covenant_single_party_pol_holder::msg::ExecuteMsg::WithdrawFailed {},
+                &valence_single_party_pol_holder::msg::ExecuteMsg::WithdrawFailed {},
                 &[],
             )
             .unwrap()
@@ -233,7 +233,7 @@ impl Suite {
             .execute_contract(
                 sender,
                 holder,
-                &covenant_single_party_pol_holder::msg::ExecuteMsg::EmergencyWithdraw {},
+                &valence_single_party_pol_holder::msg::ExecuteMsg::EmergencyWithdraw {},
                 &[],
             )
             .unwrap()
@@ -265,7 +265,7 @@ impl Suite {
             .execute_contract(
                 clock,
                 pooler,
-                &covenant_astroport_liquid_pooler::msg::ExecuteMsg::Tick {},
+                &valence_astroport_liquid_pooler::msg::ExecuteMsg::Tick {},
                 &[],
             )
             .unwrap()
@@ -276,7 +276,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::Withdrawer {},
+                &valence_single_party_pol_holder::msg::QueryMsg::Withdrawer {},
             )
             .unwrap()
     }
@@ -286,7 +286,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::WithdrawTo {},
+                &valence_single_party_pol_holder::msg::QueryMsg::WithdrawTo {},
             )
             .unwrap()
     }
@@ -296,7 +296,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::PoolerAddress {},
+                &valence_single_party_pol_holder::msg::QueryMsg::PoolerAddress {},
             )
             .unwrap()
     }
@@ -306,7 +306,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::EmergencyCommitteeAddr {},
+                &valence_single_party_pol_holder::msg::QueryMsg::EmergencyCommitteeAddr {},
             )
             .unwrap()
     }
@@ -316,7 +316,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &covenant_single_party_pol_holder::msg::QueryMsg::LockupConfig {},
+                &valence_single_party_pol_holder::msg::QueryMsg::LockupConfig {},
             )
             .unwrap()
     }

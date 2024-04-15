@@ -1,9 +1,9 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, coins, Addr, Decimal, Uint128};
-use covenant_remote_chain_splitter::msg::FallbackAddressUpdateConfig;
 use covenant_utils::split::SplitConfig;
 use cw_multi_test::Executor;
+use valence_remote_chain_splitter::msg::FallbackAddressUpdateConfig;
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -69,7 +69,7 @@ fn test_execute_tick_validates_clock() {
         .execute_contract(
             suite.faucet,
             suite.splitter,
-            &covenant_remote_chain_splitter::msg::ExecuteMsg::Tick {},
+            &valence_remote_chain_splitter::msg::ExecuteMsg::Tick {},
             &[],
         )
         .unwrap();
@@ -241,7 +241,7 @@ fn test_migrate_update_config() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.splitter.clone(),
-            &covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
+            &valence_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
                 clock_addr: Some(suite.faucet.to_string()),
                 remote_chain_info: Some(remote_chain_info.clone()),
                 splits: Some(split_config.clone()),
@@ -276,7 +276,7 @@ fn test_migrate_update_config_disable_fallback() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.splitter.clone(),
-            &covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
+            &valence_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
                 clock_addr: None,
                 remote_chain_info: None,
                 splits: None,
@@ -315,7 +315,7 @@ fn test_migrate_update_config_validates_splits() {
         .migrate_contract(
             Addr::unchecked(ADMIN),
             suite.splitter.clone(),
-            &covenant_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
+            &valence_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
                 clock_addr: None,
                 remote_chain_info: None,
                 splits: Some(split_config.clone()),
