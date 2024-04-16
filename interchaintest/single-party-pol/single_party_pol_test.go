@@ -481,15 +481,15 @@ func TestSinglePartyPol(t *testing.T) {
 
 	t.Run("two party pol covenant setup", func(t *testing.T) {
 		// Wasm code that we need to store on Neutron
-		const covenantContractPath = "wasms/covenant_single_party_pol.wasm"
-		const clockContractPath = "wasms/covenant_clock.wasm"
-		const interchainRouterContractPath = "wasms/covenant_interchain_router.wasm"
-		const nativeRouterContractPath = "wasms/covenant_native_router.wasm"
-		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
-		const holderContractPath = "wasms/covenant_single_party_pol_holder.wasm"
-		const liquidPoolerPath = "wasms/covenant_astroport_liquid_pooler.wasm"
-		const remoteChainSplitterPath = "wasms/covenant_remote_chain_splitter.wasm"
-		const liquidStakerContractPath = "wasms/covenant_stride_liquid_staker.wasm"
+		const covenantContractPath = "wasms/valence_covenant_single_party_pol.wasm"
+		const clockContractPath = "wasms/valence_clock.wasm"
+		const interchainRouterContractPath = "wasms/valence_interchain_router.wasm"
+		const nativeRouterContractPath = "wasms/valence_native_router.wasm"
+		const ibcForwarderContractPath = "wasms/valence_ibc_forwarder.wasm"
+		const holderContractPath = "wasms/valence_single_party_pol_holder.wasm"
+		const liquidPoolerPath = "wasms/valence_astroport_liquid_pooler.wasm"
+		const remoteChainSplitterPath = "wasms/valence_remote_chain_splitter.wasm"
+		const liquidStakerContractPath = "wasms/valence_stride_liquid_staker.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64

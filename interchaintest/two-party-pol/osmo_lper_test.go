@@ -321,13 +321,13 @@ func TestTwoPartyOsmoLP(t *testing.T) {
 
 	t.Run("two party pol covenant setup", func(t *testing.T) {
 		// Wasm code that we need to store on Neutron
-		const covenantContractPath = "wasms/covenant_two_party_pol.wasm"
-		const clockContractPath = "wasms/covenant_clock.wasm"
-		const routerContractPath = "wasms/covenant_interchain_router.wasm"
-		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
-		const holderContractPath = "wasms/covenant_two_party_pol_holder.wasm"
-		const liquidPoolerPath = "wasms/covenant_osmo_liquid_pooler.wasm"
-		const osmoOutpostPath = "wasms/covenant_outpost_osmo_liquid_pooler.wasm"
+		const covenantContractPath = "wasms/valence_covenant_two_party_pol.wasm"
+		const clockContractPath = "wasms/valence_clock.wasm"
+		const routerContractPath = "wasms/valence_interchain_router.wasm"
+		const ibcForwarderContractPath = "wasms/valence_ibc_forwarder.wasm"
+		const holderContractPath = "wasms/valence_two_party_pol_holder.wasm"
+		const liquidPoolerPath = "wasms/valence_osmo_liquid_pooler.wasm"
+		const osmoOutpostPath = "wasms/valence_outpost_osmo_liquid_pooler.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64
@@ -544,6 +544,11 @@ func TestTwoPartyOsmoLP(t *testing.T) {
 				Channel:  testCtx.OsmoTransferChannelIds[testCtx.Hub.Config().Name],
 			}
 
+			duration := Duration{
+				Time: new(uint64),
+			}
+			*duration.Time = 50
+
 			instantiateMsg := OsmoLiquidPoolerInstantiateMsg{
 				ClockAddress:   neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 				HolderAddress:  neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
@@ -578,7 +583,7 @@ func TestTwoPartyOsmoLP(t *testing.T) {
 					ExpectedSpotPrice:     "0.10",
 					AcceptablePriceSpread: "0.04",
 				},
-				FundingDurationSeconds: "50",
+				FundingDuration: duration,
 				SingleSideLpLimits: SingleSideLpLimits{
 					AssetALimit: "10000",
 					AssetBLimit: "975000004",
@@ -669,6 +674,18 @@ func TestTwoPartyOsmoLP(t *testing.T) {
 					testCtx.Tick(osmoLiquidPoolerAddress, keyring.BackendTest, neutronUser.KeyName)
 				}
 			}
+		})
+
+		t.Run("perform withdrawal", func(t *testing.T) {
+			response, err := testCtx.Neutron.ExecuteContract(
+				testCtx.Ctx,
+				keyring.BackendTest,
+				osmoLiquidPoolerAddress,
+				`{"withdraw":{"percentage":"0.5"}}`,
+			)
+
+			println("withdraw response: ", string(response))
+			println("withdraw error: ", err)
 		})
 
 		t.Run("tick until liquidity is provided and proxy receives gamm tokens", func(t *testing.T) {
