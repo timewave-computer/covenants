@@ -496,11 +496,10 @@ type OsmoLiquidPoolerInstantiateMsg struct {
 	OsmoOutpost            string             `json:"osmo_outpost"`
 	LpTokenDenom           string             `json:"lp_token_denom"`
 	SlippageTolerance      string             `json:"slippage_tolerance"`
-	FundingDurationSeconds string             `json:"funding_duration_seconds"`
+	FundingDuration        Duration           `json:"funding_duration"`
 	SingleSideLpLimits     SingleSideLpLimits `json:"single_side_lp_limits"`
 	PoolPriceConfig        PoolPriceConfig    `json:"pool_price_config"`
 }
-
 type PoolPriceConfig struct {
 	ExpectedSpotPrice     string `json:"expected_spot_price"`
 	AcceptablePriceSpread string `json:"acceptable_price_spread"`
