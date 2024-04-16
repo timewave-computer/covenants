@@ -291,14 +291,14 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 
 	t.Run("two party pol covenant setup", func(t *testing.T) {
 		// Wasm code that we need to store on Neutron
-		const covenantContractPath = "wasms/covenant_two_party_pol.wasm"
-		const clockContractPath = "wasms/covenant_clock.wasm"
-		const interchainRouterContractPath = "wasms/covenant_interchain_router.wasm"
-		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
-		const holderContractPath = "wasms/covenant_two_party_pol_holder.wasm"
-		const liquidPoolerPath = "wasms/covenant_osmo_liquid_pooler.wasm"
-		const osmoOutpostPath = "wasms/covenant_outpost_osmo_liquid_pooler.wasm"
-		const nativeRouterContractPath = "wasms/covenant_native_router.wasm"
+		const covenantContractPath = "wasms/valence_covenant_two_party_pol.wasm"
+		const clockContractPath = "wasms/valence_clock.wasm"
+		const interchainRouterContractPath = "wasms/valence_interchain_router.wasm"
+		const ibcForwarderContractPath = "wasms/valence_ibc_forwarder.wasm"
+		const holderContractPath = "wasms/valence_two_party_pol_holder.wasm"
+		const liquidPoolerPath = "wasms/valence_osmo_liquid_pooler.wasm"
+		const osmoOutpostPath = "wasms/valence_outpost_osmo_liquid_pooler.wasm"
+		const nativeRouterContractPath = "wasms/valence_native_router.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64
@@ -646,8 +646,8 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				PartyBConfig:    CovenantPartyConfig{Interchain: &partyBConfig},
 				DepositDeadline: depositDeadline,
 				CovenantType:    "share",
-				PartyAShare:     "50",
-				PartyBShare:     "50",
+				PartyAShare:     "0.5",
+				PartyBShare:     "0.5",
 				PoolPriceConfig: PoolPriceConfig{
 					ExpectedSpotPrice:     "0.1",
 					AcceptablePriceSpread: "0.09",
@@ -772,6 +772,44 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 				println("proxy atom bal: ", proxyAtomBal)
 				println("proxy osmo bal: ", proxyOsmoBal)
 				if proxyAtomBal != 0 && proxyOsmoBal != 0 {
+					break
+				} else {
+					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
+				}
+			}
+		})
+
+		t.Run("perform withdrawal", func(t *testing.T) {
+			response, err := testCtx.Neutron.ExecuteContract(
+				testCtx.Ctx,
+				keyring.BackendTest,
+				holderAddress,
+				`{"emergency_withdraw":{}}`,
+			)
+
+			println("withdraw response: ", string(response))
+			println("withdraw error: ", err)
+
+			for {
+				proxyAtomBal := testCtx.QueryOsmoDenomBalance(osmosisAtomIbcDenom, proxyAddress)
+				proxyOsmoBal := testCtx.QueryOsmoDenomBalance(testCtx.Osmosis.Config().Denom, proxyAddress)
+				println("proxy atom bal: ", proxyAtomBal)
+				println("proxy osmo bal: ", proxyOsmoBal)
+
+				lperAtomBal := testCtx.QueryOsmoDenomBalance(neutronAtomIbcDenom, liquidPoolerAddress)
+				lperOsmoBal := testCtx.QueryOsmoDenomBalance(neutronOsmoIbcDenom, liquidPoolerAddress)
+
+				println("liquid pooler atom bal: ", lperAtomBal)
+				println("liquid pooler osmo bal: ", lperOsmoBal)
+
+				holderAtomBal := testCtx.QueryNeutronDenomBalance(neutronAtomIbcDenom, holderAddress)
+				holderOsmoBal := testCtx.QueryNeutronDenomBalance(neutronOsmoIbcDenom, holderAddress)
+
+				println("holder atom bal: ", holderAtomBal)
+				println("holder osmo bal: ", holderOsmoBal)
+
+				if holderAtomBal != 0 && holderOsmoBal != 0 {
+					println("withdraw success!")
 					break
 				} else {
 					testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
