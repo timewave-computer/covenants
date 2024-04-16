@@ -3,8 +3,7 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Env,
-    Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg,
+    ensure, to_json_binary, to_json_string, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, Env, Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg
 };
 use covenant_utils::{
     polytone::get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata,
@@ -124,6 +123,49 @@ pub fn execute(
     }
 }
 
+/// this method will attempt to set the contract state to `Distributing`,
+/// with any non-lp token denoms available on our remote proxy.
+/// doing so will cause upcoming ticks to try to send the withdrawn coins
+/// to the holder, completing the withdrawal flow and reverting this contract
+/// to active state.
+fn withdraw_party_denoms(
+    deps: ExecuteDeps,
+    lp_config: LiquidityProvisionConfig,
+) -> NeutronResult<Response<NeutronMsg>> {
+    // if either denom balance is non-zero, collect them
+    let mut withdraw_coins = vec![];
+    if let Some(val) = lp_config.latest_balances.get(&lp_config.party_1_denom_info.osmosis_coin.denom) {
+        if val.amount > Uint128::zero() {
+            withdraw_coins.push(val.clone());
+        }
+    }
+
+    if let Some(val) = lp_config.latest_balances.get(&lp_config.party_2_denom_info.osmosis_coin.denom) {
+        if val.amount > Uint128::zero() {
+            withdraw_coins.push(val.clone());
+        }
+    }
+
+    // if both balances are zero we error out
+    ensure!(
+        !withdraw_coins.is_empty(),
+        ContractError::OsmosisPoolError("no lp or covenant denoms available to withdraw".to_string())
+            .to_neutron_std()
+    );
+
+    // otherwise we set the contract state to distributing.
+    // this will cause incoming ticks to assert whether this contract had received the funds.
+    // if the funds are not received, the tick will attempt to withdraw them again.
+    // if all expected coins are received, the contract will submit `Distribute` message to the holder.
+    CONTRACT_STATE.save(deps.storage, &ContractState::Distributing { coins: withdraw_coins.clone() })?;
+
+    Ok(Response::default()
+        .add_attribute("method", "withdraw_party_denoms")
+        .add_attribute("contract_state", "distributing")
+        .add_attribute("coins", to_json_string(&withdraw_coins)?)
+    )
+}
+
 fn try_withdraw(
     deps: ExecuteDeps,
     env: Env,
@@ -143,11 +185,9 @@ fn try_withdraw(
 
     let proxy_lp_token_balance = match lp_config.latest_balances.get(&lp_config.lp_token_denom) {
         Some(val) => {
+            // if no lp tokens are available, we attempt to withdraw any available denoms
             if val.amount.is_zero() {
-                return Err(
-                    ContractError::OsmosisPoolError("proxy holds 0 lp tokens".to_string())
-                        .to_neutron_std(),
-                );
+                return withdraw_party_denoms(deps, lp_config)
             } else {
                 val
             }
