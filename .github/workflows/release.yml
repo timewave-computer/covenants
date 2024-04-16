@@ -54,8 +54,8 @@ jobs:
           chmod +x ./neutrond
           ./neutrond config chain-id neutron-1
           ./neutrond config node https://neutron-rpc.publicnode.com:443
-          ./neutrond config keyring-backend test
-          echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }} | ./neutrond keys import tw_ci_neutron tw_ci_neutron.key
+          ./neutrond config keyring-backend file
+          (echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }}; echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }}; echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }}) | ./neutrond keys import tw_ci_neutron tw_ci_neutron.key
 
       - name: Deploy WASM contracts to Neutron
         run: |
@@ -63,7 +63,8 @@ jobs:
           for f in ./artifacts/*.wasm
           do
             echo "Processing $f"
-            tx_output=$(./neutrond tx wasm store $f --from ${{ vars.TW_CI_NEUTRON_KEY_ADDR }} --gas auto --gas-prices 0.01untrn --gas-adjustment 1.3 --output json -y)
+            tx_output=$(echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }} | ./neutrond tx wasm store $f --from ${{ vars.TW_CI_NEUTRON_KEY_ADDR }} --gas auto --gas-prices 0.01untrn --gas-adjustment 1.3 --output json -y)
+            echo $tx_output
             sleep 10
             tx_hash=$(jq -r '.txhash' <<< "$tx_output")
             echo "> TX hash: $tx_hash"
