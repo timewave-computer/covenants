@@ -53,7 +53,7 @@ jobs:
           wget -O neutrond https://github.com/neutron-org/neutron/releases/download/v3.0.2/neutrond-linux-amd64
           chmod +x ./neutrond
           ./neutrond config chain-id neutron-1
-          ./neutrond config node https://neutron-rpc.publicnode.com:443
+          ./neutrond config node https://neutron-rpc.polkachu.com:443
           ./neutrond config keyring-backend file
           (echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }}; echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }}; echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }}) | ./neutrond keys import tw_ci_neutron tw_ci_neutron.key
 
