@@ -153,6 +153,10 @@ impl LiquidityProvisionConfig {
             .get(&self.party_2_denom_info.osmosis_coin.denom)
     }
 
+    pub fn get_lp_token_proxy_balance(&self) -> Option<&Coin> {
+        self.latest_balances.get(&self.lp_token_denom)
+    }
+
     pub fn get_osmo_outpost_provide_liquidity_message(&self) -> StdResult<CosmosMsg> {
         let mut funds = vec![];
         if let Some(c) = self.get_party_1_proxy_balance() {
@@ -190,6 +194,17 @@ impl LiquidityProvisionConfig {
         self.latest_balances
             .remove(&self.party_2_denom_info.osmosis_coin.denom);
         self.latest_balances.remove(&self.lp_token_denom);
+    }
+
+    pub fn get_proxy_balances(&self) -> Option<(&Coin, &Coin, &Coin)> {
+        match (
+            self.get_party_1_proxy_balance(),
+            self.get_party_2_proxy_balance(),
+            self.get_lp_token_proxy_balance(),
+        ) {
+            (Some(p1), Some(p2), Some(lp)) => Some((p1, p2, lp)),
+            _ => None,
+        }
     }
 
     pub fn proxy_received_party_contributions(&self, p1_coin: &Coin, p2_coin: &Coin) -> bool {
@@ -298,6 +313,7 @@ pub enum ContractState {
     ProxyFunded { funding_expiration: Expiration },
     Active,
     Distributing { coins: Vec<Coin> },
+    PendingWithdrawal { share: Decimal },
 }
 
 #[cw_serde]
