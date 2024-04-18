@@ -3,7 +3,8 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, to_json_string, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, Env, Fraction, IbcTimeout, MessageInfo, Response, StdResult, Uint128, WasmMsg
+    ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Env,
+    Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 use covenant_utils::{
     polytone::get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata,
@@ -119,8 +120,48 @@ pub fn execute(
     match msg {
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::Callback(callback_msg) => try_handle_callback(env, deps, info, callback_msg),
-        ExecuteMsg::Withdraw { percentage } => try_withdraw(deps, env, info, percentage),
+        ExecuteMsg::Withdraw { percentage } => try_initiate_withdrawal(deps, info, percentage),
     }
+}
+
+/// we initiate the withdrawal phase by setting the contract state to `PendingWithdrawal`
+fn try_initiate_withdrawal(
+    deps: ExecuteDeps,
+    info: MessageInfo,
+    percentage: Option<Decimal>,
+) -> NeutronResult<Response<NeutronMsg>> {
+    ensure!(
+        info.sender == HOLDER_ADDRESS.load(deps.storage)?,
+        ContractError::NotHolder {}.to_neutron_std()
+    );
+
+    let withdraw_share = percentage.unwrap_or(Decimal::one());
+
+    ensure!(
+        withdraw_share <= Decimal::one() && withdraw_share > Decimal::zero(),
+        ContractError::Std(StdError::generic_err(format!(
+            "withdraw percentage must be in range (0, 1], got {:?}",
+            withdraw_share
+        ),))
+        .to_neutron_std()
+    );
+
+    // we advance the contract state to `PendingWithdrawal` and force latest balances sync
+    CONTRACT_STATE.save(
+        deps.storage,
+        &ContractState::PendingWithdrawal {
+            share: withdraw_share,
+        },
+    )?;
+    LIQUIDITY_PROVISIONING_CONFIG.update(deps.storage, |mut lp_config| -> StdResult<_> {
+        lp_config.reset_latest_proxy_balances();
+        Ok(lp_config)
+    })?;
+
+    Ok(Response::default()
+        .add_attribute("method", "try_withdraw")
+        .add_attribute("contract_state", "pending_withdrawal")
+        .add_attribute("pending_withdrawal", withdraw_share.to_string()))
 }
 
 /// this method will attempt to set the contract state to `Distributing`,
@@ -130,78 +171,73 @@ pub fn execute(
 /// to active state.
 fn withdraw_party_denoms(
     deps: ExecuteDeps,
-    lp_config: LiquidityProvisionConfig,
+    p1_proxy_bal: &Coin,
+    p2_proxy_bal: &Coin,
 ) -> NeutronResult<Response<NeutronMsg>> {
     // if either denom balance is non-zero, collect them
-    let mut withdraw_coins = vec![];
-    if let Some(val) = lp_config.latest_balances.get(&lp_config.party_1_denom_info.osmosis_coin.denom) {
-        if val.amount > Uint128::zero() {
-            withdraw_coins.push(val.clone());
-        }
+    let mut withdraw_coins: Vec<Coin> = Vec::with_capacity(2);
+    if p1_proxy_bal.amount > Uint128::zero() {
+        withdraw_coins.push(p1_proxy_bal.clone());
+    }
+    if p2_proxy_bal.amount > Uint128::zero() {
+        withdraw_coins.push(p2_proxy_bal.clone());
     }
 
-    if let Some(val) = lp_config.latest_balances.get(&lp_config.party_2_denom_info.osmosis_coin.denom) {
-        if val.amount > Uint128::zero() {
-            withdraw_coins.push(val.clone());
-        }
+    if withdraw_coins.is_empty() {
+        // both both balances are zero, we revert the state to active
+        // and ping a WithdrawFailed message to the holder.
+        let withdraw_failed_msg = WasmMsg::Execute {
+            contract_addr: HOLDER_ADDRESS.load(deps.storage)?.to_string(),
+            msg: to_json_binary(&WithdrawLPMsgs::WithdrawFailed {})?,
+            funds: vec![],
+        };
+        CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
+        Ok(Response::default()
+            .add_attribute("method", "withdraw_party_denoms")
+            .add_attribute("contract_state", "active")
+            .add_attribute("p1_balance", p1_proxy_bal.to_string())
+            .add_attribute("p2_balance", p2_proxy_bal.to_string())
+            .add_message(withdraw_failed_msg))
+    } else {
+        // otherwise we set the contract state to distributing.
+        // this will cause incoming ticks to assert whether this contract had received the funds.
+        // if the funds are not received, the tick will attempt to withdraw them again.
+        // if all expected coins are received, the contract will submit `Distribute` message to the holder.
+        CONTRACT_STATE.save(
+            deps.storage,
+            &ContractState::Distributing {
+                coins: withdraw_coins.clone(),
+            },
+        )?;
+
+        Ok(Response::default()
+            .add_attribute("method", "withdraw_party_denoms")
+            .add_attribute("contract_state", "distributing")
+            .add_attribute("p1_balance", p1_proxy_bal.to_string())
+            .add_attribute("p2_balance", p2_proxy_bal.to_string())
+            .add_attribute("coins", to_json_string(&withdraw_coins)?))
     }
-
-    // if both balances are zero we error out
-    ensure!(
-        !withdraw_coins.is_empty(),
-        ContractError::OsmosisPoolError("no lp or covenant denoms available to withdraw".to_string())
-            .to_neutron_std()
-    );
-
-    // otherwise we set the contract state to distributing.
-    // this will cause incoming ticks to assert whether this contract had received the funds.
-    // if the funds are not received, the tick will attempt to withdraw them again.
-    // if all expected coins are received, the contract will submit `Distribute` message to the holder.
-    CONTRACT_STATE.save(deps.storage, &ContractState::Distributing { coins: withdraw_coins.clone() })?;
-
-    Ok(Response::default()
-        .add_attribute("method", "withdraw_party_denoms")
-        .add_attribute("contract_state", "distributing")
-        .add_attribute("coins", to_json_string(&withdraw_coins)?)
-    )
 }
 
-fn try_withdraw(
+pub fn try_withdraw(
     deps: ExecuteDeps,
     env: Env,
-    info: MessageInfo,
-    percent: Option<Decimal>,
+    withdraw_share: Decimal,
+    (party_1_bal, party_2_bal, lp_bal): (&Coin, &Coin, &Coin),
+    lp_config: LiquidityProvisionConfig,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let percent = percent.unwrap_or(Decimal::one());
     let note_address = NOTE_ADDRESS.load(deps.storage)?;
     let ibc_config = IBC_CONFIG.load(deps.storage)?;
-    let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
-    let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
 
-    ensure!(
-        info.sender == holder_addr,
-        ContractError::NotHolder {}.to_neutron_std()
-    );
+    // if there are 0 available lp token balances, we attempt to
+    // withdraw the party denoms directly.
+    if lp_bal.amount.is_zero() {
+        return withdraw_party_denoms(deps, party_1_bal, party_2_bal);
+    }
 
-    let proxy_lp_token_balance = match lp_config.latest_balances.get(&lp_config.lp_token_denom) {
-        Some(val) => {
-            // if no lp tokens are available, we attempt to withdraw any available denoms
-            if val.amount.is_zero() {
-                return withdraw_party_denoms(deps, lp_config)
-            } else {
-                val
-            }
-        }
-        None => {
-            return Err(
-                ContractError::OsmosisPoolError("no lp token balance".to_string()).to_neutron_std(),
-            )
-        }
-    };
-
-    let lp_redeem_amount = proxy_lp_token_balance
+    let lp_redeem_amount = lp_bal
         .amount
-        .checked_multiply_ratio(percent.numerator(), percent.denominator())
+        .checked_multiply_ratio(withdraw_share.numerator(), withdraw_share.denominator())
         .map_err(|e| ContractError::CheckedMultiplyError(e).to_neutron_std())?;
 
     let exit_pool_message: CosmosMsg = WasmMsg::Execute {
@@ -271,6 +307,19 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
             }
         }
         ContractState::Active => try_sync_proxy_balances(deps, env),
+        ContractState::PendingWithdrawal { share } => {
+            let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
+            match lp_config.get_proxy_balances() {
+                Some((party_1_bal, party_2_bal, lp_bal)) => try_withdraw(
+                    deps,
+                    env,
+                    share,
+                    (party_1_bal, party_2_bal, lp_bal),
+                    lp_config.clone(),
+                ),
+                None => try_sync_proxy_balances(deps, env),
+            }
+        }
         ContractState::Distributing { coins } => try_distribute(deps, env, coins),
     }
 }
