@@ -147,34 +147,89 @@ fn try_initiate_withdrawal(
     );
 
     // we advance the contract state to `PendingWithdrawal` and force latest balances sync
-    CONTRACT_STATE.save(
-        deps.storage,
-        &ContractState::PendingWithdrawal {
+    CONTRACT_STATE.update(deps.storage, |contract_state| -> StdResult<_> {
+        let new_state = ContractState::PendingWithdrawal {
             share: withdraw_share,
-        },
-    )?;
+            prev_state: Box::new(contract_state),
+        };
+        Ok(new_state)
+    })?;
     LIQUIDITY_PROVISIONING_CONFIG.update(deps.storage, |mut lp_config| -> StdResult<_> {
         lp_config.reset_latest_proxy_balances();
         Ok(lp_config)
     })?;
 
     Ok(Response::default()
-        .add_attribute("method", "try_withdraw")
+        .add_attribute("method", "try_initiate_withdrawal")
         .add_attribute("contract_state", "pending_withdrawal")
         .add_attribute("pending_withdrawal", withdraw_share.to_string()))
 }
 
-/// this method will attempt to set the contract state to `Distributing`,
-/// with any non-lp token denoms available on our remote proxy.
-/// doing so will cause upcoming ticks to try to send the withdrawn coins
-/// to the holder, completing the withdrawal flow and reverting this contract
-/// to active state.
-fn withdraw_party_denoms(
+fn try_withdraw_pre_proxy_funding_denoms(
     deps: ExecuteDeps,
+    env: Env,
+    lp_config: LiquidityProvisionConfig,
+    prev_state: ContractState,
+) -> NeutronResult<Response<NeutronMsg>> {
+    let mut withdraw_coins: Vec<Coin> = Vec::with_capacity(2);
+    let p1_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        lp_config.party_1_denom_info.local_denom.to_string(),
+    )?;
+    let p2_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        lp_config.party_2_denom_info.local_denom.to_string(),
+    )?;
+
+    if p1_bal.amount > Uint128::zero() {
+        withdraw_coins.push(p1_bal.clone());
+    }
+    if p2_bal.amount > Uint128::zero() {
+        withdraw_coins.push(p2_bal.clone());
+    }
+
+    if withdraw_coins.is_empty() {
+        // both both balances are zero, we revert to the previous state
+        // and ping a WithdrawFailed message to the holder.
+        let withdraw_failed_msg = WasmMsg::Execute {
+            contract_addr: HOLDER_ADDRESS.load(deps.storage)?.to_string(),
+            msg: to_json_binary(&WithdrawLPMsgs::WithdrawFailed {})?,
+            funds: vec![],
+        };
+        CONTRACT_STATE.save(deps.storage, &prev_state)?;
+        Ok(Response::default()
+            .add_attribute("method", "try_withdraw_pre_proxy_funding_denoms")
+            .add_attribute("contract_state", format!("{:?}", prev_state))
+            .add_attribute("p1_balance", p1_bal.to_string())
+            .add_attribute("p2_balance", p2_bal.to_string())
+            .add_message(withdraw_failed_msg))
+    } else {
+        // otherwise we set the contract state to distributing.
+        // this will cause incoming ticks to assert whether this contract had received the funds.
+        // if the funds are not received, the tick will attempt to withdraw them again.
+        // if all expected coins are received, the contract will submit `Distribute` message to the holder.
+        CONTRACT_STATE.save(
+            deps.storage,
+            &ContractState::Distributing {
+                coins: withdraw_coins.clone(),
+            },
+        )?;
+
+        Ok(Response::default()
+            .add_attribute("method", "try_withdraw_pre_proxy_funding_denoms")
+            .add_attribute("contract_state", "distributing")
+            .add_attribute("p1_balance", p1_bal.to_string())
+            .add_attribute("p2_balance", p2_bal.to_string())
+            .add_attribute("coins", to_json_string(&withdraw_coins)?))
+    }
+}
+
+fn try_withdraw_post_proxy_funding_denoms(
+    deps: ExecuteDeps,
+    prev_state: ContractState,
     p1_proxy_bal: &Coin,
     p2_proxy_bal: &Coin,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    // if either denom balance is non-zero, collect them
     let mut withdraw_coins: Vec<Coin> = Vec::with_capacity(2);
     if p1_proxy_bal.amount > Uint128::zero() {
         withdraw_coins.push(p1_proxy_bal.clone());
@@ -184,17 +239,21 @@ fn withdraw_party_denoms(
     }
 
     if withdraw_coins.is_empty() {
-        // both both balances are zero, we revert the state to active
+        // both both balances are zero, we revert to the previous state
         // and ping a WithdrawFailed message to the holder.
         let withdraw_failed_msg = WasmMsg::Execute {
             contract_addr: HOLDER_ADDRESS.load(deps.storage)?.to_string(),
             msg: to_json_binary(&WithdrawLPMsgs::WithdrawFailed {})?,
             funds: vec![],
         };
-        CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
+
+        // if we are here, we know that proxy holds neither covenant party denom,
+        // nor the lp token. this means that there is nothing to withdraw and we
+        // can safely revert the state to the previous one.
+        CONTRACT_STATE.save(deps.storage, &prev_state)?;
         Ok(Response::default()
-            .add_attribute("method", "withdraw_party_denoms")
-            .add_attribute("contract_state", "active")
+            .add_attribute("method", "try_withdraw_post_proxy_funding_denoms")
+            .add_attribute("contract_state", format!("{:?}", prev_state))
             .add_attribute("p1_balance", p1_proxy_bal.to_string())
             .add_attribute("p2_balance", p2_proxy_bal.to_string())
             .add_message(withdraw_failed_msg))
@@ -211,7 +270,7 @@ fn withdraw_party_denoms(
         )?;
 
         Ok(Response::default()
-            .add_attribute("method", "withdraw_party_denoms")
+            .add_attribute("method", "try_withdraw_post_proxy_funding_denoms")
             .add_attribute("contract_state", "distributing")
             .add_attribute("p1_balance", p1_proxy_bal.to_string())
             .add_attribute("p2_balance", p2_proxy_bal.to_string())
@@ -219,21 +278,39 @@ fn withdraw_party_denoms(
     }
 }
 
-pub fn try_withdraw(
+fn try_withdraw(
     deps: ExecuteDeps,
     env: Env,
     withdraw_share: Decimal,
+    prev_state: ContractState,
     (party_1_bal, party_2_bal, lp_bal): (&Coin, &Coin, &Coin),
     lp_config: LiquidityProvisionConfig,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    let note_address = NOTE_ADDRESS.load(deps.storage)?;
-    let ibc_config = IBC_CONFIG.load(deps.storage)?;
-
     // if there are 0 available lp token balances, we attempt to
     // withdraw the party denoms directly.
     if lp_bal.amount.is_zero() {
-        return withdraw_party_denoms(deps, party_1_bal, party_2_bal);
+        // if withdrawal was initiated before we delivered funds to the proxy,
+        // we attempt to refund any party denoms that are held by this contract.
+        if matches!(
+            prev_state,
+            ContractState::Instantiated | ContractState::ProxyCreated
+        ) {
+            return try_withdraw_pre_proxy_funding_denoms(deps, env, lp_config, prev_state);
+        } else {
+            // otherwise the funds should be held by the proxy, so we
+            // attempt to withdraw them from the proxy.
+            return try_withdraw_post_proxy_funding_denoms(
+                deps,
+                prev_state,
+                party_1_bal,
+                party_2_bal,
+            );
+        }
     }
+
+    // otherwise we proceed with LP redemption flow
+    let note_address = NOTE_ADDRESS.load(deps.storage)?;
+    let ibc_config = IBC_CONFIG.load(deps.storage)?;
 
     let lp_redeem_amount = lp_bal
         .amount
@@ -307,13 +384,14 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
             }
         }
         ContractState::Active => try_sync_proxy_balances(deps, env),
-        ContractState::PendingWithdrawal { share } => {
+        ContractState::PendingWithdrawal { share, prev_state } => {
             let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
             match lp_config.get_proxy_balances() {
                 Some((party_1_bal, party_2_bal, lp_bal)) => try_withdraw(
                     deps,
                     env,
                     share,
+                    *prev_state,
                     (party_1_bal, party_2_bal, lp_bal),
                     lp_config.clone(),
                 ),

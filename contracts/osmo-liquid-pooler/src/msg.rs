@@ -310,10 +310,17 @@ pub enum QueryMsg {
 pub enum ContractState {
     Instantiated,
     ProxyCreated,
-    ProxyFunded { funding_expiration: Expiration },
+    ProxyFunded {
+        funding_expiration: Expiration,
+    },
     Active,
-    Distributing { coins: Vec<Coin> },
-    PendingWithdrawal { share: Decimal },
+    Distributing {
+        coins: Vec<Coin>,
+    },
+    PendingWithdrawal {
+        share: Decimal,
+        prev_state: Box<ContractState>,
+    },
 }
 
 #[cw_serde]
