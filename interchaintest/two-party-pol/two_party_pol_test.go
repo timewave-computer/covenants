@@ -622,8 +622,8 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
@@ -900,8 +900,8 @@ func TestTwoPartyPol(t *testing.T) {
 					PartyBConfig:    CovenantPartyConfig{Interchain: &partyBConfig},
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
@@ -1191,8 +1191,8 @@ func TestTwoPartyPol(t *testing.T) {
 					PartyBConfig:    CovenantPartyConfig{Interchain: &partyBConfig},
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
@@ -1362,8 +1362,8 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				currentHeight := testCtx.GetNeutronHeight()
-				depositBlock := Block(currentHeight + 180)
-				lockupBlock := Block(currentHeight + 180)
+				depositBlock := Block(currentHeight + 210)
+				lockupBlock := Block(currentHeight + 230)
 				expirationHeight = lockupBlock
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
@@ -1451,8 +1451,8 @@ func TestTwoPartyPol(t *testing.T) {
 					PartyBConfig:    CovenantPartyConfig{Interchain: &partyBConfig},
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
