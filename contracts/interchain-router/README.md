@@ -7,9 +7,12 @@ The router continuously attempts to perform IBC transfers to the receiver.
 Upon receiving a `Tick`, the contract queries its own balances and uses them
 to generate ibc transfer messages to the destination address.
 
+Each denom to be routed can be associated with an optional packet forward middleware
+configuration. If no pfm config is specified, a simple ibc transfer is sent.
+
 In case any of the IBC transfers fail, the funds will be refunded, and we can safely try again.
 
-```
+```md
        ┌──────────────┐
     ┌──│    clock     │
     │  └──────────────┘
