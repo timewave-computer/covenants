@@ -5,6 +5,7 @@ Contract responsible for orchestrating flow for a tokenswap between two parties.
 ## instantiation chain flow
 
 Because of inter-contract dependencies, contracts in the covenant are instantiated in a specific order:
+
 1. clock
 1. party A router
 1. party B router

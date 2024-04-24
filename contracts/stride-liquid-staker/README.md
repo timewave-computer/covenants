@@ -1,4 +1,7 @@
+# Stride Liquid Staker
+
 The Ls creates an Interchain Account on a host chain that temporarily holds funds. It allows anyone to permissionlessly forward funds denominated in a preset token to a preset destination address with an IBC transfer. See `src/msg.rs` for the API.
 
 ## Example usecase
+
 The current intended usescase is to create a covenant controlled Interchain Account on Stride. The covenant plans to liquid stake Atom using Stride's Autopilot 1-click liquid stake feature. Stride's Autopilot feature enables IBC transfers to a receiving address on Stride to be automatically liquid staked and also for these liquid staked vouchers to optionally be forwarded over IBC to a destination address. The current use of the contract is to register the receiving address as an ICA on Stride and allow anybody to forward liquid staked Atom from that ICA to the LPer contract. The benefit here is that if Stride's Autopilot IBC forwarding is disabled or otherwise fails, any user can recover the funds by forwarding them to the LPer.
