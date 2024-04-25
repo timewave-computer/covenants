@@ -11,6 +11,11 @@ ticked are enqueued to the clock.
 Then we continue with the instantiation of each contract, which enqueue
 themselves to the clock as part of their instantiation.
 
+## instantiation flow
+
+Because of inter-contract dependencies, contracts in the covenant are
+instantiated in a specific order:
+
 ```md
     ┌───────────────────────────────────────────────────────────────────┐
     │neutron                                                            │
