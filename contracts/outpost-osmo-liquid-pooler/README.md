@@ -30,6 +30,7 @@ pub enum ExecuteMsg {
 In this diagram, regardless of the outcome of `1.1.`, all tokens are returned
 to the sender after the join pool attempt.
 
+```md
     ┌─────────────────────────────────────────────────────────────────────┐
     │osmosis                              ┌──1.2. return LP tokens─┐      │
     │                                     │     and/or leftover    │      │
@@ -44,12 +45,14 @@ to the sender after the join pool attempt.
     │        │       1.3. return all      │                               │
     │        └──────available tokens──────┘                               │
     └─────────────────────────────────────────────────────────────────────┘
+```
 
 ## Withdrawing liquidity flow
 
 In this diagram, regardless of exit pool message outcome, all tokens are
 returned to the sender in the callback.
 
+```md
     ┌─────────────────────────────────────────────────────────────────────┐
     │osmosis                             ┌──────1.2. return ─────┐        │
     │                                    │      underlying       │        │
@@ -64,6 +67,7 @@ returned to the sender in the callback.
     │        │       1.3. return all     │                                │
     │        └──────available tokens─────┘                                │
     └─────────────────────────────────────────────────────────────────────┘
+```
 
 ## Liquidity provision conditions
 

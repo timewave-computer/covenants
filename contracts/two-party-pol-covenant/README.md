@@ -2,7 +2,7 @@
 
 Contract responsible for orchestrating the flow for a two party POL.
 
-This contract orchestrates the instantiation of all contracts necessary
+This contract composes the instantiation of all contracts necessary
 to fulfill the covenant.
 
 The clock is instantiated first. All necessary contracts that are to be
