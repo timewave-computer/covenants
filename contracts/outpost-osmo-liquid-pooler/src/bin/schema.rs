@@ -1,11 +1,10 @@
 use cosmwasm_schema::write_api;
-use valence_stride_liquid_staker::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use valence_outpost_osmo_liquid_pooler::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg};
 
 fn main() {
     write_api! {
         instantiate: InstantiateMsg,
         execute: ExecuteMsg,
-        query: QueryMsg,
         migrate: MigrateMsg,
     }
 }
