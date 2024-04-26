@@ -9,13 +9,10 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      packages: write
+      contents: write
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-      
-      - name: Install jq
-        run: sudo apt-get install jq
       
       - name: Install cargo-run-script
         uses: actions-rs/cargo@v1
@@ -54,20 +51,31 @@ jobs:
       - name: Install Neutron & import key
         run: |
           wget -O neutrond https://github.com/neutron-org/neutron/releases/download/v3.0.2/neutrond-linux-amd64
-          chmod +x neutrond
-          echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }} | neutrond keys import tw_ci_neutron tw_ci_neutron.key
+          chmod +x ./neutrond
+          ./neutrond config chain-id neutron-1
+          ./neutrond config node https://neutron-rpc.polkachu.com:443
+          ./neutrond config keyring-backend file
+          (echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }}; echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }}; echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }}) | ./neutrond keys import tw_ci_neutron tw_ci_neutron.key
 
       - name: Deploy WASM contracts to Neutron
         run: |
-          find ./artifacts -name \*.wasm -exec neutrond tx wasm store {} --from tw_ci_neutron --gas auto --gas-prices 0.01untrn --gas-adjustment 1.3 --output json -y \; -exec sleep 5 \;
+          echo '' > code_ids.tmp
+          for f in ./artifacts/*.wasm
+          do
+            echo "Processing $f"
+            tx_output=$(echo ${{ secrets.TW_CI_NEUTRON_KEY_PASS }} | ./neutrond tx wasm store $f --from ${{ vars.TW_CI_NEUTRON_KEY_ADDR }} --gas auto --gas-prices 0.01untrn --gas-adjustment 1.3 --output json -y)
+            echo $tx_output
+            sleep 10
+            tx_hash=$(jq -r '.txhash' <<< "$tx_output")
+            echo "> TX hash: $tx_hash"
+            ./neutrond query tx $tx_hash -o json | jq '.events[] | select(.type == "store_code") | .attributes | {(.[0].key): .[0].value, (.[1].key): .[1].value}' >> code_ids.tmp
+          done
+          jq -s '.' code_ids.tmp > code_ids.json
+          rm code_ids.tmp
       
-      - name: Get contract code IDs
-        run: |
-          ./neutrond query wasm list-code --reverse --output json | jq -c '.code_infos[] | select(.creator == "${{ tw_ci_neutron }}") | {code_id: .code_id, code_hash: .data_hash|ascii_downcase}' | jq -s . > code_ids.json
-
       - name: Join code IDs & checksums
         run: |
-          jq '[JOIN(INDEX(input[]; .code_hash); .[]; .code_hash; add)]' checksums.json code_ids.json | jq '.[] | [.contract, .code_id] | @tsv' contract_code_ids.txt
+          jq '[JOIN(INDEX(input[]; .code_checksum); .[]; .code_hash; add)]' checksums.json code_ids.json | jq -r '.[] | [.contract, .code_id] | @tsv' | column -ts $'\t' > contract_code_ids.txt
       
       - name: Append code IDs to release notes
         uses: softprops/action-gh-release@v2
