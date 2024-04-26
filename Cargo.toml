@@ -12,6 +12,13 @@ repository = "https://github.com/timewave-computer/covenants/stride-covenant"
 
 rust-version = "1.66"
 
+[workspace.metadata.scripts]
+optimize = """docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/optimizer:0.15.1
+"""
+
 [profile.release]
 codegen-units    = 1
 debug            = false
