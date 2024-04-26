@@ -7,6 +7,10 @@ test:
 lint:
 	cargo clippy --all-targets -- -D warnings
 
+schema:
+  #!/usr/bin/env sh
+  ./schemagen.sh
+
 optimize:
   #!/usr/bin/env sh
   ./optimize.sh
