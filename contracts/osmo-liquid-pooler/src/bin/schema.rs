@@ -1,5 +1,5 @@
 use cosmwasm_schema::write_api;
-use valence_stride_liquid_staker::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use valence_osmo_liquid_pooler::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 fn main() {
     write_api! {

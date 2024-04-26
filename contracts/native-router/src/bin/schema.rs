@@ -1,5 +1,5 @@
 use cosmwasm_schema::write_api;
-use covenant_native_router::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use valence_native_router::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 fn main() {
     write_api! {
