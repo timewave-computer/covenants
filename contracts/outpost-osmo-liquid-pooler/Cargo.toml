@@ -21,7 +21,7 @@ library = []
 
 [dependencies]
 cosmwasm-schema = { workspace = true }
-cosmwasm-std = { version = "1.5.0", features = [
+cosmwasm-std = { version = "1.5.4", features = [
   "cosmwasm_1_1",
   "cosmwasm_1_2",
 ] }
