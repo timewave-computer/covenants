@@ -1,8 +1,8 @@
 [package]
-name    = "unit-tests"                      # the name of the package
-version = "0.1.0"                          # the current version, obeying semver
+name    = "unit-tests"
+version = { workspace = true }
 authors = ["Art3miX <r3mix.il@gmail.com>", "benskey bekauz@protonmail.com"]
-edition = "2021"
+edition = { workspace = true }
 
 [dev-dependencies]
 cosmwasm-std     = { workspace = true }
@@ -24,24 +24,23 @@ valence-clock                      = { workspace = true }
 valence-stride-liquid-staker       = { workspace = true }
 valence-native-splitter            = { workspace = true }
 valence-swap-holder                = { workspace = true }
-valence-covenant-swap                       = { workspace = true }
+valence-covenant-swap              = { workspace = true }
 valence-interchain-router          = { workspace = true }
 valence-two-party-pol-holder       = { workspace = true }
-valence-covenant-two-party-pol              = { workspace = true }
+valence-covenant-two-party-pol     = { workspace = true }
 valence-astroport-liquid-pooler    = { workspace = true }
 valence-native-router              = { workspace = true }
 valence-outpost-osmo-liquid-pooler = { workspace = true }
-valence-covenant-single-party-pol           = { workspace = true }
+valence-covenant-single-party-pol  = { workspace = true }
 valence-single-party-pol-holder    = { workspace = true }
 valence-osmo-liquid-pooler         = { workspace = true }
-
-covenant-utils = { workspace = true }
+covenant-utils                     = { workspace = true }
 
 # astroport stuff
 cw20                           = { workspace = true }
 cw20-base                      = { workspace = true }
 cw1-whitelist                  = { workspace = true }
-astroport                      = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport                      = { workspace = true }
 astroport-token                = { workspace = true }
 astroport-whitelist            = { workspace = true }
 astroport-factory              = { workspace = true }

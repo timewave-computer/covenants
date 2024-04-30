@@ -4,7 +4,7 @@ version     = { workspace = true }
 edition     = { workspace = true }
 authors     = ["ekez <ekez@withoutdoing.com>, benskey bekauz@protonmail.com"]
 description = "A package for deriving the covenant interfaces."
-license     = "BSD-3"
+license     = { workspace = true }
 
 
 [lib]
