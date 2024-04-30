@@ -1,0 +1,16 @@
+[package]
+name        = "covenant-macros"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = ["ekez <ekez@withoutdoing.com>, benskey bekauz@protonmail.com"]
+description = "A package for deriving the covenant interfaces."
+license     = "BSD-3"
+
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote       = { workspace = true }
+syn         = { workspace = true }

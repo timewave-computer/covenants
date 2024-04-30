@@ -1,0 +1,136 @@
+name: interchaintest
+
+permissions:
+  contents: write
+
+on:
+    pull_request:
+    push:
+
+env:
+    GO_VERSION: 1.21
+
+jobs:
+  compile-contracts:
+      name: compile wasm contract with workspace-optimizer
+      runs-on: ubuntu-latest
+      steps:
+          - name: checkout sources
+            uses: actions/checkout@v3
+
+          - name: install latest cargo nightly toolchain
+            uses: actions-rs/toolchain@v1
+            with:
+              profile: minimal
+              toolchain: 1.71.0
+              target: wasm32-unknown-unknown
+              override: true
+
+          - uses: actions/setup-node@v3
+            with:
+              node-version: 18
+
+          - name: install tar for cache
+            run: |
+              sudo apt-get update
+              sudo apt-get install tar
+
+          - name: set up cargo cache
+            uses: actions/cache@v3
+            with:
+                path: |
+                    ~/.cargo/registry/bin/
+                    ~/.cargo/registry/index/
+                    ~/.cargo/registry/cache/
+                    ~/.cargo/git/db/
+                    target/
+                key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+          - name: build artifacts
+            timeout-minutes: 40
+            run: |
+              docker run --rm -v "$(pwd)":/code \
+                --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+                --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+                cosmwasm/workspace-optimizer:0.14.0
+
+          - name: upload contracts
+            uses: actions/upload-artifact@v3
+            with:
+              name: contracts
+              path: artifacts/
+
+  swap-covenant:
+    needs: compile-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: contracts
+          path: artifacts/
+
+      - name: Set up Go  ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v4
+        with:
+          go-version:  ${{ env.GO_VERSION }}
+
+      - name: setup just
+        uses: extractions/setup-just@v1
+
+      - name: swap covenant
+        run: mkdir interchaintest/swap/wasms && cp -R artifacts/*.wasm interchaintest/swap/wasms && just local-e2e swap TestTokenSwap
+
+  # todo: figure out how to run ci with custom stride image
+  # single-party-pol-covenant:
+  #   needs: compile-contracts
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: checkout repository
+  #       uses: actions/checkout@v3
+
+  #     - uses: actions/download-artifact@v3
+  #       with:
+  #         name: contracts
+  #         path: artifacts/
+
+  #     - name: Set up Go  ${{ env.GO_VERSION }}
+  #       uses: actions/setup-go@v4
+  #       with:
+  #         go-version:  ${{ env.GO_VERSION }}
+
+  #     - name: setup just
+  #       uses: extractions/setup-just@v1
+
+  #     - name: single party pol covenant
+  #       run: mkdir interchaintest/single-party-pol/wasms && cp -R artifacts/*.wasm interchaintest/single-party-pol/wasms && cp -R interchaintest/wasms/astroport/*.wasm interchaintest/single-party-pol/wasms && just local-e2e single-party-pol
+
+
+  two-party-pol-covenant:
+    needs: compile-contracts
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v3
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: contracts
+          path: artifacts/
+
+      - name: Set up Go  ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v4
+        with:
+          go-version:  ${{ env.GO_VERSION }}
+
+      - name: setup just
+        uses: extractions/setup-just@v1
+
+      - name: two party POL native & interchain parties
+        run: mkdir -p interchaintest/two-party-pol/wasms && cp -R artifacts/*.wasm interchaintest/two-party-pol/wasms && cp -R interchaintest/wasms/astroport/*.wasm interchaintest/two-party-pol/wasms && just local-e2e two-party-pol TestTwoPartyNativePartyPol
+
+      - name: two party POL two interchain parties
+        run: mkdir -p interchaintest/two-party-pol/wasms && cp -R artifacts/*.wasm interchaintest/two-party-pol/wasms && cp -R interchaintest/wasms/astroport/*.wasm interchaintest/two-party-pol/wasms && just local-e2e two-party-pol TestTwoPartyPol
+

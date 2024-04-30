@@ -2,15 +2,16 @@
 members = [
   "packages/*",
   "contracts/*",
+  "unit-tests/",
 ]
+resolver = "2"
 
 [workspace.package]
-edition      = "2021"
-license      = "Apache-2.0"
-version      = "1.0.0"
-repository = "https://github.com/timewave-computer/covenants/stride-covenant"
-
-rust-version = "1.66"
+edition    = "2021"
+license    = "BSD-3"
+version    = "1.0.0"
+repository = "https://github.com/timewave-computer/covenants"
+# rust-version = "1.71.0"
 
 [workspace.metadata.scripts]
 optimize = """docker run --rm -v "$(pwd)":/code \
@@ -31,42 +32,75 @@ panic            = 'abort'
 rpath            = false
 
 [workspace.dependencies]
-covenant-depositor       = { path = "contracts/depositor" }
-covenant-lp = { path = "contracts/lper" }
-covenant-clock = { path = "contracts/clock" }
-covenant-clock-tester = { path = "contracts/clock-tester" }
-covenant-ls = { path = "contracts/ls" }
-covenant-covenant = { path = "contracts/covenant" }
-covenant-holder = { path = "contracts/holder" }
-# packages 
-clock-derive = { path = "packages/clock-derive" }
-cw-fifo = { path = "packages/cw-fifo" }
-covenant-clock-derive = { path = "packages/clock-derive" }
+valence-clock                      = { path = "contracts/clock" }
+valence-clock-tester               = { path = "contracts/clock-tester" }
+valence-ibc-forwarder              = { path = "contracts/ibc-forwarder" }
+valence-remote-chain-splitter      = { path = "contracts/remote-chain-splitter" }
+valence-native-splitter            = { path = "contracts/native-splitter" }
+valence-swap-holder                = { path = "contracts/swap-holder" }
+valence-covenant-swap              = { path = "contracts/swap-covenant" }
+valence-interchain-router          = { path = "contracts/interchain-router" }
+valence-two-party-pol-holder       = { path = "contracts/two-party-pol-holder" }
+valence-covenant-two-party-pol     = { path = "contracts/two-party-pol-covenant" }
+valence-astroport-liquid-pooler    = { path = "contracts/astroport-liquid-pooler" }
+valence-native-router              = { path = "contracts/native-router" }
+valence-osmo-liquid-pooler         = { path = "contracts/osmo-liquid-pooler" }
+valence-outpost-osmo-liquid-pooler = { path = "contracts/outpost-osmo-liquid-pooler" }
+valence-single-party-pol-holder    = { path = "contracts/single-party-pol-holder" }
+valence-covenant-single-party-pol  = { path = "contracts/single-party-pol-covenant" }
+valence-stride-liquid-staker       = { path = "contracts/stride-liquid-staker" }
 
+# packages
+polytone        = "1.0.0"
+clock-derive    = { path = "packages/clock-derive" }
+cw-fifo         = { path = "packages/cw-fifo" }
+covenant-macros = { path = "packages/covenant-macros" }
+covenant-utils  = { path = "packages/covenant-utils" }
 # the sha2 version here is the same as the one used by
 # cosmwasm-std. when bumping cosmwasm-std, this should also be
 # updated. to find cosmwasm_std's sha function:
 # ```cargo tree --package cosmwasm-std```
-sha2 = "0.10.6"
-neutron-sdk = { git = "https://github.com/neutron-org/neutron-sdk", default-features = false }
+sha2             = "0.10.8"
+neutron-sdk      = { git = "https://github.com/neutron-org/neutron-sdk", tag = "v0.8.0" }
 cosmos-sdk-proto = { version = "0.14.0", default-features = false }
-protobuf = { version = "3.2.0", features = ["with-bytes"] }
-serde-json-wasm = { version = "0.4.1" }
-base64 = "0.13.0"
-prost = "0.11"
-astroport = "2.8.0" 
-prost-types = "0.11"
-bech32 = "0.9.0"
-cosmwasm-schema = "1.2.1"
-cosmwasm-std    = { version = "1.2.4", features = ["ibc3"] }
-cw-storage-plus = "1.0.1"
-cw-utils        = "1.0.1"
+protobuf         = { version = "3.2.0", features = ["with-bytes"] }
+serde-json-wasm  = { version = "0.4.1" }
+base64           = "0.13.0"
+prost            = "0.11"
+prost-types      = "0.11"
+bech32           = "0.9.0"
+cosmwasm-schema  = "1.5.0"
+
+cosmwasm-std = { version = "1.5.4", features = [
+  "ibc3",
+  "cosmwasm_1_1",
+  "cosmwasm_1_2",
+] }
+
+cw-storage-plus = "1.2.0"
+cw-utils        = "1.0.3"
+getrandom       = { version = "0.2", features = ["js"] }
 cw2             = "1.0.1"
-serde     = { version = "1.0.145", default-features = false, features = ["derive"] }
-thiserror = "1.0.31"
-schemars = "0.8.10"
+serde           = { version = "1.0.145", default-features = false, features = ["derive"] }
+thiserror       = "1.0.31"
+schemars        = "0.8.10"
+cw20            = { version = "0.15.1" }
+cw20-base       = { version = "0.15.1" }
+proc-macro2     = "1"
+quote           = "1"
+syn             = "1"
+
+astroport = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 
 # dev-dependencies
-cw-multi-test   = "0.16.2"
-anyhow          = { version = "1.0.51" }
-
+cw-multi-test                  = { git = "https://github.com/Art3miX/cw-multi-test", branch = "main", features = ["cosmwasm_1_2"] }
+anyhow                         = { version = "1.0.51" }
+cw1-whitelist                  = "0.15"
+astroport-token                = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-whitelist            = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-factory              = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-pair-concentrated    = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-pair             = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+unit-tests = { path = "unit-tests" }

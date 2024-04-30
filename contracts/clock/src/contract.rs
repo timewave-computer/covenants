@@ -1,21 +1,21 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg,
-    Uint64, WasmMsg,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult,
+    SubMsg, Uint64, WasmMsg,
 };
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{PAUSED, QUEUE, TICK_MAX_GAS_LIMIT, WHITELIST};
+use crate::state::{PAUSED, QUEUE, TICK_MAX_GAS, WHITELIST};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-clock";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-pub const MIN_TICK_GAS_LIMIT: Uint64 = Uint64::new(200_000);
+pub const MIN_TICK_MAX_GAS: Uint64 = Uint64::new(200_000);
 pub const DEFAULT_TICK_MAX_GAS: Uint64 = Uint64::new(2_900_000);
-pub const MAX_TICK_GAS_LIMIT: Uint64 = Uint64::new(3_000_000);
+pub const MAX_TICK_MAX_GAS: Uint64 = Uint64::new(3_000_000);
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -24,27 +24,24 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: clock instantiate");
-
     let tick_max_gas = if let Some(tick_max_gas) = msg.tick_max_gas {
         // at least MIN_MAX_GAS, at most the relayer limit
-        tick_max_gas.clamp(MIN_TICK_GAS_LIMIT, MAX_TICK_GAS_LIMIT)
+        tick_max_gas.max(MIN_TICK_MAX_GAS).min(MAX_TICK_MAX_GAS)
     } else {
         // todo: find some reasonable default value
         DEFAULT_TICK_MAX_GAS
     };
 
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    TICK_MAX_GAS_LIMIT.save(deps.storage, &tick_max_gas)?;
+    TICK_MAX_GAS.save(deps.storage, &tick_max_gas)?;
     PAUSED.save(deps.storage, &false)?;
 
-    // Verify vector are addresses
-    // We don't verify its a contract because it might not be instantiated yet
     let whitelist: Vec<Addr> = msg
         .whitelist
         .iter()
         .map(|addr| deps.api.addr_validate(addr))
         .collect::<StdResult<Vec<Addr>>>()?;
+
     WHITELIST.save(deps.storage, &whitelist)?;
 
     Ok(Response::default()
@@ -75,12 +72,12 @@ pub fn execute(
                         SubMsg::reply_on_error(
                             WasmMsg::Execute {
                                 contract_addr: receiver.to_string(),
-                                msg: to_binary(&ExecuteMsg::Tick {})?,
+                                msg: to_json_binary(&ExecuteMsg::Tick {})?,
                                 funds: vec![],
                             },
                             0,
                         )
-                        .with_gas_limit(TICK_MAX_GAS_LIMIT.load(deps.storage)?.u64()),
+                        .with_gas_limit(TICK_MAX_GAS.load(deps.storage)?.u64()),
                     ))
             } else {
                 Ok(Response::default()
@@ -123,9 +120,9 @@ pub fn execute(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::IsQueued { address } => {
-            to_binary(&QUEUE.has(deps.storage, Addr::unchecked(address)))
+            to_json_binary(&QUEUE.has(deps.storage, Addr::unchecked(address)))
         }
-        QueryMsg::Queue { start_after, limit } => to_binary(
+        QueryMsg::Queue { start_after, limit } => to_json_binary(
             &QUEUE.query_queue(
                 deps.storage,
                 start_after
@@ -134,9 +131,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
                 limit,
             )?,
         ),
-        QueryMsg::TickMaxGas {} => to_binary(&TICK_MAX_GAS_LIMIT.load(deps.storage)?),
-        QueryMsg::Paused {} => to_binary(&PAUSED.load(deps.storage)?),
-        QueryMsg::Whitelist {} => to_binary(&WHITELIST.load(deps.storage)?),
+        QueryMsg::TickMaxGas {} => to_json_binary(&TICK_MAX_GAS.load(deps.storage)?),
+        QueryMsg::Paused {} => to_json_binary(&PAUSED.load(deps.storage)?),
+        QueryMsg::Whitelist {} => to_json_binary(&WHITELIST.load(deps.storage)?),
     }
 }
 
@@ -180,10 +177,10 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
                 return Err(ContractError::ZeroTickMaxGas {});
             }
 
-            // here we do not clamp the value to the inclusive range
-            // of min and max tick gas because we trust the admin
-            TICK_MAX_GAS_LIMIT.save(deps.storage, &new_value)?;
-
+            TICK_MAX_GAS.save(
+                deps.storage,
+                &new_value.max(MIN_TICK_MAX_GAS).min(MAX_TICK_MAX_GAS),
+            )?;
             Ok(Response::default()
                 .add_attribute("method", "migrate_update_tick_max_gas")
                 .add_attribute("tick_max_gas", new_value))

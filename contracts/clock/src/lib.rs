@@ -3,6 +3,7 @@ pub mod error;
 pub mod helpers;
 pub mod msg;
 pub mod state;
+pub mod test_helpers;
 
 #[cfg(test)]
-mod suite_tests;
+pub mod suite_tests;

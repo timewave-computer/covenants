@@ -1,0 +1,31 @@
+[package]
+name        = "valence-swap-holder"
+authors     = ["benskey bekauz@protonmail.com"]
+description = "covenant contract to facilitate a tokenswap"
+edition     = { workspace = true }
+license     = { workspace = true }
+# rust-version = { workspace = true }
+version = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+# disables #[entry_point] (i.e. instantiate/execute/query) export
+library = []
+
+[dependencies]
+cosmwasm-schema  = { workspace = true }
+cosmwasm-std     = { workspace = true }
+cw-storage-plus  = { workspace = true }
+cw-utils         = { workspace = true }
+valence-clock   = { workspace = true, features = ["library"] }
+cw2              = { workspace = true }
+serde            = { workspace = true }
+thiserror        = { workspace = true }
+covenant-macros  = { workspace = true }
+covenant-utils   = { workspace = true }
+cosmos-sdk-proto = { workspace = true }
+neutron-sdk      = { workspace = true }

@@ -1,0 +1,25 @@
+[package]
+name        = "covenant-utils"
+version     = { workspace = true }
+edition     = { workspace = true }
+authors     = ["benskey bekauz@protonmail.com"]
+description = "A package for common utils for covenants"
+license     = { workspace = true }
+
+[lib]
+
+[dependencies]
+cosmwasm-schema  = { workspace = true }
+cw-storage-plus  = { workspace = true }
+neutron-sdk      = { workspace = true }
+cosmwasm-std     = { workspace = true }
+prost            = { workspace = true }
+cosmos-sdk-proto = { workspace = true }
+cw20             = { workspace = true }
+cw-utils         = { workspace = true }
+astroport        = { workspace = true }
+polytone         = "1.0.0"
+covenant-macros  = { workspace = true }
+sha2             = { workspace = true }
+bech32           = { workspace = true }
+serde-json-wasm  = { workspace = true }

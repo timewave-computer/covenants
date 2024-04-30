@@ -1,9 +1,12 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Addr;
 
+use cosmwasm_std::to_json_binary;
 use cosmwasm_std::Binary;
+use cosmwasm_std::StdResult;
 use cosmwasm_std::Uint64;
-use covenant_clock_derive::clocked;
+use cosmwasm_std::WasmMsg;
+use covenant_macros::clocked;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -22,28 +25,22 @@ pub struct InstantiateMsg {
     pub whitelist: Vec<String>,
 }
 
-#[cw_serde]
-pub struct PresetClockFields {
-    pub tick_max_gas: Option<Uint64>,
-    pub whitelist: Vec<String>,
-    pub clock_code: u64,
-    pub label: String,
-}
-
-impl PresetClockFields {
-    pub fn to_instantiate_msg(self) -> InstantiateMsg {
-        let tick_max_gas = if let Some(tmg) = self.tick_max_gas {
-            // double the 100k minimum seems fair
-            tmg.min(Uint64::new(200000))
-        } else {
-            // todo: find some reasonable default value
-            Uint64::new(2900000)
-        };
-
-        InstantiateMsg {
-            tick_max_gas: Some(tick_max_gas),
-            whitelist: self.whitelist,
-        }
+impl InstantiateMsg {
+    pub fn to_instantiate2_msg(
+        &self,
+        code_id: u64,
+        salt: Binary,
+        admin: String,
+        label: String,
+    ) -> StdResult<WasmMsg> {
+        Ok(WasmMsg::Instantiate2 {
+            admin: Some(admin),
+            code_id,
+            label,
+            msg: to_json_binary(self)?,
+            funds: vec![],
+            salt,
+        })
     }
 }
 

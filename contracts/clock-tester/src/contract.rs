@@ -1,7 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint64,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Uint64,
 };
 use cw2::set_contract_version;
 
@@ -9,7 +9,7 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, Mode, QueryMsg};
 use crate::state::{MODE, TICK_COUNT};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-clock-tester";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -48,6 +48,6 @@ pub fn execute(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::TickCount {} => to_binary(&Uint64::new(TICK_COUNT.load(deps.storage)?)),
+        QueryMsg::TickCount {} => to_json_binary(&Uint64::new(TICK_COUNT.load(deps.storage)?)),
     }
 }
