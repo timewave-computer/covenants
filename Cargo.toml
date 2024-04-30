@@ -8,8 +8,8 @@ resolver = "2"
 
 [workspace.package]
 edition    = "2021"
-license    = "BSD-3"
-version    = "1.0.0"
+license    = "Apache-2.0"
+version    = "0.1.0"
 repository = "https://github.com/timewave-computer/covenants"
 # rust-version = "1.71.0"
 
