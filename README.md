@@ -1,4 +1,4 @@
-# Covenants 
+# Covenants
 
 [![Check Set-Up & Build](https://github.com/timewave-computer/covenants/actions/workflows/check.yml/badge.svg)](https://github.com/timewave-computer/covenants/actions/workflows/check.yml)
 
@@ -6,11 +6,16 @@
 
 * 🤝 token swap agreements between protocols
 * 🤝 agreements for protocol-owned liquidity
-* 🤝 an agreement to give a governance seat to another DAO
 
 Covenants are a modular system of contracts that can be deployed in various configurations. Timewave works closely with protocol representatives to design and configure covenants to suit their needs.
 
-We are currently working on exciting new covenants. Our completed covenants include:
-* 🛠️ [Stride LP covenant](./stride-covenant/)
+Our mainnet deployed contract code ids can be found on the [latest release](https://github.com/timewave-computer/covenants/releases/latest).
+
+Covenants have been independently audited by Informal Systems and Oak Security:
+
+| Date  | 🛠️ Audit |
+| ------------- | ------------- |
+| 2023-08-17  | [Stride LP Covenant audit](audits/17-08-2023-informal-timewave-covenants-audit.pdf)  |
+| 2024-05-02  | [Latest covenants audit](audits/2024-05-02-Audit-Report-Timewave-Covenants-v1.0.pdf)  |
 
 Please reach out if you're interested in working with us!
