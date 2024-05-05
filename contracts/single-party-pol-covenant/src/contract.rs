@@ -3,17 +3,18 @@ use std::collections::{BTreeMap, BTreeSet};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg
+    to_json_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, WasmMsg,
 };
 use covenant_utils::split::SplitConfig;
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, DestinationConfig};
+use cw2::{get_contract_version, set_contract_version};
+use semver::Version;
 use valence_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
 use valence_interchain_router::msg::InstantiateMsg as RouterInstantiateMsg;
 use valence_remote_chain_splitter::msg::InstantiateMsg as SplitterInstantiateMsg;
 use valence_single_party_pol_holder::msg::InstantiateMsg as HolderInstantiateMsg;
 use valence_stride_liquid_staker::msg::InstantiateMsg as LiquidStakerInstantiateMsg;
-use cw2::{get_contract_version, set_contract_version};
-use semver::Version;
 
 use crate::msg::LiquidPoolerMigrateMsg;
 use crate::{
@@ -437,14 +438,15 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             Ok(resp.add_messages(migrate_msgs))
-        },
+        }
         MigrateMsg::UpdateCodeId { data: _ } => {
             let version: Version = match CONTRACT_VERSION.parse() {
                 Ok(v) => v,
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse()
+            {
                 Ok(v) => v,
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };

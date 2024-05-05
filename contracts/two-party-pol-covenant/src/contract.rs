@@ -3,18 +3,20 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg
+    to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, WasmMsg,
 };
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits};
-use valence_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
-use valence_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};
 use cw2::{get_contract_version, set_contract_version};
 use semver::Version;
+use valence_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
+use valence_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};
 
 use crate::{
     error::ContractError,
     msg::{
-        CovenantPartyConfig, InstantiateMsg, LiquidPoolerMigrateMsg, MigrateMsg, QueryMsg, RouterMigrateMsg
+        CovenantPartyConfig, InstantiateMsg, LiquidPoolerMigrateMsg, MigrateMsg, QueryMsg,
+        RouterMigrateMsg,
     },
     state::{
         CONTRACT_CODES, COVENANT_CLOCK_ADDR, COVENANT_POL_HOLDER_ADDR, LIQUID_POOLER_ADDR,
@@ -435,14 +437,15 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             Ok(resp.add_messages(migrate_msgs))
-        },
+        }
         MigrateMsg::UpdateCodeId { data: _ } => {
             let version: Version = match CONTRACT_VERSION.parse() {
                 Ok(v) => v,
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse()
+            {
                 Ok(v) => v,
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };

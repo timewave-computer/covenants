@@ -3,10 +3,13 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, from_json, to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Uint128
+    ensure, from_json, to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo,
+    Response, StdError, StdResult, Uint128,
 };
 use covenant_utils::{
-    migrate_helper::get_recover_msg, neutron::{assert_ibc_fee_coverage, query_ibc_fee}, soft_validate_remote_chain_addr
+    migrate_helper::get_recover_msg,
+    neutron::{assert_ibc_fee_coverage, query_ibc_fee},
+    soft_validate_remote_chain_addr,
 };
 use cw2::{get_contract_version, set_contract_version};
 use neutron_sdk::{
@@ -14,10 +17,13 @@ use neutron_sdk::{
     query::min_ibc_fee::MinIbcFeeResponse,
     NeutronError, NeutronResult,
 };
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 use semver::Version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
-use crate::{error::ContractError, state::{DESTINATION_CONFIG, TARGET_DENOMS}};
+use crate::{
+    error::ContractError,
+    state::{DESTINATION_CONFIG, TARGET_DENOMS},
+};
 use crate::{
     msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::CLOCK_ADDRESS,
@@ -69,10 +75,10 @@ pub fn execute(
             try_distribute_fallback(deps, env, info, denoms)
         }
         ExecuteMsg::RecoverFunds { denoms } => {
-            let covenant_addr = deps.querier.query_wasm_contract_info(
-                env.contract.address.as_str()
-            )?
-            .creator;
+            let covenant_addr = deps
+                .querier
+                .query_wasm_contract_info(env.contract.address.as_str())?
+                .creator;
 
             let holder_addr = if let Some(resp) = deps.querier.query_wasm_raw(
                 covenant_addr,
@@ -81,33 +87,44 @@ pub fn execute(
                 let resp: Addr = from_json(resp)?;
                 resp
             } else {
-                return Err(ContractError::Std(StdError::generic_err("holder address not found")).to_neutron_std())
+                return Err(
+                    ContractError::Std(StdError::generic_err("holder address not found"))
+                        .to_neutron_std(),
+                );
             };
 
             // query the holder for emergency commitee address
-            let commitee_raw_query = deps.querier.query_wasm_raw(
-                holder_addr.to_string(),
-                b"e_c_a".as_slice(),
-            )?;
+            let commitee_raw_query = deps
+                .querier
+                .query_wasm_raw(holder_addr.to_string(), b"e_c_a".as_slice())?;
             let emergency_commitee: Addr = if let Some(resp) = commitee_raw_query {
                 let resp: Addr = from_json(resp)?;
                 resp
             } else {
-                return Err(ContractError::Std(StdError::generic_err("emergency committee address not found")).to_neutron_std())
+                return Err(ContractError::Std(StdError::generic_err(
+                    "emergency committee address not found",
+                ))
+                .to_neutron_std());
             };
 
             // validate emergency committee as caller
             ensure!(
                 info.sender == emergency_commitee,
-                ContractError::Std(StdError::generic_err("only emergency committee can recover funds")).to_neutron_std()
+                ContractError::Std(StdError::generic_err(
+                    "only emergency committee can recover funds"
+                ))
+                .to_neutron_std()
             );
 
             // collect available denom coins into a bank send
-            let recover_msg = get_recover_msg(deps.into_empty(), env, denoms, emergency_commitee.to_string())?;
-            Ok(Response::new()
-                .add_message(recover_msg)
-            )
-        },
+            let recover_msg = get_recover_msg(
+                deps.into_empty(),
+                env,
+                denoms,
+                emergency_commitee.to_string(),
+            )?;
+            Ok(Response::new().add_message(recover_msg))
+        }
     }
 }
 
@@ -251,13 +268,21 @@ pub fn migrate(
         MigrateMsg::UpdateCodeId { data: _ } => {
             let version: Version = match CONTRACT_VERSION.parse() {
                 Ok(v) => v,
-                Err(e) => return Err(ContractError::Std(StdError::generic_err(e.to_string())).to_neutron_std()),
+                Err(e) => {
+                    return Err(
+                        ContractError::Std(StdError::generic_err(e.to_string())).to_neutron_std()
+                    )
+                }
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
-                Ok(v) => v,
-                Err(e) => return Err(ContractError::Std(StdError::generic_err(e.to_string())).to_neutron_std()),
-            };
+            let storage_version: Version =
+                match get_contract_version(deps.storage)?.version.parse() {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return Err(ContractError::Std(StdError::generic_err(e.to_string()))
+                            .to_neutron_std())
+                    }
+                };
             if storage_version < version {
                 set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
             }

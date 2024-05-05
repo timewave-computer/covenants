@@ -10,9 +10,9 @@ use covenant_utils::{
     instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits,
     CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms,
 };
-use valence_swap_holder::msg::RefundConfig;
 use cw2::{get_contract_version, set_contract_version};
 use semver::Version;
+use valence_swap_holder::msg::RefundConfig;
 
 use crate::{
     error::ContractError,
@@ -487,7 +487,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse()
+            {
                 Ok(v) => v,
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };

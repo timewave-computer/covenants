@@ -344,7 +344,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse()
+            {
                 Ok(v) => v,
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };
@@ -352,7 +353,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
             }
             Ok(Response::new())
-        },
+        }
     }
 }
 

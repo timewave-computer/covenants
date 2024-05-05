@@ -1,7 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult
+    ensure, to_json_binary, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult,
 };
 use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
 use cw2::{get_contract_version, set_contract_version};
@@ -202,7 +203,8 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, Con
                 Err(e) => return Err(ContractError::Std(StdError::generic_err(e.to_string()))),
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse()
+            {
                 Ok(v) => v,
                 Err(e) => return Err(ContractError::Std(StdError::generic_err(e.to_string()))),
             };

@@ -15,9 +15,9 @@ use crate::{
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
+use cw2::get_contract_version;
 use cw2::set_contract_version;
 use valence_clock::helpers::{enqueue_msg, verify_clock};
-use cw2::{get_contract_version};
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -274,7 +274,8 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse()
+            {
                 Ok(v) => v,
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };

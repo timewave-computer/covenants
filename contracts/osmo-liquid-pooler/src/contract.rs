@@ -3,22 +3,28 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, from_json, to_json_binary, to_json_string, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, Env, Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg
+    ensure, from_json, to_json_binary, to_json_string, Addr, Attribute, Binary, Coin, CosmosMsg,
+    Decimal, Env, Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128,
+    WasmMsg,
 };
 use covenant_utils::{
-    migrate_helper::get_recover_msg, polytone::get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata, PacketMetadata
+    migrate_helper::get_recover_msg, polytone::get_polytone_execute_msg_binary,
+    withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata, PacketMetadata,
 };
 use cw2::{get_contract_version, set_contract_version};
 use neutron_sdk::{
     bindings::{
         msg::{IbcFee, NeutronMsg},
         query::NeutronQuery,
-    }, query::min_ibc_fee::MinIbcFeeResponse, sudo::msg::RequestPacketTimeoutHeight, NeutronError, NeutronResult
+    },
+    query::min_ibc_fee::MinIbcFeeResponse,
+    sudo::msg::RequestPacketTimeoutHeight,
+    NeutronError, NeutronResult,
 };
 use polytone::callbacks::CallbackRequest;
+use semver::Version;
 use valence_clock::helpers::{enqueue_msg, verify_clock};
 use valence_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig;
-use semver::Version;
 
 use crate::{
     error::ContractError,
@@ -121,29 +127,37 @@ pub fn execute(
             let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
 
             // query the holder for emergency commitee address
-            let commitee_raw_query = deps.querier.query_wasm_raw(
-                holder_addr.to_string(),
-                b"e_c_a".as_slice(),
-            )?;
+            let commitee_raw_query = deps
+                .querier
+                .query_wasm_raw(holder_addr.to_string(), b"e_c_a".as_slice())?;
             let emergency_commitee: Addr = if let Some(resp) = commitee_raw_query {
                 let resp: Addr = from_json(resp)?;
                 resp
             } else {
-                return Err(ContractError::Std(StdError::generic_err("emergency committee address not found")).to_neutron_std())
+                return Err(ContractError::Std(StdError::generic_err(
+                    "emergency committee address not found",
+                ))
+                .to_neutron_std());
             };
 
             // validate emergency committee as caller
             ensure!(
                 info.sender == emergency_commitee,
-                ContractError::Std(StdError::generic_err("only emergency committee can recover funds")).to_neutron_std()
+                ContractError::Std(StdError::generic_err(
+                    "only emergency committee can recover funds"
+                ))
+                .to_neutron_std()
             );
 
             // collect available denom coins into a bank send
-            let recover_msg = get_recover_msg(deps.into_empty(), env, denoms, emergency_commitee.to_string())?;
-            Ok(Response::new()
-                .add_message(recover_msg)
-            )
-        },
+            let recover_msg = get_recover_msg(
+                deps.into_empty(),
+                env,
+                denoms,
+                emergency_commitee.to_string(),
+            )?;
+            Ok(Response::new().add_message(recover_msg))
+        }
     }
 }
 
@@ -873,7 +887,8 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> NeutronResult<R
                 Err(e) => return Err(NeutronError::Std(StdError::generic_err(e.to_string()))),
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse()
+            {
                 Ok(v) => v,
                 Err(e) => return Err(NeutronError::Std(StdError::generic_err(e.to_string()))),
             };

@@ -11,9 +11,9 @@ use cosmwasm_std::entry_point;
 
 use covenant_utils::split::SplitConfig;
 use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 use cw2::{get_contract_version, set_contract_version};
 use semver::Version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::msg::CovenantType;
 use crate::state::{WithdrawState, LIQUID_POOLER_ADDRESS, WITHDRAW_STATE};
@@ -693,7 +693,8 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse()
+            {
                 Ok(v) => v,
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };

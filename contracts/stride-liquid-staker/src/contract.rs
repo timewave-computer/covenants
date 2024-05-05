@@ -12,8 +12,8 @@ use covenant_utils::ica::{
 use covenant_utils::neutron::{self, get_proto_coin, RemoteChainInfo, SudoPayload};
 use cw2::{get_contract_version, set_contract_version};
 use neutron_sdk::query::min_ibc_fee::MinIbcFeeResponse;
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 use semver::Version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::helpers::{Autopilot, AutopilotConfig};
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
@@ -359,7 +359,8 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse()
+            {
                 Ok(v) => v,
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };

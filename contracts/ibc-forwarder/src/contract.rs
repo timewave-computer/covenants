@@ -4,16 +4,19 @@ use cosmos_sdk_proto::cosmos::bank::v1beta1::{Input, MsgMultiSend, Output};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, from_json, to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, Uint128
+    ensure, from_json, to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdError, StdResult, Uint128,
 };
 use covenant_utils::{
     ica::{
         get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee,
         sudo_error, sudo_open_ack, sudo_response, sudo_timeout, INTERCHAIN_ACCOUNT_ID,
-    }, migrate_helper::get_recover_msg, neutron::{
+    },
+    migrate_helper::get_recover_msg,
+    neutron::{
         assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, to_proto_msg_transfer,
         RemoteChainInfo, SudoPayload,
-    }
+    },
 };
 use cw2::{get_contract_version, set_contract_version};
 use neutron_sdk::{
@@ -23,8 +26,8 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 use prost::Message;
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 use semver::Version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::state::{IbcForwarderIcaStateHelper, FALLBACK_ADDRESS};
 use crate::{error::ContractError, msg::FallbackAddressUpdateConfig};
@@ -90,10 +93,10 @@ pub fn execute(
         ExecuteMsg::DistributeFallback { coins } => try_distribute_fallback(deps, env, info, coins),
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
         ExecuteMsg::RecoverFunds { denoms } => {
-            let covenant_addr = deps.querier.query_wasm_contract_info(
-                env.contract.address.as_str()
-            )?
-            .creator;
+            let covenant_addr = deps
+                .querier
+                .query_wasm_contract_info(env.contract.address.as_str())?
+                .creator;
 
             let holder_addr = if let Some(resp) = deps.querier.query_wasm_raw(
                 covenant_addr,
@@ -102,33 +105,42 @@ pub fn execute(
                 let resp: Addr = from_json(resp)?;
                 resp
             } else {
-                return Err(ContractError::Std(StdError::generic_err("holder address not found")).into())
+                return Err(
+                    ContractError::Std(StdError::generic_err("holder address not found")).into(),
+                );
             };
 
             // query the holder for emergency commitee address
-            let commitee_raw_query = deps.querier.query_wasm_raw(
-                holder_addr.to_string(),
-                b"e_c_a".as_slice(),
-            )?;
+            let commitee_raw_query = deps
+                .querier
+                .query_wasm_raw(holder_addr.to_string(), b"e_c_a".as_slice())?;
             let emergency_commitee: Addr = if let Some(resp) = commitee_raw_query {
                 let resp: Addr = from_json(resp)?;
                 resp
             } else {
-                return Err(ContractError::Std(StdError::generic_err("emergency committee address not found")).into())
+                return Err(ContractError::Std(StdError::generic_err(
+                    "emergency committee address not found",
+                ))
+                .into());
             };
 
             // validate emergency committee as caller
             ensure!(
                 info.sender == emergency_commitee,
-                ContractError::Std(StdError::generic_err("only emergency committee can recover funds"))
+                ContractError::Std(StdError::generic_err(
+                    "only emergency committee can recover funds"
+                ))
             );
 
             // collect available denom coins into a bank send
-            let recover_msg = get_recover_msg(deps.into_empty(), env, denoms, emergency_commitee.to_string())?;
-            Ok(Response::new()
-                .add_message(recover_msg)
-            )
-        },
+            let recover_msg = get_recover_msg(
+                deps.into_empty(),
+                env,
+                denoms,
+                emergency_commitee.to_string(),
+            )?;
+            Ok(Response::new().add_message(recover_msg))
+        }
     }
 }
 
@@ -482,7 +494,8 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };
 
-            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse() {
+            let storage_version: Version = match get_contract_version(deps.storage)?.version.parse()
+            {
                 Ok(v) => v,
                 Err(e) => return Err(StdError::generic_err(e.to_string())),
             };

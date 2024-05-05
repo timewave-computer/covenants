@@ -57,7 +57,9 @@ pub enum ExecuteMsg {
     /// ticks. Only callable if the message sender is currently
     /// enqueued.
     Dequeue {},
-    RecoverFunds { denoms: Vec<String> },
+    RecoverFunds {
+        denoms: Vec<String>,
+    },
 }
 
 #[cw_serde]

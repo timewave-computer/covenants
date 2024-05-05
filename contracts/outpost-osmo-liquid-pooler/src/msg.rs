@@ -50,9 +50,7 @@ pub struct CallerContext {
 
 #[cw_serde]
 pub enum MigrateMsg {
-    UpdateCodeId {
-        data: Option<Binary>,
-    },
+    UpdateCodeId { data: Option<Binary> },
 }
 
 #[cw_serde]

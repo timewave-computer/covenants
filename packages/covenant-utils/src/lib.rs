@@ -16,11 +16,11 @@ pub mod deadline;
 pub mod ica;
 pub mod instantiate2_helper;
 pub mod liquid_pooler_withdraw;
+pub mod migrate_helper;
 pub mod neutron;
 pub mod polytone;
 pub mod split;
 pub mod withdraw_lp_helper;
-pub mod migrate_helper;
 
 #[cw_serde]
 pub struct InterchainCovenantParty {
