@@ -19,3 +19,7 @@ Covenants have been independently audited by Informal Systems and Oak Security:
 | 2024-05-02  | [Latest covenants audit](audits/2024-05-02-Audit-Report-Timewave-Covenants-v1.0.pdf)  |
 
 Please reach out if you're interested in working with us!
+
+## License
+
+The Covenants system is licensed under [Apache 2](LICENSE).
