@@ -3,7 +3,7 @@ members = [
   "packages/*",
   "contracts/*",
   "unit-tests/",
-  "local-interchaintest/",
+  "local-interchaintest",
 ]
 resolver = "2"
 

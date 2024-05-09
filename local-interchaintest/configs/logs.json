@@ -1,1 +1,24 @@
-{}
+{
+  "start_time": 1715261454,
+  "chains": [
+    {
+      "chain_id": "localcosmos-1",
+      "chain_name": "localcosmos-1",
+      "rpc_address": "http://0.0.0.0:54245",
+      "rest_address": "http://0.0.0.0:54247",
+      "grpc_address": "0.0.0.0:54246",
+      "p2p_address": "0.0.0.0:54244",
+      "ibc_paths": []
+    },
+    {
+      "chain_id": "localneutron-1",
+      "chain_name": "localneutron-1",
+      "rpc_address": "http://0.0.0.0:54257",
+      "rest_address": "http://0.0.0.0:54259",
+      "grpc_address": "0.0.0.0:54258",
+      "p2p_address": "0.0.0.0:54256",
+      "ibc_paths": []
+    }
+  ],
+  "ibc_channels": []
+}

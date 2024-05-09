@@ -1,8 +1,6 @@
-// fn main() {
-//     println!("Hello, world!");
-// }
-
 #![allow(dead_code, unused_must_use)]
+
+pub mod base;
 
 // Import base libraries
 use cosmwasm_std::Coin;
@@ -21,16 +19,19 @@ use localic_std::transactions::ChainRequestBuilder;
 use localic_std::modules::bank::{get_balance, get_total_supply, send};
 use localic_std::modules::cosmwasm::CosmWasm;
 
-// base helpers for this binary
-pub mod base;
-use base::{
-    get_contract_cache_path, get_contract_path, get_current_dir, get_local_interchain_dir, API_URL,
-};
+use crate::base::get_contract_cache_path;
+use crate::base::get_contract_path;
+use crate::base::get_current_dir;
+use crate::base::get_local_interchain_dir;
 
-// local-ic start neutron_gaia
-// cargo run --package localic-bin --bin localic-bin
+const API_URL: &str = "http://127.0.0.1:42069";
+
+// local-ic start neutron_gaia --api-port 42069
 fn main() {
-    poll_for_start(&Client::new(), API_URL, 300);
+    println!("executing localinterchain main.rs");
+
+    let client = Client::new();
+    poll_for_start(&client, API_URL, 300);
 
     let rb: ChainRequestBuilder =
         match ChainRequestBuilder::new(API_URL.to_string(), "localcosmos-1".to_string(), true) {
