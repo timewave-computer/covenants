@@ -343,13 +343,13 @@ func TestTwoPartyPol(t *testing.T) {
 
 	t.Run("two party pol covenant setup", func(t *testing.T) {
 		// Wasm code that we need to store on Neutron
-		const covenantContractPath = "wasms/covenant_two_party_pol.wasm"
-		const clockContractPath = "wasms/covenant_clock.wasm"
-		const interchainRouterContractPath = "wasms/covenant_interchain_router.wasm"
-		const nativeRouterContractPath = "wasms/covenant_native_router.wasm"
-		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
-		const holderContractPath = "wasms/covenant_two_party_pol_holder.wasm"
-		const liquidPoolerPath = "wasms/covenant_astroport_liquid_pooler.wasm"
+		const covenantContractPath = "wasms/valence_covenant_two_party_pol.wasm"
+		const clockContractPath = "wasms/valence_clock.wasm"
+		const interchainRouterContractPath = "wasms/valence_interchain_router.wasm"
+		const nativeRouterContractPath = "wasms/valence_native_router.wasm"
+		const ibcForwarderContractPath = "wasms/valence_ibc_forwarder.wasm"
+		const holderContractPath = "wasms/valence_two_party_pol_holder.wasm"
+		const liquidPoolerPath = "wasms/valence_astroport_liquid_pooler.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64
@@ -513,17 +513,13 @@ func TestTwoPartyPol(t *testing.T) {
 
 				currentHeight := testCtx.GetNeutronHeight()
 				depositBlock = Block(currentHeight + 180)
-				lockupBlock = Block(currentHeight + 180)
+				lockupBlock = Block(currentHeight + 200)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
 				}
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
-				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "10000",
-					TimeoutFee: "10000",
 				}
 
 				atomCoin := Coin{
@@ -616,7 +612,6 @@ func TestTwoPartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-happy",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig: CovenantPartyConfig{
@@ -627,8 +622,8 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
@@ -711,7 +706,7 @@ func TestTwoPartyPol(t *testing.T) {
 
 			t.Run("tick until holder sends funds to LiquidPooler and receives LP tokens in return", func(t *testing.T) {
 				for {
-					if testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress) == 0 {
+					if testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress) == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					} else {
 						break
@@ -825,10 +820,6 @@ func TestTwoPartyPol(t *testing.T) {
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
 				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "10000",
-					TimeoutFee: "10000",
-				}
 
 				atomCoin := Coin{
 					Denom:  cosmosAtom.Config().Denom,
@@ -903,15 +894,14 @@ func TestTwoPartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-ragequit",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
 					PartyBConfig:    CovenantPartyConfig{Interchain: &partyBConfig},
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
@@ -1009,11 +999,11 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("tick until holder sends funds to LPer and receives LP tokens in return", func(t *testing.T) {
+			t.Run("tick until holder sends funds to LPer and liquidity is provided", func(t *testing.T) {
 				for {
-					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress)
+					lperLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
 
-					if holderLpTokenBal == 0 {
+					if lperLpTokenBal == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					} else {
 						break
@@ -1121,10 +1111,6 @@ func TestTwoPartyPol(t *testing.T) {
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
 				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "10000",
-					TimeoutFee: "10000",
-				}
 
 				atomCoin := Coin{
 					Denom:  cosmosAtom.Config().Denom,
@@ -1199,15 +1185,14 @@ func TestTwoPartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-side-ragequit",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
 					PartyBConfig:    CovenantPartyConfig{Interchain: &partyBConfig},
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
@@ -1310,12 +1295,12 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
+			t.Run("tick until holder sends the funds to LPer it provides liquidity", func(t *testing.T) {
 				for {
-					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress)
-					println("holder lp token balance: ", holderLpTokenBal)
+					lperLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
+					println("liquid pooler lp token balance: ", lperLpTokenBal)
 
-					if holderLpTokenBal == 0 {
+					if lperLpTokenBal == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					} else {
 						break
@@ -1377,18 +1362,14 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 
 				currentHeight := testCtx.GetNeutronHeight()
-				depositBlock := Block(currentHeight + 180)
-				lockupBlock := Block(currentHeight + 180)
+				depositBlock := Block(currentHeight + 210)
+				lockupBlock := Block(currentHeight + 230)
 				expirationHeight = lockupBlock
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
 				}
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
-				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "10000",
-					TimeoutFee: "10000",
 				}
 
 				atomCoin := Coin{
@@ -1464,15 +1445,14 @@ func TestTwoPartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-side-happy",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
 					PartyBConfig:    CovenantPartyConfig{Interchain: &partyBConfig},
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
@@ -1575,12 +1555,12 @@ func TestTwoPartyPol(t *testing.T) {
 				}
 			})
 
-			t.Run("tick until holder sends the funds to LPer and receives LP tokens in return", func(t *testing.T) {
+			t.Run("tick until holder sends the funds to LPer and it provides liquidity", func(t *testing.T) {
 				for {
-					holderLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, holderAddress)
-					println("holder lp token balance: ", holderLpTokenBal)
+					lperLpTokenBal := testCtx.QueryLpTokenBalance(liquidityTokenAddress, liquidPoolerAddress)
+					println("liquid pooler lp token balance: ", lperLpTokenBal)
 
-					if holderLpTokenBal == 0 {
+					if lperLpTokenBal == 0 {
 						testCtx.Tick(clockAddress, keyring.BackendTest, neutronUser.KeyName)
 					} else {
 						break

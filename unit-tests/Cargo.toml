@@ -1,0 +1,52 @@
+[package]
+name    = "unit-tests"
+version = { workspace = true }
+authors = ["Art3miX <r3mix.il@gmail.com>", "benskey bekauz@protonmail.com"]
+edition = { workspace = true }
+
+[dev-dependencies]
+cosmwasm-std     = { workspace = true }
+cosmwasm-schema  = { workspace = true }
+cw-storage-plus  = { workspace = true }
+cw-utils         = { workspace = true }
+cw-multi-test    = { workspace = true }
+neutron-sdk      = { workspace = true }
+sha2             = { workspace = true }
+prost            = { workspace = true }
+prost-types      = { workspace = true }
+colored          = "1.9.4"
+const_format     = "0.2.32"
+cosmos-sdk-proto = { workspace = true }
+
+valence-remote-chain-splitter      = { workspace = true }
+valence-ibc-forwarder              = { workspace = true }
+valence-clock                      = { workspace = true }
+valence-stride-liquid-staker       = { workspace = true }
+valence-native-splitter            = { workspace = true }
+valence-swap-holder                = { workspace = true }
+valence-covenant-swap              = { workspace = true }
+valence-interchain-router          = { workspace = true }
+valence-two-party-pol-holder       = { workspace = true }
+valence-covenant-two-party-pol     = { workspace = true }
+valence-astroport-liquid-pooler    = { workspace = true }
+valence-native-router              = { workspace = true }
+valence-outpost-osmo-liquid-pooler = { workspace = true }
+valence-covenant-single-party-pol  = { workspace = true }
+valence-single-party-pol-holder    = { workspace = true }
+valence-osmo-liquid-pooler         = { workspace = true }
+covenant-utils                     = { workspace = true }
+
+# astroport stuff
+cw20                           = { workspace = true }
+cw20-base                      = { workspace = true }
+cw1-whitelist                  = { workspace = true }
+astroport                      = { workspace = true }
+astroport-token                = { workspace = true }
+astroport-whitelist            = { workspace = true }
+astroport-factory              = { workspace = true }
+astroport-native-coin-registry = { workspace = true }
+astroport-pair-stable          = { workspace = true }
+astroport-pair                 = { workspace = true }
+astroport-pair-concentrated    = { workspace = true }
+
+osmosis-std = "0.13.2"

@@ -317,13 +317,13 @@ func TestTokenSwap(t *testing.T) {
 
 	t.Run("tokenswap covenant setup", func(t *testing.T) {
 		// Wasm code that we need to store on Neutron
-		const covenantContractPath = "wasms/covenant_swap.wasm"
-		const clockContractPath = "wasms/covenant_clock.wasm"
-		const interchainRouterContractPath = "wasms/covenant_interchain_router.wasm"
-		const nativeRouterContractPath = "wasms/covenant_native_router.wasm"
-		const splitterContractPath = "wasms/covenant_native_splitter.wasm"
-		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
-		const swapHolderContractPath = "wasms/covenant_swap_holder.wasm"
+		const covenantContractPath = "wasms/valence_covenant_swap.wasm"
+		const clockContractPath = "wasms/valence_clock.wasm"
+		const interchainRouterContractPath = "wasms/valence_interchain_router.wasm"
+		const nativeRouterContractPath = "wasms/valence_native_router.wasm"
+		const splitterContractPath = "wasms/valence_native_splitter.wasm"
+		const ibcForwarderContractPath = "wasms/valence_ibc_forwarder.wasm"
+		const swapHolderContractPath = "wasms/valence_swap_holder.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64
@@ -366,11 +366,6 @@ func TestTokenSwap(t *testing.T) {
 			depositBlock := Block(currentHeight + 350)
 			lockupConfig := Expiration{
 				AtHeight: &depositBlock,
-			}
-
-			presetIbcFee := PresetIbcFee{
-				AckFee:     "100000",
-				TimeoutFee: "100000",
 			}
 
 			neutronReceiverAddr = neutronAccount.Bech32Address(cosmosNeutron.Config().Bech32Prefix)
@@ -423,7 +418,6 @@ func TestTokenSwap(t *testing.T) {
 			covenantMsg := CovenantInstantiateMsg{
 				Label:                       "swap-covenant",
 				Timeouts:                    timeouts,
-				PresetIbcFee:                presetIbcFee,
 				SwapCovenantContractCodeIds: codeIds,
 				LockupConfig:                lockupConfig,
 				PartyAConfig: CovenantPartyConfig{

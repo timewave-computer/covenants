@@ -6,14 +6,14 @@ use cosmwasm_std::{
     to_json_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     WasmMsg,
 };
-use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
-use covenant_interchain_router::msg::InstantiateMsg as RouterInstantiateMsg;
-use covenant_remote_chain_splitter::msg::InstantiateMsg as SplitterInstantiateMsg;
-use covenant_single_party_pol_holder::msg::InstantiateMsg as HolderInstantiateMsg;
-use covenant_stride_liquid_staker::msg::InstantiateMsg as LiquidStakerInstantiateMsg;
 use covenant_utils::split::SplitConfig;
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, DestinationConfig};
 use cw2::set_contract_version;
+use valence_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
+use valence_interchain_router::msg::InstantiateMsg as RouterInstantiateMsg;
+use valence_remote_chain_splitter::msg::InstantiateMsg as SplitterInstantiateMsg;
+use valence_single_party_pol_holder::msg::InstantiateMsg as HolderInstantiateMsg;
+use valence_stride_liquid_staker::msg::InstantiateMsg as LiquidStakerInstantiateMsg;
 
 use crate::msg::LiquidPoolerMigrateMsg;
 use crate::{
@@ -25,7 +25,7 @@ use crate::{
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-single-party-pol";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub(crate) const CLOCK_SALT: &[u8] = b"clock";
@@ -108,7 +108,7 @@ pub fn instantiate(
     denoms.insert(msg.covenant_party_config.native_denom.to_string());
 
     let router_instantiate2_msg = RouterInstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.clone(),
+        clock_address: clock_instantiate2_config.addr.to_string(),
         destination_config: DestinationConfig {
             local_to_destination_chain_channel_id: msg
                 .covenant_party_config
@@ -127,8 +127,8 @@ pub fn instantiate(
     )?;
 
     let holder_instantiate2_msg = HolderInstantiateMsg {
-        withdrawer: Some(msg.covenant_party_config.addr.to_string()),
-        withdraw_to: Some(router_instantiate2_config.addr.to_string()),
+        withdrawer: msg.covenant_party_config.addr.to_string(),
+        withdraw_to: router_instantiate2_config.addr.to_string(),
         emergency_committee_addr: msg.emergency_committee.clone(),
         lockup_period: msg.lockup_period,
         pooler_address: liquid_pooler_instantiate2_config.addr.to_string(),
@@ -148,7 +148,6 @@ pub fn instantiate(
         neutron_stride_ibc_connection_id: msg.ls_info.ls_neutron_connection_id.to_string(),
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         clock_address: clock_instantiate2_config.addr.to_string(),
         next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
     }
@@ -191,10 +190,10 @@ pub fn instantiate(
         remote_chain_connection_id: msg.remote_chain_splitter_config.connection_id,
         denom: msg.remote_chain_splitter_config.denom.to_string(),
         amount: msg.remote_chain_splitter_config.amount,
-        ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
         splits,
+        fallback_address: msg.remote_chain_splitter_config.fallback_address,
     }
     .to_instantiate2_msg(
         &splitter_instantiate2_config,
@@ -220,9 +219,9 @@ pub fn instantiate(
             remote_chain_channel_id: config.party_to_host_chain_channel_id,
             denom: config.remote_chain_denom,
             amount: config.contribution.amount,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             ica_timeout: msg.timeouts.ica_timeout,
+            fallback_address: config.fallback_address,
         };
         messages.push(instantiate_msg.to_instantiate2_msg(
             &ls_forwarder_instantiate2_config,
@@ -241,9 +240,9 @@ pub fn instantiate(
             remote_chain_channel_id: config.party_to_host_chain_channel_id,
             denom: config.remote_chain_denom,
             amount: config.contribution.amount,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
             ica_timeout: msg.timeouts.ica_timeout,
+            fallback_address: config.fallback_address,
         };
         messages.push(instantiate_msg.to_instantiate2_msg(
             &lp_forwarder_instantiate2_config,
@@ -252,7 +251,7 @@ pub fn instantiate(
         )?);
     };
 
-    let clock_instantiate2_msg = covenant_clock::msg::InstantiateMsg {
+    let clock_instantiate2_msg = valence_clock::msg::InstantiateMsg {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: clock_whitelist,
     }
@@ -325,14 +324,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
             Ok(to_json_binary(&ica)?)
         }
+        QueryMsg::ContractCodes {} => Ok(to_json_binary(&CONTRACT_CODES.load(deps.storage)?)?),
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
-    deps.api.debug("WASMDEBUG: migrate");
     match msg {
         MigrateMsg::MigrateContracts {
+            codes,
             clock,
             ls_forwarder,
             lp_forwarder,
@@ -344,6 +344,13 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
         } => {
             let mut migrate_msgs = vec![];
             let mut resp = Response::default().add_attribute("method", "migrate_contracts");
+
+            if let Some(new_codes) = codes {
+                CONTRACT_CODES.save(deps.storage, &new_codes)?;
+                let code_binary = to_json_binary(&new_codes)?;
+                resp = resp.add_attribute("contract_codes_migrate", code_binary.to_base64());
+            }
+
             let contract_codes = CONTRACT_CODES.load(deps.storage)?;
 
             if let Some(clock) = clock {
@@ -430,6 +437,12 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             Ok(resp.add_messages(migrate_msgs))
+        }
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
         }
     }
 }

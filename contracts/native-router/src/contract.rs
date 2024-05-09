@@ -3,12 +3,11 @@ use std::collections::BTreeSet;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Attribute, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128,
+    to_json_binary, Attribute, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Response, StdError, StdResult,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::get_default_ibc_fee_requirement;
 use cw2::set_contract_version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::{
     error::ContractError,
@@ -16,7 +15,7 @@ use crate::{
     state::{CLOCK_ADDRESS, RECEIVER_ADDRESS, TARGET_DENOMS},
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-native-router";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -39,7 +38,6 @@ pub fn instantiate(
         .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "interchain_router_instantiate")
         .add_attribute("clock_address", clock_addr))
-    // .add_attributes(destination_config.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -49,8 +47,6 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
     match msg {
         ExecuteMsg::Tick {} => {
             // Verify caller is the clock
@@ -84,36 +80,16 @@ fn try_distribute_fallback(
         available_balances.push(queried_coin);
     }
 
-    let mut bank_sends: Vec<CosmosMsg> = vec![];
-    // we get the number of target denoms we have to reserve
-    // neutron fees for
-    let count = Uint128::from(denoms.len() as u128);
-
-    for coin in available_balances {
-        let send_coin = if coin.denom != "untrn" {
-            Some(coin)
-        } else {
-            // if its neutron we're distributing we need to keep a
-            // reserve for ibc gas costs.
-            // this is safe because we pass target denoms.
-            let reserve_amount = count * get_default_ibc_fee_requirement();
-            if coin.amount > reserve_amount {
-                Some(Coin {
-                    denom: coin.denom,
-                    amount: coin.amount - reserve_amount,
-                })
-            } else {
-                None
-            }
-        };
-
-        if let Some(c) = send_coin {
-            bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+    let bank_sends: Vec<CosmosMsg> = available_balances
+        .into_iter()
+        .map(|c| {
+            BankMsg::Send {
                 to_address: receiver_address.to_string(),
                 amount: vec![c],
-            }));
-        }
-    }
+            }
+            .into()
+        })
+        .collect();
 
     Ok(Response::default()
         .add_attribute("method", "try_distribute_fallback")
@@ -153,38 +129,16 @@ fn try_route_balances(deps: DepsMut, env: Env) -> Result<Response, ContractError
             .collect(),
     };
 
-    // get transfer messages for each denom
-    let mut bank_sends: Vec<CosmosMsg> = vec![];
-    // we get the number of target denoms we have to reserve
-    // neutron fees for
-    let count = Uint128::from(1 + denom_balances.len() as u128);
-
-    for coin in denom_balances {
-        // non-neutron coins get distributed entirely
-        let send_coin = if coin.denom != "untrn" {
-            Some(coin)
-        } else {
-            // if its neutron we're distributing we need to keep a
-            // reserve for ibc gas costs.
-            // this is safe because we pass target denoms.
-            let reserve_amount = count * get_default_ibc_fee_requirement();
-            if coin.amount > reserve_amount {
-                Some(Coin {
-                    denom: coin.denom,
-                    amount: coin.amount - reserve_amount,
-                })
-            } else {
-                None
-            }
-        };
-
-        if let Some(c) = send_coin {
-            bank_sends.push(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+    let bank_sends: Vec<CosmosMsg> = denom_balances
+        .into_iter()
+        .map(|c| {
+            BankMsg::Send {
                 to_address: receiver_addr.to_string(),
                 amount: vec![c],
-            }));
-        }
-    }
+            }
+            .into()
+        })
+        .collect();
 
     Ok(Response::default()
         .add_attribute("method", "try_route_balances")
@@ -205,8 +159,6 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: migrate");
-
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
@@ -239,7 +191,7 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
             // This is a migrate message to update code id,
             // Data is optional base64 that we can parse to any data we would like in the future
             // let data: SomeStruct = from_binary(&data)?;
-            Ok(Response::default().add_attribute("method", "update_interchain_router"))
+            Ok(Response::default().add_attribute("method", "update_native_router"))
         }
     }
 }

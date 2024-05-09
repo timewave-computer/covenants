@@ -10,7 +10,7 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{LOCKUP_PERIOD, POOLER_ADDRESS, WITHDRAWER, WITHDRAW_STATE, WITHDRAW_TO};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-holder";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -21,29 +21,33 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    deps.api.debug("WASMDEBUG: holder instantiate");
-    let mut resp = Response::default().add_attribute("method", "instantiate");
 
-    // withdrawer is optional on instantiation; can be set later
-    if let Some(addr) = msg.withdrawer {
-        WITHDRAWER.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
-        resp = resp.add_attribute("withdrawer", addr);
-    };
+    let withdrawer = deps.api.addr_validate(&msg.withdrawer)?;
+    let withdraw_to = deps.api.addr_validate(&msg.withdraw_to)?;
+    let liquidity_pooler_address = deps.api.addr_validate(&msg.pooler_address)?;
 
-    if let Some(addr) = msg.withdraw_to {
-        WITHDRAW_TO.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
-        resp = resp.add_attribute("withdraw_to", addr);
-    };
+    WITHDRAWER.save(deps.storage, &withdrawer)?;
+    WITHDRAW_TO.save(deps.storage, &withdraw_to)?;
+    POOLER_ADDRESS.save(deps.storage, &liquidity_pooler_address)?;
+
+    ensure!(
+        !msg.lockup_period.is_expired(&_env.block),
+        ContractError::MustBeFutureLockupPeriod {}
+    );
+    LOCKUP_PERIOD.save(deps.storage, &msg.lockup_period)?;
+
+    let resp = Response::default()
+        .add_attribute("method", "instantiate")
+        .add_attribute("pool_address", liquidity_pooler_address)
+        .add_attribute("withdrawer", withdrawer)
+        .add_attribute("withdraw_to", withdraw_to);
 
     if let Some(addr) = msg.emergency_committee_addr {
         EMERGENCY_COMMITTEE_ADDR.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
-        resp = resp.add_attribute("emergency_committee", addr);
-    };
-
-    LOCKUP_PERIOD.save(deps.storage, &msg.lockup_period)?;
-    POOLER_ADDRESS.save(deps.storage, &deps.api.addr_validate(&msg.pooler_address)?)?;
-
-    Ok(resp.add_attribute("pool_address", msg.pooler_address))
+        Ok(resp.add_attribute("emergency_committee", addr))
+    } else {
+        Ok(resp)
+    }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -52,6 +56,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Withdrawer {} => Ok(to_json_binary(&WITHDRAWER.may_load(deps.storage)?)?),
         QueryMsg::WithdrawTo {} => Ok(to_json_binary(&WITHDRAW_TO.may_load(deps.storage)?)?),
         QueryMsg::PoolerAddress {} => Ok(to_json_binary(&POOLER_ADDRESS.may_load(deps.storage)?)?),
+        QueryMsg::EmergencyCommitteeAddr {} => Ok(to_json_binary(
+            &EMERGENCY_COMMITTEE_ADDR.may_load(deps.storage)?,
+        )?),
+        QueryMsg::LockupConfig {} => Ok(to_json_binary(&LOCKUP_PERIOD.load(deps.storage)?)?),
     }
 }
 
@@ -81,14 +89,8 @@ fn try_claim(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Con
         ContractError::LockupPeriodNotOver(lockup_period.to_string())
     );
 
-    let withdrawer = WITHDRAWER
-        .load(deps.storage)
-        .map_err(|_| ContractError::NoWithdrawer {})?;
+    let withdrawer = WITHDRAWER.load(deps.storage)?;
     ensure!(info.sender == withdrawer, ContractError::Unauthorized {});
-
-    WITHDRAW_TO
-        .load(deps.storage)
-        .map_err(|_| ContractError::NoWithdrawTo {})?;
 
     let pooler_address = POOLER_ADDRESS.load(deps.storage)?;
 
@@ -114,19 +116,20 @@ fn try_emergency_withdraw(deps: DepsMut, info: MessageInfo) -> Result<Response, 
     let pooler_address = POOLER_ADDRESS.load(deps.storage)?;
     let withdraw_msg = generate_withdraw_msg(pooler_address.to_string(), None)?;
 
+    WITHDRAW_STATE.save(deps.storage, &true)?;
+
     Ok(Response::default().add_message(withdraw_msg))
 }
 
 fn try_distribute(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let pooler_addr = POOLER_ADDRESS.load(deps.storage)?;
+    let withdraw_to_addr = WITHDRAW_TO.load(deps.storage)?;
+
+    // only liquid pooler should call this method
     ensure!(info.sender == pooler_addr, ContractError::Unauthorized {});
-
-    let withdraw_to_addr = WITHDRAW_TO
-        .load(deps.storage)
-        .map_err(|_| ContractError::NoWithdrawTo {})?;
-
     ensure!(info.funds.len() == 2, ContractError::InvalidFunds {});
 
+    // clear the pending withdraw state
     WITHDRAW_STATE.remove(deps.storage);
 
     let send_msg = BankMsg::Send {
@@ -150,8 +153,6 @@ fn try_withdraw_failed(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: migrate");
-
     match msg {
         MigrateMsg::UpdateConfig {
             withdrawer,
@@ -160,7 +161,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, Con
             lockup_period,
             emergency_committee,
         } => {
-            let mut response = Response::default().add_attribute("method", "update_withdrawer");
+            let mut response = Response::default().add_attribute("method", "update_config");
 
             if let Some(addr) = withdrawer {
                 WITHDRAWER.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
@@ -183,17 +184,11 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, Con
             }
 
             if let Some(expires) = lockup_period {
-                let curr_lockup = LOCKUP_PERIOD.load(deps.storage)?;
+                // validate that the new lockup period is in the future
                 ensure!(
-                    curr_lockup.is_expired(&env.block),
-                    ContractError::LockupPeriodIsExpired {}
-                );
-
-                ensure!(
-                    expires.is_expired(&env.block),
+                    !expires.is_expired(&env.block),
                     ContractError::MustBeFutureLockupPeriod {}
                 );
-
                 LOCKUP_PERIOD.save(deps.storage, &expires)?;
                 response = response.add_attribute("lockup_period", expires.to_string());
             }

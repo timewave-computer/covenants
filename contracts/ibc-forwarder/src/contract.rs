@@ -1,37 +1,45 @@
+use std::collections::BTreeSet;
+
+use cosmos_sdk_proto::cosmos::bank::v1beta1::{Input, MsgMultiSend, Output};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    from_json, to_json_binary, to_json_vec, Binary, Coin, CosmosMsg, CustomQuery, Deps, DepsMut,
-    Env, MessageInfo, Reply, Response, StdError, StdResult, Storage, SubMsg,
+    ensure, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError,
+    StdResult, Uint128,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
-use covenant_utils::neutron::{
-    get_default_ica_fee, get_proto_coin, to_proto_msg_transfer, RemoteChainInfo, SudoPayload,
+use covenant_utils::{
+    ica::{
+        get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee,
+        sudo_error, sudo_open_ack, sudo_response, sudo_timeout, INTERCHAIN_ACCOUNT_ID,
+    },
+    neutron::{
+        assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, to_proto_msg_transfer,
+        RemoteChainInfo, SudoPayload,
+    },
 };
 use cw2::set_contract_version;
 use neutron_sdk::{
-    bindings::{
-        msg::{MsgSubmitTxResponse, NeutronMsg},
-        query::NeutronQuery,
-    },
+    bindings::{msg::NeutronMsg, query::NeutronQuery, types::ProtobufAny},
     interchain_txs::helpers::get_port_id,
     sudo::msg::SudoMsg,
     NeutronError, NeutronResult,
 };
+use prost::Message;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
+use crate::state::{IbcForwarderIcaStateHelper, FALLBACK_ADDRESS};
+use crate::{error::ContractError, msg::FallbackAddressUpdateConfig};
 use crate::{
     helpers::{get_next_memo, MsgTransfer},
     msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
         CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
-        REPLY_ID_STORAGE, SUDO_PAYLOAD, TRANSFER_AMOUNT,
+        TRANSFER_AMOUNT,
     },
-    sudo::{save_reply_payload, sudo_error, sudo_open_ack, sudo_response, sudo_timeout},
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-ibc-forwarder";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-const INTERCHAIN_ACCOUNT_ID: &str = "ica";
 pub const SUDO_PAYLOAD_REPLY_ID: u64 = 1;
 
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
@@ -52,22 +60,24 @@ pub fn instantiate(
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     TRANSFER_AMOUNT.save(deps.storage, &msg.amount)?;
     let remote_chain_info = RemoteChainInfo {
-        connection_id: msg.remote_chain_connection_id,
-        channel_id: msg.remote_chain_channel_id,
-        denom: msg.denom,
-        ibc_fee: msg.ibc_fee,
+        connection_id: msg.remote_chain_connection_id.to_string(),
+        channel_id: msg.remote_chain_channel_id.to_string(),
+        denom: msg.denom.to_string(),
         ica_timeout: msg.ica_timeout,
         ibc_transfer_timeout: msg.ibc_transfer_timeout,
     };
     REMOTE_CHAIN_INFO.save(deps.storage, &remote_chain_info)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+    if let Some(addr) = &msg.fallback_address {
+        FALLBACK_ADDRESS.save(deps.storage, addr)?;
+    }
 
     Ok(Response::default()
         .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "ibc_forwarder_instantiate")
         .add_attribute("next_contract", next_contract)
         .add_attribute("contract_state", "instantiated")
-        .add_attributes(remote_chain_info.get_response_attributes()))
+        .add_attributes(msg.get_response_attributes()))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -78,7 +88,99 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
     match msg {
+        ExecuteMsg::DistributeFallback { coins } => try_distribute_fallback(deps, env, info, coins),
         ExecuteMsg::Tick {} => try_tick(deps, env, info),
+    }
+}
+
+fn try_distribute_fallback(
+    mut deps: ExecuteDeps,
+    env: Env,
+    info: MessageInfo,
+    coins: Vec<cosmwasm_std::Coin>,
+) -> NeutronResult<Response<NeutronMsg>> {
+    // load the fallback address or error out if its not set
+    let destination = match FALLBACK_ADDRESS.may_load(deps.storage)? {
+        Some(addr) => addr,
+        None => return Err(ContractError::MissingFallbackAddress {}.into()),
+    };
+    let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
+
+    let min_ibc_fee_config = query_ibc_fee(deps.querier)?;
+    assert_ibc_fee_coverage(info, min_ibc_fee_config.total_ntrn_fee, Uint128::one())?;
+
+    // we iterate over coins to be distributed, validate them, and generate the proto coins to be sent
+    let mut encountered_denoms: BTreeSet<String> = BTreeSet::new();
+    let mut proto_coins: Vec<cosmos_sdk_proto::cosmos::base::v1beta1::Coin> = vec![];
+
+    for coin in coins {
+        // validate that target denom is not passed for fallback distribution
+        ensure!(
+            coin.denom != remote_chain_info.denom,
+            Into::<NeutronError>::into(ContractError::UnauthorizedDenomDistribution {})
+        );
+
+        // error out if denom is duplicated
+        ensure!(
+            encountered_denoms.insert(coin.denom.to_string()),
+            Into::<NeutronError>::into(ContractError::DuplicateDenomDistribution {})
+        );
+
+        proto_coins.push(get_proto_coin(coin.denom, coin.amount));
+    }
+
+    let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
+    let interchain_account = INTERCHAIN_ACCOUNTS.may_load(deps.storage, port_id.clone())?;
+    if let Some(Some((address, controller_conn_id))) = interchain_account {
+        let multi_send_msg = MsgMultiSend {
+            inputs: vec![Input {
+                address,
+                coins: proto_coins.clone(),
+            }],
+            outputs: vec![Output {
+                address: destination,
+                coins: proto_coins,
+            }],
+        };
+
+        // Serialize the multi send message.
+        let mut buf = Vec::with_capacity(multi_send_msg.encoded_len());
+
+        if let Err(e) = multi_send_msg.encode(&mut buf) {
+            return Err(NeutronError::Std(StdError::generic_err(format!(
+                "Encode error: {e:}",
+            ))));
+        }
+
+        let any_msg = ProtobufAny {
+            type_url: "/cosmos.bank.v1beta1.MsgMultiSend".to_string(),
+            value: Binary::from(buf),
+        };
+        let submit_msg = NeutronMsg::submit_tx(
+            controller_conn_id,
+            INTERCHAIN_ACCOUNT_ID.to_string(),
+            vec![any_msg],
+            "".to_string(),
+            remote_chain_info.ica_timeout.u64(),
+            min_ibc_fee_config.ibc_fee,
+        );
+        let state_helper = IbcForwarderIcaStateHelper;
+        let sudo_msg = msg_with_sudo_callback(
+            &state_helper,
+            deps.branch(),
+            submit_msg,
+            SudoPayload {
+                port_id,
+                message: "distribute_fallback_multisend".to_string(),
+            },
+            SUDO_PAYLOAD_REPLY_ID,
+        )?;
+
+        Ok(Response::default()
+            .add_attribute("method", "try_forward_fallback")
+            .add_submessages(vec![sudo_msg]))
+    } else {
+        Err(NeutronError::Std(StdError::generic_err("no ica found")))
     }
 }
 
@@ -91,20 +193,18 @@ fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Res
     match current_state {
         ContractState::Instantiated => try_register_ica(deps, env),
         ContractState::IcaCreated => try_forward_funds(env, deps),
-        ContractState::Complete => {
-            Ok(Response::default().add_attribute("contract_state", "completed"))
-        }
     }
 }
 
 /// tries to register an ICA on the remote chain
 fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
-    let register_fee: Option<Vec<Coin>> = Some(vec![get_default_ica_fee()]);
+    let ica_registration_fee = query_ica_registration_fee(deps.querier)?;
+
     let register_msg = NeutronMsg::register_interchain_account(
         remote_chain_info.connection_id,
         INTERCHAIN_ACCOUNT_ID.to_string(),
-        register_fee,
+        Some(ica_registration_fee),
     );
 
     let key = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
@@ -131,6 +231,8 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
             "Next contract is not ready for receiving the funds yet",
         )));
     };
+
+    let min_fee_query_response = query_ibc_fee(deps.querier)?;
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
@@ -167,17 +269,20 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                 vec![protobuf_msg],
                 "".to_string(),
                 remote_chain_info.ica_timeout.u64(),
-                remote_chain_info.ibc_fee,
+                min_fee_query_response.ibc_fee,
             );
 
             // sudo callback msg
+            // let state_helper = IbcForwarderIcaStateHelper;
             let submsg = msg_with_sudo_callback(
+                &IbcForwarderIcaStateHelper,
                 deps.branch(),
                 submit_msg,
                 SudoPayload {
                     port_id,
                     message: "try_forward_funds".to_string(),
                 },
+                SUDO_PAYLOAD_REPLY_ID,
             )?;
 
             Ok(Response::default()
@@ -194,15 +299,6 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
                 .add_attribute("error", "no_ica_found"))
         }
     }
-}
-
-fn msg_with_sudo_callback<C: Into<CosmosMsg<T>>, T>(
-    deps: ExecuteDeps,
-    msg: C,
-    payload: SudoPayload,
-) -> StdResult<SubMsg<T>> {
-    save_reply_payload(deps.storage, payload)?;
-    Ok(SubMsg::reply_on_success(msg, SUDO_PAYLOAD_REPLY_ID))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -230,41 +326,37 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
             Ok(to_json_binary(&ica)?)
         }
         QueryMsg::IcaAddress {} => Ok(to_json_binary(
-            &get_ica(deps, &env, INTERCHAIN_ACCOUNT_ID)?.0,
+            &get_ica(
+                &IbcForwarderIcaStateHelper,
+                deps.storage,
+                env.contract.address.as_str(),
+                INTERCHAIN_ACCOUNT_ID,
+            )?
+            .0,
         )?),
         QueryMsg::RemoteChainInfo {} => {
             Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?)
         }
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
+        QueryMsg::FallbackAddress {} => {
+            Ok(to_json_binary(&FALLBACK_ADDRESS.may_load(deps.storage)?)?)
+        }
     }
 }
 
-fn get_ica(
-    deps: Deps<impl CustomQuery>,
-    env: &Env,
-    interchain_account_id: &str,
-) -> Result<(String, String), StdError> {
-    let key = get_port_id(env.contract.address.as_str(), interchain_account_id);
-
-    INTERCHAIN_ACCOUNTS
-        .load(deps.storage, key)?
-        .ok_or_else(|| StdError::generic_err("Interchain account is not created yet"))
-}
-
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response> {
-    deps.api
-        .debug(format!("WASMDEBUG: sudo: received sudo msg: {msg:?}").as_str());
-
+pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<NeutronMsg>> {
     match msg {
         // For handling successful (non-error) acknowledgements.
-        SudoMsg::Response { request, data } => sudo_response(deps, request, data),
+        SudoMsg::Response { request, data } => sudo_response(request, data),
 
         // For handling error acknowledgements.
-        SudoMsg::Error { request, details } => sudo_error(deps, request, details),
+        SudoMsg::Error { request, details } => sudo_error(request, details),
 
         // For handling error timeouts.
-        SudoMsg::Timeout { request } => sudo_timeout(deps, env, request),
+        SudoMsg::Timeout { request } => {
+            sudo_timeout(&IbcForwarderIcaStateHelper, deps, env, request)
+        }
 
         // For handling successful registering of ICA
         SudoMsg::OpenAck {
@@ -273,6 +365,7 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response> {
             counterparty_channel_id,
             counterparty_version,
         } => sudo_open_ack(
+            &IbcForwarderIcaStateHelper,
             deps,
             env,
             port_id,
@@ -285,11 +378,9 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
-    deps.api
-        .debug(format!("WASMDEBUG: reply msg: {msg:?}").as_str());
+pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
     match msg.id {
-        SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(deps, env, msg),
+        SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(&IbcForwarderIcaStateHelper, deps, env, msg),
         _ => Err(StdError::generic_err(format!(
             "unsupported reply message id {}",
             msg.id
@@ -297,48 +388,15 @@ pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response> {
     }
 }
 
-fn prepare_sudo_payload(mut deps: ExecuteDeps, _env: Env, msg: Reply) -> StdResult<Response> {
-    let payload = read_reply_payload(deps.storage)?;
-    let resp: MsgSubmitTxResponse = serde_json_wasm::from_slice(
-        msg.result
-            .into_result()
-            .map_err(StdError::generic_err)?
-            .data
-            .ok_or_else(|| StdError::generic_err("no result"))?
-            .as_slice(),
-    )
-    .map_err(|e| StdError::generic_err(format!("failed to parse response: {e:?}")))?;
-    deps.api
-        .debug(format!("WASMDEBUG: reply msg: {resp:?}").as_str());
-    let seq_id = resp.sequence_id;
-    let channel_id = resp.channel;
-    save_sudo_payload(deps.branch().storage, channel_id, seq_id, payload)?;
-    Ok(Response::new())
-}
-
-pub fn read_reply_payload(store: &mut dyn Storage) -> StdResult<SudoPayload> {
-    let data = REPLY_ID_STORAGE.load(store)?;
-    from_json(Binary(data))
-}
-
-pub fn save_sudo_payload(
-    store: &mut dyn Storage,
-    channel_id: String,
-    seq_id: u64,
-    payload: SudoPayload,
-) -> StdResult<()> {
-    SUDO_PAYLOAD.save(store, (channel_id, seq_id), &to_json_vec(&payload)?)
-}
-
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
-    deps.api.debug("WASMDEBUG: migrate");
+pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
             next_contract,
             remote_chain_info,
             transfer_amount,
+            fallback_address,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
@@ -355,9 +413,8 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             if let Some(rci) = *remote_chain_info {
-                let validated_rci = rci.validate()?;
-                REMOTE_CHAIN_INFO.save(deps.storage, &validated_rci)?;
-                resp = resp.add_attributes(validated_rci.get_response_attributes());
+                REMOTE_CHAIN_INFO.save(deps.storage, &rci)?;
+                resp = resp.add_attributes(rci.get_response_attributes());
             }
 
             if let Some(amount) = transfer_amount {
@@ -365,10 +422,26 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
                 resp = resp.add_attribute("transfer_amount", amount.to_string());
             }
 
+            if let Some(config) = fallback_address {
+                match config {
+                    FallbackAddressUpdateConfig::ExplicitAddress(addr) => {
+                        FALLBACK_ADDRESS.save(deps.storage, &addr)?;
+                        resp = resp.add_attribute("fallback_address", addr);
+                    }
+                    FallbackAddressUpdateConfig::Disable {} => {
+                        FALLBACK_ADDRESS.remove(deps.storage);
+                        resp = resp.add_attribute("fallback_address", "removed");
+                    }
+                }
+            }
+
             Ok(resp)
         }
         MigrateMsg::UpdateCodeId { data: _ } => {
-            unimplemented!()
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
         }
     }
 }

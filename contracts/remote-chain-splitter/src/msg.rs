@@ -1,10 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    to_json_binary, Addr, Binary, DepsMut, StdError, StdResult, Uint128, Uint64, WasmMsg,
-};
-use covenant_clock::helpers::dequeue_msg;
+use cosmwasm_std::{to_json_binary, Addr, Binary, Coin, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
@@ -13,9 +10,6 @@ use covenant_macros::{
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo, split::SplitConfig,
 };
-use neutron_sdk::bindings::msg::IbcFee;
-
-use crate::state::CONTRACT_STATE;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -30,10 +24,6 @@ pub struct InstantiateMsg {
 
     pub splits: BTreeMap<String, SplitConfig>,
 
-    /// Neutron requires fees to be set to refund relayers for
-    /// submission of ack and timeout messages.
-    /// recv_fee and ack_fee paid in untrn from this contract
-    pub ibc_fee: IbcFee,
     /// Time in seconds for ICA SubmitTX messages from Neutron
     /// Note that ICA uses ordered channels, a timeout implies
     /// channel closed. We can reopen the channel by reregistering
@@ -46,6 +36,8 @@ pub struct InstantiateMsg {
     /// if the ICA times out, the destination chain receiving the funds
     /// will also receive the IBC packet with an expired timestamp.
     pub ibc_transfer_timeout: Uint64,
+    // fallback address on the remote chain
+    pub fallback_address: Option<String>,
 }
 
 impl InstantiateMsg {
@@ -68,7 +60,9 @@ impl InstantiateMsg {
 
 #[clocked]
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    DistributeFallback { coins: Vec<Coin> },
+}
 
 #[covenant_clock_address]
 #[covenant_remote_chain]
@@ -83,20 +77,20 @@ pub enum QueryMsg {
     SplitConfig {},
     #[returns(Uint128)]
     TransferAmount {},
+    #[returns(Option<String>)]
+    FallbackAddress {},
 }
 
 #[cw_serde]
 pub enum ContractState {
     Instantiated,
     IcaCreated,
-    Completed,
 }
 
-impl ContractState {
-    pub fn complete_and_dequeue(deps: DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
-        CONTRACT_STATE.save(deps.storage, &ContractState::Completed)?;
-        dequeue_msg(clock_addr)
-    }
+#[cw_serde]
+pub enum FallbackAddressUpdateConfig {
+    ExplicitAddress(String),
+    Disable {},
 }
 
 #[cw_serde]
@@ -105,6 +99,7 @@ pub enum MigrateMsg {
         clock_addr: Option<String>,
         remote_chain_info: Option<RemoteChainInfo>,
         splits: Option<BTreeMap<String, SplitConfig>>,
+        fallback_address: Option<FallbackAddressUpdateConfig>,
     },
     UpdateCodeId {
         data: Option<Binary>,

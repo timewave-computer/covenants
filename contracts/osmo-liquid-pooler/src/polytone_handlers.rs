@@ -11,13 +11,16 @@ use covenant_utils::{
     },
     withdraw_lp_helper::WithdrawLPMsgs,
 };
-use neutron_sdk::{bindings::msg::NeutronMsg, NeutronResult};
+use neutron_sdk::{
+    bindings::{msg::NeutronMsg, query::NeutronQuery},
+    NeutronResult,
+};
 use osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceResponse;
 
 use crate::{
     contract::{
         CREATE_PROXY_CALLBACK_ID, PROVIDE_LIQUIDITY_CALLBACK_ID, PROXY_BALANCES_QUERY_CALLBACK_ID,
-        WITHDRAW_LIQUIDITY_BALANCES_QUERY_CALLBACK_ID, WITHDRAW_LIQUIDITY_CALLBACK_ID,
+        WITHDRAW_LIQUIDITY_CALLBACK_ID,
     },
     error::ContractError,
     msg::{ContractState, IbcConfig, LiquidityProvisionConfig},
@@ -32,10 +35,12 @@ use polytone::callbacks::{
     ExecutionResponse,
 };
 
+type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
+
 /// attempts to advance the state machine. performs `info.sender` validation.
 pub fn try_handle_callback(
     env: Env,
-    deps: DepsMut,
+    deps: ExecuteDeps,
     info: MessageInfo,
     msg: CallbackMessage,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -56,7 +61,7 @@ pub fn try_handle_callback(
 
 fn process_query_callback(
     env: Env,
-    deps: DepsMut,
+    deps: ExecuteDeps,
     query_callback_result: Result<Vec<Binary>, ErrorResponse>,
     initiator_msg: Binary,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -66,9 +71,6 @@ fn process_query_callback(
     match initiator_msg {
         PROXY_BALANCES_QUERY_CALLBACK_ID => {
             handle_proxy_balances_callback(deps, env, query_callback_result)
-        }
-        WITHDRAW_LIQUIDITY_BALANCES_QUERY_CALLBACK_ID => {
-            handle_withdraw_liquidity_proxy_balances_callback(deps, env, query_callback_result)
         }
         _ => Err(ContractError::PolytoneError(format!(
             "unexpected callback id: {:?}",
@@ -80,7 +82,7 @@ fn process_query_callback(
 
 fn process_execute_callback(
     env: Env,
-    deps: DepsMut,
+    deps: ExecuteDeps,
     execute_callback_result: Result<ExecutionResponse, String>,
     initiator_msg: Binary,
 ) -> NeutronResult<Response<NeutronMsg>> {
@@ -228,7 +230,7 @@ fn process_execute_callback(
 
 fn process_fatal_error_callback(
     env: Env,
-    deps: DepsMut,
+    deps: ExecuteDeps,
     response: String,
 ) -> NeutronResult<Response<NeutronMsg>> {
     POLYTONE_CALLBACKS.save(
@@ -239,72 +241,8 @@ fn process_fatal_error_callback(
     Ok(Response::default())
 }
 
-fn handle_withdraw_liquidity_proxy_balances_callback(
-    deps: DepsMut,
-    env: Env,
-    query_callback_result: Result<Vec<Binary>, ErrorResponse>,
-) -> NeutronResult<Response<NeutronMsg>> {
-    // decode the query callback result into a vec of binaries,
-    // or error out if it fails
-    let response_binaries = match query_callback_result {
-        Ok(val) => {
-            for bin in val.clone() {
-                POLYTONE_CALLBACKS.save(
-                    deps.storage,
-                    format!(
-                        "proxy_balances_callback : {:?}",
-                        env.block.height.to_string()
-                    ),
-                    &bin.to_base64(),
-                )?;
-            }
-            val
-        }
-        Err(err) => return Err(ContractError::PolytoneError(err.error).to_neutron_std()),
-    };
-
-    // we load the lp config that was present prior
-    // to attempting to exit the pool
-    let mut pre_withdraw_liquidity_lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
-    let pre_withdraw_lp_token_balance = match pre_withdraw_liquidity_lp_config
-        .latest_balances
-        .get(&pre_withdraw_liquidity_lp_config.lp_token_denom)
-    {
-        Some(bal) => bal.clone(),
-        None => Coin {
-            amount: Uint128::zero(),
-            denom: pre_withdraw_liquidity_lp_config.lp_token_denom.to_string(),
-        },
-    };
-
-    for response_binary in response_binaries {
-        // parse binary into an osmosis QueryBalanceResponse
-        let balance_response: QueryBalanceResponse = from_json(response_binary.clone())?;
-        if let Some(balance) = balance_response.balance {
-            if balance.denom == pre_withdraw_lp_token_balance.denom {
-                // if proxy lp token balance did not decrease from the
-                // moment when we submitted the withdraw liquidity message,
-                // we assume that liquidity was withdrawn and we can
-                // proceed with the distribution flow.
-                if Uint128::from_str(&balance.amount)? >= pre_withdraw_lp_token_balance.amount {
-                    CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
-                }
-            }
-            // update the latest balances map with the processed balance
-            pre_withdraw_liquidity_lp_config.latest_balances.insert(
-                balance.denom.to_string(),
-                coin(Uint128::from_str(&balance.amount)?.u128(), balance.denom),
-            );
-        }
-    }
-    // store the latest prices in lp config
-    LIQUIDITY_PROVISIONING_CONFIG.save(deps.storage, &pre_withdraw_liquidity_lp_config)?;
-
-    Ok(Response::default())
-}
-
 fn handle_proxy_balances_callback(
-    deps: DepsMut,
+    deps: ExecuteDeps,
     env: Env,
     query_callback_result: Result<Vec<Binary>, ErrorResponse>,
 ) -> NeutronResult<Response<NeutronMsg>> {

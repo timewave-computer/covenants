@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{
@@ -8,10 +9,10 @@ use cosmwasm_std::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::split::SplitConfig;
 use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
 use cw2::set_contract_version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::msg::CovenantType;
 use crate::state::{WithdrawState, LIQUID_POOLER_ADDRESS, WITHDRAW_STATE};
@@ -27,7 +28,7 @@ use crate::{
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol-holder";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -42,14 +43,26 @@ pub fn instantiate(
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
 
+    // ensure that the deposit deadline is in the future
     ensure!(
         !msg.deposit_deadline.is_expired(&env.block),
         ContractError::DepositDeadlineValidationError {}
     );
-    ensure!(
-        !msg.lockup_config.is_expired(&env.block),
-        ContractError::LockupValidationError {}
-    );
+
+    // validate that lockup expiration is after the deposit deadline
+    match msg.deposit_deadline.partial_cmp(&msg.lockup_config) {
+        Some(ordering) => ensure!(
+            ordering == Ordering::Less,
+            ContractError::LockupValidationError {}
+        ),
+        // we validate incompatible expirations
+        None => return Err(ContractError::ExpirationValidationError {}),
+    };
+
+    if let Some(addr) = &msg.emergency_committee_addr {
+        let committee_addr = deps.api.addr_validate(addr)?;
+        EMERGENCY_COMMITTEE_ADDR.save(deps.storage, &committee_addr)?;
+    }
 
     msg.covenant_config.validate(deps.api)?;
     msg.ragequit_config.validate(
@@ -160,10 +173,13 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
 
     // if both parties already claimed everything we complete early
     if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
-        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
+        let dequeue_message = ContractState::complete_and_dequeue(deps, clock_address.as_str())?;
+
         return Ok(Response::default()
             .add_attribute("method", "try_claim")
-            .add_attribute("contract_state", "complete"));
+            .add_attribute("contract_state", "complete")
+            .add_message(dequeue_message));
     }
 
     // we exit early if contract is not in ragequit or expired state
@@ -298,14 +314,14 @@ fn try_withdraw_failed(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
 
 #[allow(clippy::too_many_arguments)]
 fn try_claim_share_based(
-    deps: DepsMut,
+    mut deps: DepsMut,
     mut claim_party: TwoPartyPolCovenantParty,
     mut counterparty: TwoPartyPolCovenantParty,
     funds: Vec<Coin>,
     mut covenant_config: TwoPartyPolCovenantConfig,
     denom_splits: DenomSplits,
 ) -> Result<Response, ContractError> {
-    let messages = denom_splits
+    let mut messages = denom_splits
         .get_single_receiver_distribution_messages(funds, claim_party.router.to_string());
 
     claim_party.allocation = Decimal::zero();
@@ -315,7 +331,10 @@ fn try_claim_share_based(
         counterparty.allocation = Decimal::one();
     } else {
         // otherwise both parties claimed everything and we can complete
-        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
+        let dequeue_message =
+            ContractState::complete_and_dequeue(deps.branch(), clock_address.as_str())?;
+        messages.push(dequeue_message.into());
     };
 
     covenant_config.update_parties(claim_party, counterparty);
@@ -342,13 +361,15 @@ fn try_claim_side_based(
     counterparty.allocation = Decimal::zero();
     covenant_config.update_parties(claim_party, counterparty);
 
-    // update the states
+    // update the states and dequeue from the clock
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-    CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+    let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
+    let dequeue_message = ContractState::complete_and_dequeue(deps, clock_address.as_str())?;
 
     Ok(Response::default()
         .add_attribute("method", "claim_side_based")
-        .add_messages(messages))
+        .add_messages(messages)
+        .add_message(dequeue_message))
 }
 
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
@@ -358,25 +379,74 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
         .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
 
     match state {
-        ContractState::Instantiated => try_deposit(deps, env, info, clock_addr.as_str()),
+        ContractState::Instantiated => try_deposit(deps, env, info),
         ContractState::Active => check_expiration(deps, env),
-        ContractState::Complete => Ok(Response::default()
-            .add_attribute("method", "tick")
-            .add_attribute("contract_state", state.to_string())),
         ContractState::Expired | ContractState::Ragequit => Ok(Response::default()
             .add_attribute("method", "tick")
             .add_attribute("contract_state", state.to_string())),
+        ContractState::Complete => try_refund(deps, env),
     }
 }
 
-fn try_deposit(
-    mut deps: DepsMut,
-    env: Env,
-    _info: MessageInfo,
-    clock_addr: &str,
-) -> Result<Response, ContractError> {
+/// attempts to route any available covenant party contribution denoms to
+/// the parties that were responsible for contributing that denom.
+fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let config = COVENANT_CONFIG.load(deps.storage)?;
+
+    // assert the balances
+    let party_a_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        config.party_a.contribution.denom,
+    )?;
+    let party_b_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        config.party_b.contribution.denom,
+    )?;
+
+    let refund_messages: Vec<CosmosMsg> =
+        match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
+            // both balances empty, nothing to refund
+            (true, true) => vec![],
+            // refund party B
+            (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
+                to_address: config.party_b.router,
+                amount: vec![party_b_bal],
+            })],
+            // refund party A
+            (false, true) => vec![CosmosMsg::Bank(BankMsg::Send {
+                to_address: config.party_a.router,
+                amount: vec![party_a_bal],
+            })],
+            // refund both
+            (false, false) => vec![
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: config.party_a.router.to_string(),
+                    amount: vec![party_a_bal],
+                }),
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: config.party_b.router,
+                    amount: vec![party_b_bal],
+                }),
+            ],
+        };
+
+    Ok(Response::default()
+        .add_attribute("contract_state", "complete")
+        .add_attribute("method", "try_refund")
+        .add_messages(refund_messages))
+}
+
+fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
+    if deposit_deadline.is_expired(&env.block) {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
+        return Ok(Response::default()
+            .add_attribute("method", "try_deposit")
+            .add_attribute("deposit_deadline", "expired")
+            .add_attribute("action", "complete"));
+    }
+
+    let config = COVENANT_CONFIG.load(deps.storage)?;
 
     // assert the balances
     let party_a_bal = deps.querier.query_balance(
@@ -390,49 +460,6 @@ fn try_deposit(
 
     let party_a_fulfilled = config.party_a.contribution.amount <= party_a_bal.amount;
     let party_b_fulfilled = config.party_b.contribution.amount <= party_b_bal.amount;
-
-    // note: even if both parties deposit their funds in time,
-    // it is important to trigger this method before the expiry block
-    // if deposit deadline is due we complete and refund
-    if deposit_deadline.is_expired(&env.block) {
-        let refund_messages: Vec<CosmosMsg> =
-            match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
-                // both balances empty, we complete
-                (true, true) => {
-                    let msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr)?;
-
-                    return Ok(Response::default()
-                        .add_message(msg)
-                        .add_attribute("method", "try_deposit")
-                        .add_attribute("state", "complete"));
-                }
-                // refund party B
-                (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
-                    to_address: config.party_b.router,
-                    amount: vec![party_b_bal],
-                })],
-                // refund party A
-                (false, true) => vec![CosmosMsg::Bank(BankMsg::Send {
-                    to_address: config.party_a.router,
-                    amount: vec![party_a_bal],
-                })],
-                // refund both
-                (false, false) => vec![
-                    CosmosMsg::Bank(BankMsg::Send {
-                        to_address: config.party_a.router.to_string(),
-                        amount: vec![party_a_bal],
-                    }),
-                    CosmosMsg::Bank(BankMsg::Send {
-                        to_address: config.party_b.router,
-                        amount: vec![party_b_bal],
-                    }),
-                ],
-            };
-        return Ok(Response::default()
-            .add_attribute("method", "try_deposit")
-            .add_attribute("action", "refund")
-            .add_messages(refund_messages));
-    }
 
     if !party_a_fulfilled || !party_b_fulfilled {
         // if deposit deadline is not yet due and both parties did not fulfill we error
@@ -570,12 +597,15 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::DepositDeadline {} => Ok(to_json_binary(&DEPOSIT_DEADLINE.load(deps.storage)?)?),
         QueryMsg::Config {} => Ok(to_json_binary(&COVENANT_CONFIG.load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&env.contract.address)?),
+        QueryMsg::DenomSplits {} => Ok(to_json_binary(&DENOM_SPLITS.load(deps.storage)?)?),
+        QueryMsg::EmergencyCommittee {} => Ok(to_json_binary(
+            &EMERGENCY_COMMITTEE_ADDR.may_load(deps.storage)?,
+        )?),
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
-    deps.api.debug("WASMDEBUG: migrate");
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
@@ -631,10 +661,14 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
 
             if let Some(config) = *covenant_config {
                 COVENANT_CONFIG.save(deps.storage, &config)?;
-                resp = resp.add_attribute("todo", "todo");
+                resp = resp.add_attribute("covenant_config", format!("{:?}", config));
             }
 
             if let Some(splits) = denom_splits {
+                for config in splits.values() {
+                    config.validate_shares_and_receiver_addresses(deps.api)?;
+                }
+                resp = resp.add_attribute("explicit_splits", format!("{:?}", splits));
                 DENOM_SPLITS.update(deps.storage, |mut current_splits| -> StdResult<_> {
                     current_splits.explicit_splits = splits;
                     Ok(current_splits)
@@ -642,6 +676,8 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             }
 
             if let Some(split) = fallback_split {
+                split.validate_shares_and_receiver_addresses(deps.api)?;
+                resp = resp.add_attribute("fallback_split", format!("{:?}", split));
                 DENOM_SPLITS.update(deps.storage, |mut current_splits| -> StdResult<_> {
                     current_splits.fallback_split = Some(split);
                     Ok(current_splits)
@@ -650,6 +686,11 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
 
             Ok(resp)
         }
-        MigrateMsg::UpdateCodeId { data: _ } => todo!(),
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
+        }
     }
 }

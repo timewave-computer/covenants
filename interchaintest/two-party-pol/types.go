@@ -12,7 +12,6 @@ import (
 type CovenantInstantiateMsg struct {
 	Label              string                 `json:"label"`
 	Timeouts           Timeouts               `json:"timeouts"`
-	PresetIbcFee       PresetIbcFee           `json:"preset_ibc_fee"`
 	ContractCodeIds    ContractCodeIds        `json:"contract_codes"`
 	TickMaxGas         string                 `json:"clock_tick_max_gas,omitempty"`
 	LockupConfig       Expiration             `json:"lockup_config"`
@@ -90,11 +89,6 @@ type ContractCodeIds struct {
 type Timeouts struct {
 	IcaTimeout         string `json:"ica_timeout"`
 	IbcTransferTimeout string `json:"ibc_transfer_timeout"`
-}
-
-type PresetIbcFee struct {
-	AckFee     string `json:"ack_fee"`
-	TimeoutFee string `json:"timeout_fee"`
 }
 
 type Timestamp string
@@ -502,11 +496,10 @@ type OsmoLiquidPoolerInstantiateMsg struct {
 	OsmoOutpost            string             `json:"osmo_outpost"`
 	LpTokenDenom           string             `json:"lp_token_denom"`
 	SlippageTolerance      string             `json:"slippage_tolerance"`
-	FundingDurationSeconds string             `json:"funding_duration_seconds"`
+	FundingDuration        Duration           `json:"funding_duration"`
 	SingleSideLpLimits     SingleSideLpLimits `json:"single_side_lp_limits"`
 	PoolPriceConfig        PoolPriceConfig    `json:"pool_price_config"`
 }
-
 type PoolPriceConfig struct {
 	ExpectedSpotPrice     string `json:"expected_spot_price"`
 	AcceptablePriceSpread string `json:"acceptable_price_spread"`

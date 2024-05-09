@@ -1,16 +1,12 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, Binary, DepsMut, StdError, StdResult, Uint128, Uint64, WasmMsg,
+    to_json_binary, Addr, Attribute, Binary, Coin, StdResult, Uint128, Uint64, WasmMsg,
 };
-use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
     covenant_remote_chain,
 };
 use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo};
-use neutron_sdk::bindings::msg::IbcFee;
-
-use crate::state::CONTRACT_STATE;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -26,10 +22,6 @@ pub struct InstantiateMsg {
     pub denom: String,
     pub amount: Uint128,
 
-    /// neutron requires fees to be set to refund relayers for
-    /// submission of ack and timeout messages.
-    /// recv_fee and ack_fee paid in untrn from this contract
-    pub ibc_fee: IbcFee,
     /// timeout in seconds. this is used to craft a timeout timestamp
     /// that will be attached to the IBC transfer message from the ICA
     /// on the host chain to its destination. typically this timeout
@@ -42,6 +34,8 @@ pub struct InstantiateMsg {
     /// channel closed. We can reopen the channel by reregistering
     /// the ICA with the same port id and connection id
     pub ica_timeout: Uint64,
+    // fallback address on the remote chain
+    pub fallback_address: Option<String>,
 }
 
 impl InstantiateMsg {
@@ -78,13 +72,16 @@ impl InstantiateMsg {
                 self.ibc_transfer_timeout.to_string(),
             ),
             Attribute::new("ica_timeout", self.ica_timeout.to_string()),
+            Attribute::new("fallback_address", format!("{:?}", self.fallback_address)),
         ]
     }
 }
 
 #[clocked]
 #[cw_serde]
-pub enum ExecuteMsg {}
+pub enum ExecuteMsg {
+    DistributeFallback { coins: Vec<Coin> },
+}
 
 #[cw_serde]
 pub enum MigrateMsg {
@@ -93,10 +90,17 @@ pub enum MigrateMsg {
         next_contract: Option<String>,
         remote_chain_info: Box<Option<RemoteChainInfo>>,
         transfer_amount: Option<Uint128>,
+        fallback_address: Option<FallbackAddressUpdateConfig>,
     },
     UpdateCodeId {
         data: Option<Binary>,
     },
+}
+
+#[cw_serde]
+pub enum FallbackAddressUpdateConfig {
+    ExplicitAddress(String),
+    Disable {},
 }
 
 #[covenant_deposit_address]
@@ -108,6 +112,8 @@ pub enum MigrateMsg {
 pub enum QueryMsg {
     #[returns(ContractState)]
     ContractState {},
+    #[returns(Option<String>)]
+    FallbackAddress {},
 }
 
 #[cw_serde]
@@ -116,21 +122,4 @@ pub enum ContractState {
     Instantiated,
     /// ICA was created, funds are ready to be forwarded
     IcaCreated,
-    /// forwarder is complete
-    Complete,
-}
-
-impl ContractState {
-    pub fn complete_and_dequeue(deps: DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
-        CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-        dequeue_msg(clock_addr)
-    }
-}
-
-/// SudoPayload is a type that stores information about a transaction that we try to execute
-/// on the host chain. This is a type introduced for our convenience.
-#[cw_serde]
-pub struct SudoPayload {
-    pub message: String,
-    pub port_id: String,
 }

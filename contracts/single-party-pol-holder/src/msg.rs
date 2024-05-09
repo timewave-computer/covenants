@@ -8,9 +8,9 @@ use cw_utils::Expiration;
 pub struct InstantiateMsg {
     /// A withdrawer is the only authorized address that can withdraw
     /// from the contract.
-    pub withdrawer: Option<String>,
+    pub withdrawer: String,
     /// Withdraw the funds to this address
-    pub withdraw_to: Option<String>,
+    pub withdraw_to: String,
     /// The address that is allowed to do emergency pull out
     pub emergency_committee_addr: Option<String>,
     /// the neutron address of the liquid pooler
@@ -49,13 +49,17 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     // Queries the withdrawer address
-    #[returns(Option<Addr>)]
+    #[returns(Addr)]
     Withdrawer {},
-    #[returns(Option<Addr>)]
+    #[returns(Addr)]
     WithdrawTo {},
     // Queries the pooler address
     #[returns(Addr)]
     PoolerAddress {},
+    #[returns(Addr)]
+    EmergencyCommitteeAddr {},
+    #[returns(Expiration)]
+    LockupConfig {},
 }
 
 #[cw_serde]

@@ -1,6 +1,6 @@
 use cosmwasm_std::{Addr, Uint64};
-use covenant_clock_tester::msg::Mode;
 use cw_multi_test::{App, AppResponse, Executor};
+use valence_clock_tester::msg::Mode;
 
 use crate::{
     contract::DEFAULT_TICK_MAX_GAS,
@@ -79,7 +79,7 @@ impl SuiteBuilder {
             .instantiate_contract(
                 code_id,
                 Addr::unchecked(ADMIN),
-                &covenant_clock_tester::msg::InstantiateMsg { mode },
+                &valence_clock_tester::msg::InstantiateMsg { mode },
                 &[],
                 "clock-tester",
                 Some(ADMIN.to_string()),
@@ -213,7 +213,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 tester.to_string(),
-                &covenant_clock_tester::msg::QueryMsg::TickCount {},
+                &valence_clock_tester::msg::QueryMsg::TickCount {},
             )
             .unwrap();
         res.u64()

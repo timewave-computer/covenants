@@ -277,13 +277,13 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 
 	t.Run("two party pol covenant setup", func(t *testing.T) {
 		// Wasm code that we need to store on Neutron
-		const covenantContractPath = "wasms/covenant_two_party_pol.wasm"
-		const clockContractPath = "wasms/covenant_clock.wasm"
-		const interchainRouterContractPath = "wasms/covenant_interchain_router.wasm"
-		const nativeRouterContractPath = "wasms/covenant_native_router.wasm"
-		const ibcForwarderContractPath = "wasms/covenant_ibc_forwarder.wasm"
-		const holderContractPath = "wasms/covenant_two_party_pol_holder.wasm"
-		const liquidPoolerPath = "wasms/covenant_astroport_liquid_pooler.wasm"
+		const covenantContractPath = "wasms/valence_covenant_two_party_pol.wasm"
+		const clockContractPath = "wasms/valence_clock.wasm"
+		const interchainRouterContractPath = "wasms/valence_interchain_router.wasm"
+		const nativeRouterContractPath = "wasms/valence_native_router.wasm"
+		const ibcForwarderContractPath = "wasms/valence_ibc_forwarder.wasm"
+		const holderContractPath = "wasms/valence_two_party_pol_holder.wasm"
+		const liquidPoolerPath = "wasms/valence_astroport_liquid_pooler.wasm"
 
 		// After storing on Neutron, we will receive a code id
 		// We parse all the subcontracts into uint64
@@ -435,17 +435,13 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 
 				currentHeight := testCtx.GetNeutronHeight()
 				depositBlock = Block(currentHeight + 110)
-				lockupBlock = Block(currentHeight + 110)
+				lockupBlock = Block(currentHeight + 130)
 
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
 				}
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
-				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
 				}
 
 				atomCoin := Coin{
@@ -539,7 +535,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-happy",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig: CovenantPartyConfig{
@@ -550,8 +545,8 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					},
 					RagequitConfig:     &ragequitConfig,
 					DepositDeadline:    depositDeadline,
-					PartyAShare:        "50",
-					PartyBShare:        "50",
+					PartyAShare:        "0.5",
+					PartyBShare:        "0.5",
 					CovenantType:       "share",
 					Splits:             denomSplits,
 					FallbackSplit:      nil,
@@ -801,10 +796,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
 				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
-				}
 
 				atomCoin := Coin{
 					Denom:  cosmosAtom.Config().Denom,
@@ -874,7 +865,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-ragequit",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
@@ -882,8 +872,8 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
 					CovenantType:    "share",
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
@@ -1085,10 +1075,6 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
 				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
-				}
 
 				atomCoin := Coin{
 					Denom:  cosmosAtom.Config().Denom,
@@ -1157,15 +1143,14 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-side-ragequit",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
 					PartyBConfig:    CovenantPartyConfig{Native: &partyBConfig},
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",
@@ -1345,16 +1330,12 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 
 				currentHeight := testCtx.GetNeutronHeight()
 				depositBlock := Block(currentHeight + 180)
-				lockupBlock := Block(currentHeight + 180)
+				lockupBlock := Block(currentHeight + 200)
 				lockupConfig := Expiration{
 					AtHeight: &lockupBlock,
 				}
 				depositDeadline := Expiration{
 					AtHeight: &depositBlock,
-				}
-				presetIbcFee := PresetIbcFee{
-					AckFee:     "100000",
-					TimeoutFee: "100000",
 				}
 
 				atomCoin := Coin{
@@ -1424,15 +1405,14 @@ func TestTwoPartyNativePartyPol(t *testing.T) {
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-side-happy",
 					Timeouts:        timeouts,
-					PresetIbcFee:    presetIbcFee,
 					ContractCodeIds: codeIds,
 					LockupConfig:    lockupConfig,
 					PartyAConfig:    CovenantPartyConfig{Interchain: &partyAConfig},
 					PartyBConfig:    CovenantPartyConfig{Native: &partyBConfig},
 					RagequitConfig:  &ragequitConfig,
 					DepositDeadline: depositDeadline,
-					PartyAShare:     "50",
-					PartyBShare:     "50",
+					PartyAShare:     "0.5",
+					PartyBShare:     "0.5",
 					PoolPriceConfig: PoolPriceConfig{
 						ExpectedSpotPrice:     "0.1",
 						AcceptablePriceSpread: "0.09",

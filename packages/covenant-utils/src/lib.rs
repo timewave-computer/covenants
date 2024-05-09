@@ -2,14 +2,18 @@ use std::collections::BTreeMap;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    to_json_string, Addr, Attribute, BankMsg, BlockInfo, Coin, CosmosMsg, Decimal, IbcMsg,
-    IbcTimeout, StdError, StdResult, Timestamp, Uint128, Uint64,
+    to_json_string, Addr, Api, Attribute, Coin, CosmosMsg, Decimal, StdError, StdResult, Timestamp,
+    Uint128, Uint64,
 };
-use neutron::{default_ibc_ack_fee_amount, default_ibc_fee, default_ibc_timeout_fee_amount};
-use neutron_sdk::{bindings::msg::NeutronMsg, sudo::msg::RequestPacketTimeoutHeight};
+use neutron::flatten_ibc_fee_total_amount;
+use neutron_sdk::{
+    bindings::msg::{IbcFee, NeutronMsg},
+    sudo::msg::RequestPacketTimeoutHeight,
+};
 
 pub mod astroport;
 pub mod deadline;
+pub mod ica;
 pub mod instantiate2_helper;
 pub mod liquid_pooler_withdraw;
 pub mod neutron;
@@ -39,6 +43,8 @@ pub struct InterchainCovenantParty {
     pub contribution: Coin,
     /// configuration for unwinding the denoms via pfm
     pub denom_to_pfm_map: BTreeMap<String, PacketForwardMiddlewareConfig>,
+    /// fallback refund address on the remote chain
+    pub fallback_address: Option<String>,
 }
 
 #[cw_serde]
@@ -56,7 +62,7 @@ pub struct NativeCovenantParty {
 #[cw_serde]
 pub enum ReceiverConfig {
     /// party expects to receive funds on the same chain
-    Native(Addr),
+    Native(String),
     /// party expects to receive funds on a remote chain
     Ibc(DestinationConfig),
 }
@@ -90,28 +96,20 @@ pub struct CovenantParty {
 }
 
 impl CovenantParty {
-    pub fn get_refund_msg(self, amount: Uint128, block: &BlockInfo) -> CosmosMsg {
-        match self.receiver_config {
-            ReceiverConfig::Native(addr) => CosmosMsg::Bank(BankMsg::Send {
-                to_address: addr.to_string(),
-                amount: vec![cosmwasm_std::Coin {
-                    denom: self.native_denom,
-                    amount,
-                }],
-            }),
-            ReceiverConfig::Ibc(destination_config) => CosmosMsg::Ibc(IbcMsg::Transfer {
-                channel_id: destination_config.local_to_destination_chain_channel_id,
-                to_address: self.addr.to_string(),
-                amount: cosmwasm_std::Coin {
-                    denom: self.native_denom,
-                    amount,
-                },
-                timeout: IbcTimeout::with_timestamp(
-                    block
-                        .time
-                        .plus_seconds(destination_config.ibc_transfer_timeout.u64()),
-                ),
-            }),
+    pub fn validate_receiver_address(&self, api: &dyn Api) -> StdResult<Addr> {
+        match &self.receiver_config {
+            ReceiverConfig::Native(addr) => api.addr_validate(addr),
+            ReceiverConfig::Ibc(destination_config) => {
+                match soft_validate_remote_chain_addr(
+                    api,
+                    &destination_config.destination_receiver_addr,
+                ) {
+                    Ok(_) => Ok(Addr::unchecked(
+                        &destination_config.destination_receiver_addr,
+                    )),
+                    Err(e) => Err(e),
+                }
+            }
         }
     }
 }
@@ -153,6 +151,12 @@ impl CovenantPartiesConfig {
         } else {
             Err(StdError::generic_err("unauthorized"))
         }
+    }
+
+    pub fn validate_party_addresses(&self, api: &dyn Api) -> StdResult<()> {
+        self.party_a.validate_receiver_address(api)?;
+        self.party_b.validate_receiver_address(api)?;
+        Ok(())
     }
 }
 
@@ -207,10 +211,6 @@ pub struct PacketForwardMiddlewareConfig {
     pub hop_chain_receiver_address: String,
 }
 
-pub fn get_default_ibc_fee_requirement() -> Uint128 {
-    default_ibc_ack_fee_amount() + default_ibc_timeout_fee_amount()
-}
-
 pub fn get_default_ica_fee() -> Coin {
     Coin {
         denom: "untrn".to_string(),
@@ -237,11 +237,14 @@ impl DestinationConfig {
         coins: Vec<Coin>,
         current_timestamp: Timestamp,
         sender_address: String,
+        ibc_fee: IbcFee,
     ) -> StdResult<Vec<CosmosMsg<NeutronMsg>>> {
         let mut messages: Vec<CosmosMsg<NeutronMsg>> = vec![];
         // we get the number of target denoms we have to reserve
         // neutron fees for
         let count = Uint128::from(1 + coins.len() as u128);
+
+        let total_fee = flatten_ibc_fee_total_amount(&ibc_fee);
 
         for coin in coins {
             let send_coin = if coin.denom != "untrn" {
@@ -250,7 +253,7 @@ impl DestinationConfig {
                 // if its neutron we're distributing we need to keep a
                 // reserve for ibc gas costs.
                 // this is safe because we pass target denoms.
-                let reserve_amount = count * get_default_ibc_fee_requirement();
+                let reserve_amount = count * total_fee;
                 if coin.amount > reserve_amount {
                     Some(Coin {
                         denom: coin.denom,
@@ -288,7 +291,7 @@ impl DestinationConfig {
                                         .to_string(),
                                 }),
                             })?,
-                            fee: default_ibc_fee(),
+                            fee: ibc_fee.clone(),
                         }))
                     }
                     None => {
@@ -307,7 +310,7 @@ impl DestinationConfig {
                                 .nanos(),
                             memo: format!("ibc_distribution: {:?}:{:?}", c.denom, c.amount,)
                                 .to_string(),
-                            fee: default_ibc_fee(),
+                            fee: ibc_fee.clone(),
                         }));
                     }
                 }
@@ -354,4 +357,32 @@ pub struct SingleSideLpLimits {
 pub struct PoolPriceConfig {
     pub expected_spot_price: Decimal,
     pub acceptable_price_spread: Decimal,
+}
+
+/// soft validation for addresses on remote chains.
+/// skips the bech32 prefix and variant checks.
+pub fn soft_validate_remote_chain_addr(api: &dyn Api, addr: &str) -> StdResult<()> {
+    let (_prefix, decoded, _variant) = bech32::decode(addr).map_err(|e| {
+        StdError::generic_err(format!(
+            "soft_addr_validation for address {:?} failed to bech32 decode: {:?}",
+            addr,
+            e.to_string()
+        ))
+    })?;
+    let decoded_bytes = <Vec<u8> as bech32::FromBase32>::from_base32(&decoded).map_err(|e| {
+        StdError::generic_err(format!(
+            "soft_addr_validation for address {:?} failed to get bytes from base32: {:?}",
+            addr,
+            e.to_string()
+        ))
+    })?;
+
+    match api.addr_humanize(&decoded_bytes.into()) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(StdError::generic_err(format!(
+            "soft_addr_validation for address {:?} failed to addr_humanize: {:?}",
+            addr,
+            e.to_string()
+        ))),
+    }
 }

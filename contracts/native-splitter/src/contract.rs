@@ -3,18 +3,18 @@ use std::collections::BTreeMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
-    StdResult,
+    ensure, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response,
+    StdError, StdResult,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::split::SplitConfig;
 use cw2::set_contract_version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{CLOCK_ADDRESS, FALLBACK_SPLIT, SPLIT_CONFIG_MAP};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-native-splitter";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -24,29 +24,32 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: instantiate");
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let mut resp = Response::default().add_attribute("method", "native_splitter_instantiate");
 
-    CLOCK_ADDRESS.save(deps.storage, &msg.clock_address)?;
+    let clock_address = deps.api.addr_validate(&msg.clock_address)?;
+    CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
     resp = resp.add_attribute("clock_addr", msg.clock_address.to_string());
 
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
-        split.validate_shares()?;
+        split.validate_shares_and_receiver_addresses(deps.api)?;
         SPLIT_CONFIG_MAP.save(deps.storage, denom.to_string(), &split)?;
     }
 
     // if a fallback split is provided we validate and store it
     if let Some(split) = msg.fallback_split {
         resp = resp.add_attributes(vec![split.get_response_attribute("fallback".to_string())]);
+        split.validate_shares_and_receiver_addresses(deps.api)?;
         FALLBACK_SPLIT.save(deps.storage, &split)?;
     } else {
         resp = resp.add_attribute("fallback", "None");
     }
 
-    Ok(resp.add_message(enqueue_msg(msg.clock_address.as_str())?))
+    Ok(resp
+        .add_message(enqueue_msg(msg.clock_address.as_str())?)
+        .add_attribute("clock_address", clock_address))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -56,9 +59,6 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    deps.api
-        .debug(format!("WASMDEBUG: execute: received msg: {msg:?}").as_str());
-
     match msg {
         ExecuteMsg::Tick {} => {
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
@@ -101,17 +101,13 @@ fn try_distribute_fallback(
     let mut distribution_messages: Vec<CosmosMsg> = vec![];
 
     if let Some(split) = FALLBACK_SPLIT.may_load(deps.storage)? {
-        let explicit_denoms = SPLIT_CONFIG_MAP
-            .range(deps.storage, None, None, Order::Ascending)
-            .map(|split| Ok(split?.0))
-            .collect::<Result<Vec<String>, ContractError>>()?;
-
         for denom in denoms {
             // we do not distribute the main covenant denoms
             // according to the fallback split
-            if explicit_denoms.contains(&denom) {
-                return Err(StdError::generic_err("unauthorized denom distribution").into());
-            }
+            ensure!(
+                !SPLIT_CONFIG_MAP.has(deps.storage, denom.to_string()),
+                ContractError::Std(StdError::generic_err("unauthorized denom distribution"))
+            );
 
             let balance = deps
                 .querier
@@ -167,9 +163,7 @@ pub fn query_split(deps: Deps, denom: String) -> Result<SplitConfig, StdError> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
-    deps.api.debug("WASMDEBUG: migrate");
-
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, StdError> {
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,

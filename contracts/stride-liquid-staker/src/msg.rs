@@ -5,7 +5,6 @@ use covenant_macros::{
     covenant_remote_chain,
 };
 use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo};
-use neutron_sdk::bindings::msg::IbcFee;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -25,10 +24,6 @@ pub struct InstantiateMsg {
     /// required because we only allow transfers of this denom
     /// out of the LSer
     pub ls_denom: String,
-    /// Neutron requires fees to be set to refund relayers for
-    /// submission of ack and timeout messages.
-    /// recv_fee and ack_fee paid in untrn from this contract
-    pub ibc_fee: IbcFee,
     /// Time in seconds for ICA SubmitTX messages from Neutron
     /// Note that ICA uses ordered channels, a timeout implies
     /// channel closed. We can reopen the channel by reregistering
@@ -87,13 +82,7 @@ pub enum QueryMsg {
 pub enum MigrateMsg {
     UpdateConfig {
         clock_addr: Option<String>,
-        // stride_neutron_ibc_transfer_channel_id: Option<String>,
         next_contract: Option<String>,
-        // neutron_stride_ibc_connection_id: Option<String>,
-        // ls_denom: Option<String>,
-        // ibc_fee: Option<IbcFee>,
-        // ibc_transfer_timeout: Option<Uint64>,
-        // ica_timeout: Option<Uint64>,
         remote_chain_info: Option<RemoteChainInfo>,
     },
     UpdateCodeId {

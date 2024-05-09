@@ -27,9 +27,9 @@ pub fn clock_contract() -> Box<dyn Contract<Empty>> {
 
 pub fn clock_tester_contract() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
-        covenant_clock_tester::contract::execute,
-        covenant_clock_tester::contract::instantiate,
-        covenant_clock_tester::contract::query,
+        valence_clock_tester::contract::execute,
+        valence_clock_tester::contract::instantiate,
+        valence_clock_tester::contract::query,
     );
     Box::new(contract)
 }

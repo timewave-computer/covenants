@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-single-party-pol-holder"
+name        = "valence-single-party-pol-holder"
 authors     = ["udit <udit.vira@gmail.com>"]
 description = "A holder can hold funds in a covenant"
 edition     = { workspace = true }
@@ -26,12 +26,3 @@ thiserror       = { workspace = true }
 cw-utils        = { workspace = true }
 covenant-macros = { workspace = true }
 covenant-utils  = { workspace = true }
-
-[dev-dependencies]
-cw-multi-test                  = { workspace = true }
-anyhow                         = { workspace = true }
-astroport-token                = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-whitelist            = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-factory              = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git" }
-astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git" }

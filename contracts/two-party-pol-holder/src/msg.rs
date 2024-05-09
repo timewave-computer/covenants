@@ -1,18 +1,17 @@
 use std::{collections::BTreeMap, fmt};
 
-use astroport::asset::Asset;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     ensure, to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut,
     StdError, StdResult, WasmMsg,
 };
-use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
 use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig};
 use cw_utils::Expiration;
+use valence_clock::helpers::dequeue_msg;
 
 use crate::{error::ContractError, state::CONTRACT_STATE};
 
@@ -78,6 +77,7 @@ impl InstantiateMsg {
         ];
         attrs.extend(self.ragequit_config.get_response_attributes());
         attrs.extend(splits_attr);
+        attrs.extend(self.covenant_config.get_response_attributes());
         attrs
     }
 }
@@ -276,9 +276,20 @@ impl TwoPartyPolCovenantConfig {
     pub fn validate(&self, api: &dyn Api) -> Result<(), ContractError> {
         api.addr_validate(&self.party_a.router)?;
         api.addr_validate(&self.party_b.router)?;
-        if self.party_a.allocation + self.party_b.allocation != Decimal::one() {
-            return Err(ContractError::AllocationValidationError {});
-        }
+        api.addr_validate(&self.party_a.host_addr)?;
+        api.addr_validate(&self.party_b.host_addr)?;
+
+        ensure!(
+            !self.party_a.contribution.amount.is_zero()
+                && !self.party_b.contribution.amount.is_zero(),
+            ContractError::PartyContributionConfigError {}
+        );
+
+        ensure!(
+            self.party_a.allocation + self.party_b.allocation == Decimal::one(),
+            ContractError::AllocationValidationError {}
+        );
+
         Ok(())
     }
 
@@ -442,6 +453,10 @@ pub enum QueryMsg {
     DepositDeadline {},
     #[returns(TwoPartyPolCovenantConfig)]
     Config {},
+    #[returns(DenomSplits)]
+    DenomSplits {},
+    #[returns(Addr)]
+    EmergencyCommittee {},
 }
 
 #[cw_serde]
@@ -477,7 +492,6 @@ impl RagequitConfig {
                 }
                 // then validate that rq penalty does not exceed either party allocations
                 if terms.penalty > a_allocation || terms.penalty > b_allocation {
-                    println!("huh");
                     return Err(ContractError::RagequitPenaltyExceedsPartyAllocationError {});
                 }
 
@@ -502,22 +516,4 @@ pub struct RagequitTerms {
 pub struct RagequitState {
     pub coins: Vec<Coin>,
     pub rq_party: TwoPartyPolCovenantParty,
-}
-
-impl RagequitState {
-    pub fn from_share_response(
-        assets: Vec<Asset>,
-        rq_party: TwoPartyPolCovenantParty,
-    ) -> Result<RagequitState, StdError> {
-        let mut rq_coins: Vec<Coin> = vec![];
-        for asset in assets {
-            let coin = asset.to_coin()?;
-            rq_coins.push(coin);
-        }
-
-        Ok(RagequitState {
-            coins: rq_coins,
-            rq_party,
-        })
-    }
 }

@@ -36,8 +36,11 @@ pub enum ContractError {
     #[error("expiry block is already past")]
     InvalidExpiryBlockHeight {},
 
-    #[error("lockup deadline is already past")]
+    #[error("lockup deadline must be after the deposit deadline")]
     LockupValidationError {},
+
+    #[error("cannot validate deposit and lockup expirations")]
+    ExpirationValidationError {},
 
     #[error("deposit deadline is already past")]
     DepositDeadlineValidationError {},
@@ -71,4 +74,7 @@ pub enum ContractError {
 
     #[error("Claimer already claimed his share")]
     PartyAllocationIsZero {},
+
+    #[error("Party contribution cannot be zero")]
+    PartyContributionConfigError {},
 }

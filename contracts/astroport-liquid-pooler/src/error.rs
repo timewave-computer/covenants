@@ -40,15 +40,15 @@ pub enum ContractError {
     #[error("Price range error")]
     PriceRangeError {},
 
-    #[error("Unknown holder address. Migrate update to set it.")]
-    MissingHolderError {},
-
     #[error("Pair type mismatch")]
     PairTypeMismatch {},
 
     #[error("Only holder can withdraw the position")]
     NotHolder {},
 
-    #[error("no lp tokens available")]
-    NoLpTokensAvailable {},
+    #[error("no covenant denom or lp tokens available")]
+    NothingToWithdraw {},
+
+    #[error("Withdraw percentage range must belong to range (0.0, 1.0]")]
+    WithdrawPercentageRangeError {},
 }

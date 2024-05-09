@@ -3,8 +3,8 @@ use std::str::FromStr;
 use crate::{
     error::ContractError,
     msg::{
-        CallerContext, ExecuteMsg, InstantiateMsg, OsmosisPool, OutpostProvideLiquidityConfig,
-        OutpostWithdrawLiquidityConfig, QueryMsg,
+        CallerContext, ExecuteMsg, InstantiateMsg, MigrateMsg, OsmosisPool,
+        OutpostProvideLiquidityConfig, OutpostWithdrawLiquidityConfig, QueryMsg,
     },
     state::PENDING_REPLY,
 };
@@ -31,7 +31,7 @@ use osmosis_std::{
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-outpost-osmo-liquid-pooler";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const OSMO_POOL_REPLY_ID: u64 = 1;
 
@@ -155,7 +155,6 @@ fn try_provide_liquidity(
 
     // collect the pool assets into cw coins
     let pool_assets = osmo_pool.get_pool_cw_coins()?;
-
     // get the total gamm shares cw_std coin
     let gamm_shares_coin = osmo_pool.get_gamm_cw_coin()?;
 
@@ -332,6 +331,18 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
     match msg.id {
         OSMO_POOL_REPLY_ID => handle_pool_interaction_reply(deps, env),
         _ => Err(ContractError::UnknownReplyId(msg.id)),
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
+    match msg {
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
+        }
     }
 }
 

@@ -3,15 +3,13 @@ use std::collections::BTreeSet;
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, WasmMsg};
 use covenant_macros::{clocked, covenant_clock_address};
-use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, DestinationConfig, ReceiverConfig,
-};
+use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, DestinationConfig};
 
 #[cw_serde]
 pub struct InstantiateMsg {
     /// address for the clock. this contract verifies
     /// that only the clock can execute ticks
-    pub clock_address: Addr,
+    pub clock_address: String,
     /// config that determines how to facilitate the ibc routing
     pub destination_config: DestinationConfig,
     /// specified denoms to route
@@ -46,7 +44,7 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 #[cw_serde]
 pub enum QueryMsg {
-    #[returns(ReceiverConfig)]
+    #[returns(DestinationConfig)]
     ReceiverConfig {},
     #[returns(BTreeSet<String>)]
     TargetDenoms {},

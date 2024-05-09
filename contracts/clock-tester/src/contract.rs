@@ -9,7 +9,7 @@ use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, Mode, QueryMsg};
 use crate::state::{MODE, TICK_COUNT};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-clock-tester";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]

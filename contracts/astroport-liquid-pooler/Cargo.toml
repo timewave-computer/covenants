@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-astroport-liquid-pooler"
+name        = "valence-astroport-liquid-pooler"
 authors     = ["benskey bekauz@protonmail.com"]
 description = "Astroport liquid pooler contract for covenants"
 license     = { workspace = true }
@@ -21,7 +21,7 @@ library = []
 
 [dependencies]
 covenant-macros = { workspace = true }
-covenant-clock  = { workspace = true, features = ["library"] }
+valence-clock  = { workspace = true, features = ["library"] }
 
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
@@ -36,21 +36,8 @@ thiserror       = { workspace = true }
 # ```cargo tree --package cosmwasm-std```
 sha2           = { workspace = true }
 neutron-sdk    = { workspace = true }
-protobuf       = { workspace = true }
 schemars       = { workspace = true }
 bech32         = { workspace = true }
 astroport      = { workspace = true }
 cw20           = { workspace = true }
 covenant-utils = { workspace = true }
-
-# dev-dependencies
-[dev-dependencies]
-cw-multi-test = { workspace = true }
-astroport     = { workspace = true }
-cw1-whitelist = { workspace = true }
-# covenant-two-party-pol-holder  = { workspace = true }
-astroport-token                = { workspace = true }
-astroport-whitelist            = { workspace = true }
-astroport-factory              = { workspace = true }
-astroport-native-coin-registry = { workspace = true }
-astroport-pair-stable          = { workspace = true }

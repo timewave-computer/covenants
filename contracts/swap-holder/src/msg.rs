@@ -2,12 +2,12 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, DepsMut, StdError, StdResult, WasmMsg,
 };
-use covenant_clock::helpers::dequeue_msg;
 use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, CovenantPartiesConfig, CovenantTerms,
 };
 use cw_utils::Expiration;
+use valence_clock::helpers::dequeue_msg;
 
 use crate::state::CONTRACT_STATE;
 
@@ -17,7 +17,7 @@ pub struct InstantiateMsg {
     /// that only the clock can execute Ticks
     pub clock_address: String,
     /// address of the next contract to forward the funds to.
-    /// usually expected tobe the splitter.
+    /// usually expected to be the splitter.
     pub next_contract: String,
     /// block height of covenant expiration. Position is exited
     /// automatically upon reaching that height.
@@ -26,6 +26,8 @@ pub struct InstantiateMsg {
     pub parties_config: CovenantPartiesConfig,
     /// terms of the covenant
     pub covenant_terms: CovenantTerms,
+    /// refund configuration containing party router adresses
+    pub refund_config: RefundConfig,
 }
 
 impl InstantiateMsg {
@@ -59,6 +61,12 @@ impl InstantiateMsg {
     }
 }
 
+#[cw_serde]
+pub struct RefundConfig {
+    pub party_a_refund_address: String,
+    pub party_b_refund_address: String,
+}
+
 #[clocked]
 #[cw_serde]
 pub enum ExecuteMsg {}
@@ -78,6 +86,8 @@ pub enum QueryMsg {
     CovenantTerms {},
     #[returns(ContractState)]
     ContractState {},
+    #[returns(RefundConfig)]
+    RefundConfig {},
 }
 
 #[cw_serde]
@@ -104,6 +114,7 @@ pub enum MigrateMsg {
         lockup_config: Option<Expiration>,
         parites_config: Box<Option<CovenantPartiesConfig>>,
         covenant_terms: Option<CovenantTerms>,
+        refund_config: Option<RefundConfig>,
     },
     UpdateCodeId {
         data: Option<Binary>,

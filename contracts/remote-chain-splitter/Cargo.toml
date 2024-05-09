@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-remote-chain-splitter"
+name        = "valence-remote-chain-splitter"
 authors     = ["benskey bekauz@protonmail.com"]
 description = "contract to split funds on a remote chain"
 edition     = { workspace = true }
@@ -18,7 +18,7 @@ library = []
 
 [dependencies]
 covenant-macros  = { workspace = true }
-covenant-clock   = { workspace = true, features = ["library"] }
+valence-clock   = { workspace = true, features = ["library"] }
 covenant-utils   = { workspace = true }
 cosmwasm-schema  = { workspace = true }
 cosmwasm-std     = { workspace = true }
@@ -30,4 +30,4 @@ serde-json-wasm  = { workspace = true }
 serde            = { workspace = true }
 neutron-sdk      = { workspace = true }
 cosmos-sdk-proto = { workspace = true }
-protobuf         = { workspace = true }
+cw-utils         = { workspace = true }

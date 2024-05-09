@@ -12,12 +12,6 @@ pub enum ContractError {
     #[error("A withdraw process already started")]
     WithdrawAlreadyStarted {},
 
-    #[error("No withdrawer address configured")]
-    NoWithdrawer {},
-
-    #[error("No withdraw_to address configured")]
-    NoWithdrawTo {},
-
     #[error("The position is still locked, unlock at: {0}")]
     LockupPeriodNotOver(String),
 
@@ -27,6 +21,6 @@ pub enum ContractError {
     #[error("The lockup period must be in the future")]
     MustBeFutureLockupPeriod,
 
-    #[error("We exepct 2 denoms to be recieved by the pooler")]
+    #[error("We expect 2 denoms to be received from the liquidity pooler")]
     InvalidFunds,
 }

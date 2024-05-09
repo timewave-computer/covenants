@@ -1,21 +1,20 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    QuerierWrapper, Reply, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    coin, ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
 };
-use covenant_clock::helpers::{enqueue_msg, verify_clock};
 use covenant_utils::{astroport::query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
 use cw2::set_contract_version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use astroport::{
     asset::{Asset, PairInfo},
     factory::PairType,
-    pair::{Cw20HookMsg, ExecuteMsg::ProvideLiquidity, PoolResponse},
+    pair::{Cw20HookMsg, ExecuteMsg::ProvideLiquidity, PoolResponse, SimulationResponse},
     DecimalCheckedOps,
 };
 use cw20::Cw20ExecuteMsg;
-use cw_utils::parse_reply_instantiate_data;
 
 use crate::{
     error::ContractError,
@@ -30,11 +29,12 @@ use neutron_sdk::NeutronResult;
 
 use crate::state::{CLOCK_ADDRESS, CONTRACT_STATE};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-astroport-liquid-pooler";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const DOUBLE_SIDED_REPLY_ID: u64 = 321u64;
 const SINGLE_SIDED_REPLY_ID: u64 = 322u64;
+const SWAP_REPLY_ID: u64 = 323u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -49,6 +49,16 @@ pub fn instantiate(
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     let holder_addr = deps.api.addr_validate(&msg.holder_address)?;
+
+    // validate that the pool did not migrate to a new pair type
+    let pool_response: PairInfo = deps
+        .querier
+        .query_wasm_smart(pool_addr.to_string(), &astroport::pair::QueryMsg::Pair {})?;
+
+    ensure!(
+        pool_response.pair_type.eq(&msg.pair_type),
+        ContractError::PairTypeMismatch {}
+    );
 
     // contract starts at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
@@ -77,8 +87,8 @@ pub fn instantiate(
     PROVIDED_LIQUIDITY_INFO.save(
         deps.storage,
         &ProvidedLiquidityInfo {
-            provided_amount_a: Uint128::zero(),
-            provided_amount_b: Uint128::zero(),
+            provided_coin_a: coin(0, lp_config.asset_data.asset_a_denom.as_str()),
+            provided_coin_b: coin(0, lp_config.asset_data.asset_b_denom.as_str()),
         },
     )?;
 
@@ -109,11 +119,12 @@ fn try_withdraw(
     percent: Option<Decimal>,
 ) -> Result<Response, ContractError> {
     let percent = percent.unwrap_or(Decimal::one());
-    // Verify percentage is < 1 and > 0
-    let holder_addr = HOLDER_ADDRESS
-        .load(deps.storage)
-        .map_err(|_| ContractError::MissingHolderError {})?;
+    ensure!(
+        percent > Decimal::zero() && percent <= Decimal::one(),
+        ContractError::WithdrawPercentageRangeError {}
+    );
 
+    let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
     ensure!(info.sender == holder_addr, ContractError::NotHolder {});
 
     // Query LP position of the LPer
@@ -124,10 +135,35 @@ fn try_withdraw(
         env.contract.address.to_string(),
     )?;
 
-    ensure!(
-        !lp_token_info.balance_response.balance.is_zero(),
-        ContractError::NoLpTokensAvailable {}
-    );
+    // if no lp tokens are available, we attempt to withdraw any available denoms
+    if lp_token_info.balance_response.balance.is_zero() {
+        let asset_a_bal = deps.querier.query_balance(
+            env.contract.address.to_string(),
+            lp_config.asset_data.asset_a_denom.as_str(),
+        )?;
+        let asset_b_bal = deps.querier.query_balance(
+            env.contract.address.to_string(),
+            lp_config.asset_data.asset_b_denom.as_str(),
+        )?;
+
+        let mut funds = vec![];
+
+        if !asset_a_bal.amount.is_zero() {
+            funds.push(asset_a_bal);
+        }
+
+        if !asset_b_bal.amount.is_zero() {
+            funds.push(asset_b_bal);
+        }
+
+        ensure!(!funds.is_empty(), ContractError::NothingToWithdraw {});
+
+        return Ok(Response::default().add_message(WasmMsg::Execute {
+            contract_addr: holder_addr.to_string(),
+            msg: to_json_binary(&WithdrawLPMsgs::Distribute {})?,
+            funds,
+        }));
+    }
 
     // If percentage is 100%, use the whole balance
     // If percentage is less than 100%, calculate the percentage of share we want to withdraw
@@ -188,34 +224,12 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
     }
 }
 
-fn validate_pair_type(
-    querier: QuerierWrapper,
-    pool: String,
-    pair_type: &PairType,
-) -> Result<(), ContractError> {
-    let pool_response: PairInfo =
-        querier.query_wasm_smart(pool, &astroport::pair::QueryMsg::Pair {})?;
-
-    ensure!(
-        &pool_response.pair_type == pair_type,
-        ContractError::PairTypeMismatch {}
-    );
-    Ok(())
-}
-
 /// method which attempts to provision liquidity to the pool.
 /// if both desired asset balances are non-zero, double sided liquidity
 /// is provided.
 /// otherwise, single-sided liquidity provision is attempted.
 fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let lp_config = LP_CONFIG.load(deps.storage)?;
-
-    // validate that the pool did not migrate to a new pair type
-    validate_pair_type(
-        deps.querier,
-        lp_config.pool_address.to_string(),
-        &lp_config.pair_type,
-    )?;
 
     let pool_response: PoolResponse = deps
         .querier
@@ -226,7 +240,10 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         lp_config.asset_data.asset_a_denom.as_str(),
         lp_config.asset_data.asset_b_denom.as_str(),
     )?;
+
+    // `get_pool_asset_amounts` ensures that both a and b balances are non-zero so this is safe
     let a_to_b_ratio = Decimal::from_ratio(pool_token_a_bal, pool_token_b_bal);
+
     // validate the current pool ratio against our expectations
     lp_config
         .expected_pool_ratio_range
@@ -241,16 +258,38 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         env.contract.address.to_string(),
         lp_config.asset_data.asset_b_denom.as_str(),
     )?;
+    let assets = lp_config
+        .asset_data
+        .to_asset_vec(coin_a.amount, coin_b.amount);
 
     // depending on available balances we attempt a different action:
     match (coin_a.amount.is_zero(), coin_b.amount.is_zero()) {
-        // exactly one balance is non-zero, we attempt single-side
-        (true, false) | (false, true) => {
-            let single_sided_submsg =
-                try_get_single_side_lp_submsg(deps.branch(), env, (coin_a, coin_b), lp_config)?;
-            if let Some(msg) = single_sided_submsg {
+        // asset_b balance is non-zero, we attempt single-side
+        (true, false) => {
+            ensure!(
+                coin_b.amount <= lp_config.single_side_lp_limits.asset_b_limit,
+                ContractError::SingleSideLpLimitError {}
+            );
+
+            let single_sided_submsgs =
+                try_get_single_side_lp_submsg(deps.branch(), env, coin_b, assets, lp_config)?;
+            if !single_sided_submsgs.is_empty() {
                 return Ok(Response::default()
-                    .add_submessage(msg)
+                    .add_submessages(single_sided_submsgs)
+                    .add_attribute("method", "single_side_lp"));
+            }
+        }
+        // asset_a balance is non-zero, we attempt single-side
+        (false, true) => {
+            ensure!(
+                coin_a.amount <= lp_config.single_side_lp_limits.asset_a_limit,
+                ContractError::SingleSideLpLimitError {}
+            );
+            let single_sided_submsgs =
+                try_get_single_side_lp_submsg(deps.branch(), env, coin_a, assets, lp_config)?;
+            if !single_sided_submsgs.is_empty() {
+                return Ok(Response::default()
+                    .add_submessages(single_sided_submsgs)
                     .add_attribute("method", "single_side_lp"));
             }
         }
@@ -330,8 +369,8 @@ fn try_get_double_side_lp_submsg(
     PROVIDED_LIQUIDITY_INFO.update(
         deps.storage,
         |mut info: ProvidedLiquidityInfo| -> StdResult<_> {
-            info.provided_amount_b = info.provided_amount_b.checked_add(b_coin.amount)?;
-            info.provided_amount_a = info.provided_amount_a.checked_add(a_coin.amount)?;
+            info.provided_coin_b.amount = info.provided_coin_b.amount.checked_add(b_coin.amount)?;
+            info.provided_coin_a.amount = info.provided_coin_a.amount.checked_add(a_coin.amount)?;
             Ok(info)
         },
     )?;
@@ -347,70 +386,128 @@ fn try_get_double_side_lp_submsg(
 }
 
 /// attempts to build a single sided `ProvideLiquidity` message.
-/// pool ratio does not get validated here. as long as the single
-/// side asset amount being provided is within our predefined
-/// single-side liquidity limits, we provide it.
+/// pool ratio and single-side limit validations are performed by
+/// the calling method.
 fn try_get_single_side_lp_submsg(
     deps: DepsMut,
     env: Env,
-    (coin_a, coin_b): (Coin, Coin),
+    coin: Coin,
+    mut assets: Vec<Asset>,
     lp_config: LpConfig,
-) -> Result<Option<SubMsg>, ContractError> {
-    let assets = lp_config
-        .asset_data
-        .to_asset_vec(coin_a.amount, coin_b.amount);
+) -> Result<Vec<SubMsg>, ContractError> {
+    match lp_config.pair_type {
+        // xyk pools do not allow for automatic single-sided liquidity provision.
+        // we therefore perform a manual swap with 1/2 of the available denom, and execute
+        // two-sided lp provision with the resulting assets.
+        PairType::Xyk {} => {
+            // we halve the non-zero coin we have in order to swap it for the other denom.
+            // the halved coin amount here is the floor of the division result,
+            // so it is safe to assume that after the swap we will have at least
+            // the same amount of the offer asset left.
+            let halved_coin = Coin {
+                denom: coin.denom.clone(),
+                amount: coin.amount / Uint128::from(2u128),
+            };
 
-    // given one non-zero asset, we build the ProvideLiquidity message
-    let single_sided_liq_msg = ProvideLiquidity {
-        assets,
-        slippage_tolerance: lp_config.slippage_tolerance,
-        auto_stake: Some(false),
-        receiver: Some(env.contract.address.to_string()),
-    };
+            let (offer_asset, offer_coin, mut ask_asset) = {
+                if assets[0].to_coin()?.denom == halved_coin.denom {
+                    assets[0].amount = halved_coin.amount;
+                    (assets[0].clone(), halved_coin, assets[1].clone())
+                } else {
+                    assets[1].amount = halved_coin.amount;
+                    (assets[1].clone(), halved_coin, assets[0].clone())
+                }
+            };
 
-    // now we try to submit the message for either B or A token single side liquidity
-    if coin_a.amount.is_zero() && coin_b.amount <= lp_config.single_side_lp_limits.asset_b_limit {
-        // update the provided liquidity info
-        PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
-            info.provided_amount_b = info.provided_amount_b.checked_add(coin_b.amount)?;
-            Ok(info)
-        })?;
+            // we simulate a swap with 1/2 of the offer asset
+            let simulation: SimulationResponse = deps.querier.query_wasm_smart(
+                &lp_config.pool_address,
+                &astroport::pair::QueryMsg::Simulation {
+                    offer_asset: offer_asset.clone(),
+                    ask_asset_info: None,
+                },
+            )?;
+            ask_asset.amount = simulation.return_amount;
+            let ask_coin = ask_asset.to_coin()?;
 
-        // if available ls token amount is within single side limits we build a single side msg
-        let submsg = SubMsg::reply_on_success(
-            CosmosMsg::Wasm(WasmMsg::Execute {
+            let swap_wasm_msg: CosmosMsg = WasmMsg::Execute {
                 contract_addr: lp_config.pool_address.to_string(),
-                msg: to_json_binary(&single_sided_liq_msg)?,
-                funds: vec![coin_b],
-            }),
-            SINGLE_SIDED_REPLY_ID,
-        );
+                msg: to_json_binary(&astroport::pair::ExecuteMsg::Swap {
+                    offer_asset: offer_asset.clone(),
+                    max_spread: lp_config.slippage_tolerance,
+                    belief_price: None,
+                    to: None,
+                    ask_asset_info: None,
+                })?,
+                funds: vec![offer_coin.clone()],
+            }
+            .into();
 
-        return Ok(Some(submsg));
-    } else if coin_b.amount.is_zero()
-        && coin_a.amount <= lp_config.single_side_lp_limits.asset_a_limit
-    {
-        // update the provided liquidity info
-        PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
-            info.provided_amount_a = info.provided_amount_a.checked_add(coin_a.amount)?;
-            Ok(info)
-        })?;
+            PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+                if offer_coin.denom == info.provided_coin_a.denom {
+                    info.provided_coin_a.amount =
+                        info.provided_coin_a.amount.checked_add(offer_coin.amount)?;
+                    info.provided_coin_b.amount =
+                        info.provided_coin_b.amount.checked_add(ask_coin.amount)?;
+                } else {
+                    info.provided_coin_b.amount =
+                        info.provided_coin_b.amount.checked_add(offer_coin.amount)?;
+                    info.provided_coin_a.amount =
+                        info.provided_coin_a.amount.checked_add(ask_coin.amount)?;
+                }
+                Ok(info)
+            })?;
 
-        // if available A token amount is within single side limits we build a single side msg
-        let submsg = SubMsg::reply_on_success(
-            CosmosMsg::Wasm(WasmMsg::Execute {
+            let provide_liquidity_msg: CosmosMsg = WasmMsg::Execute {
                 contract_addr: lp_config.pool_address.to_string(),
-                msg: to_json_binary(&single_sided_liq_msg)?,
-                funds: vec![coin_a],
-            }),
-            SINGLE_SIDED_REPLY_ID,
-        );
+                msg: to_json_binary(&ProvideLiquidity {
+                    assets: vec![offer_asset, ask_asset],
+                    slippage_tolerance: lp_config.slippage_tolerance,
+                    auto_stake: Some(false),
+                    receiver: Some(env.contract.address.to_string()),
+                })?,
+                funds: vec![offer_coin, ask_coin],
+            }
+            .into();
+            let swap_submsg = SubMsg::reply_on_success(swap_wasm_msg, SWAP_REPLY_ID);
+            let provide_liquidity_submsg =
+                SubMsg::reply_on_success(provide_liquidity_msg, DOUBLE_SIDED_REPLY_ID);
 
-        return Ok(Some(submsg));
+            Ok(vec![swap_submsg, provide_liquidity_submsg])
+        }
+        PairType::Stable {} | PairType::Custom(_) => {
+            // given one non-zero asset, we build the ProvideLiquidity message
+            let single_sided_liq_msg = ProvideLiquidity {
+                assets,
+                slippage_tolerance: lp_config.slippage_tolerance,
+                auto_stake: Some(false),
+                receiver: Some(env.contract.address.to_string()),
+            };
+
+            // update the provided liquidity info
+            PROVIDED_LIQUIDITY_INFO.update(deps.storage, |mut info| -> StdResult<_> {
+                if coin.denom == info.provided_coin_a.denom {
+                    info.provided_coin_a.amount =
+                        info.provided_coin_a.amount.checked_add(coin.amount)?;
+                } else {
+                    info.provided_coin_b.amount =
+                        info.provided_coin_b.amount.checked_add(coin.amount)?;
+                }
+                Ok(info)
+            })?;
+
+            let submsg = SubMsg::reply_on_success(
+                CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: lp_config.pool_address.to_string(),
+                    msg: to_json_binary(&single_sided_liq_msg)?,
+                    funds: vec![coin],
+                }),
+                SINGLE_SIDED_REPLY_ID,
+            );
+
+            Ok(vec![submsg])
+        }
     }
-
-    // if neither a nor b token single side lp message was built, we just go back and wait
-    Ok(None)
 }
 
 /// filters out irrelevant balances and returns a and b token amounts
@@ -430,6 +527,10 @@ fn get_pool_asset_amounts(
             // found a token balance
             a_bal = coin.amount;
         }
+    }
+
+    if a_bal.is_zero() || b_bal.is_zero() {
+        return Err(StdError::generic_err("all pool assets must be non-zero"));
     }
 
     Ok((a_bal, b_bal))
@@ -454,8 +555,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Response> {
-    deps.api.debug("WASMDEBUG: migrate");
-
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
@@ -493,55 +592,33 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Respo
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
-    deps.api.debug("WASMDEBUG: reply");
-    match msg.id {
-        DOUBLE_SIDED_REPLY_ID => handle_double_sided_reply_id(deps, _env, msg),
-        SINGLE_SIDED_REPLY_ID => handle_single_sided_reply_id(deps, _env, msg),
-        _ => Err(ContractError::from(StdError::GenericErr {
-            msg: "err".to_string(),
-        })),
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+    match msg.result {
+        SubMsgResult::Ok(_) => {
+            let response = Response::default().add_attribute("reply_id", msg.id.to_string());
+
+            match msg.id {
+                DOUBLE_SIDED_REPLY_ID => handle_double_sided_reply_id(response),
+                SINGLE_SIDED_REPLY_ID => handle_single_sided_reply_id(response),
+                SWAP_REPLY_ID => handle_swap_reply_id(response),
+                _ => Err(ContractError::from(StdError::generic_err(format!(
+                    "unknown reply id: {}",
+                    msg.id
+                )))),
+            }
+        }
+        SubMsgResult::Err(e) => Err(ContractError::from(StdError::generic_err(e))),
     }
 }
 
-fn handle_double_sided_reply_id(
-    _deps: DepsMut,
-    _env: Env,
-    msg: Reply,
-) -> Result<Response, ContractError> {
-    match parse_reply_instantiate_data(msg) {
-        Ok(response) => Ok(Response::default()
-            .add_attribute("method", "handle_double_sided_reply_id")
-            .add_attribute(
-                "response",
-                match response.data {
-                    Some(val) => val.to_base64(),
-                    None => "none".to_string(),
-                },
-            )),
-        Err(err) => Ok(Response::default()
-            .add_attribute("method", "handle_double_sided_reply_id")
-            .add_attribute("error", err.to_string())),
-    }
+fn handle_swap_reply_id(response: Response) -> Result<Response, ContractError> {
+    Ok(response.add_attribute("method", "handle_swap_reply_id"))
 }
 
-fn handle_single_sided_reply_id(
-    _deps: DepsMut,
-    _env: Env,
-    msg: Reply,
-) -> Result<Response, ContractError> {
-    match parse_reply_instantiate_data(msg) {
-        Ok(response) => Ok(Response::default()
-            .add_attribute("method", "handle_single_sided_reply_id")
-            .add_attribute(
-                "response",
-                match response.data {
-                    Some(val) => val.to_base64(),
-                    None => "none".to_string(),
-                },
-            )),
-        Err(err) => Ok(Response::default()
-            .add_attribute("method", "handle_single_sided_reply_id")
-            .add_attribute("error", err.to_string())),
-    }
+fn handle_double_sided_reply_id(response: Response) -> Result<Response, ContractError> {
+    Ok(response.add_attribute("method", "handle_double_sided_reply_id"))
+}
+
+fn handle_single_sided_reply_id(response: Response) -> Result<Response, ContractError> {
+    Ok(response.add_attribute("method", "handle_single_sided_reply_id"))
 }

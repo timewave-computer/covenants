@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    ensure, to_json_binary, Addr, BankMsg, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, Uint128,
 };
 use covenant_utils::CovenantTerms;
@@ -8,15 +8,16 @@ use crate::{
     error::ContractError,
     msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_TERMS, LOCKUP_CONFIG, NEXT_CONTRACT, PARTIES_CONFIG,
+        CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_TERMS, LOCKUP_CONFIG, NEXT_CONTRACT,
+        PARTIES_CONFIG, REFUND_CONFIG,
     },
 };
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use covenant_clock::helpers::enqueue_msg;
 use cw2::set_contract_version;
+use valence_clock::helpers::{enqueue_msg, verify_clock};
 
-const CONTRACT_NAME: &str = "crates.io:covenant-swap-holder";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -30,18 +31,24 @@ pub fn instantiate(
 
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
     let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-
+    msg.parties_config.validate_party_addresses(deps.api)?;
     if msg.lockup_config.is_expired(&env.block) {
         return Err(ContractError::Std(StdError::generic_err(
             "past lockup config",
         )));
     }
+    deps.api
+        .addr_validate(&msg.refund_config.party_a_refund_address)?;
+    deps.api
+        .addr_validate(&msg.refund_config.party_b_refund_address)?;
+
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     LOCKUP_CONFIG.save(deps.storage, &msg.lockup_config)?;
     PARTIES_CONFIG.save(deps.storage, &msg.parties_config)?;
     COVENANT_TERMS.save(deps.storage, &msg.covenant_terms)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
+    REFUND_CONFIG.save(deps.storage, &msg.refund_config)?;
 
     Ok(Response::default()
         .add_message(enqueue_msg(clock_addr.as_str())?)
@@ -64,19 +71,66 @@ pub fn execute(
 /// attempts to advance the state machine. performs `info.sender` validation
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
-    ensure!(
-        info.sender == CLOCK_ADDRESS.load(deps.storage)?,
-        ContractError::Unauthorized {}
-    );
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
         ContractState::Instantiated => try_forward(deps, env, info.sender),
-        ContractState::Expired => try_refund(deps, env, info.sender),
-        ContractState::Complete => {
-            Ok(Response::default().add_attribute("contract_state", "completed"))
-        }
+        ContractState::Expired => try_refund(deps, env),
+        ContractState::Complete => Ok(Response::default()
+            .add_attribute("contract_state", "complete")
+            .add_attribute("method", "try_tick")),
     }
+}
+
+/// attempts to route any available covenant party contribution denoms to
+/// the parties that were responsible for contributing that denom.
+fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+    let parties = PARTIES_CONFIG.load(deps.storage)?;
+    let refund_config = REFUND_CONFIG.load(deps.storage)?;
+
+    // query holder balances
+    let party_a_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        parties.party_a.native_denom,
+    )?;
+    let party_b_bal = deps.querier.query_balance(
+        env.contract.address.to_string(),
+        parties.party_b.native_denom,
+    )?;
+
+    let refund_messages: Vec<CosmosMsg> =
+        match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
+            // both balances empty, nothing to refund
+            (true, true) => vec![],
+            // party A failed to deposit. refund party B
+            (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
+                to_address: refund_config.party_b_refund_address,
+                amount: vec![party_b_bal],
+            })],
+            // party B failed to deposit. refund party A
+            (false, true) => vec![CosmosMsg::Bank(BankMsg::Send {
+                to_address: refund_config.party_a_refund_address,
+                amount: vec![party_a_bal],
+            })],
+            // not enough balances to perform the covenant swap.
+            // refund denoms to both parties.
+            (false, false) => vec![
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: refund_config.party_a_refund_address,
+                    amount: vec![party_a_bal],
+                }),
+                CosmosMsg::Bank(BankMsg::Send {
+                    to_address: refund_config.party_b_refund_address,
+                    amount: vec![party_b_bal],
+                }),
+            ],
+        };
+
+    Ok(Response::default()
+        .add_attribute("contract_state", "expired")
+        .add_attribute("method", "try_refund")
+        .add_messages(refund_messages))
 }
 
 fn try_forward(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response, ContractError> {
@@ -134,62 +188,13 @@ fn try_forward(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response
         amount,
     };
 
+    // given that we successfully forward the expected funds,
+    // we can now dequeue from the clock and complete
     let dequeue_msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?;
 
     Ok(Response::default()
         .add_message(bank_msg)
         .add_message(dequeue_msg))
-}
-
-fn try_refund(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response, ContractError> {
-    let parties = PARTIES_CONFIG.load(deps.storage)?;
-
-    // Query balance for the parties
-    let party_a_coin = deps.querier.query_balance(
-        env.contract.address.clone(),
-        parties.party_a.native_denom.clone(),
-    )?;
-    let party_b_coin = deps
-        .querier
-        .query_balance(env.contract.address, parties.party_b.native_denom.clone())?;
-
-    let messages = match (party_a_coin.amount.is_zero(), party_b_coin.amount.is_zero()) {
-        // both balances being zero means that either:
-        // 1. neither party deposited any funds in the first place
-        // 2. we have refunded both parties
-        // either way, this indicates completion
-        (true, true) => {
-            let msg = ContractState::complete_and_dequeue(deps.branch(), clock_addr.as_str())?;
-
-            return Ok(Response::default()
-                .add_message(msg)
-                .add_attribute("method", "try_refund")
-                .add_attribute("result", "nothing_to_refund")
-                .add_attribute("contract_state", "complete"));
-        }
-        // party A failed to deposit. refund party B
-        (true, false) => vec![parties
-            .party_b
-            .get_refund_msg(party_b_coin.amount, &env.block)],
-        // party B failed to deposit. refund party A
-        (false, true) => vec![parties
-            .party_a
-            .get_refund_msg(party_a_coin.amount, &env.block)],
-        // not enough balances to perform the covenant swap.
-        // refund denoms to both parties.
-        (false, false) => vec![
-            parties
-                .party_a
-                .get_refund_msg(party_a_coin.amount, &env.block),
-            parties
-                .party_b
-                .get_refund_msg(party_b_coin.amount, &env.block),
-        ],
-    };
-
-    Ok(Response::default()
-        .add_attribute("method", "try_refund")
-        .add_messages(messages))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -205,12 +210,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         // the deposit address for swap-holder is the contract itself
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&Some(env.contract.address))?),
+        QueryMsg::RefundConfig {} => Ok(to_json_binary(&REFUND_CONFIG.may_load(deps.storage)?)?),
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
-    deps.api.debug("WASMDEBUG: migrate");
     match msg {
         MigrateMsg::UpdateConfig {
             clock_addr,
@@ -218,6 +223,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             lockup_config,
             parites_config,
             covenant_terms,
+            refund_config,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
@@ -251,8 +257,20 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
                 resp = resp.add_attribute("covenant_terms", format!("{covenant_terms:?}"));
             }
 
+            if let Some(config) = refund_config {
+                deps.api.addr_validate(&config.party_a_refund_address)?;
+                deps.api.addr_validate(&config.party_b_refund_address)?;
+                REFUND_CONFIG.save(deps.storage, &config)?;
+                resp = resp.add_attribute("refund_config", format!("{config:?}"));
+            }
+
             Ok(resp)
         }
-        MigrateMsg::UpdateCodeId { data: _ } => todo!(),
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
+        }
     }
 }

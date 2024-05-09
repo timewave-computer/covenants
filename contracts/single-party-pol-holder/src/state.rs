@@ -12,11 +12,3 @@ pub const POOLER_ADDRESS: Item<Addr> = Item::new("pool_address");
 pub const LOCKUP_PERIOD: Item<Expiration> = Item::new("lockup_period");
 /// The state of the withdraw process
 pub const WITHDRAW_STATE: Item<bool> = Item::new("withdraw_state");
-
-// /// The state of a withdraw process
-// /// When a claim is called, we sett the storage with `WithdrawState::Processing`
-// /// We remove the state from storage when the withdraw is done or if it failed
-// #[cw_serde]
-// pub enum WithdrawState {
-//   Processing {},
-// }

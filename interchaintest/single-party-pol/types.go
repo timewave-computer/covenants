@@ -218,7 +218,6 @@ type NativeBalQueryResponse struct {
 type CovenantInstantiationMsg struct {
 	Label                     string                    `json:"label"`
 	Timeouts                  Timeouts                  `json:"timeouts"`
-	PresetIbcFee              PresetIbcFee              `json:"preset_ibc_fee"`
 	ContractCodeIds           ContractCodeIds           `json:"contract_codes"`
 	TickMaxGas                string                    `json:"clock_tick_max_gas,omitempty"`
 	LockupConfig              Expiration                `json:"lockup_period"`
@@ -355,12 +354,6 @@ type Timeouts struct {
 	IcaTimeout         string `json:"ica_timeout"`
 	IbcTransferTimeout string `json:"ibc_transfer_timeout"`
 }
-
-type PresetIbcFee struct {
-	AckFee     string `json:"ack_fee"`
-	TimeoutFee string `json:"timeout_fee"`
-}
-
 type Timestamp string
 type Block uint64
 

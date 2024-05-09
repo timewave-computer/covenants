@@ -6,10 +6,10 @@ use cosmwasm_std::{
     to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult, WasmMsg,
 };
-use covenant_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
-use covenant_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits};
 use cw2::set_contract_version;
+use valence_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
+use valence_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};
 
 use crate::{
     error::ContractError,
@@ -24,7 +24,7 @@ use crate::{
     },
 };
 
-const CONTRACT_NAME: &str = "crates.io:covenant-two-party-pol";
+const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const CLOCK_SALT: &[u8] = b"clock";
@@ -43,6 +43,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    let mut resp = Response::default().add_attribute("method", "instantiate");
     let creator_address: CanonicalAddr =
         deps.api.addr_canonicalize(env.contract.address.as_str())?;
 
@@ -72,18 +73,6 @@ pub fn instantiate(
         &creator_address,
         msg.contract_codes.holder_code,
     )?;
-    let party_a_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
-        deps.as_ref(),
-        PARTY_A_FORWARDER_SALT,
-        &creator_address,
-        msg.contract_codes.ibc_forwarder_code,
-    )?;
-    let party_b_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
-        deps.as_ref(),
-        PARTY_B_FORWARDER_SALT,
-        &creator_address,
-        msg.contract_codes.ibc_forwarder_code,
-    )?;
     let liquid_pooler_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
         LIQUID_POOLER_SALT,
@@ -97,7 +86,7 @@ pub fn instantiate(
     clock_whitelist.push(party_b_router_instantiate2_config.addr.to_string());
     clock_whitelist.push(liquid_pooler_instantiate2_config.addr.to_string());
 
-    let holder_instantiate2_msg = covenant_two_party_pol_holder::msg::InstantiateMsg {
+    let holder_instantiate2_msg = valence_two_party_pol_holder::msg::InstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
         lockup_config: msg.lockup_config,
         next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
@@ -175,6 +164,12 @@ pub fn instantiate(
     ];
 
     if let CovenantPartyConfig::Interchain(config) = &msg.party_a_config {
+        let party_a_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
+            deps.as_ref(),
+            PARTY_A_FORWARDER_SALT,
+            &creator_address,
+            msg.contract_codes.ibc_forwarder_code,
+        )?;
         PARTY_A_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_a_forwarder_instantiate2_config.addr)?;
         clock_whitelist.push(party_a_forwarder_instantiate2_config.addr.to_string());
@@ -187,7 +182,7 @@ pub fn instantiate(
             amount: config.contribution.amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+            fallback_address: msg.fallback_address.clone(),
         };
 
         messages.push(instantiate_msg.to_instantiate2_msg(
@@ -195,9 +190,19 @@ pub fn instantiate(
             env.contract.address.to_string(),
             format!("{}_party_a_ibc_forwarder", msg.label),
         )?);
+        resp = resp.add_attribute(
+            "party_a_forwarder_addr",
+            party_a_forwarder_instantiate2_config.addr,
+        );
     }
 
     if let CovenantPartyConfig::Interchain(config) = &msg.party_b_config {
+        let party_b_forwarder_instantiate2_config = get_instantiate2_salt_and_address(
+            deps.as_ref(),
+            PARTY_B_FORWARDER_SALT,
+            &creator_address,
+            msg.contract_codes.ibc_forwarder_code,
+        )?;
         PARTY_B_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_b_forwarder_instantiate2_config.addr)?;
         clock_whitelist.push(party_b_forwarder_instantiate2_config.addr.to_string());
@@ -210,7 +215,7 @@ pub fn instantiate(
             amount: config.contribution.amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            ibc_fee: msg.preset_ibc_fee.to_ibc_fee(),
+            fallback_address: msg.fallback_address,
         };
 
         messages.push(instantiate_msg.to_instantiate2_msg(
@@ -218,9 +223,13 @@ pub fn instantiate(
             env.contract.address.to_string(),
             format!("{}_party_b_ibc_forwarder", msg.label),
         )?);
+        resp = resp.add_attribute(
+            "party_b_forwarder_addr",
+            party_b_forwarder_instantiate2_config.addr,
+        );
     }
 
-    let clock_instantiate2_msg = covenant_clock::msg::InstantiateMsg {
+    let clock_instantiate2_msg = valence_clock::msg::InstantiateMsg {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: clock_whitelist,
     }
@@ -245,8 +254,7 @@ pub fn instantiate(
     PARTY_A_ROUTER_ADDR.save(deps.storage, &party_a_router_instantiate2_config.addr)?;
     COVENANT_CLOCK_ADDR.save(deps.storage, &clock_instantiate2_config.addr)?;
 
-    Ok(Response::default()
-        .add_attribute("method", "instantiate")
+    Ok(resp
         .add_attribute("clock_addr", clock_instantiate2_config.addr)
         .add_attribute("liquid_pooler_addr", liquid_pooler_instantiate2_config.addr)
         .add_attribute(
@@ -258,14 +266,6 @@ pub fn instantiate(
             party_b_router_instantiate2_config.addr,
         )
         .add_attribute("holder_addr", holder_instantiate2_config.addr)
-        .add_attribute(
-            "party_a_forwarder_addr",
-            party_a_forwarder_instantiate2_config.addr,
-        )
-        .add_attribute(
-            "party_b_forwarder_addr",
-            party_b_forwarder_instantiate2_config.addr,
-        )
         .add_messages(messages))
 }
 
@@ -327,14 +327,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             };
             Ok(to_json_binary(&resp)?)
         }
+        QueryMsg::ContractCodes {} => Ok(to_json_binary(&CONTRACT_CODES.load(deps.storage)?)?),
     }
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response> {
-    deps.api.debug("WASMDEBUG: migrate");
     match msg {
         MigrateMsg::UpdateCovenant {
+            codes,
             clock,
             holder,
             liquid_pooler,
@@ -345,6 +346,13 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
         } => {
             let mut migrate_msgs = vec![];
             let mut resp = Response::default().add_attribute("method", "migrate_contracts");
+
+            if let Some(new_codes) = codes {
+                CONTRACT_CODES.save(deps.storage, &new_codes)?;
+                let code_binary = to_json_binary(&new_codes)?;
+                resp = resp.add_attribute("contract_codes_migrate", code_binary.to_base64());
+            }
+
             let contract_codes = CONTRACT_CODES.load(deps.storage)?;
 
             if let Some(clock) = clock {
@@ -428,6 +436,12 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> StdResult<Response>
             }
 
             Ok(resp.add_messages(migrate_msgs))
+        }
+        MigrateMsg::UpdateCodeId { data: _ } => {
+            // This is a migrate message to update code id,
+            // Data is optional base64 that we can parse to any data we would like in the future
+            // let data: SomeStruct = from_binary(&data)?;
+            Ok(Response::default())
         }
     }
 }

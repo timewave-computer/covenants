@@ -1,22 +1,19 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Coin, Deps, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{Addr, Binary, Coin, StdResult, Uint64, WasmMsg};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty,
     DestinationConfig, InterchainCovenantParty, NativeCovenantParty, ReceiverConfig,
 };
 use cw_utils::Expiration;
-use neutron_sdk::bindings::msg::IbcFee;
 
-const NEUTRON_DENOM: &str = "untrn";
 pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 
 #[cw_serde]
 pub struct InstantiateMsg {
     pub label: String,
     pub timeouts: Timeouts,
-    pub preset_ibc_fee: PresetIbcFee,
     pub contract_codes: SwapCovenantContractCodeIds,
     pub clock_tick_max_gas: Option<Uint64>,
     pub lockup_config: Expiration,
@@ -24,6 +21,7 @@ pub struct InstantiateMsg {
     pub party_b_config: CovenantPartyConfig,
     pub splits: BTreeMap<String, SplitConfig>,
     pub fallback_split: Option<SplitConfig>,
+    pub fallback_address: Option<String>,
 }
 
 #[cw_serde]
@@ -33,19 +31,18 @@ pub enum CovenantPartyConfig {
 }
 
 impl CovenantPartyConfig {
-    pub fn to_receiver_config(&self, deps: Deps) -> StdResult<ReceiverConfig> {
+    pub fn to_receiver_config(&self) -> ReceiverConfig {
         match self {
-            CovenantPartyConfig::Interchain(config) => Ok(ReceiverConfig::Ibc(DestinationConfig {
+            CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
                 local_to_destination_chain_channel_id: config
                     .host_to_party_chain_channel_id
                     .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
                 denom_to_pfm_map: config.denom_to_pfm_map.clone(),
-            })),
+            }),
             CovenantPartyConfig::Native(config) => {
-                let addr = deps.api.addr_validate(&config.party_receiver_addr)?;
-                Ok(ReceiverConfig::Native(addr))
+                ReceiverConfig::Native(config.party_receiver_addr.to_string())
             }
         }
     }
@@ -57,18 +54,18 @@ impl CovenantPartyConfig {
         }
     }
 
-    pub fn to_covenant_party(&self, deps: Deps) -> StdResult<CovenantParty> {
+    pub fn to_covenant_party(&self) -> CovenantParty {
         match self {
-            CovenantPartyConfig::Interchain(config) => Ok(CovenantParty {
+            CovenantPartyConfig::Interchain(config) => CovenantParty {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
-                receiver_config: self.to_receiver_config(deps)?,
-            }),
-            CovenantPartyConfig::Native(config) => Ok(CovenantParty {
+                receiver_config: self.to_receiver_config(),
+            },
+            CovenantPartyConfig::Native(config) => CovenantParty {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
-                receiver_config: self.to_receiver_config(deps)?,
-            }),
+                receiver_config: self.to_receiver_config(),
+            },
         }
     }
 
@@ -76,6 +73,13 @@ impl CovenantPartyConfig {
         match self {
             CovenantPartyConfig::Interchain(_) => contract_codes.interchain_router_code,
             CovenantPartyConfig::Native(_) => contract_codes.native_router_code,
+        }
+    }
+
+    pub fn get_native_denom(&self) -> String {
+        match self {
+            CovenantPartyConfig::Interchain(config) => config.native_denom.to_string(),
+            CovenantPartyConfig::Native(config) => config.native_denom.to_string(),
         }
     }
 
@@ -104,15 +108,15 @@ impl CovenantPartyConfig {
                     ibc_transfer_timeout: party.ibc_transfer_timeout,
                     denom_to_pfm_map: party.denom_to_pfm_map.clone(),
                 };
-                let instantiate_msg = covenant_interchain_router::msg::InstantiateMsg {
-                    clock_address: clock_addr,
+                let instantiate_msg = valence_interchain_router::msg::InstantiateMsg {
+                    clock_address: clock_addr.to_string(),
                     destination_config,
                     denoms: covenant_denoms,
                 };
                 Ok(instantiate_msg.to_instantiate2_msg(&instantiate2_helper, admin, label)?)
             }
             CovenantPartyConfig::Native(party) => {
-                let instantiate_msg = covenant_native_router::msg::InstantiateMsg {
+                let instantiate_msg = valence_native_router::msg::InstantiateMsg {
                     clock_address: clock_addr.to_string(),
                     receiver_address: party.party_receiver_addr.to_string(),
                     denoms: covenant_denoms,
@@ -169,29 +173,6 @@ impl Default for Timeouts {
 }
 
 #[cw_serde]
-pub struct PresetIbcFee {
-    pub ack_fee: Uint128,
-    pub timeout_fee: Uint128,
-}
-
-impl PresetIbcFee {
-    pub fn to_ibc_fee(&self) -> IbcFee {
-        IbcFee {
-            // must be empty
-            recv_fee: vec![],
-            ack_fee: vec![cosmwasm_std::Coin {
-                denom: NEUTRON_DENOM.to_string(),
-                amount: self.ack_fee,
-            }],
-            timeout_fee: vec![cosmwasm_std::Coin {
-                denom: NEUTRON_DENOM.to_string(),
-                amount: self.timeout_fee,
-            }],
-        }
-    }
-}
-
-#[cw_serde]
 pub enum ExecuteMsg {}
 
 #[cw_serde]
@@ -209,18 +190,21 @@ pub enum QueryMsg {
     IbcForwarderAddress { party: String },
     #[returns(Addr)]
     PartyDepositAddress { party: String },
+    #[returns(CovenantContractCodes)]
+    ContractCodes {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateCovenant {
-        clock: Option<covenant_clock::msg::MigrateMsg>,
-        holder: Option<covenant_swap_holder::msg::MigrateMsg>,
-        splitter: Option<covenant_native_splitter::msg::MigrateMsg>,
+        codes: Option<CovenantContractCodes>,
+        clock: Option<valence_clock::msg::MigrateMsg>,
+        holder: Option<valence_swap_holder::msg::MigrateMsg>,
+        splitter: Option<valence_native_splitter::msg::MigrateMsg>,
         party_a_router: Option<RouterMigrateMsg>,
         party_b_router: Option<RouterMigrateMsg>,
-        party_a_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        party_b_forwarder: Box<Option<covenant_ibc_forwarder::msg::MigrateMsg>>,
+        party_a_forwarder: Box<Option<valence_ibc_forwarder::msg::MigrateMsg>>,
+        party_b_forwarder: Box<Option<valence_ibc_forwarder::msg::MigrateMsg>>,
     },
     UpdateCodeId {
         data: Option<Binary>,
@@ -229,12 +213,12 @@ pub enum MigrateMsg {
 
 #[cw_serde]
 pub enum RouterMigrateMsg {
-    Interchain(covenant_interchain_router::msg::MigrateMsg),
-    Native(covenant_native_router::msg::MigrateMsg),
+    Interchain(valence_interchain_router::msg::MigrateMsg),
+    Native(valence_native_router::msg::MigrateMsg),
 }
 
 #[cw_serde]
-pub(crate) struct CovenantContractCodes {
+pub struct CovenantContractCodes {
     pub clock: u64,
     pub holder: u64,
     pub party_a_router: u64,

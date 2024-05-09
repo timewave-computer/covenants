@@ -1,25 +1,22 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Decimal, Deps, StdResult, Uint128, Uint64, WasmMsg};
-use covenant_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
-use covenant_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
+use cosmwasm_std::{Addr, Binary, Decimal, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, CovenantParty, DestinationConfig,
     InterchainCovenantParty, NativeCovenantParty, PacketForwardMiddlewareConfig, PoolPriceConfig,
     ReceiverConfig,
 };
 use cw_utils::Expiration;
-use neutron_sdk::bindings::msg::IbcFee;
+use valence_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
+use valence_osmo_liquid_pooler::msg::OsmosisLiquidPoolerConfig;
 
-const NEUTRON_DENOM: &str = "untrn";
 pub const DEFAULT_TIMEOUT: u64 = 60 * 60 * 5; // 5 hours
 
 #[cw_serde]
 pub struct InstantiateMsg {
     pub label: String,
     pub timeouts: Timeouts,
-    pub preset_ibc_fee: PresetIbcFee,
     pub contract_codes: CovenantContractCodeIds,
     pub clock_tick_max_gas: Option<Uint64>,
     pub lockup_period: Expiration,
@@ -83,6 +80,7 @@ pub struct RemoteChainSplitterConfig {
     pub amount: Uint128,
     pub ls_share: Decimal,
     pub native_share: Decimal,
+    pub fallback_address: Option<String>,
 }
 
 #[cw_serde]
@@ -94,19 +92,18 @@ pub struct LsInfo {
 }
 
 impl CovenantPartyConfig {
-    pub fn to_receiver_config(&self, deps: Deps) -> StdResult<ReceiverConfig> {
+    pub fn to_receiver_config(&self) -> ReceiverConfig {
         match self {
-            CovenantPartyConfig::Interchain(config) => Ok(ReceiverConfig::Ibc(DestinationConfig {
+            CovenantPartyConfig::Interchain(config) => ReceiverConfig::Ibc(DestinationConfig {
                 local_to_destination_chain_channel_id: config
                     .host_to_party_chain_channel_id
                     .to_string(),
                 destination_receiver_addr: config.party_receiver_addr.to_string(),
                 ibc_transfer_timeout: config.ibc_transfer_timeout,
                 denom_to_pfm_map: BTreeMap::new(),
-            })),
+            }),
             CovenantPartyConfig::Native(config) => {
-                let addr = deps.api.addr_validate(&config.party_receiver_addr)?;
-                Ok(ReceiverConfig::Native(addr))
+                ReceiverConfig::Native(config.party_receiver_addr.to_string())
             }
         }
     }
@@ -118,18 +115,18 @@ impl CovenantPartyConfig {
         }
     }
 
-    pub fn to_covenant_party(&self, deps: Deps) -> StdResult<CovenantParty> {
+    pub fn to_covenant_party(&self) -> CovenantParty {
         match self {
-            CovenantPartyConfig::Interchain(config) => Ok(CovenantParty {
+            CovenantPartyConfig::Interchain(config) => CovenantParty {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
-                receiver_config: self.to_receiver_config(deps)?,
-            }),
-            CovenantPartyConfig::Native(config) => Ok(CovenantParty {
+                receiver_config: self.to_receiver_config(),
+            },
+            CovenantPartyConfig::Native(config) => CovenantParty {
                 addr: config.addr.to_string(),
                 native_denom: config.native_denom.to_string(),
-                receiver_config: self.to_receiver_config(deps)?,
-            }),
+                receiver_config: self.to_receiver_config(),
+            },
         }
     }
 
@@ -176,37 +173,6 @@ impl Default for Timeouts {
 }
 
 #[cw_serde]
-pub struct PresetIbcFee {
-    pub ack_fee: Uint128,
-    pub timeout_fee: Uint128,
-}
-
-impl PresetIbcFee {
-    pub fn to_ibc_fee(&self) -> IbcFee {
-        IbcFee {
-            // must be empty
-            recv_fee: vec![],
-            ack_fee: vec![cosmwasm_std::Coin {
-                denom: NEUTRON_DENOM.to_string(),
-                amount: self.ack_fee,
-            }],
-            timeout_fee: vec![cosmwasm_std::Coin {
-                denom: NEUTRON_DENOM.to_string(),
-                amount: self.timeout_fee,
-            }],
-        }
-    }
-}
-
-#[cw_serde]
-pub enum ExecuteMsg {
-    /// Withdraw from the LPer
-    Withdraw {},
-    ///
-    Claim {},
-}
-
-#[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     #[returns(Addr)]
@@ -225,24 +191,31 @@ pub enum QueryMsg {
     PartyDepositAddress {},
     #[returns(Addr)]
     InterchainRouterAddress {},
+    #[returns(CovenantContractCodeIds)]
+    ContractCodes {},
 }
 
+#[allow(clippy::large_enum_variant)]
 #[cw_serde]
 pub enum MigrateMsg {
     MigrateContracts {
-        clock: Option<covenant_clock::msg::MigrateMsg>,
-        holder: Option<covenant_single_party_pol_holder::msg::MigrateMsg>,
-        ls_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        lp_forwarder: Option<covenant_ibc_forwarder::msg::MigrateMsg>,
-        splitter: Option<covenant_native_splitter::msg::MigrateMsg>,
+        codes: Option<CovenantContractCodeIds>,
+        clock: Option<valence_clock::msg::MigrateMsg>,
+        holder: Option<valence_single_party_pol_holder::msg::MigrateMsg>,
+        ls_forwarder: Option<valence_ibc_forwarder::msg::MigrateMsg>,
+        lp_forwarder: Option<valence_ibc_forwarder::msg::MigrateMsg>,
+        splitter: Option<valence_remote_chain_splitter::msg::MigrateMsg>,
         liquid_pooler: Option<LiquidPoolerMigrateMsg>,
-        liquid_staker: Option<covenant_stride_liquid_staker::msg::MigrateMsg>,
-        router: Option<covenant_interchain_router::msg::MigrateMsg>,
+        liquid_staker: Option<valence_stride_liquid_staker::msg::MigrateMsg>,
+        router: Option<valence_interchain_router::msg::MigrateMsg>,
+    },
+    UpdateCodeId {
+        data: Option<Binary>,
     },
 }
 
 #[cw_serde]
 pub enum LiquidPoolerMigrateMsg {
-    Osmosis(covenant_osmo_liquid_pooler::msg::MigrateMsg),
-    Astroport(covenant_astroport_liquid_pooler::msg::MigrateMsg),
+    Osmosis(valence_osmo_liquid_pooler::msg::MigrateMsg),
+    Astroport(valence_astroport_liquid_pooler::msg::MigrateMsg),
 }

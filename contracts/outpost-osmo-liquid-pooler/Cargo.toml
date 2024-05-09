@@ -1,5 +1,5 @@
 [package]
-name        = "covenant-outpost-osmo-liquid-pooler"
+name        = "valence-outpost-osmo-liquid-pooler"
 authors     = ["benskey bekauz@protonmail.com"]
 description = "Osmosis outpost for liquid pooler contract for covenants"
 license     = { workspace = true }
@@ -21,7 +21,7 @@ library = []
 
 [dependencies]
 cosmwasm-schema = { workspace = true }
-cosmwasm-std = { version = "1.5.0", features = [
+cosmwasm-std = { version = "1.5.4", features = [
   "cosmwasm_1_1",
   "cosmwasm_1_2",
 ] }
@@ -32,10 +32,4 @@ serde = { workspace = true }
 thiserror = { workspace = true }
 schemars = { workspace = true }
 osmosis-std = "0.13.2"
-base64 = { workspace = true }
 prost = { workspace = true }
-
-# dev-dependencies
-[dev-dependencies]
-cw-multi-test = { workspace = true }
-cw1-whitelist = { workspace = true }

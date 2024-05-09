@@ -143,8 +143,7 @@ pub fn get_default_msg_transfer() -> MsgTransfer {
 
 pub fn to_proto(to_proto: impl Message) -> Vec<u8> {
     // Serialize the Transfer message
-    let mut buf = Vec::new();
-    buf.reserve(to_proto.encoded_len());
+    let mut buf = Vec::with_capacity(to_proto.encoded_len());
     to_proto.encode(&mut buf).unwrap();
     buf
 }
