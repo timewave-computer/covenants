@@ -78,6 +78,12 @@ impl IbcForwarderBuilder {
         self
     }
 
+    pub fn with_test_fallback_address(mut self) -> Self {
+        self.instantiate_msg
+            .with_fallback_address(self.builder.get_random_addr().to_string());
+        self
+    }
+
     pub fn with_ibc_transfer_timeout(mut self, ibc_transfer_timeout: Uint64) -> Self {
         self.instantiate_msg
             .with_ibc_transfer_timeout(ibc_transfer_timeout);
@@ -95,7 +101,8 @@ impl IbcForwarderBuilder {
     }
 
     pub fn with_clock_address(mut self, clock_address: String) -> Self {
-        self.instantiate_msg.with_clock_address(clock_address);
+        self.instantiate_msg
+            .with_privileged_addresses(Some(vec![clock_address]));
         self
     }
 
@@ -119,13 +126,13 @@ impl IbcForwarderBuilder {
             &[],
         );
 
-        let clock_addr = self
+        let privileged_addresses: Option<Vec<Addr>> = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 ibc_forwarder_address.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAddresses {},
             )
             .unwrap();
 
@@ -149,14 +156,25 @@ impl IbcForwarderBuilder {
             )
             .unwrap();
 
+        let fallback_address = self
+            .builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                ibc_forwarder_address.clone(),
+                &valence_ibc_forwarder::msg::QueryMsg::FallbackAddress {},
+            )
+            .unwrap();
+
         Suite {
             app: self.builder.app,
             faucet: self.builder.faucet,
             admin: self.builder.admin,
-            clock_addr,
+            clock_addr: privileged_addresses.unwrap().first().unwrap().clone(),
             ibc_forwarder: ibc_forwarder_address,
             remote_chain_info,
             deposit_address,
+            fallback_address,
         }
     }
 }
@@ -171,6 +189,7 @@ pub struct Suite {
     pub ibc_forwarder: Addr,
     pub remote_chain_info: RemoteChainInfo,
     pub deposit_address: Option<String>,
+    pub fallback_address: Option<Addr>,
 }
 
 impl Suite {
@@ -194,12 +213,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub(crate) fn query_clock_address(&mut self) -> Addr {
+    pub(crate) fn query_privileged_addresses(&mut self) -> Option<Vec<Addr>> {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.ibc_forwarder.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAddresses {},
             )
             .unwrap()
     }

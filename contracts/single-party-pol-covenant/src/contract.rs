@@ -213,7 +213,7 @@ pub fn instantiate(
         LS_FORWARDER_ADDR.save(deps.storage, &ls_forwarder_instantiate2_config.addr)?;
         clock_whitelist.insert(0, ls_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            clock_address: clock_instantiate2_config.addr.to_string(),
+            privileged_addresses: Some(vec![clock_instantiate2_config.addr.to_string()]),
             next_contract: liquid_staker_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id,
             remote_chain_channel_id: config.party_to_host_chain_channel_id,
@@ -234,7 +234,7 @@ pub fn instantiate(
         LP_FORWARDER_ADDR.save(deps.storage, &lp_forwarder_instantiate2_config.addr)?;
         clock_whitelist.insert(0, lp_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            clock_address: clock_instantiate2_config.addr.to_string(),
+            privileged_addresses: Some(vec![clock_instantiate2_config.addr.to_string()]),
             next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id,
             remote_chain_channel_id: config.party_to_host_chain_channel_id,

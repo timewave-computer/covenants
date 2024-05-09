@@ -3,16 +3,19 @@ use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Coin, StdResult, Uint128, Uint64, WasmMsg,
 };
 use covenant_macros::{
-    clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
-    covenant_remote_chain,
+    clocked, covenant_deposit_address, covenant_ica_address, covenant_remote_chain,
 };
 use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// address for the clock. this contract verifies
-    /// that only the clock can execute ticks
-    pub clock_address: String,
+    // List of privileged addresses (if any).
+    // The contract's Tick operation can either be a non-privileged (aka permissionless)
+    // operation if no privileged addresses are configured (privileged_addresses is None),
+    // or a privileged operation, that is, restricted to being executed by one of the configured
+    // privileged addresses (when privileged_addresses is Some() with a Vector of one or more addresses).
+    pub privileged_addresses: Option<Vec<String>>,
+
     /// contract responsible for providing the address to forward the
     /// funds to
     pub next_contract: String,
@@ -59,7 +62,10 @@ impl InstantiateMsg {
 impl InstantiateMsg {
     pub fn get_response_attributes(&self) -> Vec<Attribute> {
         vec![
-            Attribute::new("clock_address", &self.clock_address),
+            Attribute::new(
+                "privileged_addresses",
+                format!("{:?}", self.privileged_addresses),
+            ),
             Attribute::new(
                 "remote_chain_connection_id",
                 &self.remote_chain_connection_id,
@@ -86,7 +92,7 @@ pub enum ExecuteMsg {
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        clock_addr: Option<String>,
+        privileged_addresses: Option<Option<Vec<String>>>,
         next_contract: Option<String>,
         remote_chain_info: Box<Option<RemoteChainInfo>>,
         transfer_amount: Option<Uint128>,
@@ -105,7 +111,6 @@ pub enum FallbackAddressUpdateConfig {
 
 #[covenant_deposit_address]
 #[covenant_remote_chain]
-#[covenant_clock_address]
 #[covenant_ica_address]
 #[derive(QueryResponses)]
 #[cw_serde]
@@ -114,6 +119,8 @@ pub enum QueryMsg {
     ContractState {},
     #[returns(Option<String>)]
     FallbackAddress {},
+    #[returns(Option<Vec<Addr>>)]
+    PrivilegedAddresses {},
 }
 
 #[cw_serde]

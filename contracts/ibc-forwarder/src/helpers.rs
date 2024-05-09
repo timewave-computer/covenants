@@ -1,6 +1,8 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{QuerierWrapper, StdResult};
-use neutron_sdk::bindings::query::NeutronQuery;
+use cosmwasm_std::{Addr, Api, QuerierWrapper, StdError, StdResult};
+use neutron_sdk::{bindings::query::NeutronQuery, NeutronError};
+
+use crate::error::ContractError;
 
 /// Query next contract for the memo field
 /// If query failed, we set memo to empty string, meaning no memo is expected
@@ -80,4 +82,32 @@ pub struct MsgTransfer {
     pub timeout_timestamp: u64,
     #[prost(string, tag = "8")]
     pub memo: String,
+}
+
+pub fn validate_privileged_addresses(
+    api: &dyn Api,
+    privileged_addresses: Option<Vec<String>>,
+) -> Result<Option<Vec<Addr>>, StdError> {
+    privileged_addresses.map_or_else(
+        || Ok(None),
+        |addresses| {
+            addresses
+                .iter()
+                .map(|addr| api.addr_validate(addr))
+                .collect::<Result<Vec<_>, StdError>>()
+                .map(Some)
+        },
+    )
+}
+
+pub fn verify_caller(
+    caller: &Addr,
+    privileged_addr: &Option<Vec<Addr>>,
+) -> Result<(), NeutronError> {
+    if let Some(privileged_addresses) = privileged_addr {
+        if !privileged_addresses.contains(caller) {
+            return Err(ContractError::Unauthorized {}.into());
+        }
+    }
+    Ok(())
 }

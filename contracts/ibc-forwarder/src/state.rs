@@ -10,8 +10,7 @@ use crate::msg::ContractState;
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
-/// clock module address to verify the sender of incoming ticks
-pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
+pub const PRIVILEGED_ADDRESSES: Item<Option<Vec<Addr>>> = Item::new("privileged_addresses");
 pub const TRANSFER_AMOUNT: Item<Uint128> = Item::new("transfer_amount");
 
 pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");

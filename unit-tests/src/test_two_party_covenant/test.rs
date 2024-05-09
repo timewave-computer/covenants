@@ -152,7 +152,7 @@ fn test_migrate_update_config_party_a_interchain() {
         party_b_native_router_migrate_msg.clone(),
     );
     let party_a_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(random_address.to_string()),
+        privileged_addresses: Some(Some(vec![random_address.to_string()])),
         next_contract: None,
         remote_chain_info: None.into(),
         transfer_amount: None,
@@ -257,14 +257,17 @@ fn test_migrate_update_config_party_a_interchain() {
         .unwrap();
     assert_eq!(party_b_router_clock_address, random_address);
 
-    let party_a_forwarder_clock_address: Addr = app
+    let party_a_forwarder_privileged_addresses: Option<Vec<_>> = app
         .wrap()
         .query_wasm_smart(
             party_a_forwarder_address,
-            &valence_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+            &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAddresses {},
         )
         .unwrap();
-    assert_eq!(party_a_forwarder_clock_address, random_address);
+    assert_eq!(
+        party_a_forwarder_privileged_addresses,
+        Some(vec![random_address])
+    );
 
     assert_eq!(new_contract_codes, contract_codes);
 }
@@ -342,7 +345,7 @@ fn test_migrate_update_config_party_b_interchain() {
         party_a_native_router_migrate_msg.clone(),
     );
     let party_b_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(random_address.to_string()),
+        privileged_addresses: Some(Some(vec![random_address.to_string()])),
         next_contract: None,
         remote_chain_info: None.into(),
         transfer_amount: None,
@@ -458,13 +461,16 @@ fn test_migrate_update_config_party_b_interchain() {
         .unwrap();
     assert_eq!(party_a_router_clock_address, random_address);
 
-    let party_b_forwarder_clock_address: Addr = app
+    let party_b_forwarder_privileged_addresses: Option<Vec<_>> = app
         .wrap()
         .query_wasm_smart(
             party_b_forwarder_address,
-            &valence_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+            &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAddresses {},
         )
         .unwrap();
-    assert_eq!(party_b_forwarder_clock_address, random_address);
+    assert_eq!(
+        party_b_forwarder_privileged_addresses,
+        Some(vec![random_address])
+    );
     assert_eq!(new_contract_codes, contract_codes);
 }
