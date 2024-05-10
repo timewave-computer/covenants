@@ -87,12 +87,14 @@ pub fn instantiate(
         ),
     )?;
 
-    let mut clock_whitelist = vec![
+    let clock_whitelist = vec![
         holder_instantiate2_config.addr.to_string(),
         party_a_router_instantiate2_config.addr.to_string(),
         party_b_router_instantiate2_config.addr.to_string(),
         splitter_instantiate2_config.addr.to_string(),
     ];
+
+    let mut clock_initial_queue = vec![];
 
     let party_a_router_instantiate2_msg = msg.party_a_config.get_router_instantiate2_wasm_msg(
         format!("{}_party_a_router", msg.label),
@@ -201,8 +203,8 @@ pub fn instantiate(
         // store its forwarder contract address
         PARTY_A_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_a_forwarder_instantiate2_config.addr)?;
-        // whitelist that address on the clock
-        clock_whitelist.push(party_a_forwarder_instantiate2_config.addr.to_string());
+        // Add that address to the clock's initial queue param
+        clock_initial_queue.push(party_a_forwarder_instantiate2_config.addr.to_string());
         // generate its instantiate2 message and add it to the list
         // of instantiation messages
         let instantiate_msg = valence_ibc_forwarder::msg::InstantiateMsg {
@@ -242,8 +244,8 @@ pub fn instantiate(
         // store its forwarder contract address
         PARTY_B_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_b_forwarder_instantiate2_config.addr)?;
-        // whitelist that address on the clock
-        clock_whitelist.push(party_b_forwarder_instantiate2_config.addr.to_string());
+        // Add that address to the clock's initial queue param
+        clock_initial_queue.push(party_b_forwarder_instantiate2_config.addr.to_string());
         // generate its instantiate2 message and add it to the list
         // of instantiation messages
         let instantiate_msg = valence_ibc_forwarder::msg::InstantiateMsg {
@@ -275,6 +277,7 @@ pub fn instantiate(
         valence_clock::msg::InstantiateMsg {
             tick_max_gas: msg.clock_tick_max_gas,
             whitelist: clock_whitelist,
+            initial_queue: clock_initial_queue,
         }
         .to_instantiate2_msg(
             clock_instantiate2_config.code,

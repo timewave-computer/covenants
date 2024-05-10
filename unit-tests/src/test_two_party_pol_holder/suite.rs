@@ -40,6 +40,7 @@ impl Default for TwoPartyHolderBuilder {
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![holder_addr.to_string(), liquid_pooler_addr.to_string()],
+            initial_queue: vec![],
         };
         builder.contract_init2(
             builder.clock_code_id,
