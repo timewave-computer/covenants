@@ -86,6 +86,8 @@ pub fn instantiate(
     clock_whitelist.push(party_b_router_instantiate2_config.addr.to_string());
     clock_whitelist.push(liquid_pooler_instantiate2_config.addr.to_string());
 
+    let mut clock_initial_queue = vec![];
+
     let holder_instantiate2_msg = valence_two_party_pol_holder::msg::InstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
         lockup_config: msg.lockup_config,
@@ -172,7 +174,7 @@ pub fn instantiate(
         )?;
         PARTY_A_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_a_forwarder_instantiate2_config.addr)?;
-        clock_whitelist.push(party_a_forwarder_instantiate2_config.addr.to_string());
+        clock_initial_queue.push(party_a_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
             privileged_addresses: Some(vec![clock_instantiate2_config.addr.to_string()]),
             next_contract: holder_instantiate2_config.addr.to_string(),
@@ -205,7 +207,7 @@ pub fn instantiate(
         )?;
         PARTY_B_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_b_forwarder_instantiate2_config.addr)?;
-        clock_whitelist.push(party_b_forwarder_instantiate2_config.addr.to_string());
+        clock_initial_queue.push(party_b_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
             privileged_addresses: Some(vec![clock_instantiate2_config.addr.to_string()]),
             next_contract: holder_instantiate2_config.addr.to_string(),
@@ -232,6 +234,7 @@ pub fn instantiate(
     let clock_instantiate2_msg = valence_clock::msg::InstantiateMsg {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: clock_whitelist,
+        initial_queue: clock_initial_queue,
     }
     .to_instantiate2_msg(
         clock_instantiate2_config.code,

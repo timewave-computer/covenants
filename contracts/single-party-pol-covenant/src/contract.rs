@@ -103,6 +103,8 @@ pub fn instantiate(
     clock_whitelist.push(holder_instantiate2_config.addr.to_string());
     clock_whitelist.push(router_instantiate2_config.addr.to_string());
 
+    let mut clock_initial_queue = vec![];
+
     let mut denoms: BTreeSet<String> = BTreeSet::new();
     denoms.insert(msg.ls_info.ls_denom_on_neutron.to_string());
     denoms.insert(msg.covenant_party_config.native_denom.to_string());
@@ -211,7 +213,7 @@ pub fn instantiate(
 
     if let CovenantPartyConfig::Interchain(config) = msg.ls_forwarder_config {
         LS_FORWARDER_ADDR.save(deps.storage, &ls_forwarder_instantiate2_config.addr)?;
-        clock_whitelist.insert(0, ls_forwarder_instantiate2_config.addr.to_string());
+        clock_initial_queue.insert(0, ls_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
             privileged_addresses: Some(vec![clock_instantiate2_config.addr.to_string()]),
             next_contract: liquid_staker_instantiate2_config.addr.to_string(),
@@ -232,7 +234,7 @@ pub fn instantiate(
 
     if let CovenantPartyConfig::Interchain(config) = msg.lp_forwarder_config {
         LP_FORWARDER_ADDR.save(deps.storage, &lp_forwarder_instantiate2_config.addr)?;
-        clock_whitelist.insert(0, lp_forwarder_instantiate2_config.addr.to_string());
+        clock_initial_queue.insert(0, lp_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
             privileged_addresses: Some(vec![clock_instantiate2_config.addr.to_string()]),
             next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
@@ -254,6 +256,7 @@ pub fn instantiate(
     let clock_instantiate2_msg = valence_clock::msg::InstantiateMsg {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: clock_whitelist,
+        initial_queue: clock_initial_queue,
     }
     .to_instantiate2_msg(
         clock_instantiate2_config.code,

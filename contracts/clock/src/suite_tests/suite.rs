@@ -32,6 +32,7 @@ impl Default for SuiteBuilder {
             instantiate: InstantiateMsg {
                 tick_max_gas: Some(DEFAULT_TICK_MAX_GAS),
                 whitelist: vec![],
+                initial_queue: vec![],
             },
         }
     }

@@ -49,6 +49,7 @@ impl Default for AstroLiquidPoolerBuilder {
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![liquid_pooler_addr.to_string()],
+            initial_queue: vec![],
         };
 
         builder.contract_init2(

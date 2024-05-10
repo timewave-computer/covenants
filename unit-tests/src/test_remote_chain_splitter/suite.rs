@@ -35,6 +35,7 @@ impl Default for RemoteChainSplitterBuilder {
                 forwarder_a_addr.to_string(),
                 forwarder_b_addr.to_string(),
             ],
+            initial_queue: vec![],
         };
         builder.contract_init2(
             builder.clock_code_id,

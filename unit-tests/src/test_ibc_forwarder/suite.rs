@@ -34,6 +34,7 @@ impl IbcForwarderBuilder {
                 ibc_forwarder_addr.to_string(),
                 next_contract_addr.to_string(),
             ],
+            initial_queue: vec![],
         };
 
         builder.contract_init2(
