@@ -5,12 +5,11 @@
 ### install interchaintest
 
 ```bash
-git clone https://github.com/strangelove-ventures/interchaintest.git
+git clone --depth 1 --branch v8.3.0 https://github.com/strangelove-ventures/interchaintest; cd interchaintest; git switch -c v8.3.0
 ```
 
 ```bash
-cd interchaintest/local-interchain
-git checkout v8.3.0
+cd local-interchain
 ```
 
 ```bash
