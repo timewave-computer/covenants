@@ -1,22 +1,22 @@
 {
-  "start_time": 1715261454,
+  "start_time": 1715337550,
   "chains": [
     {
       "chain_id": "localcosmos-1",
       "chain_name": "localcosmos-1",
-      "rpc_address": "http://0.0.0.0:54245",
-      "rest_address": "http://0.0.0.0:54247",
-      "grpc_address": "0.0.0.0:54246",
-      "p2p_address": "0.0.0.0:54244",
+      "rpc_address": "http://0.0.0.0:58391",
+      "rest_address": "http://0.0.0.0:58388",
+      "grpc_address": "0.0.0.0:58392",
+      "p2p_address": "0.0.0.0:58390",
       "ibc_paths": []
     },
     {
       "chain_id": "localneutron-1",
       "chain_name": "localneutron-1",
-      "rpc_address": "http://0.0.0.0:54257",
-      "rest_address": "http://0.0.0.0:54259",
-      "grpc_address": "0.0.0.0:54258",
-      "p2p_address": "0.0.0.0:54256",
+      "rpc_address": "http://0.0.0.0:58433",
+      "rest_address": "http://0.0.0.0:58430",
+      "grpc_address": "0.0.0.0:58434",
+      "p2p_address": "0.0.0.0:58432",
       "ibc_paths": []
     }
   ],

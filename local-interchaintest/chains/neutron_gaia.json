@@ -51,7 +51,7 @@
           }
       },
       {
-          "name": "ics-consumer",
+          "name": "neutron",
           "chain_id": "localneutron-1",
           "denom": "untrn",
           "binary": "neutrond",

@@ -1,9 +1,5 @@
 use std::path;
 
-
-/// local-interchain/rust directory
-/// # Panics
-///
 /// Will panic if the current directory path is not found.
 #[must_use]
 pub fn get_current_dir() -> path::PathBuf {
@@ -13,9 +9,6 @@ pub fn get_current_dir() -> path::PathBuf {
     }
 }
 
-/// local-interchain directory
-/// # Panics
-///
 /// Will panic if the `local_interchain` directory is not found in the parent path.
 #[must_use]
 pub fn get_local_interchain_dir() -> path::PathBuf {
