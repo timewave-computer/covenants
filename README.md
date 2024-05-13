@@ -20,6 +20,10 @@ Covenants have been independently audited by Informal Systems and Oak Security:
 
 Please reach out if you're interested in working with us!
 
+## Security
+
+If you believe you've found a security-related issue with Covenants, please disclose responsibly by contacting the Timewave team at [security@timewave.computer](mailto:security@timewave.computer).
+
 ## License
 
 The Covenants system is licensed under [Apache 2](LICENSE).
