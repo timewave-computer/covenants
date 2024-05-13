@@ -4,8 +4,11 @@ permissions:
   contents: write
 
 on:
-    pull_request:
     push:
+      branches: [ main ]
+    pull_request:
+
+    workflow_dispatch:
 
 env:
     GO_VERSION: 1.21
