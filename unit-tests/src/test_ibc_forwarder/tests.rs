@@ -18,16 +18,28 @@ fn test_instantiate_validates_next_contract_addr() {
 }
 
 #[test]
+fn test_instantiate_with_valid_privileged_addresses() {
+    let _suite = IbcForwarderBuilder::default().build();
+}
+
+#[test]
+fn test_instantiate_in_permissionless_mode() {
+    let _suite = IbcForwarderBuilder::default()
+        .with_privileged_addresses(None)
+        .build();
+}
+
+#[test]
 #[should_panic]
-fn test_instantiate_validates_clock_addr() {
+fn test_instantiate_validates_privileged_addresses() {
     IbcForwarderBuilder::default()
-        .with_clock_address("some contract".to_string())
+        .with_privileged_addresses(Some(vec!["some contract".to_string()]))
         .build();
 }
 
 #[test]
 #[should_panic(expected = "Unauthorized")]
-fn test_tick_validates_clock() {
+fn test_tick_rejects_unprivileged_address() {
     let mut suite = IbcForwarderBuilder::default().build();
     let forwarder_addr = suite.ibc_forwarder.clone();
     suite
@@ -127,8 +139,43 @@ fn test_forward_funds_insufficient() {
 }
 
 #[test]
-fn test_forward_funds_happy() {
+fn test_forward_funds_happy_permissioned() {
     let mut suite = IbcForwarderBuilder::default().build();
+
+    let forwarder_addr = suite.ibc_forwarder.clone();
+    let next_contract = suite.query_next_contract();
+
+    // fund both contracts to register the ica
+    suite.fund_contract(&coins(2_000_000, DENOM_NTRN), forwarder_addr.clone());
+    suite.fund_contract(&coins(1_000_000, DENOM_NTRN), next_contract.clone());
+
+    // register ica
+    suite.tick_contract(forwarder_addr.clone());
+    suite.tick_contract(next_contract.clone());
+
+    let forwarder_ica = suite.query_ica_address(forwarder_addr.clone());
+    let next_contract_deposit_addr = suite.query_ica_address(next_contract.clone());
+
+    // fund the ica with sufficient amount of DENOM_ATOM_ON_NTRN
+    suite.fund_contract(&coins(100_000, DENOM_ATOM_ON_NTRN), forwarder_ica.clone());
+
+    // try to forward
+    suite.tick_contract(forwarder_addr);
+
+    // assert that the funds were in fact forwarded
+    suite.assert_balance(&forwarder_ica, coin(0, DENOM_ATOM_ON_NTRN));
+    // hacky ibc denom assertion
+    suite.assert_balance(
+        next_contract_deposit_addr,
+        coin(100_000, "channel-1/channel-1/uatom"),
+    );
+}
+
+#[test]
+fn test_forward_funds_happy_permissionless() {
+    let mut suite = IbcForwarderBuilder::default()
+        .with_privileged_addresses(None)
+        .build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
     let next_contract = suite.query_next_contract();

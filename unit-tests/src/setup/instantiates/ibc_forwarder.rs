@@ -90,13 +90,13 @@ impl IbcForwarderInstantiate {
 
 impl IbcForwarderInstantiate {
     pub fn default(
-        clock_address: String,
+        privileged_addresses: Option<Vec<String>>,
         next_contract: String,
         fallback_address: Option<String>,
     ) -> Self {
         Self {
             msg: valence_ibc_forwarder::msg::InstantiateMsg {
-                privileged_addresses: Some(vec![clock_address]),
+                privileged_addresses,
                 next_contract,
                 remote_chain_connection_id: "connection-todo".to_string(),
                 remote_chain_channel_id: NTRN_HUB_CHANNEL.1.to_string(),

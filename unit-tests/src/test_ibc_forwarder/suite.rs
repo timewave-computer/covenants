@@ -15,6 +15,7 @@ use crate::setup::{
 pub struct IbcForwarderBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: IbcForwarderInstantiate,
+    pub clock_addr: Addr,
 }
 
 #[allow(dead_code)]
@@ -45,7 +46,7 @@ impl IbcForwarderBuilder {
         );
 
         let next_contract_instantiate = IbcForwarderInstantiate::default(
-            clock_addr.to_string(),
+            Some(vec![clock_addr.to_string()]),
             clock_addr.to_string(),
             Some(builder.get_random_addr().to_string()),
         );
@@ -57,7 +58,7 @@ impl IbcForwarderBuilder {
         );
 
         let ibc_forwarder_instantiate = IbcForwarderInstantiate::default(
-            clock_addr.to_string(),
+            Some(vec![clock_addr.to_string()]),
             next_contract_addr.to_string(),
             Some(builder.get_random_addr().to_string()),
         );
@@ -65,6 +66,7 @@ impl IbcForwarderBuilder {
         IbcForwarderBuilder {
             builder,
             instantiate_msg: ibc_forwarder_instantiate,
+            clock_addr,
         }
     }
 
@@ -99,9 +101,9 @@ impl IbcForwarderBuilder {
         self
     }
 
-    pub fn with_clock_address(mut self, clock_address: String) -> Self {
+    pub fn with_privileged_addresses(mut self, privileged_addresses: Option<Vec<String>>) -> Self {
         self.instantiate_msg
-            .with_privileged_addresses(Some(vec![clock_address]));
+            .with_privileged_addresses(privileged_addresses);
         self
     }
 
@@ -169,7 +171,8 @@ impl IbcForwarderBuilder {
             app: self.builder.app,
             faucet: self.builder.faucet,
             admin: self.builder.admin,
-            clock_addr: privileged_addresses.unwrap().first().unwrap().clone(),
+            clock_addr: self.clock_addr,
+            privileged_addresses,
             ibc_forwarder: ibc_forwarder_address,
             remote_chain_info,
             deposit_address,
@@ -185,6 +188,7 @@ pub struct Suite {
     pub faucet: Addr,
     pub admin: Addr,
     pub clock_addr: Addr,
+    pub privileged_addresses: Option<Vec<Addr>>,
     pub ibc_forwarder: Addr,
     pub remote_chain_info: RemoteChainInfo,
     pub deposit_address: Option<String>,
