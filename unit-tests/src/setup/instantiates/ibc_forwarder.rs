@@ -89,7 +89,11 @@ impl IbcForwarderInstantiate {
 }
 
 impl IbcForwarderInstantiate {
-    pub fn default(clock_address: String, next_contract: String) -> Self {
+    pub fn default(
+        clock_address: String,
+        next_contract: String,
+        fallback_address: Option<String>,
+    ) -> Self {
         Self {
             msg: valence_ibc_forwarder::msg::InstantiateMsg {
                 privileged_addresses: Some(vec![clock_address]),
@@ -100,7 +104,7 @@ impl IbcForwarderInstantiate {
                 amount: Uint128::new(100_000),
                 ica_timeout: Uint64::from(100u64),
                 ibc_transfer_timeout: Uint64::from(100u64),
-                fallback_address: None,
+                fallback_address,
             },
         }
     }

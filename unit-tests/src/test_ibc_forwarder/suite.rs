@@ -44,8 +44,11 @@ impl IbcForwarderBuilder {
             &[],
         );
 
-        let next_contract_instantiate =
-            IbcForwarderInstantiate::default(clock_addr.to_string(), clock_addr.to_string());
+        let next_contract_instantiate = IbcForwarderInstantiate::default(
+            clock_addr.to_string(),
+            clock_addr.to_string(),
+            Some(builder.get_random_addr().to_string()),
+        );
         builder.contract_init2(
             builder.ibc_forwarder_code_id,
             "deposit_forwarder",
@@ -56,6 +59,7 @@ impl IbcForwarderBuilder {
         let ibc_forwarder_instantiate = IbcForwarderInstantiate::default(
             clock_addr.to_string(),
             next_contract_addr.to_string(),
+            Some(builder.get_random_addr().to_string()),
         );
 
         IbcForwarderBuilder {
@@ -76,12 +80,6 @@ impl IbcForwarderBuilder {
 
     pub fn with_fallback_address(mut self, fallback_address: String) -> Self {
         self.instantiate_msg.with_fallback_address(fallback_address);
-        self
-    }
-
-    pub fn with_test_fallback_address(mut self) -> Self {
-        self.instantiate_msg
-            .with_fallback_address(self.builder.get_random_addr().to_string());
         self
     }
 

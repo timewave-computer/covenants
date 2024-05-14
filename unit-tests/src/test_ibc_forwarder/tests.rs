@@ -162,7 +162,9 @@ fn test_forward_funds_happy() {
 #[test]
 #[should_panic(expected = "Missing fallback address")]
 fn test_distribute_fallback_errors_without_fallback_address() {
-    let mut suite = IbcForwarderBuilder::default().build();
+    let mut builder = IbcForwarderBuilder::default();
+    builder.instantiate_msg.msg.fallback_address = None;
+    let mut suite = builder.build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -182,9 +184,7 @@ fn test_distribute_fallback_errors_without_fallback_address() {
 #[test]
 #[should_panic(expected = "Cannot distribute target denom via fallback distribution")]
 fn test_distribute_fallback_validates_denom() {
-    let mut suite = IbcForwarderBuilder::default()
-        .with_test_fallback_address()
-        .build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -210,9 +210,7 @@ fn test_distribute_fallback_validates_denom() {
 #[test]
 #[should_panic(expected = "must cover ibc fees to distribute fallback denoms")]
 fn test_distribute_fallback_validates_ibc_fee_coverage() {
-    let mut suite = IbcForwarderBuilder::default()
-        .with_test_fallback_address()
-        .build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -235,9 +233,7 @@ fn test_distribute_fallback_validates_ibc_fee_coverage() {
 #[test]
 #[should_panic(expected = "no ica found")]
 fn test_distribute_fallback_validates_ica_exists() {
-    let mut suite = IbcForwarderBuilder::default()
-        .with_test_fallback_address()
-        .build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     // try to distribute fallback denom
     suite.distribute_fallback(
@@ -249,9 +245,7 @@ fn test_distribute_fallback_validates_ica_exists() {
 #[test]
 #[should_panic(expected = "insufficient fees")]
 fn test_distribute_fallback_validates_insufficient_ibc_fee_coverage() {
-    let mut suite = IbcForwarderBuilder::default()
-        .with_test_fallback_address()
-        .build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -277,9 +271,7 @@ fn test_distribute_fallback_validates_insufficient_ibc_fee_coverage() {
 #[test]
 #[should_panic(expected = "Attempt to distribute duplicate denoms via fallback distribution")]
 fn test_distribute_fallback_validates_duplicate_input_denoms() {
-    let mut suite = IbcForwarderBuilder::default()
-        .with_test_fallback_address()
-        .build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -313,9 +305,7 @@ fn test_distribute_fallback_validates_duplicate_input_denoms() {
 
 #[test]
 fn test_distribute_fallback_happy() {
-    let mut suite = IbcForwarderBuilder::default()
-        .with_test_fallback_address()
-        .build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -405,9 +395,7 @@ fn test_migrate_update_config() {
 
 #[test]
 fn test_migrate_update_config_remove_fallback() {
-    let mut suite = IbcForwarderBuilder::default()
-        .with_test_fallback_address()
-        .build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     suite
         .app
