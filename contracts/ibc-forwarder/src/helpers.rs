@@ -88,16 +88,14 @@ pub fn validate_privileged_addresses(
     api: &dyn Api,
     privileged_addresses: Option<Vec<String>>,
 ) -> Result<Option<Vec<Addr>>, StdError> {
-    privileged_addresses.map_or_else(
-        || Ok(None),
-        |addresses| {
+    privileged_addresses
+        .map(|addresses| {
             addresses
                 .iter()
                 .map(|addr| api.addr_validate(addr))
                 .collect::<Result<Vec<_>, StdError>>()
-                .map(Some)
-        },
-    )
+        })
+        .transpose()
 }
 
 pub fn verify_caller(

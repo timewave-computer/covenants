@@ -76,7 +76,7 @@ fn test_instantiate_with_fallback_split() {
         .instantiate_msg
         .msg
         .splits
-        .get(&DENOM_ATOM_ON_NTRN.to_string())
+        .get(DENOM_ATOM_ON_NTRN)
         .unwrap()
         .clone();
     builder.with_fallback_split(Some(fallback_split)).build();
