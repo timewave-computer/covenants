@@ -9,6 +9,7 @@ pub const API_URL: &str = "http://127.0.0.1:42069";
 pub const ADMIN_KEY: &str = "acc0";
 pub const WASM_EXTENSION: &str = "wasm";
 pub const NEUTRON_CHAIN: &str = "neutron";
+pub const GAIA_CHAIN: &str = "gaia";
 pub const CHAIN_CONFIG_PATH: &str = "chains/neutron_gaia.json";
 pub const ARTIFACTS_PATH: &str = "../artifacts";
 

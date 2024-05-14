@@ -20,7 +20,12 @@ impl From<ChainsVec> for TestContext {
                 chain.debugging,
             )
             .unwrap();
-            let local_chain = LocalChain::new(rb);
+            let (src_addr, denom) = match rb.chain_id.as_str() {
+                "localneutron-1" => ("neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky", "untrn"),
+                "localcosmos-1" => ("cosmos1hj5fveer5cjtn4wd6wstzugjfdxzl0xpxvjjvr", "uatom"),
+                _ => ("err", "err"),
+            };
+            let local_chain = LocalChain::new(rb, src_addr.to_string(), denom.to_string());
             chains_map.insert(chain.name.clone(), local_chain);
         }
         Self { chains: chains_map }
@@ -36,15 +41,19 @@ pub struct LocalChain {
     pub channel_ids: HashMap<String, String>,
     /// outgoing connection ids available (dest_chain_id -> connection_id)
     pub connection_ids: HashMap<String, String>,
+    pub admin_addr: String,
+    pub native_denom: String,
 }
 
 impl LocalChain {
-    pub fn new(rb: ChainRequestBuilder) -> Self {
+    pub fn new(rb: ChainRequestBuilder, admin_addr: String, native_denom: String) -> Self {
         Self {
             rb,
             contract_codes: Default::default(),
             channel_ids: Default::default(),
             connection_ids: Default::default(),
+            admin_addr,
+            native_denom,
         }
     }
 

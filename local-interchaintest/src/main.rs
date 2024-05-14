@@ -1,13 +1,22 @@
 #![allow(dead_code, unused_must_use)]
 
+use cosmwasm_std::{Coin, Uint128};
 use local_ictest_e2e::{
     base::TestContext,
+    chain_tests::test_paths,
     utils::{
         read_artifacts, read_json_file, ADMIN_KEY, API_URL, ARTIFACTS_PATH, CHAIN_CONFIG_PATH,
         NEUTRON_CHAIN, WASM_EXTENSION,
     },
 };
-use localic_std::{modules::cosmwasm::CosmWasm, polling::poll_for_start};
+use localic_std::{
+    modules::{
+        bank::{get_balance, get_total_supply, send},
+        cosmwasm::CosmWasm,
+    },
+    polling::poll_for_start,
+    transactions::ChainRequestBuilder,
+};
 use reqwest::blocking::Client;
 
 // local-ic start neutron_gaia --api-port 42069
@@ -19,26 +28,115 @@ fn main() {
 
     let mut test_ctx = TestContext::from(configured_chains);
 
-    let neutron = test_ctx.chains.get_mut(NEUTRON_CHAIN).unwrap();
-
     let wasm_files = read_artifacts(ARTIFACTS_PATH).unwrap();
+
     for wasm_file in wasm_files {
         let path = wasm_file.path();
         // TODO: need to work out caching here eventually
         // TODO: split contracts by chain
         if path.extension().and_then(|e| e.to_str()) == Some(WASM_EXTENSION) {
             let abs_path = path.canonicalize().unwrap();
-            let mut cw = CosmWasm::new(&neutron.rb);
+            let neutron_local_chain = test_ctx.chains.get_mut(NEUTRON_CHAIN).unwrap();
+
+            let mut cw = CosmWasm::new(&neutron_local_chain.rb);
 
             let code_id = cw.store(ADMIN_KEY, abs_path.as_path()).unwrap();
 
             let id = abs_path.file_stem().unwrap().to_str().unwrap();
-            neutron.contract_codes.insert(id.to_string(), code_id);
+            neutron_local_chain
+                .contract_codes
+                .insert(id.to_string(), code_id);
         }
     }
 
     println!(
         "Contract codes: {:?}",
         test_ctx.chains.get(NEUTRON_CHAIN).unwrap().contract_codes
+    );
+
+    test_ctx.chains.iter().for_each(|(name, chain)| {
+        println!("Chain: {}", name);
+        test_paths(&chain.rb);
+        test_queries(&chain.rb);
+        test_bank_send(&chain.rb, &chain.admin_addr, &chain.native_denom);
+    });
+}
+
+fn test_bank_send(rb: &ChainRequestBuilder, src_addr: &str, denom: &str) {
+    let before_bal = get_balance(rb, src_addr);
+
+    let res = send(
+        rb,
+        "acc0",
+        src_addr,
+        &[Coin {
+            denom: denom.to_string(),
+            amount: Uint128::new(5),
+        }],
+        &Coin {
+            denom: denom.to_string(),
+            amount: Uint128::new(5000),
+        },
+    );
+    match res {
+        Ok(res) => {
+            println!("res: {res}");
+        }
+        Err(err) => {
+            println!("err: {err}");
+        }
+    }
+
+    let after_amount = get_balance(rb, src_addr);
+
+    println!("before: {before_bal:?}");
+    println!("after: {after_amount:?}");
+}
+
+fn test_queries(rb: &ChainRequestBuilder) {
+    test_all_accounts(rb);
+    let c = get_total_supply(rb);
+    println!("total supply: {c:?}");
+}
+
+fn test_all_accounts(rb: &ChainRequestBuilder) {
+    let res = rb.query("q auth accounts", false);
+    println!("res: {res}");
+
+    let Some(accounts) = res["accounts"].as_array() else {
+        println!("No accounts found.");
+        return;
+    };
+
+    for account in accounts.iter() {
+        let acc_type = account["@type"].as_str().unwrap_or_default();
+
+        let addr: &str = match acc_type {
+            // "/cosmos.auth.v1beta1.ModuleAccount" => account["base_account"]["address"]
+            "/cosmos.auth.v1beta1.ModuleAccount" => account.get("base_account").unwrap()["address"]
+                .as_str()
+                .unwrap_or_default(),
+            _ => account["address"].as_str().unwrap_or_default(),
+        };
+
+        println!("{acc_type}: {addr}");
+    }
+}
+
+fn get_keyring_accounts(rb: &ChainRequestBuilder) {
+    let accounts = rb.binary("keys list --keyring-backend=test", false);
+
+    let addrs = accounts["addresses"].as_array();
+    addrs.map_or_else(
+        || {
+            println!("No accounts found.");
+        },
+        |addrs| {
+            for acc in addrs.iter() {
+                let name = acc["name"].as_str().unwrap_or_default();
+                let address = acc["address"].as_str().unwrap_or_default();
+                println!("Key '{name}': {address}");
+            }
+        },
     );
 }
