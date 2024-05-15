@@ -49,6 +49,11 @@ impl SuiteBuilder {
         self
     }
 
+    pub fn with_initial_queue(mut self, initial_queue: Vec<String>) -> Self {
+        self.instantiate.initial_queue = initial_queue;
+        self
+    }
+
     pub fn build(mut self) -> Suite {
         let clock_code = self.app.store_code(clock_contract());
         let clock = self
