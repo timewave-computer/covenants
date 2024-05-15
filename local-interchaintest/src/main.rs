@@ -13,9 +13,7 @@ use localic_std::{
     modules::{
         bank::{get_balance, get_total_supply, send},
         cosmwasm::CosmWasm,
-    },
-    polling::poll_for_start,
-    transactions::ChainRequestBuilder,
+    }, node::Chain, polling::poll_for_start, relayer::Relayer, transactions::ChainRequestBuilder
 };
 use reqwest::blocking::Client;
 
@@ -28,6 +26,7 @@ fn main() {
 
     let mut test_ctx = TestContext::from(configured_chains);
 
+    println!("transfer channels: {:?}", test_ctx.transfer_channel_ids);
     let wasm_files = read_artifacts(ARTIFACTS_PATH).unwrap();
 
     for wasm_file in wasm_files {
@@ -46,6 +45,7 @@ fn main() {
             neutron_local_chain
                 .contract_codes
                 .insert(id.to_string(), code_id);
+            break; // for testing
         }
     }
 
@@ -60,6 +60,28 @@ fn main() {
         test_queries(&chain.rb);
         test_bank_send(&chain.rb, &chain.admin_addr, &chain.native_denom);
     });
+
+    test_ibc_transfer(&test_ctx);
+}
+
+fn test_ibc_transfer(test_ctx: &TestContext) {
+    let gaia = test_ctx.chains.get("gaia").unwrap();
+    let neutron = test_ctx.chains.get("neutron").unwrap();
+    let stride = test_ctx.chains.get("stride").unwrap();
+
+    let neutron_relayer = Relayer::new(&neutron.rb);
+    let gaia_relayer = Relayer::new(&gaia.rb);
+    let stride_relayer = Relayer::new(&stride.rb);
+
+    let neutron_channels = neutron_relayer.get_channels(neutron.rb.chain_id.as_str()).unwrap();
+    let gaia_channels = gaia_relayer.get_channels(gaia.rb.chain_id.as_str()).unwrap();
+    let stride_channels = stride_relayer.get_channels(stride.rb.chain_id.as_str()).unwrap();
+
+    println!("Neutron channels: {:?}", neutron_channels);
+    println!("Gaia channels: {:?}", gaia_channels);
+    println!("Stride channels: {:?}", stride_channels);
+
+
 }
 
 fn test_bank_send(rb: &ChainRequestBuilder, src_addr: &str, denom: &str) {
