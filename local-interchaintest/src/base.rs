@@ -23,6 +23,7 @@ impl From<ChainsVec> for TestContext {
             let (src_addr, denom) = match rb.chain_id.as_str() {
                 "localneutron-1" => ("neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky", "untrn"),
                 "localcosmos-1" => ("cosmos1hj5fveer5cjtn4wd6wstzugjfdxzl0xpxvjjvr", "uatom"),
+                "localstride-3" => ("stride1u20df3trc2c2zdhm8qvh2hdjx9ewh00sv6eyy8", "ustrd"),
                 _ => ("err", "err"),
             };
             let local_chain = LocalChain::new(rb, src_addr.to_string(), denom.to_string());
