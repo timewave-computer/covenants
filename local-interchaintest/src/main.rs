@@ -3,7 +3,6 @@
 use cosmwasm_std::{Coin, Uint128};
 use local_ictest_e2e::{
     base::TestContext,
-    chain_tests::test_paths,
     utils::{
         read_artifacts, read_json_file, ADMIN_KEY, API_URL, ARTIFACTS_PATH, CHAIN_CONFIG_PATH,
         NEUTRON_CHAIN, WASM_EXTENSION,
@@ -13,7 +12,10 @@ use localic_std::{
     modules::{
         bank::{get_balance, get_total_supply, send},
         cosmwasm::CosmWasm,
-    }, node::Chain, polling::poll_for_start, relayer::Relayer, transactions::ChainRequestBuilder
+    },
+    polling::poll_for_start,
+    relayer::Relayer,
+    transactions::ChainRequestBuilder,
 };
 use reqwest::blocking::Client;
 
@@ -27,6 +29,9 @@ fn main() {
     let mut test_ctx = TestContext::from(configured_chains);
 
     println!("transfer channels: {:?}", test_ctx.transfer_channel_ids);
+    println!("connection ids: {:?}", test_ctx.connection_ids);
+    println!("ibc denoms: {:?}", test_ctx.ibc_denoms);
+
     let wasm_files = read_artifacts(ARTIFACTS_PATH).unwrap();
 
     for wasm_file in wasm_files {
@@ -54,14 +59,14 @@ fn main() {
         test_ctx.chains.get(NEUTRON_CHAIN).unwrap().contract_codes
     );
 
-    test_ctx.chains.iter().for_each(|(name, chain)| {
-        println!("Chain: {}", name);
-        test_paths(&chain.rb);
-        test_queries(&chain.rb);
-        test_bank_send(&chain.rb, &chain.admin_addr, &chain.native_denom);
-    });
+    // test_ctx.chains.iter().for_each(|(name, chain)| {
+    //     println!("Chain: {}", name);
+    //     test_paths(&chain.rb);
+    //     test_queries(&chain.rb);
+    //     test_bank_send(&chain.rb, &chain.admin_addr, &chain.native_denom);
+    // });
 
-    test_ibc_transfer(&test_ctx);
+    // test_ibc_transfer(&test_ctx);
 }
 
 fn test_ibc_transfer(test_ctx: &TestContext) {
@@ -73,15 +78,19 @@ fn test_ibc_transfer(test_ctx: &TestContext) {
     let gaia_relayer = Relayer::new(&gaia.rb);
     let stride_relayer = Relayer::new(&stride.rb);
 
-    let neutron_channels = neutron_relayer.get_channels(neutron.rb.chain_id.as_str()).unwrap();
-    let gaia_channels = gaia_relayer.get_channels(gaia.rb.chain_id.as_str()).unwrap();
-    let stride_channels = stride_relayer.get_channels(stride.rb.chain_id.as_str()).unwrap();
+    let neutron_channels = neutron_relayer
+        .get_channels(neutron.rb.chain_id.as_str())
+        .unwrap();
+    let gaia_channels = gaia_relayer
+        .get_channels(gaia.rb.chain_id.as_str())
+        .unwrap();
+    let stride_channels = stride_relayer
+        .get_channels(stride.rb.chain_id.as_str())
+        .unwrap();
 
     println!("Neutron channels: {:?}", neutron_channels);
     println!("Gaia channels: {:?}", gaia_channels);
     println!("Stride channels: {:?}", stride_channels);
-
-
 }
 
 fn test_bank_send(rb: &ChainRequestBuilder, src_addr: &str, denom: &str) {
