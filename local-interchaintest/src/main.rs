@@ -1,6 +1,6 @@
 #![allow(dead_code, unused_must_use)]
 
-use cosmwasm_std::{Coin, Uint128};
+use cosmwasm_std::{coin, Coin, Uint128};
 use local_ictest_e2e::{
     base::TestContext,
     utils::{
@@ -9,15 +9,13 @@ use local_ictest_e2e::{
     },
 };
 use localic_std::{
-    modules::{
+    errors::LocalError, modules::{
         bank::{get_balance, get_total_supply, send},
         cosmwasm::CosmWasm,
-    },
-    polling::poll_for_start,
-    relayer::Relayer,
-    transactions::ChainRequestBuilder,
+    }, polling::poll_for_start, relayer::Relayer, transactions::ChainRequestBuilder
 };
 use reqwest::blocking::Client;
+use serde_json::Value;
 
 // local-ic start neutron_gaia --api-port 42069
 fn main() {
@@ -59,14 +57,45 @@ fn main() {
         test_ctx.chains.get(NEUTRON_CHAIN).unwrap().contract_codes
     );
 
-    // test_ctx.chains.iter().for_each(|(name, chain)| {
-    //     println!("Chain: {}", name);
-    //     test_paths(&chain.rb);
-    //     test_queries(&chain.rb);
-    //     test_bank_send(&chain.rb, &chain.admin_addr, &chain.native_denom);
-    // });
+    let stride = test_ctx.chains.get("stride").unwrap();
+    let neutron = test_ctx.chains.get("neutron").unwrap();
 
-    // test_ibc_transfer(&test_ctx);
+    let src_port = "transfer";
+    let src_channel = test_ctx.transfer_channel_ids.get(&("stride".to_string(), "neutron".to_string())).unwrap();
+    let receiver = neutron.admin_addr.to_string();
+
+
+    let before_bal_strd = get_balance(&stride.rb, &stride.admin_addr);
+
+    let resp = ibc_send(
+        &stride.rb,
+        "acc0",
+        &receiver,
+        coin(100, "ustrd"),
+        &coin(100, "ustrd"),
+        src_port,
+        src_channel,
+    ).unwrap();
+
+    let after_bal_strd = get_balance(&stride.rb, &stride.admin_addr);
+
+    assert!(after_bal_strd < before_bal_strd);
+}
+
+pub fn ibc_send(
+    rb: &ChainRequestBuilder,
+    from_key: &str,
+    to_address: &str,
+    token: Coin,
+    fee: &Coin,
+    port: &str,
+    channel: &str,
+) -> Result<Value, LocalError> {
+    let str_coin= format!("{}{}", token.amount, token.denom);
+    let fee_coin = format!("{}{}", fee.amount, fee.denom);
+    let cmd =
+        format!("tx ibc-transfer transfer {port} {channel} {to_address} {str_coin} --fees={fee_coin} --from={from_key} --output=json");
+    rb.tx(&cmd, true)
 }
 
 fn test_ibc_transfer(test_ctx: &TestContext) {
