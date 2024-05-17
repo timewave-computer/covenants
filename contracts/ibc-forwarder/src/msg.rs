@@ -9,11 +9,11 @@ use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::Rem
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    // List of privileged addresses (if any).
+    // List of privileged accounts (if any).
     // The contract's Tick operation can either be a non-privileged (aka permissionless)
-    // operation if no privileged addresses are configured (privileged_accounts is None),
+    // operation if no privileged accounts are configured (privileged_accounts is None),
     // or a privileged operation, that is, restricted to being executed by one of the configured
-    // privileged addresses (when privileged_accounts is Some() with a Vector of one or more addresses).
+    // privileged accounts (when privileged_accounts is Some() with a Vector of one or more addresses).
     pub privileged_accounts: Option<Vec<String>>,
 
     /// contract responsible for providing the address to forward the

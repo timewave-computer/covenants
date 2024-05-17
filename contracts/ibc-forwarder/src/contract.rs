@@ -82,7 +82,6 @@ pub fn instantiate(
         .add_attribute("method", "ibc_forwarder_instantiate")
         .add_attribute("next_contract", next_contract)
         .add_attribute("contract_state", "instantiated")
-        .add_attribute("privileged_accounts", format!("{:?}", privileged_accounts))
         .add_attributes(msg.get_response_attributes()))
 }
 
