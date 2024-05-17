@@ -543,7 +543,7 @@ fn test_migrate_update_without_codes() {
     };
 
     let ibc_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-        privileged_addresses: Some(Some(vec![covenant_addr.to_string()])),
+        privileged_accounts: Some(Some(vec![covenant_addr.to_string()])),
         next_contract: None,
         remote_chain_info: Box::new(None),
         transfer_amount: None,

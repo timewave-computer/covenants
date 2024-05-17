@@ -14,7 +14,7 @@ impl From<IbcForwarderInstantiate> for valence_ibc_forwarder::msg::InstantiateMs
 
 impl IbcForwarderInstantiate {
     pub fn new(
-        privileged_addresses: Option<Vec<String>>,
+        privileged_accounts: Option<Vec<String>>,
         next_contract: String,
         remote_chain_connection_id: String,
         remote_chain_channel_id: String,
@@ -26,7 +26,7 @@ impl IbcForwarderInstantiate {
     ) -> Self {
         Self {
             msg: valence_ibc_forwarder::msg::InstantiateMsg {
-                privileged_addresses,
+                privileged_accounts,
                 next_contract,
                 remote_chain_connection_id,
                 remote_chain_channel_id,
@@ -39,11 +39,11 @@ impl IbcForwarderInstantiate {
         }
     }
 
-    pub fn with_privileged_addresses(
+    pub fn with_privileged_accounts(
         &mut self,
-        privileged_addresses: Option<Vec<String>>,
+        privileged_accounts: Option<Vec<String>>,
     ) -> &mut Self {
-        self.msg.privileged_addresses = privileged_addresses;
+        self.msg.privileged_accounts = privileged_accounts;
         self
     }
 
@@ -90,13 +90,13 @@ impl IbcForwarderInstantiate {
 
 impl IbcForwarderInstantiate {
     pub fn default(
-        privileged_addresses: Option<Vec<String>>,
+        privileged_accounts: Option<Vec<String>>,
         next_contract: String,
         fallback_address: Option<String>,
     ) -> Self {
         Self {
             msg: valence_ibc_forwarder::msg::InstantiateMsg {
-                privileged_addresses,
+                privileged_accounts,
                 next_contract,
                 remote_chain_connection_id: "connection-todo".to_string(),
                 remote_chain_channel_id: NTRN_HUB_CHANNEL.1.to_string(),

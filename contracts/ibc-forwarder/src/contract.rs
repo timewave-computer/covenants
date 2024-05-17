@@ -27,7 +27,7 @@ use neutron_sdk::{
 use prost::Message;
 
 use crate::{
-    error::ContractError, helpers::validate_privileged_addresses, msg::FallbackAddressUpdateConfig,
+    error::ContractError, helpers::validate_privileged_accounts, msg::FallbackAddressUpdateConfig,
 };
 use crate::{
     helpers::verify_caller,
@@ -37,8 +37,8 @@ use crate::{
     helpers::{get_next_memo, MsgTransfer},
     msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, PRIVILEGED_ADDRESSES,
-        REMOTE_CHAIN_INFO, TRANSFER_AMOUNT,
+        CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, PRIVILEGED_ACCOUNTS, REMOTE_CHAIN_INFO,
+        TRANSFER_AMOUNT,
     },
 };
 
@@ -59,10 +59,10 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
-    let privileged_addresses =
-        validate_privileged_addresses(deps.api, msg.privileged_addresses.clone())?;
+    let privileged_accounts =
+        validate_privileged_accounts(deps.api, msg.privileged_accounts.clone())?;
 
-    PRIVILEGED_ADDRESSES.save(deps.storage, &privileged_addresses)?;
+    PRIVILEGED_ACCOUNTS.save(deps.storage, &privileged_accounts)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     TRANSFER_AMOUNT.save(deps.storage, &msg.amount)?;
     let remote_chain_info = RemoteChainInfo {
@@ -82,6 +82,7 @@ pub fn instantiate(
         .add_attribute("method", "ibc_forwarder_instantiate")
         .add_attribute("next_contract", next_contract)
         .add_attribute("contract_state", "instantiated")
+        .add_attribute("privileged_accounts", format!("{:?}", privileged_accounts))
         .add_attributes(msg.get_response_attributes()))
 }
 
@@ -191,7 +192,7 @@ fn try_distribute_fallback(
 
 /// attempts to advance the state machine. validates the caller to be the clock.
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-    verify_caller(&info.sender, &PRIVILEGED_ADDRESSES.load(deps.storage)?)?;
+    verify_caller(&info.sender, &PRIVILEGED_ACCOUNTS.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -345,7 +346,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
             Ok(to_json_binary(&FALLBACK_ADDRESS.may_load(deps.storage)?)?)
         }
         QueryMsg::PrivilegedAddresses {} => Ok(to_json_binary(
-            &PRIVILEGED_ADDRESSES.may_load(deps.storage)?,
+            &PRIVILEGED_ACCOUNTS.may_load(deps.storage)?,
         )?),
     }
 }
@@ -398,7 +399,7 @@ pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<Neut
 pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
     match msg {
         MigrateMsg::UpdateConfig {
-            privileged_addresses,
+            privileged_accounts,
             next_contract,
             remote_chain_info,
             transfer_amount,
@@ -406,14 +407,13 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
-            if let Some(privileged_addresses) = privileged_addresses {
-                let updated_privileged_addresses =
-                    validate_privileged_addresses(deps.api, privileged_addresses.clone())?;
-                PRIVILEGED_ADDRESSES.save(deps.storage, &updated_privileged_addresses)?;
-                resp = resp.add_attribute(
-                    "privileged_addresses",
-                    format!("{:?}", privileged_addresses),
-                );
+            if let Some(privileged_accounts) = privileged_accounts {
+                let updated_privileged_accounts =
+                    validate_privileged_accounts(deps.api, privileged_accounts.clone())
+                        .map_err(|err| StdError::generic_err(err.to_string()))?;
+                PRIVILEGED_ACCOUNTS.save(deps.storage, &updated_privileged_accounts)?;
+                resp =
+                    resp.add_attribute("privileged_accounts", format!("{:?}", privileged_accounts));
             }
 
             if let Some(addr) = next_contract {

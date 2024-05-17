@@ -18,28 +18,36 @@ fn test_instantiate_validates_next_contract_addr() {
 }
 
 #[test]
-fn test_instantiate_with_valid_privileged_addresses() {
+fn test_instantiate_with_valid_privileged_accounts() {
     let _suite = IbcForwarderBuilder::default().build();
 }
 
 #[test]
 fn test_instantiate_in_permissionless_mode() {
     let _suite = IbcForwarderBuilder::default()
-        .with_privileged_addresses(None)
+        .with_privileged_accounts(None)
         .build();
 }
 
 #[test]
 #[should_panic]
-fn test_instantiate_validates_privileged_addresses() {
+fn test_instantiate_validates_privileged_accounts() {
     IbcForwarderBuilder::default()
-        .with_privileged_addresses(Some(vec!["some contract".to_string()]))
+        .with_privileged_accounts(Some(vec!["some contract".to_string()]))
+        .build();
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_validates_empty_privileged_accounts() {
+    IbcForwarderBuilder::default()
+        .with_privileged_accounts(Some(vec![]))
         .build();
 }
 
 #[test]
 #[should_panic(expected = "Unauthorized")]
-fn test_tick_rejects_unprivileged_address() {
+fn test_tick_rejects_unprivileged_account() {
     let mut suite = IbcForwarderBuilder::default().build();
     let forwarder_addr = suite.ibc_forwarder.clone();
     suite
@@ -174,7 +182,7 @@ fn test_forward_funds_happy_permissioned() {
 #[test]
 fn test_forward_funds_happy_permissionless() {
     let mut suite = IbcForwarderBuilder::default()
-        .with_privileged_addresses(None)
+        .with_privileged_accounts(None)
         .build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
@@ -416,7 +424,7 @@ fn test_migrate_update_config() {
             Addr::unchecked(ADMIN),
             forwarder_addr.clone(),
             &valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-                privileged_addresses: Some(Some(
+                privileged_accounts: Some(Some(
                     upd_priv_addresses.iter().map(|a| a.to_string()).collect(),
                 )),
                 next_contract: Some(upd_next_contract.to_string()),
@@ -430,7 +438,7 @@ fn test_migrate_update_config() {
         )
         .unwrap();
 
-    assert_eq!(suite.query_privileged_addresses(), Some(upd_priv_addresses));
+    assert_eq!(suite.query_privileged_accounts(), Some(upd_priv_addresses));
     assert_eq!(suite.query_remote_chain_info().denom, "some new denom");
     assert_eq!(suite.query_transfer_amount(), Uint128::new(69));
     assert_eq!(suite.query_next_contract(), upd_next_contract);
@@ -450,7 +458,7 @@ fn test_migrate_update_config_remove_fallback() {
             Addr::unchecked(ADMIN),
             suite.ibc_forwarder.clone(),
             &valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-                privileged_addresses: None,
+                privileged_accounts: None,
                 next_contract: None,
                 remote_chain_info: Box::new(None),
                 transfer_amount: None,

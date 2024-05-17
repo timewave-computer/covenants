@@ -176,7 +176,7 @@ pub fn instantiate(
             .save(deps.storage, &party_a_forwarder_instantiate2_config.addr)?;
         clock_initial_queue.push(party_a_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            privileged_addresses: Some(vec![clock_instantiate2_config.addr.to_string()]),
+            privileged_accounts: Some(vec![clock_instantiate2_config.addr.to_string()]),
             next_contract: holder_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id.to_string(),
             remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
@@ -209,7 +209,7 @@ pub fn instantiate(
             .save(deps.storage, &party_b_forwarder_instantiate2_config.addr)?;
         clock_initial_queue.push(party_b_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            privileged_addresses: Some(vec![clock_instantiate2_config.addr.to_string()]),
+            privileged_accounts: Some(vec![clock_instantiate2_config.addr.to_string()]),
             next_contract: holder_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id.to_string(),
             remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),

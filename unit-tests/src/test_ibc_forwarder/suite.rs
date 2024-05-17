@@ -101,9 +101,9 @@ impl IbcForwarderBuilder {
         self
     }
 
-    pub fn with_privileged_addresses(mut self, privileged_addresses: Option<Vec<String>>) -> Self {
+    pub fn with_privileged_accounts(mut self, privileged_accounts: Option<Vec<String>>) -> Self {
         self.instantiate_msg
-            .with_privileged_addresses(privileged_addresses);
+            .with_privileged_accounts(privileged_accounts);
         self
     }
 
@@ -127,7 +127,7 @@ impl IbcForwarderBuilder {
             &[],
         );
 
-        let privileged_addresses: Option<Vec<Addr>> = self
+        let privileged_accounts: Option<Vec<Addr>> = self
             .builder
             .app
             .wrap()
@@ -172,7 +172,7 @@ impl IbcForwarderBuilder {
             faucet: self.builder.faucet,
             admin: self.builder.admin,
             clock_addr: self.clock_addr,
-            privileged_addresses,
+            privileged_accounts,
             ibc_forwarder: ibc_forwarder_address,
             remote_chain_info,
             deposit_address,
@@ -188,7 +188,7 @@ pub struct Suite {
     pub faucet: Addr,
     pub admin: Addr,
     pub clock_addr: Addr,
-    pub privileged_addresses: Option<Vec<Addr>>,
+    pub privileged_accounts: Option<Vec<Addr>>,
     pub ibc_forwarder: Addr,
     pub remote_chain_info: RemoteChainInfo,
     pub deposit_address: Option<String>,
@@ -216,7 +216,7 @@ impl Suite {
             .unwrap()
     }
 
-    pub(crate) fn query_privileged_addresses(&mut self) -> Option<Vec<Addr>> {
+    pub(crate) fn query_privileged_accounts(&mut self) -> Option<Vec<Addr>> {
         self.app
             .wrap()
             .query_wasm_smart(
