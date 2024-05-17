@@ -35,6 +35,7 @@ impl Default for RemoteChainSplitterBuilder {
                 forwarder_a_addr.to_string(),
                 forwarder_b_addr.to_string(),
             ],
+            initial_queue: vec![],
         };
         builder.contract_init2(
             builder.clock_code_id,
@@ -44,7 +45,7 @@ impl Default for RemoteChainSplitterBuilder {
         );
 
         let default_forwarder_instantiate_msg = valence_ibc_forwarder::msg::InstantiateMsg {
-            clock_address: clock_addr.to_string(),
+            privileged_accounts: Some(vec![clock_addr.to_string()]),
             next_contract: clock_addr.to_string(),
             remote_chain_connection_id: "connection-0".to_string(),
             remote_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),

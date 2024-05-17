@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use cosmwasm_std::{from_json, to_json_vec, Addr, Binary, StdError, StdResult, Storage, Uint128};
 use covenant_utils::{
     ica::IcaStateHelper,
@@ -10,8 +12,7 @@ use crate::msg::ContractState;
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
-/// clock module address to verify the sender of incoming ticks
-pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
+pub const PRIVILEGED_ACCOUNTS: Item<Option<HashSet<Addr>>> = Item::new("privileged_accounts");
 pub const TRANSFER_AMOUNT: Item<Uint128> = Item::new("transfer_amount");
 
 pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");

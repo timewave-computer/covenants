@@ -19,6 +19,7 @@ impl ClockInstantiate {
             msg: valence_clock::msg::InstantiateMsg {
                 tick_max_gas,
                 whitelist,
+                initial_queue: vec![],
             },
         }
     }
@@ -44,6 +45,7 @@ impl ClockInstantiate {
             msg: valence_clock::msg::InstantiateMsg {
                 tick_max_gas,
                 whitelist,
+                initial_queue: vec![],
             },
         }
     }

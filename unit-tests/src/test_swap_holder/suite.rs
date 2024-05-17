@@ -45,6 +45,7 @@ impl Default for SwapHolderBuilder {
                 party_a_router_addr.to_string(),
                 party_b_router_addr.to_string(),
             ],
+            initial_queue: vec![],
         };
         builder.contract_init2(
             builder.clock_code_id,

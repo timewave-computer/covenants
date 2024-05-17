@@ -44,6 +44,16 @@ pub fn instantiate(
 
     WHITELIST.save(deps.storage, &whitelist)?;
 
+    let initial_queue: Vec<Addr> = msg
+        .initial_queue
+        .iter()
+        .map(|addr| deps.api.addr_validate(addr))
+        .collect::<StdResult<Vec<Addr>>>()?;
+
+    initial_queue
+        .into_iter()
+        .try_for_each(|addr| QUEUE.enqueue(deps.storage, addr))?;
+
     Ok(Response::default()
         .add_attribute("method", "instantiate")
         .add_attribute("tick_max_gas", tick_max_gas))

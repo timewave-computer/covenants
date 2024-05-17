@@ -15,6 +15,24 @@ fn test_instantiate() {
 }
 
 #[test]
+fn test_instantiate_with_initial_queue() {
+    let mut builder = SuiteBuilder::default();
+    let receiver = builder.generate_tester(Mode::Accept);
+    let suite = builder
+        .with_initial_queue(vec![receiver.to_string()])
+        .build();
+    assert_eq!(suite.query_full_queue(), vec![(receiver, 0)]);
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_with_initial_queue_invalid_address() {
+    SuiteBuilder::default()
+        .with_initial_queue(vec!["".to_string()])
+        .build();
+}
+
+#[test]
 fn test_instanitate_with_zero_tick_max_gas_should_default_to_min() {
     let suite = SuiteBuilder::default().with_tick_max_gas(0).build();
 

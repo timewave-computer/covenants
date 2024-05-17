@@ -32,6 +32,7 @@ impl Default for SuiteBuilder {
             instantiate: InstantiateMsg {
                 tick_max_gas: Some(DEFAULT_TICK_MAX_GAS),
                 whitelist: vec![],
+                initial_queue: vec![],
             },
         }
     }
@@ -45,6 +46,11 @@ impl SuiteBuilder {
 
     pub fn with_whitelist(mut self, whitelist: Vec<Addr>) -> Self {
         self.instantiate.whitelist = whitelist.iter().map(|a| a.to_string()).collect();
+        self
+    }
+
+    pub fn with_initial_queue(mut self, initial_queue: Vec<String>) -> Self {
+        self.instantiate.initial_queue = initial_queue;
         self
     }
 
