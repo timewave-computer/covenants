@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{ensure, Addr, Api, QuerierWrapper, StdError, StdResult};
+use cosmwasm_std::{ensure, Addr, Api, QuerierWrapper, StdResult};
 use neutron_sdk::{bindings::query::NeutronQuery, NeutronError};
 
 use crate::error::ContractError;
