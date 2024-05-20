@@ -149,14 +149,14 @@
       "binary": "strided",
       "bech32_prefix": "stride",
       "docker_image": {
-        "version": "v9.2.1",
-        "repository": "ghcr.io/strangelove-ventures/heighliner/stride"
+        "version": "non-ics",
+        "repository": "stride"
       },
       "gas_prices": "0.0ustrd",
       "chain_type": "cosmos",
       "coin_type": 118,
       "trusting_period": "336h",
-      "gas_adjustment": 2.0,
+      "gas_adjustment": 1.3,
       "number_vals": 1,
       "number_node": 0,
       "ibc_paths": ["gaia-stride", "neutron-stride"],
@@ -190,7 +190,7 @@
         ],
         "accounts": [
           {
-            "name": "acc0",
+            "name": "admin",
             "address": "stride1u20df3trc2c2zdhm8qvh2hdjx9ewh00sv6eyy8",
             "amount": "10000000000%DENOM%",
             "mnemonic": "tone cause tribe this switch near host damage idle fragile antique tail soda alien depth write wool they rapid unfold body scan pledge soft"

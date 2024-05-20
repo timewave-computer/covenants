@@ -2,11 +2,10 @@
 
 use cosmwasm_std::{coin, Coin, Uint128};
 use local_ictest_e2e::{
-    base::TestContext,
-    utils::{
+    base::TestContext, ibc_helpers::{get_ibc_denom, ibc_send}, utils::{
         read_artifacts, read_json_file, ADMIN_KEY, API_URL, ARTIFACTS_PATH, CHAIN_CONFIG_PATH,
         NEUTRON_CHAIN, WASM_EXTENSION,
-    },
+    }
 };
 use localic_std::{
     errors::LocalError, modules::{
@@ -17,12 +16,14 @@ use localic_std::{
 use reqwest::blocking::Client;
 use serde_json::Value;
 
+
 // local-ic start neutron_gaia --api-port 42069
 fn main() {
     let configured_chains = read_json_file(CHAIN_CONFIG_PATH).unwrap();
 
     let client = Client::new();
     poll_for_start(&client, API_URL, 300);
+
 
     let mut test_ctx = TestContext::from(configured_chains);
 
@@ -59,43 +60,68 @@ fn main() {
 
     let stride = test_ctx.chains.get("stride").unwrap();
     let neutron = test_ctx.chains.get("neutron").unwrap();
+    let gaia = test_ctx.chains.get("gaia").unwrap();
 
     let src_port = "transfer";
-    let src_channel = test_ctx.transfer_channel_ids.get(&("stride".to_string(), "neutron".to_string())).unwrap();
-    let receiver = neutron.admin_addr.to_string();
 
+    let stride_to_gaia_connection_id = test_ctx.connection_ids.get(&("stride".to_string(), "gaia".to_string())).unwrap();
+    let gaia_to_stride_channel_id = test_ctx.transfer_channel_ids.get(&("gaia".to_string(), "stride".to_string())).unwrap();
+    let stride_to_gaia_channel_id = test_ctx.transfer_channel_ids.get(&("stride".to_string(), "gaia".to_string())).unwrap();
+    let atom_on_stride = get_ibc_denom("uatom", stride_to_gaia_channel_id);
 
-    let before_bal_strd = get_balance(&stride.rb, &stride.admin_addr);
-
-    let resp = ibc_send(
-        &stride.rb,
+    ibc_send(
+        &gaia.rb,
         "acc0",
-        &receiver,
-        coin(100, "ustrd"),
-        &coin(100, "ustrd"),
+        &stride.admin_addr.to_string(),
+        coin(100, "uatom"),
+        &coin(100, "uatom"),
         src_port,
-        src_channel,
+        &gaia_to_stride_channel_id,
     ).unwrap();
 
-    let after_bal_strd = get_balance(&stride.rb, &stride.admin_addr);
 
-    assert!(after_bal_strd < before_bal_strd);
+    let stride_bal: Vec<Coin> = get_balance(&stride.rb, &stride.admin_addr)
+        .into_iter()
+        .filter(|c| c.denom == atom_on_stride)
+        .collect();
+
+    println!("stride balance: {:?}", stride_bal);
+
+    register_stride_host_zone(
+        &stride.rb,
+        stride_to_gaia_connection_id,
+        "uatom",
+        "cosmos",
+        &atom_on_stride,
+        stride_to_gaia_channel_id,
+        1,
+        "admin",
+    )
+    .unwrap();
 }
 
-pub fn ibc_send(
+pub fn register_stride_host_zone(
     rb: &ChainRequestBuilder,
+    connection_id: &str,
+    host_denom: &str,
+    bech_32_prefix: &str,
+    ibc_denom: &str,
+    channel_id: &str,
+    unbonding_frequency: u64,
     from_key: &str,
-    to_address: &str,
-    token: Coin,
-    fee: &Coin,
-    port: &str,
-    channel: &str,
 ) -> Result<Value, LocalError> {
-    let str_coin= format!("{}{}", token.amount, token.denom);
-    let fee_coin = format!("{}{}", fee.amount, fee.denom);
-    let cmd =
-        format!("tx ibc-transfer transfer {port} {channel} {to_address} {str_coin} --fees={fee_coin} --from={from_key} --output=json");
-    rb.tx(&cmd, true)
+    let cmd = format!(
+        "tx stakeibc register-host-zone {} {} {} {} {} {} --from={} --gas auto --gas-adjustment 1.3 --output=json",
+        connection_id,
+        host_denom,
+        bech_32_prefix,
+        ibc_denom,
+        channel_id,
+        unbonding_frequency,
+        from_key,
+    );
+    let res = rb.tx(&cmd, true);
+    res
 }
 
 fn test_ibc_transfer(test_ctx: &TestContext) {

@@ -1,40 +1,43 @@
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::to_json_vec;
-use hex::encode;
+use cosmwasm_std::Coin;
+use localic_std::{errors::LocalError, transactions::ChainRequestBuilder};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-#[cw_serde]
+
+#[derive(Debug)]
 pub struct DenomTrace {
     pub path: String,
     pub base_denom: String,
 }
 
 impl DenomTrace {
-    pub fn get_full_denom_path(&self) -> String {
-        if self.path.is_empty() {
-            return self.base_denom.to_string();
-        }
-        format!("ibc/{}", self.base_denom)
-    }
-
-    pub fn hash(&self) -> String {
-        let mut hasher = Sha256::new();
-        let trace = self.clone();
-
-        hasher.update(&to_json_vec(&trace).unwrap());
-        let result = hasher.finalize();
-
-        let result_vec = result.to_vec();
-
-        encode(result_vec)
-    }
-
     pub fn ibc_denom(&self) -> String {
         if !self.path.is_empty() {
             return format!("ibc/{}", self.hash());
         }
-        self.base_denom.to_string()
+        self.base_denom.clone()
     }
+
+    fn hash(&self) -> String {
+        let trace = format!("{}/{}", self.path, self.base_denom);
+        let mut hasher = Sha256::new();
+        hasher.update(trace.as_bytes());
+        format!("{:x}", hasher.finalize()).to_uppercase()
+    }
+}
+
+pub fn get_ibc_denom(native_denom: &str, channel_id: &str) -> String {
+    let prefixed_denom = get_prefixed_denom("transfer".to_string(), channel_id.to_string(), native_denom.to_string());
+    println!("prefixed_denom: {:?}", prefixed_denom);
+
+    let src_denom_trace = parse_denom_trace(prefixed_denom);
+    println!("src_denom_trace: {:?}", src_denom_trace);
+
+    src_denom_trace.ibc_denom()
+}
+
+pub fn get_prefixed_denom(port_id: String, channel_id: String, native_denom: String) -> String {
+    format!("{}/{}/{}", port_id, channel_id, native_denom)
 }
 
 pub fn parse_denom_trace(raw_denom: String) -> DenomTrace {
@@ -59,7 +62,6 @@ pub fn extract_path_and_base_from_full_denom(full_denom_items: Vec<&str>) -> (St
     let length = full_denom_items.len();
     let mut i = 0;
     while i < length {
-        // todo: validate channel here?
         if i < length - 1 && length > 2 {
             path.push(full_denom_items[i]);
             path.push(full_denom_items[i + 1]);
@@ -73,16 +75,18 @@ pub fn extract_path_and_base_from_full_denom(full_denom_items: Vec<&str>) -> (St
     (path.join("/"), base_denom.join("/"))
 }
 
-pub fn get_prefixed_denom(port_id: String, channel_id: String, native_denom: String) -> String {
-    format!("{}/{}/{}", port_id, channel_id, native_denom)
-}
-
-pub fn get_ibc_denom(native_denom: String, channel_id: String) -> String {
-    let prefixed_denom = get_prefixed_denom("transfer".to_string(), channel_id, native_denom);
-    println!("prefixed_denom: {:?}", prefixed_denom);
-
-    let src_denom_trace = parse_denom_trace(prefixed_denom);
-    println!("src_denom_trace: {:?}", src_denom_trace);
-
-    src_denom_trace.ibc_denom()
+pub fn ibc_send(
+    rb: &ChainRequestBuilder,
+    from_key: &str,
+    to_address: &str,
+    token: Coin,
+    fee: &Coin,
+    port: &str,
+    channel: &str,
+) -> Result<Value, LocalError> {
+    let str_coin= format!("{}{}", token.amount, token.denom);
+    let fee_coin = format!("{}{}", fee.amount, fee.denom);
+    let cmd =
+        format!("tx ibc-transfer transfer {port} {channel} {to_address} {str_coin} --fees={fee_coin} --from={from_key} --output=json");
+    rb.tx(&cmd, true)
 }

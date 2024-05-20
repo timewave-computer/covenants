@@ -141,43 +141,43 @@ impl From<ChainsVec> for TestContext {
         ibc_denoms.insert(
             ("neutron".to_string(), "stride".to_string()),
             ibc_helpers::get_ibc_denom(
-                "untrn".to_string(),
-                ntrn_to_stride_transfer_channel.channel_id,
+                "untrn",
+                &ntrn_to_stride_transfer_channel.channel_id,
             ),
         );
         ibc_denoms.insert(
             ("stride".to_string(), "neutron".to_string()),
             ibc_helpers::get_ibc_denom(
-                "ustrd".to_string(),
-                stride_to_ntrn_transfer_channel.channel_id,
+                "ustrd",
+                &stride_to_ntrn_transfer_channel.channel_id,
             ),
         );
         ibc_denoms.insert(
             ("gaia".to_string(), "stride".to_string()),
             ibc_helpers::get_ibc_denom(
-                "uatom".to_string(),
-                gaia_to_stride_transfer_channel.channel_id,
+                "uatom",
+                &gaia_to_stride_transfer_channel.channel_id,
             ),
         );
         ibc_denoms.insert(
             ("stride".to_string(), "gaia".to_string()),
             ibc_helpers::get_ibc_denom(
-                "ustrd".to_string(),
-                stride_to_gaia_transfer_channel.channel_id,
+                "ustrd",
+                &stride_to_gaia_transfer_channel.channel_id,
             ),
         );
         ibc_denoms.insert(
             ("neutron".to_string(), "gaia".to_string()),
             ibc_helpers::get_ibc_denom(
-                "untrn".to_string(),
-                ntrn_to_gaia_transfer_channel.channel_id,
+                "untrn",
+                &ntrn_to_gaia_transfer_channel.channel_id,
             ),
         );
         ibc_denoms.insert(
             ("gaia".to_string(), "neutron".to_string()),
             ibc_helpers::get_ibc_denom(
-                "uatom".to_string(),
-                gaia_to_ntrn_transfer_channel.channel_id,
+                "uatom",
+                &gaia_to_ntrn_transfer_channel.channel_id,
             ),
         );
 
