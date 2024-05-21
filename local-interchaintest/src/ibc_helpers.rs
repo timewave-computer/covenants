@@ -83,10 +83,13 @@ pub fn ibc_send(
     fee: &Coin,
     port: &str,
     channel: &str,
+    memo: Option<&str>,
 ) -> Result<Value, LocalError> {
     let str_coin= format!("{}{}", token.amount, token.denom);
     let fee_coin = format!("{}{}", fee.amount, fee.denom);
+    let memo_str = if let Some(m) = memo { m.to_string() } else { "".to_string() };
     let cmd =
-        format!("tx ibc-transfer transfer {port} {channel} {to_address} {str_coin} --fees={fee_coin} --from={from_key} --output=json");
+        format!("tx ibc-transfer transfer {port} {channel} {to_address} {str_coin} --fees={fee_coin} --from={from_key} --memo {memo_str} --output=json");
+    println!("submitting IBC transaction: \n{cmd}\n");
     rb.tx(&cmd, true)
 }

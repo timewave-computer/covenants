@@ -1,8 +1,10 @@
 #![allow(dead_code, unused_must_use)]
 
+use std::str::FromStr;
+
 use cosmwasm_std::{coin, Coin, Uint128};
 use local_ictest_e2e::{
-    base::TestContext, ibc_helpers::{get_ibc_denom, ibc_send}, utils::{
+    ibc_helpers::{get_ibc_denom, ibc_send}, test_context::TestContext, utils::{
         read_artifacts, read_json_file, ADMIN_KEY, API_URL, ARTIFACTS_PATH, CHAIN_CONFIG_PATH,
         NEUTRON_CHAIN, WASM_EXTENSION,
     }
@@ -14,7 +16,7 @@ use localic_std::{
     }, polling::poll_for_start, relayer::Relayer, transactions::ChainRequestBuilder
 };
 use reqwest::blocking::Client;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 
 // local-ic start neutron_gaia --api-port 42069
@@ -73,6 +75,7 @@ fn main() {
         &coin(100, "uatom"),
         src_port,
         &test_ctx.get_transfer_channels().src("gaia").dest("stride").get(),
+        None,
     ).unwrap();
 
 
@@ -94,6 +97,38 @@ fn main() {
         "admin",
     )
     .unwrap();
+
+    let autopilot_str = format_autopilot_string(stride.admin_addr.to_string());
+
+    ibc_send(
+        &test_ctx.get_request_builder().get_request_builder("gaia"),
+        "acc0",
+        &test_ctx.get_admin_addr().src("stride").get(),
+        coin(10000, "uatom"),
+        &coin(10000, "uatom"),
+        src_port,
+        &test_ctx.get_transfer_channels().src("gaia").dest("stride").get(),
+        Some(&autopilot_str),
+    ).unwrap();
+
+    let stride_bal: Vec<Coin> = get_balance(&stride.rb, &stride.admin_addr)
+        .into_iter()
+        .filter(|c| c.denom == atom_on_stride)
+        .collect();
+
+    println!("post autopilot stride acc balance: {:?}", stride_bal);
+}
+
+fn format_autopilot_string(new_receiver: String) -> String {
+    json!({
+        "autopilot": {
+            "receiver": format!("{new_receiver}"),
+            "stakeibc": {
+                "action": "LiquidStake"
+            }
+        },
+    })
+    .to_string()
 }
 
 pub fn register_stride_host_zone(
