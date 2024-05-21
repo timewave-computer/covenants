@@ -59,24 +59,20 @@ fn main() {
     );
 
     let stride = test_ctx.chains.get("stride").unwrap();
-    let neutron = test_ctx.chains.get("neutron").unwrap();
-    let gaia = test_ctx.chains.get("gaia").unwrap();
 
     let src_port = "transfer";
 
-    let stride_to_gaia_connection_id = test_ctx.connection_ids.get(&("stride".to_string(), "gaia".to_string())).unwrap();
-    let gaia_to_stride_channel_id = test_ctx.transfer_channel_ids.get(&("gaia".to_string(), "stride".to_string())).unwrap();
-    let stride_to_gaia_channel_id = test_ctx.transfer_channel_ids.get(&("stride".to_string(), "gaia".to_string())).unwrap();
-    let atom_on_stride = get_ibc_denom("uatom", stride_to_gaia_channel_id);
+    let stride_to_gaia_channel_id = test_ctx.get_transfer_channels().src("stride").dest("gaia").get();
+    let atom_on_stride = get_ibc_denom("uatom", &stride_to_gaia_channel_id);
 
     ibc_send(
-        &gaia.rb,
+        &test_ctx.get_request_builder().get_request_builder("gaia"),
         "acc0",
-        &stride.admin_addr.to_string(),
+        &test_ctx.get_admin_addr().src("stride").get(),
         coin(100, "uatom"),
         &coin(100, "uatom"),
         src_port,
-        &gaia_to_stride_channel_id,
+        &test_ctx.get_transfer_channels().src("gaia").dest("stride").get(),
     ).unwrap();
 
 
@@ -88,12 +84,12 @@ fn main() {
     println!("stride balance: {:?}", stride_bal);
 
     register_stride_host_zone(
-        &stride.rb,
-        stride_to_gaia_connection_id,
+        &test_ctx.get_request_builder().get_request_builder("stride"),
+        &test_ctx.get_connections().src("stride").dest("gaia").get(),
         "uatom",
         "cosmos",
         &atom_on_stride,
-        stride_to_gaia_channel_id,
+        &stride_to_gaia_channel_id,
         1,
         "admin",
     )
