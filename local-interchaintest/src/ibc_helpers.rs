@@ -28,10 +28,8 @@ impl DenomTrace {
 
 pub fn get_ibc_denom(native_denom: &str, channel_id: &str) -> String {
     let prefixed_denom = get_prefixed_denom("transfer".to_string(), channel_id.to_string(), native_denom.to_string());
-    println!("prefixed_denom: {:?}", prefixed_denom);
 
     let src_denom_trace = parse_denom_trace(prefixed_denom);
-    println!("src_denom_trace: {:?}", src_denom_trace);
 
     src_denom_trace.ibc_denom()
 }

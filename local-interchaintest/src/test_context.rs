@@ -34,9 +34,9 @@ impl From<ChainsVec> for TestContext {
 
             let relayer: Relayer = Relayer::new(&rb);
             let channels = relayer.get_channels(&rb.chain_id).unwrap();
-            for (i, channel) in channels.iter().enumerate() {
-                println!("{} channel #{}: {:?}", rb.chain_id, i, channel);
-            }
+            // for (i, channel) in channels.iter().enumerate() {
+            //     println!("{} channel #{}: {:?}", rb.chain_id, i, channel);
+            // }
 
             let (src_addr, denom) = match rb.chain_id.as_str() {
                 "localneutron-1" => ("neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky", "untrn"),
@@ -58,8 +58,8 @@ impl From<ChainsVec> for TestContext {
         let (ntrn_to_gaia_consumer_channel, gaia_to_ntrn_provider_channel) =
             find_pairwise_ccv_channel_ids(&gaia_channels, &ntrn_channels).unwrap();
 
-        ntrn_channels.remove(ntrn_to_gaia_consumer_channel.index);
-        gaia_channels.remove(gaia_to_ntrn_provider_channel.index);
+        // ntrn_channels.remove(ntrn_to_gaia_consumer_channel.index);
+        // gaia_channels.remove(gaia_to_ntrn_provider_channel.index);
         connection_ids.insert(
             ("neutron".to_string(), "gaia".to_string()),
             ntrn_to_gaia_consumer_channel.connection_id,
@@ -71,13 +71,13 @@ impl From<ChainsVec> for TestContext {
 
         let (ntrn_to_gaia_transfer_channel, gaia_to_ntrn_transfer_channel) =
             find_pairwise_transfer_channel_ids(&ntrn_channels, &gaia_channels).unwrap();
-        ntrn_channels.remove(ntrn_to_gaia_transfer_channel.index);
-        gaia_channels.remove(gaia_to_ntrn_transfer_channel.index);
+        // ntrn_channels.remove(ntrn_to_gaia_transfer_channel.index);
+        // gaia_channels.remove(gaia_to_ntrn_transfer_channel.index);
 
         let (ntrn_to_stride_transfer_channel, stride_to_ntrn_transfer_channel) =
             find_pairwise_transfer_channel_ids(&ntrn_channels, &stride_channels).unwrap();
-        ntrn_channels.remove(ntrn_to_stride_transfer_channel.index);
-        stride_channels.remove(stride_to_ntrn_transfer_channel.index);
+        // ntrn_channels.remove(ntrn_to_stride_transfer_channel.index);
+        // stride_channels.remove(stride_to_ntrn_transfer_channel.index);
         connection_ids.insert(
             ("neutron".to_string(), "stride".to_string()),
             ntrn_to_stride_transfer_channel.connection_id,
@@ -89,8 +89,8 @@ impl From<ChainsVec> for TestContext {
 
         let (gaia_to_stride_transfer_channel, stride_to_gaia_transfer_channel) =
             find_pairwise_transfer_channel_ids(&gaia_channels, &stride_channels).unwrap();
-        gaia_channels.remove(gaia_to_stride_transfer_channel.index);
-        stride_channels.remove(stride_to_gaia_transfer_channel.index);
+        // gaia_channels.remove(gaia_to_stride_transfer_channel.index);
+        // stride_channels.remove(stride_to_gaia_transfer_channel.index);
         connection_ids.insert(
             ("gaia".to_string(), "stride".to_string()),
             gaia_to_stride_transfer_channel.connection_id,

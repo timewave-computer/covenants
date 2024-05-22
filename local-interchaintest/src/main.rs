@@ -1,7 +1,8 @@
 #![allow(dead_code, unused_must_use)]
 
-use std::str::FromStr;
+use std::{io::Write, path::Path};
 
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{coin, Coin, Uint128};
 use local_ictest_e2e::{
     ibc_helpers::{get_ibc_denom, ibc_send}, test_context::TestContext, utils::{
@@ -13,7 +14,7 @@ use localic_std::{
     errors::LocalError, modules::{
         bank::{get_balance, get_total_supply, send},
         cosmwasm::CosmWasm,
-    }, polling::poll_for_start, relayer::Relayer, transactions::ChainRequestBuilder
+    }, polling::poll_for_start, relayer::Relayer, transactions::ChainRequestBuilder,
 };
 use reqwest::blocking::Client;
 use serde_json::{json, Value};
@@ -28,10 +29,6 @@ fn main() {
 
 
     let mut test_ctx = TestContext::from(configured_chains);
-
-    println!("transfer channels: {:?}", test_ctx.transfer_channel_ids);
-    println!("connection ids: {:?}", test_ctx.connection_ids);
-    println!("ibc denoms: {:?}", test_ctx.ibc_denoms);
 
     let wasm_files = read_artifacts(ARTIFACTS_PATH).unwrap();
 
@@ -55,11 +52,6 @@ fn main() {
         }
     }
 
-    println!(
-        "Contract codes: {:?}",
-        test_ctx.chains.get(NEUTRON_CHAIN).unwrap().contract_codes
-    );
-
     let stride = test_ctx.chains.get("stride").unwrap();
 
     let src_port = "transfer";
@@ -78,14 +70,6 @@ fn main() {
         None,
     ).unwrap();
 
-
-    let stride_bal: Vec<Coin> = get_balance(&stride.rb, &stride.admin_addr)
-        .into_iter()
-        .filter(|c| c.denom == atom_on_stride)
-        .collect();
-
-    println!("stride balance: {:?}", stride_bal);
-
     register_stride_host_zone(
         &test_ctx.get_request_builder().get_request_builder("stride"),
         &test_ctx.get_connections().src("stride").dest("gaia").get(),
@@ -97,6 +81,12 @@ fn main() {
         "admin",
     )
     .unwrap();
+
+
+    register_gaia_validators_on_stride(
+        &test_ctx.get_request_builder().get_request_builder("gaia"),
+        &test_ctx.get_request_builder().get_request_builder("stride"),
+    );
 
     let autopilot_str = format_autopilot_string(stride.admin_addr.to_string());
 
@@ -129,6 +119,111 @@ fn format_autopilot_string(new_receiver: String) -> String {
         },
     })
     .to_string()
+}
+
+#[cw_serde]
+pub struct ValidatorSetEntry {
+    pub address: String,
+    pub voting_power: String,
+    pub name: String,
+}
+
+#[cw_serde]
+pub struct ValidatorsJson {
+    pub validators: Vec<ValidatorSetEntry>,
+}
+
+
+fn write_json_file(path: &str, data: &str) {
+    let path = Path::new(path);
+    let mut file = std::fs::File::create(path).unwrap();
+    file.write_all(data.as_bytes()).unwrap();
+
+    println!("file written: {:?}", path);
+}
+
+pub fn query_validator_set(chain: &ChainRequestBuilder) -> Vec<ValidatorSetEntry> {
+    let height = query_block_height(chain);
+    let query_valset_cmd = format!(
+        "tendermint-validator-set {height} --output=json",
+    );
+
+    let valset_resp = chain.q(&query_valset_cmd, false);
+
+    let mut val_set_entries: Vec<ValidatorSetEntry> = Vec::new();
+
+    for entry in valset_resp["validators"].as_array().unwrap() {
+        let address = entry["address"].as_str().unwrap();
+        let voting_power = entry["voting_power"].as_str().unwrap();
+
+        val_set_entries.push(ValidatorSetEntry {
+            name: format!("val{}", val_set_entries.len() + 1),
+            address: address.to_string(),
+            voting_power: voting_power.to_string(),
+        });
+    }
+    val_set_entries
+}
+
+pub fn write_str_to_container_file(
+    rb: &ChainRequestBuilder,
+    container_path: &str,
+    content: &str,
+) {
+    // TODO: fix this. perhaps draw inspiration from request_builder upload_file.
+    let filewriting = rb.exec(
+        &format!("/bin/sh -c echo '{}' > {}", content, container_path),
+        true
+    );
+    println!("filewriting: {:?}", filewriting);
+}
+
+pub fn register_gaia_validators_on_stride(
+    gaia: &ChainRequestBuilder,
+    stride: &ChainRequestBuilder,
+) {
+    let val_set_entries = query_validator_set(gaia);
+
+    let validators_json = serde_json::to_value(ValidatorsJson {
+        validators: val_set_entries,
+    })
+    .unwrap();
+
+    println!("validators_json: {:?}", validators_json.to_string());
+    write_json_file("validators.json", &validators_json.to_string());
+
+    let stride_path = "/var/cosmos-chain/localstride-3/config/validators.json";
+
+    write_str_to_container_file(stride, &stride_path, &validators_json.to_string());
+
+    add_stakeibc_validator(stride, &stride_path);
+
+    query_stakeibc_validators(stride);
+}
+
+fn add_stakeibc_validator(
+    chain: &ChainRequestBuilder,
+    config_path: &str,
+) {
+    let add_vals_cmd = format!(
+        "tx stakeibc add-validators localcosmos-1 {config_path} --from=admin --gas auto --gas-adjustment 1.3 --output=json",
+    );
+    let add_vals_response = chain.tx(&add_vals_cmd, false).unwrap();
+
+    println!("add_val_response: {:?}", add_vals_response);
+}
+
+fn query_stakeibc_validators(chain: &ChainRequestBuilder) {
+    let query_stakeibc_vals_cmd = format!(
+        "stakeibc show-validators localcosmos-1 --output=json",
+    );
+    let query_stakeibc_vals_response = chain.q(&query_stakeibc_vals_cmd, false);
+    println!("query_stakeibc_vals_response: {:?}", query_stakeibc_vals_response);
+}
+
+pub fn query_block_height(chain: &ChainRequestBuilder) -> u64 {
+    // TODO: query this
+    100
 }
 
 pub fn register_stride_host_zone(
