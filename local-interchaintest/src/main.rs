@@ -70,18 +70,23 @@ fn main() {
         None,
     ).unwrap();
 
-    register_stride_host_zone(
-        &test_ctx.get_request_builder().get_request_builder("stride"),
-        &test_ctx.get_connections().src("stride").dest("gaia").get(),
-        "uatom",
-        "cosmos",
-        &atom_on_stride,
-        &stride_to_gaia_channel_id,
-        1,
-        "admin",
-    )
-    .unwrap();
 
+    if query_host_zone(&stride.rb, "localcosmos-1") {
+        println!("Host zone registered.");
+    } else {
+        println!("Host zone not registered.");
+        register_stride_host_zone(
+            &test_ctx.get_request_builder().get_request_builder("stride"),
+            &test_ctx.get_connections().src("stride").dest("gaia").get(),
+            "uatom",
+            "cosmos",
+            &atom_on_stride,
+            &stride_to_gaia_channel_id,
+            1,
+            "admin",
+        )
+        .unwrap();
+    }
 
     register_gaia_validators_on_stride(
         &test_ctx.get_request_builder().get_request_builder("gaia"),
@@ -184,6 +189,13 @@ pub fn register_gaia_validators_on_stride(
 ) {
     let val_set_entries = query_validator_set(gaia);
 
+
+    if query_stakeibc_validators(stride).validators.len() != 0 {
+        println!("Validators registered.");
+        return;
+    }
+
+
     let validators_json = serde_json::to_value(ValidatorsJson {
         validators: val_set_entries,
     })
@@ -194,11 +206,16 @@ pub fn register_gaia_validators_on_stride(
 
     let stride_path = "/var/cosmos-chain/localstride-3/config/validators.json";
 
-    write_str_to_container_file(stride, &stride_path, &validators_json.to_string());
+    write_str_to_container_file(stride, &"validators.json", &validators_json.to_string());
 
     add_stakeibc_validator(stride, &stride_path);
 
-    query_stakeibc_validators(stride);
+    let stakeibc_vals_response = query_stakeibc_validators(stride);
+    if stakeibc_vals_response.validators.len() == 0 {
+        println!("Validators not registered.");
+    } else {
+        println!("Validators registered.");
+    }
 }
 
 fn add_stakeibc_validator(
@@ -213,17 +230,56 @@ fn add_stakeibc_validator(
     println!("add_val_response: {:?}", add_vals_response);
 }
 
-fn query_stakeibc_validators(chain: &ChainRequestBuilder) {
+fn query_stakeibc_validators(chain: &ChainRequestBuilder) -> StakeIbcValsResponse {
     let query_stakeibc_vals_cmd = format!(
         "stakeibc show-validators localcosmos-1 --output=json",
     );
     let query_stakeibc_vals_response = chain.q(&query_stakeibc_vals_cmd, false);
-    println!("query_stakeibc_vals_response: {:?}", query_stakeibc_vals_response);
+
+    let stake_ibc_vals_response: StakeIbcValsResponse = serde_json::from_value(query_stakeibc_vals_response).unwrap();
+    stake_ibc_vals_response
+}
+
+#[cw_serde]
+pub struct StakeIbcValsResponse {
+    pub validators: Vec<StakeIbcVal>,
+}
+
+#[cw_serde]
+pub struct StakeIbcVal {
+    pub address: String,
+    pub delegation_amt: String,
+    pub internal_exchange_rate: Option<String>,
+    pub name: String,
+    pub weight: String,
 }
 
 pub fn query_block_height(chain: &ChainRequestBuilder) -> u64 {
-    // TODO: query this
+    let query_cmd = format!("block --output=json");
+    let mut query_block_response = chain.q(&query_cmd, false);
+    // let block_height = &chain_status_response.take()[0]["block"];
+    // println!("block response : {:?}", block_height);
+
+    // let block_height = chain_status_response["block"]["header"]["height"].as_u64().unwrap();
+
+    // println!("chain status query response: {:?}", block_height);
+    // block_height
     100
+}
+
+pub fn query_host_zone(
+    rb: &ChainRequestBuilder,
+    chain_id: &str,
+) -> bool {
+    let query_cmd = format!("stakeibc show-host-zone {chain_id} --output=json");
+    let host_zone_query_response = rb.q(&query_cmd, false);
+    println!("host_zone_query_response: {:?}", host_zone_query_response);
+
+    if host_zone_query_response["host_zone"].is_object() {
+        return true;
+    } else {
+        false
+    }
 }
 
 pub fn register_stride_host_zone(
