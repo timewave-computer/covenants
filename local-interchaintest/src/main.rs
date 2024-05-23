@@ -1,29 +1,24 @@
 #![allow(dead_code, unused_must_use)]
 
+use std::borrow::BorrowMut;
+
 use cosmwasm_std::{coin, Coin, Uint128};
 use local_ictest_e2e::{
+    setup::{liquid_staking::set_up_host_zone, wasm::deploy_neutron_contracts},
     utils::{
         file_system::{
             get_contract_cache_path, get_contract_path, get_current_dir, get_local_interchain_dir,
-            read_artifacts, read_json_file, write_json_file, write_str_to_container_file,
+            read_json_file,
         },
-        ibc::{get_ibc_denom, ibc_send},
-        queries::{query_validator_set, ValidatorsJson},
-        stride::{
-            add_stakeibc_validator, format_autopilot_string, query_host_zone,
-            query_stakeibc_validators, register_stride_host_zone,
-        },
+        ibc::ibc_send,
+        stride::format_autopilot_string,
         test_context::TestContext,
     },
-    ACC_0_KEY, ADMIN_KEY, API_URL, ARTIFACTS_PATH, CHAIN_CONFIG_PATH, GAIA_CHAIN, GAIA_CHAIN_ID,
-    NEUTRON_CHAIN, STRIDE_CHAIN, STRIDE_CHAIN_ID, WASM_EXTENSION,
+    ACC_0_KEY, API_URL, CHAIN_CONFIG_PATH, GAIA_CHAIN, NEUTRON_CHAIN, STRIDE_CHAIN,
 };
 use localic_std::{
     filesystem::get_files,
-    modules::{
-        bank::{get_balance, get_total_supply, send},
-        cosmwasm::CosmWasm,
-    },
+    modules::bank::{get_balance, get_total_supply, send},
     polling::poll_for_start,
     relayer::Relayer,
     transactions::ChainRequestBuilder,
@@ -39,84 +34,9 @@ fn main() {
 
     let mut test_ctx = TestContext::from(configured_chains);
 
-    let wasm_files = read_artifacts(ARTIFACTS_PATH).unwrap();
+    deploy_neutron_contracts(test_ctx.borrow_mut());
 
-    for wasm_file in wasm_files {
-        let path = wasm_file.path();
-        // TODO: need to work out caching here eventually
-        // TODO: split contracts by chain
-        if path.extension().and_then(|e| e.to_str()) == Some(WASM_EXTENSION) {
-            let abs_path = path.canonicalize().unwrap();
-            let neutron_local_chain = test_ctx.get_mut_chain(NEUTRON_CHAIN);
-
-            let mut cw = CosmWasm::new(&neutron_local_chain.rb);
-
-            let code_id = cw.store(ACC_0_KEY, abs_path.as_path()).unwrap();
-
-            let id = abs_path.file_stem().unwrap().to_str().unwrap();
-            neutron_local_chain
-                .contract_codes
-                .insert(id.to_string(), code_id);
-            break; // for testing
-        }
-    }
-
-    let stride = test_ctx.get_chain(STRIDE_CHAIN);
-
-    let stride_to_gaia_channel_id = test_ctx
-        .get_transfer_channels()
-        .src(STRIDE_CHAIN)
-        .dest(GAIA_CHAIN)
-        .get();
-    let atom_on_stride = get_ibc_denom("uatom", &stride_to_gaia_channel_id);
-
-    ibc_send(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN),
-        ACC_0_KEY,
-        &test_ctx.get_admin_addr().src(STRIDE_CHAIN).get(),
-        coin(100, "uatom"),
-        &coin(100, "uatom"),
-        &test_ctx
-            .get_transfer_channels()
-            .src(GAIA_CHAIN)
-            .dest(STRIDE_CHAIN)
-            .get(),
-        None,
-    )
-    .unwrap();
-
-    if query_host_zone(&stride.rb, GAIA_CHAIN_ID) {
-        println!("Host zone registered.");
-    } else {
-        println!("Host zone not registered.");
-        register_stride_host_zone(
-            test_ctx
-                .get_request_builder()
-                .get_request_builder(STRIDE_CHAIN),
-            &test_ctx
-                .get_connections()
-                .src(STRIDE_CHAIN)
-                .dest(GAIA_CHAIN)
-                .get(),
-            "uatom",
-            "cosmos",
-            &atom_on_stride,
-            &stride_to_gaia_channel_id,
-            ADMIN_KEY,
-        )
-        .unwrap();
-    }
-
-    register_gaia_validators_on_stride(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN),
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(STRIDE_CHAIN),
-    );
+    set_up_host_zone(test_ctx.borrow_mut());
 
     ibc_send(
         test_ctx
@@ -125,58 +45,17 @@ fn main() {
         ACC_0_KEY,
         &test_ctx.get_admin_addr().src(STRIDE_CHAIN).get(),
         coin(10000, "uatom"),
-        &coin(10000, "uatom"),
+        coin(10000, "uatom"),
         &test_ctx
             .get_transfer_channels()
             .src(GAIA_CHAIN)
             .dest(STRIDE_CHAIN)
             .get(),
-        Some(&format_autopilot_string(stride.admin_addr.to_string())),
+        Some(&format_autopilot_string(
+            test_ctx.get_admin_addr().src(STRIDE_CHAIN).get(),
+        )),
     )
     .unwrap();
-
-    let stride_bal: Vec<Coin> = get_balance(&stride.rb, &stride.admin_addr)
-        .into_iter()
-        .filter(|c| c.denom == atom_on_stride)
-        .collect();
-
-    println!("post autopilot stride acc balance: {:?}", stride_bal);
-}
-
-pub fn register_gaia_validators_on_stride(
-    gaia: &ChainRequestBuilder,
-    stride: &ChainRequestBuilder,
-) {
-    let val_set_entries = query_validator_set(gaia);
-
-    if query_stakeibc_validators(stride, GAIA_CHAIN_ID)
-        .validators
-        .is_empty()
-    {
-        println!("Validators registered.");
-        return;
-    }
-
-    let validators_json = serde_json::to_value(ValidatorsJson {
-        validators: val_set_entries,
-    })
-    .unwrap();
-
-    println!("validators_json: {:?}", validators_json.to_string());
-    write_json_file("validators.json", &validators_json.to_string());
-
-    let stride_path = format!("/var/cosmos-chain/{STRIDE_CHAIN_ID}/config/validators.json");
-
-    write_str_to_container_file(stride, "validators.json", &validators_json.to_string());
-
-    add_stakeibc_validator(stride, &stride_path, GAIA_CHAIN_ID);
-
-    let stakeibc_vals_response = query_stakeibc_validators(stride, GAIA_CHAIN_ID);
-    if stakeibc_vals_response.validators.is_empty() {
-        println!("Validators not registered.");
-    } else {
-        println!("Validators registered.");
-    }
 }
 
 fn test_ibc_transfer(test_ctx: &TestContext) {

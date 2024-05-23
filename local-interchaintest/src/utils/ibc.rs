@@ -29,7 +29,7 @@ impl DenomTrace {
 
 pub fn get_ibc_denom(native_denom: &str, channel_id: &str) -> String {
     let prefixed_denom = get_prefixed_denom(
-        "transfer".to_string(),
+        TRANSFER_PORT.to_string(),
         channel_id.to_string(),
         native_denom.to_string(),
     );
@@ -83,7 +83,7 @@ pub fn ibc_send(
     from_key: &str,
     to_address: &str,
     token: Coin,
-    fee: &Coin,
+    fee: Coin,
     channel: &str,
     memo: Option<&str>,
 ) -> Result<Value, LocalError> {

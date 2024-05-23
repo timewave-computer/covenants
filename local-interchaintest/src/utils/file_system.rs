@@ -6,6 +6,8 @@ use std::{
 
 use localic_std::transactions::ChainRequestBuilder;
 
+use crate::pretty_print;
+
 use super::types::ChainsVec;
 
 /// Will panic if the current directory path is not found.
@@ -74,5 +76,6 @@ pub fn write_str_to_container_file(rb: &ChainRequestBuilder, container_path: &st
         &format!("/bin/sh -c echo '{}' > {}", content, container_path),
         true,
     );
-    println!("filewriting: {:?}", filewriting);
+    println!("\nwrite str to container file response:\n");
+    pretty_print(&filewriting);
 }

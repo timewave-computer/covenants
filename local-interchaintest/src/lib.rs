@@ -1,3 +1,7 @@
+use serde::Serialize;
+use serde_json::Value;
+
+pub mod setup;
 pub mod utils;
 
 pub const API_URL: &str = "http://127.0.0.1:42069";
@@ -19,3 +23,11 @@ pub const TRANSFER_PORT: &str = "transfer";
 
 pub const ADMIN_KEY: &str = "admin";
 pub const ACC_0_KEY: &str = "acc0";
+
+pub fn pretty_print(obj: &Value) {
+    let mut buf = Vec::new();
+    let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
+    let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
+    obj.serialize(&mut ser).unwrap();
+    println!("{}", String::from_utf8(buf).unwrap());
+}

@@ -9,7 +9,7 @@ use localic_std::{
 
 use crate::{
     utils, API_URL, GAIA_CHAIN, GAIA_CHAIN_ID, NEUTRON_CHAIN, NEUTRON_CHAIN_ID, STRIDE_CHAIN,
-    STRIDE_CHAIN_ID,
+    STRIDE_CHAIN_ID, TRANSFER_PORT,
 };
 
 use super::types::ChainsVec;
@@ -40,9 +40,6 @@ impl From<ChainsVec> for TestContext {
 
             let relayer: Relayer = Relayer::new(&rb);
             let channels = relayer.get_channels(&rb.chain_id).unwrap();
-            // for (i, channel) in channels.iter().enumerate() {
-            //     println!("{} channel #{}: {:?}", rb.chain_id, i, channel);
-            // }
 
             let (src_addr, denom) = match rb.chain_id.as_str() {
                 NEUTRON_CHAIN_ID => ("neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky", "untrn"),
@@ -432,8 +429,8 @@ pub fn find_pairwise_transfer_channel_ids(
         for (b_i, b_chan) in b.iter().enumerate() {
             if a_chan.channel_id == b_chan.counterparty.channel_id
                 && b_chan.channel_id == a_chan.counterparty.channel_id
-                && a_chan.port_id == "transfer"
-                && b_chan.port_id == "transfer"
+                && a_chan.port_id == TRANSFER_PORT
+                && b_chan.port_id == TRANSFER_PORT
                 && a_chan.ordering == "ORDER_UNORDERED"
                 && b_chan.ordering == "ORDER_UNORDERED"
             {
