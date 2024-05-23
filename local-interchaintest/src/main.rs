@@ -4,7 +4,7 @@ use std::borrow::BorrowMut;
 
 use cosmwasm_std::{coin, Coin, Uint128};
 use local_ictest_e2e::{
-    setup::{liquid_staking::set_up_host_zone, wasm::deploy_neutron_contracts},
+    setup::{liquid_staking::set_up_host_zone, valence::deploy_neutron_contracts},
     utils::{
         file_system::{
             get_contract_cache_path, get_contract_path, get_current_dir, get_local_interchain_dir,
