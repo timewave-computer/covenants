@@ -3,6 +3,7 @@ use localic_std::{errors::LocalError, transactions::ChainRequestBuilder};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+use crate::TRANSFER_PORT;
 
 #[derive(Debug)]
 pub struct DenomTrace {
@@ -27,7 +28,11 @@ impl DenomTrace {
 }
 
 pub fn get_ibc_denom(native_denom: &str, channel_id: &str) -> String {
-    let prefixed_denom = get_prefixed_denom("transfer".to_string(), channel_id.to_string(), native_denom.to_string());
+    let prefixed_denom = get_prefixed_denom(
+        "transfer".to_string(),
+        channel_id.to_string(),
+        native_denom.to_string(),
+    );
 
     let src_denom_trace = parse_denom_trace(prefixed_denom);
 
@@ -79,15 +84,14 @@ pub fn ibc_send(
     to_address: &str,
     token: Coin,
     fee: &Coin,
-    port: &str,
     channel: &str,
     memo: Option<&str>,
 ) -> Result<Value, LocalError> {
-    let str_coin= format!("{}{}", token.amount, token.denom);
+    let str_coin = format!("{}{}", token.amount, token.denom);
     let fee_coin = format!("{}{}", fee.amount, fee.denom);
-    let memo_str = if let Some(m) = memo { m.to_string() } else { "".to_string() };
+    let memo_str = memo.unwrap_or_default();
     let cmd =
-        format!("tx ibc-transfer transfer {port} {channel} {to_address} {str_coin} --fees={fee_coin} --from={from_key} --memo {memo_str} --output=json");
+        format!("tx ibc-transfer transfer {TRANSFER_PORT} {channel} {to_address} {str_coin} --fees={fee_coin} --from={from_key} --memo {memo_str} --output=json");
     println!("submitting IBC transaction: \n{cmd}\n");
     rb.tx(&cmd, true)
 }
