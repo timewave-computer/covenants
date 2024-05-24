@@ -51,6 +51,17 @@ pub fn format_autopilot_string(new_receiver: String) -> String {
     .to_string()
 }
 
+pub fn liquid_stake(
+    rb: &ChainRequestBuilder,
+    host_denom: &str,
+    amount: u128,
+) -> Result<Value, LocalError> {
+    let liquid_stake_cmd = format!(
+        "tx stakeibc liquid-stake {amount} {host_denom} --from admin --gas auto --gas-adjustment 1.3 --output=json",
+    );
+    rb.tx(&liquid_stake_cmd, true)
+}
+
 pub fn add_stakeibc_validator(
     chain: &ChainRequestBuilder,
     config_path: &str,

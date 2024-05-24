@@ -11,7 +11,7 @@ use local_ictest_e2e::{
             read_json_file,
         },
         ibc::ibc_send,
-        stride::format_autopilot_string,
+        stride::liquid_stake,
         test_context::TestContext,
     },
     ACC_0_KEY, API_URL, CHAIN_CONFIG_PATH, GAIA_CHAIN, NEUTRON_CHAIN, STRIDE_CHAIN,
@@ -38,6 +38,7 @@ fn main() {
 
     set_up_host_zone(test_ctx.borrow_mut());
 
+    // transfer some atom to stride
     ibc_send(
         test_ctx
             .get_request_builder()
@@ -51,11 +52,29 @@ fn main() {
             .src(GAIA_CHAIN)
             .dest(STRIDE_CHAIN)
             .get(),
-        Some(&format_autopilot_string(
-            test_ctx.get_admin_addr().src(STRIDE_CHAIN).get(),
-        )),
+        None,
     )
     .unwrap();
+
+    // liquid stake the ibc'd atoms for stuatom
+    liquid_stake(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(STRIDE_CHAIN),
+        "uatom",
+        10000,
+    )
+    .unwrap();
+
+    let admin_bal = get_balance(
+        test_ctx
+            .get_request_builder()
+            .get_request_builder(STRIDE_CHAIN),
+        &test_ctx.get_admin_addr().src(STRIDE_CHAIN).get(),
+    );
+
+    // assert liquid staking is enabled and works as expected
+    assert_eq!(admin_bal[0], coin(10000, "stuatom"));
 }
 
 fn test_ibc_transfer(test_ctx: &TestContext) {
