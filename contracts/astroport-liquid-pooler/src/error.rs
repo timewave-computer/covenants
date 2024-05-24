@@ -16,9 +16,6 @@ pub enum ContractError {
     #[error(transparent)]
     DecimalRangeExceeded(#[from] DecimalRangeExceeded),
 
-    #[error("Not clock")]
-    ClockVerificationError {},
-
     #[error("Single side LP limit exceeded")]
     SingleSideLpLimitError {},
 

@@ -62,7 +62,7 @@ impl LiquidPoolerConfig {
                 .to_instantiate2_msg(instantiate2_helper, admin, label)?),
             LiquidPoolerConfig::Astroport(config) => Ok(config
                 .to_instantiate_msg(
-                    clock_addr.to_string(),
+                    vec![clock_addr.to_string()].into(),
                     holder_addr.to_string(),
                     pool_price_config,
                 )

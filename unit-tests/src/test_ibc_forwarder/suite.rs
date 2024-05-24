@@ -46,7 +46,7 @@ impl IbcForwarderBuilder {
         );
 
         let next_contract_instantiate = IbcForwarderInstantiate::default(
-            Some(vec![clock_addr.to_string()]),
+            vec![clock_addr.to_string()].into(),
             clock_addr.to_string(),
             Some(builder.get_random_addr().to_string()),
         );
@@ -58,7 +58,7 @@ impl IbcForwarderBuilder {
         );
 
         let ibc_forwarder_instantiate = IbcForwarderInstantiate::default(
-            Some(vec![clock_addr.to_string()]),
+            vec![clock_addr.to_string()].into(),
             next_contract_addr.to_string(),
             Some(builder.get_random_addr().to_string()),
         );
@@ -133,7 +133,7 @@ impl IbcForwarderBuilder {
             .wrap()
             .query_wasm_smart(
                 ibc_forwarder_address.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAddresses {},
+                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
             )
             .unwrap();
 
@@ -221,7 +221,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.ibc_forwarder.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAddresses {},
+                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
             )
             .unwrap()
     }

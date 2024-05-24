@@ -344,7 +344,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
         QueryMsg::FallbackAddress {} => {
             Ok(to_json_binary(&FALLBACK_ADDRESS.may_load(deps.storage)?)?)
         }
-        QueryMsg::PrivilegedAddresses {} => Ok(to_json_binary(
+        QueryMsg::PrivilegedAccounts {} => Ok(to_json_binary(
             &PRIVILEGED_ACCOUNTS.may_load(deps.storage)?,
         )?),
     }

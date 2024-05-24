@@ -6,9 +6,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     ensure, to_json_binary, Addr, Attribute, Binary, Coin, Decimal, StdResult, Uint128, WasmMsg,
 };
-use covenant_macros::{
-    clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
-};
+use covenant_macros::{clocked, covenant_deposit_address, covenant_lper_withdraw};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, PoolPriceConfig, SingleSideLpLimits,
 };
@@ -18,13 +16,18 @@ use crate::error::ContractError;
 #[cw_serde]
 pub struct InstantiateMsg {
     pub pool_address: String,
-    pub clock_address: String,
     pub slippage_tolerance: Option<Decimal>,
     pub assets: AssetData,
     pub single_side_lp_limits: SingleSideLpLimits,
     pub pool_price_config: PoolPriceConfig,
     pub pair_type: PairType,
     pub holder_address: String,
+    // List of privileged accounts (if any).
+    // The contract's Tick operation can either be a non-privileged (aka permissionless)
+    // operation if no privileged accounts are configured (privileged_accounts is None),
+    // or a privileged operation, that is, restricted to being executed by one of the configured
+    // privileged accounts (when privileged_accounts is Some() with a Vector of one or more addresses).
+    pub privileged_accounts: Option<Vec<String>>,
 }
 
 impl InstantiateMsg {
@@ -57,13 +60,13 @@ pub struct AstroportLiquidPoolerConfig {
 impl AstroportLiquidPoolerConfig {
     pub fn to_instantiate_msg(
         &self,
-        clock_address: String,
+        privileged_accounts: Option<Vec<String>>,
         holder_address: String,
         pool_price_config: PoolPriceConfig,
     ) -> InstantiateMsg {
         InstantiateMsg {
             pool_address: self.pool_address.to_string(),
-            clock_address,
+            privileged_accounts,
             single_side_lp_limits: self.single_side_lp_limits.clone(),
             pool_price_config,
             pair_type: self.pool_pair_type.clone(),
@@ -188,7 +191,6 @@ impl AssetData {
 #[cw_serde]
 pub enum ExecuteMsg {}
 
-#[covenant_clock_address]
 #[covenant_deposit_address]
 #[cw_serde]
 #[derive(QueryResponses)]
@@ -201,12 +203,14 @@ pub enum QueryMsg {
     LpConfig {},
     #[returns(ProvidedLiquidityInfo)]
     ProvidedLiquidityInfo {},
+    #[returns(Option<Vec<Addr>>)]
+    PrivilegedAccounts {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        clock_addr: Option<String>,
+        privileged_accounts: Option<Option<Vec<String>>>,
         holder_address: Option<String>,
         lp_config: Option<Box<LpConfig>>,
     },

@@ -18,7 +18,7 @@ impl From<AstroLiquidPoolerInstantiate> for valence_astroport_liquid_pooler::msg
 impl AstroLiquidPoolerInstantiate {
     pub fn new(
         pool_address: String,
-        clock_address: String,
+        privileged_accounts: Option<Vec<String>>,
         slippage_tolerance: Option<Decimal>,
         assets: valence_astroport_liquid_pooler::msg::AssetData,
         single_side_lp_limits: SingleSideLpLimits,
@@ -29,7 +29,7 @@ impl AstroLiquidPoolerInstantiate {
         Self {
             msg: valence_astroport_liquid_pooler::msg::InstantiateMsg {
                 pool_address,
-                clock_address,
+                privileged_accounts,
                 slippage_tolerance,
                 assets,
                 single_side_lp_limits,
@@ -45,8 +45,11 @@ impl AstroLiquidPoolerInstantiate {
         self
     }
 
-    pub fn with_clock_address(&mut self, clock_address: String) -> &mut Self {
-        self.msg.clock_address = clock_address;
+    pub fn with_privileged_accounts(
+        &mut self,
+        privileged_accounts: Option<Vec<String>>,
+    ) -> &mut Self {
+        self.msg.privileged_accounts = privileged_accounts;
         self
     }
 
@@ -88,11 +91,15 @@ impl AstroLiquidPoolerInstantiate {
 }
 
 impl AstroLiquidPoolerInstantiate {
-    pub fn default(pool_address: String, clock_address: String, holder_address: String) -> Self {
+    pub fn default(
+        pool_address: String,
+        privileged_accounts: Option<Vec<String>>,
+        holder_address: String,
+    ) -> Self {
         Self {
             msg: valence_astroport_liquid_pooler::msg::InstantiateMsg {
                 pool_address,
-                clock_address,
+                privileged_accounts,
                 slippage_tolerance: None,
                 assets: valence_astroport_liquid_pooler::msg::AssetData {
                     asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),

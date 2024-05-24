@@ -1613,7 +1613,6 @@ dependencies = [
  "serde",
  "sha2 0.10.8",
  "thiserror",
- "valence-clock",
 ]
 
 [[package]]

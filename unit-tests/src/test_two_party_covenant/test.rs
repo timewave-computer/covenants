@@ -124,7 +124,7 @@ fn test_migrate_update_config_party_a_interchain() {
     };
     let astro_liquid_pooler_migrate_msg =
         valence_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
-            clock_addr: Some(random_address.to_string()),
+            privileged_accounts: Some(vec![random_address.to_string()].into()),
             holder_address: None,
             lp_config: None,
         };
@@ -152,7 +152,7 @@ fn test_migrate_update_config_party_a_interchain() {
         party_b_native_router_migrate_msg.clone(),
     );
     let party_a_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-        privileged_accounts: Some(Some(vec![random_address.to_string()])),
+        privileged_accounts: Some(vec![random_address.to_string()].into()),
         next_contract: None,
         remote_chain_info: None.into(),
         transfer_amount: None,
@@ -230,14 +230,17 @@ fn test_migrate_update_config_party_a_interchain() {
         .unwrap();
     assert_eq!(holder_clock_address, random_address);
 
-    let liquid_pooler_clock_address: Addr = app
+    let liquid_pooler_privileged_accounts: Option<Vec<String>> = app
         .wrap()
         .query_wasm_smart(
             liquid_pooler_address,
-            &valence_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+            &valence_astroport_liquid_pooler::msg::QueryMsg::PrivilegedAccounts {},
         )
         .unwrap();
-    assert_eq!(liquid_pooler_clock_address, random_address);
+    assert_eq!(
+        liquid_pooler_privileged_accounts,
+        Some(vec![random_address.to_string()])
+    );
 
     let party_a_router_clock_address: Addr = app
         .wrap()
@@ -261,7 +264,7 @@ fn test_migrate_update_config_party_a_interchain() {
         .wrap()
         .query_wasm_smart(
             party_a_forwarder_address,
-            &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAddresses {},
+            &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
         )
         .unwrap();
     assert_eq!(
@@ -317,7 +320,7 @@ fn test_migrate_update_config_party_b_interchain() {
     };
     let astro_liquid_pooler_migrate_msg =
         valence_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
-            clock_addr: Some(random_address.to_string()),
+            privileged_accounts: Some(vec![random_address.to_string()].into()),
             holder_address: None,
             lp_config: None,
         };
@@ -345,7 +348,7 @@ fn test_migrate_update_config_party_b_interchain() {
         party_a_native_router_migrate_msg.clone(),
     );
     let party_b_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-        privileged_accounts: Some(Some(vec![random_address.to_string()])),
+        privileged_accounts: Some(vec![random_address.to_string()].into()),
         next_contract: None,
         remote_chain_info: None.into(),
         transfer_amount: None,
@@ -434,14 +437,17 @@ fn test_migrate_update_config_party_b_interchain() {
         .unwrap();
     assert_eq!(holder_clock_address, random_address);
 
-    let liquid_pooler_clock_address: Addr = app
+    let liquid_pooler_privileged_accounts: Option<Vec<String>> = app
         .wrap()
         .query_wasm_smart(
             liquid_pooler_address,
-            &valence_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+            &valence_astroport_liquid_pooler::msg::QueryMsg::PrivilegedAccounts {},
         )
         .unwrap();
-    assert_eq!(liquid_pooler_clock_address, random_address);
+    assert_eq!(
+        liquid_pooler_privileged_accounts,
+        Some(vec![random_address.to_string()])
+    );
 
     let party_b_router_clock_address: Addr = app
         .wrap()
@@ -465,7 +471,7 @@ fn test_migrate_update_config_party_b_interchain() {
         .wrap()
         .query_wasm_smart(
             party_b_forwarder_address,
-            &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAddresses {},
+            &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
         )
         .unwrap();
     assert_eq!(

@@ -33,7 +33,7 @@ fn test_instantiate_in_permissionless_mode() {
 #[should_panic]
 fn test_instantiate_validates_privileged_accounts() {
     IbcForwarderBuilder::default()
-        .with_privileged_accounts(Some(vec!["some contract".to_string()]))
+        .with_privileged_accounts(vec!["some contract".to_string()].into())
         .build();
 }
 
@@ -41,7 +41,7 @@ fn test_instantiate_validates_privileged_accounts() {
 #[should_panic]
 fn test_instantiate_validates_empty_privileged_accounts() {
     IbcForwarderBuilder::default()
-        .with_privileged_accounts(Some(vec![]))
+        .with_privileged_accounts(vec![].into())
         .build();
 }
 
@@ -49,12 +49,13 @@ fn test_instantiate_validates_empty_privileged_accounts() {
 #[should_panic(expected = "Unauthorized")]
 fn test_tick_rejects_unprivileged_account() {
     let mut suite = IbcForwarderBuilder::default().build();
+    let admin_addr = suite.admin.clone();
     let forwarder_addr = suite.ibc_forwarder.clone();
     suite
         .app
         .execute_contract(
-            forwarder_addr.clone(),
-            forwarder_addr.clone(),
+            admin_addr,
+            forwarder_addr,
             &valence_ibc_forwarder::msg::ExecuteMsg::Tick {},
             &[],
         )

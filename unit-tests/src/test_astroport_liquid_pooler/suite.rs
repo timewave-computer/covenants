@@ -16,6 +16,7 @@ use crate::setup::{
 pub struct AstroLiquidPoolerBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: AstroLiquidPoolerInstantiate,
+    pub clock_addr: Addr,
 }
 
 impl Default for AstroLiquidPoolerBuilder {
@@ -67,13 +68,14 @@ impl Default for AstroLiquidPoolerBuilder {
 
         let liquid_pooler_instantiate = AstroLiquidPoolerInstantiate::default(
             pool_addr.to_string(),
-            clock_addr.to_string(),
+            vec![clock_addr.to_string()].into(),
             holder_addr.to_string(),
         );
 
         AstroLiquidPoolerBuilder {
             builder,
             instantiate_msg: liquid_pooler_instantiate,
+            clock_addr,
         }
     }
 }
@@ -97,8 +99,9 @@ impl AstroLiquidPoolerBuilder {
         self
     }
 
-    pub fn with_clock_address(mut self, clock_address: String) -> Self {
-        self.instantiate_msg.with_clock_address(clock_address);
+    pub fn with_privileged_accounts(mut self, privileged_accounts: Option<Vec<String>>) -> Self {
+        self.instantiate_msg
+            .with_privileged_accounts(privileged_accounts);
         self
     }
 
@@ -143,13 +146,13 @@ impl AstroLiquidPoolerBuilder {
             &[],
         );
 
-        let clock_addr: Addr = self
+        let privileged_accounts: Option<Vec<Addr>> = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
-                liquid_pooler_address.to_string(),
-                &QueryMsg::ClockAddress {},
+                liquid_pooler_address.clone(),
+                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
             )
             .unwrap();
 
@@ -187,7 +190,8 @@ impl AstroLiquidPoolerBuilder {
             faucet,
             admin,
             liquid_pooler_addr: liquid_pooler_address.clone(),
-            clock_addr: clock_addr.clone(),
+            clock_addr: self.clock_addr,
+            privileged_accounts,
             holder_addr: holder_addr.clone(),
             lp_config: lp_config.clone(),
             provided_liquidity_info: provided_liquidity_info.clone(),
@@ -204,6 +208,7 @@ pub struct Suite {
 
     pub liquid_pooler_addr: Addr,
     pub clock_addr: Addr,
+    pub privileged_accounts: Option<Vec<Addr>>,
     pub holder_addr: Addr,
     pub lp_config: LpConfig,
     pub provided_liquidity_info: ProvidedLiquidityInfo,
@@ -263,12 +268,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub(crate) fn query_clock_address(&self) -> Addr {
-        self.get_app()
+    pub(crate) fn query_privileged_accounts(&mut self) -> Option<Vec<Addr>> {
+        self.app
             .wrap()
             .query_wasm_smart(
                 self.liquid_pooler_addr.clone(),
-                &valence_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
             )
             .unwrap()
     }

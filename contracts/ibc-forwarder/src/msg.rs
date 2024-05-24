@@ -120,7 +120,7 @@ pub enum QueryMsg {
     #[returns(Option<String>)]
     FallbackAddress {},
     #[returns(Option<Vec<Addr>>)]
-    PrivilegedAddresses {},
+    PrivilegedAccounts {},
 }
 
 #[cw_serde]
