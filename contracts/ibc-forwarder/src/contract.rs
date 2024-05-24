@@ -16,6 +16,7 @@ use covenant_utils::{
         assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, to_proto_msg_transfer,
         RemoteChainInfo, SudoPayload,
     },
+    privileged_accounts::{validate_privileged_accounts, verify_caller},
 };
 use cw2::set_contract_version;
 use neutron_sdk::{
@@ -26,13 +27,8 @@ use neutron_sdk::{
 };
 use prost::Message;
 
-use crate::{
-    error::ContractError, helpers::validate_privileged_accounts, msg::FallbackAddressUpdateConfig,
-};
-use crate::{
-    helpers::verify_caller,
-    state::{IbcForwarderIcaStateHelper, FALLBACK_ADDRESS},
-};
+use crate::state::{IbcForwarderIcaStateHelper, FALLBACK_ADDRESS};
+use crate::{error::ContractError, msg::FallbackAddressUpdateConfig};
 use crate::{
     helpers::{get_next_memo, MsgTransfer},
     msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},

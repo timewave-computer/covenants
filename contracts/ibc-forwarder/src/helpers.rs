@@ -1,9 +1,6 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{ensure, Addr, Api, QuerierWrapper, StdResult};
-use neutron_sdk::{bindings::query::NeutronQuery, NeutronError};
-
-use crate::error::ContractError;
-use std::collections::HashSet;
+use cosmwasm_std::{QuerierWrapper, StdResult};
+use neutron_sdk::bindings::query::NeutronQuery;
 
 /// Query next contract for the memo field
 /// If query failed, we set memo to empty string, meaning no memo is expected
@@ -83,38 +80,4 @@ pub struct MsgTransfer {
     pub timeout_timestamp: u64,
     #[prost(string, tag = "8")]
     pub memo: String,
-}
-
-pub fn validate_privileged_accounts(
-    api: &dyn Api,
-    privileged_accounts: Option<Vec<String>>,
-) -> Result<Option<HashSet<Addr>>, ContractError> {
-    privileged_accounts
-        .map(|addresses| {
-            ensure!(
-                !addresses.is_empty(),
-                ContractError::InvalidPrivilegedAccounts
-            );
-
-            addresses
-                .iter()
-                .map(|addr| {
-                    api.addr_validate(addr)
-                        .map_err(|_| ContractError::InvalidPrivilegedAccounts)
-                })
-                .collect::<Result<HashSet<_>, ContractError>>()
-        })
-        .transpose()
-}
-
-pub fn verify_caller(
-    caller: &Addr,
-    privileged_accounts: &Option<HashSet<Addr>>,
-) -> Result<(), NeutronError> {
-    if let Some(privileged_accounts) = privileged_accounts {
-        if !privileged_accounts.contains(caller) {
-            return Err(ContractError::Unauthorized {}.into());
-        }
-    }
-    Ok(())
 }
