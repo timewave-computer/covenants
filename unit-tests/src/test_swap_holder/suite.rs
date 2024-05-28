@@ -61,7 +61,7 @@ impl Default for SwapHolderBuilder {
             builder.native_router_code_id,
             "party_a",
             &valence_native_router::msg::InstantiateMsg {
-                clock_address: clock_addr.to_string(),
+                privileged_accounts: vec![clock_addr.to_string()].into(),
                 receiver_address: party_a_controller_addr.to_string(),
                 denoms: denom_set.clone(),
             },
@@ -71,7 +71,7 @@ impl Default for SwapHolderBuilder {
             builder.native_router_code_id,
             "party_b",
             &valence_native_router::msg::InstantiateMsg {
-                clock_address: clock_addr.to_string(),
+                privileged_accounts: vec![clock_addr.to_string()].into(),
                 receiver_address: party_b_controller_addr.to_string(),
                 denoms: denom_set.clone(),
             },

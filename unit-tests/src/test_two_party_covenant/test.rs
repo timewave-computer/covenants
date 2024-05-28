@@ -144,7 +144,7 @@ fn test_migrate_update_config_party_a_interchain() {
             party_a_interchain_router_migrate_msg.clone(),
         );
     let party_b_native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(random_address.to_string()),
+        privileged_accounts: Some(vec![random_address.to_string()].into()),
         receiver_address: None,
         target_denoms: None,
     };
@@ -251,14 +251,17 @@ fn test_migrate_update_config_party_a_interchain() {
         .unwrap();
     assert_eq!(party_a_router_clock_address, random_address);
 
-    let party_b_router_clock_address: Addr = app
+    let party_b_router_privileged_accounts: Option<Vec<_>> = app
         .wrap()
         .query_wasm_smart(
             party_b_router_address,
-            &valence_native_router::msg::QueryMsg::ClockAddress {},
+            &valence_native_router::msg::QueryMsg::PrivilegedAccounts {},
         )
         .unwrap();
-    assert_eq!(party_b_router_clock_address, random_address);
+    assert_eq!(
+        party_b_router_privileged_accounts,
+        Some(vec![random_address.clone()])
+    );
 
     let party_a_forwarder_privileged_accounts: Option<Vec<_>> = app
         .wrap()
@@ -340,7 +343,7 @@ fn test_migrate_update_config_party_b_interchain() {
             party_b_interchain_router_migrate_msg.clone(),
         );
     let party_a_native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(random_address.to_string()),
+        privileged_accounts: Some(vec![random_address.to_string()].into()),
         receiver_address: None,
         target_denoms: None,
     };
@@ -458,14 +461,17 @@ fn test_migrate_update_config_party_b_interchain() {
         .unwrap();
     assert_eq!(party_b_router_clock_address, random_address);
 
-    let party_a_router_clock_address: Addr = app
+    let party_a_router_privileged_accounts: Option<Vec<Addr>> = app
         .wrap()
         .query_wasm_smart(
-            party_a_router_address,
-            &valence_native_router::msg::QueryMsg::ClockAddress {},
+            party_a_router_address.clone(),
+            &valence_native_router::msg::QueryMsg::PrivilegedAccounts {},
         )
         .unwrap();
-    assert_eq!(party_a_router_clock_address, random_address);
+    assert_eq!(
+        party_a_router_privileged_accounts,
+        Some(vec![random_address.clone()])
+    );
 
     let party_b_forwarder_privileged_accounts: Option<Vec<_>> = app
         .wrap()

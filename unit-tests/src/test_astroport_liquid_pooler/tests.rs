@@ -51,7 +51,7 @@ fn test_tick_rejects_unprivileged_account() {
         .execute_contract(
             admin_addr,
             liquid_pooler_addr,
-            &valence_ibc_forwarder::msg::ExecuteMsg::Tick {},
+            &valence_astroport_liquid_pooler::msg::ExecuteMsg::Tick {},
             &[],
         )
         .unwrap();
@@ -240,23 +240,6 @@ fn test_withdraw_no_percentage_defaults_to_full_position() {
 
     suite.assert_balance(&holder, coin(500_000, DENOM_ATOM_ON_NTRN));
     suite.assert_balance(&holder, coin(500_000, DENOM_LS_ATOM_ON_NTRN));
-}
-
-#[test]
-#[should_panic(expected = "Unauthorized")]
-fn test_tick_unauthorized() {
-    let mut suite = AstroLiquidPoolerBuilder::default().build();
-    let unauthorized_sender = suite.admin.clone();
-
-    suite
-        .app
-        .execute_contract(
-            unauthorized_sender,
-            suite.liquid_pooler_addr.clone(),
-            &valence_clock::msg::ExecuteMsg::Tick {},
-            &[],
-        )
-        .unwrap();
 }
 
 #[test]

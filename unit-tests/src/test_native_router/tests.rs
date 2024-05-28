@@ -10,11 +10,48 @@ use crate::{
 };
 
 #[test]
-#[should_panic]
-fn test_instantiate_validates_clock_addr() {
-    NativeRouterBuilder::default()
-        .with_clock_address("not a clock")
+fn test_instantiate_with_valid_privileged_accounts() {
+    let _suite = NativeRouterBuilder::default().build();
+}
+
+#[test]
+fn test_instantiate_in_permissionless_mode() {
+    let _suite = NativeRouterBuilder::default()
+        .with_privileged_accounts(None)
         .build();
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_validates_privileged_accounts() {
+    NativeRouterBuilder::default()
+        .with_privileged_accounts(vec!["some contract".to_string()].into())
+        .build();
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_validates_empty_privileged_accounts() {
+    NativeRouterBuilder::default()
+        .with_privileged_accounts(vec![].into())
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "Unauthorized")]
+fn test_tick_rejects_unprivileged_account() {
+    let mut suite = NativeRouterBuilder::default().build();
+    let admin_addr = suite.admin.clone();
+    let router_addr = suite.router_addr.clone();
+    suite
+        .app
+        .execute_contract(
+            admin_addr,
+            router_addr,
+            &valence_native_router::msg::ExecuteMsg::Tick {},
+            &[],
+        )
+        .unwrap();
 }
 
 #[test]
@@ -23,25 +60,6 @@ fn test_instantiate_validates_receiver_addr() {
     NativeRouterBuilder::default()
         .with_receiver_address("not a receiver")
         .build();
-}
-
-#[test]
-#[should_panic(expected = "Caller is not the clock, only clock can tick contracts")]
-fn test_execute_tick_validates_clock_addr() {
-    let mut suite = NativeRouterBuilder::default().build();
-
-    let router = suite.router_addr;
-    let not_the_clock = suite.faucet;
-
-    suite
-        .app
-        .execute_contract(
-            not_the_clock,
-            router,
-            &valence_native_router::msg::ExecuteMsg::Tick {},
-            &[],
-        )
-        .unwrap();
 }
 
 #[test]
@@ -141,7 +159,7 @@ fn test_migrate_update_config() {
     let mut suite = NativeRouterBuilder::default().build();
 
     let router_addr = suite.router_addr.clone();
-    let clock_addr = suite.query_clock_address();
+    let clock_addr = suite.clock_addr.clone();
     let mut target_denoms = suite.query_target_denoms();
     let receiver_addr = suite.receiver_addr.clone();
     target_denoms.insert("new_denom".to_string());
@@ -152,7 +170,7 @@ fn test_migrate_update_config() {
             Addr::unchecked(ADMIN),
             router_addr,
             &valence_native_router::msg::MigrateMsg::UpdateConfig {
-                clock_addr: Some(receiver_addr.to_string()),
+                privileged_accounts: Some(vec![receiver_addr.to_string()].into()),
                 receiver_address: Some(clock_addr.to_string()),
                 target_denoms: Some(target_denoms.clone().into_iter().collect()),
             },
@@ -160,7 +178,7 @@ fn test_migrate_update_config() {
         )
         .unwrap();
 
-    assert_eq!(suite.query_clock_address(), receiver_addr);
+    assert_eq!(suite.query_privileged_accounts(), Some(vec![receiver_addr]));
     assert_eq!(suite.query_target_denoms(), target_denoms);
     assert_eq!(suite.query_receiver_config(), clock_addr);
 }

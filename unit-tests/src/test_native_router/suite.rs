@@ -13,6 +13,7 @@ use crate::setup::{
 pub struct NativeRouterBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: NativeRouterInstantiate,
+    pub clock_addr: Addr,
 }
 
 impl Default for NativeRouterBuilder {
@@ -39,19 +40,21 @@ impl Default for NativeRouterBuilder {
         let party_receiver = builder.get_random_addr();
 
         let native_router_instantiate =
-            NativeRouterInstantiate::default(clock_addr, party_receiver);
+            NativeRouterInstantiate::default(vec![clock_addr.to_string()].into(), party_receiver);
 
         Self {
             builder,
             instantiate_msg: native_router_instantiate,
+            clock_addr,
         }
     }
 }
 
 #[allow(dead_code)]
 impl NativeRouterBuilder {
-    pub fn with_clock_address(mut self, addr: &str) -> Self {
-        self.instantiate_msg.with_clock_address(addr.to_string());
+    pub fn with_privileged_accounts(mut self, privileged_accounts: Option<Vec<String>>) -> Self {
+        self.instantiate_msg
+            .with_privileged_accounts(privileged_accounts);
         self
     }
 
@@ -74,13 +77,13 @@ impl NativeRouterBuilder {
             &[],
         );
 
-        let clock_addr = self
+        let privileged_accounts: Option<Vec<Addr>> = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 native_router_address.clone(),
-                &valence_native_router::msg::QueryMsg::ClockAddress {},
+                &valence_native_router::msg::QueryMsg::PrivilegedAccounts {},
             )
             .unwrap();
 
@@ -108,7 +111,8 @@ impl NativeRouterBuilder {
             router_addr: native_router_address,
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
-            clock_addr,
+            clock_addr: self.clock_addr,
+            privileged_accounts,
             receiver_addr,
             denoms,
             app: self.builder.build(),
@@ -125,6 +129,7 @@ pub struct Suite {
 
     pub router_addr: Addr,
     pub clock_addr: Addr,
+    pub privileged_accounts: Option<Vec<Addr>>,
     pub receiver_addr: Addr,
     pub denoms: BTreeSet<String>,
 }
@@ -140,12 +145,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_clock_address(&mut self) -> Addr {
+    pub(crate) fn query_privileged_accounts(&mut self) -> Option<Vec<Addr>> {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.router_addr.clone(),
-                &valence_native_router::msg::QueryMsg::ClockAddress {},
+                &valence_native_router::msg::QueryMsg::PrivilegedAccounts {},
             )
             .unwrap()
     }
