@@ -1,9 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint64};
-use covenant_utils::op_mode::{
-    ContractOperationMode, ContractOperationModeConfig,
-};
+use covenant_utils::op_mode::{ContractOperationMode, ContractOperationModeConfig};
 
 use crate::setup::{base_suite::BaseSuiteMut, DENOM_ATOM, DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 

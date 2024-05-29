@@ -1,7 +1,5 @@
 use cosmwasm_std::{coin, coins, Addr, Uint128};
-use covenant_utils::op_mode::{
-    ContractOperationMode, ContractOperationModeConfig,
-};
+use covenant_utils::op_mode::{ContractOperationMode, ContractOperationModeConfig};
 use cw_multi_test::Executor;
 use valence_ibc_forwarder::msg::{ContractState, FallbackAddressUpdateConfig};
 
