@@ -8,7 +8,9 @@ use cosmwasm_std::{
 };
 use covenant_macros::{clocked, covenant_deposit_address, covenant_lper_withdraw};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, PoolPriceConfig, SingleSideLpLimits,
+    instantiate2_helper::Instantiate2HelperConfig,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    PoolPriceConfig, SingleSideLpLimits,
 };
 
 use crate::error::ContractError;
@@ -22,12 +24,11 @@ pub struct InstantiateMsg {
     pub pool_price_config: PoolPriceConfig,
     pub pair_type: PairType,
     pub holder_address: String,
-    // List of privileged accounts (if any).
-    // The contract's Tick operation can either be a non-privileged (aka permissionless)
-    // operation if no privileged accounts are configured (privileged_accounts is None),
-    // or a privileged operation, that is, restricted to being executed by one of the configured
-    // privileged accounts (when privileged_accounts is Some() with a Vector of one or more addresses).
-    pub privileged_accounts: Option<Vec<String>>,
+    // Contract Operation Mode.
+    // The contract operation (the Tick function mostly) can either be a permissionless
+    // (aka non-privileged) operation, or a permissioned operation, that is,
+    // restricted to being executed by one of the configured privileged accounts.
+    pub op_mode_cfg: ContractOperationModeConfig,
 }
 
 impl InstantiateMsg {
@@ -60,13 +61,12 @@ pub struct AstroportLiquidPoolerConfig {
 impl AstroportLiquidPoolerConfig {
     pub fn to_instantiate_msg(
         &self,
-        privileged_accounts: Option<Vec<String>>,
         holder_address: String,
         pool_price_config: PoolPriceConfig,
+        op_mode_cfg: ContractOperationModeConfig,
     ) -> InstantiateMsg {
         InstantiateMsg {
             pool_address: self.pool_address.to_string(),
-            privileged_accounts,
             single_side_lp_limits: self.single_side_lp_limits.clone(),
             pool_price_config,
             pair_type: self.pool_pair_type.clone(),
@@ -76,6 +76,7 @@ impl AstroportLiquidPoolerConfig {
                 asset_a_denom: self.asset_a_denom.to_string(),
                 asset_b_denom: self.asset_b_denom.to_string(),
             },
+            op_mode_cfg,
         }
     }
 }
@@ -203,14 +204,14 @@ pub enum QueryMsg {
     LpConfig {},
     #[returns(ProvidedLiquidityInfo)]
     ProvidedLiquidityInfo {},
-    #[returns(Option<Vec<Addr>>)]
-    PrivilegedAccounts {},
+    #[returns(ContractOperationMode)]
+    OperationMode {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        privileged_accounts: Option<Option<Vec<String>>>,
+        op_mode: Option<ContractOperationModeConfig>,
         holder_address: Option<String>,
         lp_config: Option<Box<LpConfig>>,
     },

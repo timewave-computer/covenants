@@ -7,8 +7,8 @@ use cosmwasm_std::{
     StdError, StdResult, WasmMsg,
 };
 use covenant_utils::{
-    instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits,
-    CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms,
+    instantiate2_helper::get_instantiate2_salt_and_address, op_mode::ContractOperationModeConfig,
+    split::remap_splits, CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms,
 };
 use cw2::set_contract_version;
 use valence_swap_holder::msg::RefundConfig;
@@ -214,7 +214,9 @@ pub fn instantiate(
             amount: msg.party_a_config.get_contribution().amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            privileged_accounts: vec![clock_instantiate2_config.addr.to_string()].into(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+                .addr
+                .to_string()]),
             next_contract: holder_instantiate2_config.addr.to_string(),
             fallback_address: msg.fallback_address.clone(),
         }
@@ -255,7 +257,9 @@ pub fn instantiate(
             amount: msg.party_b_config.get_contribution().amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            privileged_accounts: vec![clock_instantiate2_config.addr.to_string()].into(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+                .addr
+                .to_string()]),
             next_contract: holder_instantiate2_config.addr.to_string(),
             fallback_address: msg.fallback_address,
         }

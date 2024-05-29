@@ -21,9 +21,6 @@ pub enum ContractError {
 
     #[error("Attempt to distribute duplicate denoms via fallback distribution")]
     DuplicateDenomDistribution {},
-
-    #[error("Invalid privileged accounts")]
-    InvalidPrivilegedAccounts,
 }
 
 impl From<ContractError> for NeutronError {
