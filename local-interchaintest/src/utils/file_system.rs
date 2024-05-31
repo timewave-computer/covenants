@@ -23,7 +23,9 @@ pub fn get_current_dir() -> path::PathBuf {
 #[must_use]
 pub fn get_local_interchain_dir() -> path::PathBuf {
     let current_dir = get_current_dir();
-    let Some(parent_dir) = current_dir.parent() else { panic!("Could not get parent dir") };
+    let Some(parent_dir) = current_dir.parent() else {
+        panic!("Could not get parent dir")
+    };
     parent_dir.to_path_buf()
 }
 
