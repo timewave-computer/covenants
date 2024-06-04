@@ -49,7 +49,7 @@ fn test_instantiate_validates_empty_privileged_accounts() {
 }
 
 #[test]
-#[should_panic(expected = "Unauthorized")]
+#[should_panic(expected = "Contract operation unauthorized")]
 fn test_tick_rejects_unprivileged_account() {
     let mut suite = IbcForwarderBuilder::default().build();
     let admin_addr = suite.admin.clone();

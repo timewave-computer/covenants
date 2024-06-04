@@ -46,7 +46,7 @@ fn test_instantiate_validates_empty_privileged_accounts() {
 }
 
 #[test]
-#[should_panic(expected = "Unauthorized")]
+#[should_panic(expected = "Contract operation unauthorized")]
 fn test_tick_rejects_unprivileged_account() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
     let admin_addr = suite.admin.clone();
@@ -248,7 +248,7 @@ fn test_withdraw_no_percentage_defaults_to_full_position() {
 }
 
 #[test]
-#[should_panic(expected = "Unauthorized")]
+#[should_panic(expected = "Contract operation unauthorized")]
 fn test_tick_unauthorized() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
     let unauthorized_sender = suite.admin.clone();

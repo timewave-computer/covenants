@@ -2,6 +2,8 @@ use std::collections::HashSet;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{ensure, Addr, Api, StdError};
+use neutron_sdk::NeutronError;
+use thiserror::Error;
 
 #[cw_serde]
 pub enum ContractOperationModeConfig {
@@ -13,6 +15,18 @@ pub enum ContractOperationModeConfig {
 pub enum ContractOperationMode {
     Permissionless,
     Permissioned(PrivilegedAccounts),
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum ContractOperationError {
+    #[error("Contract operation unauthorized")]
+    Unauthorized,
+}
+
+impl From<ContractOperationError> for NeutronError {
+    fn from(op_err: ContractOperationError) -> Self {
+        NeutronError::Std(StdError::generic_err(op_err.to_string()))
+    }
 }
 
 #[cw_serde]
@@ -72,10 +86,13 @@ impl From<Vec<Addr>> for PrivilegedAccounts {
     }
 }
 
-pub fn verify_caller(caller: &Addr, op_mode: &ContractOperationMode) -> Result<(), StdError> {
+pub fn verify_caller(
+    caller: &Addr,
+    op_mode: &ContractOperationMode,
+) -> Result<(), ContractOperationError> {
     if let ContractOperationMode::Permissioned(privileged_accounts) = op_mode {
         if !privileged_accounts.is_privileged(caller) {
-            return Err(StdError::generic_err("Unauthorized"));
+            return Err(ContractOperationError::Unauthorized);
         }
     }
     Ok(())

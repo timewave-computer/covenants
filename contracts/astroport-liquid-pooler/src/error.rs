@@ -1,4 +1,5 @@
 use cosmwasm_std::{DecimalRangeExceeded, OverflowError, StdError};
+use covenant_utils::op_mode::ContractOperationError;
 use neutron_sdk::NeutronError;
 use thiserror::Error;
 
@@ -48,4 +49,7 @@ pub enum ContractError {
 
     #[error("Withdraw percentage range must belong to range (0.0, 1.0]")]
     WithdrawPercentageRangeError {},
+
+    #[error(transparent)]
+    ContractOperationError(#[from] ContractOperationError),
 }
