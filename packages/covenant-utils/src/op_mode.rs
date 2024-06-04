@@ -36,10 +36,10 @@ impl ContractOperationMode {
                 let privileged_accounts = addresses
                     .iter()
                     .map(|addr| api.addr_validate(addr))
-                    .collect::<Result<Vec<_>, StdError>>()?;
+                    .collect::<Result<HashSet<_>, StdError>>()?;
 
                 Ok(ContractOperationMode::Permissioned(
-                    privileged_accounts.into(),
+                    PrivilegedAccounts::new(privileged_accounts),
                 ))
             }
         }
@@ -57,6 +57,12 @@ impl PrivilegedAccounts {
 
     pub fn is_privileged(&self, addr: &Addr) -> bool {
         self.0.contains(addr)
+    }
+}
+
+impl From<HashSet<Addr>> for PrivilegedAccounts {
+    fn from(privileged_accounts: HashSet<Addr>) -> Self {
+        Self::new(privileged_accounts)
     }
 }
 
