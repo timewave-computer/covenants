@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_std::Addr;
+use covenant_utils::op_mode::{ContractOperationMode, ContractOperationModeConfig};
 use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
@@ -39,8 +40,10 @@ impl Default for NativeRouterBuilder {
 
         let party_receiver = builder.get_random_addr();
 
-        let native_router_instantiate =
-            NativeRouterInstantiate::default(vec![clock_addr.to_string()].into(), party_receiver);
+        let native_router_instantiate = NativeRouterInstantiate::default(
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
+            party_receiver,
+        );
 
         Self {
             builder,
@@ -52,9 +55,8 @@ impl Default for NativeRouterBuilder {
 
 #[allow(dead_code)]
 impl NativeRouterBuilder {
-    pub fn with_privileged_accounts(mut self, privileged_accounts: Option<Vec<String>>) -> Self {
-        self.instantiate_msg
-            .with_privileged_accounts(privileged_accounts);
+    pub fn with_op_mode(mut self, op_mode_cfg: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(op_mode_cfg);
         self
     }
 
@@ -77,13 +79,13 @@ impl NativeRouterBuilder {
             &[],
         );
 
-        let privileged_accounts: Option<Vec<Addr>> = self
+        let op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 native_router_address.clone(),
-                &valence_native_router::msg::QueryMsg::PrivilegedAccounts {},
+                &valence_native_router::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
 
@@ -112,7 +114,7 @@ impl NativeRouterBuilder {
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
             clock_addr: self.clock_addr,
-            privileged_accounts,
+            op_mode,
             receiver_addr,
             denoms,
             app: self.builder.build(),
@@ -129,7 +131,7 @@ pub struct Suite {
 
     pub router_addr: Addr,
     pub clock_addr: Addr,
-    pub privileged_accounts: Option<Vec<Addr>>,
+    pub op_mode: ContractOperationMode,
     pub receiver_addr: Addr,
     pub denoms: BTreeSet<String>,
 }
@@ -145,12 +147,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub(crate) fn query_privileged_accounts(&mut self) -> Option<Vec<Addr>> {
+    pub(crate) fn query_op_mode(&mut self) -> ContractOperationMode {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.router_addr.clone(),
-                &valence_native_router::msg::QueryMsg::PrivilegedAccounts {},
+                &valence_native_router::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }

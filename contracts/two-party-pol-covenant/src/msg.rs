@@ -176,7 +176,9 @@ impl CovenantPartyConfig {
             }
             CovenantPartyConfig::Native(party) => {
                 let instantiate_msg = valence_native_router::msg::InstantiateMsg {
-                    privileged_accounts: vec![clock_addr.to_string()].into(),
+                    op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![
+                        clock_addr.to_string()
+                    ]),
                     receiver_address: party.party_receiver_addr.to_string(),
                     denoms,
                 };

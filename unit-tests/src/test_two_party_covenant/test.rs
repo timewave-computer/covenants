@@ -147,7 +147,9 @@ fn test_migrate_update_config_party_a_interchain() {
             party_a_interchain_router_migrate_msg.clone(),
         );
     let party_b_native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
-        privileged_accounts: Some(vec![random_address.to_string()].into()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            random_address.to_string(),
+        ])),
         receiver_address: None,
         target_denoms: None,
     };
@@ -256,16 +258,16 @@ fn test_migrate_update_config_party_a_interchain() {
         .unwrap();
     assert_eq!(party_a_router_clock_address, random_address);
 
-    let party_b_router_privileged_accounts: Option<Vec<_>> = app
+    let party_b_router_op_mode: ContractOperationMode = app
         .wrap()
         .query_wasm_smart(
             party_b_router_address,
-            &valence_native_router::msg::QueryMsg::PrivilegedAccounts {},
+            &valence_native_router::msg::QueryMsg::OperationMode {},
         )
         .unwrap();
     assert_eq!(
-        party_b_router_privileged_accounts,
-        Some(vec![random_address.clone()])
+        party_b_router_op_mode,
+        ContractOperationMode::Permissioned(vec![random_address.clone()].into())
     );
 
     let party_a_forwarder_op_mode: ContractOperationMode = app
@@ -350,7 +352,9 @@ fn test_migrate_update_config_party_b_interchain() {
             party_b_interchain_router_migrate_msg.clone(),
         );
     let party_a_native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
-        privileged_accounts: Some(vec![random_address.to_string()].into()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            random_address.to_string(),
+        ])),
         receiver_address: None,
         target_denoms: None,
     };
@@ -470,16 +474,16 @@ fn test_migrate_update_config_party_b_interchain() {
         .unwrap();
     assert_eq!(party_b_router_clock_address, random_address);
 
-    let party_a_router_privileged_accounts: Option<Vec<Addr>> = app
+    let party_a_router_op_mode: ContractOperationMode = app
         .wrap()
         .query_wasm_smart(
             party_a_router_address.clone(),
-            &valence_native_router::msg::QueryMsg::PrivilegedAccounts {},
+            &valence_native_router::msg::QueryMsg::OperationMode {},
         )
         .unwrap();
     assert_eq!(
-        party_a_router_privileged_accounts,
-        Some(vec![random_address.clone()])
+        party_a_router_op_mode,
+        ContractOperationMode::Permissioned(vec![random_address.clone()].into())
     );
 
     let party_b_forwarder_op_mode: ContractOperationMode = app

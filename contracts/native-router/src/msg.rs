@@ -1,18 +1,21 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, WasmMsg};
+use cosmwasm_std::{to_json_binary, Binary, StdResult, WasmMsg};
 use covenant_macros::clocked;
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, ReceiverConfig};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    ReceiverConfig,
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    // List of privileged accounts (if any).
-    // The contract's Tick operation can either be a non-privileged (aka permissionless)
-    // operation if no privileged accounts are configured (privileged_accounts is None),
-    // or a privileged operation, that is, restricted to being executed by one of the configured
-    // privileged accounts (when privileged_accounts is Some() with a Vector of one or more addresses).
-    pub privileged_accounts: Option<Vec<String>>,
+    // Contract Operation Mode.
+    // The contract operation (the Tick function mostly) can either be a permissionless
+    // (aka non-privileged) operation, or a permissioned operation, that is,
+    // restricted to being executed by one of the configured privileged accounts.
+    pub op_mode_cfg: ContractOperationModeConfig,
     /// receiver address on local chain
     pub receiver_address: String,
     /// specified denoms to route
@@ -50,14 +53,14 @@ pub enum QueryMsg {
     ReceiverConfig {},
     #[returns(BTreeSet<String>)]
     TargetDenoms {},
-    #[returns(Option<Vec<Addr>>)]
-    PrivilegedAccounts {},
+    #[returns(ContractOperationMode)]
+    OperationMode {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        privileged_accounts: Option<Option<Vec<String>>>,
+        op_mode: Option<ContractOperationModeConfig>,
         receiver_address: Option<String>,
         target_denoms: Option<Vec<String>>,
     },

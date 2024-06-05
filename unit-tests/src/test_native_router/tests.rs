@@ -1,4 +1,5 @@
 use cosmwasm_std::{coin, coins, Addr, Event};
+use covenant_utils::op_mode::{ContractOperationMode, ContractOperationModeConfig};
 use cw_multi_test::Executor;
 
 use crate::{
@@ -10,14 +11,14 @@ use crate::{
 };
 
 #[test]
-fn test_instantiate_with_valid_privileged_accounts() {
+fn test_instantiate_with_valid_op_mode() {
     let _suite = NativeRouterBuilder::default().build();
 }
 
 #[test]
 fn test_instantiate_in_permissionless_mode() {
     let _suite = NativeRouterBuilder::default()
-        .with_privileged_accounts(None)
+        .with_op_mode(ContractOperationModeConfig::Permissionless)
         .build();
 }
 
@@ -25,7 +26,9 @@ fn test_instantiate_in_permissionless_mode() {
 #[should_panic]
 fn test_instantiate_validates_privileged_accounts() {
     NativeRouterBuilder::default()
-        .with_privileged_accounts(vec!["some contract".to_string()].into())
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![
+            "some contract".to_string(),
+        ]))
         .build();
 }
 
@@ -33,12 +36,12 @@ fn test_instantiate_validates_privileged_accounts() {
 #[should_panic]
 fn test_instantiate_validates_empty_privileged_accounts() {
     NativeRouterBuilder::default()
-        .with_privileged_accounts(vec![].into())
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![]))
         .build();
 }
 
 #[test]
-#[should_panic(expected = "Unauthorized")]
+#[should_panic(expected = "Contract operation unauthorized")]
 fn test_tick_rejects_unprivileged_account() {
     let mut suite = NativeRouterBuilder::default().build();
     let admin_addr = suite.admin.clone();
@@ -170,7 +173,8 @@ fn test_migrate_update_config() {
             Addr::unchecked(ADMIN),
             router_addr,
             &valence_native_router::msg::MigrateMsg::UpdateConfig {
-                privileged_accounts: Some(vec![receiver_addr.to_string()].into()),
+                op_mode: ContractOperationModeConfig::Permissioned(vec![receiver_addr.to_string()])
+                    .into(),
                 receiver_address: Some(clock_addr.to_string()),
                 target_denoms: Some(target_denoms.clone().into_iter().collect()),
             },
@@ -178,7 +182,10 @@ fn test_migrate_update_config() {
         )
         .unwrap();
 
-    assert_eq!(suite.query_privileged_accounts(), Some(vec![receiver_addr]));
+    assert_eq!(
+        suite.query_op_mode(),
+        ContractOperationMode::Permissioned(vec![receiver_addr].into())
+    );
     assert_eq!(suite.query_target_denoms(), target_denoms);
     assert_eq!(suite.query_receiver_config(), clock_addr);
 }

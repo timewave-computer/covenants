@@ -457,7 +457,7 @@ fn test_migrate_update_with_codes() {
     contract_codes.clock = 1;
 
     let native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
-        privileged_accounts: Some(vec![covenant_addr.to_string()].into()),
+        op_mode: ContractOperationModeConfig::Permissioned(vec![covenant_addr.to_string()]).into(),
         target_denoms: None,
         receiver_address: None,
     };

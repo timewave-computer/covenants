@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use cosmwasm_std::Addr;
 use covenant_utils::op_mode::ContractOperationMode;
 use cw_storage_plus::Item;
