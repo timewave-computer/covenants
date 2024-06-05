@@ -1,5 +1,5 @@
 use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint128, Uint64};
-use covenant_utils::neutron::RemoteChainInfo;
+use covenant_utils::{neutron::RemoteChainInfo, op_mode::ContractOperationModeConfig};
 use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
@@ -1052,7 +1052,9 @@ fn test_migrate_update_config_with_codes() {
     };
 
     let ibc_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-        privileged_accounts: Some(Some(vec![covenant_addr.to_string()])),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            covenant_addr.to_string(),
+        ])),
         next_contract: None,
         remote_chain_info: Box::new(None),
         transfer_amount: None,
@@ -1061,7 +1063,9 @@ fn test_migrate_update_config_with_codes() {
 
     let liquid_pooler_migrate_msg =
         valence_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
-            clock_addr: Some(covenant_addr.to_string()),
+            op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+                covenant_addr.to_string(),
+            ])),
             holder_address: None,
             lp_config: None,
         };

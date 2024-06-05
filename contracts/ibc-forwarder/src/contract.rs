@@ -16,6 +16,7 @@ use covenant_utils::{
         assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, to_proto_msg_transfer,
         RemoteChainInfo, SudoPayload,
     },
+    op_mode::{verify_caller, ContractOperationMode},
 };
 use cw2::set_contract_version;
 use neutron_sdk::{
@@ -26,18 +27,13 @@ use neutron_sdk::{
 };
 use prost::Message;
 
-use crate::{
-    error::ContractError, helpers::validate_privileged_accounts, msg::FallbackAddressUpdateConfig,
-};
-use crate::{
-    helpers::verify_caller,
-    state::{IbcForwarderIcaStateHelper, FALLBACK_ADDRESS},
-};
+use crate::state::{IbcForwarderIcaStateHelper, FALLBACK_ADDRESS};
+use crate::{error::ContractError, msg::FallbackAddressUpdateConfig};
 use crate::{
     helpers::{get_next_memo, MsgTransfer},
     msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, PRIVILEGED_ACCOUNTS, REMOTE_CHAIN_INFO,
+        CONTRACT_OP_MODE, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
         TRANSFER_AMOUNT,
     },
 };
@@ -59,10 +55,9 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
-    let privileged_accounts =
-        validate_privileged_accounts(deps.api, msg.privileged_accounts.clone())?;
+    let op_mode = ContractOperationMode::try_init(deps.api, msg.op_mode_cfg.clone())?;
 
-    PRIVILEGED_ACCOUNTS.save(deps.storage, &privileged_accounts)?;
+    CONTRACT_OP_MODE.save(deps.storage, &op_mode)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     TRANSFER_AMOUNT.save(deps.storage, &msg.amount)?;
     let remote_chain_info = RemoteChainInfo {
@@ -191,7 +186,7 @@ fn try_distribute_fallback(
 
 /// attempts to advance the state machine. validates the caller to be the clock.
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-    verify_caller(&info.sender, &PRIVILEGED_ACCOUNTS.load(deps.storage)?)?;
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -344,9 +339,9 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
         QueryMsg::FallbackAddress {} => {
             Ok(to_json_binary(&FALLBACK_ADDRESS.may_load(deps.storage)?)?)
         }
-        QueryMsg::PrivilegedAddresses {} => Ok(to_json_binary(
-            &PRIVILEGED_ACCOUNTS.may_load(deps.storage)?,
-        )?),
+        QueryMsg::OperationMode {} => {
+            Ok(to_json_binary(&CONTRACT_OP_MODE.may_load(deps.storage)?)?)
+        }
     }
 }
 
@@ -398,7 +393,7 @@ pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<Neut
 pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
     match msg {
         MigrateMsg::UpdateConfig {
-            privileged_accounts,
+            op_mode,
             next_contract,
             remote_chain_info,
             transfer_amount,
@@ -406,13 +401,12 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
-            if let Some(privileged_accounts) = privileged_accounts {
-                let updated_privileged_accounts =
-                    validate_privileged_accounts(deps.api, privileged_accounts.clone())
-                        .map_err(|err| StdError::generic_err(err.to_string()))?;
-                PRIVILEGED_ACCOUNTS.save(deps.storage, &updated_privileged_accounts)?;
-                resp =
-                    resp.add_attribute("privileged_accounts", format!("{:?}", privileged_accounts));
+            if let Some(op_mode_cfg) = op_mode {
+                let updated_op_mode = ContractOperationMode::try_init(deps.api, op_mode_cfg)
+                    .map_err(|err| StdError::generic_err(err.to_string()))?;
+
+                CONTRACT_OP_MODE.save(deps.storage, &updated_op_mode)?;
+                resp = resp.add_attribute("op_mode", format!("{:?}", updated_op_mode));
             }
 
             if let Some(addr) = next_contract {

@@ -1,6 +1,6 @@
 use astroport::factory::PairType;
 use cosmwasm_std::{Decimal, Uint128};
-use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
+use covenant_utils::{op_mode::ContractOperationModeConfig, PoolPriceConfig, SingleSideLpLimits};
 
 use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
@@ -18,7 +18,7 @@ impl From<AstroLiquidPoolerInstantiate> for valence_astroport_liquid_pooler::msg
 impl AstroLiquidPoolerInstantiate {
     pub fn new(
         pool_address: String,
-        clock_address: String,
+        op_mode_cfg: ContractOperationModeConfig,
         slippage_tolerance: Option<Decimal>,
         assets: valence_astroport_liquid_pooler::msg::AssetData,
         single_side_lp_limits: SingleSideLpLimits,
@@ -29,7 +29,7 @@ impl AstroLiquidPoolerInstantiate {
         Self {
             msg: valence_astroport_liquid_pooler::msg::InstantiateMsg {
                 pool_address,
-                clock_address,
+                op_mode_cfg,
                 slippage_tolerance,
                 assets,
                 single_side_lp_limits,
@@ -45,8 +45,8 @@ impl AstroLiquidPoolerInstantiate {
         self
     }
 
-    pub fn with_clock_address(&mut self, clock_address: String) -> &mut Self {
-        self.msg.clock_address = clock_address;
+    pub fn with_op_mode(&mut self, op_mode: ContractOperationModeConfig) -> &mut Self {
+        self.msg.op_mode_cfg = op_mode;
         self
     }
 
@@ -88,11 +88,15 @@ impl AstroLiquidPoolerInstantiate {
 }
 
 impl AstroLiquidPoolerInstantiate {
-    pub fn default(pool_address: String, clock_address: String, holder_address: String) -> Self {
+    pub fn default(
+        pool_address: String,
+        op_mode: ContractOperationModeConfig,
+        holder_address: String,
+    ) -> Self {
         Self {
             msg: valence_astroport_liquid_pooler::msg::InstantiateMsg {
                 pool_address,
-                clock_address,
+                op_mode_cfg: op_mode,
                 slippage_tolerance: None,
                 assets: valence_astroport_liquid_pooler::msg::AssetData {
                     asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),

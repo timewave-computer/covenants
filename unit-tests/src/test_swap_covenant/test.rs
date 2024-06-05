@@ -1,4 +1,5 @@
 use cosmwasm_std::{coin, coins, to_json_binary, Addr, Event, Uint128, Uint64};
+use covenant_utils::op_mode::ContractOperationModeConfig;
 use cw_multi_test::Executor;
 
 use crate::setup::{
@@ -543,7 +544,9 @@ fn test_migrate_update_without_codes() {
     };
 
     let ibc_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-        privileged_accounts: Some(Some(vec![covenant_addr.to_string()])),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            covenant_addr.to_string(),
+        ])),
         next_contract: None,
         remote_chain_info: Box::new(None),
         transfer_amount: None,

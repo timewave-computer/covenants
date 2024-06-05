@@ -6,11 +6,11 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     ensure, to_json_binary, Addr, Attribute, Binary, Coin, Decimal, StdResult, Uint128, WasmMsg,
 };
-use covenant_macros::{
-    clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
-};
+use covenant_macros::{clocked, covenant_deposit_address, covenant_lper_withdraw};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, PoolPriceConfig, SingleSideLpLimits,
+    instantiate2_helper::Instantiate2HelperConfig,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    PoolPriceConfig, SingleSideLpLimits,
 };
 
 use crate::error::ContractError;
@@ -18,13 +18,17 @@ use crate::error::ContractError;
 #[cw_serde]
 pub struct InstantiateMsg {
     pub pool_address: String,
-    pub clock_address: String,
     pub slippage_tolerance: Option<Decimal>,
     pub assets: AssetData,
     pub single_side_lp_limits: SingleSideLpLimits,
     pub pool_price_config: PoolPriceConfig,
     pub pair_type: PairType,
     pub holder_address: String,
+    // Contract Operation Mode.
+    // The contract operation (the Tick function mostly) can either be a permissionless
+    // (aka non-privileged) operation, or a permissioned operation, that is,
+    // restricted to being executed by one of the configured privileged accounts.
+    pub op_mode_cfg: ContractOperationModeConfig,
 }
 
 impl InstantiateMsg {
@@ -57,13 +61,12 @@ pub struct AstroportLiquidPoolerConfig {
 impl AstroportLiquidPoolerConfig {
     pub fn to_instantiate_msg(
         &self,
-        clock_address: String,
         holder_address: String,
         pool_price_config: PoolPriceConfig,
+        op_mode_cfg: ContractOperationModeConfig,
     ) -> InstantiateMsg {
         InstantiateMsg {
             pool_address: self.pool_address.to_string(),
-            clock_address,
             single_side_lp_limits: self.single_side_lp_limits.clone(),
             pool_price_config,
             pair_type: self.pool_pair_type.clone(),
@@ -73,6 +76,7 @@ impl AstroportLiquidPoolerConfig {
                 asset_a_denom: self.asset_a_denom.to_string(),
                 asset_b_denom: self.asset_b_denom.to_string(),
             },
+            op_mode_cfg,
         }
     }
 }
@@ -188,7 +192,6 @@ impl AssetData {
 #[cw_serde]
 pub enum ExecuteMsg {}
 
-#[covenant_clock_address]
 #[covenant_deposit_address]
 #[cw_serde]
 #[derive(QueryResponses)]
@@ -201,12 +204,14 @@ pub enum QueryMsg {
     LpConfig {},
     #[returns(ProvidedLiquidityInfo)]
     ProvidedLiquidityInfo {},
+    #[returns(ContractOperationMode)]
+    OperationMode {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        clock_addr: Option<String>,
+        op_mode: Option<ContractOperationModeConfig>,
         holder_address: Option<String>,
         lp_config: Option<Box<LpConfig>>,
     },

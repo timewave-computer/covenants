@@ -4,9 +4,12 @@ use cosmwasm_std::{
     coin, ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
     MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
 };
-use covenant_utils::{astroport::query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
+use covenant_utils::{
+    astroport::query_astro_pool_token,
+    op_mode::{verify_caller, ContractOperationMode},
+    withdraw_lp_helper::WithdrawLPMsgs,
+};
 use cw2::set_contract_version;
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use astroport::{
     asset::{Asset, PairInfo},
@@ -27,7 +30,7 @@ use crate::{
 
 use neutron_sdk::NeutronResult;
 
-use crate::state::{CLOCK_ADDRESS, CONTRACT_STATE};
+use crate::state::{CONTRACT_OP_MODE, CONTRACT_STATE};
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -45,8 +48,9 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
+    let op_mode = ContractOperationMode::try_init(deps.api, msg.op_mode_cfg.clone())?;
+
     // validate the contract addresses
-    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
     let holder_addr = deps.api.addr_validate(&msg.holder_address)?;
 
@@ -64,8 +68,7 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     // store the relevant module addresses
-    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
-
+    CONTRACT_OP_MODE.save(deps.storage, &op_mode)?;
     HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
 
     let decimal_range = DecimalRange::try_from(
@@ -93,9 +96,8 @@ pub fn instantiate(
     )?;
 
     Ok(Response::default()
-        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "lp_instantiate")
-        .add_attribute("clock_addr", clock_addr)
+        .add_attribute("op_mode", format!("{:?}", op_mode))
         .add_attributes(lp_config.to_response_attributes()))
 }
 
@@ -215,8 +217,7 @@ fn try_withdraw(
 
 /// attempts to advance the state machine. performs `info.sender` validation.
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -539,7 +540,6 @@ fn get_pool_asset_amounts(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_json_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::LpConfig {} => Ok(to_json_binary(&LP_CONFIG.may_load(deps.storage)?)?),
@@ -550,6 +550,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ProvidedLiquidityInfo {} => Ok(to_json_binary(
             &PROVIDED_LIQUIDITY_INFO.load(deps.storage)?,
         )?),
+        QueryMsg::OperationMode {} => {
+            Ok(to_json_binary(&CONTRACT_OP_MODE.may_load(deps.storage)?)?)
+        }
     }
 }
 
@@ -557,15 +560,18 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Response> {
     match msg {
         MigrateMsg::UpdateConfig {
-            clock_addr,
+            op_mode,
             holder_address,
             lp_config,
         } => {
             let mut response = Response::default().add_attribute("method", "update_config");
 
-            if let Some(clock_addr) = clock_addr {
-                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
-                response = response.add_attribute("clock_addr", clock_addr);
+            if let Some(op_mode_cfg) = op_mode {
+                let updated_op_mode = ContractOperationMode::try_init(deps.api, op_mode_cfg)
+                    .map_err(|err| StdError::generic_err(err.to_string()))?;
+
+                CONTRACT_OP_MODE.save(deps.storage, &updated_op_mode)?;
+                response = response.add_attribute("op_mode", format!("{:?}", updated_op_mode));
             }
 
             if let Some(holder_address) = holder_address {

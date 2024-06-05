@@ -1,6 +1,6 @@
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
-use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
+use covenant_utils::{op_mode::ContractOperationModeConfig, PoolPriceConfig, SingleSideLpLimits};
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
 
@@ -15,6 +15,7 @@ use crate::setup::{
 pub struct SinglePartyHolderBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: SinglePartyHolderInstantiate,
+    pub clock_addr: Addr,
 }
 
 impl Default for SinglePartyHolderBuilder {
@@ -50,7 +51,7 @@ impl Default for SinglePartyHolderBuilder {
 
         let liquid_pooler_instantiate_msg = valence_astroport_liquid_pooler::msg::InstantiateMsg {
             pool_address: pool_addr.to_string(),
-            clock_address: clock_addr.to_string(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             slippage_tolerance: None,
             assets: valence_astroport_liquid_pooler::msg::AssetData {
                 asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),
@@ -81,6 +82,7 @@ impl Default for SinglePartyHolderBuilder {
         Self {
             builder,
             instantiate_msg: holder_instantiate_msg,
+            clock_addr,
         }
     }
 }
@@ -130,16 +132,6 @@ impl SinglePartyHolderBuilder {
             )
             .unwrap();
 
-        let clock_address = self
-            .builder
-            .app
-            .wrap()
-            .query_wasm_smart(
-                liquid_pooler_address.to_string(),
-                &valence_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
-            )
-            .unwrap();
-
         let withdrawer = self
             .builder
             .app
@@ -164,7 +156,7 @@ impl SinglePartyHolderBuilder {
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
             holder_addr,
-            clock: clock_address,
+            clock: self.clock_addr,
             withdraw_to,
             withdrawer,
             liquid_pooler_address,
