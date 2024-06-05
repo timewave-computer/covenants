@@ -1,6 +1,9 @@
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Coin, Decimal};
-use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    PoolPriceConfig, SingleSideLpLimits,
+};
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
 use valence_astroport_liquid_pooler::msg::{LpConfig, ProvidedLiquidityInfo, QueryMsg};
@@ -68,7 +71,7 @@ impl Default for AstroLiquidPoolerBuilder {
 
         let liquid_pooler_instantiate = AstroLiquidPoolerInstantiate::default(
             pool_addr.to_string(),
-            vec![clock_addr.to_string()].into(),
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             holder_addr.to_string(),
         );
 
@@ -99,9 +102,8 @@ impl AstroLiquidPoolerBuilder {
         self
     }
 
-    pub fn with_privileged_accounts(mut self, privileged_accounts: Option<Vec<String>>) -> Self {
-        self.instantiate_msg
-            .with_privileged_accounts(privileged_accounts);
+    pub fn with_op_mode(mut self, op_mode_cfg: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(op_mode_cfg);
         self
     }
 
@@ -146,13 +148,13 @@ impl AstroLiquidPoolerBuilder {
             &[],
         );
 
-        let privileged_accounts: Option<Vec<Addr>> = self
+        let op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 liquid_pooler_address.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
+                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
 
@@ -191,7 +193,7 @@ impl AstroLiquidPoolerBuilder {
             admin,
             liquid_pooler_addr: liquid_pooler_address.clone(),
             clock_addr: self.clock_addr,
-            privileged_accounts,
+            op_mode,
             holder_addr: holder_addr.clone(),
             lp_config: lp_config.clone(),
             provided_liquidity_info: provided_liquidity_info.clone(),
@@ -208,7 +210,7 @@ pub struct Suite {
 
     pub liquid_pooler_addr: Addr,
     pub clock_addr: Addr,
-    pub privileged_accounts: Option<Vec<Addr>>,
+    pub op_mode: ContractOperationMode,
     pub holder_addr: Addr,
     pub lp_config: LpConfig,
     pub provided_liquidity_info: ProvidedLiquidityInfo,
@@ -268,12 +270,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub(crate) fn query_privileged_accounts(&mut self) -> Option<Vec<Addr>> {
+    pub(crate) fn query_op_mode(&mut self) -> ContractOperationMode {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.liquid_pooler_addr.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
+                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }

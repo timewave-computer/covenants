@@ -6,6 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     WasmMsg,
 };
+use covenant_utils::op_mode::ContractOperationModeConfig;
 use covenant_utils::split::SplitConfig;
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, DestinationConfig};
 use cw2::set_contract_version;
@@ -215,7 +216,9 @@ pub fn instantiate(
         LS_FORWARDER_ADDR.save(deps.storage, &ls_forwarder_instantiate2_config.addr)?;
         clock_initial_queue.insert(0, ls_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            privileged_accounts: vec![clock_instantiate2_config.addr.to_string()].into(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+                .addr
+                .to_string()]),
             next_contract: liquid_staker_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id,
             remote_chain_channel_id: config.party_to_host_chain_channel_id,
@@ -236,7 +239,9 @@ pub fn instantiate(
         LP_FORWARDER_ADDR.save(deps.storage, &lp_forwarder_instantiate2_config.addr)?;
         clock_initial_queue.insert(0, lp_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            privileged_accounts: vec![clock_instantiate2_config.addr.to_string()].into(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+                .addr
+                .to_string()]),
             next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id,
             remote_chain_channel_id: config.party_to_host_chain_channel_id,

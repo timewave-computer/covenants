@@ -6,7 +6,10 @@ use cosmwasm_std::{
     to_json_binary, Binary, CanonicalAddr, Deps, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult, WasmMsg,
 };
-use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits};
+use covenant_utils::{
+    instantiate2_helper::get_instantiate2_salt_and_address, op_mode::ContractOperationModeConfig,
+    split::remap_splits,
+};
 use cw2::set_contract_version;
 use valence_ibc_forwarder::msg::InstantiateMsg as IbcForwarderInstantiateMsg;
 use valence_two_party_pol_holder::msg::{RagequitConfig, TwoPartyPolCovenantConfig};
@@ -194,7 +197,9 @@ pub fn instantiate(
             .save(deps.storage, &party_a_forwarder_instantiate2_config.addr)?;
         clock_initial_queue.push(party_a_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            privileged_accounts: vec![clock_instantiate2_config.addr.to_string()].into(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+                .addr
+                .to_string()]),
             next_contract: holder_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id.to_string(),
             remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
@@ -227,7 +232,9 @@ pub fn instantiate(
             .save(deps.storage, &party_b_forwarder_instantiate2_config.addr)?;
         clock_initial_queue.push(party_b_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            privileged_accounts: vec![clock_instantiate2_config.addr.to_string()].into(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+                .addr
+                .to_string()]),
             next_contract: holder_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id.to_string(),
             remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),

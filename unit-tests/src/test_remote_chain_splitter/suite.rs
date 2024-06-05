@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{Addr, Coin, Uint128, Uint64};
-use covenant_utils::{neutron::RemoteChainInfo, split::SplitConfig};
+use covenant_utils::{
+    neutron::RemoteChainInfo, op_mode::ContractOperationModeConfig, split::SplitConfig,
+};
 use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
@@ -45,7 +47,7 @@ impl Default for RemoteChainSplitterBuilder {
         );
 
         let default_forwarder_instantiate_msg = valence_ibc_forwarder::msg::InstantiateMsg {
-            privileged_accounts: vec![clock_addr.to_string()].into(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             next_contract: clock_addr.to_string(),
             remote_chain_connection_id: "connection-0".to_string(),
             remote_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),

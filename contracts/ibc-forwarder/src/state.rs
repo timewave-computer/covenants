@@ -1,9 +1,8 @@
-use std::collections::HashSet;
-
 use cosmwasm_std::{from_json, to_json_vec, Addr, Binary, StdError, StdResult, Storage, Uint128};
 use covenant_utils::{
     ica::IcaStateHelper,
     neutron::{RemoteChainInfo, SudoPayload},
+    op_mode::ContractOperationMode,
 };
 use cw_storage_plus::{Item, Map};
 
@@ -12,7 +11,8 @@ use crate::msg::ContractState;
 /// tracks the current state of state machine
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
-pub const PRIVILEGED_ACCOUNTS: Item<Option<HashSet<Addr>>> = Item::new("privileged_accounts");
+pub const CONTRACT_OP_MODE: Item<ContractOperationMode> = Item::new("contract_op_mode");
+
 pub const TRANSFER_AMOUNT: Item<Uint128> = Item::new("transfer_amount");
 
 pub const NEXT_CONTRACT: Item<Addr> = Item::new("next_contract");
