@@ -1,6 +1,6 @@
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
-use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
+use covenant_utils::{op_mode::ContractOperationModeConfig, PoolPriceConfig, SingleSideLpLimits};
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
 
@@ -51,7 +51,7 @@ impl Default for SinglePartyHolderBuilder {
 
         let liquid_pooler_instantiate_msg = valence_astroport_liquid_pooler::msg::InstantiateMsg {
             pool_address: pool_addr.to_string(),
-            privileged_accounts: vec![clock_addr.to_string()].into(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             slippage_tolerance: None,
             assets: valence_astroport_liquid_pooler::msg::AssetData {
                 asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),

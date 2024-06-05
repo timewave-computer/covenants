@@ -6,7 +6,7 @@ use cosmwasm_std::{
 };
 use covenant_utils::{
     astroport::query_astro_pool_token,
-    privileged_accounts::{validate_privileged_accounts, verify_caller},
+    op_mode::{verify_caller, ContractOperationMode},
     withdraw_lp_helper::WithdrawLPMsgs,
 };
 use cw2::set_contract_version;
@@ -30,7 +30,7 @@ use crate::{
 
 use neutron_sdk::NeutronResult;
 
-use crate::state::{CONTRACT_STATE, PRIVILEGED_ACCOUNTS};
+use crate::state::{CONTRACT_OP_MODE, CONTRACT_STATE};
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -48,8 +48,7 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let privileged_accounts =
-        validate_privileged_accounts(deps.api, msg.privileged_accounts.clone())?;
+    let op_mode = ContractOperationMode::try_init(deps.api, msg.op_mode_cfg.clone())?;
 
     // validate the contract addresses
     let pool_addr = deps.api.addr_validate(&msg.pool_address)?;
@@ -69,7 +68,7 @@ pub fn instantiate(
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
     // store the relevant module addresses
-    PRIVILEGED_ACCOUNTS.save(deps.storage, &privileged_accounts)?;
+    CONTRACT_OP_MODE.save(deps.storage, &op_mode)?;
     HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
 
     let decimal_range = DecimalRange::try_from(
@@ -98,7 +97,7 @@ pub fn instantiate(
 
     Ok(Response::default()
         .add_attribute("method", "lp_instantiate")
-        .add_attribute("privileged_accounts", format!("{:?}", privileged_accounts))
+        .add_attribute("op_mode", format!("{:?}", op_mode))
         .add_attributes(lp_config.to_response_attributes()))
 }
 
@@ -218,7 +217,7 @@ fn try_withdraw(
 
 /// attempts to advance the state machine. performs `info.sender` validation.
 fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    verify_caller(&info.sender, &PRIVILEGED_ACCOUNTS.load(deps.storage)?)?;
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -551,9 +550,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ProvidedLiquidityInfo {} => Ok(to_json_binary(
             &PROVIDED_LIQUIDITY_INFO.load(deps.storage)?,
         )?),
-        QueryMsg::PrivilegedAccounts {} => Ok(to_json_binary(
-            &PRIVILEGED_ACCOUNTS.may_load(deps.storage)?,
-        )?),
+        QueryMsg::OperationMode {} => {
+            Ok(to_json_binary(&CONTRACT_OP_MODE.may_load(deps.storage)?)?)
+        }
     }
 }
 
@@ -561,19 +560,18 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> NeutronResult<Response> {
     match msg {
         MigrateMsg::UpdateConfig {
-            privileged_accounts,
+            op_mode,
             holder_address,
             lp_config,
         } => {
             let mut response = Response::default().add_attribute("method", "update_config");
 
-            if let Some(privileged_accounts) = privileged_accounts {
-                let updated_privileged_accounts =
-                    validate_privileged_accounts(deps.api, privileged_accounts.clone())
-                        .map_err(|err| StdError::generic_err(err.to_string()))?;
-                PRIVILEGED_ACCOUNTS.save(deps.storage, &updated_privileged_accounts)?;
-                response = response
-                    .add_attribute("privileged_accounts", format!("{:?}", privileged_accounts));
+            if let Some(op_mode_cfg) = op_mode {
+                let updated_op_mode = ContractOperationMode::try_init(deps.api, op_mode_cfg)
+                    .map_err(|err| StdError::generic_err(err.to_string()))?;
+
+                CONTRACT_OP_MODE.save(deps.storage, &updated_op_mode)?;
+                response = response.add_attribute("op_mode", format!("{:?}", updated_op_mode));
             }
 
             if let Some(holder_address) = holder_address {

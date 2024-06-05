@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{Addr, Coin, Uint128, Uint64};
-use covenant_utils::neutron::RemoteChainInfo;
+use covenant_utils::{
+    neutron::RemoteChainInfo,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+};
 use cw_multi_test::{AppResponse, Executor};
 use cw_storage_plus::KeyDeserialize;
 
@@ -46,7 +49,7 @@ impl IbcForwarderBuilder {
         );
 
         let next_contract_instantiate = IbcForwarderInstantiate::default(
-            vec![clock_addr.to_string()].into(),
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             clock_addr.to_string(),
             Some(builder.get_random_addr().to_string()),
         );
@@ -58,7 +61,7 @@ impl IbcForwarderBuilder {
         );
 
         let ibc_forwarder_instantiate = IbcForwarderInstantiate::default(
-            vec![clock_addr.to_string()].into(),
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             next_contract_addr.to_string(),
             Some(builder.get_random_addr().to_string()),
         );
@@ -101,9 +104,8 @@ impl IbcForwarderBuilder {
         self
     }
 
-    pub fn with_privileged_accounts(mut self, privileged_accounts: Option<Vec<String>>) -> Self {
-        self.instantiate_msg
-            .with_privileged_accounts(privileged_accounts);
+    pub fn with_op_mode(mut self, op_mode: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(op_mode);
         self
     }
 
@@ -127,13 +129,13 @@ impl IbcForwarderBuilder {
             &[],
         );
 
-        let privileged_accounts: Option<Vec<Addr>> = self
+        let op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 ibc_forwarder_address.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
+                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
 
@@ -172,7 +174,7 @@ impl IbcForwarderBuilder {
             faucet: self.builder.faucet,
             admin: self.builder.admin,
             clock_addr: self.clock_addr,
-            privileged_accounts,
+            op_mode,
             ibc_forwarder: ibc_forwarder_address,
             remote_chain_info,
             deposit_address,
@@ -188,7 +190,7 @@ pub struct Suite {
     pub faucet: Addr,
     pub admin: Addr,
     pub clock_addr: Addr,
-    pub privileged_accounts: Option<Vec<Addr>>,
+    pub op_mode: ContractOperationMode,
     pub ibc_forwarder: Addr,
     pub remote_chain_info: RemoteChainInfo,
     pub deposit_address: Option<String>,
@@ -216,12 +218,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub(crate) fn query_privileged_accounts(&mut self) -> Option<Vec<Addr>> {
+    pub(crate) fn query_op_mode(&mut self) -> ContractOperationMode {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.ibc_forwarder.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
+                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }

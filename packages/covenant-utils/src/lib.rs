@@ -17,8 +17,8 @@ pub mod ica;
 pub mod instantiate2_helper;
 pub mod liquid_pooler_withdraw;
 pub mod neutron;
+pub mod op_mode;
 pub mod polytone;
-pub mod privileged_accounts;
 pub mod split;
 pub mod withdraw_lp_helper;
 

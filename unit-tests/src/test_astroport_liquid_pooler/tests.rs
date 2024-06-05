@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{coin, coins, Addr, Decimal, Event, Uint128};
-use covenant_utils::PoolPriceConfig;
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    PoolPriceConfig,
+};
 use cw_multi_test::Executor;
 use valence_astroport_liquid_pooler::msg::{AssetData, ProvidedLiquidityInfo};
 
@@ -13,14 +16,14 @@ use crate::setup::{
 use super::suite::AstroLiquidPoolerBuilder;
 
 #[test]
-fn test_instantiate_with_valid_privileged_accounts() {
+fn test_instantiate_with_valid_op_mode() {
     let _suite = AstroLiquidPoolerBuilder::default().build();
 }
 
 #[test]
 fn test_instantiate_in_permissionless_mode() {
     let _suite = AstroLiquidPoolerBuilder::default()
-        .with_privileged_accounts(None)
+        .with_op_mode(ContractOperationModeConfig::Permissionless)
         .build();
 }
 
@@ -28,7 +31,9 @@ fn test_instantiate_in_permissionless_mode() {
 #[should_panic]
 fn test_instantiate_validates_privileged_accounts() {
     AstroLiquidPoolerBuilder::default()
-        .with_privileged_accounts(vec!["some contract".to_string()].into())
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![
+            "some contract".to_string(),
+        ]))
         .build();
 }
 
@@ -36,12 +41,12 @@ fn test_instantiate_validates_privileged_accounts() {
 #[should_panic]
 fn test_instantiate_validates_empty_privileged_accounts() {
     AstroLiquidPoolerBuilder::default()
-        .with_privileged_accounts(vec![].into())
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![]))
         .build();
 }
 
 #[test]
-#[should_panic(expected = "Unauthorized")]
+#[should_panic(expected = "Contract operation unauthorized")]
 fn test_tick_rejects_unprivileged_account() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
     let admin_addr = suite.admin.clone();
@@ -243,7 +248,7 @@ fn test_withdraw_no_percentage_defaults_to_full_position() {
 }
 
 #[test]
-#[should_panic(expected = "Unauthorized")]
+#[should_panic(expected = "Contract operation unauthorized")]
 fn test_tick_unauthorized() {
     let mut suite = AstroLiquidPoolerBuilder::default().build();
     let unauthorized_sender = suite.admin.clone();
@@ -839,7 +844,9 @@ fn test_migrate_update_config() {
             Addr::unchecked(ADMIN),
             liquid_pooler,
             &valence_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
-                privileged_accounts: Some(vec![holder.to_string()].into()),
+                op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+                    holder.to_string()
+                ])),
                 holder_address: Some(clock.to_string()),
                 lp_config: Some(Box::new(lp_config)),
             },
@@ -849,12 +856,15 @@ fn test_migrate_update_config() {
 
     let lp_config = suite.query_lp_config();
     let holder_address = suite.query_holder_address();
-    let privileged_accounts = suite.query_privileged_accounts();
+    let op_mode = suite.query_op_mode();
     let contract_state = suite.query_contract_state();
 
     assert_eq!(lp_config.pair_type, astroport::factory::PairType::Xyk {});
     assert_eq!(holder_address, clock);
-    assert_eq!(privileged_accounts, Some(vec![holder]));
+    assert_eq!(
+        op_mode,
+        ContractOperationMode::Permissioned(vec![holder].into())
+    );
     assert_eq!(
         contract_state,
         valence_astroport_liquid_pooler::msg::ContractState::Instantiated {}

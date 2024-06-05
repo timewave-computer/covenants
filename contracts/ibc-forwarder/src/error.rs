@@ -1,4 +1,5 @@
 use cosmwasm_std::StdError;
+use covenant_utils::op_mode::ContractOperationError;
 use neutron_sdk::NeutronError;
 use thiserror::Error;
 
@@ -22,8 +23,8 @@ pub enum ContractError {
     #[error("Attempt to distribute duplicate denoms via fallback distribution")]
     DuplicateDenomDistribution {},
 
-    #[error("Invalid privileged accounts")]
-    InvalidPrivilegedAccounts,
+    #[error(transparent)]
+    ContractOperationError(#[from] ContractOperationError),
 }
 
 impl From<ContractError> for NeutronError {

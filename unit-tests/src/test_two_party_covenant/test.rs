@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint64};
+use covenant_utils::op_mode::{ContractOperationMode, ContractOperationModeConfig};
 
 use crate::setup::{base_suite::BaseSuiteMut, DENOM_ATOM, DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
@@ -124,7 +125,9 @@ fn test_migrate_update_config_party_a_interchain() {
     };
     let astro_liquid_pooler_migrate_msg =
         valence_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
-            privileged_accounts: Some(vec![random_address.to_string()].into()),
+            op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+                random_address.to_string(),
+            ])),
             holder_address: None,
             lp_config: None,
         };
@@ -152,7 +155,9 @@ fn test_migrate_update_config_party_a_interchain() {
         party_b_native_router_migrate_msg.clone(),
     );
     let party_a_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-        privileged_accounts: Some(vec![random_address.to_string()].into()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            random_address.to_string(),
+        ])),
         next_contract: None,
         remote_chain_info: None.into(),
         transfer_amount: None,
@@ -230,16 +235,16 @@ fn test_migrate_update_config_party_a_interchain() {
         .unwrap();
     assert_eq!(holder_clock_address, random_address);
 
-    let liquid_pooler_privileged_accounts: Option<Vec<String>> = app
+    let liquid_pooler_op_mode: ContractOperationMode = app
         .wrap()
         .query_wasm_smart(
             liquid_pooler_address,
-            &valence_astroport_liquid_pooler::msg::QueryMsg::PrivilegedAccounts {},
+            &valence_astroport_liquid_pooler::msg::QueryMsg::OperationMode {},
         )
         .unwrap();
     assert_eq!(
-        liquid_pooler_privileged_accounts,
-        Some(vec![random_address.to_string()])
+        liquid_pooler_op_mode,
+        ContractOperationMode::Permissioned(vec![random_address.clone()].into())
     );
 
     let party_a_router_clock_address: Addr = app
@@ -260,16 +265,16 @@ fn test_migrate_update_config_party_a_interchain() {
         .unwrap();
     assert_eq!(party_b_router_clock_address, random_address);
 
-    let party_a_forwarder_privileged_accounts: Option<Vec<_>> = app
+    let party_a_forwarder_op_mode: ContractOperationMode = app
         .wrap()
         .query_wasm_smart(
             party_a_forwarder_address,
-            &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
+            &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
         )
         .unwrap();
     assert_eq!(
-        party_a_forwarder_privileged_accounts,
-        Some(vec![random_address])
+        party_a_forwarder_op_mode,
+        ContractOperationMode::Permissioned(vec![random_address].into())
     );
 
     assert_eq!(new_contract_codes, contract_codes);
@@ -320,7 +325,9 @@ fn test_migrate_update_config_party_b_interchain() {
     };
     let astro_liquid_pooler_migrate_msg =
         valence_astroport_liquid_pooler::msg::MigrateMsg::UpdateConfig {
-            privileged_accounts: Some(vec![random_address.to_string()].into()),
+            op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+                random_address.to_string(),
+            ])),
             holder_address: None,
             lp_config: None,
         };
@@ -348,7 +355,9 @@ fn test_migrate_update_config_party_b_interchain() {
         party_a_native_router_migrate_msg.clone(),
     );
     let party_b_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-        privileged_accounts: Some(vec![random_address.to_string()].into()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            random_address.to_string(),
+        ])),
         next_contract: None,
         remote_chain_info: None.into(),
         transfer_amount: None,
@@ -437,16 +446,16 @@ fn test_migrate_update_config_party_b_interchain() {
         .unwrap();
     assert_eq!(holder_clock_address, random_address);
 
-    let liquid_pooler_privileged_accounts: Option<Vec<String>> = app
+    let liquid_pooler_op_mode: ContractOperationMode = app
         .wrap()
         .query_wasm_smart(
             liquid_pooler_address,
-            &valence_astroport_liquid_pooler::msg::QueryMsg::PrivilegedAccounts {},
+            &valence_astroport_liquid_pooler::msg::QueryMsg::OperationMode {},
         )
         .unwrap();
     assert_eq!(
-        liquid_pooler_privileged_accounts,
-        Some(vec![random_address.to_string()])
+        liquid_pooler_op_mode,
+        ContractOperationMode::Permissioned(vec![random_address.clone()].into())
     );
 
     let party_b_router_clock_address: Addr = app
@@ -467,16 +476,16 @@ fn test_migrate_update_config_party_b_interchain() {
         .unwrap();
     assert_eq!(party_a_router_clock_address, random_address);
 
-    let party_b_forwarder_privileged_accounts: Option<Vec<_>> = app
+    let party_b_forwarder_op_mode: ContractOperationMode = app
         .wrap()
         .query_wasm_smart(
             party_b_forwarder_address,
-            &valence_ibc_forwarder::msg::QueryMsg::PrivilegedAccounts {},
+            &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
         )
         .unwrap();
     assert_eq!(
-        party_b_forwarder_privileged_accounts,
-        Some(vec![random_address])
+        party_b_forwarder_op_mode,
+        ContractOperationMode::Permissioned(vec![random_address].into())
     );
     assert_eq!(new_contract_codes, contract_codes);
 }
