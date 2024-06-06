@@ -427,12 +427,16 @@ fn test_valence_native_refund() {
     suite.tick_contract(suite.holder_addr.clone());
 
     // Tick until receiver_a gets his split
-    while suite.query_all_balances(&suite.party_a_receiver).is_empty() {
+    while suite.query_all_balances(&suite.party_a_receiver).is_empty()
+        || suite.query_all_balances(&suite.party_a_receiver) == [init_ntrn_router_balance.clone()]
+    {
         suite.tick("Wait for receiver_a to get his split");
     }
 
     // Tick until receiver_b gets his split
-    while suite.query_all_balances(&suite.party_b_receiver).is_empty() {
+    while suite.query_all_balances(&suite.party_b_receiver).is_empty()
+        || suite.query_all_balances(&suite.party_b_receiver) == [init_ntrn_router_balance.clone()]
+    {
         suite.tick("Wait for receiver_b to get his split");
     }
 
