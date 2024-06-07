@@ -3,8 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Binary, Coin, StdResult, Uint64, WasmMsg};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty,
-    DestinationConfig, InterchainCovenantParty, NativeCovenantParty, ReceiverConfig,
+    instantiate2_helper::Instantiate2HelperConfig, op_mode::ContractOperationModeConfig,
+    split::SplitConfig, CovenantParty, DestinationConfig, InterchainCovenantParty,
+    NativeCovenantParty, ReceiverConfig,
 };
 use cw_utils::Expiration;
 
@@ -117,7 +118,9 @@ impl CovenantPartyConfig {
             }
             CovenantPartyConfig::Native(party) => {
                 let instantiate_msg = valence_native_router::msg::InstantiateMsg {
-                    clock_address: clock_addr.to_string(),
+                    op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![
+                        clock_addr.to_string()
+                    ]),
                     receiver_address: party.party_receiver_addr.to_string(),
                     denoms: covenant_denoms,
                 };

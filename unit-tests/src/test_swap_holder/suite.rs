@@ -11,7 +11,9 @@ use crate::setup::{
     SWAP_HOLDER_SALT,
 };
 use cosmwasm_std::{Addr, Decimal};
-use covenant_utils::{split::SplitConfig, CovenantPartiesConfig, CovenantTerms};
+use covenant_utils::{
+    op_mode::ContractOperationModeConfig, split::SplitConfig, CovenantPartiesConfig, CovenantTerms,
+};
 use cw_utils::Expiration;
 use valence_swap_holder::msg::RefundConfig;
 
@@ -61,7 +63,9 @@ impl Default for SwapHolderBuilder {
             builder.native_router_code_id,
             "party_a",
             &valence_native_router::msg::InstantiateMsg {
-                clock_address: clock_addr.to_string(),
+                op_mode_cfg: ContractOperationModeConfig::Permissioned(
+                    vec![clock_addr.to_string()],
+                ),
                 receiver_address: party_a_controller_addr.to_string(),
                 denoms: denom_set.clone(),
             },
@@ -71,7 +75,9 @@ impl Default for SwapHolderBuilder {
             builder.native_router_code_id,
             "party_b",
             &valence_native_router::msg::InstantiateMsg {
-                clock_address: clock_addr.to_string(),
+                op_mode_cfg: ContractOperationModeConfig::Permissioned(
+                    vec![clock_addr.to_string()],
+                ),
                 receiver_address: party_b_controller_addr.to_string(),
                 denoms: denom_set.clone(),
             },

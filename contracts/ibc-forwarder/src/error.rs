@@ -8,8 +8,8 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("Unauthorized")]
-    Unauthorized {},
+    #[error(transparent)]
+    ContractOperationError(#[from] ContractOperationError),
 
     #[error("Next contract is not ready for receiving the funds yet")]
     DepositAddressNotAvailable {},
@@ -22,9 +22,6 @@ pub enum ContractError {
 
     #[error("Attempt to distribute duplicate denoms via fallback distribution")]
     DuplicateDenomDistribution {},
-
-    #[error(transparent)]
-    ContractOperationError(#[from] ContractOperationError),
 }
 
 impl From<ContractError> for NeutronError {

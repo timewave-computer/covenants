@@ -17,6 +17,9 @@ pub enum ContractError {
     #[error(transparent)]
     DecimalRangeExceeded(#[from] DecimalRangeExceeded),
 
+    #[error(transparent)]
+    ContractOperationError(#[from] ContractOperationError),
+
     #[error("Single side LP limit exceeded")]
     SingleSideLpLimitError {},
 
@@ -49,7 +52,4 @@ pub enum ContractError {
 
     #[error("Withdraw percentage range must belong to range (0.0, 1.0]")]
     WithdrawPercentageRangeError {},
-
-    #[error(transparent)]
-    ContractOperationError(#[from] ContractOperationError),
 }

@@ -147,7 +147,9 @@ fn test_migrate_update_config_party_a_interchain() {
             party_a_interchain_router_migrate_msg.clone(),
         );
     let party_b_native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(random_address.to_string()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            random_address.to_string(),
+        ])),
         receiver_address: None,
         target_denoms: None,
     };
@@ -256,14 +258,17 @@ fn test_migrate_update_config_party_a_interchain() {
         .unwrap();
     assert_eq!(party_a_router_clock_address, random_address);
 
-    let party_b_router_clock_address: Addr = app
+    let party_b_router_op_mode: ContractOperationMode = app
         .wrap()
         .query_wasm_smart(
             party_b_router_address,
-            &valence_native_router::msg::QueryMsg::ClockAddress {},
+            &valence_native_router::msg::QueryMsg::OperationMode {},
         )
         .unwrap();
-    assert_eq!(party_b_router_clock_address, random_address);
+    assert_eq!(
+        party_b_router_op_mode,
+        ContractOperationMode::Permissioned(vec![random_address.clone()].into())
+    );
 
     let party_a_forwarder_op_mode: ContractOperationMode = app
         .wrap()
@@ -347,7 +352,9 @@ fn test_migrate_update_config_party_b_interchain() {
             party_b_interchain_router_migrate_msg.clone(),
         );
     let party_a_native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(random_address.to_string()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            random_address.to_string(),
+        ])),
         receiver_address: None,
         target_denoms: None,
     };
@@ -467,14 +474,17 @@ fn test_migrate_update_config_party_b_interchain() {
         .unwrap();
     assert_eq!(party_b_router_clock_address, random_address);
 
-    let party_a_router_clock_address: Addr = app
+    let party_a_router_op_mode: ContractOperationMode = app
         .wrap()
         .query_wasm_smart(
-            party_a_router_address,
-            &valence_native_router::msg::QueryMsg::ClockAddress {},
+            party_a_router_address.clone(),
+            &valence_native_router::msg::QueryMsg::OperationMode {},
         )
         .unwrap();
-    assert_eq!(party_a_router_clock_address, random_address);
+    assert_eq!(
+        party_a_router_op_mode,
+        ContractOperationMode::Permissioned(vec![random_address.clone()].into())
+    );
 
     let party_b_forwarder_op_mode: ContractOperationMode = app
         .wrap()
