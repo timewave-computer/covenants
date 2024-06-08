@@ -1877,7 +1877,6 @@ dependencies = [
  "serde",
  "serde-json-wasm 0.4.1",
  "thiserror",
- "valence-clock",
 ]
 
 [[package]]
