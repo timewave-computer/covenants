@@ -32,12 +32,8 @@ impl Default for RemoteChainSplitterBuilder {
             builder.get_contract_addr(builder.ibc_forwarder_code_id, "forwarder_b");
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
-            whitelist: vec![
-                remote_chain_splitter_addr.to_string(),
-                forwarder_a_addr.to_string(),
-                forwarder_b_addr.to_string(),
-            ],
-            initial_queue: vec![],
+            whitelist: vec![remote_chain_splitter_addr.to_string()],
+            initial_queue: vec![forwarder_a_addr.to_string(), forwarder_b_addr.to_string()],
         };
         builder.contract_init2(
             builder.clock_code_id,

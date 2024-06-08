@@ -1,5 +1,8 @@
 use cosmwasm_std::{coin, coins, Addr, Event, Uint128};
-use covenant_utils::{CovenantTerms, SwapCovenantTerms};
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    CovenantTerms, SwapCovenantTerms,
+};
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
 use valence_swap_holder::msg::{ContractState, RefundConfig};
@@ -20,10 +23,32 @@ fn test_instantiate_validates_next_contract() {
 }
 
 #[test]
+fn test_instantiate_with_valid_op_mode() {
+    let _suite = SwapHolderBuilder::default().build();
+}
+
+#[test]
+fn test_instantiate_in_permissionless_mode() {
+    let _suite = SwapHolderBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissionless)
+        .build();
+}
+
+#[test]
 #[should_panic]
-fn test_instantiate_validates_clock_address() {
+fn test_instantiate_validates_privileged_accounts() {
     SwapHolderBuilder::default()
-        .with_clock_address("invalid_address")
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![
+            "some contract".to_string(),
+        ]))
+        .build();
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_validates_empty_privileged_accounts() {
+    SwapHolderBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![]))
         .build();
 }
 
@@ -60,7 +85,7 @@ fn test_instantiate_validates_party_b_refund_addr() {
 }
 
 #[test]
-#[should_panic(expected = "Caller is not the clock, only clock can tick contracts")]
+#[should_panic(expected = "Contract operation unauthorized")]
 fn test_execute_tick_validates_clock() {
     let mut suite = SwapHolderBuilder::default().build();
 
@@ -213,7 +238,7 @@ fn test_execute_tick_on_complete_noop() {
 fn test_migrate_update_config() {
     let mut suite = SwapHolderBuilder::default().build();
 
-    let clock_address = suite.query_clock_address();
+    let clock_address = suite.clock_addr.clone();
     let next_contract = suite.query_next_contract();
     let mut parties_config = suite.query_covenant_parties_config();
     parties_config.party_a.native_denom = "new_native_denom".to_string();
@@ -233,7 +258,9 @@ fn test_migrate_update_config() {
             Addr::unchecked(ADMIN),
             suite.holder.clone(),
             &valence_swap_holder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: Some(next_contract.to_string()),
+                op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+                    next_contract.to_string(),
+                ])),
                 next_contract: Some(clock_address.to_string()),
                 lockup_config: Some(new_expiration),
                 parites_config: Box::new(Some(parties_config.clone())),
@@ -254,7 +281,10 @@ fn test_migrate_update_config() {
             .add_attribute("refund_config", format!("{new_refund_config:?}")),
     );
 
-    assert_eq!(suite.query_clock_address(), next_contract);
+    assert_eq!(
+        suite.query_op_mode(),
+        ContractOperationMode::Permissioned(vec![next_contract].into())
+    );
     assert_eq!(suite.query_next_contract(), clock_address);
     assert_eq!(suite.query_contract_state(), ContractState::Instantiated {});
     assert_eq!(
@@ -275,7 +305,7 @@ fn test_migrate_update_config_validates_lockup_config_expiration() {
             Addr::unchecked(ADMIN),
             suite.holder.clone(),
             &valence_swap_holder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: None,
+                op_mode: None,
                 next_contract: None,
                 lockup_config: Some(Expiration::AtHeight(1)),
                 parites_config: Box::new(None),

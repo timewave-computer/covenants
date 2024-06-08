@@ -1929,7 +1929,6 @@ dependencies = [
  "neutron-sdk",
  "serde",
  "thiserror",
- "valence-clock",
 ]
 
 [[package]]

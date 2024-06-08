@@ -187,7 +187,9 @@ pub fn instantiate(
             party_a_amount: msg.party_a_config.get_contribution().amount,
             party_b_amount: msg.party_b_config.get_contribution().amount,
         }),
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+            .addr
+            .to_string()]),
         next_contract: splitter_instantiate2_config.addr.to_string(),
         refund_config: RefundConfig {
             party_a_refund_address: party_a_router_instantiate2_config.addr.to_string(),

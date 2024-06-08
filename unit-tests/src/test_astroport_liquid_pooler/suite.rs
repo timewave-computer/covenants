@@ -52,8 +52,8 @@ impl Default for AstroLiquidPoolerBuilder {
 
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
-            whitelist: vec![liquid_pooler_addr.to_string()],
-            initial_queue: vec![],
+            whitelist: vec![],
+            initial_queue: vec![liquid_pooler_addr.to_string()],
         };
 
         builder.contract_init2(
@@ -275,7 +275,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.liquid_pooler_addr.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
+                &valence_astroport_liquid_pooler::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }

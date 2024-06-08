@@ -12,7 +12,9 @@ use crate::setup::{
 };
 use cosmwasm_std::{Addr, Decimal};
 use covenant_utils::{
-    op_mode::ContractOperationModeConfig, split::SplitConfig, CovenantPartiesConfig, CovenantTerms,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    split::SplitConfig,
+    CovenantPartiesConfig, CovenantTerms,
 };
 use cw_utils::Expiration;
 use valence_swap_holder::msg::RefundConfig;
@@ -20,6 +22,7 @@ use valence_swap_holder::msg::RefundConfig;
 pub struct SwapHolderBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: SwapHolderInstantiate,
+    pub clock_addr: Addr,
 }
 
 impl Default for SwapHolderBuilder {
@@ -41,13 +44,12 @@ impl Default for SwapHolderBuilder {
 
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
-            whitelist: vec![
+            whitelist: vec![native_splitter_addr.to_string()],
+            initial_queue: vec![
                 holder_addr.to_string(),
-                native_splitter_addr.to_string(),
                 party_a_router_addr.to_string(),
                 party_b_router_addr.to_string(),
             ],
-            initial_queue: vec![],
         };
         builder.contract_init2(
             builder.clock_code_id,
@@ -113,7 +115,7 @@ impl Default for SwapHolderBuilder {
         );
 
         let holder_instantiate_msg = SwapHolderInstantiate::default(
-            clock_addr.to_string(),
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             native_splitter_addr.to_string(),
             party_a_controller_addr,
             party_b_controller_addr,
@@ -124,14 +126,15 @@ impl Default for SwapHolderBuilder {
         Self {
             builder,
             instantiate_msg: holder_instantiate_msg,
+            clock_addr,
         }
     }
 }
 
 #[allow(dead_code)]
 impl SwapHolderBuilder {
-    pub fn with_clock_address(mut self, addr: &str) -> Self {
-        self.instantiate_msg.with_clock_address(addr);
+    pub fn with_op_mode(mut self, op_mode_cfg: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(op_mode_cfg);
         self
     }
 
@@ -163,13 +166,13 @@ impl SwapHolderBuilder {
             &[],
         );
 
-        let clock_addr = self
+        let op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &valence_swap_holder::msg::QueryMsg::ClockAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
 
@@ -216,7 +219,8 @@ impl SwapHolderBuilder {
         Suite {
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
-            clock_addr,
+            clock_addr: self.clock_addr,
+            op_mode,
             holder: holder_addr,
             lockup_config,
             next_contract,
@@ -279,12 +283,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_clock_address(&self) -> Addr {
-        self.get_app()
+    pub(crate) fn query_op_mode(&mut self) -> ContractOperationMode {
+        self.app
             .wrap()
             .query_wasm_smart(
                 self.holder.clone(),
-                &valence_swap_holder::msg::QueryMsg::ClockAddress {},
+                &valence_swap_holder::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }
@@ -329,6 +333,7 @@ pub struct Suite {
 
     pub holder: Addr,
     pub clock_addr: Addr,
+    pub op_mode: ContractOperationMode,
     pub lockup_config: Expiration,
     pub next_contract: Addr,
     pub covenant_parties_config: CovenantPartiesConfig,

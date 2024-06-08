@@ -34,11 +34,8 @@ impl IbcForwarderBuilder {
 
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
-            whitelist: vec![
-                ibc_forwarder_addr.to_string(),
-                next_contract_addr.to_string(),
-            ],
-            initial_queue: vec![],
+            whitelist: vec![next_contract_addr.to_string()],
+            initial_queue: vec![ibc_forwarder_addr.to_string()],
         };
 
         builder.contract_init2(

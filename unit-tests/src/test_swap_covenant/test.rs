@@ -471,7 +471,9 @@ fn test_migrate_update_with_codes() {
     };
 
     let holder_migrate_msg = valence_swap_holder::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(covenant_addr.to_string()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            covenant_addr.to_string(),
+        ])),
         next_contract: None,
         lockup_config: None,
         parites_config: Box::new(None),
