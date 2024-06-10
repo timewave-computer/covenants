@@ -98,12 +98,12 @@ pub fn instantiate(
     )?;
 
     let mut clock_whitelist = Vec::with_capacity(7);
-    clock_whitelist.push(splitter_instantiate2_config.addr.to_string());
     clock_whitelist.push(liquid_staker_instantiate2_config.addr.to_string());
     clock_whitelist.push(holder_instantiate2_config.addr.to_string());
     clock_whitelist.push(router_instantiate2_config.addr.to_string());
 
     let mut clock_initial_queue = vec![];
+    clock_initial_queue.push(splitter_instantiate2_config.addr.to_string());
     clock_initial_queue.push(liquid_pooler_instantiate2_config.addr.to_string());
 
     let mut denoms: BTreeSet<String> = BTreeSet::new();

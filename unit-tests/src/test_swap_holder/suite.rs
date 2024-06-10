@@ -100,7 +100,7 @@ impl Default for SwapHolderBuilder {
         denom_to_split_config_map.insert(DENOM_LS_ATOM_ON_NTRN.to_string(), split_config.clone());
 
         let native_splitter_instantiate_msg = valence_native_splitter::msg::InstantiateMsg {
-            clock_address: clock_addr.to_string(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             splits: denom_to_split_config_map,
             fallback_split: None,
         };

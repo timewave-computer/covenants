@@ -480,7 +480,9 @@ fn test_migrate_update_with_codes() {
     };
 
     let splitter_migrate_msg = valence_native_splitter::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(covenant_addr.to_string()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            covenant_addr.to_string(),
+        ])),
         fallback_split: None,
         splits: None,
     };

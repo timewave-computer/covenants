@@ -87,12 +87,9 @@ pub fn instantiate(
         ),
     )?;
 
-    let mut clock_whitelist = vec![
-        holder_instantiate2_config.addr.to_string(),
-        splitter_instantiate2_config.addr.to_string(),
-    ];
+    let mut clock_whitelist = vec![holder_instantiate2_config.addr.to_string()];
 
-    let mut clock_initial_queue = vec![];
+    let mut clock_initial_queue = vec![splitter_instantiate2_config.addr.to_string()];
 
     // Note: Native Router has privileged_accounts, Interchain Router doesn't yet ..
     // TODO: when both native router & interchain router have privileged_accounts, we can remove this match,
@@ -149,7 +146,9 @@ pub fn instantiate(
     );
 
     let splitter_instantiate2_msg = valence_native_splitter::msg::InstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+            .addr
+            .to_string()]),
         splits: remap_splits(
             msg.splits.clone(),
             (
