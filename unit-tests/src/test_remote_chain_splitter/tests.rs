@@ -1,7 +1,10 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, coins, Addr, Decimal, Uint128};
-use covenant_utils::{op_mode::{ContractOperationMode, ContractOperationModeConfig}, split::SplitConfig};
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    split::SplitConfig,
+};
 use cw_multi_test::Executor;
 use valence_remote_chain_splitter::msg::FallbackAddressUpdateConfig;
 
@@ -264,9 +267,9 @@ fn test_migrate_update_config() {
             Addr::unchecked(ADMIN),
             suite.splitter.clone(),
             &valence_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
-                op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
-                    suite.faucet.to_string()
-                ])),
+                op_mode: Some(ContractOperationModeConfig::Permissioned(vec![suite
+                    .faucet
+                    .to_string()])),
                 remote_chain_info: Some(remote_chain_info.clone()),
                 splits: Some(split_config.clone()),
                 fallback_address: Some(FallbackAddressUpdateConfig::ExplicitAddress(
@@ -282,7 +285,10 @@ fn test_migrate_update_config() {
     let new_split_config = suite.query_split_config();
     let fallback_addr = suite.query_fallback_address().unwrap();
 
-    assert_eq!(op_mode, ContractOperationMode::Permissioned(vec![suite.faucet.clone()].into()));
+    assert_eq!(
+        op_mode,
+        ContractOperationMode::Permissioned(vec![suite.faucet.clone()].into())
+    );
     assert_eq!(remote_chain_info, new_remote_chain_info);
     assert_eq!(split_config, new_split_config);
     assert_eq!(suite.faucet, fallback_addr);
@@ -291,8 +297,7 @@ fn test_migrate_update_config() {
 #[test]
 fn test_migrate_update_config_disable_fallback() {
     let mut builder = RemoteChainSplitterBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.clock_addr.to_string());
+    builder.instantiate_msg.msg.fallback_address = Some(builder.clock_addr.to_string());
     let mut suite = builder.build();
 
     suite
@@ -374,8 +379,7 @@ fn test_distribute_fallback_errors_without_fallback_address() {
 #[should_panic(expected = "Cannot distribute target denom via fallback distribution")]
 fn test_distribute_fallback_validates_denom() {
     let mut builder = RemoteChainSplitterBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.clock_addr.to_string());
+    builder.instantiate_msg.msg.fallback_address = Some(builder.clock_addr.to_string());
     let mut suite = builder.build();
 
     let splitter_addr = suite.splitter.clone();
@@ -403,8 +407,7 @@ fn test_distribute_fallback_validates_denom() {
 #[should_panic(expected = "must cover ibc fees to distribute fallback denoms")]
 fn test_distribute_fallback_validates_ibc_fee_coverage() {
     let mut builder = RemoteChainSplitterBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.clock_addr.to_string());
+    builder.instantiate_msg.msg.fallback_address = Some(builder.clock_addr.to_string());
     let mut suite = builder.build();
 
     let splitter_addr = suite.splitter.clone();
@@ -429,8 +432,7 @@ fn test_distribute_fallback_validates_ibc_fee_coverage() {
 #[should_panic(expected = "insufficient fees")]
 fn test_distribute_fallback_validates_insufficient_ibc_fee_coverage() {
     let mut builder = RemoteChainSplitterBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.clock_addr.to_string());
+    builder.instantiate_msg.msg.fallback_address = Some(builder.clock_addr.to_string());
     let mut suite = builder.build();
 
     let splitter_addr = suite.splitter.clone();
@@ -458,8 +460,7 @@ fn test_distribute_fallback_validates_insufficient_ibc_fee_coverage() {
 #[should_panic(expected = "Attempt to distribute duplicate denoms via fallback distribution")]
 fn test_distribute_fallback_validates_duplicate_input_denoms() {
     let mut builder = RemoteChainSplitterBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.clock_addr.to_string());
+    builder.instantiate_msg.msg.fallback_address = Some(builder.clock_addr.to_string());
     let mut suite = builder.build();
 
     let splitter_addr = suite.splitter.clone();
@@ -496,8 +497,7 @@ fn test_distribute_fallback_validates_duplicate_input_denoms() {
 #[should_panic(expected = "no ica found")]
 fn test_distribute_fallback_validates_ica_exists() {
     let mut builder = RemoteChainSplitterBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.clock_addr.to_string());
+    builder.instantiate_msg.msg.fallback_address = Some(builder.clock_addr.to_string());
     let mut suite = builder.build();
 
     // try to distribute fallback denom
@@ -510,8 +510,7 @@ fn test_distribute_fallback_validates_ica_exists() {
 #[test]
 fn test_distribute_fallback_happy() {
     let mut builder = RemoteChainSplitterBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.clock_addr.to_string());
+    builder.instantiate_msg.msg.fallback_address = Some(builder.clock_addr.to_string());
     let mut suite = builder.build();
 
     let splitter_addr = suite.splitter.clone();
