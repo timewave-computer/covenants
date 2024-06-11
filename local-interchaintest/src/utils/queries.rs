@@ -23,6 +23,7 @@ pub fn query_block_height(_chain: &ChainRequestBuilder) -> u64 {
 
     // println!("chain status query response: {:?}", block_height);
     // block_height
+    // TODO: Implement this function
     100
 }
 
