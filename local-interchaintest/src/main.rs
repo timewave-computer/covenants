@@ -151,7 +151,6 @@ fn test_all_accounts(rb: &ChainRequestBuilder) {
         let acc_type = account["@type"].as_str().unwrap_or_default();
 
         let addr: &str = match acc_type {
-            // "/cosmos.auth.v1beta1.ModuleAccount" => account["base_account"]["address"]
             "/cosmos.auth.v1beta1.ModuleAccount" => account.get("base_account").unwrap()["address"]
                 .as_str()
                 .unwrap_or_default(),
