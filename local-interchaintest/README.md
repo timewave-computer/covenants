@@ -40,33 +40,13 @@ cd local-interchain
 make install
 ```
 
-### set up path
-
-cd into this directory (`/covenants/local-interchaintest/`).
-
-for `zsh` users:
-
-```bash
-echo 'export ICTEST_HOME="$(pwd)"' >> ~/.zshrc && echo 'export PATH="$PATH:$ICTEST_HOME"' >> ~/.zshrc && source ~/.zshrc
-```
-
-for `bash` enjoyers:
-
-```bash
-echo 'export ICTEST_HOME="$(pwd)"' >> ~/.bashrc && echo 'export PATH="$PATH:$ICTEST_HOME"' >> ~/.bashrc && source ~/.bashrc
-```
-
-verify path:
-
-```bash
-echo $ICTEST_HOME #should print out the directory of local interchaintest
-```
-
 ### spinning up the env
 
 ```bash
 local-ic start neutron_gaia --api-port 42069
 ```
+
+> note: you may need to specify the ICTEST_HOME path here
 
 ### running tests
 
