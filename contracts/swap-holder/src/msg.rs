@@ -131,7 +131,7 @@ pub enum MigrateMsg {
         op_mode: Option<ContractOperationModeConfig>,
         next_contract: Option<String>,
         lockup_config: Option<Expiration>,
-        parites_config: Box<Option<CovenantPartiesConfig>>,
+        parties_config: Box<Option<CovenantPartiesConfig>>,
         covenant_terms: Option<CovenantTerms>,
         refund_config: Option<RefundConfig>,
     },

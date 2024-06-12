@@ -234,7 +234,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             op_mode,
             next_contract,
             lockup_config,
-            parites_config,
+            parties_config,
             covenant_terms,
             refund_config,
         } => {
@@ -262,9 +262,9 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
                 resp = resp.add_attribute("lockup_config", expiry_config.to_string());
             }
 
-            if let Some(parites_config) = *parites_config {
-                PARTIES_CONFIG.save(deps.storage, &parites_config)?;
-                resp = resp.add_attribute("parites_config", format!("{parites_config:?}"));
+            if let Some(parties_config) = *parties_config {
+                PARTIES_CONFIG.save(deps.storage, &parties_config)?;
+                resp = resp.add_attribute("parties_config", format!("{parties_config:?}"));
             }
 
             if let Some(covenant_terms) = covenant_terms {

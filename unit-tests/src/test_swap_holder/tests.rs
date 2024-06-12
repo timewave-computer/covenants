@@ -263,7 +263,7 @@ fn test_migrate_update_config() {
                 ])),
                 next_contract: Some(clock_address.to_string()),
                 lockup_config: Some(new_expiration),
-                parites_config: Box::new(Some(parties_config.clone())),
+                parties_config: Box::new(Some(parties_config.clone())),
                 covenant_terms: Some(new_covenant_terms.clone()),
                 refund_config: Some(new_refund_config.clone()),
             },
@@ -271,20 +271,18 @@ fn test_migrate_update_config() {
         )
         .unwrap();
 
+    let contract_op_mode = ContractOperationMode::Permissioned(vec![next_contract].into());
     resp.assert_event(
         &Event::new("wasm")
-            .add_attribute("clock_addr", next_contract.to_string())
+            .add_attribute("op_mode", format!("{:?}", contract_op_mode.clone()))
             .add_attribute("next_contract", clock_address.to_string())
             .add_attribute("lockup_config", new_expiration.to_string())
-            .add_attribute("parites_config", format!("{parties_config:?}"))
+            .add_attribute("parties_config", format!("{parties_config:?}"))
             .add_attribute("covenant_terms", format!("{new_covenant_terms:?}"))
             .add_attribute("refund_config", format!("{new_refund_config:?}")),
     );
 
-    assert_eq!(
-        suite.query_op_mode(),
-        ContractOperationMode::Permissioned(vec![next_contract].into())
-    );
+    assert_eq!(suite.query_op_mode(), contract_op_mode,);
     assert_eq!(suite.query_next_contract(), clock_address);
     assert_eq!(suite.query_contract_state(), ContractState::Instantiated {});
     assert_eq!(
@@ -308,7 +306,7 @@ fn test_migrate_update_config_validates_lockup_config_expiration() {
                 op_mode: None,
                 next_contract: None,
                 lockup_config: Some(Expiration::AtHeight(1)),
-                parites_config: Box::new(None),
+                parties_config: Box::new(None),
                 covenant_terms: None,
                 refund_config: None,
             },

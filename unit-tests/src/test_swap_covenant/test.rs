@@ -476,7 +476,7 @@ fn test_migrate_update_with_codes() {
         ])),
         next_contract: None,
         lockup_config: None,
-        parites_config: Box::new(None),
+        parties_config: Box::new(None),
         covenant_terms: None,
         refund_config: None,
     };
