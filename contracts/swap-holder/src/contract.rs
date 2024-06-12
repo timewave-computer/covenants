@@ -189,11 +189,23 @@ fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         amount,
     };
 
-    // given that we successfully forward the expected funds,
-    // we can now dequeue from the clock and complete
-    ContractState::complete_and_dequeue(deps.branch())?;
+    let mut msgs: Vec<CosmosMsg> = vec![cosmwasm_std::CosmosMsg::Bank(bank_msg)];
+    let _ = CONTRACT_OP_MODE.load(deps.storage).map(|op_mode| {
+        match op_mode {
+            ContractOperationMode::Permissioned(privileged_accounts) => {
+                // given that we successfully forward the expected funds,
+                // we can now dequeue from the clock and complete
+                for addr in privileged_accounts.to_vec() {
+                    let dequeue_msg =
+                        ContractState::complete_and_dequeue(deps.branch(), addr.as_str()).unwrap();
+                    msgs.push(cosmwasm_std::CosmosMsg::Wasm(dequeue_msg));
+                }
+            }
+            ContractOperationMode::Permissionless => {}
+        }
+    });
 
-    Ok(Response::default().add_message(bank_msg))
+    Ok(Response::default().add_messages(msgs))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Attribute, Binary, DepsMut, StdResult, WasmMsg};
+use cosmwasm_std::{to_json_binary, Attribute, Binary, DepsMut, StdError, StdResult, WasmMsg};
 use covenant_macros::{clocked, covenant_deposit_address};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig,
@@ -102,10 +102,27 @@ pub enum ContractState {
 }
 
 impl ContractState {
-    pub fn complete_and_dequeue(deps: DepsMut) -> StdResult<()> {
+    pub fn complete_and_dequeue(deps: DepsMut, privileged_addr: &str) -> Result<WasmMsg, StdError> {
         CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-        Ok(())
+        dequeue_msg(privileged_addr)
     }
+}
+
+// Local struct used for defining a Dequeue message.
+#[cw_serde]
+enum DequeueMsg {
+    /// Dequeues the message sender stopping them from receiving
+    /// ticks. Only callable if the message sender is currently
+    /// enqueued.
+    Dequeue {},
+}
+
+fn dequeue_msg(addr: &str) -> StdResult<WasmMsg> {
+    Ok(WasmMsg::Execute {
+        contract_addr: addr.to_string(),
+        msg: to_json_binary(&DequeueMsg::Dequeue {})?,
+        funds: vec![],
+    })
 }
 
 #[cw_serde]
