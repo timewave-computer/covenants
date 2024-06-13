@@ -87,9 +87,21 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    match msg {
-        ExecuteMsg::DistributeFallback { coins } => try_distribute_fallback(deps, env, info, coins),
-        ExecuteMsg::Tick {} => try_tick(deps, env, info),
+    match (msg, CONTRACT_STATE.load(deps.storage)?) {
+        // ticks coming in to ibc forwarder in Instantiaed state will attempt to register the ICA
+        (ExecuteMsg::Tick {}, ContractState::Instantiated) => {
+            verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
+            try_register_ica(deps, env)
+        }
+        // ticks coming in to ibc forwarder in IcaCreated state will attempt to forward the funds
+        (ExecuteMsg::Tick {}, ContractState::IcaCreated) => {
+            verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
+            try_forward_funds(env, deps)
+        }
+        // distributing the fallback split is permisionless and non state-dependent
+        (ExecuteMsg::DistributeFallback { coins }, _) => {
+            try_distribute_fallback(deps, env, info, coins)
+        }
     }
 }
 
@@ -181,17 +193,6 @@ fn try_distribute_fallback(
             .add_submessages(vec![sudo_msg]))
     } else {
         Err(NeutronError::Std(StdError::generic_err("no ica found")))
-    }
-}
-
-/// attempts to advance the state machine. validates the caller to be the clock.
-fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
-
-    let current_state = CONTRACT_STATE.load(deps.storage)?;
-    match current_state {
-        ContractState::Instantiated => try_register_ica(deps, env),
-        ContractState::IcaCreated => try_forward_funds(env, deps),
     }
 }
 
