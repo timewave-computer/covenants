@@ -10,12 +10,15 @@ use cosmwasm_std::{
     ensure, to_json_binary, Attribute, Binary, Deps, DepsMut, Env, Fraction, MessageInfo, Reply,
     Response, StdError, StdResult, Uint128,
 };
-use covenant_utils::ica::{
-    get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee, sudo_error,
-    sudo_open_ack, sudo_response, sudo_timeout, INTERCHAIN_ACCOUNT_ID,
-};
 use covenant_utils::neutron::{
     assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, RemoteChainInfo, SudoPayload,
+};
+use covenant_utils::{
+    clock::{enqueue_msg, verify_clock},
+    ica::{
+        get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee,
+        sudo_error, sudo_open_ack, sudo_response, sudo_timeout, INTERCHAIN_ACCOUNT_ID,
+    },
 };
 use covenant_utils::{neutron, soft_validate_remote_chain_addr};
 use cw2::set_contract_version;
@@ -24,7 +27,6 @@ use neutron_sdk::interchain_txs::helpers::get_port_id;
 use neutron_sdk::query::min_ibc_fee::MinIbcFeeResponse;
 use neutron_sdk::sudo::msg::SudoMsg;
 use neutron_sdk::NeutronError;
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::error::ContractError;
 use crate::msg::{

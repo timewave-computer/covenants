@@ -9,9 +9,10 @@ use covenant_macros::{
     clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig};
+use covenant_utils::{
+    clock::dequeue_msg, instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig,
+};
 use cw_utils::Expiration;
-use valence_clock::helpers::dequeue_msg;
 
 use crate::{error::ContractError, state::CONTRACT_STATE};
 

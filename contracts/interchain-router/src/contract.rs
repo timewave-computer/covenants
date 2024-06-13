@@ -7,6 +7,7 @@ use cosmwasm_std::{
     StdResult, Uint128,
 };
 use covenant_utils::{
+    clock::{enqueue_msg, verify_clock},
     neutron::{assert_ibc_fee_coverage, query_ibc_fee},
     soft_validate_remote_chain_addr,
 };
@@ -16,7 +17,6 @@ use neutron_sdk::{
     query::min_ibc_fee::MinIbcFeeResponse,
     NeutronError, NeutronResult,
 };
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::state::{DESTINATION_CONFIG, TARGET_DENOMS};
 use crate::{

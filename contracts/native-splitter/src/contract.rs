@@ -6,9 +6,11 @@ use cosmwasm_std::{
     ensure, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response,
     StdError, StdResult,
 };
-use covenant_utils::split::SplitConfig;
+use covenant_utils::{
+    clock::{enqueue_msg, verify_clock},
+    split::SplitConfig,
+};
 use cw2::set_contract_version;
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};

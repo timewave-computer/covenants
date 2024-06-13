@@ -18,7 +18,6 @@ library = []
 
 [dependencies]
 covenant-macros  = { workspace = true }
-valence-clock   = { workspace = true, features = ["library"] }
 covenant-utils   = { workspace = true }
 cosmwasm-schema  = { workspace = true }
 cosmwasm-std     = { workspace = true }
