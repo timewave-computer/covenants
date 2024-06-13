@@ -1816,7 +1816,6 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
- "valence-clock",
 ]
 
 [[package]]
@@ -1840,7 +1839,6 @@ dependencies = [
  "serde",
  "sha2 0.10.8",
  "thiserror",
- "valence-clock",
  "valence-outpost-osmo-liquid-pooler",
 ]
 
@@ -1877,7 +1875,6 @@ dependencies = [
  "serde",
  "serde-json-wasm 0.4.1",
  "thiserror",
- "valence-clock",
 ]
 
 [[package]]
@@ -1911,7 +1908,6 @@ dependencies = [
  "serde",
  "serde-json-wasm 0.4.1",
  "thiserror",
- "valence-clock",
 ]
 
 [[package]]
@@ -1947,7 +1943,6 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
- "valence-clock",
 ]
 
 [[package]]
