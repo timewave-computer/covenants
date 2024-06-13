@@ -27,7 +27,7 @@ use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery},
     interchain_txs::helpers::get_port_id,
     sudo::msg::SudoMsg,
-    NeutronError, NeutronResult,
+    NeutronResult,
 };
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -76,34 +76,31 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    match msg {
-        ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Transfer { amount } => {
-            let ica_address = get_ica(
+    match (msg, CONTRACT_STATE.load(deps.storage)?) {
+        // tick in Instantiated state tries to register an ICA
+        (ExecuteMsg::Tick {}, ContractState::Instantiated) => {
+            verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+            try_register_stride_ica(deps, env)
+        }
+        // tick in IcaCreated state is a no-op
+        (ExecuteMsg::Tick {}, ContractState::IcaCreated) => {
+            verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+            Ok(Response::default())
+        }
+        // in order to perform the transfer, ICA needs to be created
+        (ExecuteMsg::Transfer { .. }, ContractState::Instantiated) => {
+            Err(StdError::generic_err("ICA not created yet").into())
+        }
+        // transfer call in IcaCreated state tries to execute the transfer
+        (ExecuteMsg::Transfer { amount }, ContractState::IcaCreated) => {
+            get_ica(
                 &LiquidStakerIcaStateHelper,
                 deps.storage,
                 env.contract.address.as_ref(),
                 INTERCHAIN_ACCOUNT_ID,
-            );
-            match ica_address {
-                Ok(_) => try_execute_transfer(deps, env, info, amount),
-                Err(_) => Ok(Response::default()
-                    .add_attribute("method", "try_permisionless_transfer")
-                    .add_attribute("ica_status", "not_created")),
-            }
+            )?;
+            try_execute_transfer(deps, env, info, amount)
         }
-    }
-}
-
-/// attempts to advance the state machine. performs `info.sender` validation
-fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-    // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
-
-    let current_state = CONTRACT_STATE.load(deps.storage)?;
-    match current_state {
-        ContractState::Instantiated => try_register_stride_ica(deps, env),
-        ContractState::IcaCreated => Ok(Response::default()),
     }
 }
 
@@ -143,9 +140,9 @@ fn try_execute_transfer(
 
     // if query returns None, then we error and wait
     let Some(deposit_address) = deposit_address_query else {
-        return Err(NeutronError::Std(StdError::not_found(
+        return Err(StdError::not_found(
             "Next contract is not ready for receiving the funds yet",
-        )));
+        ).into());
     };
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);

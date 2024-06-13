@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint128, Uint64};
+use cosmwasm_std::{coin, to_json_binary, Addr, Event, StdError, Uint128, Uint64};
 use covenant_utils::{neutron::RemoteChainInfo, op_mode::ContractOperationModeConfig};
 use cw_multi_test::{AppResponse, Executor};
 
@@ -12,7 +12,7 @@ use super::suite::Suite;
 #[test]
 fn test_covenant() {
     let mut suite = Suite::new_with_stable_pool();
-    let resp: AppResponse = suite
+    suite
         .app
         .execute_contract(
             suite.admin.clone(),
@@ -22,13 +22,7 @@ fn test_covenant() {
             },
             &[],
         )
-        .unwrap();
-
-    resp.assert_event(
-        &Event::new("wasm")
-            .add_attribute("method", "try_permisionless_transfer")
-            .add_attribute("ica_status", "not_created"),
-    );
+        .unwrap_err();
 
     suite.get_and_fund_depositors(coin(1_000_000_000_000_u128, DENOM_ATOM));
 
