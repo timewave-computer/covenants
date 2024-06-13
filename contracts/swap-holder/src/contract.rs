@@ -3,6 +3,7 @@ use cosmwasm_std::{
     StdError, StdResult, Uint128,
 };
 use covenant_utils::{
+    clock::dequeue_msg,
     op_mode::{verify_caller, ContractOperationMode},
     CovenantTerms,
 };
@@ -184,6 +185,9 @@ fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         )));
     };
 
+    // Transition contract state to complete
+    ContractState::complete(deps.branch())?;
+
     let bank_msg = BankMsg::Send {
         to_address: deposit_address,
         amount,
@@ -196,8 +200,7 @@ fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 // given that we successfully forward the expected funds,
                 // we can now dequeue from the clock and complete
                 for addr in privileged_accounts.to_vec() {
-                    let dequeue_msg =
-                        ContractState::complete_and_dequeue(deps.branch(), addr.as_str()).unwrap();
+                    let dequeue_msg = dequeue_msg(addr.as_str()).unwrap();
                     msgs.push(cosmwasm_std::CosmosMsg::Wasm(dequeue_msg));
                 }
             }
