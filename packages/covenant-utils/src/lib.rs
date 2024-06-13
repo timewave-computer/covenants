@@ -12,6 +12,7 @@ use neutron_sdk::{
 };
 
 pub mod astroport;
+pub mod clock;
 pub mod deadline;
 pub mod ica;
 pub mod instantiate2_helper;
