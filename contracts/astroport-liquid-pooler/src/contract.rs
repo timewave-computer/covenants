@@ -108,9 +108,14 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match msg {
-        ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Withdraw { percentage } => try_withdraw(deps, env, info, percentage),
+    match (msg, CONTRACT_STATE.load(deps.storage)?) {
+        // if the contract is in the instantiated state, tick attempts to provide liquidity
+        (ExecuteMsg::Tick {  }, ContractState::Instantiated) => {
+            verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
+            try_lp(deps, env)
+        },
+        // withdraw can be called from any state
+        (ExecuteMsg::Withdraw { percentage }, _) => try_withdraw(deps, env, info, percentage),
     }
 }
 
@@ -213,16 +218,6 @@ fn try_withdraw(
     Ok(Response::default()
         .add_message(withdraw_msg)
         .add_message(to_holder_msg))
-}
-
-/// attempts to advance the state machine. performs `info.sender` validation.
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
-
-    let current_state = CONTRACT_STATE.load(deps.storage)?;
-    match current_state {
-        ContractState::Instantiated => try_lp(deps, env),
-    }
 }
 
 /// method which attempts to provision liquidity to the pool.
