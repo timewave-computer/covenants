@@ -98,9 +98,25 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    match msg {
-        ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::DistributeFallback { coins } => try_distribute_fallback(deps, env, info, coins),
+    match (msg, CONTRACT_STATE.load(deps.storage)?) {
+        // if the contract is in the instantiated state, we try to register the ICA
+        (ExecuteMsg::Tick {}, ContractState::Instantiated) => {
+            verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+            try_register_ica(deps, env)
+        },
+        // if the contract is in the IcaCreated state, we try to split the funds
+        (ExecuteMsg::Tick {}, ContractState::IcaCreated) => {
+            verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+            try_split_funds(deps, env)
+        },
+        // in order to distribute the fallback split, ICA needs to be created
+        (ExecuteMsg::DistributeFallback {..}, ContractState::Instantiated) => {
+            Err(StdError::generic_err("no ica found").into())
+        },
+        // if the contract is in the IcaCreated state, we try to distribute the fallback split
+        (ExecuteMsg::DistributeFallback { coins }, ContractState::IcaCreated) => {
+            try_distribute_fallback(deps, env, info, coins)
+        },
     }
 }
 
@@ -141,8 +157,8 @@ fn try_distribute_fallback(
     }
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
-    let interchain_account = INTERCHAIN_ACCOUNTS.may_load(deps.storage, port_id.clone())?;
-    if let Some(Some((address, controller_conn_id))) = interchain_account {
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
+    if let Some((address, controller_conn_id)) = interchain_account {
         let multi_send_msg = MsgMultiSend {
             inputs: vec![Input {
                 address,
@@ -189,17 +205,6 @@ fn try_distribute_fallback(
             .add_submessages(vec![sudo_msg]))
     } else {
         Err(NeutronError::Std(StdError::generic_err("no ica found")))
-    }
-}
-
-/// attempts to advance the state machine. performs `info.sender` validation
-fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-    // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
-
-    match CONTRACT_STATE.load(deps.storage)? {
-        ContractState::Instantiated => try_register_ica(deps, env),
-        ContractState::IcaCreated => try_split_funds(deps, env),
     }
 }
 
