@@ -103,20 +103,20 @@ pub fn execute(
         (ExecuteMsg::Tick {}, ContractState::Instantiated) => {
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
             try_register_ica(deps, env)
-        },
+        }
         // if the contract is in the IcaCreated state, we try to split the funds
         (ExecuteMsg::Tick {}, ContractState::IcaCreated) => {
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
             try_split_funds(deps, env)
-        },
+        }
         // in order to distribute the fallback split, ICA needs to be created
-        (ExecuteMsg::DistributeFallback {..}, ContractState::Instantiated) => {
+        (ExecuteMsg::DistributeFallback { .. }, ContractState::Instantiated) => {
             Err(StdError::generic_err("no ica found").into())
-        },
+        }
         // if the contract is in the IcaCreated state, we try to distribute the fallback split
         (ExecuteMsg::DistributeFallback { coins }, ContractState::IcaCreated) => {
             try_distribute_fallback(deps, env, info, coins)
-        },
+        }
     }
 }
 

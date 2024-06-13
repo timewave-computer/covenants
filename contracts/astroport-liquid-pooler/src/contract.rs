@@ -110,10 +110,10 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match (msg, CONTRACT_STATE.load(deps.storage)?) {
         // if the contract is in the instantiated state, tick attempts to provide liquidity
-        (ExecuteMsg::Tick {  }, ContractState::Instantiated) => {
+        (ExecuteMsg::Tick {}, ContractState::Instantiated) => {
             verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
             try_lp(deps, env)
-        },
+        }
         // withdraw can be called from any state
         (ExecuteMsg::Withdraw { percentage }, _) => try_withdraw(deps, env, info, percentage),
     }
