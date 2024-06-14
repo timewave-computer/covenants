@@ -76,7 +76,9 @@ pub fn execute(
 ) -> NeutronResult<Response<NeutronMsg>> {
     match (CONTRACT_STATE.load(deps.storage)?, msg) {
         // tick in Instantiated state tries to register an ICA
-        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_register_stride_ica(deps, info, env),
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => {
+            try_register_stride_ica(deps, info, env)
+        }
         // tick in IcaCreated state is a no-op
         (ContractState::IcaCreated, ExecuteMsg::Tick {}) => {
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
@@ -100,7 +102,11 @@ pub fn execute(
 }
 
 /// registers an interchain account on stride with port_id associated with `INTERCHAIN_ACCOUNT_ID`
-fn try_register_stride_ica(deps: ExecuteDeps, info: MessageInfo, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_register_stride_ica(
+    deps: ExecuteDeps,
+    info: MessageInfo,
+    env: Env,
+) -> NeutronResult<Response<NeutronMsg>> {
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
     let ica_registration_fee = query_ica_registration_fee(deps.querier)?;
