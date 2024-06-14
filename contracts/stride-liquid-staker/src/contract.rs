@@ -76,23 +76,20 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    match (msg, CONTRACT_STATE.load(deps.storage)?) {
+    match (CONTRACT_STATE.load(deps.storage)?, msg) {
         // tick in Instantiated state tries to register an ICA
-        (ExecuteMsg::Tick {}, ContractState::Instantiated) => {
-            verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
-            try_register_stride_ica(deps, env)
-        }
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_register_stride_ica(deps, info, env),
         // tick in IcaCreated state is a no-op
-        (ExecuteMsg::Tick {}, ContractState::IcaCreated) => {
+        (ContractState::IcaCreated, ExecuteMsg::Tick {}) => {
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
             Ok(Response::default())
         }
         // in order to perform the transfer, ICA needs to be created
-        (ExecuteMsg::Transfer { .. }, ContractState::Instantiated) => {
+        (ContractState::Instantiated, ExecuteMsg::Transfer { .. }) => {
             Err(StdError::generic_err("ICA not created yet").into())
         }
         // transfer call in IcaCreated state tries to execute the transfer
-        (ExecuteMsg::Transfer { amount }, ContractState::IcaCreated) => {
+        (ContractState::IcaCreated, ExecuteMsg::Transfer { amount }) => {
             get_ica(
                 &LiquidStakerIcaStateHelper,
                 deps.storage,
@@ -105,7 +102,8 @@ pub fn execute(
 }
 
 /// registers an interchain account on stride with port_id associated with `INTERCHAIN_ACCOUNT_ID`
-fn try_register_stride_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_register_stride_ica(deps: ExecuteDeps, info: MessageInfo, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
     let ica_registration_fee = query_ica_registration_fee(deps.querier)?;
     let register: NeutronMsg = NeutronMsg::register_interchain_account(
