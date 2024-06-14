@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{Decimal, Uint128, Uint64};
-use covenant_utils::split::SplitConfig;
+use covenant_utils::{op_mode::ContractOperationModeConfig, split::SplitConfig};
 
 use crate::setup::{DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
@@ -16,7 +16,7 @@ impl From<RemoteChainSplitterInstantiate> for valence_remote_chain_splitter::msg
 
 impl RemoteChainSplitterInstantiate {
     pub fn new(
-        clock_address: String,
+        op_mode_cfg: ContractOperationModeConfig,
         remote_chain_connection_id: String,
         remote_chain_channel_id: String,
         denom: String,
@@ -28,7 +28,7 @@ impl RemoteChainSplitterInstantiate {
     ) -> Self {
         Self {
             msg: valence_remote_chain_splitter::msg::InstantiateMsg {
-                clock_address,
+                op_mode_cfg,
                 remote_chain_connection_id,
                 remote_chain_channel_id,
                 denom,
@@ -41,8 +41,8 @@ impl RemoteChainSplitterInstantiate {
         }
     }
 
-    pub fn with_clock_address(&mut self, addr: String) -> &mut Self {
-        self.msg.clock_address = addr;
+    pub fn with_op_mode(&mut self, op_mode: ContractOperationModeConfig) -> &mut Self {
+        self.msg.op_mode_cfg = op_mode;
         self
     }
 
@@ -88,7 +88,11 @@ impl RemoteChainSplitterInstantiate {
 }
 
 impl RemoteChainSplitterInstantiate {
-    pub fn default(clock_address: String, party_a_addr: String, party_b_addr: String) -> Self {
+    pub fn default(
+        op_mode: ContractOperationModeConfig,
+        party_a_addr: String,
+        party_b_addr: String,
+    ) -> Self {
         let mut splits = BTreeMap::new();
         splits.insert(party_a_addr.to_string(), Decimal::from_str("0.5").unwrap());
         splits.insert(party_b_addr.to_string(), Decimal::from_str("0.5").unwrap());
@@ -99,7 +103,7 @@ impl RemoteChainSplitterInstantiate {
 
         Self {
             msg: valence_remote_chain_splitter::msg::InstantiateMsg {
-                clock_address,
+                op_mode_cfg: op_mode,
                 remote_chain_connection_id: "connection-0".to_string(),
                 remote_chain_channel_id: NTRN_HUB_CHANNEL.0.to_string(),
                 denom: DENOM_ATOM_ON_NTRN.to_string(),
