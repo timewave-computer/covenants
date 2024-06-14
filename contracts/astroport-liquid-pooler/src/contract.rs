@@ -108,14 +108,11 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match (msg, CONTRACT_STATE.load(deps.storage)?) {
+    match (CONTRACT_STATE.load(deps.storage)?, msg) {
         // if the contract is in the instantiated state, tick attempts to provide liquidity
-        (ExecuteMsg::Tick {  }, ContractState::Instantiated) => {
-            verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
-            try_lp(deps, env)
-        },
-        // withdraw can be called from any state
-        (ExecuteMsg::Withdraw { percentage }, _) => try_withdraw(deps, env, info, percentage),
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_lp(deps, env, info),
+        // withdraw is state independent
+        (_, ExecuteMsg::Withdraw { percentage }) => try_withdraw(deps, env, info, percentage),
     }
 }
 
@@ -134,34 +131,31 @@ fn try_withdraw(
     let holder_addr = HOLDER_ADDRESS.load(deps.storage)?;
     ensure!(info.sender == holder_addr, ContractError::NotHolder {});
 
+    let contract_address = env.contract.address.to_string();
+
     // Query LP position of the LPer
     let lp_config = LP_CONFIG.load(deps.storage)?;
     let lp_token_info = query_astro_pool_token(
         deps.querier,
         lp_config.pool_address.to_string(),
-        env.contract.address.to_string(),
+        contract_address.to_string(),
     )?;
 
     // if no lp tokens are available, we attempt to withdraw any available denoms
     if lp_token_info.balance_response.balance.is_zero() {
         let asset_a_bal = deps.querier.query_balance(
-            env.contract.address.to_string(),
+            &contract_address,
             lp_config.asset_data.asset_a_denom.as_str(),
         )?;
         let asset_b_bal = deps.querier.query_balance(
-            env.contract.address.to_string(),
+            &contract_address,
             lp_config.asset_data.asset_b_denom.as_str(),
         )?;
 
-        let mut funds = vec![];
-
-        if !asset_a_bal.amount.is_zero() {
-            funds.push(asset_a_bal);
-        }
-
-        if !asset_b_bal.amount.is_zero() {
-            funds.push(asset_b_bal);
-        }
+        let funds: Vec<Coin> = [asset_a_bal, asset_b_bal]
+            .into_iter()
+            .filter(|coin| !coin.amount.is_zero())
+            .collect();
 
         ensure!(!funds.is_empty(), ContractError::NothingToWithdraw {});
 
@@ -224,8 +218,11 @@ fn try_withdraw(
 /// if both desired asset balances are non-zero, double sided liquidity
 /// is provided.
 /// otherwise, single-sided liquidity provision is attempted.
-fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn try_lp(mut deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
+
     let lp_config = LP_CONFIG.load(deps.storage)?;
+    let contract_address = env.contract.address.to_string();
 
     let pool_response: PoolResponse = deps
         .querier
@@ -247,13 +244,14 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     // first we query our own balances
     let coin_a = deps.querier.query_balance(
-        env.contract.address.to_string(),
+        &contract_address,
         lp_config.asset_data.asset_a_denom.as_str(),
     )?;
     let coin_b = deps.querier.query_balance(
-        env.contract.address.to_string(),
+        &contract_address,
         lp_config.asset_data.asset_b_denom.as_str(),
     )?;
+
     let assets = lp_config
         .asset_data
         .to_asset_vec(coin_a.amount, coin_b.amount);
@@ -267,8 +265,13 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 ContractError::SingleSideLpLimitError {}
             );
 
-            let single_sided_submsgs =
-                try_get_single_side_lp_submsg(deps.branch(), env, coin_b, assets, lp_config)?;
+            let single_sided_submsgs = try_get_single_side_lp_submsg(
+                deps.branch(),
+                contract_address,
+                coin_b,
+                assets,
+                lp_config,
+            )?;
             if !single_sided_submsgs.is_empty() {
                 return Ok(Response::default()
                     .add_submessages(single_sided_submsgs)
@@ -281,8 +284,13 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
                 coin_a.amount <= lp_config.single_side_lp_limits.asset_a_limit,
                 ContractError::SingleSideLpLimitError {}
             );
-            let single_sided_submsgs =
-                try_get_single_side_lp_submsg(deps.branch(), env, coin_a, assets, lp_config)?;
+            let single_sided_submsgs = try_get_single_side_lp_submsg(
+                deps.branch(),
+                contract_address,
+                coin_a,
+                assets,
+                lp_config,
+            )?;
             if !single_sided_submsgs.is_empty() {
                 return Ok(Response::default()
                     .add_submessages(single_sided_submsgs)
@@ -293,7 +301,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         (false, false) => {
             let double_sided_submsg = try_get_double_side_lp_submsg(
                 deps.branch(),
-                env,
+                contract_address,
                 (coin_a, coin_b),
                 a_to_b_ratio,
                 (pool_token_a_bal, pool_token_b_bal),
@@ -321,7 +329,7 @@ fn try_lp(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 /// the existing pool ratio.
 fn try_get_double_side_lp_submsg(
     deps: DepsMut,
-    env: Env,
+    contract_address: String,
     (token_a, token_b): (Coin, Coin),
     pool_token_ratio: Decimal,
     (pool_token_a_bal, pool_token_b_bal): (Uint128, Uint128),
@@ -358,7 +366,7 @@ fn try_get_double_side_lp_submsg(
         assets: vec![asset_a_double_sided, asset_b_double_sided],
         slippage_tolerance: lp_config.slippage_tolerance,
         auto_stake: Some(false),
-        receiver: Some(env.contract.address.to_string()),
+        receiver: Some(contract_address),
     };
 
     // update the provided amounts and leftover assets
@@ -386,7 +394,7 @@ fn try_get_double_side_lp_submsg(
 /// the calling method.
 fn try_get_single_side_lp_submsg(
     deps: DepsMut,
-    env: Env,
+    contract_address: String,
     coin: Coin,
     mut assets: Vec<Asset>,
     lp_config: LpConfig,
@@ -460,7 +468,7 @@ fn try_get_single_side_lp_submsg(
                     assets: vec![offer_asset, ask_asset],
                     slippage_tolerance: lp_config.slippage_tolerance,
                     auto_stake: Some(false),
-                    receiver: Some(env.contract.address.to_string()),
+                    receiver: Some(contract_address),
                 })?,
                 funds: vec![offer_coin, ask_coin],
             }
@@ -477,7 +485,7 @@ fn try_get_single_side_lp_submsg(
                 assets,
                 slippage_tolerance: lp_config.slippage_tolerance,
                 auto_stake: Some(false),
-                receiver: Some(env.contract.address.to_string()),
+                receiver: Some(contract_address),
             };
 
             // update the provided liquidity info
