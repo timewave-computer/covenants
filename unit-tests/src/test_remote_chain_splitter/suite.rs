@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 
 use cosmwasm_std::{Addr, Coin, Uint128, Uint64};
 use covenant_utils::{
-    neutron::RemoteChainInfo, op_mode::ContractOperationModeConfig, split::SplitConfig,
+    neutron::RemoteChainInfo,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    split::SplitConfig,
 };
 use cw_multi_test::{AppResponse, Executor};
 
@@ -16,6 +18,7 @@ use crate::setup::{
 pub struct RemoteChainSplitterBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: RemoteChainSplitterInstantiate,
+    pub clock_addr: Addr,
 }
 
 impl Default for RemoteChainSplitterBuilder {
@@ -32,8 +35,12 @@ impl Default for RemoteChainSplitterBuilder {
             builder.get_contract_addr(builder.ibc_forwarder_code_id, "forwarder_b");
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
-            whitelist: vec![remote_chain_splitter_addr.to_string()],
-            initial_queue: vec![forwarder_a_addr.to_string(), forwarder_b_addr.to_string()],
+            whitelist: vec![],
+            initial_queue: vec![
+                remote_chain_splitter_addr.to_string(),
+                forwarder_a_addr.to_string(),
+                forwarder_b_addr.to_string(),
+            ],
         };
         builder.contract_init2(
             builder.clock_code_id,
@@ -68,7 +75,7 @@ impl Default for RemoteChainSplitterBuilder {
         );
 
         let remote_chain_splitter_instantiate = RemoteChainSplitterInstantiate::default(
-            clock_addr.to_string(),
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             forwarder_a_addr.to_string(),
             forwarder_b_addr.to_string(),
         );
@@ -76,14 +83,15 @@ impl Default for RemoteChainSplitterBuilder {
         Self {
             builder,
             instantiate_msg: remote_chain_splitter_instantiate,
+            clock_addr,
         }
     }
 }
 
 #[allow(dead_code)]
 impl RemoteChainSplitterBuilder {
-    pub fn with_clock_address(mut self, addr: String) -> Self {
-        self.instantiate_msg.with_clock_address(addr);
+    pub fn with_op_mode(mut self, op_mode_cfg: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(op_mode_cfg);
         self
     }
 
@@ -131,13 +139,13 @@ impl RemoteChainSplitterBuilder {
             &[],
         );
 
-        let clock_addr = self
+        let op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 remote_chain_splitter_address.clone(),
-                &valence_remote_chain_splitter::msg::QueryMsg::ClockAddress {},
+                &valence_remote_chain_splitter::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
 
@@ -179,7 +187,8 @@ impl RemoteChainSplitterBuilder {
             splitter: remote_chain_splitter_address,
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
-            clock_addr,
+            clock_addr: self.clock_addr,
+            op_mode,
             splits,
             transfer_amount,
             remote_chain_info,
@@ -197,6 +206,7 @@ pub struct Suite {
     pub faucet: Addr,
     pub admin: Addr,
     pub clock_addr: Addr,
+    pub op_mode: ContractOperationMode,
     pub splitter: Addr,
 
     pub splits: BTreeMap<String, SplitConfig>,
@@ -208,12 +218,12 @@ pub struct Suite {
 }
 
 impl Suite {
-    pub fn query_clock_address(&self) -> Addr {
+    pub(crate) fn query_op_mode(&mut self) -> ContractOperationMode {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &valence_remote_chain_splitter::msg::QueryMsg::ClockAddress {},
+                &valence_remote_chain_splitter::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }

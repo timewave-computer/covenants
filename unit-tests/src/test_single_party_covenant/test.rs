@@ -1085,7 +1085,9 @@ fn test_migrate_update_config_with_codes() {
 
     let remote_chain_splitter_migrate_msg =
         valence_remote_chain_splitter::msg::MigrateMsg::UpdateConfig {
-            clock_addr: Some(covenant_addr.to_string()),
+            op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+                covenant_addr.to_string(),
+            ])),
             remote_chain_info: None,
             splits: None,
             fallback_address: None,
