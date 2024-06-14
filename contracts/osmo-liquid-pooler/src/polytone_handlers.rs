@@ -47,7 +47,7 @@ pub fn try_handle_callback(
     // only the note can submit a callback
     ensure!(
         info.sender == NOTE_ADDRESS.load(deps.storage)?,
-        ContractError::Unauthorized {}.to_neutron_std()
+        ContractError::Unauthorized {}
     );
 
     match msg.result {
@@ -75,8 +75,7 @@ fn process_query_callback(
         _ => Err(ContractError::PolytoneError(format!(
             "unexpected callback id: {:?}",
             initiator_msg
-        ))
-        .to_neutron_std()),
+        )).into()),
     }
 }
 
@@ -89,7 +88,7 @@ fn process_execute_callback(
     let initiator_msg: u8 = from_json(initiator_msg)?;
     let callback_result: ExecutionResponse = match execute_callback_result {
         Ok(val) => val,
-        Err(e) => return Err(ContractError::PolytoneError(e).to_neutron_std()),
+        Err(e) => return Err(ContractError::PolytoneError(e).into()),
     };
 
     match initiator_msg {
@@ -262,7 +261,7 @@ fn handle_proxy_balances_callback(
             }
             val
         }
-        Err(err) => return Err(ContractError::PolytoneError(err.error).to_neutron_std()),
+        Err(err) => return Err(ContractError::PolytoneError(err.error).into()),
     };
 
     // store the latest prices in lp config
@@ -354,31 +353,24 @@ pub fn get_proxy_query_balances_message(
     ibc_config: IbcConfig,
     callback_id: u8,
 ) -> StdResult<WasmMsg> {
-    let proxy_coin_1_balance_request: QueryRequest<Empty> =
-        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
-            address: proxy_address.to_string(),
-            denom: lp_config.party_1_denom_info.osmosis_coin.denom,
-        }
-        .into();
-    let proxy_coin_2_balance_request: QueryRequest<Empty> =
-        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
-            address: proxy_address.to_string(),
-            denom: lp_config.party_2_denom_info.osmosis_coin.denom,
-        }
-        .into();
-    let proxy_gamm_balance_request: QueryRequest<Empty> =
-        osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
-            address: proxy_address,
-            denom: lp_config.lp_token_denom,
-        }
-        .into();
+    let denoms_to_query = vec![
+        lp_config.party_1_denom_info.osmosis_coin.denom,
+        lp_config.party_2_denom_info.osmosis_coin.denom,
+        lp_config.lp_token_denom,
+    ];
+    let balance_query_requests: Vec<QueryRequest<Empty>> = denoms_to_query
+        .into_iter()
+        .map(|denom| {
+            osmosis_std::types::cosmos::bank::v1beta1::QueryBalanceRequest {
+                address: proxy_address.to_string(),
+                denom,
+            }
+            .into()
+        })
+        .collect();
 
     let polytone_query_msg_binary = get_polytone_query_msg_binary(
-        vec![
-            proxy_coin_1_balance_request,
-            proxy_coin_2_balance_request,
-            proxy_gamm_balance_request,
-        ],
+        balance_query_requests,
         CallbackRequest {
             receiver: env.contract.address.to_string(),
             msg: to_json_binary(&callback_id)?,

@@ -3,7 +3,8 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coins, ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal, Env, Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg
+    coins, ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal,
+    Env, Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 use covenant_utils::{
     polytone::get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata,
@@ -147,7 +148,12 @@ pub fn execute(
     }
 }
 
-fn try_activate(deps: ExecuteDeps, env: Env, info: MessageInfo, funding_expiration: Expiration) -> NeutronResult<Response<NeutronMsg>> {
+fn try_activate(
+    deps: ExecuteDeps,
+    env: Env,
+    info: MessageInfo,
+    funding_expiration: Expiration,
+) -> NeutronResult<Response<NeutronMsg>> {
     // the funding expiration is due, we advance the state to
     // Active. it will enable withdrawals and start pulling
     // any non-LP tokens from proxy back to this contract.
@@ -162,7 +168,12 @@ fn try_activate(deps: ExecuteDeps, env: Env, info: MessageInfo, funding_expirati
     }
 }
 
-fn try_sync_or_withdraw(deps: ExecuteDeps, env: Env, info: MessageInfo, share: Decimal) -> NeutronResult<Response<NeutronMsg>> {
+fn try_sync_or_withdraw(
+    deps: ExecuteDeps,
+    env: Env,
+    info: MessageInfo,
+    share: Decimal,
+) -> NeutronResult<Response<NeutronMsg>> {
     let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
     match lp_config.get_proxy_balances() {
         Some((party_1_bal, party_2_bal, lp_bal)) => try_withdraw(
@@ -302,7 +313,10 @@ pub fn try_withdraw(
                 },
             },
         )?,
-        funds: coins(lp_redeem_amount.u128(), lp_config.lp_token_denom.to_string()),
+        funds: coins(
+            lp_redeem_amount.u128(),
+            lp_config.lp_token_denom.to_string(),
+        ),
     }
     .into();
 

@@ -163,9 +163,10 @@ fn try_provide_liquidity(
     let min_acceptable_spot_price = config.expected_spot_price - config.acceptable_price_spread;
     let max_acceptable_spot_price = config.expected_spot_price + config.acceptable_price_spread;
 
-    if min_acceptable_spot_price > pool_spot_price || max_acceptable_spot_price < pool_spot_price {
-        return Err(ContractError::PriceRangeError {});
-    }
+    ensure!(
+        min_acceptable_spot_price <= pool_spot_price && pool_spot_price <= max_acceptable_spot_price,
+        ContractError::PriceRangeError {}
+    );
 
     // get the amounts paid of pool denoms
     let asset_1_received = Coin {
@@ -351,17 +352,19 @@ fn handle_pool_interaction_reply(deps: DepsMut, env: Env) -> Result<Response, Co
     let callback_ctx = PENDING_REPLY.load(deps.storage)?;
     PENDING_REPLY.remove(deps.storage);
 
+    let contract_addr = env.contract.address;
+
     // we query the balances of relevant denoms
     let available_gamm = deps.querier.query_balance(
-        env.contract.address.to_string(),
+        &contract_addr,
         callback_ctx.gamm_denom.to_string(),
     )?;
     let leftover_asset_1 = deps
         .querier
-        .query_balance(env.contract.address.to_string(), callback_ctx.pool_denom_1)?;
+        .query_balance(&contract_addr, callback_ctx.pool_denom_1)?;
     let leftover_asset_2 = deps
         .querier
-        .query_balance(env.contract.address.to_string(), callback_ctx.pool_denom_2)?;
+        .query_balance(&contract_addr, callback_ctx.pool_denom_2)?;
 
     // and collect them into tokens to be refunded (if any)
     let refund_tokens: Vec<Coin> = vec![available_gamm, leftover_asset_1, leftover_asset_2]
