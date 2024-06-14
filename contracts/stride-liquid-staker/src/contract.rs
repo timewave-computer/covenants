@@ -138,9 +138,9 @@ fn try_execute_transfer(
 
     // if query returns None, then we error and wait
     let Some(deposit_address) = deposit_address_query else {
-        return Err(StdError::not_found(
-            "Next contract is not ready for receiving the funds yet",
-        ).into());
+        return Err(
+            StdError::not_found("Next contract is not ready for receiving the funds yet").into(),
+        );
     };
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
