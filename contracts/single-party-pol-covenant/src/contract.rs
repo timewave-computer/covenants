@@ -188,7 +188,9 @@ pub fn instantiate(
     );
 
     let splitter_instantiate2_msg = SplitterInstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+            .addr
+            .to_string()]),
         remote_chain_channel_id: msg.remote_chain_splitter_config.channel_id,
         remote_chain_connection_id: msg.remote_chain_splitter_config.connection_id,
         denom: msg.remote_chain_splitter_config.denom.to_string(),

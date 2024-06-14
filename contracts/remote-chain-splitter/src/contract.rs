@@ -10,16 +10,14 @@ use cosmwasm_std::{
     ensure, to_json_binary, Attribute, Binary, Deps, DepsMut, Env, Fraction, MessageInfo, Reply,
     Response, StdError, StdResult, Uint128,
 };
+use covenant_utils::ica::{
+    get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee, sudo_error,
+    sudo_open_ack, sudo_response, sudo_timeout, INTERCHAIN_ACCOUNT_ID,
+};
 use covenant_utils::neutron::{
     assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, RemoteChainInfo, SudoPayload,
 };
-use covenant_utils::{
-    clock::{enqueue_msg, verify_clock},
-    ica::{
-        get_ica, msg_with_sudo_callback, prepare_sudo_payload, query_ica_registration_fee,
-        sudo_error, sudo_open_ack, sudo_response, sudo_timeout, INTERCHAIN_ACCOUNT_ID,
-    },
-};
+use covenant_utils::op_mode::{verify_caller, ContractOperationMode};
 use covenant_utils::{neutron, soft_validate_remote_chain_addr};
 use cw2::set_contract_version;
 use neutron_sdk::bindings::types::ProtobufAny;
@@ -33,7 +31,7 @@ use crate::msg::{
     ContractState, ExecuteMsg, FallbackAddressUpdateConfig, InstantiateMsg, MigrateMsg, QueryMsg,
 };
 use crate::state::{
-    RemoteChainSplitteIcaStateHelper, CLOCK_ADDRESS, CONTRACT_STATE, FALLBACK_ADDRESS,
+    RemoteChainSplitteIcaStateHelper, CONTRACT_OP_MODE, CONTRACT_STATE, FALLBACK_ADDRESS,
     INTERCHAIN_ACCOUNTS, REMOTE_CHAIN_INFO, SPLIT_CONFIG_MAP, TRANSFER_AMOUNT,
 };
 use neutron_sdk::{
@@ -58,8 +56,8 @@ pub fn instantiate(
 ) -> NeutronResult<Response<NeutronMsg>> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+    let op_mode = ContractOperationMode::try_init(deps.api, msg.op_mode_cfg.clone())?;
+    CONTRACT_OP_MODE.save(deps.storage, &op_mode)?;
 
     let remote_chain_info = RemoteChainInfo {
         connection_id: msg.remote_chain_connection_id,
@@ -86,9 +84,8 @@ pub fn instantiate(
     }
 
     Ok(Response::default()
-        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "remote_chain_splitter_instantiate")
-        .add_attribute("clock_address", clock_addr)
+        .add_attribute("op_mode", format!("{:?}", op_mode))
         .add_attributes(remote_chain_info.get_response_attributes())
         .add_attributes(split_resp_attributes))
 }
@@ -196,8 +193,7 @@ fn try_distribute_fallback(
 
 /// attempts to advance the state machine. performs `info.sender` validation
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-    // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     match CONTRACT_STATE.load(deps.storage)? {
         ContractState::Instantiated => try_register_ica(deps, env),
@@ -348,7 +344,6 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => {
             let ica = query_deposit_address(deps, env)?;
@@ -379,6 +374,9 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
         )?),
         QueryMsg::FallbackAddress {} => {
             Ok(to_json_binary(&FALLBACK_ADDRESS.may_load(deps.storage)?)?)
+        }
+        QueryMsg::OperationMode {} => {
+            Ok(to_json_binary(&CONTRACT_OP_MODE.may_load(deps.storage)?)?)
         }
     }
 }
@@ -431,17 +429,19 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> StdResult<Response<Neu
 pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
     match msg {
         MigrateMsg::UpdateConfig {
-            clock_addr,
+            op_mode,
             remote_chain_info,
             splits,
             fallback_address,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
-            if let Some(addr) = clock_addr {
-                let clock_address = deps.api.addr_validate(&addr)?;
-                CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
-                resp = resp.add_attribute("clock_addr", addr);
+            if let Some(op_mode_cfg) = op_mode {
+                let updated_op_mode = ContractOperationMode::try_init(deps.api, op_mode_cfg)
+                    .map_err(|err| StdError::generic_err(err.to_string()))?;
+
+                CONTRACT_OP_MODE.save(deps.storage, &updated_op_mode)?;
+                resp = resp.add_attribute("op_mode", format!("{:?}", updated_op_mode));
             }
 
             if let Some(remote_chain_info) = remote_chain_info {

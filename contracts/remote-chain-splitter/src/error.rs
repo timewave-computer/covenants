@@ -1,4 +1,5 @@
 use cosmwasm_std::StdError;
+use covenant_utils::op_mode::ContractOperationError;
 use neutron_sdk::NeutronError;
 use thiserror::Error;
 
@@ -6,6 +7,9 @@ use thiserror::Error;
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
+
+    #[error(transparent)]
+    ContractOperationError(#[from] ContractOperationError),
 
     #[error("Missing fallback address")]
     MissingFallbackAddress {},
