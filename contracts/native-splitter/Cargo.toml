@@ -23,7 +23,6 @@ covenant-macros = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
 covenant-utils  = { workspace = true }
-valence-clock  = { workspace = true, features = ["library"] }
 cw-storage-plus = { workspace = true }
 cw2             = { workspace = true }
 thiserror       = { workspace = true }

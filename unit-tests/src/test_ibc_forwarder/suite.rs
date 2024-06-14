@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{Addr, Coin, Uint128, Uint64};
-use covenant_utils::neutron::RemoteChainInfo;
+use covenant_utils::{
+    neutron::RemoteChainInfo,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+};
 use cw_multi_test::{AppResponse, Executor};
 use cw_storage_plus::KeyDeserialize;
 
@@ -15,6 +18,7 @@ use crate::setup::{
 pub struct IbcForwarderBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: IbcForwarderInstantiate,
+    pub clock_addr: Addr,
 }
 
 #[allow(dead_code)]
@@ -34,6 +38,7 @@ impl IbcForwarderBuilder {
                 ibc_forwarder_addr.to_string(),
                 next_contract_addr.to_string(),
             ],
+            initial_queue: vec![],
         };
 
         builder.contract_init2(
@@ -43,8 +48,11 @@ impl IbcForwarderBuilder {
             &[],
         );
 
-        let next_contract_instantiate =
-            IbcForwarderInstantiate::default(clock_addr.to_string(), clock_addr.to_string());
+        let next_contract_instantiate = IbcForwarderInstantiate::default(
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
+            clock_addr.to_string(),
+            Some(builder.get_random_addr().to_string()),
+        );
         builder.contract_init2(
             builder.ibc_forwarder_code_id,
             "deposit_forwarder",
@@ -53,13 +61,15 @@ impl IbcForwarderBuilder {
         );
 
         let ibc_forwarder_instantiate = IbcForwarderInstantiate::default(
-            clock_addr.to_string(),
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             next_contract_addr.to_string(),
+            Some(builder.get_random_addr().to_string()),
         );
 
         IbcForwarderBuilder {
             builder,
             instantiate_msg: ibc_forwarder_instantiate,
+            clock_addr,
         }
     }
 
@@ -94,8 +104,8 @@ impl IbcForwarderBuilder {
         self
     }
 
-    pub fn with_clock_address(mut self, clock_address: String) -> Self {
-        self.instantiate_msg.with_clock_address(clock_address);
+    pub fn with_op_mode(mut self, op_mode: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(op_mode);
         self
     }
 
@@ -119,13 +129,13 @@ impl IbcForwarderBuilder {
             &[],
         );
 
-        let clock_addr = self
+        let op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 ibc_forwarder_address.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
 
@@ -149,14 +159,26 @@ impl IbcForwarderBuilder {
             )
             .unwrap();
 
+        let fallback_address = self
+            .builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                ibc_forwarder_address.clone(),
+                &valence_ibc_forwarder::msg::QueryMsg::FallbackAddress {},
+            )
+            .unwrap();
+
         Suite {
             app: self.builder.app,
             faucet: self.builder.faucet,
             admin: self.builder.admin,
-            clock_addr,
+            clock_addr: self.clock_addr,
+            op_mode,
             ibc_forwarder: ibc_forwarder_address,
             remote_chain_info,
             deposit_address,
+            fallback_address,
         }
     }
 }
@@ -168,9 +190,11 @@ pub struct Suite {
     pub faucet: Addr,
     pub admin: Addr,
     pub clock_addr: Addr,
+    pub op_mode: ContractOperationMode,
     pub ibc_forwarder: Addr,
     pub remote_chain_info: RemoteChainInfo,
     pub deposit_address: Option<String>,
+    pub fallback_address: Option<Addr>,
 }
 
 impl Suite {
@@ -194,12 +218,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub(crate) fn query_clock_address(&mut self) -> Addr {
+    pub(crate) fn query_op_mode(&mut self) -> ContractOperationMode {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.ibc_forwarder.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::ClockAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }

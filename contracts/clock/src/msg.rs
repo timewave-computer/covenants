@@ -23,6 +23,9 @@ pub struct InstantiateMsg {
     pub tick_max_gas: Option<Uint64>,
     /// Whitelist of contracts that are allowed to be queued and ticked
     pub whitelist: Vec<String>,
+    /// Initial list of contracts to be enqueued
+    /// (so they don't need to call `Enqueue` themselves)
+    pub initial_queue: Vec<String>,
 }
 
 impl InstantiateMsg {

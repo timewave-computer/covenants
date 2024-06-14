@@ -7,8 +7,8 @@ use cosmwasm_std::{
     StdError, StdResult, WasmMsg,
 };
 use covenant_utils::{
-    instantiate2_helper::get_instantiate2_salt_and_address, split::remap_splits,
-    CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms,
+    instantiate2_helper::get_instantiate2_salt_and_address, op_mode::ContractOperationModeConfig,
+    split::remap_splits, CovenantPartiesConfig, CovenantTerms, SwapCovenantTerms,
 };
 use cw2::set_contract_version;
 use valence_swap_holder::msg::RefundConfig;
@@ -89,10 +89,30 @@ pub fn instantiate(
 
     let mut clock_whitelist = vec![
         holder_instantiate2_config.addr.to_string(),
-        party_a_router_instantiate2_config.addr.to_string(),
-        party_b_router_instantiate2_config.addr.to_string(),
         splitter_instantiate2_config.addr.to_string(),
     ];
+
+    let mut clock_initial_queue = vec![];
+
+    // Note: Native Router has privileged_accounts, Interchain Router doesn't yet ..
+    // TODO: when both native router & interchain router have privileged_accounts, we can remove this match,
+    // and just add both router addresses to the clock_initial_queue.
+    match msg.party_a_config {
+        CovenantPartyConfig::Native(_) => {
+            clock_initial_queue.push(party_a_router_instantiate2_config.addr.to_string())
+        }
+        CovenantPartyConfig::Interchain(_) => {
+            clock_whitelist.push(party_a_router_instantiate2_config.addr.to_string())
+        }
+    }
+    match msg.party_b_config {
+        CovenantPartyConfig::Native(_) => {
+            clock_initial_queue.push(party_b_router_instantiate2_config.addr.to_string())
+        }
+        CovenantPartyConfig::Interchain(_) => {
+            clock_whitelist.push(party_b_router_instantiate2_config.addr.to_string())
+        }
+    }
 
     let party_a_router_instantiate2_msg = msg.party_a_config.get_router_instantiate2_wasm_msg(
         format!("{}_party_a_router", msg.label),
@@ -201,8 +221,8 @@ pub fn instantiate(
         // store its forwarder contract address
         PARTY_A_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_a_forwarder_instantiate2_config.addr)?;
-        // whitelist that address on the clock
-        clock_whitelist.push(party_a_forwarder_instantiate2_config.addr.to_string());
+        // Add that address to the clock's initial queue param
+        clock_initial_queue.push(party_a_forwarder_instantiate2_config.addr.to_string());
         // generate its instantiate2 message and add it to the list
         // of instantiation messages
         let instantiate_msg = valence_ibc_forwarder::msg::InstantiateMsg {
@@ -212,7 +232,9 @@ pub fn instantiate(
             amount: msg.party_a_config.get_contribution().amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            clock_address: clock_instantiate2_config.addr.to_string(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+                .addr
+                .to_string()]),
             next_contract: holder_instantiate2_config.addr.to_string(),
             fallback_address: msg.fallback_address.clone(),
         }
@@ -242,8 +264,8 @@ pub fn instantiate(
         // store its forwarder contract address
         PARTY_B_IBC_FORWARDER_ADDR
             .save(deps.storage, &party_b_forwarder_instantiate2_config.addr)?;
-        // whitelist that address on the clock
-        clock_whitelist.push(party_b_forwarder_instantiate2_config.addr.to_string());
+        // Add that address to the clock's initial queue param
+        clock_initial_queue.push(party_b_forwarder_instantiate2_config.addr.to_string());
         // generate its instantiate2 message and add it to the list
         // of instantiation messages
         let instantiate_msg = valence_ibc_forwarder::msg::InstantiateMsg {
@@ -253,7 +275,9 @@ pub fn instantiate(
             amount: msg.party_b_config.get_contribution().amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            clock_address: clock_instantiate2_config.addr.to_string(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+                .addr
+                .to_string()]),
             next_contract: holder_instantiate2_config.addr.to_string(),
             fallback_address: msg.fallback_address,
         }
@@ -275,6 +299,7 @@ pub fn instantiate(
         valence_clock::msg::InstantiateMsg {
             tick_max_gas: msg.clock_tick_max_gas,
             whitelist: clock_whitelist,
+            initial_queue: clock_initial_queue,
         }
         .to_instantiate2_msg(
             clock_instantiate2_config.code,

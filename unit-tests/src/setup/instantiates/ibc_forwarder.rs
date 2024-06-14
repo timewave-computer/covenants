@@ -1,4 +1,5 @@
 use cosmwasm_std::{Uint128, Uint64};
+use covenant_utils::op_mode::ContractOperationModeConfig;
 
 use crate::setup::{DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
@@ -14,7 +15,7 @@ impl From<IbcForwarderInstantiate> for valence_ibc_forwarder::msg::InstantiateMs
 
 impl IbcForwarderInstantiate {
     pub fn new(
-        clock_address: String,
+        op_mode_cfg: ContractOperationModeConfig,
         next_contract: String,
         remote_chain_connection_id: String,
         remote_chain_channel_id: String,
@@ -26,7 +27,7 @@ impl IbcForwarderInstantiate {
     ) -> Self {
         Self {
             msg: valence_ibc_forwarder::msg::InstantiateMsg {
-                clock_address,
+                op_mode_cfg,
                 next_contract,
                 remote_chain_connection_id,
                 remote_chain_channel_id,
@@ -39,8 +40,8 @@ impl IbcForwarderInstantiate {
         }
     }
 
-    pub fn with_clock_address(&mut self, addr: String) -> &mut Self {
-        self.msg.clock_address = addr;
+    pub fn with_op_mode(&mut self, op_mode_cfg: ContractOperationModeConfig) -> &mut Self {
+        self.msg.op_mode_cfg = op_mode_cfg;
         self
     }
 
@@ -86,10 +87,14 @@ impl IbcForwarderInstantiate {
 }
 
 impl IbcForwarderInstantiate {
-    pub fn default(clock_address: String, next_contract: String) -> Self {
+    pub fn default(
+        op_mode_cfg: ContractOperationModeConfig,
+        next_contract: String,
+        fallback_address: Option<String>,
+    ) -> Self {
         Self {
             msg: valence_ibc_forwarder::msg::InstantiateMsg {
-                clock_address,
+                op_mode_cfg,
                 next_contract,
                 remote_chain_connection_id: "connection-todo".to_string(),
                 remote_chain_channel_id: NTRN_HUB_CHANNEL.1.to_string(),
@@ -97,7 +102,7 @@ impl IbcForwarderInstantiate {
                 amount: Uint128::new(100_000),
                 ica_timeout: Uint64::from(100u64),
                 ibc_transfer_timeout: Uint64::from(100u64),
-                fallback_address: None,
+                fallback_address,
             },
         }
     }

@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_std::Addr;
+use covenant_utils::op_mode::{ContractOperationMode, ContractOperationModeConfig};
 use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
@@ -13,6 +14,7 @@ use crate::setup::{
 pub struct NativeRouterBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: NativeRouterInstantiate,
+    pub clock_addr: Addr,
 }
 
 impl Default for NativeRouterBuilder {
@@ -27,6 +29,7 @@ impl Default for NativeRouterBuilder {
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![native_router_addr.to_string()],
+            initial_queue: vec![],
         };
         builder.contract_init2(
             builder.clock_code_id,
@@ -37,20 +40,23 @@ impl Default for NativeRouterBuilder {
 
         let party_receiver = builder.get_random_addr();
 
-        let native_router_instantiate =
-            NativeRouterInstantiate::default(clock_addr, party_receiver);
+        let native_router_instantiate = NativeRouterInstantiate::default(
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
+            party_receiver,
+        );
 
         Self {
             builder,
             instantiate_msg: native_router_instantiate,
+            clock_addr,
         }
     }
 }
 
 #[allow(dead_code)]
 impl NativeRouterBuilder {
-    pub fn with_clock_address(mut self, addr: &str) -> Self {
-        self.instantiate_msg.with_clock_address(addr.to_string());
+    pub fn with_op_mode(mut self, op_mode_cfg: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(op_mode_cfg);
         self
     }
 
@@ -73,13 +79,13 @@ impl NativeRouterBuilder {
             &[],
         );
 
-        let clock_addr = self
+        let op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 native_router_address.clone(),
-                &valence_native_router::msg::QueryMsg::ClockAddress {},
+                &valence_native_router::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
 
@@ -107,7 +113,8 @@ impl NativeRouterBuilder {
             router_addr: native_router_address,
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
-            clock_addr,
+            clock_addr: self.clock_addr,
+            op_mode,
             receiver_addr,
             denoms,
             app: self.builder.build(),
@@ -124,6 +131,7 @@ pub struct Suite {
 
     pub router_addr: Addr,
     pub clock_addr: Addr,
+    pub op_mode: ContractOperationMode,
     pub receiver_addr: Addr,
     pub denoms: BTreeSet<String>,
 }
@@ -139,12 +147,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_clock_address(&mut self) -> Addr {
+    pub(crate) fn query_op_mode(&mut self) -> ContractOperationMode {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.router_addr.clone(),
-                &valence_native_router::msg::QueryMsg::ClockAddress {},
+                &valence_native_router::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }

@@ -1,18 +1,22 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, Binary, Coin, StdResult, Uint128, Uint64, WasmMsg,
-};
+use cosmwasm_std::{to_json_binary, Attribute, Binary, Coin, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_macros::{
-    clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
-    covenant_remote_chain,
+    clocked, covenant_deposit_address, covenant_ica_address, covenant_remote_chain,
 };
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig,
+    neutron::RemoteChainInfo,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// address for the clock. this contract verifies
-    /// that only the clock can execute ticks
-    pub clock_address: String,
+    // Contract Operation Mode.
+    // The contract operation (the Tick function mostly) can either be a permissionless
+    // (aka non-privileged) operation, or a permissioned operation, that is,
+    // restricted to being executed by one of the configured privileged accounts.
+    pub op_mode_cfg: ContractOperationModeConfig,
+
     /// contract responsible for providing the address to forward the
     /// funds to
     pub next_contract: String,
@@ -59,7 +63,7 @@ impl InstantiateMsg {
 impl InstantiateMsg {
     pub fn get_response_attributes(&self) -> Vec<Attribute> {
         vec![
-            Attribute::new("clock_address", &self.clock_address),
+            Attribute::new("op_mode", format!("{:?}", self.op_mode_cfg)),
             Attribute::new(
                 "remote_chain_connection_id",
                 &self.remote_chain_connection_id,
@@ -86,7 +90,7 @@ pub enum ExecuteMsg {
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        clock_addr: Option<String>,
+        op_mode: Option<ContractOperationModeConfig>,
         next_contract: Option<String>,
         remote_chain_info: Box<Option<RemoteChainInfo>>,
         transfer_amount: Option<Uint128>,
@@ -105,7 +109,6 @@ pub enum FallbackAddressUpdateConfig {
 
 #[covenant_deposit_address]
 #[covenant_remote_chain]
-#[covenant_clock_address]
 #[covenant_ica_address]
 #[derive(QueryResponses)]
 #[cw_serde]
@@ -114,6 +117,8 @@ pub enum QueryMsg {
     ContractState {},
     #[returns(Option<String>)]
     FallbackAddress {},
+    #[returns(ContractOperationMode)]
+    OperationMode {},
 }
 
 #[cw_serde]

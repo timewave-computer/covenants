@@ -6,6 +6,7 @@ use cosmwasm_std::{
     to_json_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     WasmMsg,
 };
+use covenant_utils::op_mode::ContractOperationModeConfig;
 use covenant_utils::split::SplitConfig;
 use covenant_utils::{instantiate2_helper::get_instantiate2_salt_and_address, DestinationConfig};
 use cw2::set_contract_version;
@@ -97,11 +98,14 @@ pub fn instantiate(
     )?;
 
     let mut clock_whitelist = Vec::with_capacity(7);
-    clock_whitelist.push(splitter_instantiate2_config.addr.to_string());
-    clock_whitelist.push(liquid_pooler_instantiate2_config.addr.to_string());
+
     clock_whitelist.push(liquid_staker_instantiate2_config.addr.to_string());
     clock_whitelist.push(holder_instantiate2_config.addr.to_string());
     clock_whitelist.push(router_instantiate2_config.addr.to_string());
+
+    let mut clock_initial_queue = vec![];
+    clock_initial_queue.push(splitter_instantiate2_config.addr.to_string());
+    clock_initial_queue.push(liquid_pooler_instantiate2_config.addr.to_string());
 
     let mut denoms: BTreeSet<String> = BTreeSet::new();
     denoms.insert(msg.ls_info.ls_denom_on_neutron.to_string());
@@ -185,7 +189,9 @@ pub fn instantiate(
     );
 
     let splitter_instantiate2_msg = SplitterInstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+            .addr
+            .to_string()]),
         remote_chain_channel_id: msg.remote_chain_splitter_config.channel_id,
         remote_chain_connection_id: msg.remote_chain_splitter_config.connection_id,
         denom: msg.remote_chain_splitter_config.denom.to_string(),
@@ -211,9 +217,11 @@ pub fn instantiate(
 
     if let CovenantPartyConfig::Interchain(config) = msg.ls_forwarder_config {
         LS_FORWARDER_ADDR.save(deps.storage, &ls_forwarder_instantiate2_config.addr)?;
-        clock_whitelist.insert(0, ls_forwarder_instantiate2_config.addr.to_string());
+        clock_initial_queue.insert(0, ls_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            clock_address: clock_instantiate2_config.addr.to_string(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+                .addr
+                .to_string()]),
             next_contract: liquid_staker_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id,
             remote_chain_channel_id: config.party_to_host_chain_channel_id,
@@ -232,9 +240,11 @@ pub fn instantiate(
 
     if let CovenantPartyConfig::Interchain(config) = msg.lp_forwarder_config {
         LP_FORWARDER_ADDR.save(deps.storage, &lp_forwarder_instantiate2_config.addr)?;
-        clock_whitelist.insert(0, lp_forwarder_instantiate2_config.addr.to_string());
+        clock_initial_queue.insert(0, lp_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            clock_address: clock_instantiate2_config.addr.to_string(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+                .addr
+                .to_string()]),
             next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id,
             remote_chain_channel_id: config.party_to_host_chain_channel_id,
@@ -254,6 +264,7 @@ pub fn instantiate(
     let clock_instantiate2_msg = valence_clock::msg::InstantiateMsg {
         tick_max_gas: msg.clock_tick_max_gas,
         whitelist: clock_whitelist,
+        initial_queue: clock_initial_queue,
     }
     .to_instantiate2_msg(
         clock_instantiate2_config.code,

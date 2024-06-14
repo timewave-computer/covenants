@@ -102,6 +102,7 @@ impl SuiteBuilder {
                 &valence_clock::msg::InstantiateMsg {
                     tick_max_gas: None,
                     whitelist: vec![],
+                    initial_queue: vec![],
                 },
                 &[],
                 "clock",

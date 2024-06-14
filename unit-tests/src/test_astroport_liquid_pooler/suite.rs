@@ -1,6 +1,9 @@
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Coin, Decimal};
-use covenant_utils::{PoolPriceConfig, SingleSideLpLimits};
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    PoolPriceConfig, SingleSideLpLimits,
+};
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
 use valence_astroport_liquid_pooler::msg::{LpConfig, ProvidedLiquidityInfo, QueryMsg};
@@ -16,6 +19,7 @@ use crate::setup::{
 pub struct AstroLiquidPoolerBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: AstroLiquidPoolerInstantiate,
+    pub clock_addr: Addr,
 }
 
 impl Default for AstroLiquidPoolerBuilder {
@@ -49,6 +53,7 @@ impl Default for AstroLiquidPoolerBuilder {
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![liquid_pooler_addr.to_string()],
+            initial_queue: vec![],
         };
 
         builder.contract_init2(
@@ -66,13 +71,14 @@ impl Default for AstroLiquidPoolerBuilder {
 
         let liquid_pooler_instantiate = AstroLiquidPoolerInstantiate::default(
             pool_addr.to_string(),
-            clock_addr.to_string(),
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             holder_addr.to_string(),
         );
 
         AstroLiquidPoolerBuilder {
             builder,
             instantiate_msg: liquid_pooler_instantiate,
+            clock_addr,
         }
     }
 }
@@ -96,8 +102,8 @@ impl AstroLiquidPoolerBuilder {
         self
     }
 
-    pub fn with_clock_address(mut self, clock_address: String) -> Self {
-        self.instantiate_msg.with_clock_address(clock_address);
+    pub fn with_op_mode(mut self, op_mode_cfg: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(op_mode_cfg);
         self
     }
 
@@ -142,13 +148,13 @@ impl AstroLiquidPoolerBuilder {
             &[],
         );
 
-        let clock_addr: Addr = self
+        let op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
-                liquid_pooler_address.to_string(),
-                &QueryMsg::ClockAddress {},
+                liquid_pooler_address.clone(),
+                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
 
@@ -186,7 +192,8 @@ impl AstroLiquidPoolerBuilder {
             faucet,
             admin,
             liquid_pooler_addr: liquid_pooler_address.clone(),
-            clock_addr: clock_addr.clone(),
+            clock_addr: self.clock_addr,
+            op_mode,
             holder_addr: holder_addr.clone(),
             lp_config: lp_config.clone(),
             provided_liquidity_info: provided_liquidity_info.clone(),
@@ -203,6 +210,7 @@ pub struct Suite {
 
     pub liquid_pooler_addr: Addr,
     pub clock_addr: Addr,
+    pub op_mode: ContractOperationMode,
     pub holder_addr: Addr,
     pub lp_config: LpConfig,
     pub provided_liquidity_info: ProvidedLiquidityInfo,
@@ -262,12 +270,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub(crate) fn query_clock_address(&self) -> Addr {
-        self.get_app()
+    pub(crate) fn query_op_mode(&mut self) -> ContractOperationMode {
+        self.app
             .wrap()
             .query_wasm_smart(
                 self.liquid_pooler_addr.clone(),
-                &valence_astroport_liquid_pooler::msg::QueryMsg::ClockAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }

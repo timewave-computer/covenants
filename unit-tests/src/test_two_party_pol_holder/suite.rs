@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use covenant_utils::{split::SplitConfig, PoolPriceConfig, SingleSideLpLimits};
+use covenant_utils::{
+    op_mode::ContractOperationModeConfig, split::SplitConfig, PoolPriceConfig, SingleSideLpLimits,
+};
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
 use valence_two_party_pol_holder::msg::{ContractState, DenomSplits, RagequitConfig};
@@ -40,6 +42,7 @@ impl Default for TwoPartyHolderBuilder {
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
             whitelist: vec![holder_addr.to_string(), liquid_pooler_addr.to_string()],
+            initial_queue: vec![],
         };
         builder.contract_init2(
             builder.clock_code_id,
@@ -50,7 +53,7 @@ impl Default for TwoPartyHolderBuilder {
 
         let liquid_pooler_instantiate_msg = valence_astroport_liquid_pooler::msg::InstantiateMsg {
             pool_address: pool_addr.to_string(),
-            clock_address: clock_addr.to_string(),
+            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             slippage_tolerance: None,
             assets: valence_astroport_liquid_pooler::msg::AssetData {
                 asset_a_denom: DENOM_ATOM_ON_NTRN.to_string(),

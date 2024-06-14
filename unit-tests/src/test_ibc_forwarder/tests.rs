@@ -1,4 +1,5 @@
 use cosmwasm_std::{coin, coins, Addr, Uint128};
+use covenant_utils::op_mode::{ContractOperationMode, ContractOperationModeConfig};
 use cw_multi_test::Executor;
 use valence_ibc_forwarder::msg::{ContractState, FallbackAddressUpdateConfig};
 
@@ -18,23 +19,46 @@ fn test_instantiate_validates_next_contract_addr() {
 }
 
 #[test]
-#[should_panic]
-fn test_instantiate_validates_clock_addr() {
-    IbcForwarderBuilder::default()
-        .with_clock_address("some contract".to_string())
+fn test_instantiate_with_valid_op_mode() {
+    let _suite = IbcForwarderBuilder::default().build();
+}
+
+#[test]
+fn test_instantiate_in_permissionless_mode() {
+    let _suite = IbcForwarderBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissionless)
         .build();
 }
 
 #[test]
-#[should_panic(expected = "not the clock")]
-fn test_tick_validates_clock() {
+#[should_panic]
+fn test_instantiate_validates_privileged_accounts() {
+    IbcForwarderBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![
+            "some contract".to_string(),
+        ]))
+        .build();
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_validates_empty_privileged_accounts() {
+    IbcForwarderBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![]))
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "Contract operation unauthorized")]
+fn test_tick_rejects_unprivileged_account() {
     let mut suite = IbcForwarderBuilder::default().build();
+    let admin_addr = suite.admin.clone();
     let forwarder_addr = suite.ibc_forwarder.clone();
     suite
         .app
         .execute_contract(
-            forwarder_addr.clone(),
-            forwarder_addr.clone(),
+            admin_addr,
+            forwarder_addr,
             &valence_ibc_forwarder::msg::ExecuteMsg::Tick {},
             &[],
         )
@@ -127,8 +151,43 @@ fn test_forward_funds_insufficient() {
 }
 
 #[test]
-fn test_forward_funds_happy() {
+fn test_forward_funds_happy_permissioned() {
     let mut suite = IbcForwarderBuilder::default().build();
+
+    let forwarder_addr = suite.ibc_forwarder.clone();
+    let next_contract = suite.query_next_contract();
+
+    // fund both contracts to register the ica
+    suite.fund_contract(&coins(2_000_000, DENOM_NTRN), forwarder_addr.clone());
+    suite.fund_contract(&coins(1_000_000, DENOM_NTRN), next_contract.clone());
+
+    // register ica
+    suite.tick_contract(forwarder_addr.clone());
+    suite.tick_contract(next_contract.clone());
+
+    let forwarder_ica = suite.query_ica_address(forwarder_addr.clone());
+    let next_contract_deposit_addr = suite.query_ica_address(next_contract.clone());
+
+    // fund the ica with sufficient amount of DENOM_ATOM_ON_NTRN
+    suite.fund_contract(&coins(100_000, DENOM_ATOM_ON_NTRN), forwarder_ica.clone());
+
+    // try to forward
+    suite.tick_contract(forwarder_addr);
+
+    // assert that the funds were in fact forwarded
+    suite.assert_balance(&forwarder_ica, coin(0, DENOM_ATOM_ON_NTRN));
+    // hacky ibc denom assertion
+    suite.assert_balance(
+        next_contract_deposit_addr,
+        coin(100_000, "channel-1/channel-1/uatom"),
+    );
+}
+
+#[test]
+fn test_forward_funds_happy_permissionless() {
+    let mut suite = IbcForwarderBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissionless)
+        .build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
     let next_contract = suite.query_next_contract();
@@ -162,7 +221,9 @@ fn test_forward_funds_happy() {
 #[test]
 #[should_panic(expected = "Missing fallback address")]
 fn test_distribute_fallback_errors_without_fallback_address() {
-    let mut suite = IbcForwarderBuilder::default().build();
+    let mut builder = IbcForwarderBuilder::default();
+    builder.instantiate_msg.msg.fallback_address = None;
+    let mut suite = builder.build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -182,10 +243,7 @@ fn test_distribute_fallback_errors_without_fallback_address() {
 #[test]
 #[should_panic(expected = "Cannot distribute target denom via fallback distribution")]
 fn test_distribute_fallback_validates_denom() {
-    let mut builder = IbcForwarderBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.instantiate_msg.msg.clock_address.to_string());
-    let mut suite = builder.build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -211,10 +269,7 @@ fn test_distribute_fallback_validates_denom() {
 #[test]
 #[should_panic(expected = "must cover ibc fees to distribute fallback denoms")]
 fn test_distribute_fallback_validates_ibc_fee_coverage() {
-    let mut builder = IbcForwarderBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.instantiate_msg.msg.clock_address.to_string());
-    let mut suite = builder.build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -237,10 +292,7 @@ fn test_distribute_fallback_validates_ibc_fee_coverage() {
 #[test]
 #[should_panic(expected = "no ica found")]
 fn test_distribute_fallback_validates_ica_exists() {
-    let mut builder = IbcForwarderBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.instantiate_msg.msg.clock_address.to_string());
-    let mut suite = builder.build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     // try to distribute fallback denom
     suite.distribute_fallback(
@@ -252,10 +304,7 @@ fn test_distribute_fallback_validates_ica_exists() {
 #[test]
 #[should_panic(expected = "insufficient fees")]
 fn test_distribute_fallback_validates_insufficient_ibc_fee_coverage() {
-    let mut builder = IbcForwarderBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.instantiate_msg.msg.clock_address.to_string());
-    let mut suite = builder.build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -281,10 +330,7 @@ fn test_distribute_fallback_validates_insufficient_ibc_fee_coverage() {
 #[test]
 #[should_panic(expected = "Attempt to distribute duplicate denoms via fallback distribution")]
 fn test_distribute_fallback_validates_duplicate_input_denoms() {
-    let mut builder = IbcForwarderBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.instantiate_msg.msg.clock_address.to_string());
-    let mut suite = builder.build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -318,10 +364,7 @@ fn test_distribute_fallback_validates_duplicate_input_denoms() {
 
 #[test]
 fn test_distribute_fallback_happy() {
-    let mut builder = IbcForwarderBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.instantiate_msg.msg.clock_address.to_string());
-    let mut suite = builder.build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
 
@@ -357,25 +400,26 @@ fn test_distribute_fallback_happy() {
     // assert that the funds were in fact forwarded
     suite.assert_balance(&forwarder_ica, coin(0, DENOM_ATOM_ON_NTRN));
     suite.assert_balance(&forwarder_ica, coin(0, DENOM_OSMO_ON_HUB_FROM_NTRN));
-    suite.assert_balance(
-        suite.clock_addr.to_string(),
-        coin(100_000, DENOM_FALLBACK_ON_HUB),
-    );
-    suite.assert_balance(
-        suite.clock_addr.to_string(),
-        coin(100_000, DENOM_OSMO_ON_HUB_FROM_NTRN),
-    );
+
+    let fallback_addr = suite.query_fallback_address().unwrap();
+
+    suite.assert_balance(fallback_addr.clone(), coin(100_000, DENOM_FALLBACK_ON_HUB));
+    suite.assert_balance(fallback_addr, coin(100_000, DENOM_OSMO_ON_HUB_FROM_NTRN));
 }
 
 #[test]
 fn test_migrate_update_config() {
-    let mut suite = IbcForwarderBuilder::default().build();
+    let mut ibc_fwdr_builder = IbcForwarderBuilder::default();
+
+    let upd_next_contract = ibc_fwdr_builder.builder.get_random_addr().to_string();
+    let upd_priv_addresses = vec![ibc_fwdr_builder.builder.get_random_addr()];
+    let upd_fallback_address = ibc_fwdr_builder.builder.get_random_addr().to_string();
+
+    let mut suite = ibc_fwdr_builder.build();
 
     let forwarder_addr = suite.ibc_forwarder.clone();
-    let next_contract = suite.query_next_contract();
     let mut remote_chain_info = suite.query_remote_chain_info();
     remote_chain_info.denom = "some new denom".to_string();
-    let clock_addr = suite.query_clock_address();
 
     // migrate
     suite
@@ -384,31 +428,36 @@ fn test_migrate_update_config() {
             Addr::unchecked(ADMIN),
             forwarder_addr.clone(),
             &valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: Some(next_contract.to_string()),
-                next_contract: Some(clock_addr.to_string()),
+                op_mode: Some(ContractOperationModeConfig::Permissioned(
+                    upd_priv_addresses.iter().map(|a| a.to_string()).collect(),
+                )),
+                next_contract: Some(upd_next_contract.to_string()),
                 remote_chain_info: Box::new(Some(remote_chain_info)),
                 transfer_amount: Some(Uint128::new(69)),
                 fallback_address: Some(FallbackAddressUpdateConfig::ExplicitAddress(
-                    clock_addr.to_string(),
+                    upd_fallback_address.clone(),
                 )),
             },
             10,
         )
         .unwrap();
 
-    assert_eq!(suite.query_clock_address(), next_contract);
+    assert_eq!(
+        suite.query_op_mode(),
+        ContractOperationMode::Permissioned(upd_priv_addresses.into())
+    );
     assert_eq!(suite.query_remote_chain_info().denom, "some new denom");
     assert_eq!(suite.query_transfer_amount(), Uint128::new(69));
-    assert_eq!(suite.query_next_contract(), clock_addr);
-    assert_eq!(suite.query_fallback_address().unwrap(), clock_addr);
+    assert_eq!(suite.query_next_contract(), upd_next_contract);
+    assert_eq!(
+        suite.query_fallback_address().unwrap(),
+        upd_fallback_address
+    );
 }
 
 #[test]
 fn test_migrate_update_config_remove_fallback() {
-    let mut builder = IbcForwarderBuilder::default();
-    builder.instantiate_msg.msg.fallback_address =
-        Some(builder.instantiate_msg.msg.clock_address.to_string());
-    let mut suite = builder.build();
+    let mut suite = IbcForwarderBuilder::default().build();
 
     suite
         .app
@@ -416,7 +465,7 @@ fn test_migrate_update_config_remove_fallback() {
             Addr::unchecked(ADMIN),
             suite.ibc_forwarder.clone(),
             &valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: None,
+                op_mode: None,
                 next_contract: None,
                 remote_chain_info: Box::new(None),
                 transfer_amount: None,

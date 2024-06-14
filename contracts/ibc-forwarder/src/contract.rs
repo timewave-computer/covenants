@@ -16,6 +16,7 @@ use covenant_utils::{
         assert_ibc_fee_coverage, get_proto_coin, query_ibc_fee, to_proto_msg_transfer,
         RemoteChainInfo, SudoPayload,
     },
+    op_mode::{verify_caller, ContractOperationMode},
 };
 use cw2::set_contract_version;
 use neutron_sdk::{
@@ -25,7 +26,6 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 use prost::Message;
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use crate::state::{IbcForwarderIcaStateHelper, FALLBACK_ADDRESS};
 use crate::{error::ContractError, msg::FallbackAddressUpdateConfig};
@@ -33,7 +33,7 @@ use crate::{
     helpers::{get_next_memo, MsgTransfer},
     msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{
-        CLOCK_ADDRESS, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
+        CONTRACT_OP_MODE, CONTRACT_STATE, INTERCHAIN_ACCOUNTS, NEXT_CONTRACT, REMOTE_CHAIN_INFO,
         TRANSFER_AMOUNT,
     },
 };
@@ -55,8 +55,9 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
-    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
-    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+    let op_mode = ContractOperationMode::try_init(deps.api, msg.op_mode_cfg.clone())?;
+
+    CONTRACT_OP_MODE.save(deps.storage, &op_mode)?;
     NEXT_CONTRACT.save(deps.storage, &next_contract)?;
     TRANSFER_AMOUNT.save(deps.storage, &msg.amount)?;
     let remote_chain_info = RemoteChainInfo {
@@ -73,7 +74,6 @@ pub fn instantiate(
     }
 
     Ok(Response::default()
-        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "ibc_forwarder_instantiate")
         .add_attribute("next_contract", next_contract)
         .add_attribute("contract_state", "instantiated")
@@ -186,8 +186,7 @@ fn try_distribute_fallback(
 
 /// attempts to advance the state machine. validates the caller to be the clock.
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-    // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     let current_state = CONTRACT_STATE.load(deps.storage)?;
     match current_state {
@@ -304,7 +303,6 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         // we expect to receive funds into our ICA account on the remote chain.
         // if the ICA had not been opened yet, we return `None` so that the
         // contract querying this will be instructed to wait and retry.
@@ -340,6 +338,9 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::FallbackAddress {} => {
             Ok(to_json_binary(&FALLBACK_ADDRESS.may_load(deps.storage)?)?)
+        }
+        QueryMsg::OperationMode {} => {
+            Ok(to_json_binary(&CONTRACT_OP_MODE.may_load(deps.storage)?)?)
         }
     }
 }
@@ -392,7 +393,7 @@ pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<Neut
 pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Response<NeutronMsg>> {
     match msg {
         MigrateMsg::UpdateConfig {
-            clock_addr,
+            op_mode,
             next_contract,
             remote_chain_info,
             transfer_amount,
@@ -400,10 +401,12 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> StdResult<Respo
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
-            if let Some(addr) = clock_addr {
-                let clock_address = deps.api.addr_validate(&addr)?;
-                CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
-                resp = resp.add_attribute("clock_addr", addr);
+            if let Some(op_mode_cfg) = op_mode {
+                let updated_op_mode = ContractOperationMode::try_init(deps.api, op_mode_cfg)
+                    .map_err(|err| StdError::generic_err(err.to_string()))?;
+
+                CONTRACT_OP_MODE.save(deps.storage, &updated_op_mode)?;
+                resp = resp.add_attribute("op_mode", format!("{:?}", updated_op_mode));
             }
 
             if let Some(addr) = next_contract {

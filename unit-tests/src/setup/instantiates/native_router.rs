@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_std::Addr;
+use covenant_utils::op_mode::ContractOperationModeConfig;
 
 use crate::setup::DENOM_ATOM_ON_NTRN;
 
@@ -15,18 +16,22 @@ impl From<NativeRouterInstantiate> for valence_native_router::msg::InstantiateMs
 }
 
 impl NativeRouterInstantiate {
-    pub fn new(clock_address: Addr, receiver_address: Addr, denoms: BTreeSet<String>) -> Self {
+    pub fn new(
+        op_mode_cfg: ContractOperationModeConfig,
+        receiver_address: Addr,
+        denoms: BTreeSet<String>,
+    ) -> Self {
         Self {
             msg: valence_native_router::msg::InstantiateMsg {
-                clock_address: clock_address.to_string(),
+                op_mode_cfg,
                 receiver_address: receiver_address.to_string(),
                 denoms,
             },
         }
     }
 
-    pub fn with_clock_address(&mut self, addr: String) -> &mut Self {
-        self.msg.clock_address = addr;
+    pub fn with_op_mode(&mut self, op_mode: ContractOperationModeConfig) -> &mut Self {
+        self.msg.op_mode_cfg = op_mode;
         self
     }
 
@@ -42,9 +47,9 @@ impl NativeRouterInstantiate {
 }
 
 impl NativeRouterInstantiate {
-    pub fn default(clock_address: Addr, receiver_address: Addr) -> Self {
+    pub fn default(op_mode: ContractOperationModeConfig, receiver_address: Addr) -> Self {
         let denoms = BTreeSet::from_iter(vec![DENOM_ATOM_ON_NTRN.to_string()]);
 
-        Self::new(clock_address, receiver_address, denoms)
+        Self::new(op_mode, receiver_address, denoms)
     }
 }

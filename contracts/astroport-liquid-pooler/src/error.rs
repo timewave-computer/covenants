@@ -1,4 +1,5 @@
 use cosmwasm_std::{DecimalRangeExceeded, OverflowError, StdError};
+use covenant_utils::op_mode::ContractOperationError;
 use neutron_sdk::NeutronError;
 use thiserror::Error;
 
@@ -16,8 +17,8 @@ pub enum ContractError {
     #[error(transparent)]
     DecimalRangeExceeded(#[from] DecimalRangeExceeded),
 
-    #[error("Not clock")]
-    ClockVerificationError {},
+    #[error(transparent)]
+    ContractOperationError(#[from] ContractOperationError),
 
     #[error("Single side LP limit exceeded")]
     SingleSideLpLimitError {},

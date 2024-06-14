@@ -1,15 +1,21 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, WasmMsg};
-use covenant_macros::{clocked, covenant_clock_address};
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, ReceiverConfig};
+use cosmwasm_std::{to_json_binary, Binary, StdResult, WasmMsg};
+use covenant_macros::clocked;
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    ReceiverConfig,
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// address for the clock. this contract verifies
-    /// that only the clock can execute ticks
-    pub clock_address: String,
+    // Contract Operation Mode.
+    // The contract operation (the Tick function mostly) can either be a permissionless
+    // (aka non-privileged) operation, or a permissioned operation, that is,
+    // restricted to being executed by one of the configured privileged accounts.
+    pub op_mode_cfg: ContractOperationModeConfig,
     /// receiver address on local chain
     pub receiver_address: String,
     /// specified denoms to route
@@ -40,7 +46,6 @@ pub enum ExecuteMsg {
     DistributeFallback { denoms: Vec<String> },
 }
 
-#[covenant_clock_address]
 #[derive(QueryResponses)]
 #[cw_serde]
 pub enum QueryMsg {
@@ -48,12 +53,14 @@ pub enum QueryMsg {
     ReceiverConfig {},
     #[returns(BTreeSet<String>)]
     TargetDenoms {},
+    #[returns(ContractOperationMode)]
+    OperationMode {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        clock_addr: Option<String>,
+        op_mode: Option<ContractOperationModeConfig>,
         receiver_address: Option<String>,
         target_denoms: Option<Vec<String>>,
     },

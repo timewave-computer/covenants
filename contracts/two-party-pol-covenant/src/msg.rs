@@ -3,9 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{coin, Addr, Binary, Decimal, StdResult, Uint64, WasmMsg};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig, CovenantParty,
-    DestinationConfig, InterchainCovenantParty, NativeCovenantParty, PoolPriceConfig,
-    ReceiverConfig,
+    instantiate2_helper::Instantiate2HelperConfig, op_mode::ContractOperationModeConfig,
+    split::SplitConfig, CovenantParty, DestinationConfig, InterchainCovenantParty,
+    NativeCovenantParty, PoolPriceConfig, ReceiverConfig,
 };
 use cw_utils::Expiration;
 use valence_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
@@ -62,9 +62,9 @@ impl LiquidPoolerConfig {
                 .to_instantiate2_msg(instantiate2_helper, admin, label)?),
             LiquidPoolerConfig::Astroport(config) => Ok(config
                 .to_instantiate_msg(
-                    clock_addr.to_string(),
                     holder_addr.to_string(),
                     pool_price_config,
+                    ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
                 )
                 .to_instantiate2_msg(instantiate2_helper, admin, label)?),
         }
@@ -176,7 +176,9 @@ impl CovenantPartyConfig {
             }
             CovenantPartyConfig::Native(party) => {
                 let instantiate_msg = valence_native_router::msg::InstantiateMsg {
-                    clock_address: clock_addr.to_string(),
+                    op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![
+                        clock_addr.to_string()
+                    ]),
                     receiver_address: party.party_receiver_addr.to_string(),
                     denoms,
                 };

@@ -1,4 +1,5 @@
 use cosmwasm_std::{coin, coins, to_json_binary, Addr, Event, Uint128, Uint64};
+use covenant_utils::op_mode::ContractOperationModeConfig;
 use cw_multi_test::Executor;
 
 use crate::setup::{
@@ -426,13 +427,21 @@ fn test_valence_native_refund() {
     suite.tick_contract(suite.holder_addr.clone());
 
     // Tick until receiver_a gets his split
-    while suite.query_all_balances(&suite.party_a_receiver).is_empty() {
+    let mut receiver_a_balances = suite.query_all_balances(&suite.party_a_receiver);
+    while receiver_a_balances.is_empty()
+        || receiver_a_balances == [init_ntrn_router_balance.clone()]
+    {
         suite.tick("Wait for receiver_a to get his split");
+        receiver_a_balances = suite.query_all_balances(&suite.party_a_receiver);
     }
 
     // Tick until receiver_b gets his split
-    while suite.query_all_balances(&suite.party_b_receiver).is_empty() {
+    let mut receiver_b_balances = suite.query_all_balances(&suite.party_b_receiver);
+    while receiver_b_balances.is_empty()
+        || receiver_b_balances == [init_ntrn_router_balance.clone()]
+    {
         suite.tick("Wait for receiver_b to get his split");
+        receiver_b_balances = suite.query_all_balances(&suite.party_b_receiver);
     }
 
     // Verify balances of receivers are correct
@@ -456,7 +465,7 @@ fn test_migrate_update_with_codes() {
     contract_codes.clock = 1;
 
     let native_router_migrate_msg = valence_native_router::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(covenant_addr.to_string()),
+        op_mode: ContractOperationModeConfig::Permissioned(vec![covenant_addr.to_string()]).into(),
         target_denoms: None,
         receiver_address: None,
     };
@@ -543,7 +552,9 @@ fn test_migrate_update_without_codes() {
     };
 
     let ibc_forwarder_migrate_msg = valence_ibc_forwarder::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(covenant_addr.to_string()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            covenant_addr.to_string(),
+        ])),
         next_contract: None,
         remote_chain_info: Box::new(None),
         transfer_amount: None,

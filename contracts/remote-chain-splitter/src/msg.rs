@@ -1,21 +1,25 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, Coin, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{to_json_binary, Binary, Coin, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_macros::{
-    clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
-    covenant_remote_chain,
+    clocked, covenant_deposit_address, covenant_ica_address, covenant_remote_chain,
 };
 
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo, split::SplitConfig,
+    instantiate2_helper::Instantiate2HelperConfig,
+    neutron::RemoteChainInfo,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    split::SplitConfig,
 };
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// Address for the clock. This contract verifies
-    /// that only the clock can execute Ticks
-    pub clock_address: String,
+    // Contract Operation Mode.
+    // The contract operation (the Tick function mostly) can either be a permissionless
+    // (aka non-privileged) operation, or a permissioned operation, that is,
+    // restricted to being executed by one of the configured privileged accounts.
+    pub op_mode_cfg: ContractOperationModeConfig,
 
     pub remote_chain_connection_id: String,
     pub remote_chain_channel_id: String,
@@ -64,7 +68,6 @@ pub enum ExecuteMsg {
     DistributeFallback { coins: Vec<Coin> },
 }
 
-#[covenant_clock_address]
 #[covenant_remote_chain]
 #[covenant_deposit_address]
 #[covenant_ica_address]
@@ -79,6 +82,8 @@ pub enum QueryMsg {
     TransferAmount {},
     #[returns(Option<String>)]
     FallbackAddress {},
+    #[returns(ContractOperationMode)]
+    OperationMode {},
 }
 
 #[cw_serde]
@@ -96,7 +101,7 @@ pub enum FallbackAddressUpdateConfig {
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        clock_addr: Option<String>,
+        op_mode: Option<ContractOperationModeConfig>,
         remote_chain_info: Option<RemoteChainInfo>,
         splits: Option<BTreeMap<String, SplitConfig>>,
         fallback_address: Option<FallbackAddressUpdateConfig>,
