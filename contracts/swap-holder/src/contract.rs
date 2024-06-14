@@ -2,7 +2,10 @@ use cosmwasm_std::{
     to_json_binary, Addr, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, Uint128,
 };
-use covenant_utils::CovenantTerms;
+use covenant_utils::{
+    clock::{enqueue_msg, verify_clock},
+    CovenantTerms,
+};
 
 use crate::{
     error::ContractError,
@@ -15,7 +18,6 @@ use crate::{
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cw2::set_contract_version;
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");

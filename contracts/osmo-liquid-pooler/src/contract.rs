@@ -7,8 +7,10 @@ use cosmwasm_std::{
     Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 use covenant_utils::{
-    polytone::get_polytone_execute_msg_binary, withdraw_lp_helper::WithdrawLPMsgs, ForwardMetadata,
-    PacketMetadata,
+    clock::{enqueue_msg, verify_clock},
+    polytone::get_polytone_execute_msg_binary,
+    withdraw_lp_helper::WithdrawLPMsgs,
+    ForwardMetadata, PacketMetadata,
 };
 use cw2::set_contract_version;
 use neutron_sdk::{
@@ -21,7 +23,6 @@ use neutron_sdk::{
     NeutronResult,
 };
 use polytone::callbacks::CallbackRequest;
-use valence_clock::helpers::{enqueue_msg, verify_clock};
 use valence_outpost_osmo_liquid_pooler::msg::OutpostWithdrawLiquidityConfig;
 
 use crate::{
