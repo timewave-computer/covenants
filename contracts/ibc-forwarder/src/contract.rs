@@ -23,7 +23,7 @@ use neutron_sdk::{
     bindings::{msg::NeutronMsg, query::NeutronQuery, types::ProtobufAny},
     interchain_txs::helpers::get_port_id,
     sudo::msg::SudoMsg,
-    NeutronError, NeutronResult,
+    NeutronResult,
 };
 use prost::Message;
 
@@ -87,19 +87,13 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    match (msg, CONTRACT_STATE.load(deps.storage)?) {
+    match (CONTRACT_STATE.load(deps.storage)?, msg) {
         // ticks coming in to ibc forwarder in Instantiaed state will attempt to register the ICA
-        (ExecuteMsg::Tick {}, ContractState::Instantiated) => {
-            verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
-            try_register_ica(deps, env)
-        }
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_register_ica(deps, info, env),
         // ticks coming in to ibc forwarder in IcaCreated state will attempt to forward the funds
-        (ExecuteMsg::Tick {}, ContractState::IcaCreated) => {
-            verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
-            try_forward_funds(env, deps)
-        }
-        // distributing the fallback split is permisionless and non state-dependent
-        (ExecuteMsg::DistributeFallback { coins }, _) => {
+        (ContractState::IcaCreated, ExecuteMsg::Tick {}) => try_forward_funds(env, info, deps),
+        // distributing the fallback split is permisionless and state independent
+        (_, ExecuteMsg::DistributeFallback { coins }) => {
             try_distribute_fallback(deps, env, info, coins)
         }
     }
@@ -129,13 +123,13 @@ fn try_distribute_fallback(
         // validate that target denom is not passed for fallback distribution
         ensure!(
             coin.denom != remote_chain_info.denom,
-            Into::<NeutronError>::into(ContractError::UnauthorizedDenomDistribution {})
+            ContractError::UnauthorizedDenomDistribution {}
         );
 
         // error out if denom is duplicated
         ensure!(
             encountered_denoms.insert(coin.denom.to_string()),
-            Into::<NeutronError>::into(ContractError::DuplicateDenomDistribution {})
+            ContractError::DuplicateDenomDistribution {}
         );
 
         proto_coins.push(get_proto_coin(coin.denom, coin.amount));
@@ -159,9 +153,7 @@ fn try_distribute_fallback(
         let mut buf = Vec::with_capacity(multi_send_msg.encoded_len());
 
         if let Err(e) = multi_send_msg.encode(&mut buf) {
-            return Err(NeutronError::Std(StdError::generic_err(format!(
-                "Encode error: {e:}",
-            ))));
+            return Err(StdError::generic_err(format!("Encode error: {e:}")).into());
         }
 
         let any_msg = ProtobufAny {
@@ -192,12 +184,18 @@ fn try_distribute_fallback(
             .add_attribute("method", "try_forward_fallback")
             .add_submessages(vec![sudo_msg]))
     } else {
-        Err(NeutronError::Std(StdError::generic_err("no ica found")))
+        Err(StdError::generic_err("no ica found").into())
     }
 }
 
 /// tries to register an ICA on the remote chain
-fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_register_ica(
+    deps: ExecuteDeps,
+    info: MessageInfo,
+    env: Env,
+) -> NeutronResult<Response<NeutronMsg>> {
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
+
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
     let ica_registration_fee = query_ica_registration_fee(deps.querier)?;
 
@@ -217,7 +215,13 @@ fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neutr
         .add_message(register_msg))
 }
 
-fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<NeutronMsg>> {
+fn try_forward_funds(
+    env: Env,
+    info: MessageInfo,
+    mut deps: ExecuteDeps,
+) -> NeutronResult<Response<NeutronMsg>> {
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
+
     // first we verify whether the next contract is ready for receiving the funds
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
     let deposit_address_query: Option<String> = deps.querier.query_wasm_smart(
@@ -227,9 +231,9 @@ fn try_forward_funds(env: Env, mut deps: ExecuteDeps) -> NeutronResult<Response<
 
     // if query returns None, then we error and wait
     let Some(deposit_address) = deposit_address_query else {
-        return Err(NeutronError::Std(StdError::not_found(
+        return Err(StdError::not_found(
             "Next contract is not ready for receiving the funds yet",
-        )));
+        ).into());
     };
 
     let min_fee_query_response = query_ibc_fee(deps.querier)?;
