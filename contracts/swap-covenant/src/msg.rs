@@ -110,7 +110,9 @@ impl CovenantPartyConfig {
                     denom_to_pfm_map: party.denom_to_pfm_map.clone(),
                 };
                 let instantiate_msg = valence_interchain_router::msg::InstantiateMsg {
-                    clock_address: clock_addr.to_string(),
+                    op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![
+                        clock_addr.to_string()
+                    ]),
                     destination_config,
                     denoms: covenant_denoms,
                 };

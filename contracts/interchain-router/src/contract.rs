@@ -7,8 +7,8 @@ use cosmwasm_std::{
     StdResult, Uint128,
 };
 use covenant_utils::{
-    clock::{enqueue_msg, verify_clock},
     neutron::{assert_ibc_fee_coverage, query_ibc_fee},
+    op_mode::{verify_caller, ContractOperationMode},
     soft_validate_remote_chain_addr,
 };
 use cw2::set_contract_version;
@@ -18,11 +18,8 @@ use neutron_sdk::{
     NeutronError, NeutronResult,
 };
 
-use crate::state::{DESTINATION_CONFIG, TARGET_DENOMS};
-use crate::{
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::CLOCK_ADDRESS,
-};
+use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::state::{CONTRACT_OP_MODE, DESTINATION_CONFIG, TARGET_DENOMS};
 
 type ExecuteDeps<'a> = DepsMut<'a, NeutronQuery>;
 type QueryDeps<'a> = Deps<'a, NeutronQuery>;
@@ -39,17 +36,16 @@ pub fn instantiate(
 ) -> NeutronResult<Response<NeutronMsg>> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let clock_address = deps.api.addr_validate(&msg.clock_address)?;
+    let op_mode = ContractOperationMode::try_init(deps.api, msg.op_mode_cfg.clone())?;
     soft_validate_remote_chain_addr(deps.api, &msg.destination_config.destination_receiver_addr)?;
 
-    CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
+    CONTRACT_OP_MODE.save(deps.storage, &op_mode)?;
     DESTINATION_CONFIG.save(deps.storage, &msg.destination_config)?;
     TARGET_DENOMS.save(deps.storage, &msg.denoms)?;
 
     Ok(Response::default()
-        .add_message(enqueue_msg(msg.clock_address.as_str())?)
         .add_attribute("method", "interchain_router_instantiate")
-        .add_attribute("clock_address", clock_address.to_string())
+        .add_attribute("op_mode", format!("{:?}", op_mode))
         .add_attributes(msg.destination_config.get_response_attributes()))
 }
 
@@ -62,8 +58,7 @@ pub fn execute(
 ) -> NeutronResult<Response<NeutronMsg>> {
     match msg {
         ExecuteMsg::Tick {} => {
-            // Verify caller is the clock
-            verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+            verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
             try_route_balances(deps, env)
         }
         ExecuteMsg::DistributeFallback { denoms } => {
@@ -170,8 +165,8 @@ pub fn query(deps: QueryDeps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ReceiverConfig {} => {
             Ok(to_json_binary(&DESTINATION_CONFIG.may_load(deps.storage)?)?)
         }
-        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::TargetDenoms {} => Ok(to_json_binary(&TARGET_DENOMS.may_load(deps.storage)?)?),
+        QueryMsg::OperationMode {} => Ok(to_json_binary(&CONTRACT_OP_MODE.load(deps.storage)?)?),
     }
 }
 
@@ -183,16 +178,19 @@ pub fn migrate(
 ) -> NeutronResult<Response<NeutronMsg>> {
     match msg {
         MigrateMsg::UpdateConfig {
-            clock_addr,
+            op_mode,
             destination_config,
             target_denoms,
         } => {
             let mut response =
                 Response::default().add_attribute("method", "update_interchain_router");
 
-            if let Some(addr) = clock_addr {
-                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&addr)?)?;
-                response = response.add_attribute("clock_addr", addr);
+            if let Some(op_mode_cfg) = op_mode {
+                let updated_op_mode = ContractOperationMode::try_init(deps.api, op_mode_cfg)
+                    .map_err(|err| StdError::generic_err(err.to_string()))?;
+
+                CONTRACT_OP_MODE.save(deps.storage, &updated_op_mode)?;
+                response = response.add_attribute("op_mode", format!("{:?}", updated_op_mode));
             }
 
             if let Some(denoms) = target_denoms {

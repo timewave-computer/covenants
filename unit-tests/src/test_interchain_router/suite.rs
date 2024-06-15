@@ -1,7 +1,10 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_std::Addr;
-use covenant_utils::DestinationConfig;
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    DestinationConfig,
+};
 
 use crate::setup::{
     base_suite::BaseSuiteMut, instantiates::interchain_router::InterchainRouterInstantiate,
@@ -11,6 +14,7 @@ use crate::setup::{
 pub struct InterchainRouterBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: InterchainRouterInstantiate,
+    pub clock_addr: Addr,
 }
 
 impl Default for InterchainRouterBuilder {
@@ -23,8 +27,8 @@ impl Default for InterchainRouterBuilder {
 
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
-            whitelist: vec![interchain_router_addr.to_string()],
-            initial_queue: vec![],
+            whitelist: vec![],
+            initial_queue: vec![interchain_router_addr.to_string()],
         };
         builder.contract_init2(
             builder.clock_code_id,
@@ -36,19 +40,20 @@ impl Default for InterchainRouterBuilder {
         let party_receiver = builder.get_random_addr();
 
         let interchain_router_instantiate =
-            InterchainRouterInstantiate::default(clock_addr, party_receiver.to_string());
+            InterchainRouterInstantiate::default(clock_addr.clone(), party_receiver.to_string());
 
         Self {
             builder,
             instantiate_msg: interchain_router_instantiate,
+            clock_addr,
         }
     }
 }
 
 #[allow(dead_code)]
 impl InterchainRouterBuilder {
-    pub fn with_clock_address(mut self, clock_address: String) -> Self {
-        self.instantiate_msg.with_clock_address(clock_address);
+    pub fn with_op_mode(mut self, op_mode: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(op_mode);
         self
     }
 
@@ -71,13 +76,13 @@ impl InterchainRouterBuilder {
             &[],
         );
 
-        let clock_addr = self
+        let op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 interchain_router_address.clone(),
-                &valence_interchain_router::msg::QueryMsg::ClockAddress {},
+                &valence_interchain_router::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
 
@@ -104,7 +109,8 @@ impl InterchainRouterBuilder {
         Suite {
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
-            clock_addr,
+            clock_addr: self.clock_addr,
+            op_mode,
             denoms,
             receiver_config,
             app: self.builder.build(),
@@ -120,6 +126,7 @@ pub struct Suite {
     pub admin: Addr,
 
     pub clock_addr: Addr,
+    pub op_mode: ContractOperationMode,
     pub receiver_config: covenant_utils::DestinationConfig,
     pub denoms: BTreeSet<String>,
 }

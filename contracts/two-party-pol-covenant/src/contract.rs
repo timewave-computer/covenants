@@ -88,26 +88,8 @@ pub fn instantiate(
 
     let mut clock_initial_queue = vec![];
     clock_initial_queue.push(liquid_pooler_instantiate2_config.addr.to_string());
-
-    // Note: Native Router has privileged_accounts, Interchain Router doesn't yet ..
-    // TODO: when both native router & interchain router have privileged_accounts, we can remove this match,
-    // and just add both router addresses to the clock_initial_queue.
-    match msg.party_a_config {
-        CovenantPartyConfig::Native(_) => {
-            clock_initial_queue.push(party_a_router_instantiate2_config.addr.to_string())
-        }
-        CovenantPartyConfig::Interchain(_) => {
-            clock_whitelist.push(party_a_router_instantiate2_config.addr.to_string())
-        }
-    }
-    match msg.party_b_config {
-        CovenantPartyConfig::Native(_) => {
-            clock_initial_queue.push(party_b_router_instantiate2_config.addr.to_string())
-        }
-        CovenantPartyConfig::Interchain(_) => {
-            clock_whitelist.push(party_b_router_instantiate2_config.addr.to_string())
-        }
-    }
+    clock_initial_queue.push(party_a_router_instantiate2_config.addr.to_string());
+    clock_initial_queue.push(party_b_router_instantiate2_config.addr.to_string());
 
     let holder_instantiate2_msg = valence_two_party_pol_holder::msg::InstantiateMsg {
         clock_address: clock_instantiate2_config.addr.to_string(),
