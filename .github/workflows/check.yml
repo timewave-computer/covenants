@@ -66,6 +66,6 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: wasm
-          args: --locked
+          args: --locked --workspace --exclude 'local-ictest-e2e'
         env:
           RUSTFLAGS: "-C link-arg=-s"
