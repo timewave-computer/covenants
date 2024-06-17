@@ -6,7 +6,10 @@ use cosmwasm_std::{
     Addr, Coin, Empty, GovMsg, Uint64,
 };
 
-use covenant_utils::DestinationConfig;
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    DestinationConfig,
+};
 use cw_multi_test::{
     App, AppResponse, BankKeeper, BasicAppBuilder, Contract, ContractWrapper, DistributionKeeper,
     Executor, FailingModule, IbcAcceptingModule, StakeKeeper, WasmKeeper,
@@ -45,6 +48,7 @@ type CustomApp = App<
 pub struct Suite {
     pub app: CustomApp,
     pub router: Addr,
+    pub clock_addr: Addr,
     pub destination_addr: Addr,
 }
 
@@ -64,7 +68,9 @@ impl Default for SuiteBuilder {
 
         Self {
             instantiate: InstantiateMsg {
-                clock_address: CLOCK_ADDR.to_string(),
+                op_mode_cfg: ContractOperationModeConfig::Permissioned(
+                    vec![CLOCK_ADDR.to_string()],
+                ),
                 destination_config: DestinationConfig {
                     local_to_destination_chain_channel_id: DEFAULT_CHANNEL.to_string(),
                     destination_receiver_addr: destination_address.to_string(),
@@ -95,7 +101,7 @@ impl SuiteBuilder {
         let router_code = app.store_code(router_contract());
         let clock_code = app.store_code(mock_clock_neutron_deps_contract());
 
-        self.instantiate.clock_address = app
+        let clock_addr = app
             .instantiate_contract(
                 clock_code,
                 Addr::unchecked(ADMIN),
@@ -108,8 +114,10 @@ impl SuiteBuilder {
                 "clock",
                 Some(ADMIN.to_string()),
             )
-            .unwrap()
-            .to_string();
+            .unwrap();
+
+        self.instantiate.op_mode_cfg =
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]);
 
         let router = app
             .instantiate_contract(
@@ -125,6 +133,7 @@ impl SuiteBuilder {
         Suite {
             app,
             router,
+            clock_addr,
             destination_addr: Addr::unchecked(
                 self.instantiate
                     .destination_config
@@ -155,10 +164,10 @@ impl Suite {
 
 // queries
 impl Suite {
-    pub fn query_clock_addr(&self) -> Addr {
+    pub fn query_op_mode(&mut self) -> ContractOperationMode {
         self.app
             .wrap()
-            .query_wasm_smart(&self.router, &QueryMsg::ClockAddress {})
+            .query_wasm_smart(self.router.clone(), &QueryMsg::OperationMode {})
             .unwrap()
     }
 

@@ -1172,7 +1172,7 @@ fn test_migrate_update_config_no_codes() {
         new_value: Uint64::new(50000),
     };
     let router_migrate_msg = valence_interchain_router::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(covenant_addr.to_string()),
+        op_mode: ContractOperationModeConfig::Permissioned(vec![covenant_addr.to_string()]).into(),
         destination_config: None,
         target_denoms: None,
     };

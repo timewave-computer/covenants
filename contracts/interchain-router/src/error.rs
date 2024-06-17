@@ -1,4 +1,5 @@
 use cosmwasm_std::StdError;
+use covenant_utils::op_mode::ContractOperationError;
 use cw_utils::PaymentError;
 use neutron_sdk::NeutronError;
 use thiserror::Error;
@@ -8,8 +9,8 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
-    #[error("Unauthorized")]
-    Unauthorized {},
+    #[error(transparent)]
+    ContractOperationError(#[from] ContractOperationError),
 
     #[error("unauthorized to distribute explicitly defined denom")]
     UnauthorizedDenomDistribution {},

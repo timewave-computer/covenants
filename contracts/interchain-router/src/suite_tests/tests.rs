@@ -8,7 +8,10 @@ use cosmwasm_std::{
     testing::{mock_env, mock_info, MockApi, MockQuerier, MockStorage},
     to_json_binary, Attribute, CosmosMsg, Empty, OwnedDeps, SubMsg, Uint128, Uint64,
 };
-use covenant_utils::DestinationConfig;
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    DestinationConfig,
+};
 use neutron_sdk::{
     bindings::msg::{IbcFee, NeutronMsg},
     query::min_ibc_fee::MinIbcFeeResponse,
@@ -28,7 +31,7 @@ use super::suite::{SuiteBuilder, CLOCK_ADDR};
 fn test_instantiate_and_query_all() {
     let suite = SuiteBuilder::default().build();
 
-    let clock = suite.query_clock_addr().to_string();
+    let clock = suite.clock_addr.to_string();
     let config = suite.query_destination_config();
     let denoms = suite.query_target_denoms();
 
@@ -51,7 +54,9 @@ fn test_migrate_config() {
     let target_denom_vec = vec!["new_denom_1".to_string(), "new_denom_2".to_string()];
     let target_denom_set: BTreeSet<String> = target_denom_vec.clone().into_iter().collect();
     let migrate_msg = MigrateMsg::UpdateConfig {
-        clock_addr: Some("working_clock".to_string()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![suite
+            .router
+            .to_string()])),
         destination_config: Some(DestinationConfig {
             local_to_destination_chain_channel_id: "new_channel".to_string(),
             destination_receiver_addr: "new_receiver".to_string(),
@@ -63,11 +68,14 @@ fn test_migrate_config() {
 
     suite.migrate(migrate_msg).unwrap();
 
-    let clock = suite.query_clock_addr();
+    let op_mod = suite.query_op_mode();
     let config = suite.query_destination_config();
     let target_denoms = suite.query_target_denoms();
 
-    assert_eq!("working_clock", clock);
+    assert_eq!(
+        ContractOperationMode::Permissioned(vec![suite.router].into()),
+        op_mod
+    );
     assert_eq!(
         DestinationConfig {
             local_to_destination_chain_channel_id: "new_channel".to_string(),
@@ -81,7 +89,7 @@ fn test_migrate_config() {
 }
 
 #[test]
-#[should_panic(expected = "Caller is not the clock, only clock can tick contracts")]
+#[should_panic(expected = "Contract operation unauthorized")]
 fn test_unauthorized_tick() {
     let mut suite = SuiteBuilder::default().build();
     suite.tick("not_the_clock");
