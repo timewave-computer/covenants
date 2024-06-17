@@ -89,9 +89,9 @@ pub fn execute(
 ) -> NeutronResult<Response<NeutronMsg>> {
     match (CONTRACT_STATE.load(deps.storage)?, msg) {
         // ticks coming in to ibc forwarder in Instantiaed state will attempt to register the ICA
-        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_register_ica(deps, info, env),
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_register_ica(deps, env, info),
         // ticks coming in to ibc forwarder in IcaCreated state will attempt to forward the funds
-        (ContractState::IcaCreated, ExecuteMsg::Tick {}) => try_forward_funds(env, info, deps),
+        (ContractState::IcaCreated, ExecuteMsg::Tick {}) => try_forward_funds(deps, env, info),
         // distributing the fallback split is permisionless and state independent
         (_, ExecuteMsg::DistributeFallback { coins }) => {
             try_distribute_fallback(deps, env, info, coins)
@@ -191,8 +191,8 @@ fn try_distribute_fallback(
 /// tries to register an ICA on the remote chain
 fn try_register_ica(
     deps: ExecuteDeps,
-    info: MessageInfo,
     env: Env,
+    info: MessageInfo,
 ) -> NeutronResult<Response<NeutronMsg>> {
     verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
@@ -216,9 +216,9 @@ fn try_register_ica(
 }
 
 fn try_forward_funds(
+    mut deps: ExecuteDeps,
     env: Env,
     info: MessageInfo,
-    mut deps: ExecuteDeps,
 ) -> NeutronResult<Response<NeutronMsg>> {
     verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
@@ -231,9 +231,9 @@ fn try_forward_funds(
 
     // if query returns None, then we error and wait
     let Some(deposit_address) = deposit_address_query else {
-        return Err(StdError::not_found(
-            "Next contract is not ready for receiving the funds yet",
-        ).into());
+        return Err(
+            StdError::not_found("Next contract is not ready for receiving the funds yet").into(),
+        );
     };
 
     let min_fee_query_response = query_ibc_fee(deps.querier)?;
