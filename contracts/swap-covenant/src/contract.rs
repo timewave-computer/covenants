@@ -87,12 +87,10 @@ pub fn instantiate(
         ),
     )?;
 
-    let clock_whitelist = vec![
-        holder_instantiate2_config.addr.to_string(),
-        splitter_instantiate2_config.addr.to_string(),
-    ];
+    let clock_whitelist = vec![splitter_instantiate2_config.addr.to_string()];
 
     let mut clock_initial_queue = vec![];
+    clock_initial_queue.push(holder_instantiate2_config.addr.to_string());
     clock_initial_queue.push(party_a_router_instantiate2_config.addr.to_string());
     clock_initial_queue.push(party_b_router_instantiate2_config.addr.to_string());
 
