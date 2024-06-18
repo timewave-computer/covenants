@@ -1,6 +1,6 @@
-use cosmwasm_std::{coin, to_json_binary, Addr, Event, StdError, Uint128, Uint64};
+use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint128, Uint64};
 use covenant_utils::{neutron::RemoteChainInfo, op_mode::ContractOperationModeConfig};
-use cw_multi_test::{AppResponse, Executor};
+use cw_multi_test::Executor;
 
 use crate::setup::{
     base_suite::BaseSuiteMut, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,

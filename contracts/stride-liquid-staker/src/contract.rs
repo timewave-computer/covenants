@@ -16,6 +16,7 @@ use covenant_utils::{
 use cw2::set_contract_version;
 use neutron_sdk::query::min_ibc_fee::MinIbcFeeResponse;
 
+use crate::error::ContractError;
 use crate::helpers::{Autopilot, AutopilotConfig};
 use crate::msg::{ContractState, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use crate::state::{
@@ -78,15 +79,21 @@ pub fn execute(
 ) -> NeutronResult<Response<NeutronMsg>> {
     match (CONTRACT_STATE.load(deps.storage)?, msg) {
         // tick in Instantiated state tries to register an ICA
-        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_register_stride_ica(deps, info, env),
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => {
+            try_register_stride_ica(deps, info, env)
+        }
         // tick in IcaCreated state is a no-op
         (ContractState::IcaCreated, ExecuteMsg::Tick {}) => {
             verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
             Ok(Response::default())
         }
         // in order to perform the transfer, ICA needs to be created
-        (ContractState::Instantiated, ExecuteMsg::Transfer { .. }) => {
-            Err(StdError::generic_err("ICA not created yet").into())
+        (ContractState::Instantiated, ExecuteMsg::Transfer { amount }) => {
+            Err(ContractError::StateMachineError(
+                ExecuteMsg::Transfer { amount },
+                ContractState::Instantiated,
+            )
+            .into())
         }
         // transfer call in IcaCreated state tries to execute the transfer
         (ContractState::IcaCreated, ExecuteMsg::Transfer { amount }) => {
@@ -102,7 +109,11 @@ pub fn execute(
 }
 
 /// registers an interchain account on stride with port_id associated with `INTERCHAIN_ACCOUNT_ID`
-fn try_register_stride_ica(deps: ExecuteDeps, info: MessageInfo, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_register_stride_ica(
+    deps: ExecuteDeps,
+    info: MessageInfo,
+    env: Env,
+) -> NeutronResult<Response<NeutronMsg>> {
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
     let ica_registration_fee = query_ica_registration_fee(deps.querier)?;
@@ -138,9 +149,7 @@ fn try_execute_transfer(
 
     // if query returns None, then we error and wait
     let Some(deposit_address) = deposit_address_query else {
-        return Err(StdError::not_found(
-            "Next contract is not ready for receiving the funds yet",
-        ).into());
+        return Err(ContractError::NextContractError {}.into());
     };
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
@@ -313,10 +322,7 @@ pub fn sudo(deps: ExecuteDeps, env: Env, msg: SudoMsg) -> Result<Response<Neutro
 pub fn reply(deps: ExecuteDeps, env: Env, msg: Reply) -> StdResult<Response<NeutronMsg>> {
     match msg.id {
         SUDO_PAYLOAD_REPLY_ID => prepare_sudo_payload(&LiquidStakerIcaStateHelper, deps, env, msg),
-        _ => Err(StdError::generic_err(format!(
-            "unsupported reply message id {}",
-            msg.id
-        ))),
+        _ => Err(ContractError::UnsupportedReplyIdError(msg.id).into()),
     }
 }
 
