@@ -100,9 +100,9 @@ pub fn instantiate(
     let mut clock_whitelist = Vec::with_capacity(7);
     clock_whitelist.push(liquid_staker_instantiate2_config.addr.to_string());
     clock_whitelist.push(holder_instantiate2_config.addr.to_string());
-    clock_whitelist.push(router_instantiate2_config.addr.to_string());
 
     let mut clock_initial_queue = vec![];
+    clock_initial_queue.push(router_instantiate2_config.addr.to_string());
     clock_initial_queue.push(splitter_instantiate2_config.addr.to_string());
     clock_initial_queue.push(liquid_pooler_instantiate2_config.addr.to_string());
 
@@ -111,7 +111,9 @@ pub fn instantiate(
     denoms.insert(msg.covenant_party_config.native_denom.to_string());
 
     let router_instantiate2_msg = RouterInstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+            .addr
+            .to_string()]),
         destination_config: DestinationConfig {
             local_to_destination_chain_channel_id: msg
                 .covenant_party_config
