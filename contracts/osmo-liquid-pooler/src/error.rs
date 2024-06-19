@@ -16,9 +16,6 @@ pub enum ContractError {
     #[error("{0}")]
     OverflowError(#[from] OverflowError),
 
-    #[error("Not clock")]
-    ClockVerificationError {},
-
     #[error("Unknown holder address. Migrate update to set it.")]
     MissingHolderError {},
 
