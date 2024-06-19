@@ -546,7 +546,7 @@ fn test_migrate_update_without_codes() {
     let covenant_addr = suite.covenant_addr.to_string();
 
     let interchain_router_migrate_msg = valence_interchain_router::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(covenant_addr.to_string()),
+        op_mode: ContractOperationModeConfig::Permissioned(vec![covenant_addr.to_string()]).into(),
         target_denoms: None,
         destination_config: None,
     };

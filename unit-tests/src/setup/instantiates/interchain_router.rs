@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_std::{Addr, Uint64};
-use covenant_utils::DestinationConfig;
+use covenant_utils::{op_mode::ContractOperationModeConfig, DestinationConfig};
 
 use crate::setup::{DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
 
@@ -23,15 +23,17 @@ impl InterchainRouterInstantiate {
     ) -> Self {
         Self {
             msg: valence_interchain_router::msg::InstantiateMsg {
-                clock_address: clock_address.to_string(),
+                op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![
+                    clock_address.to_string()
+                ]),
                 destination_config,
                 denoms,
             },
         }
     }
 
-    pub fn with_clock_address(&mut self, addr: String) -> &mut Self {
-        self.msg.clock_address = addr;
+    pub fn with_op_mode(&mut self, op_mode: ContractOperationModeConfig) -> &mut Self {
+        self.msg.op_mode_cfg = op_mode;
         self
     }
 

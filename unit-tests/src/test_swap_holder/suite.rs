@@ -41,13 +41,11 @@ impl Default for SwapHolderBuilder {
 
         let clock_instantiate_msg = valence_clock::msg::InstantiateMsg {
             tick_max_gas: None,
-            whitelist: vec![
-                holder_addr.to_string(),
-                native_splitter_addr.to_string(),
+            whitelist: vec![holder_addr.to_string(), native_splitter_addr.to_string()],
+            initial_queue: vec![
                 party_a_router_addr.to_string(),
                 party_b_router_addr.to_string(),
             ],
-            initial_queue: vec![],
         };
         builder.contract_init2(
             builder.clock_code_id,
