@@ -1,11 +1,14 @@
 use cosmwasm_std::{coin, coins, Addr, Event, Uint128};
 use covenant_utils::{
-    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    op_mode::{ContractOperationMode, ContractOperationModeConfig, PrivilegedAccounts},
     CovenantTerms, SwapCovenantTerms,
 };
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
-use valence_swap_holder::msg::{ContractState, RefundConfig};
+use valence_swap_holder::{
+    error::ContractError,
+    msg::{ContractState, RefundConfig},
+};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
@@ -313,4 +316,53 @@ fn test_migrate_update_config_validates_lockup_config_expiration() {
             4,
         )
         .unwrap();
+}
+
+#[test]
+fn test_complete_with_mixed_op_mode_address_types() {
+    // start with a default swap holder
+    let mut suite = SwapHolderBuilder::default().build();
+
+    // extend the op mode configuration with a non-contract address
+    let current_op_mode = suite.query_op_mode();
+    let extended_op_mode_addresses = match current_op_mode {
+        ContractOperationMode::Permissioned(addresses) => {
+            let mut current_addrs: Vec<String> =
+                addresses.to_vec().iter().map(|a| a.to_string()).collect();
+            current_addrs.push(suite.admin.to_string());
+            current_addrs
+        }
+        _ => panic!("unexpected op mode"),
+    };
+
+    // update the swap holder `op_mode` to include a non-contract address as well as the clock
+    suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.holder.clone(),
+            &valence_swap_holder::msg::MigrateMsg::UpdateConfig {
+                op_mode: Some(ContractOperationModeConfig::Permissioned(
+                    extended_op_mode_addresses,
+                )),
+                next_contract: None,
+                lockup_config: None,
+                parties_config: Box::new(None),
+                covenant_terms: None,
+                refund_config: None,
+            },
+            4,
+        )
+        .unwrap();
+
+    // fund the holder with necessary tokens
+    suite.fund_contract(&coins(100_000, DENOM_LS_ATOM_ON_NTRN), suite.holder.clone());
+    suite.fund_contract(&coins(100_000, DENOM_ATOM_ON_NTRN), suite.holder.clone());
+
+    // this tick should only dequeue the clock address and skip the admin address deuqueuing.
+    // admin is not a contract account so msg execution attempts on it would fail.
+    suite.tick_contract(suite.holder.clone());
+
+    let contract_state = suite.query_contract_state();
+    assert!(matches!(contract_state, ContractState::Complete {}));
 }

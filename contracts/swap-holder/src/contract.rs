@@ -193,7 +193,7 @@ fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         amount,
     };
 
-    let mut msgs: Vec<CosmosMsg> = vec![cosmwasm_std::CosmosMsg::Bank(bank_msg)];
+    let mut msgs: Vec<CosmosMsg> = vec![bank_msg.into()];
     let _ = CONTRACT_OP_MODE.load(deps.storage).map(|op_mode| {
         match op_mode {
             ContractOperationMode::Permissioned(privileged_accounts) => {
