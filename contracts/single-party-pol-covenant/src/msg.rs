@@ -48,18 +48,10 @@ impl LiquidPoolerConfig {
     ) -> StdResult<WasmMsg> {
         match self {
             LiquidPoolerConfig::Osmosis(config) => Ok(config
-                .to_instantiate_msg(
-                    op_mode,
-                    holder_addr.to_string(),
-                    pool_price_config,
-                )
+                .to_instantiate_msg(op_mode, holder_addr.to_string(), pool_price_config)
                 .to_instantiate2_msg(instantiate2_helper, admin, label)?),
             LiquidPoolerConfig::Astroport(config) => Ok(config
-                .to_instantiate_msg(
-                    holder_addr.to_string(),
-                    pool_price_config,
-                    op_mode,
-                )
+                .to_instantiate_msg(holder_addr.to_string(), pool_price_config, op_mode)
                 .to_instantiate2_msg(instantiate2_helper, admin, label)?),
         }
     }

@@ -5,11 +5,10 @@ use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, StdResult, Uint128, Uint64,
     WasmMsg,
 };
-use covenant_macros::{
-    clocked, covenant_deposit_address, covenant_lper_withdraw,
-};
+use covenant_macros::{clocked, covenant_deposit_address, covenant_lper_withdraw};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    instantiate2_helper::Instantiate2HelperConfig,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
     ForwardMetadata, PoolPriceConfig, SingleSideLpLimits,
 };
 use cw_utils::{Duration, Expiration};
