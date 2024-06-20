@@ -21,6 +21,7 @@ hash.txt
 contracts.txt
 artifacts/
 interchaintest/**/wasms/*.wasm
+local-interchaintest/configs/logs.json
 
 # code coverage
 tarpaulin-report.*

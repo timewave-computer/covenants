@@ -1,14 +1,11 @@
 use cosmwasm_std::{coin, coins, Addr, Event, Uint128};
 use covenant_utils::{
-    op_mode::{ContractOperationMode, ContractOperationModeConfig, PrivilegedAccounts},
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
     CovenantTerms, SwapCovenantTerms,
 };
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
-use valence_swap_holder::{
-    error::ContractError,
-    msg::{ContractState, RefundConfig},
-};
+use valence_swap_holder::msg::{ContractState, RefundConfig};
 
 use crate::setup::{
     base_suite::{BaseSuite, BaseSuiteMut},
