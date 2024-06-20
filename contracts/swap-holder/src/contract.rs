@@ -1,5 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128
+    to_json_binary, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_utils::{
     clock::dequeue_msg,
@@ -211,8 +212,7 @@ fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     Ok(Response::default()
         .add_message(bank_msg)
-        .add_submessages(submsgs)
-    )
+        .add_submessages(submsgs))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
