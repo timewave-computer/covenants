@@ -36,7 +36,7 @@ pub fn instantiate(
     msg.parties_config.validate_party_addresses(deps.api)?;
     ensure!(
         !msg.lockup_config.is_expired(&env.block),
-        StdError::generic_err("past lockup config")
+        ContractError::LockupConfigValidationError {}
     );
 
     deps.api
@@ -100,26 +100,30 @@ fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             // both balances empty, nothing to refund
             (true, true) => vec![],
             // party A failed to deposit. refund party B
-            (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
+            (true, false) => vec![BankMsg::Send {
                 to_address: refund_config.party_b_refund_address,
                 amount: vec![party_b_bal],
-            })],
+            }
+            .into()],
             // party B failed to deposit. refund party A
-            (false, true) => vec![CosmosMsg::Bank(BankMsg::Send {
+            (false, true) => vec![BankMsg::Send {
                 to_address: refund_config.party_a_refund_address,
                 amount: vec![party_a_bal],
-            })],
+            }
+            .into()],
             // not enough balances to perform the covenant swap.
             // refund denoms to both parties.
             (false, false) => vec![
-                CosmosMsg::Bank(BankMsg::Send {
+                BankMsg::Send {
                     to_address: refund_config.party_a_refund_address,
                     amount: vec![party_a_bal],
-                }),
-                CosmosMsg::Bank(BankMsg::Send {
+                }
+                .into(),
+                BankMsg::Send {
                     to_address: refund_config.party_b_refund_address,
                     amount: vec![party_b_bal],
-                }),
+                }
+                .into(),
             ],
         };
 
@@ -165,7 +169,6 @@ fn try_forward(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response
     }
 
     // otherwise we are ready to forward the funds to the next module
-    let amount = vec![party_a_coin, party_b_coin];
 
     // first we query the deposit address of next module
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
@@ -183,7 +186,7 @@ fn try_forward(mut deps: DepsMut, env: Env, clock_addr: Addr) -> Result<Response
 
     let bank_msg = BankMsg::Send {
         to_address: deposit_address,
-        amount,
+        amount: vec![party_a_coin, party_b_coin],
     };
 
     // given that we successfully forward the expected funds,

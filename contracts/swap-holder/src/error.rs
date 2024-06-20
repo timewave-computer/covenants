@@ -21,4 +21,7 @@ pub enum ContractError {
 
     #[error("unexpected reply id")]
     UnexpectedReplyId {},
+
+    #[error("Lockup config must be in the future")]
+    LockupConfigValidationError {},
 }
