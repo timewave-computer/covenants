@@ -1,6 +1,5 @@
 use cosmwasm_std::{
-    to_json_binary, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128,
+    to_json_binary, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, Uint128
 };
 use covenant_utils::{
     clock::dequeue_msg,
@@ -193,22 +192,27 @@ fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         amount,
     };
 
-    let mut msgs: Vec<CosmosMsg> = vec![bank_msg.into()];
+    let mut submsgs: Vec<SubMsg> = vec![];
     let _ = CONTRACT_OP_MODE.load(deps.storage).map(|op_mode| {
         match op_mode {
             ContractOperationMode::Permissioned(privileged_accounts) => {
                 // given that we successfully forward the expected funds,
                 // we can now dequeue from the clock and complete
                 for addr in privileged_accounts.to_vec() {
-                    let dequeue_msg = dequeue_msg(addr.as_str()).unwrap();
-                    msgs.push(cosmwasm_std::CosmosMsg::Wasm(dequeue_msg));
+                    if deps.querier.query_wasm_contract_info(addr.as_str()).is_ok() {
+                        let dequeue_msg = dequeue_msg(addr.as_str()).unwrap();
+                        submsgs.push(SubMsg::reply_on_error(dequeue_msg, u64::MAX));
+                    }
                 }
             }
             ContractOperationMode::Permissionless => {}
         }
     });
 
-    Ok(Response::default().add_messages(msgs))
+    Ok(Response::default()
+        .add_message(bank_msg)
+        .add_submessages(submsgs)
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -290,5 +294,16 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             // let data: SomeStruct = from_binary(&data)?;
             Ok(Response::default())
         }
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+    // if we get a reply with id u64::MAX, we can assume it is a dequeue message
+    if msg.id == u64::MAX {
+        // Do nothing, whether it fails or not (dequeue messages are "fire & forget" style messages)
+        Ok(Response::default())
+    } else {
+        Err(ContractError::UnexpectedReplyId {})
     }
 }
