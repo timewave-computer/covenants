@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::Addr;
-use covenant_utils::split::SplitConfig;
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    split::SplitConfig,
+};
 use cw_multi_test::{AppResponse, Executor};
 
 use crate::setup::{
@@ -14,6 +17,7 @@ use crate::setup::{
 pub struct NativeSplitterBuilder {
     pub builder: SuiteBuilder,
     pub instantiate_msg: NativeSplitterInstantiate,
+    pub clock_addr: Addr,
 }
 
 impl Default for NativeSplitterBuilder {
@@ -40,7 +44,7 @@ impl Default for NativeSplitterBuilder {
         let party_b_controller_addr = builder.get_random_addr();
 
         let native_splitter_instantiate = NativeSplitterInstantiate::default(
-            clock_addr.to_string(),
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             party_a_controller_addr.to_string(),
             party_b_controller_addr.to_string(),
         );
@@ -48,14 +52,15 @@ impl Default for NativeSplitterBuilder {
         Self {
             builder,
             instantiate_msg: native_splitter_instantiate,
+            clock_addr,
         }
     }
 }
 
 #[allow(dead_code)]
 impl NativeSplitterBuilder {
-    pub fn with_clock_address(mut self, addr: String) -> Self {
-        self.instantiate_msg.with_clock_address(addr);
+    pub fn with_op_mode(mut self, op_mode_cfg: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(op_mode_cfg);
         self
     }
 
@@ -77,13 +82,13 @@ impl NativeSplitterBuilder {
             &[],
         );
 
-        let clock_addr = self
+        let op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 native_splitter_address.clone(),
-                &valence_native_splitter::msg::QueryMsg::ClockAddress {},
+                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
 
@@ -114,7 +119,8 @@ impl NativeSplitterBuilder {
         Suite {
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
-            clock_addr,
+            clock_addr: self.clock_addr,
+            op_mode,
             splitter: native_splitter_address,
             splits: split_map,
             fallback_split,
@@ -134,6 +140,7 @@ pub struct Suite {
 
     pub splitter: Addr,
     pub clock_addr: Addr,
+    pub op_mode: ContractOperationMode,
     pub splits: BTreeMap<String, SplitConfig>,
     pub fallback_split: Option<SplitConfig>,
     pub receiver_1: Addr,
@@ -141,12 +148,12 @@ pub struct Suite {
 }
 
 impl Suite {
-    pub fn query_clock_address(&mut self) -> Addr {
+    pub(crate) fn query_op_mode(&mut self) -> ContractOperationMode {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.splitter.clone(),
-                &valence_native_splitter::msg::QueryMsg::ClockAddress {},
+                &valence_native_splitter::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }

@@ -87,14 +87,12 @@ pub fn instantiate(
         ),
     )?;
 
-    let clock_whitelist = vec![
-        holder_instantiate2_config.addr.to_string(),
-        splitter_instantiate2_config.addr.to_string(),
-    ];
+    let clock_whitelist = vec![holder_instantiate2_config.addr.to_string()];
 
     let mut clock_initial_queue = vec![];
     clock_initial_queue.push(party_a_router_instantiate2_config.addr.to_string());
     clock_initial_queue.push(party_b_router_instantiate2_config.addr.to_string());
+    clock_initial_queue.push(splitter_instantiate2_config.addr.to_string());
 
     let party_a_router_instantiate2_msg = msg.party_a_config.get_router_instantiate2_wasm_msg(
         format!("{}_party_a_router", msg.label),
@@ -131,7 +129,9 @@ pub fn instantiate(
     );
 
     let splitter_instantiate2_msg = valence_native_splitter::msg::InstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+            .addr
+            .to_string()]),
         splits: remap_splits(
             msg.splits.clone(),
             (

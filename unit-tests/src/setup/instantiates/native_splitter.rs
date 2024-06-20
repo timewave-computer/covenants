@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::Decimal;
-use covenant_utils::split::SplitConfig;
+use covenant_utils::{op_mode::ContractOperationModeConfig, split::SplitConfig};
 
 use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
 
@@ -17,21 +17,21 @@ impl From<NativeSplitterInstantiate> for valence_native_splitter::msg::Instantia
 
 impl NativeSplitterInstantiate {
     pub fn new(
-        clock_address: String,
+        op_mode_cfg: ContractOperationModeConfig,
         splits: BTreeMap<String, SplitConfig>,
         fallback_split: Option<SplitConfig>,
     ) -> Self {
         Self {
             msg: valence_native_splitter::msg::InstantiateMsg {
-                clock_address,
+                op_mode_cfg,
                 splits,
                 fallback_split,
             },
         }
     }
 
-    pub fn with_clock_address(&mut self, addr: String) -> &mut Self {
-        self.msg.clock_address = addr;
+    pub fn with_op_mode(&mut self, op_mode: ContractOperationModeConfig) -> &mut Self {
+        self.msg.op_mode_cfg = op_mode;
         self
     }
 
@@ -47,7 +47,11 @@ impl NativeSplitterInstantiate {
 }
 
 impl NativeSplitterInstantiate {
-    pub fn default(clock_address: String, party_a_addr: String, party_b_addr: String) -> Self {
+    pub fn default(
+        op_mode: ContractOperationModeConfig,
+        party_a_addr: String,
+        party_b_addr: String,
+    ) -> Self {
         let mut splits = BTreeMap::new();
         splits.insert(party_a_addr, Decimal::from_str("0.5").unwrap());
         splits.insert(party_b_addr, Decimal::from_str("0.5").unwrap());
@@ -59,7 +63,7 @@ impl NativeSplitterInstantiate {
 
         Self {
             msg: valence_native_splitter::msg::InstantiateMsg {
-                clock_address,
+                op_mode_cfg: op_mode,
                 splits: denom_to_split_config_map,
                 fallback_split: Some(split_config),
             },

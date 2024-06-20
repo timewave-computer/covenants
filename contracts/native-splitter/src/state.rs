@@ -1,9 +1,7 @@
-use cosmwasm_std::Addr;
-use covenant_utils::split::SplitConfig;
+use covenant_utils::{op_mode::ContractOperationMode, split::SplitConfig};
 use cw_storage_plus::{Item, Map};
 
-/// clock module address to verify the sender of incoming ticks
-pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
+pub const CONTRACT_OP_MODE: Item<ContractOperationMode> = Item::new("contract_op_mode");
 
 /// maps a denom string to a vec of SplitReceivers
 pub const SPLIT_CONFIG_MAP: Map<String, SplitConfig> = Map::new("split_config");
