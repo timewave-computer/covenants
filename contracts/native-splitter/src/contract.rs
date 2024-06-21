@@ -6,15 +6,13 @@ use cosmwasm_std::{
     ensure, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Order, Response,
     StdError, StdResult,
 };
-use covenant_utils::{
-    clock::{enqueue_msg, verify_clock},
-    split::SplitConfig,
-};
+use covenant_utils::op_mode::{verify_caller, ContractOperationMode};
+use covenant_utils::split::SplitConfig;
 use cw2::set_contract_version;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use crate::state::{CLOCK_ADDRESS, FALLBACK_SPLIT, SPLIT_CONFIG_MAP};
+use crate::state::{CONTRACT_OP_MODE, FALLBACK_SPLIT, SPLIT_CONFIG_MAP};
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -30,9 +28,9 @@ pub fn instantiate(
 
     let mut resp = Response::default().add_attribute("method", "native_splitter_instantiate");
 
-    let clock_address = deps.api.addr_validate(&msg.clock_address)?;
-    CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
-    resp = resp.add_attribute("clock_addr", msg.clock_address.to_string());
+    let op_mode = ContractOperationMode::try_init(deps.api, msg.op_mode_cfg.clone())?;
+    CONTRACT_OP_MODE.save(deps.storage, &op_mode)?;
+    resp = resp.add_attribute("op_mode", format!("{:?}", op_mode));
 
     // we validate the splits and store them per-denom
     for (denom, split) in msg.splits {
@@ -49,9 +47,7 @@ pub fn instantiate(
         resp = resp.add_attribute("fallback", "None");
     }
 
-    Ok(resp
-        .add_message(enqueue_msg(msg.clock_address.as_str())?)
-        .add_attribute("clock_address", clock_address))
+    Ok(resp)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -63,9 +59,7 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Tick {} => {
-            verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
-                .map_err(|_| ContractError::NotClock)?;
-
+            verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
             try_distribute(deps, env)
         }
         ExecuteMsg::DistributeFallback { denoms } => try_distribute_fallback(deps, env, denoms),
@@ -132,11 +126,13 @@ fn try_distribute_fallback(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::DenomSplit { denom } => Ok(to_json_binary(&query_split(deps, denom)?)?),
         QueryMsg::Splits {} => Ok(to_json_binary(&query_all_splits(deps)?)?),
         QueryMsg::FallbackSplit {} => Ok(to_json_binary(&FALLBACK_SPLIT.may_load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&Some(env.contract.address))?),
+        QueryMsg::OperationMode {} => {
+            Ok(to_json_binary(&CONTRACT_OP_MODE.may_load(deps.storage)?)?)
+        }
     }
 }
 
@@ -168,15 +164,18 @@ pub fn query_split(deps: Deps, denom: String) -> Result<SplitConfig, StdError> {
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, StdError> {
     match msg {
         MigrateMsg::UpdateConfig {
-            clock_addr,
+            op_mode,
             splits,
             fallback_split,
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
-            if let Some(clock_addr) = clock_addr {
-                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
-                resp = resp.add_attribute("clock_addr", clock_addr);
+            if let Some(op_mode_cfg) = op_mode {
+                let updated_op_mode = ContractOperationMode::try_init(deps.api, op_mode_cfg)
+                    .map_err(|err| StdError::generic_err(err.to_string()))?;
+
+                CONTRACT_OP_MODE.save(deps.storage, &updated_op_mode)?;
+                resp = resp.add_attribute("op_mode", format!("{:?}", updated_op_mode));
             }
 
             if let Some(splits) = splits {

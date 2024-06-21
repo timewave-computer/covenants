@@ -1,14 +1,21 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, WasmMsg};
-use covenant_macros::{clocked, covenant_clock_address, covenant_deposit_address};
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig};
+use cosmwasm_std::{to_json_binary, Binary, StdResult, WasmMsg};
+use covenant_macros::{clocked, covenant_deposit_address};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    split::SplitConfig,
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// address of the associated clock
-    pub clock_address: String,
+    // Contract Operation Mode.
+    // The contract operation (the Tick function mostly) can either be a permissionless
+    // (aka non-privileged) operation, or a permissioned operation, that is,
+    // restricted to being executed by one of the configured privileged accounts.
+    pub op_mode_cfg: ContractOperationModeConfig,
     /// maps denom to its split configuration
     pub splits: BTreeMap<String, SplitConfig>,
     /// a split for all denoms that are not covered in the
@@ -40,7 +47,6 @@ pub enum ExecuteMsg {
     DistributeFallback { denoms: Vec<String> },
 }
 
-#[covenant_clock_address]
 #[covenant_deposit_address]
 #[cw_serde]
 #[derive(QueryResponses)]
@@ -51,12 +57,14 @@ pub enum QueryMsg {
     Splits {},
     #[returns(SplitConfig)]
     FallbackSplit {},
+    #[returns(ContractOperationMode)]
+    OperationMode {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        clock_addr: Option<String>,
+        op_mode: Option<ContractOperationModeConfig>,
         fallback_split: Option<SplitConfig>,
         splits: Option<BTreeMap<String, SplitConfig>>,
     },

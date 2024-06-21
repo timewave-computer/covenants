@@ -1,7 +1,10 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{coin, coins, Addr, Decimal};
-use covenant_utils::split::SplitConfig;
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    split::SplitConfig,
+};
 use cw_multi_test::Executor;
 
 use crate::setup::{
@@ -50,10 +53,32 @@ fn test_instantiate_validates_explicit_split_receiver_addresses() {
 }
 
 #[test]
+fn test_instantiate_with_valid_op_mode() {
+    let _suite = NativeSplitterBuilder::default().build();
+}
+
+#[test]
+fn test_instantiate_in_permissionless_mode() {
+    let _suite = NativeSplitterBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissionless)
+        .build();
+}
+
+#[test]
 #[should_panic]
-fn test_instantiate_validates_clock_address() {
+fn test_instantiate_validates_privileged_accounts() {
     NativeSplitterBuilder::default()
-        .with_clock_address("invalid_clock".to_string())
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![
+            "some contract".to_string(),
+        ]))
+        .build();
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_validates_empty_privileged_accounts() {
+    NativeSplitterBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![]))
         .build();
 }
 
@@ -74,10 +99,7 @@ fn test_instantiate_validates_fallback_split_receiver_addresses() {
 fn test_instantiate_validates_fallback_split_shares() {
     let builder = NativeSplitterBuilder::default();
     let mut invalid_split_config = BTreeMap::new();
-    invalid_split_config.insert(
-        builder.instantiate_msg.msg.clock_address.to_string(),
-        Decimal::percent(50),
-    );
+    invalid_split_config.insert(builder.clock_addr.to_string(), Decimal::percent(50));
     builder
         .with_fallback_split(Some(SplitConfig {
             receivers: invalid_split_config,
@@ -86,7 +108,7 @@ fn test_instantiate_validates_fallback_split_shares() {
 }
 
 #[test]
-#[should_panic(expected = "Caller is not the clock, only clock can tick contracts")]
+#[should_panic(expected = "Contract operation unauthorized")]
 fn test_execute_tick_validates_clock() {
     let mut suite = NativeSplitterBuilder::default().build();
 
@@ -195,7 +217,9 @@ fn test_migrate_update_config() {
             Addr::unchecked(ADMIN),
             suite.splitter.clone(),
             &valence_native_splitter::msg::MigrateMsg::UpdateConfig {
-                clock_addr: Some(suite.faucet.to_string()),
+                op_mode: Some(ContractOperationModeConfig::Permissioned(vec![suite
+                    .faucet
+                    .to_string()])),
                 fallback_split: Some(splits.get(DENOM_LS_ATOM_ON_NTRN).unwrap().clone()),
                 splits: Some(splits.clone()),
             },
@@ -203,13 +227,16 @@ fn test_migrate_update_config() {
         )
         .unwrap();
 
-    let clock_address = suite.query_clock_address();
+    let op_mode = suite.query_op_mode();
     let new_splits = suite.query_all_splits();
     let new_fallback_split = suite.query_fallback_split();
     let ls_atom_split = suite.query_denom_split(DENOM_LS_ATOM_ON_NTRN.to_string());
 
     assert!(new_fallback_split.is_some());
     assert_eq!(splits, new_splits);
-    assert_eq!(clock_address, suite.faucet);
+    assert_eq!(
+        op_mode,
+        ContractOperationMode::Permissioned(vec![suite.faucet].into())
+    );
     assert_eq!(splits.get(DENOM_LS_ATOM_ON_NTRN).unwrap(), &ls_atom_split);
 }
