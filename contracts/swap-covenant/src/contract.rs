@@ -91,7 +91,7 @@ pub fn instantiate(
         holder_instantiate2_config.addr.to_string(),
         party_a_router_instantiate2_config.addr.to_string(),
         party_b_router_instantiate2_config.addr.to_string(),
-        splitter_instantiate2_config.addr.to_string()
+        splitter_instantiate2_config.addr.to_string(),
     ];
 
     let party_a_router_instantiate2_msg = msg.party_a_config.get_router_instantiate2_wasm_msg(
