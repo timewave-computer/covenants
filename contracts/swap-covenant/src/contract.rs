@@ -87,12 +87,12 @@ pub fn instantiate(
         ),
     )?;
 
-    let clock_whitelist = vec![holder_instantiate2_config.addr.to_string()];
-
-    let mut clock_initial_queue = vec![];
-    clock_initial_queue.push(party_a_router_instantiate2_config.addr.to_string());
-    clock_initial_queue.push(party_b_router_instantiate2_config.addr.to_string());
-    clock_initial_queue.push(splitter_instantiate2_config.addr.to_string());
+    let mut clock_initial_queue = vec![
+        holder_instantiate2_config.addr.to_string(),
+        party_a_router_instantiate2_config.addr.to_string(),
+        party_b_router_instantiate2_config.addr.to_string(),
+        splitter_instantiate2_config.addr.to_string(),
+    ];
 
     let party_a_router_instantiate2_msg = msg.party_a_config.get_router_instantiate2_wasm_msg(
         format!("{}_party_a_router", msg.label),
@@ -169,7 +169,9 @@ pub fn instantiate(
             party_a_amount: msg.party_a_config.get_contribution().amount,
             party_b_amount: msg.party_b_config.get_contribution().amount,
         }),
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+            .addr
+            .to_string()]),
         next_contract: splitter_instantiate2_config.addr.to_string(),
         refund_config: RefundConfig {
             party_a_refund_address: party_a_router_instantiate2_config.addr.to_string(),
@@ -280,7 +282,7 @@ pub fn instantiate(
         0,
         valence_clock::msg::InstantiateMsg {
             tick_max_gas: msg.clock_tick_max_gas,
-            whitelist: clock_whitelist,
+            whitelist: vec![],
             initial_queue: clock_initial_queue,
         }
         .to_instantiate2_msg(

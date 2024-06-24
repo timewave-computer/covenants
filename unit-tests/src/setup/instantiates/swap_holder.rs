@@ -1,5 +1,8 @@
 use cosmwasm_std::{Addr, Uint128};
-use covenant_utils::{CovenantPartiesConfig, CovenantParty, CovenantTerms, ReceiverConfig};
+use covenant_utils::{
+    op_mode::ContractOperationModeConfig, CovenantPartiesConfig, CovenantParty, CovenantTerms,
+    ReceiverConfig,
+};
 use cw_utils::Expiration;
 use valence_swap_holder::msg::RefundConfig;
 
@@ -17,7 +20,7 @@ impl From<SwapHolderInstantiate> for valence_swap_holder::msg::InstantiateMsg {
 
 impl SwapHolderInstantiate {
     pub fn new(
-        clock_address: String,
+        op_mode_cfg: ContractOperationModeConfig,
         next_contract: String,
         lockup_config: Expiration,
         covenant_terms: CovenantTerms,
@@ -26,7 +29,7 @@ impl SwapHolderInstantiate {
     ) -> Self {
         Self {
             msg: valence_swap_holder::msg::InstantiateMsg {
-                clock_address,
+                op_mode_cfg,
                 next_contract,
                 lockup_config,
                 covenant_terms,
@@ -36,8 +39,8 @@ impl SwapHolderInstantiate {
         }
     }
 
-    pub fn with_clock_address(&mut self, addr: &str) -> &mut Self {
-        self.msg.clock_address = addr.to_string();
+    pub fn with_op_mode(&mut self, op_mode: ContractOperationModeConfig) -> &mut Self {
+        self.msg.op_mode_cfg = op_mode;
         self
     }
 
@@ -69,7 +72,7 @@ impl SwapHolderInstantiate {
 
 impl SwapHolderInstantiate {
     pub fn default(
-        clock_address: String,
+        op_mode: ContractOperationModeConfig,
         next_contract: String,
         party_a_addr: Addr,
         party_b_addr: Addr,
@@ -78,7 +81,7 @@ impl SwapHolderInstantiate {
     ) -> Self {
         Self {
             msg: valence_swap_holder::msg::InstantiateMsg {
-                clock_address,
+                op_mode_cfg: op_mode,
                 next_contract,
                 lockup_config: Expiration::AtHeight(1000000),
                 covenant_terms: CovenantTerms::TokenSwap(covenant_utils::SwapCovenantTerms {
