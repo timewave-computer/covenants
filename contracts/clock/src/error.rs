@@ -25,9 +25,6 @@ pub enum ContractError {
     #[error("only contracts may be enqueued. error reading contract info: ({0})")]
     NotContract(String),
 
-    #[error("Caller is not the clock, only clock can tick contracts")]
-    NotClock,
-
     #[error("Caller is not whitelisted, can't enqueue")]
     NotWhitelisted,
 

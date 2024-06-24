@@ -72,6 +72,10 @@ impl PrivilegedAccounts {
     pub fn is_privileged(&self, addr: &Addr) -> bool {
         self.0.contains(addr)
     }
+
+    pub fn to_vec(&self) -> Vec<Addr> {
+        self.0.iter().cloned().collect()
+    }
 }
 
 impl From<HashSet<Addr>> for PrivilegedAccounts {

@@ -1,6 +1,7 @@
-use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint128, Uint64};
+use cosmwasm_std::{coin, to_json_binary, Addr, Event, StdError, Uint128, Uint64};
 use covenant_utils::{neutron::RemoteChainInfo, op_mode::ContractOperationModeConfig};
-use cw_multi_test::{AppResponse, Executor};
+use cw_multi_test::Executor;
+use neutron_sdk::NeutronError;
 
 use crate::setup::{
     base_suite::BaseSuiteMut, ADMIN, DENOM_ATOM, DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN,
@@ -12,7 +13,7 @@ use super::suite::Suite;
 #[test]
 fn test_covenant() {
     let mut suite = Suite::new_with_stable_pool();
-    let resp: AppResponse = suite
+    let err: NeutronError = suite
         .app
         .execute_contract(
             suite.admin.clone(),
@@ -22,12 +23,14 @@ fn test_covenant() {
             },
             &[],
         )
+        .unwrap_err()
+        .downcast()
         .unwrap();
-
-    resp.assert_event(
-        &Event::new("wasm")
-            .add_attribute("method", "try_permisionless_transfer")
-            .add_attribute("ica_status", "not_created"),
+    assert_eq!(
+        err,
+        NeutronError::Std(StdError::generic_err(
+            "State machine error: cannot perform Transfer { amount: Uint128(500000000000) } from Instantiated state",
+        )),
     );
 
     suite.get_and_fund_depositors(coin(1_000_000_000_000_u128, DENOM_ATOM));

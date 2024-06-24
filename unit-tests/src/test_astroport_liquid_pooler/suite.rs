@@ -275,7 +275,7 @@ impl Suite {
             .wrap()
             .query_wasm_smart(
                 self.liquid_pooler_addr.clone(),
-                &valence_ibc_forwarder::msg::QueryMsg::OperationMode {},
+                &valence_astroport_liquid_pooler::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }
