@@ -53,7 +53,7 @@ fn test_instantiate_validates_empty_privileged_accounts() {
 }
 
 #[test]
-#[should_panic(expected = "past lockup config")]
+#[should_panic(expected = "Lockup config must be in the future")]
 fn test_instantiate_validates_lockup_config() {
     SwapHolderBuilder::default()
         .with_lockup_config(Expiration::AtHeight(0))

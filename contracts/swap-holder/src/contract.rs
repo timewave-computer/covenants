@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_json_binary, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply, Response,
-    StdError, StdResult, SubMsg, Uint128,
+    ensure, to_json_binary, BankMsg, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Reply,
+    Response, StdError, StdResult, SubMsg, Uint128,
 };
 use covenant_utils::{
     clock::dequeue_msg,
@@ -36,11 +36,11 @@ pub fn instantiate(
     let op_mode = ContractOperationMode::try_init(deps.api, msg.op_mode_cfg.clone())?;
 
     msg.parties_config.validate_party_addresses(deps.api)?;
-    if msg.lockup_config.is_expired(&env.block) {
-        return Err(ContractError::Std(StdError::generic_err(
-            "past lockup config",
-        )));
-    }
+    ensure!(
+        !msg.lockup_config.is_expired(&env.block),
+        ContractError::LockupConfigValidationError {}
+    );
+
     deps.api
         .addr_validate(&msg.refund_config.party_a_refund_address)?;
     deps.api
@@ -66,20 +66,16 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match msg {
-        ExecuteMsg::Tick {} => try_tick(deps, env, info),
-    }
-}
-
-/// attempts to advance the state machine. performs `info.sender` validation
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    // Verify caller is the clock
     verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
-    let current_state = CONTRACT_STATE.load(deps.storage)?;
-    match current_state {
-        ContractState::Instantiated => try_forward(deps, env),
-        ContractState::Expired => try_refund(deps, env),
-        ContractState::Complete => Ok(Response::default()
+    match (CONTRACT_STATE.load(deps.storage)?, msg) {
+        // from instantiated state we attempt to forward the funds
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_forward(deps, env),
+        // from expired state we attempt to refund any available funds
+        (ContractState::Expired, ExecuteMsg::Tick {}) => try_refund(deps, env),
+        // completed state is terminal, noop
+        (ContractState::Complete, ExecuteMsg::Tick {}) => Ok(Response::default()
             .add_attribute("contract_state", "complete")
             .add_attribute("method", "try_tick")),
     }
@@ -90,42 +86,45 @@ fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Cont
 fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let parties = PARTIES_CONFIG.load(deps.storage)?;
     let refund_config = REFUND_CONFIG.load(deps.storage)?;
+    let contract_addr = env.contract.address;
 
     // query holder balances
-    let party_a_bal = deps.querier.query_balance(
-        env.contract.address.to_string(),
-        parties.party_a.native_denom,
-    )?;
-    let party_b_bal = deps.querier.query_balance(
-        env.contract.address.to_string(),
-        parties.party_b.native_denom,
-    )?;
+    let party_a_bal = deps
+        .querier
+        .query_balance(&contract_addr, parties.party_a.native_denom)?;
+    let party_b_bal = deps
+        .querier
+        .query_balance(&contract_addr, parties.party_b.native_denom)?;
 
     let refund_messages: Vec<CosmosMsg> =
         match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
             // both balances empty, nothing to refund
             (true, true) => vec![],
             // party A failed to deposit. refund party B
-            (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
+            (true, false) => vec![BankMsg::Send {
                 to_address: refund_config.party_b_refund_address,
                 amount: vec![party_b_bal],
-            })],
+            }
+            .into()],
             // party B failed to deposit. refund party A
-            (false, true) => vec![CosmosMsg::Bank(BankMsg::Send {
+            (false, true) => vec![BankMsg::Send {
                 to_address: refund_config.party_a_refund_address,
                 amount: vec![party_a_bal],
-            })],
+            }
+            .into()],
             // not enough balances to perform the covenant swap.
             // refund denoms to both parties.
             (false, false) => vec![
-                CosmosMsg::Bank(BankMsg::Send {
+                BankMsg::Send {
                     to_address: refund_config.party_a_refund_address,
                     amount: vec![party_a_bal],
-                }),
-                CosmosMsg::Bank(BankMsg::Send {
+                }
+                .into(),
+                BankMsg::Send {
                     to_address: refund_config.party_b_refund_address,
                     amount: vec![party_b_bal],
-                }),
+                }
+                .into(),
             ],
         };
 
@@ -137,6 +136,8 @@ fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
 fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
+    let contract_addr = env.contract.address;
+
     // check if covenant is expired
     if lockup_config.is_expired(&env.block) {
         CONTRACT_STATE.save(deps.storage, &ContractState::Expired)?;
@@ -151,10 +152,10 @@ fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     let mut party_a_coin = deps
         .querier
-        .query_balance(env.contract.address.clone(), parties.party_a.native_denom)?;
+        .query_balance(&contract_addr, parties.party_a.native_denom)?;
     let mut party_b_coin = deps
         .querier
-        .query_balance(env.contract.address, parties.party_b.native_denom)?;
+        .query_balance(&contract_addr, parties.party_b.native_denom)?;
 
     if party_a_coin.amount < covenant_terms.party_a_amount {
         party_a_coin.amount = Uint128::zero();
@@ -169,7 +170,6 @@ fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     }
 
     // otherwise we are ready to forward the funds to the next module
-    let amount = vec![party_a_coin, party_b_coin];
 
     // first we query the deposit address of next module
     let next_contract = NEXT_CONTRACT.load(deps.storage)?;
@@ -180,9 +180,9 @@ fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     // if query returns None, then we error and wait
     let Some(deposit_address) = deposit_address_query else {
-        return Err(ContractError::Std(StdError::not_found(
-            "Next contract is not ready for receiving the funds yet",
-        )));
+        return Err(
+            StdError::not_found("Next contract is not ready for receiving the funds yet").into(),
+        );
     };
 
     // Transition contract state to complete
@@ -190,7 +190,7 @@ fn try_forward(mut deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     let bank_msg = BankMsg::Send {
         to_address: deposit_address,
-        amount,
+        amount: vec![party_a_coin, party_b_coin],
     };
 
     let mut submsgs: Vec<SubMsg> = vec![];
