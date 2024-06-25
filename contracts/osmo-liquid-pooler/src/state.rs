@@ -1,4 +1,5 @@
 use cosmwasm_std::Addr;
+use covenant_utils::op_mode::ContractOperationMode;
 use cw_storage_plus::{Item, Map};
 
 use crate::msg::{ContractState, IbcConfig, LiquidityProvisionConfig};
@@ -6,8 +7,8 @@ use crate::msg::{ContractState, IbcConfig, LiquidityProvisionConfig};
 /// contract state tracks the state machine progress
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
-/// clock module address to verify the incoming ticks sender
-pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
+/// operation mode of contract, either `Permissioned` or `Permissionless`
+pub const CONTRACT_OP_MODE: Item<ContractOperationMode> = Item::new("contract_op_mode");
 
 /// holder module address to verify withdrawal requests
 pub const HOLDER_ADDRESS: Item<Addr> = Item::new("holder_address");
