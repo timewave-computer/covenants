@@ -38,14 +38,8 @@ pub enum ContractError {
     NotHolder {},
 }
 
-impl ContractError {
-    pub fn to_std(&self) -> StdError {
-        StdError::GenericErr {
-            msg: self.to_string(),
-        }
-    }
-
-    pub fn to_neutron_std(&self) -> NeutronError {
-        NeutronError::Std(self.to_std())
+impl From<ContractError> for NeutronError {
+    fn from(value: ContractError) -> Self {
+        NeutronError::Std(StdError::generic_err(value.to_string()))
     }
 }

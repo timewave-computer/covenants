@@ -175,7 +175,7 @@ fn try_initiate_withdrawal(
 ) -> NeutronResult<Response<NeutronMsg>> {
     ensure!(
         info.sender == HOLDER_ADDRESS.load(deps.storage)?,
-        ContractError::NotHolder {}.to_neutron_std()
+        ContractError::NotHolder {}
     );
 
     let withdraw_share = percentage.unwrap_or(Decimal::one());
@@ -186,7 +186,6 @@ fn try_initiate_withdrawal(
             "withdraw percentage must be in range (0, 1], got {:?}",
             withdraw_share
         ),))
-        .to_neutron_std()
     );
 
     // we advance the contract state to `PendingWithdrawal` and force latest balances sync
@@ -284,7 +283,7 @@ pub fn try_withdraw(
     let lp_redeem_amount = lp_bal
         .amount
         .checked_multiply_ratio(withdraw_share.numerator(), withdraw_share.denominator())
-        .map_err(|e| ContractError::CheckedMultiplyError(e).to_neutron_std())?;
+        .map_err(ContractError::CheckedMultiplyError)?;
 
     let exit_pool_message: CosmosMsg = WasmMsg::Execute {
         contract_addr: lp_config.outpost.to_string(),
