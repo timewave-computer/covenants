@@ -3,9 +3,8 @@ use std::collections::HashMap;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coins, ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg,
-    Decimal, Env, Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128,
-    WasmMsg,
+    coins, ensure, to_json_binary, to_json_string, Attribute, Binary, Coin, CosmosMsg, Decimal,
+    Env, Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 use covenant_utils::{
     op_mode::{verify_caller, ContractOperationMode},
@@ -14,6 +13,7 @@ use covenant_utils::{
     ForwardMetadata, PacketMetadata,
 };
 use cw2::set_contract_version;
+use cw_utils::Expiration;
 use neutron_sdk::{
     bindings::{
         msg::{IbcFee, NeutronMsg},
@@ -126,36 +126,13 @@ pub fn execute(
         (ContractState::ProxyCreated, ExecuteMsg::Tick {}) => try_deliver_funds(deps, env, info),
         // ticks to proxy_funded state try to provide liquidity
         (ContractState::ProxyFunded { funding_expiration }, ExecuteMsg::Tick {}) => {
-            // the funding expiration is due, we advance the state to
-            // Active. it will enable withdrawals and start pulling
-            // any non-LP tokens from proxy back to this contract.
-            verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
-            if funding_expiration.is_expired(&env.block) {
-                CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
-                Ok(Response::default()
-                    .add_attribute("method", "tick")
-                    .add_attribute("contract_state", "active"))
-            } else {
-                // otherwise we attempt to provide liquidity
-                try_provide_liquidity(deps, env, info)
-            }
+            try_confirm_liquidity_provision(deps, env, info, funding_expiration)
         }
         // ticks to active state try to sync the proxy balances
         (ContractState::Active, ExecuteMsg::Tick {}) => try_sync_proxy_balances(deps, env, info),
         // ticks to pending_withdrawal state try to withdraw the LP tokens
         (ContractState::PendingWithdrawal { share }, ExecuteMsg::Tick {}) => {
-            let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
-            match lp_config.get_proxy_balances() {
-                Some((party_1_bal, party_2_bal, lp_bal)) => try_withdraw(
-                    deps,
-                    env,
-                    info,
-                    share,
-                    (party_1_bal, party_2_bal, lp_bal),
-                    lp_config.clone(),
-                ),
-                None => try_sync_proxy_balances(deps, env, info),
-            }
+            try_process_pending_withdrawal(deps, env, info, share)
         }
         // ticks to distributing state try to distribute the withdrawn coins
         (ContractState::Distributing { coins }, ExecuteMsg::Tick {}) => {
@@ -167,6 +144,48 @@ pub fn execute(
         }
         // withdraw processing is state-independent
         (_, ExecuteMsg::Withdraw { percentage }) => try_initiate_withdrawal(deps, info, percentage),
+    }
+}
+
+fn try_process_pending_withdrawal(
+    deps: ExecuteDeps,
+    env: Env,
+    info: MessageInfo,
+    share: Decimal,
+) -> NeutronResult<Response<NeutronMsg>> {
+    let lp_config = LIQUIDITY_PROVISIONING_CONFIG.load(deps.storage)?;
+    match lp_config.get_proxy_balances() {
+        Some((party_1_bal, party_2_bal, lp_bal)) => try_withdraw(
+            deps,
+            env,
+            info,
+            share,
+            (party_1_bal, party_2_bal, lp_bal),
+            lp_config.clone(),
+        ),
+        None => try_sync_proxy_balances(deps, env, info),
+    }
+}
+
+fn try_confirm_liquidity_provision(
+    deps: ExecuteDeps,
+    env: Env,
+    info: MessageInfo,
+    funding_expiration: Expiration,
+) -> NeutronResult<Response<NeutronMsg>> {
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
+
+    // the funding expiration is due, we advance the state to
+    // Active. it will enable withdrawals and start pulling
+    // any non-LP tokens from proxy back to this contract.
+    if funding_expiration.is_expired(&env.block) {
+        CONTRACT_STATE.save(deps.storage, &ContractState::Active)?;
+        Ok(Response::default()
+            .add_attribute("method", "tick")
+            .add_attribute("contract_state", "active"))
+    } else {
+        // otherwise we attempt to provide liquidity
+        try_provide_liquidity(deps, env, info)
     }
 }
 
