@@ -24,7 +24,6 @@ use neutron_sdk::bindings::types::ProtobufAny;
 use neutron_sdk::interchain_txs::helpers::get_port_id;
 use neutron_sdk::query::min_ibc_fee::MinIbcFeeResponse;
 use neutron_sdk::sudo::msg::SudoMsg;
-use neutron_sdk::NeutronError;
 
 use crate::error::ContractError;
 use crate::msg::{
@@ -97,9 +96,19 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> NeutronResult<Response<NeutronMsg>> {
-    match msg {
-        ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::DistributeFallback { coins } => try_distribute_fallback(deps, env, info, coins),
+    match (CONTRACT_STATE.load(deps.storage)?, msg) {
+        // if the contract is in the instantiated state, we try to register the ICA
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_register_ica(deps, env, info),
+        // if the contract is in the IcaCreated state, we try to split the funds
+        (ContractState::IcaCreated, ExecuteMsg::Tick {}) => try_split_funds(deps, env, info),
+        // in order to distribute the fallback split, ICA needs to be created
+        (ContractState::Instantiated, ExecuteMsg::DistributeFallback { .. }) => {
+            Err(StdError::generic_err("no ica found").into())
+        }
+        // if the contract is in the IcaCreated state, we try to distribute the fallback split
+        (ContractState::IcaCreated, ExecuteMsg::DistributeFallback { coins }) => {
+            try_distribute_fallback(deps, env, info, coins)
+        }
     }
 }
 
@@ -127,21 +136,21 @@ fn try_distribute_fallback(
         // validate that target denom is not passed for fallback distribution
         ensure!(
             coin.denom != remote_chain_info.denom,
-            Into::<NeutronError>::into(ContractError::UnauthorizedDenomDistribution {})
+            ContractError::UnauthorizedDenomDistribution {}
         );
 
         // error out if denom is duplicated
         ensure!(
             encountered_denoms.insert(coin.denom.to_string()),
-            Into::<NeutronError>::into(ContractError::DuplicateDenomDistribution {})
+            ContractError::DuplicateDenomDistribution {}
         );
 
         proto_coins.push(get_proto_coin(coin.denom, coin.amount));
     }
 
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
-    let interchain_account = INTERCHAIN_ACCOUNTS.may_load(deps.storage, port_id.clone())?;
-    if let Some(Some((address, controller_conn_id))) = interchain_account {
+    let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
+    if let Some((address, controller_conn_id)) = interchain_account {
         let multi_send_msg = MsgMultiSend {
             inputs: vec![Input {
                 address,
@@ -155,9 +164,7 @@ fn try_distribute_fallback(
 
         let mut buf = Vec::with_capacity(multi_send_msg.encoded_len());
         if let Err(e) = multi_send_msg.encode(&mut buf) {
-            return Err(NeutronError::Std(StdError::generic_err(format!(
-                "Encode error: {e:}",
-            ))));
+            return Err(StdError::generic_err(format!("Encode error: {e:}",)).into());
         }
 
         let any_msg = ProtobufAny {
@@ -187,21 +194,17 @@ fn try_distribute_fallback(
             .add_attribute("method", "try_forward_fallback")
             .add_submessages(vec![sudo_msg]))
     } else {
-        Err(NeutronError::Std(StdError::generic_err("no ica found")))
+        Err(StdError::generic_err("no ica found").into())
     }
 }
 
-/// attempts to advance the state machine. performs `info.sender` validation
-fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
+fn try_register_ica(
+    deps: ExecuteDeps,
+    env: Env,
+    info: MessageInfo,
+) -> NeutronResult<Response<NeutronMsg>> {
     verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
-    match CONTRACT_STATE.load(deps.storage)? {
-        ContractState::Instantiated => try_register_ica(deps, env),
-        ContractState::IcaCreated => try_split_funds(deps, env),
-    }
-}
-
-fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
     let remote_chain_info = REMOTE_CHAIN_INFO.load(deps.storage)?;
     let ica_registration_fee = query_ica_registration_fee(deps.querier)?;
 
@@ -220,7 +223,13 @@ fn try_register_ica(deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Neutr
         .add_message(register))
 }
 
-fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<NeutronMsg>> {
+fn try_split_funds(
+    mut deps: ExecuteDeps,
+    env: Env,
+    info: MessageInfo,
+) -> NeutronResult<Response<NeutronMsg>> {
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
+
     let port_id = get_port_id(env.contract.address.as_str(), INTERCHAIN_ACCOUNT_ID);
     let interchain_account = INTERCHAIN_ACCOUNTS.load(deps.storage, port_id.clone())?;
     let amount = TRANSFER_AMOUNT.load(deps.storage)?;
@@ -248,9 +257,10 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
                 let receiver_ica = match forwarder_deposit_address {
                     Some(ica) => ica,
                     None => {
-                        return Err(NeutronError::Std(StdError::NotFound {
+                        return Err(StdError::NotFound {
                             kind: "forwarder ica not created".to_string(),
-                        }))
+                        }
+                        .into())
                     }
                 };
 
@@ -258,7 +268,7 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
                 let amt = amount
                     .checked_multiply_ratio(share.numerator(), share.denominator())
                     .map_err(|e: cosmwasm_std::CheckedMultiplyRatioError| {
-                        NeutronError::Std(StdError::GenericErr { msg: e.to_string() })
+                        ContractError::Std(StdError::generic_err(e.to_string()))
                     })?;
 
                 let coin = Coin {
@@ -297,10 +307,7 @@ fn try_split_funds(mut deps: ExecuteDeps, env: Env) -> NeutronResult<Response<Ne
             let mut buf = Vec::with_capacity(multi_send_msg.encoded_len());
 
             if let Err(e) = multi_send_msg.encode(&mut buf) {
-                return Err(NeutronError::Std(StdError::generic_err(format!(
-                    "Encode error: {}",
-                    e
-                ))));
+                return Err(StdError::generic_err(format!("Encode error: {}", e)).into());
             }
 
             let any_msg = ProtobufAny {
