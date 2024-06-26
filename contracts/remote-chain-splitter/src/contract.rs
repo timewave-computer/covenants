@@ -104,11 +104,11 @@ pub fn execute(
         // in order to distribute the fallback split, ICA needs to be created
         (ContractState::Instantiated, ExecuteMsg::DistributeFallback { .. }) => {
             Err(StdError::generic_err("no ica found").into())
-        },
+        }
         // if the contract is in the IcaCreated state, we try to distribute the fallback split
         (ContractState::IcaCreated, ExecuteMsg::DistributeFallback { coins }) => {
             try_distribute_fallback(deps, env, info, coins)
-        },
+        }
     }
 }
 
