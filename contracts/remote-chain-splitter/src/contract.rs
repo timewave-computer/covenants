@@ -98,9 +98,9 @@ pub fn execute(
 ) -> NeutronResult<Response<NeutronMsg>> {
     match (CONTRACT_STATE.load(deps.storage)?, msg) {
         // if the contract is in the instantiated state, we try to register the ICA
-        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_register_ica(deps, info, env),
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_register_ica(deps, env, info),
         // if the contract is in the IcaCreated state, we try to split the funds
-        (ContractState::IcaCreated, ExecuteMsg::Tick {}) => try_split_funds(deps, info, env),
+        (ContractState::IcaCreated, ExecuteMsg::Tick {}) => try_split_funds(deps, env, info),
         // in order to distribute the fallback split, ICA needs to be created
         (ContractState::Instantiated, ExecuteMsg::DistributeFallback { .. }) => {
             Err(StdError::generic_err("no ica found").into())
@@ -200,8 +200,8 @@ fn try_distribute_fallback(
 
 fn try_register_ica(
     deps: ExecuteDeps,
-    info: MessageInfo,
     env: Env,
+    info: MessageInfo,
 ) -> NeutronResult<Response<NeutronMsg>> {
     verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
@@ -225,8 +225,8 @@ fn try_register_ica(
 
 fn try_split_funds(
     mut deps: ExecuteDeps,
-    info: MessageInfo,
     env: Env,
+    info: MessageInfo,
 ) -> NeutronResult<Response<NeutronMsg>> {
     verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
