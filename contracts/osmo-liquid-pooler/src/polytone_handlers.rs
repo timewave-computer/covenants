@@ -302,13 +302,13 @@ pub fn get_note_execute_neutron_msg(
 
 pub fn get_ibc_withdraw_coin_message(
     channel_id: String,
-    to_address: String,
+    to_address: &str,
     amount: Coin,
     timeout: IbcTimeout,
 ) -> CosmosMsg {
     let msg = IbcMsg::Transfer {
         channel_id,
-        to_address,
+        to_address: to_address.to_string(),
         amount,
         timeout,
     };

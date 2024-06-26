@@ -36,6 +36,9 @@ pub enum ContractError {
 
     #[error("Only holder can withdraw the position")]
     NotHolder {},
+
+    #[error("Withdraw percentage must be in range (0, 1], got {0}")]
+    InvalidWithdrawPercentage(String),
 }
 
 impl From<ContractError> for NeutronError {
