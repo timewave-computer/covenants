@@ -7,7 +7,7 @@ use cosmwasm_std::{
     Fraction, IbcTimeout, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 use covenant_utils::{
-    clock::{enqueue_msg, verify_clock},
+    op_mode::{verify_caller, ContractOperationMode},
     polytone::get_polytone_execute_msg_binary,
     withdraw_lp_helper::WithdrawLPMsgs,
     ForwardMetadata, PacketMetadata,
@@ -36,12 +36,12 @@ use crate::{
         get_note_execute_neutron_msg, get_proxy_query_balances_message, try_handle_callback,
     },
     state::{
-        HOLDER_ADDRESS, IBC_CONFIG, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS,
+        CONTRACT_OP_MODE, HOLDER_ADDRESS, IBC_CONFIG, LIQUIDITY_PROVISIONING_CONFIG, NOTE_ADDRESS,
         POLYTONE_CALLBACKS, PROXY_ADDRESS,
     },
 };
 
-use crate::state::{CLOCK_ADDRESS, CONTRACT_STATE};
+use crate::state::CONTRACT_STATE;
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -64,15 +64,16 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     // validate the contract addresses
-    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
     let holder_addr = deps.api.addr_validate(&msg.holder_address)?;
     let note_addr = deps.api.addr_validate(&msg.note_address)?;
 
     // contract starts at Instantiated state
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
 
+    let op_mode = ContractOperationMode::try_init(deps.api, msg.op_mode_cfg.clone())?;
+    CONTRACT_OP_MODE.save(deps.storage, &op_mode)?;
+
     // store the relevant contract addresses
-    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
     HOLDER_ADDRESS.save(deps.storage, &holder_addr)?;
     NOTE_ADDRESS.save(deps.storage, &note_addr)?;
 
@@ -101,14 +102,13 @@ pub fn instantiate(
     IBC_CONFIG.save(deps.storage, &ibc_config)?;
 
     Ok(Response::default()
-        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "osmosis_lp_instantiate")
         .add_attribute("contract_state", "instantiated")
         .add_attributes(lp_config.to_response_attributes())
         .add_attributes(ibc_config.to_response_attributes())
         .add_attribute("note_address", note_addr)
         .add_attribute("holder_address", holder_addr)
-        .add_attribute("clock_address", clock_addr))
+        .add_attribute("op_mode", format!("{:?}", op_mode)))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -284,8 +284,7 @@ pub fn try_withdraw(
 
 /// attempts to advance the state machine. performs `info.sender` validation.
 fn try_tick(deps: ExecuteDeps, env: Env, info: MessageInfo) -> NeutronResult<Response<NeutronMsg>> {
-    // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)?;
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     match CONTRACT_STATE.load(deps.storage)? {
         // create a proxy account
@@ -781,7 +780,6 @@ fn get_ibc_transfer_message(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.may_load(deps.storage)?)?),
         QueryMsg::HolderAddress {} => Ok(to_json_binary(&HOLDER_ADDRESS.may_load(deps.storage)?)?),
         QueryMsg::DepositAddress {} => Ok(to_json_binary(&env.contract.address)?),
@@ -802,6 +800,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
             Ok(to_json_binary(&vals)?)
         }
+        QueryMsg::OperationMode {} => Ok(to_json_binary(&CONTRACT_OP_MODE.load(deps.storage)?)?),
     }
 }
 
@@ -809,7 +808,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> NeutronResult<Response> {
     match msg {
         MigrateMsg::UpdateConfig {
-            clock_addr,
+            op_mode,
             holder_address,
             note_address,
             ibc_config,
@@ -817,9 +816,12 @@ pub fn migrate(deps: ExecuteDeps, _env: Env, msg: MigrateMsg) -> NeutronResult<R
         } => {
             let mut response = Response::default().add_attribute("method", "update_config");
 
-            if let Some(clock_addr) = clock_addr {
-                CLOCK_ADDRESS.save(deps.storage, &deps.api.addr_validate(&clock_addr)?)?;
-                response = response.add_attribute("clock_addr", clock_addr);
+            if let Some(op_mode_cfg) = op_mode {
+                let updated_op_mode = ContractOperationMode::try_init(deps.api, op_mode_cfg)
+                    .map_err(|err| StdError::generic_err(err.to_string()))?;
+
+                CONTRACT_OP_MODE.save(deps.storage, &updated_op_mode)?;
+                response = response.add_attribute("op_mode", format!("{:?}", updated_op_mode));
             }
 
             if let Some(holder_address) = holder_address {

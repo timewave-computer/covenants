@@ -5,12 +5,11 @@ use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, StdResult, Uint128, Uint64,
     WasmMsg,
 };
-use covenant_macros::{
-    clocked, covenant_clock_address, covenant_deposit_address, covenant_lper_withdraw,
-};
+use covenant_macros::{clocked, covenant_deposit_address, covenant_lper_withdraw};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig, ForwardMetadata, PoolPriceConfig,
-    SingleSideLpLimits,
+    instantiate2_helper::Instantiate2HelperConfig,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    ForwardMetadata, PoolPriceConfig, SingleSideLpLimits,
 };
 use cw_utils::{Duration, Expiration};
 use polytone::callbacks::CallbackMessage;
@@ -18,7 +17,11 @@ use valence_outpost_osmo_liquid_pooler::msg::OutpostProvideLiquidityConfig;
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    pub clock_address: String,
+    // Contract Operation Mode.
+    // The contract operation (the Tick function mostly) can either be a permissionless
+    // (aka non-privileged) operation, or a permissioned operation, that is,
+    // restricted to being executed by one of the configured privileged accounts.
+    pub op_mode_cfg: ContractOperationModeConfig,
     pub holder_address: String,
     pub note_address: String,
     pub pool_id: Uint64,
@@ -73,12 +76,12 @@ pub struct OsmosisLiquidPoolerConfig {
 impl OsmosisLiquidPoolerConfig {
     pub fn to_instantiate_msg(
         &self,
-        clock_address: String,
+        op_mode_cfg: ContractOperationModeConfig,
         holder_address: String,
         pool_price_config: PoolPriceConfig,
     ) -> InstantiateMsg {
         InstantiateMsg {
-            clock_address,
+            op_mode_cfg,
             holder_address,
             note_address: self.note_address.to_string(),
             pool_id: self.pool_id,
@@ -286,7 +289,6 @@ pub enum ExecuteMsg {
     Callback(CallbackMessage),
 }
 
-#[covenant_clock_address]
 #[covenant_deposit_address]
 #[cw_serde]
 #[derive(QueryResponses)]
@@ -303,6 +305,8 @@ pub enum QueryMsg {
     ProxyAddress {},
     #[returns(Vec<String>)]
     Callbacks {},
+    #[returns(ContractOperationMode)]
+    OperationMode {},
 }
 
 /// state of the LP state machine
@@ -369,7 +373,7 @@ impl PartyChainInfo {
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        clock_addr: Option<String>,
+        op_mode: Option<ContractOperationModeConfig>,
         holder_address: Option<String>,
         note_address: Option<String>,
         ibc_config: Box<Option<IbcConfig>>,

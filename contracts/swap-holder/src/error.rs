@@ -1,4 +1,5 @@
 use cosmwasm_std::StdError;
+use covenant_utils::op_mode::ContractOperationError;
 use neutron_sdk::NeutronError;
 use thiserror::Error;
 
@@ -10,8 +11,8 @@ pub enum ContractError {
     #[error(transparent)]
     NeutronError(#[from] NeutronError),
 
-    #[error("Unauthorized")]
-    Unauthorized {},
+    #[error(transparent)]
+    ContractOperationError(#[from] ContractOperationError),
 
     #[error("No withdrawer address configured")]
     NoWithdrawerError {},
@@ -21,4 +22,7 @@ pub enum ContractError {
 
     #[error("unexpected reply id")]
     UnexpectedReplyId {},
+
+    #[error("Lockup config must be in the future")]
+    LockupConfigValidationError {},
 }

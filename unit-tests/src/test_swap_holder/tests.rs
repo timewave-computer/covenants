@@ -1,5 +1,8 @@
 use cosmwasm_std::{coin, coins, Addr, Event, Uint128};
-use covenant_utils::{CovenantTerms, SwapCovenantTerms};
+use covenant_utils::{
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    CovenantTerms, SwapCovenantTerms,
+};
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
 use valence_swap_holder::msg::{ContractState, RefundConfig};
@@ -20,15 +23,37 @@ fn test_instantiate_validates_next_contract() {
 }
 
 #[test]
-#[should_panic]
-fn test_instantiate_validates_clock_address() {
-    SwapHolderBuilder::default()
-        .with_clock_address("invalid_address")
+fn test_instantiate_with_valid_op_mode() {
+    let _suite = SwapHolderBuilder::default().build();
+}
+
+#[test]
+fn test_instantiate_in_permissionless_mode() {
+    let _suite = SwapHolderBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissionless)
         .build();
 }
 
 #[test]
-#[should_panic(expected = "past lockup config")]
+#[should_panic]
+fn test_instantiate_validates_privileged_accounts() {
+    SwapHolderBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![
+            "some contract".to_string(),
+        ]))
+        .build();
+}
+
+#[test]
+#[should_panic]
+fn test_instantiate_validates_empty_privileged_accounts() {
+    SwapHolderBuilder::default()
+        .with_op_mode(ContractOperationModeConfig::Permissioned(vec![]))
+        .build();
+}
+
+#[test]
+#[should_panic(expected = "Lockup config must be in the future")]
 fn test_instantiate_validates_lockup_config() {
     SwapHolderBuilder::default()
         .with_lockup_config(Expiration::AtHeight(0))
@@ -60,7 +85,7 @@ fn test_instantiate_validates_party_b_refund_addr() {
 }
 
 #[test]
-#[should_panic(expected = "Caller is not the clock, only clock can tick contracts")]
+#[should_panic(expected = "Contract operation unauthorized")]
 fn test_execute_tick_validates_clock() {
     let mut suite = SwapHolderBuilder::default().build();
 
@@ -213,7 +238,7 @@ fn test_execute_tick_on_complete_noop() {
 fn test_migrate_update_config() {
     let mut suite = SwapHolderBuilder::default().build();
 
-    let clock_address = suite.query_clock_address();
+    let clock_address = suite.clock_addr.clone();
     let next_contract = suite.query_next_contract();
     let mut parties_config = suite.query_covenant_parties_config();
     parties_config.party_a.native_denom = "new_native_denom".to_string();
@@ -233,10 +258,12 @@ fn test_migrate_update_config() {
             Addr::unchecked(ADMIN),
             suite.holder.clone(),
             &valence_swap_holder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: Some(next_contract.to_string()),
+                op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+                    next_contract.to_string(),
+                ])),
                 next_contract: Some(clock_address.to_string()),
                 lockup_config: Some(new_expiration),
-                parites_config: Box::new(Some(parties_config.clone())),
+                parties_config: Box::new(Some(parties_config.clone())),
                 covenant_terms: Some(new_covenant_terms.clone()),
                 refund_config: Some(new_refund_config.clone()),
             },
@@ -244,17 +271,18 @@ fn test_migrate_update_config() {
         )
         .unwrap();
 
+    let contract_op_mode = ContractOperationMode::Permissioned(vec![next_contract].into());
     resp.assert_event(
         &Event::new("wasm")
-            .add_attribute("clock_addr", next_contract.to_string())
+            .add_attribute("op_mode", format!("{:?}", contract_op_mode.clone()))
             .add_attribute("next_contract", clock_address.to_string())
             .add_attribute("lockup_config", new_expiration.to_string())
-            .add_attribute("parites_config", format!("{parties_config:?}"))
+            .add_attribute("parties_config", format!("{parties_config:?}"))
             .add_attribute("covenant_terms", format!("{new_covenant_terms:?}"))
             .add_attribute("refund_config", format!("{new_refund_config:?}")),
     );
 
-    assert_eq!(suite.query_clock_address(), next_contract);
+    assert_eq!(suite.query_op_mode(), contract_op_mode,);
     assert_eq!(suite.query_next_contract(), clock_address);
     assert_eq!(suite.query_contract_state(), ContractState::Instantiated {});
     assert_eq!(
@@ -275,14 +303,63 @@ fn test_migrate_update_config_validates_lockup_config_expiration() {
             Addr::unchecked(ADMIN),
             suite.holder.clone(),
             &valence_swap_holder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: None,
+                op_mode: None,
                 next_contract: None,
                 lockup_config: Some(Expiration::AtHeight(1)),
-                parites_config: Box::new(None),
+                parties_config: Box::new(None),
                 covenant_terms: None,
                 refund_config: None,
             },
             4,
         )
         .unwrap();
+}
+
+#[test]
+fn test_complete_with_mixed_op_mode_address_types() {
+    // start with a default swap holder
+    let mut suite = SwapHolderBuilder::default().build();
+
+    // extend the op mode configuration with a non-contract address
+    let current_op_mode = suite.query_op_mode();
+    let extended_op_mode_addresses = match current_op_mode {
+        ContractOperationMode::Permissioned(addresses) => {
+            let mut current_addrs: Vec<String> =
+                addresses.to_vec().iter().map(|a| a.to_string()).collect();
+            current_addrs.push(suite.admin.to_string());
+            current_addrs
+        }
+        _ => panic!("unexpected op mode"),
+    };
+
+    // update the swap holder `op_mode` to include a non-contract address as well as the clock
+    suite
+        .app
+        .migrate_contract(
+            Addr::unchecked(ADMIN),
+            suite.holder.clone(),
+            &valence_swap_holder::msg::MigrateMsg::UpdateConfig {
+                op_mode: Some(ContractOperationModeConfig::Permissioned(
+                    extended_op_mode_addresses,
+                )),
+                next_contract: None,
+                lockup_config: None,
+                parties_config: Box::new(None),
+                covenant_terms: None,
+                refund_config: None,
+            },
+            4,
+        )
+        .unwrap();
+
+    // fund the holder with necessary tokens
+    suite.fund_contract(&coins(100_000, DENOM_LS_ATOM_ON_NTRN), suite.holder.clone());
+    suite.fund_contract(&coins(100_000, DENOM_ATOM_ON_NTRN), suite.holder.clone());
+
+    // this tick should only dequeue the clock address and skip the admin address deuqueuing.
+    // admin is not a contract account so msg execution attempts on it would fail.
+    suite.tick_contract(suite.holder.clone());
+
+    let contract_state = suite.query_contract_state();
+    assert!(matches!(contract_state, ContractState::Complete {}));
 }

@@ -156,7 +156,7 @@ pub fn instantiate(
         &liquid_pooler_instantiate2_config,
         env.contract.address.to_string(),
         format!("{}_liquid_pooler", msg.label),
-        clock_instantiate2_config.addr.to_string(),
+        ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config.addr.to_string()]),
         holder_instantiate2_config.addr.to_string(),
         msg.pool_price_config,
     )?;
