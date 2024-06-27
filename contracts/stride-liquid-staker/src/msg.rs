@@ -1,16 +1,16 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{to_json_binary, Binary, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_macros::{
-    clocked, covenant_clock_address, covenant_deposit_address, covenant_ica_address,
-    covenant_remote_chain,
+    clocked, covenant_deposit_address, covenant_ica_address, covenant_remote_chain,
 };
-use covenant_utils::{instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo};
+use covenant_utils::{
+    instantiate2_helper::Instantiate2HelperConfig,
+    neutron::RemoteChainInfo,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// Address for the clock. This contract verifies
-    /// that only the clock can execute Ticks
-    pub clock_address: String,
     /// IBC transfer channel on Stride for Neutron
     /// This is used to IBC transfer stuatom on Stride
     /// to the LP contract
@@ -36,6 +36,11 @@ pub struct InstantiateMsg {
     /// if the ICA times out, the destination chain receiving the funds
     /// will also receive the IBC packet with an expired timestamp.
     pub ibc_transfer_timeout: Uint64,
+    // Contract Operation Mode.
+    // The contract operation (the Tick function mostly) can either be a permissionless
+    // (aka non-privileged) operation, or a permissioned operation, that is,
+    // restricted to being executed by one of the configured privileged accounts.
+    pub op_mode_cfg: ContractOperationModeConfig,
 }
 
 impl InstantiateMsg {
@@ -65,7 +70,6 @@ pub enum ExecuteMsg {
     Transfer { amount: Uint128 },
 }
 
-#[covenant_clock_address]
 #[covenant_remote_chain]
 #[covenant_deposit_address]
 #[covenant_ica_address]
@@ -76,12 +80,14 @@ pub enum QueryMsg {
     ContractState {},
     #[returns(String)]
     NextMemo {},
+    #[returns(ContractOperationMode)]
+    OperationMode {},
 }
 
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        clock_addr: Option<String>,
+        op_mode: Option<ContractOperationModeConfig>,
         next_contract: Option<String>,
         remote_chain_info: Option<RemoteChainInfo>,
     },

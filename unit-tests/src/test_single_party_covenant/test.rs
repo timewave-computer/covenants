@@ -1081,7 +1081,9 @@ fn test_migrate_update_config_with_codes() {
         ica_timeout: Uint64::one(),
     };
     let liquid_staker_migrate_msg = valence_stride_liquid_staker::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(covenant_addr.to_string()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            covenant_addr.to_string(),
+        ])),
         next_contract: Some(covenant_addr.to_string()),
         remote_chain_info: Some(new_remote_chain_info),
     };

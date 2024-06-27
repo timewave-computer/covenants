@@ -101,10 +101,12 @@ pub fn instantiate(
     clock_whitelist.push(liquid_staker_instantiate2_config.addr.to_string());
     clock_whitelist.push(holder_instantiate2_config.addr.to_string());
 
-    let mut clock_initial_queue = vec![];
-    clock_initial_queue.push(router_instantiate2_config.addr.to_string());
-    clock_initial_queue.push(splitter_instantiate2_config.addr.to_string());
-    clock_initial_queue.push(liquid_pooler_instantiate2_config.addr.to_string());
+    let mut clock_initial_queue = vec![
+        router_instantiate2_config.addr.to_string(),
+        splitter_instantiate2_config.addr.to_string(),
+        liquid_pooler_instantiate2_config.addr.to_string(),
+        liquid_staker_instantiate2_config.addr.to_string(),
+    ];
 
     let mut denoms: BTreeSet<String> = BTreeSet::new();
     denoms.insert(msg.ls_info.ls_denom_on_neutron.to_string());
@@ -153,7 +155,9 @@ pub fn instantiate(
         neutron_stride_ibc_connection_id: msg.ls_info.ls_neutron_connection_id.to_string(),
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
+            .addr
+            .to_string()]),
         next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
     }
     .to_instantiate2_msg(
