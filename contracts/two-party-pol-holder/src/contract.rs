@@ -139,11 +139,14 @@ pub fn execute(
         // incoming ticks when in completed state are used to refund the parties
         (ContractState::Complete, ExecuteMsg::Tick {}) => try_refund(deps, env, info),
         // ragequit is state-independent
-        (_, ExecuteMsg::Ragequit {}) => try_ragequit(deps, env, info),
+        (current_state, ExecuteMsg::Ragequit {}) => try_ragequit(deps, env, info, current_state),
         // emergency withdraw is state-independent
         (_, ExecuteMsg::EmergencyWithdraw {}) => try_emergency_withdraw(deps, info),
-        // claims are state-independent
-        (_, ExecuteMsg::Claim {}) => try_claim(deps, info),
+        // claims can only be performed from ragequit or expired state
+        (ContractState::Ragequit | ContractState::Expired, ExecuteMsg::Claim {}) => {
+            try_claim(deps, info)
+        }
+        (_, ExecuteMsg::Claim {}) => Err(ContractError::ClaimError {}),
         // receiving distribute callback is state-independent
         (_, ExecuteMsg::Distribute {}) => try_distribute(deps, info),
         // receiving withdraw failed callback is state-independent
@@ -200,10 +203,6 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
             .add_attribute("contract_state", "complete")
             .add_message(dequeue_message));
     }
-
-    // we exit early if contract is not in ragequit or expired state
-    let contract_state = CONTRACT_STATE.load(deps.storage)?;
-    contract_state.validate_claim_state()?;
 
     // set WithdrawState to include original data
     WITHDRAW_STATE.save(
@@ -513,13 +512,17 @@ fn check_expiration(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Respon
         .add_attribute("contract_state", "expired"))
 }
 
-fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+fn try_ragequit(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    current_state: ContractState,
+) -> Result<Response, ContractError> {
     // first we error out if ragequit is disabled
     let rq_terms = match RAGEQUIT_CONFIG.load(deps.storage)? {
         RagequitConfig::Disabled => return Err(ContractError::RagequitDisabled {}),
         RagequitConfig::Enabled(terms) => terms,
     };
-    let current_state = CONTRACT_STATE.load(deps.storage)?;
 
     // ragequit is only possible when contract is in Active state.
     if current_state != ContractState::Active {
