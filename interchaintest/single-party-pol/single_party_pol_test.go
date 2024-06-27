@@ -479,7 +479,7 @@ func TestSinglePartyPol(t *testing.T) {
 		require.NoError(t, err, "failed to query host validators")
 	})
 
-	t.Run("two party pol covenant setup", func(t *testing.T) {
+	t.Run("single party pol covenant setup", func(t *testing.T) {
 		// Wasm code that we need to store on Neutron
 		const covenantContractPath = "wasms/valence_covenant_single_party_pol.wasm"
 		const clockContractPath = "wasms/valence_clock.wasm"
@@ -935,11 +935,21 @@ func TestSinglePartyPol(t *testing.T) {
 		})
 
 		t.Run("permisionless forward", func(t *testing.T) {
-			testCtx.SkipBlocksStride(10)
-			permisionlessTransferMsg := getLsPermisionlessTransferMsg(strideIcaStatomBal)
-			txOut, _, _ := testCtx.Neutron.Exec(testCtx.Ctx, permisionlessTransferMsg, nil)
-			println("permisionless transfer msg tx hash: ", string(txOut))
-			testCtx.SkipBlocksStride(10)
+			for {
+				testCtx.SkipBlocksStride(10)
+				permisionlessTransferMsg := getLsPermisionlessTransferMsg(strideIcaStatomBal)
+				txOut, _, _ := testCtx.Neutron.Exec(testCtx.Ctx, permisionlessTransferMsg, nil)
+				println("permisionless transfer msg tx hash: ", string(txOut))
+
+				strideIcaStatomBal = testCtx.QueryStrideDenomBalance(nativeStatomDenom, strideIcaAddress)
+				println("stride ica statom balance: ", strideIcaStatomBal)
+
+				if strideIcaStatomBal == 0 {
+					liquidPoolerStatomBal := testCtx.QueryNeutronDenomBalance(neutronStatomIbcDenom, liquidPoolerAddress)
+					println("lper statom balance: ", liquidPoolerStatomBal)
+					break
+				}
+			}
 		})
 
 		t.Run("tick until liquid pooler provides liquidity", func(t *testing.T) {
