@@ -36,16 +36,13 @@ pub enum ContractError {
 
     #[error("Only holder can withdraw the position")]
     NotHolder {},
+
+    #[error("Withdraw percentage must be in range (0, 1], got {0}")]
+    InvalidWithdrawPercentage(String),
 }
 
-impl ContractError {
-    pub fn to_std(&self) -> StdError {
-        StdError::GenericErr {
-            msg: self.to_string(),
-        }
-    }
-
-    pub fn to_neutron_std(&self) -> NeutronError {
-        NeutronError::Std(self.to_std())
+impl From<ContractError> for NeutronError {
+    fn from(value: ContractError) -> Self {
+        NeutronError::Std(StdError::generic_err(value.to_string()))
     }
 }
