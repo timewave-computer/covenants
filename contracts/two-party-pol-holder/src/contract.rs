@@ -185,9 +185,10 @@ fn try_distribute_fallback_split(
 
 /// On claim, we should simply ask the LPer to withdraw the liquidity and execute a Distribute msg on the holder
 fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    if WITHDRAW_STATE.load(deps.storage).is_ok() {
-        return Err(ContractError::WithdrawAlreadyStarted {});
-    }
+    ensure!(
+        !WITHDRAW_STATE.exists(deps.storage),
+        ContractError::WithdrawAlreadyStarted {}
+    );
 
     let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
     let (claim_party, counterparty) = covenant_config.authorize_sender(info.sender.to_string())?;
@@ -396,7 +397,7 @@ fn try_claim_side_based(
 fn try_refund(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
-        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
+        .map_err(|e| StdError::generic_err(e.to_string()))?;
 
     let config = COVENANT_CONFIG.load(deps.storage)?;
     let contract_addr = env.contract.address.to_string();
@@ -435,7 +436,7 @@ fn try_refund(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Co
 fn try_deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
-        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
+        .map_err(|e| StdError::generic_err(e.to_string()))?;
 
     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
     if deposit_deadline.is_expired(&env.block) {
@@ -457,12 +458,10 @@ fn try_deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, C
         .querier
         .query_balance(&contract_addr, config.party_b.contribution.denom)?;
 
-    let party_a_fulfilled = config.party_a.contribution.amount <= party_a_bal.amount;
-    let party_b_fulfilled = config.party_b.contribution.amount <= party_b_bal.amount;
-
     // if either party did not fulfill their deposit, we error out
     ensure!(
-        party_a_fulfilled && party_b_fulfilled,
+        config.party_a.contribution.amount <= party_a_bal.amount
+            && config.party_b.contribution.amount <= party_b_bal.amount,
         ContractError::InsufficientDeposits {}
     );
 
@@ -484,7 +483,7 @@ fn try_deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, C
 fn check_expiration(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
     // Verify caller is the clock
     verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
-        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
+        .map_err(|e| StdError::generic_err(e.to_string()))?;
 
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
 
@@ -523,10 +522,11 @@ fn try_ragequit(
         current_state == ContractState::Active,
         ContractError::NotActive {}
     );
-
-    if WITHDRAW_STATE.load(deps.storage).is_ok() {
-        return Err(ContractError::WithdrawAlreadyStarted {});
-    }
+    // ensure no withdrawal is in progress
+    ensure!(
+        !WITHDRAW_STATE.exists(deps.storage),
+        ContractError::WithdrawAlreadyStarted {}
+    );
 
     // we also validate an edge case where it did expire but
     // did not receive a tick yet. tick is then required to advance.
