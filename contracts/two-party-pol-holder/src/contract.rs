@@ -123,16 +123,35 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match msg {
-        ExecuteMsg::Ragequit {} => try_ragequit(deps, env, info),
-        ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Claim {} => try_claim(deps, info),
-        ExecuteMsg::Distribute {} => try_distribute(deps, info),
-        ExecuteMsg::WithdrawFailed {} => try_withdraw_failed(deps, info),
-        ExecuteMsg::DistributeFallbackSplit { denoms } => {
+    match (CONTRACT_STATE.load(deps.storage)?, msg) {
+        // incoming ticks when in instantiated state try to deposit the funds
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_deposit(deps, env, info),
+        // incoming ticks when in active state are used to check for expiration
+        (ContractState::Active, ExecuteMsg::Tick {}) => check_expiration(deps, env, info),
+        // incoming ticks when in expired state are no-ops
+        (ContractState::Expired, ExecuteMsg::Tick {}) => Ok(Response::default()
+            .add_attribute("method", "tick")
+            .add_attribute("contract_state", "expired")),
+        // incoming ticks when in processing ragequit state are no-ops
+        (ContractState::Ragequit, ExecuteMsg::Tick {}) => Ok(Response::default()
+            .add_attribute("method", "tick")
+            .add_attribute("contract_state", "ragequit")),
+        // incoming ticks when in completed state are used to refund the parties
+        (ContractState::Complete, ExecuteMsg::Tick {}) => try_refund(deps, env, info),
+        // ragequit is state-independent
+        (_, ExecuteMsg::Ragequit {}) => try_ragequit(deps, env, info),
+        // emergency withdraw is state-independent
+        (_, ExecuteMsg::EmergencyWithdraw {}) => try_emergency_withdraw(deps, info),
+        // claims are state-independent
+        (_, ExecuteMsg::Claim {}) => try_claim(deps, info),
+        // receiving distribute callback is state-independent
+        (_, ExecuteMsg::Distribute {}) => try_distribute(deps, info),
+        // receiving withdraw failed callback is state-independent
+        (_, ExecuteMsg::WithdrawFailed {}) => try_withdraw_failed(deps, info),
+        // distributing fallback splits is state-independent
+        (_, ExecuteMsg::DistributeFallbackSplit { denoms }) => {
             try_distribute_fallback_split(deps, env, denoms)
         }
-        ExecuteMsg::EmergencyWithdraw {} => try_emergency_withdraw(deps, info),
     }
 }
 
@@ -372,25 +391,13 @@ fn try_claim_side_based(
         .add_message(dequeue_message))
 }
 
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    let state = CONTRACT_STATE.load(deps.storage)?;
-    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-    verify_clock(&info.sender, &clock_addr)
-        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
-
-    match state {
-        ContractState::Instantiated => try_deposit(deps, env, info),
-        ContractState::Active => check_expiration(deps, env),
-        ContractState::Expired | ContractState::Ragequit => Ok(Response::default()
-            .add_attribute("method", "tick")
-            .add_attribute("contract_state", state.to_string())),
-        ContractState::Complete => try_refund(deps, env),
-    }
-}
-
 /// attempts to route any available covenant party contribution denoms to
 /// the parties that were responsible for contributing that denom.
-fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn try_refund(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    // Verify caller is the clock
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
+        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
+
     let config = COVENANT_CONFIG.load(deps.storage)?;
 
     // assert the balances
@@ -436,7 +443,11 @@ fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         .add_messages(refund_messages))
 }
 
-fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
+fn try_deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    // Verify caller is the clock
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
+        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
+
     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
     if deposit_deadline.is_expired(&env.block) {
         CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
@@ -481,7 +492,11 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
         .add_message(msg))
 }
 
-fn check_expiration(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn check_expiration(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    // Verify caller is the clock
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
+        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
+
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
 
     if !lockup_config.is_expired(&env.block) {
