@@ -641,6 +641,10 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 					},
 				}
 
+				operation_mode := ContractOperationModeConfig{
+					Permissioned: []string{},
+				}
+
 				covenantInstantiateMsg := CovenantInstantiateMsg{
 					Label:           "covenant-osmo",
 					Timeouts:        timeouts,
@@ -660,6 +664,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 					FallbackSplit:      nil,
 					EmergencyCommittee: neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					LiquidPoolerConfig: liquidPoolerConfig,
+					OperationMode:      &operation_mode,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantRqCodeId, covenantInstantiateMsg, neutronUser, keyring.BackendTest)
@@ -1019,6 +1024,10 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 					},
 				}
 
+				operation_mode := ContractOperationModeConfig{
+					Permissioned: []string{},
+				}
+
 				covenantInstantiateMsg := CovenantInstantiateMsg{
 					Label:           "covenant-osmo",
 					Timeouts:        timeouts,
@@ -1038,6 +1047,7 @@ func TestTwoPartyOsmoPol(t *testing.T) {
 					FallbackSplit:      nil,
 					EmergencyCommittee: neutronUser.Bech32Address(cosmosNeutron.Config().Bech32Prefix),
 					LiquidPoolerConfig: liquidPoolerConfig,
+					OperationMode:      &operation_mode,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantCodeId, covenantInstantiateMsg, neutronUser, keyring.BackendTest)
