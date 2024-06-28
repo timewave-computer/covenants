@@ -21,7 +21,7 @@ Then we use heighliner by strangelove to build a local docker image, [as describ
 
 ```bash
 # in the stride directory
-heighliner build -c stride --local
+heighliner build -c stride --local -t non-ics
 ```
 
 ### install interchaintest
