@@ -58,6 +58,19 @@ pub fn instantiate(
         &creator_address,
         msg.contract_codes.clock_code,
     )?;
+
+    // If the contract operation mode is permissioned, we will add the clock address to the list of addresses that can tick
+    let op_mode_cfg = match msg.operation_mode {
+        ContractOperationModeConfig::Permissioned(mut whitelist) => {
+            for addr in whitelist.iter() {
+                deps.api.addr_validate(addr)?;
+            }
+            whitelist.push(clock_instantiate2_config.addr.to_string());
+            ContractOperationModeConfig::Permissioned(whitelist)
+        }
+        ContractOperationModeConfig::Permissionless => ContractOperationModeConfig::Permissionless,
+    };
+
     let party_a_router_instantiate2_config = get_instantiate2_salt_and_address(
         deps.as_ref(),
         PARTY_A_ROUTER_SALT,
@@ -156,7 +169,7 @@ pub fn instantiate(
         &liquid_pooler_instantiate2_config,
         env.contract.address.to_string(),
         format!("{}_liquid_pooler", msg.label),
-        ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config.addr.to_string()]),
+        op_mode_cfg.clone(),
         holder_instantiate2_config.addr.to_string(),
         msg.pool_price_config,
     )?;
@@ -179,9 +192,7 @@ pub fn instantiate(
             .save(deps.storage, &party_a_forwarder_instantiate2_config.addr)?;
         clock_initial_queue.push(party_a_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-                .addr
-                .to_string()]),
+            op_mode_cfg: op_mode_cfg.clone(),
             next_contract: holder_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id.to_string(),
             remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),
@@ -214,9 +225,7 @@ pub fn instantiate(
             .save(deps.storage, &party_b_forwarder_instantiate2_config.addr)?;
         clock_initial_queue.push(party_b_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-                .addr
-                .to_string()]),
+            op_mode_cfg: op_mode_cfg.clone(),
             next_contract: holder_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id.to_string(),
             remote_chain_channel_id: config.party_to_host_chain_channel_id.to_string(),

@@ -609,6 +609,10 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 				}
 
+				operation_mode := ContractOperationModeConfig{
+					Permissioned: []string{},
+				}
+
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-happy",
 					Timeouts:        timeouts,
@@ -632,6 +636,7 @@ func TestTwoPartyPol(t *testing.T) {
 					Splits:             denomSplits,
 					FallbackSplit:      nil,
 					LiquidPoolerConfig: liquidPoolerConfig,
+					OperationMode:      &operation_mode,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantCodeId, covenantMsg, neutronUser, keyring.BackendTest)
@@ -891,6 +896,10 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 				}
 
+				operation_mode := ContractOperationModeConfig{
+					Permissioned: []string{},
+				}
+
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-ragequit",
 					Timeouts:        timeouts,
@@ -923,6 +932,7 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 					FallbackSplit:      nil,
 					LiquidPoolerConfig: liquidPoolerConfig,
+					OperationMode:      &operation_mode,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
@@ -1182,6 +1192,10 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 				}
 
+				operation_mode := ContractOperationModeConfig{
+					Permissioned: []string{},
+				}
+
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-side-ragequit",
 					Timeouts:        timeouts,
@@ -1214,6 +1228,7 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 					FallbackSplit:      nil,
 					LiquidPoolerConfig: liquidPoolerConfig,
+					OperationMode:      &operation_mode,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)
@@ -1442,6 +1457,10 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 				}
 
+				operation_mode := ContractOperationModeConfig{
+					Permissioned: []string{},
+				}
+
 				covenantMsg := CovenantInstantiateMsg{
 					Label:           "two-party-pol-covenant-side-happy",
 					Timeouts:        timeouts,
@@ -1474,6 +1493,7 @@ func TestTwoPartyPol(t *testing.T) {
 					},
 					FallbackSplit:      nil,
 					LiquidPoolerConfig: liquidPoolerConfig,
+					OperationMode:      &operation_mode,
 				}
 
 				covenantAddress = testCtx.ManualInstantiate(covenantSideBasedRqCodeId, covenantMsg, neutronUser, keyring.BackendTest)

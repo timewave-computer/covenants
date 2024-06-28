@@ -10,23 +10,24 @@ import (
 
 // ----- Covenant Instantiation ------
 type CovenantInstantiateMsg struct {
-	Label              string                 `json:"label"`
-	Timeouts           Timeouts               `json:"timeouts"`
-	ContractCodeIds    ContractCodeIds        `json:"contract_codes"`
-	TickMaxGas         string                 `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig       Expiration             `json:"lockup_config"`
-	PartyAConfig       CovenantPartyConfig    `json:"party_a_config"`
-	PartyBConfig       CovenantPartyConfig    `json:"party_b_config"`
-	RagequitConfig     *RagequitConfig        `json:"ragequit_config,omitempty"`
-	DepositDeadline    Expiration             `json:"deposit_deadline"`
-	CovenantType       string                 `json:"covenant_type"`
-	PartyAShare        string                 `json:"party_a_share"`
-	PartyBShare        string                 `json:"party_b_share"`
-	Splits             map[string]SplitConfig `json:"splits"`
-	FallbackSplit      *SplitConfig           `json:"fallback_split,omitempty"`
-	EmergencyCommittee string                 `json:"emergency_committee,omitempty"`
-	LiquidPoolerConfig LiquidPoolerConfig     `json:"liquid_pooler_config"`
-	PoolPriceConfig    PoolPriceConfig        `json:"pool_price_config"`
+	Label              string                       `json:"label"`
+	Timeouts           Timeouts                     `json:"timeouts"`
+	ContractCodeIds    ContractCodeIds              `json:"contract_codes"`
+	TickMaxGas         string                       `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig       Expiration                   `json:"lockup_config"`
+	PartyAConfig       CovenantPartyConfig          `json:"party_a_config"`
+	PartyBConfig       CovenantPartyConfig          `json:"party_b_config"`
+	RagequitConfig     *RagequitConfig              `json:"ragequit_config,omitempty"`
+	DepositDeadline    Expiration                   `json:"deposit_deadline"`
+	CovenantType       string                       `json:"covenant_type"`
+	PartyAShare        string                       `json:"party_a_share"`
+	PartyBShare        string                       `json:"party_b_share"`
+	Splits             map[string]SplitConfig       `json:"splits"`
+	FallbackSplit      *SplitConfig                 `json:"fallback_split,omitempty"`
+	EmergencyCommittee string                       `json:"emergency_committee,omitempty"`
+	LiquidPoolerConfig LiquidPoolerConfig           `json:"liquid_pooler_config"`
+	PoolPriceConfig    PoolPriceConfig              `json:"pool_price_config"`
+	OperationMode      *ContractOperationModeConfig `json:"operation_mode"`
 }
 
 type PacketForwardMiddlewareConfig struct {
@@ -528,4 +529,9 @@ type ForwardMetadata struct {
 	Channel  string `json:"channel"`
 	// Timeout  string `json:"timeout,omitempty"`
 	// Retries  uint8  `json:"retries,omitempty"`
+}
+
+type ContractOperationModeConfig struct {
+	Permissionless bool     `json:"permissionless,omitempty"`
+	Permissioned   []string `json:"permissioned"`
 }

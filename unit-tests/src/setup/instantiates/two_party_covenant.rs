@@ -194,6 +194,9 @@ impl TwoPartyCovenantInstantiate {
                         },
                     ),
                 fallback_address: None,
+                operation_mode: covenant_utils::op_mode::ContractOperationModeConfig::Permissioned(
+                    vec![],
+                ),
             },
         }
     }

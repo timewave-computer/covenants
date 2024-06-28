@@ -34,6 +34,7 @@ pub struct InstantiateMsg {
     pub emergency_committee: Option<String>,
     pub liquid_pooler_config: LiquidPoolerConfig,
     pub fallback_address: Option<String>,
+    pub operation_mode: ContractOperationModeConfig,
 }
 
 #[cw_serde]
