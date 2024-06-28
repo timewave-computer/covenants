@@ -575,6 +575,18 @@ fn test_execute_claim_unauthorized() {
             },
         ))
         .build();
+
+    suite.fund_contract(
+        &[
+            coin(10_000, DENOM_ATOM_ON_NTRN),
+            coin(10_000, DENOM_LS_ATOM_ON_NTRN),
+        ],
+        suite.holder_addr.clone(),
+    );
+    suite.tick_contract(suite.holder_addr.clone());
+    suite.expire_lockup_config();
+    suite.tick_contract(suite.holder_addr.clone());
+
     let clock = suite.clock_addr.clone();
 
     suite.claim(clock.as_str());

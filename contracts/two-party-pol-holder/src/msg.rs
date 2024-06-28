@@ -408,14 +408,6 @@ pub enum ContractState {
 }
 
 impl ContractState {
-    pub fn validate_claim_state(&self) -> Result<(), ContractError> {
-        match self {
-            ContractState::Ragequit => Ok(()),
-            ContractState::Expired => Ok(()),
-            _ => Err(ContractError::ClaimError {}),
-        }
-    }
-
     pub fn complete_and_dequeue(deps: DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
         CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
         dequeue_msg(clock_addr)

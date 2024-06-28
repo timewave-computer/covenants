@@ -123,16 +123,38 @@ pub fn execute(
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
-    match msg {
-        ExecuteMsg::Ragequit {} => try_ragequit(deps, env, info),
-        ExecuteMsg::Tick {} => try_tick(deps, env, info),
-        ExecuteMsg::Claim {} => try_claim(deps, info),
-        ExecuteMsg::Distribute {} => try_distribute(deps, info),
-        ExecuteMsg::WithdrawFailed {} => try_withdraw_failed(deps, info),
-        ExecuteMsg::DistributeFallbackSplit { denoms } => {
+    match (CONTRACT_STATE.load(deps.storage)?, msg) {
+        // incoming ticks when in instantiated state try to deposit the funds
+        (ContractState::Instantiated, ExecuteMsg::Tick {}) => try_deposit(deps, env, info),
+        // incoming ticks when in active state are used to check for expiration
+        (ContractState::Active, ExecuteMsg::Tick {}) => check_expiration(deps, env, info),
+        // incoming ticks when in expired state are no-ops
+        (ContractState::Expired, ExecuteMsg::Tick {}) => Ok(Response::default()
+            .add_attribute("method", "tick")
+            .add_attribute("contract_state", "expired")),
+        // incoming ticks when in processing ragequit state are no-ops
+        (ContractState::Ragequit, ExecuteMsg::Tick {}) => Ok(Response::default()
+            .add_attribute("method", "tick")
+            .add_attribute("contract_state", "ragequit")),
+        // incoming ticks when in completed state are used to refund the parties
+        (ContractState::Complete, ExecuteMsg::Tick {}) => try_refund(deps, env, info),
+        // ragequit is state-independent
+        (current_state, ExecuteMsg::Ragequit {}) => try_ragequit(deps, env, info, current_state),
+        // emergency withdraw is state-independent
+        (_, ExecuteMsg::EmergencyWithdraw {}) => try_emergency_withdraw(deps, info),
+        // claims can only be performed from ragequit or expired state
+        (ContractState::Ragequit | ContractState::Expired, ExecuteMsg::Claim {}) => {
+            try_claim(deps, info)
+        }
+        (_, ExecuteMsg::Claim {}) => Err(ContractError::ClaimError {}),
+        // receiving distribute callback is state-independent
+        (_, ExecuteMsg::Distribute {}) => try_distribute(deps, info),
+        // receiving withdraw failed callback is state-independent
+        (_, ExecuteMsg::WithdrawFailed {}) => try_withdraw_failed(deps, info),
+        // distributing fallback splits is state-independent
+        (_, ExecuteMsg::DistributeFallbackSplit { denoms }) => {
             try_distribute_fallback_split(deps, env, denoms)
         }
-        ExecuteMsg::EmergencyWithdraw {} => try_emergency_withdraw(deps, info),
     }
 }
 
@@ -143,14 +165,13 @@ fn try_distribute_fallback_split(
 ) -> Result<Response, ContractError> {
     let mut available_balances = Vec::with_capacity(denoms.len());
     let denom_splits = DENOM_SPLITS.load(deps.storage)?;
-
+    let contract_addr = env.contract.address.to_string();
     for denom in denoms {
-        if denom_splits.explicit_splits.contains_key(&denom) {
-            return Err(ContractError::UnauthorizedDenomDistribution {});
-        }
-        let queried_coin = deps
-            .querier
-            .query_balance(env.contract.address.to_string(), denom)?;
+        ensure!(
+            !denom_splits.explicit_splits.contains_key(&denom),
+            ContractError::UnauthorizedDenomDistribution {}
+        );
+        let queried_coin = deps.querier.query_balance(&contract_addr, denom)?;
         available_balances.push(queried_coin);
     }
 
@@ -164,9 +185,10 @@ fn try_distribute_fallback_split(
 
 /// On claim, we should simply ask the LPer to withdraw the liquidity and execute a Distribute msg on the holder
 fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    if WITHDRAW_STATE.load(deps.storage).is_ok() {
-        return Err(ContractError::WithdrawAlreadyStarted {});
-    }
+    ensure!(
+        !WITHDRAW_STATE.exists(deps.storage),
+        ContractError::WithdrawAlreadyStarted {}
+    );
 
     let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
     let (claim_party, counterparty) = covenant_config.authorize_sender(info.sender.to_string())?;
@@ -181,10 +203,6 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
             .add_attribute("contract_state", "complete")
             .add_message(dequeue_message));
     }
-
-    // we exit early if contract is not in ragequit or expired state
-    let contract_state = CONTRACT_STATE.load(deps.storage)?;
-    contract_state.validate_claim_state()?;
 
     // set WithdrawState to include original data
     WITHDRAW_STATE.save(
@@ -208,13 +226,13 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
 }
 
 fn try_emergency_withdraw(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    if WITHDRAW_STATE.load(deps.storage).is_ok() {
-        return Err(ContractError::WithdrawAlreadyStarted {});
-    }
-
-    let committee_addr = EMERGENCY_COMMITTEE_ADDR.load(deps.storage)?;
     ensure!(
-        info.sender == committee_addr,
+        !WITHDRAW_STATE.exists(deps.storage),
+        ContractError::WithdrawAlreadyStarted {}
+    );
+
+    ensure!(
+        info.sender == EMERGENCY_COMMITTEE_ADDR.load(deps.storage)?,
         ContractError::Unauthorized {}
     );
 
@@ -228,8 +246,10 @@ fn try_emergency_withdraw(deps: DepsMut, info: MessageInfo) -> Result<Response, 
 
 fn try_distribute(mut deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     // Only pooler can call this
-    let pooler_addr = LIQUID_POOLER_ADDRESS.load(deps.storage)?;
-    ensure!(info.sender == pooler_addr, ContractError::Unauthorized {});
+    ensure!(
+        info.sender == LIQUID_POOLER_ADDRESS.load(deps.storage)?,
+        ContractError::Unauthorized {}
+    );
 
     let withdraw_state = WITHDRAW_STATE
         .load(deps.storage)
@@ -372,63 +392,40 @@ fn try_claim_side_based(
         .add_message(dequeue_message))
 }
 
-fn try_tick(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    let state = CONTRACT_STATE.load(deps.storage)?;
-    let clock_addr = CLOCK_ADDRESS.load(deps.storage)?;
-    verify_clock(&info.sender, &clock_addr)
-        .map_err(|e| ContractError::Std(StdError::generic_err(e.to_string())))?;
-
-    match state {
-        ContractState::Instantiated => try_deposit(deps, env, info),
-        ContractState::Active => check_expiration(deps, env),
-        ContractState::Expired | ContractState::Ragequit => Ok(Response::default()
-            .add_attribute("method", "tick")
-            .add_attribute("contract_state", state.to_string())),
-        ContractState::Complete => try_refund(deps, env),
-    }
-}
-
 /// attempts to route any available covenant party contribution denoms to
 /// the parties that were responsible for contributing that denom.
-fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn try_refund(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    // Verify caller is the clock
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
+        .map_err(|e| StdError::generic_err(e.to_string()))?;
+
     let config = COVENANT_CONFIG.load(deps.storage)?;
+    let contract_addr = env.contract.address.to_string();
 
     // assert the balances
-    let party_a_bal = deps.querier.query_balance(
-        env.contract.address.to_string(),
-        config.party_a.contribution.denom,
-    )?;
-    let party_b_bal = deps.querier.query_balance(
-        env.contract.address.to_string(),
-        config.party_b.contribution.denom,
-    )?;
+    let party_a_bal = deps
+        .querier
+        .query_balance(&contract_addr, config.party_a.contribution.denom)?;
+    let party_b_bal = deps
+        .querier
+        .query_balance(&contract_addr, config.party_b.contribution.denom)?;
 
-    let refund_messages: Vec<CosmosMsg> =
-        match (party_a_bal.amount.is_zero(), party_b_bal.amount.is_zero()) {
-            // both balances empty, nothing to refund
-            (true, true) => vec![],
-            // refund party B
-            (true, false) => vec![CosmosMsg::Bank(BankMsg::Send {
-                to_address: config.party_b.router,
-                amount: vec![party_b_bal],
-            })],
-            // refund party A
-            (false, true) => vec![CosmosMsg::Bank(BankMsg::Send {
-                to_address: config.party_a.router,
-                amount: vec![party_a_bal],
-            })],
-            // refund both
-            (false, false) => vec![
-                CosmosMsg::Bank(BankMsg::Send {
-                    to_address: config.party_a.router.to_string(),
-                    amount: vec![party_a_bal],
-                }),
-                CosmosMsg::Bank(BankMsg::Send {
-                    to_address: config.party_b.router,
-                    amount: vec![party_b_bal],
-                }),
-            ],
-        };
+    let refund_messages: Vec<CosmosMsg> = [
+        (party_a_bal, config.party_a.router),
+        (party_b_bal, config.party_b.router),
+    ]
+    .into_iter()
+    // find the parties that need to be refunded
+    .filter(|(party_coin, _)| !party_coin.amount.is_zero())
+    // get the bank transfer of the party's contribution to the respective router
+    .map(|(party_coin, to_address)| {
+        BankMsg::Send {
+            to_address,
+            amount: vec![party_coin],
+        }
+        .into()
+    })
+    .collect();
 
     Ok(Response::default()
         .add_attribute("contract_state", "complete")
@@ -436,7 +433,11 @@ fn try_refund(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
         .add_messages(refund_messages))
 }
 
-fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, ContractError> {
+fn try_deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    // Verify caller is the clock
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
+        .map_err(|e| StdError::generic_err(e.to_string()))?;
+
     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
     if deposit_deadline.is_expired(&env.block) {
         CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
@@ -447,24 +448,22 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
     }
 
     let config = COVENANT_CONFIG.load(deps.storage)?;
+    let contract_addr = env.contract.address.to_string();
 
     // assert the balances
-    let party_a_bal = deps.querier.query_balance(
-        env.contract.address.to_string(),
-        config.party_a.contribution.denom,
-    )?;
-    let party_b_bal = deps.querier.query_balance(
-        env.contract.address.to_string(),
-        config.party_b.contribution.denom,
-    )?;
+    let party_a_bal = deps
+        .querier
+        .query_balance(&contract_addr, config.party_a.contribution.denom)?;
+    let party_b_bal = deps
+        .querier
+        .query_balance(&contract_addr, config.party_b.contribution.denom)?;
 
-    let party_a_fulfilled = config.party_a.contribution.amount <= party_a_bal.amount;
-    let party_b_fulfilled = config.party_b.contribution.amount <= party_b_bal.amount;
-
-    if !party_a_fulfilled || !party_b_fulfilled {
-        // if deposit deadline is not yet due and both parties did not fulfill we error
-        return Err(ContractError::InsufficientDeposits {});
-    }
+    // if either party did not fulfill their deposit, we error out
+    ensure!(
+        config.party_a.contribution.amount <= party_a_bal.amount
+            && config.party_b.contribution.amount <= party_b_bal.amount,
+        ContractError::InsufficientDeposits {}
+    );
 
     // LiquidPooler is the next contract
     let liquid_pooler = LIQUID_POOLER_ADDRESS.load(deps.storage)?;
@@ -481,7 +480,11 @@ fn try_deposit(deps: DepsMut, env: Env, _info: MessageInfo) -> Result<Response, 
         .add_message(msg))
 }
 
-fn check_expiration(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
+fn check_expiration(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+    // Verify caller is the clock
+    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
+        .map_err(|e| StdError::generic_err(e.to_string()))?;
+
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
 
     if !lockup_config.is_expired(&env.block) {
@@ -498,24 +501,32 @@ fn check_expiration(deps: DepsMut, env: Env) -> Result<Response, ContractError> 
         .add_attribute("contract_state", "expired"))
 }
 
-fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
+fn try_ragequit(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    current_state: ContractState,
+) -> Result<Response, ContractError> {
+    let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
+    let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
+    let lper = LIQUID_POOLER_ADDRESS.load(deps.storage)?;
+
     // first we error out if ragequit is disabled
     let rq_terms = match RAGEQUIT_CONFIG.load(deps.storage)? {
         RagequitConfig::Disabled => return Err(ContractError::RagequitDisabled {}),
         RagequitConfig::Enabled(terms) => terms,
     };
-    let current_state = CONTRACT_STATE.load(deps.storage)?;
 
     // ragequit is only possible when contract is in Active state.
-    if current_state != ContractState::Active {
-        return Err(ContractError::NotActive {});
-    }
-
-    if WITHDRAW_STATE.load(deps.storage).is_ok() {
-        return Err(ContractError::WithdrawAlreadyStarted {});
-    }
-
-    let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
+    ensure!(
+        current_state == ContractState::Active,
+        ContractError::NotActive {}
+    );
+    // ensure no withdrawal is in progress
+    ensure!(
+        !WITHDRAW_STATE.exists(deps.storage),
+        ContractError::WithdrawAlreadyStarted {}
+    );
 
     // we also validate an edge case where it did expire but
     // did not receive a tick yet. tick is then required to advance.
@@ -524,7 +535,6 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
     }
 
     // authorize the message sender
-    let covenant_config = COVENANT_CONFIG.load(deps.storage)?;
     let (rq_party, _) = covenant_config.authorize_sender(info.sender.to_string())?;
 
     // If type is share we only withdraw the claim party allocation
@@ -543,7 +553,6 @@ fn try_ragequit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, 
         },
     )?;
 
-    let lper = LIQUID_POOLER_ADDRESS.load(deps.storage)?;
     let withdraw_msg = generate_withdraw_msg(lper.to_string(), withdraw_percentage)?;
 
     Ok(Response::default().add_message(withdraw_msg))
