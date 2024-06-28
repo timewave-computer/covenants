@@ -3,23 +3,32 @@ use std::{collections::BTreeMap, fmt};
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     ensure, to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut,
-    StdError, StdResult, WasmMsg,
+    StdError, StdResult, SubMsg, WasmMsg,
 };
 use covenant_macros::{
-    clocked, covenant_clock_address, covenant_deposit_address, covenant_holder_distribute,
+    clocked, covenant_deposit_address, covenant_holder_distribute,
     covenant_holder_emergency_withdraw, covenant_next_contract,
 };
 use covenant_utils::{
-    clock::dequeue_msg, instantiate2_helper::Instantiate2HelperConfig, split::SplitConfig,
+    clock::dequeue_msg,
+    instantiate2_helper::Instantiate2HelperConfig,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    split::SplitConfig,
 };
 use cw_utils::Expiration;
 
-use crate::{error::ContractError, state::CONTRACT_STATE};
+use crate::{
+    error::ContractError,
+    state::{CONTRACT_OP_MODE, CONTRACT_STATE},
+};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    /// address of authorized clock
-    pub clock_address: String,
+    // Contract Operation Mode.
+    // The contract operation (the Tick function mostly) can either be a permissionless
+    // (aka non-privileged) operation, or a permissioned operation, that is,
+    // restricted to being executed by one of the configured privileged accounts.
+    pub op_mode_cfg: ContractOperationModeConfig,
     /// liquid pooler address
     pub next_contract: String,
     /// config describing the agreed upon duration of POL
@@ -70,7 +79,7 @@ impl InstantiateMsg {
             .collect();
 
         let mut attrs = vec![
-            Attribute::new("clock_addr", self.clock_address.to_string()),
+            Attribute::new("op_mode", format!("{:?}", self.op_mode_cfg)),
             Attribute::new("next_contract", self.next_contract.to_string()),
             Attribute::new("lockup_config", self.lockup_config.to_string()),
             Attribute::new("deposit_deadline", self.deposit_deadline.to_string()),
@@ -375,7 +384,7 @@ pub enum ExecuteMsg {
 #[cw_serde]
 pub enum MigrateMsg {
     UpdateConfig {
-        clock_addr: Option<String>,
+        op_mode: Option<ContractOperationModeConfig>,
         next_contract: Option<String>,
         emergency_committee: Option<String>,
         lockup_config: Option<Expiration>,
@@ -408,9 +417,23 @@ pub enum ContractState {
 }
 
 impl ContractState {
-    pub fn complete_and_dequeue(deps: DepsMut, clock_addr: &str) -> Result<WasmMsg, StdError> {
+    pub fn complete_and_get_dequeue_msgs(deps: DepsMut) -> Result<Vec<SubMsg>, StdError> {
+        let msgs = match CONTRACT_OP_MODE.load(deps.storage)? {
+            ContractOperationMode::Permissionless => vec![],
+            ContractOperationMode::Permissioned(privileged_addrs) => {
+                let mut dequeue_msgs: Vec<SubMsg> = vec![];
+                for addr in privileged_addrs.to_vec() {
+                    if deps.querier.query_wasm_contract_info(addr.as_str()).is_ok() {
+                        let dequeue_submsg = SubMsg::reply_on_error(dequeue_msg(addr.as_str())?, u64::MAX);
+                        dequeue_msgs.push(dequeue_submsg);
+                    }
+                }
+                dequeue_msgs
+            }
+        };
         CONTRACT_STATE.save(deps.storage, &ContractState::Complete)?;
-        dequeue_msg(clock_addr)
+
+        Ok(msgs)
     }
 }
 
@@ -426,7 +449,6 @@ impl fmt::Display for ContractState {
     }
 }
 
-#[covenant_clock_address]
 #[covenant_next_contract]
 #[covenant_deposit_address]
 #[cw_serde]
@@ -448,8 +470,10 @@ pub enum QueryMsg {
     Config {},
     #[returns(DenomSplits)]
     DenomSplits {},
-    #[returns(Addr)]
+    #[returns(Option<Addr>)]
     EmergencyCommittee {},
+    #[returns(ContractOperationMode)]
+    OperationMode {},
 }
 
 #[cw_serde]

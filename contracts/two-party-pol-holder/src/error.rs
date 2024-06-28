@@ -1,10 +1,14 @@
 use cosmwasm_std::StdError;
+use covenant_utils::op_mode::ContractOperationError;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
+
+    #[error(transparent)]
+    ContractOperationError(#[from] ContractOperationError),
 
     #[error("party allocations must add up to 1.0")]
     AllocationValidationError {},
@@ -23,6 +27,9 @@ pub enum ContractError {
 
     #[error("covenant is not in active state")]
     NotActive {},
+
+    #[error("unexpected reply id")]
+    UnexpectedReplyId {},
 
     #[error("covenant is active but expired; tick to proceed")]
     Expired {},
