@@ -424,7 +424,8 @@ impl ContractState {
                 let mut dequeue_msgs: Vec<SubMsg> = vec![];
                 for addr in privileged_addrs.to_vec() {
                     if deps.querier.query_wasm_contract_info(addr.as_str()).is_ok() {
-                        let dequeue_submsg = SubMsg::reply_on_error(dequeue_msg(addr.as_str())?, u64::MAX);
+                        let dequeue_submsg =
+                            SubMsg::reply_on_error(dequeue_msg(addr.as_str())?, u64::MAX);
                         dequeue_msgs.push(dequeue_submsg);
                     }
                 }
