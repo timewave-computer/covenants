@@ -3,7 +3,7 @@ use localic_std::{errors::LocalError, transactions::ChainRequestBuilder};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::TRANSFER_PORT;
+use super::constants::TRANSFER_PORT;
 
 #[derive(Debug)]
 pub struct DenomTrace {
