@@ -391,7 +391,7 @@ pub fn find_pairwise_transfer_channel_ids(
     src_chain_id: &str,
     dest_chain_id: &str,
 ) -> Result<(PairwiseChannelResult, PairwiseChannelResult), Error> {
-    let relayer = Relayer::new(&rb);
+    let relayer = Relayer::new(rb);
     let cmd = format!("rly q channels {src_chain_id} {dest_chain_id}",);
     let result = relayer.execute(cmd.as_str(), true).unwrap();
     let json_string = result["text"].as_str().unwrap();
@@ -419,7 +419,7 @@ pub fn find_pairwise_transfer_channel_ids(
         }
     }
 
-    return Err(Error::msg("Couldnt find transfer channels"));
+    Err(Error::msg("Couldnt find transfer channels"))
 }
 
 pub fn find_pairwise_ccv_channel_ids(
