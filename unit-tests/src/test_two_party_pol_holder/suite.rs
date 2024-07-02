@@ -3,7 +3,9 @@ use std::collections::BTreeMap;
 use astroport::factory::PairType;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use covenant_utils::{
-    op_mode::ContractOperationModeConfig, split::SplitConfig, PoolPriceConfig, SingleSideLpLimits,
+    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    split::SplitConfig,
+    PoolPriceConfig, SingleSideLpLimits,
 };
 use cw_multi_test::{AppResponse, Executor};
 use cw_utils::Expiration;
@@ -82,7 +84,7 @@ impl Default for TwoPartyHolderBuilder {
         let party_b_controller_addr = builder.get_random_addr();
 
         let holder_instantiate_msg = TwoPartyHolderInstantiate::default(
-            clock_addr.to_string(),
+            ContractOperationModeConfig::Permissioned(vec![clock_addr.to_string()]),
             liquid_pooler_addr.to_string(),
             party_a_controller_addr,
             party_b_controller_addr,
@@ -97,8 +99,8 @@ impl Default for TwoPartyHolderBuilder {
 
 #[allow(dead_code)]
 impl TwoPartyHolderBuilder {
-    pub fn with_clock(mut self, addr: &str) -> Self {
-        self.instantiate_msg.with_clock(addr);
+    pub fn with_op_mode_cfg(mut self, op_mode_cfg: ContractOperationModeConfig) -> Self {
+        self.instantiate_msg.with_op_mode(&op_mode_cfg);
         self
     }
 
@@ -156,15 +158,23 @@ impl TwoPartyHolderBuilder {
             &[],
         );
 
-        let clock_addr = self
+        let contract_op_mode: ContractOperationMode = self
             .builder
             .app
             .wrap()
             .query_wasm_smart(
                 holder_addr.clone(),
-                &valence_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+                &valence_two_party_pol_holder::msg::QueryMsg::OperationMode {},
             )
             .unwrap();
+        println!("contract op mode: {:?}", contract_op_mode);
+
+        let clock_addr = match contract_op_mode {
+            ContractOperationMode::Permissionless => Addr::unchecked(""),
+            ContractOperationMode::Permissioned(addrs) => addrs.to_vec()[0].clone(),
+        };
+
+        println!("clock address: {:?}", clock_addr);
 
         let ragequit_config = self
             .builder
@@ -226,6 +236,16 @@ impl TwoPartyHolderBuilder {
             )
             .unwrap();
 
+        let emergency_committee_addr: Option<Addr> = self
+            .builder
+            .app
+            .wrap()
+            .query_wasm_smart(
+                holder_addr.clone(),
+                &valence_two_party_pol_holder::msg::QueryMsg::EmergencyCommittee {},
+            )
+            .unwrap();
+
         Suite {
             faucet: self.builder.faucet.clone(),
             admin: self.builder.admin.clone(),
@@ -238,7 +258,7 @@ impl TwoPartyHolderBuilder {
             covenant_config,
             splits: denom_splits.clone().explicit_splits,
             fallback_split: denom_splits.clone().fallback_split,
-            emergency_committee_addr: None, // todo after adding emergency committee query to holder contract
+            emergency_committee_addr,
             app: self.builder.build(),
         }
     }
@@ -261,7 +281,7 @@ pub struct Suite {
     pub covenant_config: valence_two_party_pol_holder::msg::TwoPartyPolCovenantConfig,
     pub splits: BTreeMap<String, SplitConfig>,
     pub fallback_split: Option<SplitConfig>,
-    pub emergency_committee_addr: Option<String>,
+    pub emergency_committee_addr: Option<Addr>,
 }
 
 impl Suite {
@@ -391,12 +411,12 @@ impl Suite {
             .unwrap()
     }
 
-    pub fn query_clock_addr(&mut self) -> Addr {
+    pub fn query_op_mode(&mut self) -> ContractOperationMode {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.holder_addr.clone(),
-                &valence_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+                &valence_two_party_pol_holder::msg::QueryMsg::OperationMode {},
             )
             .unwrap()
     }

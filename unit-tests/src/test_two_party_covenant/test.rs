@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use cosmwasm_std::{coin, to_json_binary, Addr, Event, Uint64};
+use cosmwasm_std::{coin, to_json_binary, Event, Uint64};
 use covenant_utils::op_mode::{ContractOperationMode, ContractOperationModeConfig};
 
 use crate::setup::{base_suite::BaseSuiteMut, DENOM_ATOM, DENOM_ATOM_ON_NTRN, NTRN_HUB_CHANNEL};
@@ -113,7 +113,9 @@ fn test_migrate_update_config_party_a_interchain() {
     let random_address = suite.faucet.clone();
 
     let holder_migrate_msg = valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(random_address.to_string()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            random_address.to_string(),
+        ])),
         next_contract: None,
         emergency_committee: None,
         lockup_config: None,
@@ -229,13 +231,17 @@ fn test_migrate_update_config_party_a_interchain() {
 
     let app = suite.get_app();
 
-    let holder_clock_address: Addr = app
+    let holder_op_mode = app
         .wrap()
         .query_wasm_smart(
             holder_address,
-            &valence_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+            &valence_two_party_pol_holder::msg::QueryMsg::OperationMode {},
         )
         .unwrap();
+    let holder_clock_address = match holder_op_mode {
+        ContractOperationMode::Permissioned(addr) => addr.to_vec()[0].clone(),
+        _ => panic!("unexpected op mode"),
+    };
     assert_eq!(holder_clock_address, random_address);
 
     let liquid_pooler_op_mode: ContractOperationMode = app
@@ -322,7 +328,9 @@ fn test_migrate_update_config_party_b_interchain() {
         new_value: Uint64::new(500_000),
     };
     let holder_migrate_msg = valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-        clock_addr: Some(random_address.to_string()),
+        op_mode: Some(ContractOperationModeConfig::Permissioned(vec![
+            random_address.to_string(),
+        ])),
         next_contract: None,
         emergency_committee: None,
         lockup_config: None,
@@ -449,13 +457,19 @@ fn test_migrate_update_config_party_b_interchain() {
         .unwrap();
     assert_eq!(clock_max_gas, Uint64::new(500_000));
 
-    let holder_clock_address: Addr = app
+    let holder_op_mode = app
         .wrap()
         .query_wasm_smart(
             holder_address,
-            &valence_two_party_pol_holder::msg::QueryMsg::ClockAddress {},
+            &valence_two_party_pol_holder::msg::QueryMsg::OperationMode {},
         )
         .unwrap();
+
+    let holder_clock_address = match holder_op_mode {
+        ContractOperationMode::Permissioned(addr) => addr.to_vec()[0].clone(),
+        _ => panic!("unexpected op mode"),
+    };
+
     assert_eq!(holder_clock_address, random_address);
 
     let liquid_pooler_op_mode: ContractOperationMode = app

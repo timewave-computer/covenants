@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, coins, Addr, Decimal, Event, Timestamp, Uint128};
-use covenant_utils::split::SplitConfig;
+use covenant_utils::{op_mode::ContractOperationMode, split::SplitConfig};
 use cw_multi_test::Executor;
 use cw_utils::Expiration;
 use valence_two_party_pol_holder::msg::{ContractState, RagequitConfig, RagequitTerms};
@@ -25,7 +25,11 @@ fn test_instantiate_validates_next_contract_addr() {
 #[should_panic]
 fn test_instantiate_validates_clock_addr() {
     TwoPartyHolderBuilder::default()
-        .with_clock("invalid")
+        .with_op_mode_cfg(
+            covenant_utils::op_mode::ContractOperationModeConfig::Permissioned(vec![
+                "invalid".to_string()
+            ]),
+        )
         .build();
 }
 
@@ -33,7 +37,9 @@ fn test_instantiate_validates_clock_addr() {
 #[should_panic]
 fn test_instantiate_validates_emergency_committee_addr() {
     TwoPartyHolderBuilder::default()
-        .with_emergency_committee("invalid")
+        .with_emergency_committee(
+            "neutron19yz8hu6dand9lchzrcwezug763h770cv8sfen7kc7gw0jtdqha8qsl7tp9",
+        )
         .build();
 }
 
@@ -235,8 +241,8 @@ fn test_instantiate_validates_fallback_split() {
 }
 
 #[test]
-#[should_panic(expected = "Caller is not the clock, only clock can tick contracts")]
-fn test_execute_tick_validates_clock() {
+#[should_panic(expected = "Contract operation unauthorized")]
+fn test_execute_tick_validates_op_mode_caller() {
     let mut suite = TwoPartyHolderBuilder::default().build();
 
     suite
@@ -675,7 +681,11 @@ fn test_execute_claim_happy() {
 #[should_panic(expected = "unauthorized")]
 fn test_execute_emergency_withdraw_validates_committee_address() {
     let builder = TwoPartyHolderBuilder::default();
-    let clock = builder.instantiate_msg.msg.clock_address.clone();
+    let op_mode_cfg = builder.instantiate_msg.msg.op_mode_cfg.clone();
+    let clock = match op_mode_cfg {
+        covenant_utils::op_mode::ContractOperationModeConfig::Permissioned(vec) => vec[0].clone(),
+        _ => panic!("unexpected op_mode_cfg"),
+    };
     let mut suite = builder.with_emergency_committee(clock.as_str()).build();
 
     suite.fund_contract(
@@ -695,9 +705,10 @@ fn test_execute_emergency_withdraw_validates_committee_address() {
 
 #[test]
 fn test_execute_emergency_withdraw_happy() {
-    let builder = TwoPartyHolderBuilder::default();
-    let clock = builder.instantiate_msg.msg.clock_address.clone();
-    let mut suite = builder.with_emergency_committee(clock.as_str()).build();
+    let e_c_addr = "cosmos10a6yf8khw53pvmafngsq2vjgqgu3p9kjsgpzpa2vm9ceg0c70eysqg42pu";
+    let mut suite = TwoPartyHolderBuilder::default()
+        .with_emergency_committee(e_c_addr)
+        .build();
 
     suite.fund_contract(
         &[
@@ -709,7 +720,9 @@ fn test_execute_emergency_withdraw_happy() {
     suite.tick_contract(suite.holder_addr.clone());
     suite.tick_contract(suite.next_contract.clone());
 
-    suite.emergency_withdraw(clock.as_str());
+    suite.emergency_withdraw(e_c_addr);
+    suite.tick_contract(suite.holder_addr.clone());
+    suite.tick_contract(suite.next_contract.clone());
 
     let party_a = Addr::unchecked(suite.covenant_config.party_a.router.to_string());
     let party_b = Addr::unchecked(suite.covenant_config.party_b.router.to_string());
@@ -723,10 +736,13 @@ fn test_execute_emergency_withdraw_happy() {
     assert_eq!(5000, party_b_atom_bal.u128());
     assert_eq!(5000, party_a_ls_atom_bal.u128());
     assert_eq!(5000, party_b_ls_atom_bal.u128());
-    assert!(matches!(
-        suite.query_contract_state(),
-        ContractState::Complete {}
-    ));
+    let contract_state = suite.query_contract_state();
+    assert!(
+        matches!(contract_state, ContractState::Complete {}),
+        "unexpected contract state: {:?}, expected: {:?}",
+        contract_state,
+        ContractState::Complete {},
+    );
 }
 
 #[test]
@@ -793,9 +809,15 @@ fn test_distribute_fallback_happy() {
 
 #[test]
 fn test_migrate_update_config() {
+    let builder = TwoPartyHolderBuilder::default();
+
+    let op_mode_cfg = builder.instantiate_msg.msg.op_mode_cfg.clone();
+    let clock = match op_mode_cfg {
+        covenant_utils::op_mode::ContractOperationModeConfig::Permissioned(vec) => vec[0].clone(),
+        _ => panic!("unexpected op_mode_cfg"),
+    };
     let mut suite = TwoPartyHolderBuilder::default().build();
 
-    let clock = suite.query_clock_addr();
     let next_contract = suite.query_next_contract();
     let mut covenant_config = suite.query_covenant_config();
     let denom_splits = suite.query_denom_splits();
@@ -811,7 +833,11 @@ fn test_migrate_update_config() {
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
             &valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: Some(next_contract.to_string()),
+                op_mode: Some(
+                    covenant_utils::op_mode::ContractOperationModeConfig::Permissioned(vec![
+                        next_contract.to_string(),
+                    ]),
+                ),
                 next_contract: Some(clock.to_string()),
                 emergency_committee: Some(clock.to_string()),
                 lockup_config: Some(Expiration::AtHeight(543210)),
@@ -828,7 +854,11 @@ fn test_migrate_update_config() {
         )
         .unwrap();
 
-    let new_clock = suite.query_clock_addr();
+    let op_mode_cfg = suite.query_op_mode();
+    let new_clock = match op_mode_cfg {
+        ContractOperationMode::Permissioned(vec) => vec.to_vec()[0].clone(),
+        _ => panic!("unexpected op_mode_cfg"),
+    };
     let new_next_contract = suite.query_next_contract();
     let ragequit_config = suite.query_ragequit_config();
     let lockup_config = suite.query_lockup_config();
@@ -875,7 +905,7 @@ fn test_migrate_update_config_invalid_fallback_split() {
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
             &valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: None,
+                op_mode: None,
                 next_contract: None,
                 emergency_committee: None,
                 lockup_config: None,
@@ -915,7 +945,7 @@ fn test_migrate_update_config_invalid_explicit_splits() {
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
             &valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: None,
+                op_mode: None,
                 next_contract: None,
                 emergency_committee: None,
                 lockup_config: None,
@@ -940,7 +970,7 @@ fn test_migrate_update_config_validates_lockup_config_expiration() {
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
             &valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: None,
+                op_mode: None,
                 next_contract: None,
                 emergency_committee: None,
                 lockup_config: Some(Expiration::AtHeight(1)),
@@ -965,7 +995,7 @@ fn test_migrate_update_config_validates_deposit_deadline_expiration() {
             Addr::unchecked(ADMIN),
             suite.holder_addr.clone(),
             &valence_two_party_pol_holder::msg::MigrateMsg::UpdateConfig {
-                clock_addr: None,
+                op_mode: None,
                 next_contract: None,
                 emergency_committee: None,
                 lockup_config: None,

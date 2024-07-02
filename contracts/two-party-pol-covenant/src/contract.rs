@@ -105,7 +105,7 @@ pub fn instantiate(
     clock_initial_queue.push(party_b_router_instantiate2_config.addr.to_string());
 
     let holder_instantiate2_msg = valence_two_party_pol_holder::msg::InstantiateMsg {
-        clock_address: clock_instantiate2_config.addr.to_string(),
+        op_mode_cfg: op_mode_cfg.clone(),
         lockup_config: msg.lockup_config,
         next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
         ragequit_config: msg.ragequit_config.unwrap_or(RagequitConfig::Disabled),

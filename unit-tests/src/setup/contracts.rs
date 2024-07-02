@@ -536,7 +536,17 @@ pub fn two_party_holder_contract() -> Box<dyn Contract<NeutronMsg, NeutronQuery>
         ))
     };
 
-    let contract = ContractWrapper::new(exec, init, query).with_migrate(migrate);
+    let reply = |deps: DepsMut<NeutronQuery>, env: Env, reply: Reply| {
+        execute_into_neutron(valence_two_party_pol_holder::contract::reply(
+            get_empty_depsmut(deps),
+            env,
+            reply,
+        ))
+    };
+
+    let contract = ContractWrapper::new(exec, init, query)
+        .with_migrate(migrate)
+        .with_reply(reply);
     Box::new(contract)
 }
 

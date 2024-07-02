@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal};
-use covenant_utils::split::SplitConfig;
+use covenant_utils::{op_mode::ContractOperationModeConfig, split::SplitConfig};
 use cw_utils::Expiration;
 
 use crate::setup::{DENOM_ATOM_ON_NTRN, DENOM_LS_ATOM_ON_NTRN};
@@ -20,7 +20,7 @@ impl From<TwoPartyHolderInstantiate> for valence_two_party_pol_holder::msg::Inst
 impl TwoPartyHolderInstantiate {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        clock_address: String,
+        op_mode_cfg: ContractOperationModeConfig,
         next_contract: String,
         lockup_config: Expiration,
         ragequit_config: valence_two_party_pol_holder::msg::RagequitConfig,
@@ -32,7 +32,7 @@ impl TwoPartyHolderInstantiate {
     ) -> Self {
         Self {
             msg: valence_two_party_pol_holder::msg::InstantiateMsg {
-                clock_address,
+                op_mode_cfg,
                 next_contract,
                 lockup_config,
                 ragequit_config,
@@ -46,8 +46,8 @@ impl TwoPartyHolderInstantiate {
     }
 
     /* Change functions */
-    pub fn with_clock(&mut self, addr: &str) -> &mut Self {
-        self.msg.clock_address = addr.to_string();
+    pub fn with_op_mode(&mut self, op_mode: &ContractOperationModeConfig) -> &mut Self {
+        self.msg.op_mode_cfg = op_mode.clone();
         self
     }
 
@@ -100,7 +100,7 @@ impl TwoPartyHolderInstantiate {
 
 impl TwoPartyHolderInstantiate {
     pub fn default(
-        clock_address: String,
+        op_mode_cfg: ContractOperationModeConfig,
         next_contract: String,
         party_a_addr: Addr,
         party_b_addr: Addr,
@@ -116,7 +116,7 @@ impl TwoPartyHolderInstantiate {
 
         Self {
             msg: valence_two_party_pol_holder::msg::InstantiateMsg {
-                clock_address,
+                op_mode_cfg,
                 next_contract,
                 lockup_config: Expiration::AtHeight(200000),
                 ragequit_config: valence_two_party_pol_holder::msg::RagequitConfig::Disabled {},
