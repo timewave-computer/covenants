@@ -1209,11 +1209,16 @@ dependencies = [
  "anyhow",
  "astroport",
  "cosmwasm-std",
+ "covenant-utils",
+ "cw-utils 1.0.3",
  "localic-std",
  "reqwest",
  "serde",
  "serde_json",
  "sha2 0.10.8",
+ "valence-astroport-liquid-pooler",
+ "valence-covenant-two-party-pol",
+ "valence-two-party-pol-holder",
 ]
 
 [[package]]

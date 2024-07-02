@@ -12,5 +12,10 @@ serde_json = "1.0.119"
 serde = { version = "1.0.203", features = ["derive"] }
 cosmwasm-std = "1.5.5"
 astroport = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
-sha2.workspace = true
-anyhow.workspace = true
+sha2 = "0.10.8"
+anyhow = "1.0.86"
+cw-utils = { workspace = true }
+valence-covenant-two-party-pol = { workspace = true }
+valence-two-party-pol-holder = { workspace = true }
+valence-astroport-liquid-pooler = { workspace = true }
+covenant-utils = { workspace = true }
