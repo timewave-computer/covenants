@@ -3,10 +3,7 @@ use std::{thread, time::Duration};
 use cosmwasm_std::{coin, Binary, Decimal, Uint128};
 use localic_std::{
     errors::LocalError,
-    modules::{
-        bank::get_balance,
-        cosmwasm::{contract_execute, contract_instantiate, contract_query},
-    },
+    modules::cosmwasm::{contract_execute, contract_instantiate, contract_query},
     node::Chain,
 };
 
@@ -14,7 +11,7 @@ use crate::utils::{
     constants::{
         ACC_0_KEY, ASTROPORT_PATH, EXECUTE_FLAGS, GAIA_CHAIN, NEUTRON_CHAIN, VALENCE_PATH,
     },
-    ibc::{get_ibc_denom, ibc_send},
+    ibc::ibc_send,
     setup::deploy_contracts_on_chain,
     test_context::TestContext,
 };

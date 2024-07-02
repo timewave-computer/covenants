@@ -4,15 +4,15 @@ use anyhow::Error;
 use cosmwasm_std::{StdError, StdResult};
 use localic_std::{
     modules::cosmwasm::CosmWasm,
-    relayer::{self, Channel, Relayer},
+    relayer::{Channel, Relayer},
     transactions::ChainRequestBuilder,
 };
 
 use super::types::Channel as QueryChannel;
 
 use super::constants::{
-    API_URL, GAIA_CHAIN, GAIA_CHAIN_ID, NEUTRON_CHAIN, NEUTRON_CHAIN_ID, OSMOSIS_CHAIN,
-    OSMOSIS_CHAIN_ID, STRIDE_CHAIN, STRIDE_CHAIN_ID, TRANSFER_PORT,
+    API_URL, GAIA_CHAIN, GAIA_CHAIN_ID, NEUTRON_CHAIN, NEUTRON_CHAIN_ID, OSMOSIS_CHAIN_ID,
+    STRIDE_CHAIN_ID, TRANSFER_PORT,
 };
 
 use super::types::ChainsVec;
@@ -104,10 +104,7 @@ impl From<ChainsVec> for TestContext {
                 );
                 ibc_denoms.insert(
                     (chain1.name.clone(), chain2.name.clone()),
-                    super::ibc::get_ibc_denom(
-                        &chain1.denom,
-                        &counterparty_channel.channel_id,
-                    ),
+                    super::ibc::get_ibc_denom(&chain1.denom, &counterparty_channel.channel_id),
                 );
             }
         }
