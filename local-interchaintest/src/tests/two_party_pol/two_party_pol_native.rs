@@ -3,17 +3,13 @@ use std::{thread, time::Duration};
 use cosmwasm_std::{coin, Binary, Decimal, Uint128};
 use localic_std::{
     errors::LocalError,
-    modules::{
-        bank::get_balance,
-        cosmwasm::{contract_execute, contract_instantiate, contract_query},
-    },
+    modules::cosmwasm::{contract_execute, contract_instantiate, contract_query},
     node::Chain,
 };
 
 use crate::utils::{
     constants::{
-        ACC_0_KEY, ASTROPORT_PATH, EXECUTE_FLAGS, GAIA_CHAIN, NEUTRON_CHAIN,
-        VALENCE_PATH,
+        ACC_0_KEY, ASTROPORT_PATH, EXECUTE_FLAGS, GAIA_CHAIN, NEUTRON_CHAIN, VALENCE_PATH,
     },
     ibc::{get_ibc_denom, ibc_send},
     setup::deploy_contracts_on_chain,
@@ -32,8 +28,8 @@ use astroport::{
 };
 
 pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), LocalError> {
-    deploy_contracts_on_chain(test_ctx, VALENCE_PATH, NEUTRON_CHAIN);
-    deploy_contracts_on_chain(test_ctx, ASTROPORT_PATH, NEUTRON_CHAIN);
+    //deploy_contracts_on_chain(test_ctx, VALENCE_PATH, NEUTRON_CHAIN);
+    //deploy_contracts_on_chain(test_ctx, ASTROPORT_PATH, NEUTRON_CHAIN);
 
     // Instantiate the native coin registry contract
     let native_coin_registry_instantiate_msg = NativeCoinRegistryInstantiateMsg {
@@ -214,14 +210,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     );
     let pool_addr = pair_info["data"]["contract_addr"].as_str().unwrap();
 
-    let balance = get_balance(
-        &test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN),
-        "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky",
-    );
-    println!("Balance: {:?}", balance);
-
     let uatom_contribution_amount: u128 = 5_000_000_000;
     let untrn_contribution_amount: u128 = 50_000_000_000;
     let provide_liquidity_msg = astroport::pair::ExecuteMsg::ProvideLiquidity {
@@ -261,8 +249,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             .get_request_builder(NEUTRON_CHAIN),
     );
     let current_block_height = chain.get_height();
-
-    println!("Current block height: {:?}", current_block_height);
 
     Ok(())
 }

@@ -16,7 +16,7 @@
       "gas_adjustment": 2.0,
       "number_vals": 1,
       "number_node": 0,
-      "ibc_paths": ["gaia-osmosis"],
+      "ibc_paths": ["gaia-stride", "osmosis-gaia"],
       "debugging": true,
       "block_time": "1s",
       "genesis": {
@@ -87,7 +87,7 @@
       "number_vals": 1,
       "number_node": 0,
       "ics_consumer_link": "localcosmos-1",
-      "ibc_paths": ["neutron-osmosis"],
+      "ibc_paths": ["neutron-stride", "neutron-osmosis"],
       "debugging": true,
       "block_time": "1s",
       "genesis": {
@@ -179,6 +179,68 @@
       }
     },
     {
+      "name": "stride",
+      "chain_id": "localstride-3",
+      "denom": "ustrd",
+      "binary": "strided",
+      "bech32_prefix": "stride",
+      "docker_image": {
+        "version": "non-ics",
+        "repository": "stride"
+      },
+      "gas_prices": "0.0ustrd",
+      "chain_type": "cosmos",
+      "coin_type": 118,
+      "trusting_period": "336h",
+      "gas_adjustment": 1.3,
+      "number_vals": 1,
+      "number_node": 0,
+      "ibc_paths": ["gaia-stride", "neutron-stride"],
+      "debugging": true,
+      "block_time": "1s",
+      "genesis": {
+        "modify": [
+          {
+            "key": "consensus_params.block.max_gas",
+            "value": "100000000"
+          },
+          {
+            "key": "app_state.autopilot.params.stakeibc_active",
+            "value": true
+          },
+          {
+            "key": "app_state.interchainaccounts.host_genesis_state.params.allow_messages",
+            "value": [
+              "/cosmos.bank.v1beta1.MsgSend",
+              "/cosmos.bank.v1beta1.MsgMultiSend",
+              "/cosmos.staking.v1beta1.MsgDelegate",
+              "/cosmos.staking.v1beta1.MsgUndelegate",
+              "/cosmos.staking.v1beta1.MsgBeginRedelegate",
+              "/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
+              "/cosmos.staking.v1beta1.MsgTokenizeShares",
+              "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+              "/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+              "/ibc.applications.transfer.v1.MsgTransfer"
+            ]
+          }
+        ],
+        "accounts": [
+          {
+            "name": "admin",
+            "address": "stride1u20df3trc2c2zdhm8qvh2hdjx9ewh00sv6eyy8",
+            "amount": "10000000000%DENOM%",
+            "mnemonic": "tone cause tribe this switch near host damage idle fragile antique tail soda alien depth write wool they rapid unfold body scan pledge soft"
+          },
+          {
+            "name": "acc0",
+            "address": "stride1hj5fveer5cjtn4wd6wstzugjfdxzl0xp98jwc0",
+            "amount": "10000000000%DENOM%",
+            "mnemonic": "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
+          }
+        ]
+      }
+    },
+    {
       "name": "osmosis",
       "chain_id": "localosmosis-1",
       "denom": "uosmo",
@@ -195,7 +257,7 @@
       "gas_adjustment": 2,
       "number_vals": 1,
       "number_node": 0,
-      "ibc_paths": ["neutron-osmosis", "gaia-osmosis"],
+      "ibc_paths": ["neutron-osmosis", "osmosis-gaia"],
       "debugging": true,
       "block_time": "1s",
       "genesis": {

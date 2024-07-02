@@ -8,7 +8,8 @@ use localic_std::{
 };
 
 use super::constants::{
-    API_URL, GAIA_CHAIN, GAIA_CHAIN_ID, NEUTRON_CHAIN, NEUTRON_CHAIN_ID, OSMOSIS_CHAIN, OSMOSIS_CHAIN_ID, TRANSFER_PORT
+    API_URL, GAIA_CHAIN, GAIA_CHAIN_ID, NEUTRON_CHAIN, NEUTRON_CHAIN_ID, OSMOSIS_CHAIN,
+    OSMOSIS_CHAIN_ID, STRIDE_CHAIN, STRIDE_CHAIN_ID, TRANSFER_PORT,
 };
 
 use super::types::ChainsVec;
@@ -44,6 +45,7 @@ impl From<ChainsVec> for TestContext {
                 NEUTRON_CHAIN_ID => ("neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky", "untrn"),
                 GAIA_CHAIN_ID => ("cosmos1hj5fveer5cjtn4wd6wstzugjfdxzl0xpxvjjvr", "uatom"),
                 OSMOSIS_CHAIN_ID => ("osmo1kuf2kxwuv2p8k3gnpja7mzf05zvep0cysqyf2a", "uosmo"),
+                STRIDE_CHAIN_ID => ("stride1u20df3trc2c2zdhm8qvh2hdjx9ewh00sv6eyy8", "ustrd"),
                 _ => ("err", "err"),
             };
             let local_chain =
@@ -54,6 +56,7 @@ impl From<ChainsVec> for TestContext {
         let ntrn_channels = chains_map.get(NEUTRON_CHAIN).unwrap().channels.clone();
         let gaia_channels = chains_map.get(GAIA_CHAIN).unwrap().channels.clone();
         let osmosis_channels = chains_map.get(OSMOSIS_CHAIN).unwrap().channels.clone();
+        let stride_channels = chains_map.get(STRIDE_CHAIN).unwrap().channels.clone();
 
         let mut connection_ids = HashMap::new();
 
@@ -74,6 +77,9 @@ impl From<ChainsVec> for TestContext {
 
         let (gaia_to_osmosis_transfer_channel, osmosis_to_gaia_transfer_channel) =
             find_pairwise_transfer_channel_ids(&gaia_channels, &osmosis_channels).unwrap();
+
+        let (ntrn_to_stride_transfer_channel, stride_to_ntrn_transfer_channel) =
+            find_pairwise_transfer_channel_ids(&ntrn_channels, &stride_channels).unwrap();
 
         connection_ids.insert(
             (GAIA_CHAIN.to_string(), OSMOSIS_CHAIN.to_string()),
@@ -98,7 +104,45 @@ impl From<ChainsVec> for TestContext {
             osmosis_to_neutron_transfer_channel.connection_id,
         );
 
+        connection_ids.insert(
+            (NEUTRON_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
+            ntrn_to_stride_transfer_channel.connection_id,
+        );
+        connection_ids.insert(
+            (STRIDE_CHAIN.to_string(), NEUTRON_CHAIN.to_string()),
+            stride_to_ntrn_transfer_channel.connection_id,
+        );
+
+        let (gaia_to_stride_transfer_channel, stride_to_gaia_transfer_channel) =
+            find_pairwise_transfer_channel_ids(&gaia_channels, &stride_channels).unwrap();
+        connection_ids.insert(
+            (GAIA_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
+            gaia_to_stride_transfer_channel.connection_id,
+        );
+        connection_ids.insert(
+            (STRIDE_CHAIN.to_string(), GAIA_CHAIN.to_string()),
+            stride_to_gaia_transfer_channel.connection_id,
+        );
+
         let mut transfer_channel_ids = HashMap::new();
+
+        transfer_channel_ids.insert(
+            (NEUTRON_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
+            ntrn_to_stride_transfer_channel.channel_id.to_string(),
+        );
+        transfer_channel_ids.insert(
+            (STRIDE_CHAIN.to_string(), NEUTRON_CHAIN.to_string()),
+            stride_to_ntrn_transfer_channel.channel_id.to_string(),
+        );
+        transfer_channel_ids.insert(
+            (GAIA_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
+            gaia_to_stride_transfer_channel.channel_id.to_string(),
+        );
+        transfer_channel_ids.insert(
+            (STRIDE_CHAIN.to_string(), GAIA_CHAIN.to_string()),
+            stride_to_gaia_transfer_channel.channel_id.to_string(),
+        );
+
         transfer_channel_ids.insert(
             (NEUTRON_CHAIN.to_string(), GAIA_CHAIN.to_string()),
             ntrn_to_gaia_transfer_channel.channel_id.to_string(),
@@ -139,6 +183,23 @@ impl From<ChainsVec> for TestContext {
         );
 
         let mut ibc_denoms = HashMap::new();
+        ibc_denoms.insert(
+            (NEUTRON_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
+            super::ibc::get_ibc_denom("untrn", &ntrn_to_stride_transfer_channel.channel_id),
+        );
+        ibc_denoms.insert(
+            (STRIDE_CHAIN.to_string(), NEUTRON_CHAIN.to_string()),
+            super::ibc::get_ibc_denom("ustrd", &stride_to_ntrn_transfer_channel.channel_id),
+        );
+        ibc_denoms.insert(
+            (GAIA_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
+            super::ibc::get_ibc_denom("uatom", &gaia_to_stride_transfer_channel.channel_id),
+        );
+        ibc_denoms.insert(
+            (STRIDE_CHAIN.to_string(), GAIA_CHAIN.to_string()),
+            super::ibc::get_ibc_denom("ustrd", &stride_to_gaia_transfer_channel.channel_id),
+        );
+
         ibc_denoms.insert(
             (NEUTRON_CHAIN.to_string(), GAIA_CHAIN.to_string()),
             super::ibc::get_ibc_denom("untrn", &ntrn_to_gaia_transfer_channel.channel_id),

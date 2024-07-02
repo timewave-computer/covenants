@@ -10,6 +10,9 @@ pub const GAIA_CHAIN_ID: &str = "localcosmos-1";
 pub const OSMOSIS_CHAIN: &str = "osmosis";
 pub const OSMOSIS_CHAIN_ID: &str = "localosmosis-1";
 
+pub const STRIDE_CHAIN: &str = "stride";
+pub const STRIDE_CHAIN_ID: &str = "localstride-3";
+
 pub const CHAIN_CONFIG_PATH: &str = "local-interchaintest/chains/neutron_gaia.json";
 pub const LOGS_PATH: &str = "local-interchaintest/configs/logs.json";
 
