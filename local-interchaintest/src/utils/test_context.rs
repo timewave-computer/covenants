@@ -76,11 +76,8 @@ impl From<ChainsVec> for TestContext {
         let mut ibc_denoms = HashMap::new();
         let mut connection_ids = HashMap::new();
 
-        for chain1 in chains.chains.iter() {
-            for chain2 in chains.chains.iter() {
-                if chain1.chain_id == chain2.chain_id {
-                    continue;
-                }
+        for (i, chain1) in chains.chains.iter().enumerate() {
+            for chain2 in chains.chains.iter().skip(i + 1) {
                 let (party_channel, counterparty_channel) = match find_pairwise_transfer_channel_ids(
                     &chains_map.get(chain1.name.as_str()).unwrap().rb,
                     chain1.chain_id.as_str(),
@@ -98,13 +95,30 @@ impl From<ChainsVec> for TestContext {
                     (chain1.name.clone(), chain2.name.clone()),
                     party_channel.channel_id.to_string(),
                 );
+
+                transfer_channel_ids.insert(
+                    (chain2.name.clone(), chain1.name.clone()),
+                    counterparty_channel.channel_id.to_string(),
+                );
+
                 connection_ids.insert(
                     (chain1.name.clone(), chain2.name.clone()),
                     party_channel.connection_id.to_string(),
                 );
+
+                connection_ids.insert(
+                    (chain2.name.clone(), chain1.name.clone()),
+                    counterparty_channel.connection_id.to_string(),
+                );
+
                 ibc_denoms.insert(
                     (chain1.name.clone(), chain2.name.clone()),
                     super::ibc::get_ibc_denom(&chain1.denom, &counterparty_channel.channel_id),
+                );
+
+                ibc_denoms.insert(
+                    (chain2.name.clone(), chain1.name.clone()),
+                    super::ibc::get_ibc_denom(&chain2.denom, &party_channel.channel_id),
                 );
             }
         }
