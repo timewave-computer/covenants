@@ -349,7 +349,6 @@ fn try_claim_share_based(
     if !counterparty.allocation.is_zero() {
         counterparty.allocation = Decimal::one();
     } else {
-        println!("attempting to dequeue and complete");
         let dequeue_msgs = ContractState::complete_and_get_dequeue_msgs(deps.branch())?;
         submsgs.extend(dequeue_msgs);
     };
@@ -379,9 +378,8 @@ fn try_claim_side_based(
     counterparty.allocation = Decimal::zero();
     covenant_config.update_parties(claim_party, counterparty);
 
-    // update the states and dequeue from the clock
+    // update the states and dequeue from any clocks
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-    // let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
     let dequeue_messages = ContractState::complete_and_get_dequeue_msgs(deps)?;
 
     Ok(Response::default()
@@ -393,7 +391,7 @@ fn try_claim_side_based(
 /// attempts to route any available covenant party contribution denoms to
 /// the parties that were responsible for contributing that denom.
 fn try_refund(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    // Verify caller is the clock
+    // Verify caller is an authorized address
     verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     let config = COVENANT_CONFIG.load(deps.storage)?;
@@ -431,7 +429,7 @@ fn try_refund(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Co
 }
 
 fn try_deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    // Verify caller is the clock
+    // Verify caller is an authorized address
     verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
@@ -477,7 +475,7 @@ fn try_deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, C
 }
 
 fn check_expiration(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    // Verify caller is the clock
+    // Verify caller is an authorized address
     verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
