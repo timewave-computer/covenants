@@ -248,7 +248,5 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     );
     let current_block_height = chain.get_height();
 
-    println!("Current block height: {:?}", current_block_height);
-
     Ok(())
 }

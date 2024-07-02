@@ -392,16 +392,14 @@ pub fn find_pairwise_transfer_channel_ids(
     dest_chain_id: &str,
 ) -> Result<(PairwiseChannelResult, PairwiseChannelResult), Error> {
     let relayer = Relayer::new(rb);
-    let cmd = format!("rly q channels {src_chain_id} {dest_chain_id}",);
+    let cmd = format!("rly q channels {src_chain_id} {dest_chain_id}");
     let result = relayer.execute(cmd.as_str(), true).unwrap();
     let json_string = result["text"].as_str().unwrap();
-    let json_strings: Vec<&str> = json_string.split('\n').filter(|s| !s.is_empty()).collect();
-
-    let mut channels = Vec::new();
-    for &s in &json_strings {
-        let channel: QueryChannel = serde_json::from_str(s)?;
-        channels.push(channel);
-    }
+    let channels = json_string
+        .split('\n')
+        .filter(|s| !s.is_empty())
+        .map(|s| serde_json::from_str(s))
+        .collect::<Result<Vec<QueryChannel>, _>>()?;
 
     for channel in channels {
         if channel.port_id == TRANSFER_PORT {
