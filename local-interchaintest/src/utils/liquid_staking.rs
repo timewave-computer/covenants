@@ -16,6 +16,7 @@ pub fn set_up_host_zone(test_ctx: &mut TestContext) {
         .src(STRIDE_CHAIN)
         .dest(GAIA_CHAIN)
         .get();
+
     let atom_on_stride = get_ibc_denom(
         &test_ctx.get_native_denom().src(GAIA_CHAIN).get(),
         &stride_to_gaia_channel_id,

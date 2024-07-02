@@ -26,3 +26,5 @@ pub const ASTROPORT_PATH: &str = "local-interchaintest/contracts/astroport";
 pub const POLYTONE_PATH: &str = "local-interchaintest/contracts/polytone";
 
 pub const EXECUTE_FLAGS: &str = "--gas=auto --gas-adjustment=3.0";
+
+pub const GAIA_STRIDE_PATH: &str = "gaia-stride";

@@ -3,7 +3,10 @@ use std::{thread, time::Duration};
 use cosmwasm_std::{coin, Binary, Decimal, Uint128};
 use localic_std::{
     errors::LocalError,
-    modules::cosmwasm::{contract_execute, contract_instantiate, contract_query},
+    modules::{
+        bank::get_balance,
+        cosmwasm::{contract_execute, contract_instantiate, contract_query},
+    },
     node::Chain,
 };
 
@@ -58,14 +61,11 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     );
 
     // Add ATOM and NTRN to coin registry
-    let atom_on_neutron_denom = get_ibc_denom(
-        &test_ctx.get_native_denom().src(GAIA_CHAIN).get(),
-        &test_ctx
-            .get_transfer_channels()
-            .src(GAIA_CHAIN)
-            .dest(NEUTRON_CHAIN)
-            .get(),
-    );
+    let atom_on_neutron_denom = test_ctx
+        .get_ibc_denoms()
+        .src(GAIA_CHAIN)
+        .dest(NEUTRON_CHAIN)
+        .get();
     let neutron_denom = test_ctx.get_native_denom().src(NEUTRON_CHAIN).get();
 
     let add_to_registry_msg = NativeCoinRegistryExecuteMsg::Add {
@@ -231,6 +231,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         auto_stake: Some(false),
         receiver: Some(test_ctx.get_admin_addr().src(NEUTRON_CHAIN).get()),
     };
+
     contract_execute(
         test_ctx
             .get_request_builder()
@@ -249,6 +250,8 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             .get_request_builder(NEUTRON_CHAIN),
     );
     let current_block_height = chain.get_height();
+
+    println!("Current block height: {:?}", current_block_height);
 
     Ok(())
 }
