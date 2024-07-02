@@ -43,7 +43,6 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let mut resp = Response::default().add_attribute("method", "instantiate_swap_covenant");
-
     let creator_address = deps.api.addr_canonicalize(env.contract.address.as_str())?;
     let covenant_denoms: BTreeSet<String> = msg.splits.keys().map(|k| k.to_string()).collect();
 
@@ -87,6 +86,18 @@ pub fn instantiate(
         ),
     )?;
 
+    // If the contract operation mode is permissioned, we will add the clock address to the list of addresses that can tick
+    let op_mode_cfg = match msg.operation_mode {
+        ContractOperationModeConfig::Permissioned(mut whitelist) => {
+            for addr in whitelist.iter() {
+                deps.api.addr_validate(addr)?;
+            }
+            whitelist.push(clock_instantiate2_config.addr.to_string());
+            ContractOperationModeConfig::Permissioned(whitelist)
+        }
+        ContractOperationModeConfig::Permissionless => ContractOperationModeConfig::Permissionless,
+    };
+
     let mut clock_initial_queue = vec![
         holder_instantiate2_config.addr.to_string(),
         party_a_router_instantiate2_config.addr.to_string(),
@@ -97,14 +108,14 @@ pub fn instantiate(
     let party_a_router_instantiate2_msg = msg.party_a_config.get_router_instantiate2_wasm_msg(
         format!("{}_party_a_router", msg.label),
         env.contract.address.to_string(),
-        clock_instantiate2_config.addr.clone(),
+        op_mode_cfg.clone(),
         covenant_denoms.clone(),
         party_a_router_instantiate2_config.clone(),
     )?;
     let party_b_router_instantiate2_msg = msg.party_b_config.get_router_instantiate2_wasm_msg(
         format!("{}_party_b_router", msg.label),
         env.contract.address.to_string(),
-        clock_instantiate2_config.addr.clone(),
+        op_mode_cfg.clone(),
         covenant_denoms.clone(),
         party_b_router_instantiate2_config.clone(),
     )?;
@@ -129,9 +140,7 @@ pub fn instantiate(
     );
 
     let splitter_instantiate2_msg = valence_native_splitter::msg::InstantiateMsg {
-        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-            .addr
-            .to_string()]),
+        op_mode_cfg: op_mode_cfg.clone(),
         splits: remap_splits(
             msg.splits.clone(),
             (
@@ -169,9 +178,7 @@ pub fn instantiate(
             party_a_amount: msg.party_a_config.get_contribution().amount,
             party_b_amount: msg.party_b_config.get_contribution().amount,
         }),
-        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-            .addr
-            .to_string()]),
+        op_mode_cfg: op_mode_cfg.clone(),
         next_contract: splitter_instantiate2_config.addr.to_string(),
         refund_config: RefundConfig {
             party_a_refund_address: party_a_router_instantiate2_config.addr.to_string(),
@@ -216,9 +223,7 @@ pub fn instantiate(
             amount: msg.party_a_config.get_contribution().amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-                .addr
-                .to_string()]),
+            op_mode_cfg: op_mode_cfg.clone(),
             next_contract: holder_instantiate2_config.addr.to_string(),
             fallback_address: msg.fallback_address.clone(),
         }
@@ -259,9 +264,7 @@ pub fn instantiate(
             amount: msg.party_b_config.get_contribution().amount,
             ica_timeout: msg.timeouts.ica_timeout,
             ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-                .addr
-                .to_string()]),
+            op_mode_cfg: op_mode_cfg.clone(),
             next_contract: holder_instantiate2_config.addr.to_string(),
             fallback_address: msg.fallback_address,
         }

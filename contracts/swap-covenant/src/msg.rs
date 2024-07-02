@@ -23,6 +23,7 @@ pub struct InstantiateMsg {
     pub splits: BTreeMap<String, SplitConfig>,
     pub fallback_split: Option<SplitConfig>,
     pub fallback_address: Option<String>,
+    pub operation_mode: ContractOperationModeConfig,
 }
 
 #[cw_serde]
@@ -95,7 +96,7 @@ impl CovenantPartyConfig {
         &self,
         label: String,
         admin: String,
-        clock_addr: Addr,
+        op_mode_cfg: ContractOperationModeConfig,
         covenant_denoms: BTreeSet<String>,
         instantiate2_helper: Instantiate2HelperConfig,
     ) -> StdResult<WasmMsg> {
@@ -110,9 +111,7 @@ impl CovenantPartyConfig {
                     denom_to_pfm_map: party.denom_to_pfm_map.clone(),
                 };
                 let instantiate_msg = valence_interchain_router::msg::InstantiateMsg {
-                    op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![
-                        clock_addr.to_string()
-                    ]),
+                    op_mode_cfg,
                     destination_config,
                     denoms: covenant_denoms,
                 };
@@ -120,9 +119,7 @@ impl CovenantPartyConfig {
             }
             CovenantPartyConfig::Native(party) => {
                 let instantiate_msg = valence_native_router::msg::InstantiateMsg {
-                    op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![
-                        clock_addr.to_string()
-                    ]),
+                    op_mode_cfg,
                     receiver_address: party.party_receiver_addr.to_string(),
                     denoms: covenant_denoms,
                 };
