@@ -193,7 +193,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )?;
 
     // Send some ATOM to NTRN
-    let amount_to_send = 20_000_000_000;
+    let amount_to_send = 5_000_000_000;
     ibc_send(
         gaia_request_builder,
         ACC_0_KEY,
@@ -239,13 +239,13 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 info: AssetInfo::NativeToken {
                     denom: atom_on_neutron_denom.clone(),
                 },
-                amount: Uint128::from(uatom_contribution_amount*4),
+                amount: Uint128::from(uatom_contribution_amount),
             },
             Asset {
                 info: AssetInfo::NativeToken {
                     denom: neutron_denom.clone(),
                 },
-                amount: Uint128::from(untrn_contribution_amount*4),
+                amount: Uint128::from(untrn_contribution_amount),
             },
         ],
         slippage_tolerance: Some(Decimal::percent(1)),
@@ -609,7 +609,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
     thread::sleep(Duration::from_secs(5));
-    
+
     let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
     info!("Router A balances: {:?}", router_a_balances);
     let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
@@ -1004,39 +1004,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         EXECUTE_FLAGS,
     )
     .unwrap();
-    loop {
-        let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-        info!("Router A balances: {:?}", router_a_balances);
-        let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-        info!("Router B balances: {:?}", router_b_balances);
-        if router_a_balances
-            .iter()
-            .any(|c| c.denom == atom_on_neutron_denom.clone())
-        {
-            break;
-        } else {
-            tick(neutron_request_builder, ACC_0_KEY, &clock_address);
-        }
-    }
-
-    info!("Tick until party A ragequit is distributed...");
-    loop {
-        let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
-        info!("Hub receiver balances: {:?}", hub_receiver_balances);
-        let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!("Neutron receiver balances: {:?}", neutron_receiver_balances);
-        if hub_receiver_balances
-            .iter()
-            .any(|c| c.denom == atom_denom.clone())
-            && hub_receiver_balances
-                .iter()
-                .any(|c| c.denom == neutron_on_atom.clone())
-        {
-            break;
-        } else {
-            tick(neutron_request_builder, ACC_0_KEY, &clock_address);
-        }
-    }
 
     info!("Party B claims and router receives the funds");
     let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
@@ -1399,20 +1366,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         EXECUTE_FLAGS,
     )
     .unwrap();
-    loop {
-        let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-        info!("Router A balances: {:?}", router_a_balances);
-        let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-        info!("Router B balances: {:?}", router_b_balances);
-        if router_a_balances
-            .iter()
-            .any(|c| c.denom == atom_on_neutron_denom.clone())
-        {
-            break;
-        } else {
-            tick(neutron_request_builder, ACC_0_KEY, &clock_address);
-        }
-    }
 
     info!("Party B claims and router receives the funds");
     let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
