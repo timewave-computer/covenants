@@ -415,6 +415,10 @@ func TestTokenSwap(t *testing.T) {
 				HolderCode:             swapHolderCodeId,
 			}
 
+			operation_mode := ContractOperationModeConfig{
+				Permissioned: []string{},
+			}
+
 			covenantMsg := CovenantInstantiateMsg{
 				Label:                       "swap-covenant",
 				Timeouts:                    timeouts,
@@ -426,7 +430,8 @@ func TestTokenSwap(t *testing.T) {
 				PartyBConfig: CovenantPartyConfig{
 					Native: &partyBConfig,
 				},
-				Splits: splits,
+				Splits:        splits,
+				OperationMode: &operation_mode,
 			}
 
 			covenantAddress = testCtx.ManualInstantiate(covenantCodeId, covenantMsg, neutronUser, keyring.BackendTest)

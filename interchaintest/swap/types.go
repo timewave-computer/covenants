@@ -6,15 +6,21 @@ package covenant_swap
 
 // ----- Covenant Instantiation ------
 type CovenantInstantiateMsg struct {
-	Label                       string                      `json:"label"`
-	Timeouts                    Timeouts                    `json:"timeouts"`
-	SwapCovenantContractCodeIds SwapCovenantContractCodeIds `json:"contract_codes"`
-	TickMaxGas                  string                      `json:"clock_tick_max_gas,omitempty"`
-	LockupConfig                Expiration                  `json:"lockup_config"`
-	PartyAConfig                CovenantPartyConfig         `json:"party_a_config"`
-	PartyBConfig                CovenantPartyConfig         `json:"party_b_config"`
-	Splits                      map[string]SplitConfig      `json:"splits"`
-	FallbackSplit               *SplitConfig                `json:"fallback_split,omitempty"`
+	Label                       string                       `json:"label"`
+	Timeouts                    Timeouts                     `json:"timeouts"`
+	SwapCovenantContractCodeIds SwapCovenantContractCodeIds  `json:"contract_codes"`
+	TickMaxGas                  string                       `json:"clock_tick_max_gas,omitempty"`
+	LockupConfig                Expiration                   `json:"lockup_config"`
+	PartyAConfig                CovenantPartyConfig          `json:"party_a_config"`
+	PartyBConfig                CovenantPartyConfig          `json:"party_b_config"`
+	Splits                      map[string]SplitConfig       `json:"splits"`
+	FallbackSplit               *SplitConfig                 `json:"fallback_split,omitempty"`
+	OperationMode               *ContractOperationModeConfig `json:"operation_mode"`
+}
+
+type ContractOperationModeConfig struct {
+	Permissionless bool     `json:"permissionless,omitempty"`
+	Permissioned   []string `json:"permissioned"`
 }
 
 type CovenantPartyConfig struct {

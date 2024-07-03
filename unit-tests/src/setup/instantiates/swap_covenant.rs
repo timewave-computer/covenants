@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{coin, testing::mock_env, Addr, Decimal, Uint64};
+use covenant_utils::op_mode::ContractOperationModeConfig;
 use cw_utils::Expiration;
 
 use crate::setup::suite_builder::SuiteBuilder;
@@ -46,6 +47,7 @@ impl SwapCovenantInstantiate {
             splits,
             None,
             None,
+            ContractOperationModeConfig::Permissionless,
         )
     }
 
@@ -123,6 +125,7 @@ impl SwapCovenantInstantiate {
         splits: BTreeMap<String, covenant_utils::split::SplitConfig>,
         fallback_split: Option<covenant_utils::split::SplitConfig>,
         fallback_address: Option<String>,
+        operation_mode: ContractOperationModeConfig,
     ) -> Self {
         Self {
             msg: valence_covenant_swap::msg::InstantiateMsg {
@@ -136,6 +139,7 @@ impl SwapCovenantInstantiate {
                 splits,
                 fallback_split,
                 fallback_address,
+                operation_mode,
             },
         }
     }
