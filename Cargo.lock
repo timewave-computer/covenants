@@ -1211,6 +1211,7 @@ dependencies = [
  "cosmwasm-std",
  "covenant-utils",
  "cw-utils 1.0.3",
+ "cw20",
  "localic-std",
  "reqwest",
  "serde",

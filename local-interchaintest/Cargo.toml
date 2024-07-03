@@ -19,3 +19,4 @@ valence-covenant-two-party-pol = { workspace = true }
 valence-two-party-pol-holder = { workspace = true }
 valence-astroport-liquid-pooler = { workspace = true }
 covenant-utils = { workspace = true }
+cw20 = { workspace = true }
