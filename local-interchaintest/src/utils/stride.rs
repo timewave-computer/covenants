@@ -1,4 +1,5 @@
 use localic_std::{errors::LocalError, transactions::ChainRequestBuilder};
+use log::info;
 use serde_json::Value;
 
 use crate::utils::file_system::pretty_print;
@@ -27,7 +28,7 @@ pub fn register_stride_host_zone(
 pub fn query_host_zone(rb: &ChainRequestBuilder, chain_id: &str) -> bool {
     let query_cmd = format!("stakeibc show-host-zone {chain_id} --output=json");
     let host_zone_query_response = rb.q(&query_cmd, false);
-    println!("\nhost_zone_query_response:\n");
+    info!("\nhquery_host_zone response:\n");
     pretty_print(&host_zone_query_response);
 
     host_zone_query_response["host_zone"].is_object()

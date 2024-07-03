@@ -3,6 +3,7 @@ use std::{
     io,
 };
 
+use log::info;
 use serde::Serialize;
 use serde_json::Value;
 
@@ -13,7 +14,7 @@ pub fn pretty_print(obj: &Value) {
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
     let mut ser = serde_json::Serializer::with_formatter(&mut buf, formatter);
     obj.serialize(&mut ser).unwrap();
-    println!("{}", String::from_utf8(buf).unwrap());
+    info!("{}", String::from_utf8(buf).unwrap());
 }
 
 pub fn read_json_file(file_path: &str) -> Result<ChainsVec, io::Error> {

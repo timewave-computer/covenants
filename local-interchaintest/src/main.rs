@@ -14,6 +14,7 @@ use reqwest::blocking::Client;
 
 // local-ic start neutron_gaia --api-port 42069
 fn main() {
+    env_logger::init();
     let client = Client::new();
     poll_for_start(&client, API_URL, 300);
 

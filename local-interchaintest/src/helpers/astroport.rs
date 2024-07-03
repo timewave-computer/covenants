@@ -54,5 +54,6 @@ pub fn get_lp_token_balance(
         })
         .unwrap(),
     );
-    balance["balance"].as_str().unwrap_or_default().to_string()
+
+    balance["data"]["balance"].as_str().unwrap().to_string()
 }

@@ -20,6 +20,8 @@ pub const TRANSFER_PORT: &str = "transfer";
 
 pub const ADMIN_KEY: &str = "admin";
 pub const ACC_0_KEY: &str = "acc0";
+pub const ACC_1_KEY: &str = "acc1";
+pub const ACC_2_KEY: &str = "acc2";
 
 pub const VALENCE_PATH: &str = "./artifacts";
 pub const ASTROPORT_PATH: &str = "local-interchaintest/contracts/astroport";

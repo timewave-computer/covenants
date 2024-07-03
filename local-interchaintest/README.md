@@ -43,7 +43,7 @@ make install
 ### spinning up the env
 
 ```bash
-local-ic start neutron_gaia --api-port 42069
+local-ic start neutron_gaia_osmosis_stride --api-port 42069
 ```
 
 > note: you may need to specify the ICTEST_HOME path here

@@ -381,7 +381,7 @@ pub fn find_pairwise_transfer_channel_ids(
     let channels = json_string
         .split('\n')
         .filter(|s| !s.is_empty())
-        .map(|s| serde_json::from_str(s))
+        .map(serde_json::from_str)
         .collect::<Result<Vec<QueryChannel>, _>>()?;
 
     for channel in channels {

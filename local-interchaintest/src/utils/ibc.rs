@@ -1,5 +1,6 @@
 use cosmwasm_std::Coin;
 use localic_std::{errors::LocalError, transactions::ChainRequestBuilder};
+use log::info;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
@@ -92,6 +93,6 @@ pub fn ibc_send(
     let memo_str = memo.unwrap_or_default();
     let cmd =
         format!("tx ibc-transfer transfer {TRANSFER_PORT} {channel} {to_address} {str_coin} --fees={fee_coin} --from={from_key} --memo {memo_str} --output=json");
-    println!("submitting IBC transaction: \n{cmd}\n");
+    info!("submitting IBC transaction: \n{cmd}\n");
     rb.tx(&cmd, true)
 }

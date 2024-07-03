@@ -1,4 +1,5 @@
 use localic_std::modules::cosmwasm::CosmWasm;
+use log::info;
 
 use super::{
     constants::{ACC_0_KEY, WASM_EXTENSION},
@@ -20,7 +21,7 @@ pub fn deploy_contracts_on_chain(test_ctx: &mut TestContext, path: &str, chain: 
 
             //To avoid storing multiple times during the same execution
             if local_chain.contract_codes.contains_key(id) {
-                println!(
+                info!(
                     "Contract {} already deployed on chain {}, skipping...",
                     id, chain
                 );

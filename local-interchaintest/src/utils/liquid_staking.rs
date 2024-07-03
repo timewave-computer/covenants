@@ -1,3 +1,5 @@
+use log::info;
+
 use crate::utils::{constants::ADMIN_KEY, stride::register_stride_host_zone};
 
 use super::{
@@ -23,9 +25,9 @@ pub fn set_up_host_zone(test_ctx: &mut TestContext) {
     );
 
     if query_host_zone(stride_rb, GAIA_CHAIN_ID) {
-        println!("Host zone registered.");
+        info!("Host zone registered.");
     } else {
-        println!("Host zone not registered.");
+        info!("Host zone not registered.");
         register_stride_host_zone(
             stride_rb,
             &test_ctx
