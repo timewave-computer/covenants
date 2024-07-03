@@ -97,8 +97,17 @@ pub fn instantiate(
         msg.contract_codes.interchain_router_code,
     )?;
 
-    let mut clock_whitelist = Vec::with_capacity(7);
-    clock_whitelist.push(holder_instantiate2_config.addr.to_string());
+    // If the contract operation mode is permissioned, we will add the clock address to the list of addresses that can tick
+    let op_mode_cfg = match msg.operation_mode {
+        ContractOperationModeConfig::Permissioned(mut whitelist) => {
+            for addr in whitelist.iter() {
+                deps.api.addr_validate(addr)?;
+            }
+            whitelist.push(clock_instantiate2_config.addr.to_string());
+            ContractOperationModeConfig::Permissioned(whitelist)
+        }
+        ContractOperationModeConfig::Permissionless => ContractOperationModeConfig::Permissionless,
+    };
 
     let mut clock_initial_queue = vec![
         router_instantiate2_config.addr.to_string(),
@@ -107,14 +116,13 @@ pub fn instantiate(
         liquid_staker_instantiate2_config.addr.to_string(),
     ];
 
-    let mut denoms: BTreeSet<String> = BTreeSet::new();
-    denoms.insert(msg.ls_info.ls_denom_on_neutron.to_string());
-    denoms.insert(msg.covenant_party_config.native_denom.to_string());
+    let denoms = BTreeSet::from([
+        msg.ls_info.ls_denom_on_neutron.to_string(),
+        msg.covenant_party_config.native_denom.to_string(),
+    ]);
 
     let router_instantiate2_msg = RouterInstantiateMsg {
-        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-            .addr
-            .to_string()]),
+        op_mode_cfg: op_mode_cfg.clone(),
         destination_config: DestinationConfig {
             local_to_destination_chain_channel_id: msg
                 .covenant_party_config
@@ -154,9 +162,7 @@ pub fn instantiate(
         neutron_stride_ibc_connection_id: msg.ls_info.ls_neutron_connection_id.to_string(),
         ica_timeout: msg.timeouts.ica_timeout,
         ibc_transfer_timeout: msg.timeouts.ibc_transfer_timeout,
-        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-            .addr
-            .to_string()]),
+        op_mode_cfg: op_mode_cfg.clone(),
         next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
     }
     .to_instantiate2_msg(
@@ -169,7 +175,7 @@ pub fn instantiate(
         &liquid_pooler_instantiate2_config,
         env.contract.address.to_string(),
         format!("{}_liquid_pooler", msg.label),
-        ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config.addr.to_string()]),
+        op_mode_cfg.clone(),
         holder_instantiate2_config.addr.to_string(),
         msg.pool_price_config,
     )?;
@@ -193,9 +199,7 @@ pub fn instantiate(
     );
 
     let splitter_instantiate2_msg = SplitterInstantiateMsg {
-        op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-            .addr
-            .to_string()]),
+        op_mode_cfg: op_mode_cfg.clone(),
         remote_chain_channel_id: msg.remote_chain_splitter_config.channel_id,
         remote_chain_connection_id: msg.remote_chain_splitter_config.connection_id,
         denom: msg.remote_chain_splitter_config.denom.to_string(),
@@ -223,9 +227,7 @@ pub fn instantiate(
         LS_FORWARDER_ADDR.save(deps.storage, &ls_forwarder_instantiate2_config.addr)?;
         clock_initial_queue.insert(0, ls_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-                .addr
-                .to_string()]),
+            op_mode_cfg: op_mode_cfg.clone(),
             next_contract: liquid_staker_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id,
             remote_chain_channel_id: config.party_to_host_chain_channel_id,
@@ -246,9 +248,7 @@ pub fn instantiate(
         LP_FORWARDER_ADDR.save(deps.storage, &lp_forwarder_instantiate2_config.addr)?;
         clock_initial_queue.insert(0, lp_forwarder_instantiate2_config.addr.to_string());
         let instantiate_msg = IbcForwarderInstantiateMsg {
-            op_mode_cfg: ContractOperationModeConfig::Permissioned(vec![clock_instantiate2_config
-                .addr
-                .to_string()]),
+            op_mode_cfg: op_mode_cfg.clone(),
             next_contract: liquid_pooler_instantiate2_config.addr.to_string(),
             remote_chain_connection_id: config.party_chain_connection_id,
             remote_chain_channel_id: config.party_to_host_chain_channel_id,
@@ -267,7 +267,7 @@ pub fn instantiate(
 
     let clock_instantiate2_msg = valence_clock::msg::InstantiateMsg {
         tick_max_gas: msg.clock_tick_max_gas,
-        whitelist: clock_whitelist,
+        whitelist: vec![],
         initial_queue: clock_initial_queue,
     }
     .to_instantiate2_msg(
