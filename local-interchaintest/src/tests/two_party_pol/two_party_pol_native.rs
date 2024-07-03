@@ -523,6 +523,9 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }
     }
 
+    println!("Party A deposit address: {}", party_a_deposit_address);
+    println!("Party B deposit address: {}", party_b_deposit_address);
+
     println!("Fund the forwarders with sufficient funds...");
     send(
         neutron_request_builder,

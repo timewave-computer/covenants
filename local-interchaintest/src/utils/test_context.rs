@@ -76,16 +76,14 @@ impl From<ChainsVec> for TestContext {
         let mut ibc_denoms = HashMap::new();
         let mut connection_ids = HashMap::new();
 
-        for (i, chain1) in chains.chains.iter().enumerate() {
-            for chain2 in chains.chains.iter().skip(i + 1) {
-                let (party_channel, counterparty_channel) = match find_pairwise_transfer_channel_ids(
+        for chain1 in chains.chains.iter() {
+            for chain2 in chains.chains.iter() {
+                let party_channel = match find_pairwise_transfer_channel_ids(
                     &chains_map.get(chain1.name.as_str()).unwrap().rb,
                     chain1.chain_id.as_str(),
                     chain2.chain_id.as_str(),
                 ) {
-                    Ok((party_channel, counterparty_channel)) => {
-                        (party_channel, counterparty_channel)
-                    }
+                    Ok(party_channel) => party_channel,
                     Err(_) => {
                         continue;
                     }
@@ -96,24 +94,9 @@ impl From<ChainsVec> for TestContext {
                     party_channel.channel_id.to_string(),
                 );
 
-                transfer_channel_ids.insert(
-                    (chain2.name.clone(), chain1.name.clone()),
-                    counterparty_channel.channel_id.to_string(),
-                );
-
                 connection_ids.insert(
                     (chain1.name.clone(), chain2.name.clone()),
                     party_channel.connection_id.to_string(),
-                );
-
-                connection_ids.insert(
-                    (chain2.name.clone(), chain1.name.clone()),
-                    counterparty_channel.connection_id.to_string(),
-                );
-
-                ibc_denoms.insert(
-                    (chain1.name.clone(), chain2.name.clone()),
-                    super::ibc::get_ibc_denom(&chain1.denom, &counterparty_channel.channel_id),
                 );
 
                 ibc_denoms.insert(
@@ -390,7 +373,7 @@ pub fn find_pairwise_transfer_channel_ids(
     rb: &ChainRequestBuilder,
     src_chain_id: &str,
     dest_chain_id: &str,
-) -> Result<(PairwiseChannelResult, PairwiseChannelResult), Error> {
+) -> Result<PairwiseChannelResult, Error> {
     let relayer = Relayer::new(rb);
     let cmd = format!("rly q channels {src_chain_id} {dest_chain_id}");
     let result = relayer.execute(cmd.as_str(), true).unwrap();
@@ -408,12 +391,7 @@ pub fn find_pairwise_transfer_channel_ids(
                 channel_id: channel.channel_id.to_string(),
                 connection_id: channel.connection_hops[0].to_string(),
             };
-            let counterparty_channel = PairwiseChannelResult {
-                index: 0,
-                channel_id: channel.counterparty.channel_id.to_string(),
-                connection_id: channel.connection_hops[0].to_string(),
-            };
-            return Ok((party_channel, counterparty_channel));
+            return Ok(party_channel);
         }
     }
 
