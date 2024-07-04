@@ -3,19 +3,19 @@ use std::collections::BTreeMap;
 
 use cosmwasm_std::{
     ensure, to_json_binary, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Response, StdError, StdResult,
+    MessageInfo, Reply, Response, StdError, StdResult, SubMsg,
 };
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use covenant_utils::clock::{enqueue_msg, verify_clock};
+use covenant_utils::op_mode::{verify_caller, ContractOperationMode};
 use covenant_utils::split::SplitConfig;
 use covenant_utils::withdraw_lp_helper::{generate_withdraw_msg, EMERGENCY_COMMITTEE_ADDR};
 use cw2::set_contract_version;
 
 use crate::msg::CovenantType;
-use crate::state::{WithdrawState, LIQUID_POOLER_ADDRESS, WITHDRAW_STATE};
+use crate::state::{WithdrawState, CONTRACT_OP_MODE, LIQUID_POOLER_ADDRESS, WITHDRAW_STATE};
 use crate::{
     error::ContractError,
     msg::{
@@ -23,8 +23,8 @@ use crate::{
         RagequitConfig, RagequitState, TwoPartyPolCovenantConfig, TwoPartyPolCovenantParty,
     },
     state::{
-        CLOCK_ADDRESS, CONTRACT_STATE, COVENANT_CONFIG, DENOM_SPLITS, DEPOSIT_DEADLINE,
-        LOCKUP_CONFIG, RAGEQUIT_CONFIG,
+        CONTRACT_STATE, COVENANT_CONFIG, DENOM_SPLITS, DEPOSIT_DEADLINE, LOCKUP_CONFIG,
+        RAGEQUIT_CONFIG,
     },
 };
 
@@ -41,7 +41,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     let next_contract = deps.api.addr_validate(&msg.next_contract)?;
-    let clock_addr = deps.api.addr_validate(&msg.clock_address)?;
+    let op_mode = ContractOperationMode::try_init(deps.api, msg.op_mode_cfg.clone())?;
 
     // ensure that the deposit deadline is in the future
     ensure!(
@@ -103,7 +103,7 @@ pub fn instantiate(
         },
     )?;
     LIQUID_POOLER_ADDRESS.save(deps.storage, &next_contract)?;
-    CLOCK_ADDRESS.save(deps.storage, &clock_addr)?;
+    CONTRACT_OP_MODE.save(deps.storage, &op_mode)?;
     LOCKUP_CONFIG.save(deps.storage, &msg.lockup_config)?;
     RAGEQUIT_CONFIG.save(deps.storage, &msg.ragequit_config)?;
     CONTRACT_STATE.save(deps.storage, &ContractState::Instantiated)?;
@@ -111,7 +111,6 @@ pub fn instantiate(
     DEPOSIT_DEADLINE.save(deps.storage, &msg.deposit_deadline)?;
 
     Ok(Response::default()
-        .add_message(enqueue_msg(clock_addr.as_str())?)
         .add_attribute("method", "two_party_pol_holder_instantiate")
         .add_attributes(msg.get_response_attributes()))
 }
@@ -195,13 +194,12 @@ fn try_claim(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError
 
     // if both parties already claimed everything we complete early
     if claim_party.allocation.is_zero() && counterparty.allocation.is_zero() {
-        let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
-        let dequeue_message = ContractState::complete_and_dequeue(deps, clock_address.as_str())?;
+        let dequeue_messages = ContractState::complete_and_get_dequeue_msgs(deps)?;
 
         return Ok(Response::default()
             .add_attribute("method", "try_claim")
             .add_attribute("contract_state", "complete")
-            .add_message(dequeue_message));
+            .add_submessages(dequeue_messages));
     }
 
     // set WithdrawState to include original data
@@ -341,8 +339,9 @@ fn try_claim_share_based(
     mut covenant_config: TwoPartyPolCovenantConfig,
     denom_splits: DenomSplits,
 ) -> Result<Response, ContractError> {
-    let mut messages = denom_splits
+    let messages = denom_splits
         .get_single_receiver_distribution_messages(funds, claim_party.router.to_string());
+    let mut submsgs: Vec<SubMsg> = vec![];
 
     claim_party.allocation = Decimal::zero();
 
@@ -350,11 +349,8 @@ fn try_claim_share_based(
     if !counterparty.allocation.is_zero() {
         counterparty.allocation = Decimal::one();
     } else {
-        // otherwise both parties claimed everything and we can complete
-        let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
-        let dequeue_message =
-            ContractState::complete_and_dequeue(deps.branch(), clock_address.as_str())?;
-        messages.push(dequeue_message.into());
+        let dequeue_msgs = ContractState::complete_and_get_dequeue_msgs(deps.branch())?;
+        submsgs.extend(dequeue_msgs);
     };
 
     covenant_config.update_parties(claim_party, counterparty);
@@ -363,7 +359,8 @@ fn try_claim_share_based(
 
     Ok(Response::default()
         .add_attribute("method", "claim_share_based")
-        .add_messages(messages))
+        .add_messages(messages)
+        .add_submessages(submsgs))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -381,23 +378,21 @@ fn try_claim_side_based(
     counterparty.allocation = Decimal::zero();
     covenant_config.update_parties(claim_party, counterparty);
 
-    // update the states and dequeue from the clock
+    // update the states and dequeue from any clocks
     COVENANT_CONFIG.save(deps.storage, &covenant_config)?;
-    let clock_address = CLOCK_ADDRESS.load(deps.storage)?;
-    let dequeue_message = ContractState::complete_and_dequeue(deps, clock_address.as_str())?;
+    let dequeue_messages = ContractState::complete_and_get_dequeue_msgs(deps)?;
 
     Ok(Response::default()
         .add_attribute("method", "claim_side_based")
         .add_messages(messages)
-        .add_message(dequeue_message))
+        .add_submessages(dequeue_messages))
 }
 
 /// attempts to route any available covenant party contribution denoms to
 /// the parties that were responsible for contributing that denom.
 fn try_refund(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
-        .map_err(|e| StdError::generic_err(e.to_string()))?;
+    // Verify caller is an authorized address
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     let config = COVENANT_CONFIG.load(deps.storage)?;
     let contract_addr = env.contract.address.to_string();
@@ -434,9 +429,8 @@ fn try_refund(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, Co
 }
 
 fn try_deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
-        .map_err(|e| StdError::generic_err(e.to_string()))?;
+    // Verify caller is an authorized address
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     let deposit_deadline = DEPOSIT_DEADLINE.load(deps.storage)?;
     if deposit_deadline.is_expired(&env.block) {
@@ -481,9 +475,8 @@ fn try_deposit(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, C
 }
 
 fn check_expiration(deps: DepsMut, env: Env, info: MessageInfo) -> Result<Response, ContractError> {
-    // Verify caller is the clock
-    verify_clock(&info.sender, &CLOCK_ADDRESS.load(deps.storage)?)
-        .map_err(|e| StdError::generic_err(e.to_string()))?;
+    // Verify caller is an authorized address
+    verify_caller(&info.sender, &CONTRACT_OP_MODE.load(deps.storage)?)?;
 
     let lockup_config = LOCKUP_CONFIG.load(deps.storage)?;
 
@@ -593,7 +586,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::ContractState {} => Ok(to_json_binary(&CONTRACT_STATE.load(deps.storage)?)?),
         QueryMsg::RagequitConfig {} => Ok(to_json_binary(&RAGEQUIT_CONFIG.load(deps.storage)?)?),
         QueryMsg::LockupConfig {} => Ok(to_json_binary(&LOCKUP_CONFIG.load(deps.storage)?)?),
-        QueryMsg::ClockAddress {} => Ok(to_json_binary(&CLOCK_ADDRESS.load(deps.storage)?)?),
+        QueryMsg::OperationMode {} => Ok(to_json_binary(&CONTRACT_OP_MODE.load(deps.storage)?)?),
         QueryMsg::NextContract {} => {
             Ok(to_json_binary(&LIQUID_POOLER_ADDRESS.load(deps.storage)?)?)
         }
@@ -617,7 +610,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> {
     match msg {
         MigrateMsg::UpdateConfig {
-            clock_addr,
+            op_mode,
             next_contract,
             lockup_config,
             deposit_deadline,
@@ -629,10 +622,12 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
         } => {
             let mut resp = Response::default().add_attribute("method", "update_config");
 
-            if let Some(addr) = clock_addr {
-                let clock_address = deps.api.addr_validate(&addr)?;
-                CLOCK_ADDRESS.save(deps.storage, &clock_address)?;
-                resp = resp.add_attribute("clock_addr", addr);
+            if let Some(op_mode_cfg) = op_mode {
+                let updated_op_mode = ContractOperationMode::try_init(deps.api, op_mode_cfg)
+                    .map_err(|err| StdError::generic_err(err.to_string()))?;
+
+                CONTRACT_OP_MODE.save(deps.storage, &updated_op_mode)?;
+                resp = resp.add_attribute("op_mode", format!("{:?}", updated_op_mode));
             }
 
             if let Some(addr) = next_contract {
@@ -701,5 +696,16 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> StdResult<Response> 
             // let data: SomeStruct = from_binary(&data)?;
             Ok(Response::default())
         }
+    }
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(_deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
+    // if we get a reply with id u64::MAX, we can assume it is a dequeue message
+    if msg.id == u64::MAX {
+        // Do nothing, whether it fails or not (dequeue messages are "fire & forget" style messages)
+        Ok(Response::default())
+    } else {
+        Err(ContractError::UnexpectedReplyId {})
     }
 }

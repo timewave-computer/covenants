@@ -1,5 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
+use covenant_utils::op_mode::ContractOperationMode;
 use cw_storage_plus::Item;
 use cw_utils::Expiration;
 
@@ -9,8 +10,7 @@ use crate::msg::{
 
 pub const CONTRACT_STATE: Item<ContractState> = Item::new("contract_state");
 
-/// authorized clock contract
-pub const CLOCK_ADDRESS: Item<Addr> = Item::new("clock_address");
+pub const CONTRACT_OP_MODE: Item<ContractOperationMode> = Item::new("contract_op_mode");
 
 /// address of the liquidity pool to which we provide liquidity
 pub const LIQUID_POOLER_ADDRESS: Item<Addr> = Item::new("pooler_address");
