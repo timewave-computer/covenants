@@ -265,6 +265,7 @@ impl Suite {
             covenant_party,
             pooler_config,
             pool_price_config,
+            covenant_utils::op_mode::ContractOperationModeConfig::Permissionless {},
         );
 
         builder.contract_init2(
@@ -373,6 +374,7 @@ impl Suite {
             covenant_party,
             pooler_config,
             pool_price_config,
+            covenant_utils::op_mode::ContractOperationModeConfig::Permissionless {},
         );
 
         builder.contract_init2(
