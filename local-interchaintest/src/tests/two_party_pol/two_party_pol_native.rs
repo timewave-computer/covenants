@@ -194,21 +194,22 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
 
     // Send some ATOM to NTRN
     let amount_to_send = 5_000_000_000;
-    ibc_send(
-        gaia_request_builder,
-        ACC_0_KEY,
-        &neutron_admin_acc,
-        coin(amount_to_send, atom_denom.clone()),
-        coin(100000, atom_denom.clone()),
-        &test_ctx
-            .get_transfer_channels()
-            .src(GAIA_CHAIN)
-            .dest(NEUTRON_CHAIN)
-            .get(),
-        None,
-    )?;
     loop {
+        ibc_send(
+            gaia_request_builder,
+            ACC_0_KEY,
+            &neutron_admin_acc,
+            coin(amount_to_send, atom_denom.clone()),
+            coin(100000, atom_denom.clone()),
+            &test_ctx
+                .get_transfer_channels()
+                .src(GAIA_CHAIN)
+                .dest(NEUTRON_CHAIN)
+                .get(),
+            None,
+        )?;
         info!("Waiting to receive IBC transfer...");
+        thread::sleep(Duration::from_secs(5));
         let balance = get_balance(neutron_request_builder, &neutron_admin_acc);
         if balance
             .iter()
@@ -216,7 +217,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         {
             break;
         }
-        thread::sleep(Duration::from_secs(3));
     }
 
     // Provide the ATOM/NTRN liquidity to the pair
@@ -1138,7 +1138,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 amount: Uint128::new(untrn_contribution_amount),
             },
         }),
-        covenant_type: CovenantType::Share,
+        covenant_type: CovenantType::Side,
         ragequit_config: Some(RagequitConfig::Enabled(RagequitTerms {
             penalty: Decimal::from_str("0.1").unwrap(),
             state: None,
@@ -1367,19 +1367,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
 
-    info!("Party B claims and router receives the funds");
-    let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!("Router B balances: {:?}", router_b_balances);
-    contract_execute(
-        neutron_request_builder,
-        &holder_address,
-        ACC_2_KEY,
-        &serde_json::to_string(&valence_two_party_pol_holder::msg::ExecuteMsg::Claim {}).unwrap(),
-        EXECUTE_FLAGS,
-    )
-    .unwrap();
-    thread::sleep(Duration::from_secs(5));
-
     info!("Tick routers until both parties receive their funds");
     loop {
         let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
@@ -1504,7 +1491,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 amount: Uint128::new(untrn_contribution_amount),
             },
         }),
-        covenant_type: CovenantType::Share,
+        covenant_type: CovenantType::Side,
         ragequit_config: Some(RagequitConfig::Enabled(RagequitTerms {
             penalty: Decimal::from_str("0.1").unwrap(),
             state: None,
@@ -1755,19 +1742,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         neutron_request_builder,
         &holder_address,
         ACC_1_KEY,
-        &serde_json::to_string(&valence_two_party_pol_holder::msg::ExecuteMsg::Claim {}).unwrap(),
-        EXECUTE_FLAGS,
-    )
-    .unwrap();
-    thread::sleep(Duration::from_secs(5));
-
-    info!("Party B claims and router receives the funds");
-    let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!("Router B balances: {:?}", router_b_balances);
-    contract_execute(
-        neutron_request_builder,
-        &holder_address,
-        ACC_2_KEY,
         &serde_json::to_string(&valence_two_party_pol_holder::msg::ExecuteMsg::Claim {}).unwrap(),
         EXECUTE_FLAGS,
     )

@@ -14,6 +14,7 @@ pub const STRIDE_CHAIN: &str = "stride";
 pub const STRIDE_CHAIN_ID: &str = "localstride-3";
 
 pub const CHAIN_CONFIG_PATH: &str = "local-interchaintest/chains/neutron_gaia_osmosis_stride.json";
+pub const LOCAL_CODE_ID_CACHE_PATH: &str = "local-interchaintest/code_id_cache.json";
 
 pub const TRANSFER_PORT: &str = "transfer";
 
@@ -27,8 +28,6 @@ pub const ASTROPORT_PATH: &str = "local-interchaintest/contracts/astroport";
 pub const POLYTONE_PATH: &str = "local-interchaintest/contracts/polytone";
 
 pub const EXECUTE_FLAGS: &str = "--gas=auto --gas-adjustment=3.0";
-
-pub const GAIA_STRIDE_PATH: &str = "gaia-stride";
 
 pub const ACC1_ADDRESS_GAIA: &str = "cosmos1kljf09rj77uxeu5lye7muejx6ajsu55cc3re5h";
 pub const ACC1_ADDRESS_NEUTRON: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
