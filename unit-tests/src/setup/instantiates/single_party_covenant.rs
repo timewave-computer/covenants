@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint128, Uint64};
+use covenant_utils::op_mode::ContractOperationModeConfig;
 use cw_utils::Expiration;
 
 use crate::setup::{
@@ -30,6 +31,7 @@ impl SinglePartyCovenantInstantiate {
         covenant_party: covenant_utils::InterchainCovenantParty,
         pooler_config: valence_covenant_single_party_pol::msg::LiquidPoolerConfig,
         pool_price_config: covenant_utils::PoolPriceConfig,
+        op_mode: ContractOperationModeConfig,
     ) -> Self {
         let contract_codes = valence_covenant_single_party_pol::msg::CovenantContractCodeIds {
             ibc_forwarder_code: builder.ibc_forwarder_code_id,
@@ -63,6 +65,7 @@ impl SinglePartyCovenantInstantiate {
             None,
             covenant_party,
             pooler_config,
+            op_mode,
         )
     }
 
@@ -192,6 +195,7 @@ impl SinglePartyCovenantInstantiate {
         emergency_committee: Option<String>,
         covenant_party_config: covenant_utils::InterchainCovenantParty,
         liquid_pooler_config: valence_covenant_single_party_pol::msg::LiquidPoolerConfig,
+        operation_mode: ContractOperationModeConfig,
     ) -> Self {
         Self {
             msg: valence_covenant_single_party_pol::msg::InstantiateMsg {
@@ -208,6 +212,7 @@ impl SinglePartyCovenantInstantiate {
                 emergency_committee,
                 covenant_party_config,
                 liquid_pooler_config,
+                operation_mode,
             },
         }
     }

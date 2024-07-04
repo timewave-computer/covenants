@@ -28,6 +28,7 @@ pub struct InstantiateMsg {
     pub emergency_committee: Option<String>,
     pub covenant_party_config: InterchainCovenantParty,
     pub liquid_pooler_config: LiquidPoolerConfig,
+    pub operation_mode: ContractOperationModeConfig,
 }
 
 #[cw_serde]
