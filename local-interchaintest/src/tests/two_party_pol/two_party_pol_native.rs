@@ -22,11 +22,8 @@ use valence_two_party_pol_holder::msg::{CovenantType, RagequitConfig, RagequitTe
 use crate::{
     helpers::{
         astroport::{get_lp_token_address, get_lp_token_balance, get_pool_address},
-        two_party_pol::{
-            query_clock_address, query_contract_state, query_deposit_address, query_holder_address,
-            query_ibc_forwarder_address, query_interchain_router_address,
-            query_liquid_pooler_address, tick,
-        },
+        common::{query_contract_state, tick},
+        covenant::Covenant,
     },
     utils::{
         constants::{
@@ -308,7 +305,8 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     let chain = Chain::new(neutron_request_builder);
     let current_block_height = chain.get_height();
 
-    info!("Two party POL happy path...");
+    let target = "Two party POL happy path";
+    info!(target: target,"Starting Two party POL happy path test...");
     let covenant_instantiate_msg = valence_covenant_two_party_pol::msg::InstantiateMsg {
         label: "two-party-pol-covenant-happy".to_string(),
         timeouts: Timeouts {
@@ -421,35 +419,22 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         None,
         "",
     )?;
-    info!("Covenant contract: {:?}", covenant_contract.address);
+    info!(target: target,"Covenant contract: {:?}", covenant_contract.address);
+    let covenant = Covenant::TwoPartyPol {
+        rb: neutron_request_builder,
+        contract_address: &covenant_contract.address,
+    };
 
     // Query the covenant addresses
-    let clock_address = query_clock_address(neutron_request_builder, &covenant_contract.address);
-    let holder_address = query_holder_address(neutron_request_builder, &covenant_contract.address);
-    let liquid_pooler_address =
-        query_liquid_pooler_address(neutron_request_builder, &covenant_contract.address);
-    let party_a_router_address = query_interchain_router_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_a".to_string(),
-    );
-    let party_b_router_address = query_interchain_router_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_b".to_string(),
-    );
-    let party_a_ibc_forwarder_address = query_ibc_forwarder_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_a".to_string(),
-    );
-    let party_b_ibc_forwarder_address = query_ibc_forwarder_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_b".to_string(),
-    );
+    let clock_address = covenant.query_clock_address();
+    let holder_address = covenant.query_holder_address();
+    let liquid_pooler_address = covenant.query_liquid_pooler_address();
+    let party_a_router_address = covenant.query_interchain_router_address("party_a".to_string());
+    let party_b_router_address = covenant.query_interchain_router_address("party_b".to_string());
+    let party_a_ibc_forwarder_address = covenant.query_ibc_forwarder_address("party_a".to_string());
+    let party_b_ibc_forwarder_address = covenant.query_ibc_forwarder_address("party_b".to_string());
 
-    info!("Fund covenant addresses with NTRN...");
+    info!(target: target,"Fund covenant addresses with NTRN...");
     let mut addresses = vec![
         clock_address.clone(),
         holder_address.clone(),
@@ -480,33 +465,25 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         .unwrap();
     }
 
-    info!("Tick until forwarders create ICA...");
+    info!(target: target,"Tick until forwarders create ICA...");
     let party_a_deposit_address;
     let party_b_deposit_address;
     loop {
         tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         let forwarder_a_state =
             query_contract_state(neutron_request_builder, &party_a_ibc_forwarder_address);
-        info!("Forwarder A state: {:?}", forwarder_a_state);
+        info!(target: target,"Forwarder A state: {:?}", forwarder_a_state);
         if forwarder_a_state == "ica_created" {
-            party_a_deposit_address = query_deposit_address(
-                neutron_request_builder,
-                &covenant_contract.address,
-                "party_a".to_string(),
-            );
-            party_b_deposit_address = query_deposit_address(
-                neutron_request_builder,
-                &covenant_contract.address,
-                "party_b".to_string(),
-            );
+            party_a_deposit_address = covenant.query_deposit_address("party_a".to_string());
+            party_b_deposit_address = covenant.query_deposit_address("party_b".to_string());
             break;
         }
     }
 
-    info!("Party A deposit address: {}", party_a_deposit_address);
-    info!("Party B deposit address: {}", party_b_deposit_address);
+    info!(target: target,"Party A deposit address: {}", party_a_deposit_address);
+    info!(target: target,"Party B deposit address: {}", party_b_deposit_address);
 
-    info!("Fund the forwarders with sufficient funds...");
+    info!(target: target,"Fund the forwarders with sufficient funds...");
     send(
         gaia_request_builder,
         ACC_0_KEY,
@@ -536,7 +513,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
 
-    info!("Tick until forwarders forward the funds to the holder...");
+    info!(target: target,"Tick until forwarders forward the funds to the holder...");
     loop {
         let holder_state = query_contract_state(neutron_request_builder, &holder_address);
         let holder_balance = get_balance(neutron_request_builder, &holder_address);
@@ -546,17 +523,17 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }) && holder_balance.iter().any(|c| {
             c.denom == neutron_denom.clone() && c.amount >= Uint128::new(untrn_contribution_amount)
         }) {
-            info!("Holder received ATOM & NTRN");
+            info!(target: target,"Holder received ATOM & NTRN");
             break;
         } else if holder_state == "active" {
-            info!("Holder is active");
+            info!(target: target,"Holder is active");
             break;
         } else {
             tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         }
     }
 
-    info!("Tick until holder sends funds to LiquidPooler and LPer receives LP tokens...");
+    info!(target: target,"Tick until holder sends funds to LiquidPooler and LPer receives LP tokens...");
     let lp_token_address = get_lp_token_address(
         neutron_request_builder,
         &factory_contract.address,
@@ -581,23 +558,23 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }
     }
 
-    info!("Tick until holder expires...");
+    info!(target: target,"Tick until holder expires...");
     loop {
         tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         let holder_state = query_contract_state(neutron_request_builder, &holder_address);
-        info!("Holder state: {:?}", holder_state);
+        info!(target: target,"Holder state: {:?}", holder_state);
         if holder_state == "expired" {
             break;
         }
     }
 
-    info!("Party A claims and router receives the funds");
+    info!(target: target,"Party A claims and router receives the funds");
     let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-    info!("Router A balances: {:?}", router_a_balances);
+    info!(target: target,"Router A balances: {:?}", router_a_balances);
     let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!("Router B balances: {:?}", router_b_balances);
+    info!(target: target,"Router B balances: {:?}", router_b_balances);
     let holder_balances = get_balance(neutron_request_builder, &holder_address);
-    info!("Holder balances: {:?}", holder_balances);
+    info!(target: target,"Holder balances: {:?}", holder_balances);
 
     thread::sleep(Duration::from_secs(10));
     contract_execute(
@@ -611,25 +588,25 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     thread::sleep(Duration::from_secs(5));
 
     let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-    info!("Router A balances: {:?}", router_a_balances);
+    info!(target: target,"Router A balances: {:?}", router_a_balances);
     let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!("Router B balances: {:?}", router_b_balances);
+    info!(target: target,"Router B balances: {:?}", router_b_balances);
     let holder_balances = get_balance(neutron_request_builder, &holder_address);
-    info!("Holder balances: {:?}", holder_balances);
+    info!(target: target,"Holder balances: {:?}", holder_balances);
 
-    info!("Tick until party A claim is distributed");
-    info!("Hub receiver address: {}", ACC1_ADDRESS_GAIA);
+    info!(target: target,"Tick until party A claim is distributed");
+    info!(target: target,"Hub receiver address: {}", ACC1_ADDRESS_GAIA);
     loop {
         let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-        info!("Router A balances: {:?}", router_a_balances);
+        info!(target: target,"Router A balances: {:?}", router_a_balances);
         let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-        info!("Router B balances: {:?}", router_b_balances);
+        info!(target: target,"Router B balances: {:?}", router_b_balances);
         let holder_balances = get_balance(neutron_request_builder, &holder_address);
-        info!("Holder balances: {:?}", holder_balances);
+        info!(target: target,"Holder balances: {:?}", holder_balances);
         let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
-        info!("Hub receiver balances: {:?}", hub_receiver_balances);
+        info!(target: target,"Hub receiver balances: {:?}", hub_receiver_balances);
         let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!("Neutron receiver balances: {:?}", neutron_receiver_balances);
+        info!(target: target,"Neutron receiver balances: {:?}", neutron_receiver_balances);
         if hub_receiver_balances
             .iter()
             .any(|c| c.denom == atom_denom.clone())
@@ -643,9 +620,9 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }
     }
 
-    info!("Party B claims and router receives the funds");
+    info!(target: target,"Party B claims and router receives the funds");
     let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!("Router B balances: {:?}", router_b_balances);
+    info!(target: target,"Router B balances: {:?}", router_b_balances);
     contract_execute(
         neutron_request_builder,
         &holder_address,
@@ -656,12 +633,12 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     .unwrap();
     thread::sleep(Duration::from_secs(5));
 
-    info!("Tick until both parties receive their funds");
+    info!(target: target,"Tick until both parties receive their funds");
     loop {
         let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
-        info!("Hub receiver balances: {:?}", hub_receiver_balances);
+        info!(target: target,"Hub receiver balances: {:?}", hub_receiver_balances);
         let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!("Neutron receiver balances: {:?}", neutron_receiver_balances);
+        info!(target: target,"Neutron receiver balances: {:?}", neutron_receiver_balances);
         if neutron_receiver_balances
             .iter()
             .any(|c| c.denom == neutron_denom.clone())
@@ -722,7 +699,8 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     }
 
     let current_block_height = chain.get_height();
-    info!("Two party POL share based ragequit path...");
+    let target = "Two party POL share based ragequit path";
+    info!(target: target,"Starting Two party POL share based ragequit path tests...");
     let covenant_instantiate_msg = valence_covenant_two_party_pol::msg::InstantiateMsg {
         label: "two-party-pol-covenant-ragequit".to_string(),
         timeouts: Timeouts {
@@ -835,35 +813,22 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         None,
         "",
     )?;
-    info!("Covenant contract: {:?}", covenant_contract.address);
+    info!(target: target,"Covenant contract: {:?}", covenant_contract.address);
+    let covenant = Covenant::TwoPartyPol {
+        rb: neutron_request_builder,
+        contract_address: &covenant_contract.address,
+    };
 
     // Query the covenant addresses
-    let clock_address = query_clock_address(neutron_request_builder, &covenant_contract.address);
-    let holder_address = query_holder_address(neutron_request_builder, &covenant_contract.address);
-    let liquid_pooler_address =
-        query_liquid_pooler_address(neutron_request_builder, &covenant_contract.address);
-    let party_a_router_address = query_interchain_router_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_a".to_string(),
-    );
-    let party_b_router_address = query_interchain_router_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_b".to_string(),
-    );
-    let party_a_ibc_forwarder_address = query_ibc_forwarder_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_a".to_string(),
-    );
-    let party_b_ibc_forwarder_address = query_ibc_forwarder_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_b".to_string(),
-    );
+    let clock_address = covenant.query_clock_address();
+    let holder_address = covenant.query_holder_address();
+    let liquid_pooler_address = covenant.query_liquid_pooler_address();
+    let party_a_router_address = covenant.query_interchain_router_address("party_a".to_string());
+    let party_b_router_address = covenant.query_interchain_router_address("party_b".to_string());
+    let party_a_ibc_forwarder_address = covenant.query_ibc_forwarder_address("party_a".to_string());
+    let party_b_ibc_forwarder_address = covenant.query_ibc_forwarder_address("party_b".to_string());
 
-    info!("Fund covenant addresses with NTRN...");
+    info!(target: target,"Fund covenant addresses with NTRN...");
     let mut addresses = vec![
         clock_address.clone(),
         holder_address.clone(),
@@ -900,26 +865,18 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         let forwarder_a_state =
             query_contract_state(neutron_request_builder, &party_a_ibc_forwarder_address);
-        info!("Forwarder A state: {:?}", forwarder_a_state);
+        info!(target: target,"Forwarder A state: {:?}", forwarder_a_state);
         if forwarder_a_state == "ica_created" {
-            party_a_deposit_address = query_deposit_address(
-                neutron_request_builder,
-                &covenant_contract.address,
-                "party_a".to_string(),
-            );
-            party_b_deposit_address = query_deposit_address(
-                neutron_request_builder,
-                &covenant_contract.address,
-                "party_b".to_string(),
-            );
+            party_a_deposit_address = covenant.query_deposit_address("party_a".to_string());
+            party_b_deposit_address = covenant.query_deposit_address("party_b".to_string());
             break;
         }
     }
 
-    info!("Party A deposit address: {}", party_a_deposit_address);
-    info!("Party B deposit address: {}", party_b_deposit_address);
+    info!(target: target,"Party A deposit address: {}", party_a_deposit_address);
+    info!(target: target,"Party B deposit address: {}", party_b_deposit_address);
 
-    info!("Fund the forwarders with sufficient funds...");
+    info!(target: target,"Fund the forwarders with sufficient funds...");
     send(
         gaia_request_builder,
         ACC_0_KEY,
@@ -949,7 +906,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
 
-    info!("Tick until forwarders forward the funds to the holder...");
+    info!(target: target,"Tick until forwarders forward the funds to the holder...");
     loop {
         let holder_state = query_contract_state(neutron_request_builder, &holder_address);
         let holder_balance = get_balance(neutron_request_builder, &holder_address);
@@ -959,17 +916,17 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }) && holder_balance.iter().any(|c| {
             c.denom == neutron_denom.clone() && c.amount >= Uint128::new(untrn_contribution_amount)
         }) {
-            info!("Holder received ATOM & NTRN");
+            info!(target: target,"Holder received ATOM & NTRN");
             break;
         } else if holder_state == "active" {
-            info!("Holder is active");
+            info!(target: target,"Holder is active");
             break;
         } else {
             tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         }
     }
 
-    info!("Tick until holder sends funds to LiquidPooler and LPer receives LP tokens...");
+    info!(target: target,"Tick until holder sends funds to LiquidPooler and LPer receives LP tokens...");
     let lp_token_address = get_lp_token_address(
         neutron_request_builder,
         &factory_contract.address,
@@ -994,7 +951,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }
     }
 
-    info!("Party A ragequits...");
+    info!(target: target,"Party A ragequits...");
     contract_execute(
         neutron_request_builder,
         &holder_address,
@@ -1005,9 +962,9 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
 
-    info!("Party B claims and router receives the funds");
+    info!(target: target,"Party B claims and router receives the funds");
     let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!("Router B balances: {:?}", router_b_balances);
+    info!(target: target,"Router B balances: {:?}", router_b_balances);
     contract_execute(
         neutron_request_builder,
         &holder_address,
@@ -1018,12 +975,12 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     .unwrap();
     thread::sleep(Duration::from_secs(5));
 
-    info!("Tick routers until both parties receive their funds");
+    info!(target: target,"Tick routers until both parties receive their funds");
     loop {
         let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
-        info!("Hub receiver balances: {:?}", hub_receiver_balances);
+        info!(target: target,"Hub receiver balances: {:?}", hub_receiver_balances);
         let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!("Neutron receiver balances: {:?}", neutron_receiver_balances);
+        info!(target: target,"Neutron receiver balances: {:?}", neutron_receiver_balances);
         if neutron_receiver_balances
             .iter()
             .any(|c| c.denom == neutron_denom.clone())
@@ -1084,7 +1041,8 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     }
 
     let current_block_height = chain.get_height();
-    info!("Two party POL side based ragequit path...");
+    let target = "Two party POL side based ragequit path";
+    info!(target: target,"Starting Two party POL side based ragequit path tests...");
     let covenant_instantiate_msg = valence_covenant_two_party_pol::msg::InstantiateMsg {
         label: "two-party-pol-covenant-side-ragequit".to_string(),
         timeouts: Timeouts {
@@ -1197,35 +1155,22 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         None,
         "",
     )?;
-    info!("Covenant contract: {:?}", covenant_contract.address);
+    info!(target: target,"Covenant contract: {:?}", covenant_contract.address);
+    let covenant = Covenant::TwoPartyPol {
+        rb: neutron_request_builder,
+        contract_address: &covenant_contract.address,
+    };
 
     // Query the covenant addresses
-    let clock_address = query_clock_address(neutron_request_builder, &covenant_contract.address);
-    let holder_address = query_holder_address(neutron_request_builder, &covenant_contract.address);
-    let liquid_pooler_address =
-        query_liquid_pooler_address(neutron_request_builder, &covenant_contract.address);
-    let party_a_router_address = query_interchain_router_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_a".to_string(),
-    );
-    let party_b_router_address = query_interchain_router_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_b".to_string(),
-    );
-    let party_a_ibc_forwarder_address = query_ibc_forwarder_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_a".to_string(),
-    );
-    let party_b_ibc_forwarder_address = query_ibc_forwarder_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_b".to_string(),
-    );
+    let clock_address = covenant.query_clock_address();
+    let holder_address = covenant.query_holder_address();
+    let liquid_pooler_address = covenant.query_liquid_pooler_address();
+    let party_a_router_address = covenant.query_interchain_router_address("party_a".to_string());
+    let party_b_router_address = covenant.query_interchain_router_address("party_b".to_string());
+    let party_a_ibc_forwarder_address = covenant.query_ibc_forwarder_address("party_a".to_string());
+    let party_b_ibc_forwarder_address = covenant.query_ibc_forwarder_address("party_b".to_string());
 
-    info!("Fund covenant addresses with NTRN...");
+    info!(target: target,"Fund covenant addresses with NTRN...");
     let mut addresses = vec![
         clock_address.clone(),
         holder_address.clone(),
@@ -1262,26 +1207,18 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         let forwarder_a_state =
             query_contract_state(neutron_request_builder, &party_a_ibc_forwarder_address);
-        info!("Forwarder A state: {:?}", forwarder_a_state);
+        info!(target: target,"Forwarder A state: {:?}", forwarder_a_state);
         if forwarder_a_state == "ica_created" {
-            party_a_deposit_address = query_deposit_address(
-                neutron_request_builder,
-                &covenant_contract.address,
-                "party_a".to_string(),
-            );
-            party_b_deposit_address = query_deposit_address(
-                neutron_request_builder,
-                &covenant_contract.address,
-                "party_b".to_string(),
-            );
+            party_a_deposit_address = covenant.query_deposit_address("party_a".to_string());
+            party_b_deposit_address = covenant.query_deposit_address("party_b".to_string());
             break;
         }
     }
 
-    info!("Party A deposit address: {}", party_a_deposit_address);
-    info!("Party B deposit address: {}", party_b_deposit_address);
+    info!(target: target,"Party A deposit address: {}", party_a_deposit_address);
+    info!(target: target,"Party B deposit address: {}", party_b_deposit_address);
 
-    info!("Fund the forwarders with sufficient funds...");
+    info!(target: target,"Fund the forwarders with sufficient funds...");
     send(
         gaia_request_builder,
         ACC_0_KEY,
@@ -1311,7 +1248,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
 
-    info!("Tick until forwarders forward the funds to the holder...");
+    info!(target: target,"Tick until forwarders forward the funds to the holder...");
     loop {
         let holder_state = query_contract_state(neutron_request_builder, &holder_address);
         let holder_balance = get_balance(neutron_request_builder, &holder_address);
@@ -1321,17 +1258,17 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }) && holder_balance.iter().any(|c| {
             c.denom == neutron_denom.clone() && c.amount >= Uint128::new(untrn_contribution_amount)
         }) {
-            info!("Holder received ATOM & NTRN");
+            info!(target: target,"Holder received ATOM & NTRN");
             break;
         } else if holder_state == "active" {
-            info!("Holder is active");
+            info!(target: target,"Holder is active");
             break;
         } else {
             tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         }
     }
 
-    info!("Tick until holder sends funds to LiquidPooler and LPer receives LP tokens...");
+    info!(target: target,"Tick until holder sends funds to LiquidPooler and LPer receives LP tokens...");
     let lp_token_address = get_lp_token_address(
         neutron_request_builder,
         &factory_contract.address,
@@ -1356,7 +1293,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }
     }
 
-    info!("Party A ragequits...");
+    info!(target: target,"Party A ragequits...");
     contract_execute(
         neutron_request_builder,
         &holder_address,
@@ -1367,16 +1304,16 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
 
-    info!("Tick routers until both parties receive their funds");
+    info!(target: target,"Tick routers until both parties receive their funds");
     loop {
         let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-        info!("Router A balances: {:?}", router_a_balances);
+        info!(target: target,"Router A balances: {:?}", router_a_balances);
         let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-        info!("Router B balances: {:?}", router_b_balances);
+        info!(target: target,"Router B balances: {:?}", router_b_balances);
         let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
-        info!("Hub receiver balances: {:?}", hub_receiver_balances);
+        info!(target: target,"Hub receiver balances: {:?}", hub_receiver_balances);
         let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!("Neutron receiver balances: {:?}", neutron_receiver_balances);
+        info!(target: target,"Neutron receiver balances: {:?}", neutron_receiver_balances);
         if neutron_receiver_balances
             .iter()
             .any(|c| c.denom == neutron_denom.clone())
@@ -1437,7 +1374,8 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     }
 
     let current_block_height = chain.get_height();
-    info!("Two party POL side based happy path...");
+    let target = "Two party POL side based happy path";
+    info!(target: target,"Starting Two party POL side based happy path tests");
     let covenant_instantiate_msg = valence_covenant_two_party_pol::msg::InstantiateMsg {
         label: "two-party-pol-covenant-side-happy".to_string(),
         timeouts: Timeouts {
@@ -1550,35 +1488,22 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         None,
         "",
     )?;
-    info!("Covenant contract: {:?}", covenant_contract.address);
+    info!(target: target,"Covenant contract: {:?}", covenant_contract.address);
+    let covenant = Covenant::TwoPartyPol {
+        rb: neutron_request_builder,
+        contract_address: &covenant_contract.address,
+    };
 
     // Query the covenant addresses
-    let clock_address = query_clock_address(neutron_request_builder, &covenant_contract.address);
-    let holder_address = query_holder_address(neutron_request_builder, &covenant_contract.address);
-    let liquid_pooler_address =
-        query_liquid_pooler_address(neutron_request_builder, &covenant_contract.address);
-    let party_a_router_address = query_interchain_router_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_a".to_string(),
-    );
-    let party_b_router_address = query_interchain_router_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_b".to_string(),
-    );
-    let party_a_ibc_forwarder_address = query_ibc_forwarder_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_a".to_string(),
-    );
-    let party_b_ibc_forwarder_address = query_ibc_forwarder_address(
-        neutron_request_builder,
-        &covenant_contract.address,
-        "party_b".to_string(),
-    );
+    let clock_address = covenant.query_clock_address();
+    let holder_address = covenant.query_holder_address();
+    let liquid_pooler_address = covenant.query_liquid_pooler_address();
+    let party_a_router_address = covenant.query_interchain_router_address("party_a".to_string());
+    let party_b_router_address = covenant.query_interchain_router_address("party_b".to_string());
+    let party_a_ibc_forwarder_address = covenant.query_ibc_forwarder_address("party_a".to_string());
+    let party_b_ibc_forwarder_address = covenant.query_ibc_forwarder_address("party_b".to_string());
 
-    info!("Fund covenant addresses with NTRN...");
+    info!(target: target,"Fund covenant addresses with NTRN...");
     let mut addresses = vec![
         clock_address.clone(),
         holder_address.clone(),
@@ -1609,33 +1534,25 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         .unwrap();
     }
 
-    info!("Tick until forwarders create ICA...");
+    info!(target: target,"Tick until forwarders create ICA...");
     let party_a_deposit_address;
     let party_b_deposit_address;
     loop {
         tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         let forwarder_a_state =
             query_contract_state(neutron_request_builder, &party_a_ibc_forwarder_address);
-        info!("Forwarder A state: {:?}", forwarder_a_state);
+        info!(target: target,"Forwarder A state: {:?}", forwarder_a_state);
         if forwarder_a_state == "ica_created" {
-            party_a_deposit_address = query_deposit_address(
-                neutron_request_builder,
-                &covenant_contract.address,
-                "party_a".to_string(),
-            );
-            party_b_deposit_address = query_deposit_address(
-                neutron_request_builder,
-                &covenant_contract.address,
-                "party_b".to_string(),
-            );
+            party_a_deposit_address = covenant.query_deposit_address("party_a".to_string());
+            party_b_deposit_address = covenant.query_deposit_address("party_b".to_string());
             break;
         }
     }
 
-    info!("Party A deposit address: {}", party_a_deposit_address);
-    info!("Party B deposit address: {}", party_b_deposit_address);
+    info!(target: target,"Party A deposit address: {}", party_a_deposit_address);
+    info!(target: target,"Party B deposit address: {}", party_b_deposit_address);
 
-    info!("Fund the forwarders with sufficient funds...");
+    info!(target: target,"Fund the forwarders with sufficient funds...");
     send(
         gaia_request_builder,
         ACC_0_KEY,
@@ -1665,7 +1582,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
 
-    info!("Tick until forwarders forward the funds to the holder...");
+    info!(target: target,"Tick until forwarders forward the funds to the holder...");
     loop {
         let holder_state = query_contract_state(neutron_request_builder, &holder_address);
         let holder_balance = get_balance(neutron_request_builder, &holder_address);
@@ -1675,17 +1592,17 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }) && holder_balance.iter().any(|c| {
             c.denom == neutron_denom.clone() && c.amount >= Uint128::new(untrn_contribution_amount)
         }) {
-            info!("Holder received ATOM & NTRN");
+            info!(target: target,"Holder received ATOM & NTRN");
             break;
         } else if holder_state == "active" {
-            info!("Holder is active");
+            info!(target: target,"Holder is active");
             break;
         } else {
             tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         }
     }
 
-    info!("Tick until holder sends funds to LiquidPooler and LPer receives LP tokens...");
+    info!(target: target,"Tick until holder sends funds to LiquidPooler and LPer receives LP tokens...");
     let lp_token_address = get_lp_token_address(
         neutron_request_builder,
         &factory_contract.address,
@@ -1710,29 +1627,29 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }
     }
 
-    info!("Tick until holder expires...");
+    info!(target: target,"Tick until holder expires...");
     loop {
         tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         let holder_state = query_contract_state(neutron_request_builder, &holder_address);
-        info!("Holder state: {:?}", holder_state);
+        info!(target: target,"Holder state: {:?}", holder_state);
         if holder_state == "expired" {
             break;
         }
     }
 
-    info!("Party A claims and router receives the funds");
+    info!(target: target,"Party A claims and router receives the funds");
     let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-    info!("Router A balances: {:?}", router_a_balances);
+    info!(target: target,"Router A balances: {:?}", router_a_balances);
     let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!("Router B balances: {:?}", router_b_balances);
+    info!(target: target,"Router B balances: {:?}", router_b_balances);
     let hub_receiver_balances_before_claim = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
-    info!(
+    info!(target: target,
         "Hub receiver balances before claim: {:?}",
         hub_receiver_balances_before_claim
     );
     let neutron_receiver_balances_before_claim =
         get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-    info!(
+    info!(target: target,
         "Neutron receiver balances before claim: {:?}",
         neutron_receiver_balances_before_claim
     );
@@ -1749,16 +1666,16 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     thread::sleep(Duration::from_secs(5));
 
     let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-    info!("Router A balances: {:?}", router_a_balances);
+    info!(target: target,"Router A balances: {:?}", router_a_balances);
     let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!("Router B balances: {:?}", router_b_balances);
+    info!(target: target,"Router B balances: {:?}", router_b_balances);
 
-    info!("Tick until both parties receive their funds");
+    info!(target: target,"Tick until both parties receive their funds");
     loop {
         let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
-        info!("Hub receiver balances: {:?}", hub_receiver_balances);
+        info!(target: target,"Hub receiver balances: {:?}", hub_receiver_balances);
         let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!("Neutron receiver balances: {:?}", neutron_receiver_balances);
+        info!(target: target,"Neutron receiver balances: {:?}", neutron_receiver_balances);
         if hub_receiver_balances_before_claim != hub_receiver_balances
             && neutron_receiver_balances_before_claim != neutron_receiver_balances
         {
@@ -1814,7 +1731,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }
     }
 
-    info!("Finished two party POL native tests!");
+    info!(target: target,"Finished two party POL native tests!");
 
     Ok(())
 }
