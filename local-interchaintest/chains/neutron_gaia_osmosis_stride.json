@@ -278,9 +278,27 @@
         "accounts": [
           {
             "name": "acc0",
-            "address": "osmo1kuf2kxwuv2p8k3gnpja7mzf05zvep0cysqyf2a",
+            "address": "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63",
             "amount": "10000000000000%DENOM%",
-            "mnemonic": "south excuse merit payment amazing trash salon core cloth wine claw father fiscal anger entry hawk equip cream key inner away outdoor despair air"
+            "mnemonic": "decorate bright ozone fork gallery riot bus exhaust worth way bone indoor calm squirrel merry zero scheme cotton until shop any excess stage laundry"
+          },
+          {
+            "name": "acc1",
+            "address": "osmo1kljf09rj77uxeu5lye7muejx6ajsu55cs2sfz9",
+            "amount": "10000000000000%DENOM%",
+            "mnemonic": "across army acoustic hurt help sad turkey switch popular fade purse obvious session tuition file asset cover agree number motor pupil slim hundred busy"
+          },
+          {
+            "name": "acc2",
+            "address": "osmo17lp3n649rxt2jadn455frcj0q6anjndsx5474s",
+            "amount": "10000000000000%DENOM%",
+            "mnemonic": "demise erode feature decade dune uncle limb stock quit nation neck marriage pledge achieve tell cat baby wrist expect scrub welcome hole ribbon mirror"
+          },
+          {
+            "name": "acc3",
+            "address": "osmo1p0var04vhr03r2j8zwv4jfrz73rxgjt5y3kkrh",
+            "amount": "10000000000000%DENOM%",
+            "mnemonic": "scheme force walk answer decide submit crowd flush slim raw type tackle lend follow multiply sting rule jealous coyote slight toddler skirt crawl decade"
           }
         ]
       }

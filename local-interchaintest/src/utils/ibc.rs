@@ -40,6 +40,20 @@ pub fn get_ibc_denom(native_denom: &str, channel_id: &str) -> String {
     src_denom_trace.ibc_denom()
 }
 
+pub fn get_multihop_ibc_denom(native_denom: &str, channel_trace: Vec<&str>) -> String {
+    let mut port_channel_trace = vec![];
+
+    for channel in channel_trace {
+        port_channel_trace.push(TRANSFER_PORT);
+        port_channel_trace.push(channel);
+    }
+
+    let prefixed_denom = format!("{}/{}", port_channel_trace.join("/"), native_denom);
+
+    let src_denom_trace = parse_denom_trace(prefixed_denom);
+    src_denom_trace.ibc_denom()
+}
+
 pub fn get_prefixed_denom(port_id: String, channel_id: String, native_denom: String) -> String {
     format!("{}/{}/{}", port_id, channel_id, native_denom)
 }
