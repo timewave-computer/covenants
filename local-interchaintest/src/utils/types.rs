@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use cosmwasm_schema::cw_serde;
+use serde::Deserialize;
 
-#[cw_serde]
+#[derive(Deserialize)]
 pub struct ChainsVec {
     pub chains: Vec<ConfigChain>,
 }
 
-#[cw_serde]
+#[derive(Deserialize)]
 pub struct ConfigChain {
     pub chain_type: Option<String>,
     pub coin_type: i32,
@@ -35,25 +35,25 @@ pub struct ConfigChain {
     pub evm_load_state_path: Option<String>,
 }
 
-#[cw_serde]
+#[derive(Deserialize)]
 pub struct DockerImage {
     pub version: String,
     pub repository: Option<String>,
 }
 
-#[cw_serde]
+#[derive(Deserialize)]
 pub struct Genesis {
     pub modify: Vec<KVStore>,
     pub accounts: Vec<GenesisAccount>,
 }
 
-#[cw_serde]
+#[derive(Deserialize)]
 pub struct KVStore {
     pub key: String,
     pub value: serde_json::Value,
 }
 
-#[cw_serde]
+#[derive(Deserialize)]
 pub struct GenesisAccount {
     pub name: String,
     pub amount: String,
@@ -61,8 +61,25 @@ pub struct GenesisAccount {
     pub mnemonic: String,
 }
 
-#[cw_serde]
+#[derive(Deserialize)]
 pub struct ConfigFileOverrides {
     pub file: String,
     pub paths: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Channel {
+    pub channel_id: String,
+    pub connection_hops: Vec<String>,
+    pub counterparty: Counterparty,
+    pub ordering: String,
+    pub port_id: String,
+    pub state: String,
+    pub version: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Counterparty {
+    pub channel_id: String,
+    pub port_id: String,
 }

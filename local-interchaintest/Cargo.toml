@@ -6,11 +6,19 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-localic-std = {git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
-cosmwasm-std = "1.5.4"
-reqwest = { version = "0.11.20", features = ["blocking", "json"]}
-serde_json = { version = "1.0.107" }
-serde = { version = "1.0", features = ["derive"] }
-cosmwasm-schema = { workspace = true }
+localic-std = { git = "https://github.com/strangelove-ventures/interchaintest", branch = "main" }
+reqwest = { version = "0.11.27", features = ["blocking", "json"] }
+serde_json = "1.0.119"
+serde = { version = "1.0.203", features = ["derive"] }
+cosmwasm-std = "1.5.5"
+astroport = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 sha2 = "0.10.8"
-hex = "0.4.3"
+anyhow = "1.0.86"
+env_logger = "0.11.3"
+log = "0.4.21"
+cw-utils = { workspace = true }
+valence-covenant-two-party-pol = { workspace = true }
+valence-two-party-pol-holder = { workspace = true }
+valence-astroport-liquid-pooler = { workspace = true }
+covenant-utils = { workspace = true }
+cw20 = { workspace = true }

@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
+use anyhow::Error;
 use cosmwasm_std::{StdError, StdResult};
 use localic_std::{
     modules::cosmwasm::CosmWasm,
@@ -7,8 +8,10 @@ use localic_std::{
     transactions::ChainRequestBuilder,
 };
 
-use crate::{
-    utils, API_URL, GAIA_CHAIN, GAIA_CHAIN_ID, NEUTRON_CHAIN, NEUTRON_CHAIN_ID, STRIDE_CHAIN,
+use super::types::Channel as QueryChannel;
+
+use super::constants::{
+    API_URL, GAIA_CHAIN, GAIA_CHAIN_ID, NEUTRON_CHAIN, NEUTRON_CHAIN_ID, OSMOSIS_CHAIN_ID,
     STRIDE_CHAIN_ID, TRANSFER_PORT,
 };
 
@@ -30,7 +33,7 @@ pub struct TestContext {
 impl From<ChainsVec> for TestContext {
     fn from(chains: ChainsVec) -> Self {
         let mut chains_map = HashMap::new();
-        for chain in chains.chains {
+        for chain in chains.chains.iter() {
             let rb = ChainRequestBuilder::new(
                 API_URL.to_string(),
                 chain.chain_id.clone(),
@@ -39,11 +42,12 @@ impl From<ChainsVec> for TestContext {
             .unwrap();
 
             let relayer: Relayer = Relayer::new(&rb);
-            let channels = relayer.get_channels(&rb.chain_id).unwrap();
+            let channels = relayer.get_channels(&rb.chain_id).unwrap_or_default();
 
             let (src_addr, denom) = match rb.chain_id.as_str() {
                 NEUTRON_CHAIN_ID => ("neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky", "untrn"),
                 GAIA_CHAIN_ID => ("cosmos1hj5fveer5cjtn4wd6wstzugjfdxzl0xpxvjjvr", "uatom"),
+                OSMOSIS_CHAIN_ID => ("osmo1kuf2kxwuv2p8k3gnpja7mzf05zvep0cysqyf2a", "uosmo"),
                 STRIDE_CHAIN_ID => ("stride1u20df3trc2c2zdhm8qvh2hdjx9ewh00sv6eyy8", "ustrd"),
                 _ => ("err", "err"),
             };
@@ -54,73 +58,9 @@ impl From<ChainsVec> for TestContext {
 
         let ntrn_channels = chains_map.get(NEUTRON_CHAIN).unwrap().channels.clone();
         let gaia_channels = chains_map.get(GAIA_CHAIN).unwrap().channels.clone();
-        let stride_channels = chains_map.get(STRIDE_CHAIN).unwrap().channels.clone();
-
-        let mut connection_ids = HashMap::new();
 
         let (ntrn_to_gaia_consumer_channel, gaia_to_ntrn_provider_channel) =
             find_pairwise_ccv_channel_ids(&gaia_channels, &ntrn_channels).unwrap();
-
-        connection_ids.insert(
-            (NEUTRON_CHAIN.to_string(), GAIA_CHAIN.to_string()),
-            ntrn_to_gaia_consumer_channel.connection_id,
-        );
-        connection_ids.insert(
-            (GAIA_CHAIN.to_string(), NEUTRON_CHAIN.to_string()),
-            gaia_to_ntrn_provider_channel.connection_id,
-        );
-
-        let (ntrn_to_gaia_transfer_channel, gaia_to_ntrn_transfer_channel) =
-            find_pairwise_transfer_channel_ids(&ntrn_channels, &gaia_channels).unwrap();
-
-        let (ntrn_to_stride_transfer_channel, stride_to_ntrn_transfer_channel) =
-            find_pairwise_transfer_channel_ids(&ntrn_channels, &stride_channels).unwrap();
-
-        connection_ids.insert(
-            (NEUTRON_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
-            ntrn_to_stride_transfer_channel.connection_id,
-        );
-        connection_ids.insert(
-            (STRIDE_CHAIN.to_string(), NEUTRON_CHAIN.to_string()),
-            stride_to_ntrn_transfer_channel.connection_id,
-        );
-
-        let (gaia_to_stride_transfer_channel, stride_to_gaia_transfer_channel) =
-            find_pairwise_transfer_channel_ids(&gaia_channels, &stride_channels).unwrap();
-        connection_ids.insert(
-            (GAIA_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
-            gaia_to_stride_transfer_channel.connection_id,
-        );
-        connection_ids.insert(
-            (STRIDE_CHAIN.to_string(), GAIA_CHAIN.to_string()),
-            stride_to_gaia_transfer_channel.connection_id,
-        );
-
-        let mut transfer_channel_ids = HashMap::new();
-        transfer_channel_ids.insert(
-            (NEUTRON_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
-            ntrn_to_stride_transfer_channel.channel_id.to_string(),
-        );
-        transfer_channel_ids.insert(
-            (STRIDE_CHAIN.to_string(), NEUTRON_CHAIN.to_string()),
-            stride_to_ntrn_transfer_channel.channel_id.to_string(),
-        );
-        transfer_channel_ids.insert(
-            (GAIA_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
-            gaia_to_stride_transfer_channel.channel_id.to_string(),
-        );
-        transfer_channel_ids.insert(
-            (STRIDE_CHAIN.to_string(), GAIA_CHAIN.to_string()),
-            stride_to_gaia_transfer_channel.channel_id.to_string(),
-        );
-        transfer_channel_ids.insert(
-            (NEUTRON_CHAIN.to_string(), GAIA_CHAIN.to_string()),
-            ntrn_to_gaia_transfer_channel.channel_id.to_string(),
-        );
-        transfer_channel_ids.insert(
-            (GAIA_CHAIN.to_string(), NEUTRON_CHAIN.to_string()),
-            gaia_to_ntrn_transfer_channel.channel_id.to_string(),
-        );
 
         let mut ccv_channel_ids = HashMap::new();
         ccv_channel_ids.insert(
@@ -132,31 +72,39 @@ impl From<ChainsVec> for TestContext {
             ntrn_to_gaia_consumer_channel.channel_id,
         );
 
+        let mut transfer_channel_ids = HashMap::new();
         let mut ibc_denoms = HashMap::new();
-        ibc_denoms.insert(
-            (NEUTRON_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
-            utils::ibc::get_ibc_denom("untrn", &ntrn_to_stride_transfer_channel.channel_id),
-        );
-        ibc_denoms.insert(
-            (STRIDE_CHAIN.to_string(), NEUTRON_CHAIN.to_string()),
-            utils::ibc::get_ibc_denom("ustrd", &stride_to_ntrn_transfer_channel.channel_id),
-        );
-        ibc_denoms.insert(
-            (GAIA_CHAIN.to_string(), STRIDE_CHAIN.to_string()),
-            utils::ibc::get_ibc_denom("uatom", &gaia_to_stride_transfer_channel.channel_id),
-        );
-        ibc_denoms.insert(
-            (STRIDE_CHAIN.to_string(), GAIA_CHAIN.to_string()),
-            utils::ibc::get_ibc_denom("ustrd", &stride_to_gaia_transfer_channel.channel_id),
-        );
-        ibc_denoms.insert(
-            (NEUTRON_CHAIN.to_string(), GAIA_CHAIN.to_string()),
-            utils::ibc::get_ibc_denom("untrn", &ntrn_to_gaia_transfer_channel.channel_id),
-        );
-        ibc_denoms.insert(
-            (GAIA_CHAIN.to_string(), NEUTRON_CHAIN.to_string()),
-            utils::ibc::get_ibc_denom("uatom", &gaia_to_ntrn_transfer_channel.channel_id),
-        );
+        let mut connection_ids = HashMap::new();
+
+        for chain1 in chains.chains.iter() {
+            for chain2 in chains.chains.iter() {
+                let party_channel = match find_pairwise_transfer_channel_ids(
+                    &chains_map.get(chain1.name.as_str()).unwrap().rb,
+                    chain1.chain_id.as_str(),
+                    chain2.chain_id.as_str(),
+                ) {
+                    Ok(party_channel) => party_channel,
+                    Err(_) => {
+                        continue;
+                    }
+                };
+
+                transfer_channel_ids.insert(
+                    (chain1.name.clone(), chain2.name.clone()),
+                    party_channel.channel_id.to_string(),
+                );
+
+                connection_ids.insert(
+                    (chain1.name.clone(), chain2.name.clone()),
+                    party_channel.connection_id.to_string(),
+                );
+
+                ibc_denoms.insert(
+                    (chain2.name.clone(), chain1.name.clone()),
+                    super::ibc::get_ibc_denom(&chain2.denom, &party_channel.channel_id),
+                );
+            }
+        }
 
         Self {
             chains: chains_map,
@@ -422,36 +370,32 @@ impl<'a> TestContextQuery<'a> {
 }
 
 pub fn find_pairwise_transfer_channel_ids(
-    a: &[Channel],
-    b: &[Channel],
-) -> StdResult<(PairwiseChannelResult, PairwiseChannelResult)> {
-    for (a_i, a_chan) in a.iter().enumerate() {
-        for (b_i, b_chan) in b.iter().enumerate() {
-            if a_chan.channel_id == b_chan.counterparty.channel_id
-                && b_chan.channel_id == a_chan.counterparty.channel_id
-                && a_chan.port_id == TRANSFER_PORT
-                && b_chan.port_id == TRANSFER_PORT
-                && a_chan.ordering == "ORDER_UNORDERED"
-                && b_chan.ordering == "ORDER_UNORDERED"
-            {
-                let a_channel_result = PairwiseChannelResult {
-                    index: a_i,
-                    channel_id: a_chan.channel_id.to_string(),
-                    connection_id: a_chan.connection_hops[0].to_string(),
-                };
-                let b_channel_result = PairwiseChannelResult {
-                    index: b_i,
-                    channel_id: b_chan.channel_id.to_string(),
-                    connection_id: b_chan.connection_hops[0].to_string(),
-                };
+    rb: &ChainRequestBuilder,
+    src_chain_id: &str,
+    dest_chain_id: &str,
+) -> Result<PairwiseChannelResult, Error> {
+    let relayer = Relayer::new(rb);
+    let cmd = format!("rly q channels {src_chain_id} {dest_chain_id}");
+    let result = relayer.execute(cmd.as_str(), true).unwrap();
+    let json_string = result["text"].as_str().unwrap();
+    let channels = json_string
+        .split('\n')
+        .filter(|s| !s.is_empty())
+        .map(serde_json::from_str)
+        .collect::<Result<Vec<QueryChannel>, _>>()?;
 
-                return Ok((a_channel_result, b_channel_result));
-            }
+    for channel in channels {
+        if channel.port_id == TRANSFER_PORT {
+            let party_channel = PairwiseChannelResult {
+                index: 0,
+                channel_id: channel.channel_id.to_string(),
+                connection_id: channel.connection_hops[0].to_string(),
+            };
+            return Ok(party_channel);
         }
     }
-    Err(StdError::generic_err(
-        "failed to match pairwise transfer channels",
-    ))
+
+    Err(Error::msg("Couldnt find transfer channels"))
 }
 
 pub fn find_pairwise_ccv_channel_ids(
