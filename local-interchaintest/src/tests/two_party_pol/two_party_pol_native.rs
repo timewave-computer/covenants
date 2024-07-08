@@ -254,7 +254,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     ).unwrap();
     thread::sleep(Duration::from_secs(3));
 
-    // Instantiate the covenants
     let valence_ibc_forwarder_code_id = *test_ctx
         .get_chain(NEUTRON_CHAIN)
         .contract_codes
@@ -300,6 +299,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     let chain = Chain::new(neutron_request_builder);
     let current_block_height = chain.get_height();
 
+    // Instantiate the covenants
     let target = "Two party POL native happy path";
     info!(target: target,"Starting Two party POL happy path test...");
     let covenant_instantiate_msg = valence_covenant_two_party_pol::msg::InstantiateMsg {

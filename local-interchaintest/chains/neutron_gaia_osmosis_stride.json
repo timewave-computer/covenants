@@ -180,7 +180,7 @@
     },
     {
       "name": "stride",
-      "chain_id": "localstride-3",
+      "chain_id": "localstride-1",
       "denom": "ustrd",
       "binary": "strided",
       "bech32_prefix": "stride",
