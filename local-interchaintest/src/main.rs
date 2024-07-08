@@ -1,32 +1,42 @@
 #![allow(dead_code, unused_must_use)]
 
-use local_ictest_e2e::{
-    tests::two_party_pol::{
-        two_party_pol_native::test_two_party_pol_native,
-        two_party_pol_not_native::test_two_party_pol,
-    },
-    utils::{
-        constants::{API_URL, CHAIN_CONFIG_PATH},
-        file_system::read_json_file,
-        liquid_staking::set_up_host_zone,
-        test_context::TestContext,
-    },
+use std::error::Error;
+
+use local_ictest_e2e::tests::two_party_pol::{
+    two_party_pol_native::test_two_party_pol_native, two_party_pol_not_native::test_two_party_pol,
 };
+
 use localic_std::polling::poll_for_start;
+use localic_utils::{
+    utils::setup::stride::set_up_host_zone, ConfigChainBuilder, TestContextBuilder,
+    GAIA_CHAIN_NAME, LOCAL_IC_API_URL, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME, STRIDE_CHAIN_NAME,
+};
 use reqwest::blocking::Client;
 
 // Run `local-ic start neutron_gaia --api-port 42069` before running this test inside the local-interchaintest directory to spin up the environment
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let client = Client::new();
-    poll_for_start(&client, API_URL, 300);
+    poll_for_start(&client, LOCAL_IC_API_URL, 300);
 
-    let configured_chains = read_json_file(CHAIN_CONFIG_PATH).unwrap();
+    let mut test_ctx = TestContextBuilder::default()
+        .with_unwrap_raw_logs(true)
+        .with_chain(ConfigChainBuilder::default_neutron().build()?)
+        .with_chain(ConfigChainBuilder::default_osmosis().build()?)
+        .with_chain(ConfigChainBuilder::default_stride().build()?)
+        .with_chain(ConfigChainBuilder::default_gaia().build()?)
+        .with_artifacts_dir("artifacts")
+        .with_transfer_channels(OSMOSIS_CHAIN_NAME, NEUTRON_CHAIN_NAME)
+        .with_transfer_channels(OSMOSIS_CHAIN_NAME, GAIA_CHAIN_NAME)
+        .with_transfer_channels(NEUTRON_CHAIN_NAME, GAIA_CHAIN_NAME)
+        .with_transfer_channels(STRIDE_CHAIN_NAME, GAIA_CHAIN_NAME)
+        .with_transfer_channels(STRIDE_CHAIN_NAME, NEUTRON_CHAIN_NAME)
+        .build()?;
 
-    let mut test_ctx = TestContext::from(configured_chains);
-
-    set_up_host_zone(&mut test_ctx);
+    set_up_host_zone(&mut test_ctx, GAIA_CHAIN_NAME);
 
     test_two_party_pol_native(&mut test_ctx);
     test_two_party_pol(&mut test_ctx);
+
+    Ok(())
 }
