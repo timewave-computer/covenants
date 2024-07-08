@@ -55,7 +55,7 @@ pub fn deploy_contracts_on_chain(test_ctx: &mut TestContext, path: &str, chain: 
             let mut cw = CosmWasm::new(&local_chain.rb);
             let id = abs_path.file_stem().unwrap().to_str().unwrap();
 
-            //To avoid storing multiple times during the same execution
+            // To avoid storing multiple times during the same execution
             if local_chain.contract_codes.contains_key(id) {
                 info!(
                     "Contract {} already deployed on chain {}, skipping...",

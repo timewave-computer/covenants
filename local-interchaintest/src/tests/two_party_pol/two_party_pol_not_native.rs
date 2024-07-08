@@ -12,7 +12,7 @@ use astroport::{
 use cosmwasm_std::{coin, Binary, Coin, Decimal, Uint128, Uint64};
 use covenant_utils::{
     op_mode::ContractOperationModeConfig, split::SplitConfig, InterchainCovenantParty,
-    NativeCovenantParty, PoolPriceConfig, SingleSideLpLimits,
+    PoolPriceConfig, SingleSideLpLimits,
 };
 use cw_utils::Expiration;
 use localic_std::{
@@ -36,20 +36,21 @@ use crate::{
     },
     utils::{
         constants::{
-            ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC_0_KEY, ACC_1_KEY,
-            ACC_2_KEY, ASTROPORT_PATH, EXECUTE_FLAGS, GAIA_CHAIN, NEUTRON_CHAIN, VALENCE_PATH,
+            ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC2_ADDRESS_OSMO,
+            ACC_0_KEY, ACC_1_KEY, ACC_2_KEY, ASTROPORT_PATH, EXECUTE_FLAGS, GAIA_CHAIN,
+            NEUTRON_CHAIN, OSMOSIS_CHAIN, VALENCE_PATH,
         },
-        ibc::ibc_send,
+        ibc::{get_multihop_ibc_denom, ibc_send},
         setup::deploy_contracts_on_chain,
         test_context::TestContext,
     },
 };
 
-pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), LocalError> {
+pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> {
     deploy_contracts_on_chain(test_ctx, VALENCE_PATH, NEUTRON_CHAIN);
     deploy_contracts_on_chain(test_ctx, ASTROPORT_PATH, NEUTRON_CHAIN);
 
-    info!("Starting two party POL native tests...");
+    info!("Starting two party POL tests...");
     let astroport_native_coin_registry_code_id = *test_ctx
         .get_chain(NEUTRON_CHAIN)
         .contract_codes
@@ -86,6 +87,9 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     let gaia_request_builder = test_ctx
         .get_request_builder()
         .get_request_builder(GAIA_CHAIN);
+    let osmosis_request_builder = test_ctx
+        .get_request_builder()
+        .get_request_builder(OSMOSIS_CHAIN);
 
     let neutron_admin_acc = test_ctx.get_admin_addr().src(NEUTRON_CHAIN).get();
 
@@ -106,21 +110,52 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         native_coin_registry_contract.address
     );
 
+    let atom_denom = test_ctx.get_native_denom().src(GAIA_CHAIN).get();
+    let neutron_denom = test_ctx.get_native_denom().src(NEUTRON_CHAIN).get();
+    let osmo_denom = test_ctx.get_native_denom().src(OSMOSIS_CHAIN).get();
     let atom_on_neutron = test_ctx
         .get_ibc_denoms()
         .src(GAIA_CHAIN)
         .dest(NEUTRON_CHAIN)
         .get();
-    let neutron_on_atom = test_ctx
+    let osmo_on_neutron = test_ctx
         .get_ibc_denoms()
-        .src(NEUTRON_CHAIN)
-        .dest(GAIA_CHAIN)
+        .src(OSMOSIS_CHAIN)
+        .dest(NEUTRON_CHAIN)
         .get();
-    let atom_denom = test_ctx.get_native_denom().src(GAIA_CHAIN).get();
-    let neutron_denom = test_ctx.get_native_denom().src(NEUTRON_CHAIN).get();
+    let atom_on_osmo_via_neutron = get_multihop_ibc_denom(
+        &atom_denom,
+        vec![
+            &test_ctx
+                .get_transfer_channels()
+                .src(NEUTRON_CHAIN)
+                .dest(OSMOSIS_CHAIN)
+                .get(),
+            &test_ctx
+                .get_transfer_channels()
+                .src(GAIA_CHAIN)
+                .dest(NEUTRON_CHAIN)
+                .get(),
+        ],
+    );
+    let osmo_on_gaia_via_neutron = get_multihop_ibc_denom(
+        &osmo_denom,
+        vec![
+            &test_ctx
+                .get_transfer_channels()
+                .src(NEUTRON_CHAIN)
+                .dest(GAIA_CHAIN)
+                .get(),
+            &test_ctx
+                .get_transfer_channels()
+                .src(OSMOSIS_CHAIN)
+                .dest(NEUTRON_CHAIN)
+                .get(),
+        ],
+    );
 
     let add_to_registry_msg = NativeCoinRegistryExecuteMsg::Add {
-        native_coins: vec![(atom_on_neutron.clone(), 6), (neutron_denom.clone(), 6)],
+        native_coins: vec![(atom_on_neutron.clone(), 6), (osmo_on_neutron.clone(), 6)],
     };
     contract_execute(
         neutron_request_builder,
@@ -165,7 +200,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 denom: atom_on_neutron.clone(),
             },
             AssetInfo::NativeToken {
-                denom: neutron_denom.clone(),
+                denom: osmo_on_neutron.clone(),
             },
         ],
         init_params: Some(Binary::from(
@@ -184,14 +219,14 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         EXECUTE_FLAGS,
     )?;
 
-    // Send some ATOM to NTRN
-    let amount_to_send = 5_000_000_000;
+    // Send some ATOM and OSMO to NTRN
+    let uatom_contribution_amount = 500_000_000;
     loop {
         ibc_send(
             gaia_request_builder,
             ACC_0_KEY,
             &neutron_admin_acc,
-            coin(amount_to_send, atom_denom.clone()),
+            coin(uatom_contribution_amount, atom_denom.clone()),
             coin(100000, atom_denom.clone()),
             &test_ctx
                 .get_transfer_channels()
@@ -200,18 +235,42 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 .get(),
             None,
         )?;
-        info!("Waiting to receive IBC transfer...");
+        info!("Waiting to receive ATOM IBC transfer...");
         thread::sleep(Duration::from_secs(5));
         let balance = get_balance(neutron_request_builder, &neutron_admin_acc);
-        if balance
-            .iter()
-            .any(|c| c.denom == atom_on_neutron && c.amount >= Uint128::new(amount_to_send))
-        {
+        if balance.iter().any(|c| {
+            c.denom == atom_on_neutron && c.amount >= Uint128::new(uatom_contribution_amount)
+        }) {
             break;
         }
     }
 
-    // Provide the ATOM/NTRN liquidity to the pair
+    let uosmo_contribution_amount = 5_000_000_000;
+    loop {
+        ibc_send(
+            osmosis_request_builder,
+            ACC_0_KEY,
+            &neutron_admin_acc,
+            coin(uosmo_contribution_amount, osmo_denom.clone()),
+            coin(100000, osmo_denom.clone()),
+            &test_ctx
+                .get_transfer_channels()
+                .src(OSMOSIS_CHAIN)
+                .dest(NEUTRON_CHAIN)
+                .get(),
+            None,
+        )?;
+        info!("Waiting to receive OSMO IBC transfer...");
+        thread::sleep(Duration::from_secs(5));
+        let balance = get_balance(neutron_request_builder, &neutron_admin_acc);
+        if balance.iter().any(|c| {
+            c.denom == osmo_on_neutron && c.amount >= Uint128::new(uosmo_contribution_amount)
+        }) {
+            break;
+        }
+    }
+
+    // Provide the ATOM/OSMO liquidity to the pair
     let pool_addr = get_pool_address(
         neutron_request_builder,
         &factory_contract.address,
@@ -219,12 +278,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             denom: atom_on_neutron.clone(),
         },
         AssetInfo::NativeToken {
-            denom: neutron_denom.clone(),
+            denom: osmo_on_neutron.clone(),
         },
     );
 
-    let uatom_contribution_amount: u128 = 5_000_000_000;
-    let untrn_contribution_amount: u128 = 50_000_000_000;
     let provide_liquidity_msg = astroport::pair::ExecuteMsg::ProvideLiquidity {
         assets: vec![
             Asset {
@@ -235,9 +292,9 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             },
             Asset {
                 info: AssetInfo::NativeToken {
-                    denom: neutron_denom.clone(),
+                    denom: osmo_on_neutron.clone(),
                 },
-                amount: Uint128::from(untrn_contribution_amount),
+                amount: Uint128::from(uosmo_contribution_amount),
             },
         ],
         slippage_tolerance: Some(Decimal::percent(1)),
@@ -250,7 +307,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         &pool_addr,
         ACC_0_KEY,
         &serde_json::to_string(&provide_liquidity_msg).unwrap(),
-        &format!("--amount {uatom_contribution_amount}{atom_on_neutron},{untrn_contribution_amount}{neutron_denom} {EXECUTE_FLAGS}"),
+        &format!("--amount {uatom_contribution_amount}{atom_on_neutron},{uosmo_contribution_amount}{osmo_on_neutron} {EXECUTE_FLAGS}"),
     ).unwrap();
     thread::sleep(Duration::from_secs(3));
 
@@ -300,13 +357,14 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     let current_block_height = chain.get_height();
 
     // Instantiate the covenants
-    let target = "Two party POL native happy path";
+    let target = "Two party POL happy path";
     info!(target: target,"Starting Two party POL happy path test...");
+
     let covenant_instantiate_msg = valence_covenant_two_party_pol::msg::InstantiateMsg {
         label: "two-party-pol-covenant-happy".to_string(),
         timeouts: Timeouts {
-            ica_timeout: Uint64::new(10000),          // seconds
-            ibc_transfer_timeout: Uint64::new(10000), // seconds
+            ica_timeout: Uint64::new(100),          // seconds
+            ibc_transfer_timeout: Uint64::new(100), // seconds
         },
         contract_codes: CovenantContractCodeIds {
             ibc_forwarder_code: valence_ibc_forwarder_code_id,
@@ -317,7 +375,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             liquid_pooler_code: valence_liquid_pooler_code_id,
         },
         clock_tick_max_gas: None,
-        lockup_config: Expiration::AtHeight(current_block_height + 130),
+        lockup_config: Expiration::AtHeight(current_block_height + 200),
         party_a_config: CovenantPartyConfig::Interchain(InterchainCovenantParty {
             party_receiver_addr: ACC1_ADDRESS_GAIA.to_string(),
             party_chain_connection_id: test_ctx
@@ -325,7 +383,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 .src(NEUTRON_CHAIN)
                 .dest(GAIA_CHAIN)
                 .get(),
-            ibc_transfer_timeout: Uint64::new(10000),
+            ibc_transfer_timeout: Uint64::new(100),
             party_to_host_chain_channel_id: test_ctx
                 .get_transfer_channels()
                 .src(GAIA_CHAIN)
@@ -346,21 +404,40 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             denom_to_pfm_map: BTreeMap::new(),
             fallback_address: None,
         }),
-        party_b_config: CovenantPartyConfig::Native(NativeCovenantParty {
-            party_receiver_addr: ACC2_ADDRESS_NEUTRON.to_string(),
-            native_denom: neutron_denom.clone(),
+        party_b_config: CovenantPartyConfig::Interchain(InterchainCovenantParty {
+            party_receiver_addr: ACC2_ADDRESS_OSMO.to_string(),
+            party_chain_connection_id: test_ctx
+                .get_connections()
+                .src(NEUTRON_CHAIN)
+                .dest(OSMOSIS_CHAIN)
+                .get(),
+            ibc_transfer_timeout: Uint64::new(100),
+            party_to_host_chain_channel_id: test_ctx
+                .get_transfer_channels()
+                .src(OSMOSIS_CHAIN)
+                .dest(NEUTRON_CHAIN)
+                .get(),
+            host_to_party_chain_channel_id: test_ctx
+                .get_transfer_channels()
+                .src(NEUTRON_CHAIN)
+                .dest(OSMOSIS_CHAIN)
+                .get(),
+            remote_chain_denom: osmo_denom.clone(),
             addr: ACC2_ADDRESS_NEUTRON.to_string(),
+            native_denom: osmo_on_neutron.clone(),
             contribution: Coin {
-                denom: neutron_denom.clone(),
-                amount: Uint128::new(untrn_contribution_amount),
+                denom: osmo_denom.clone(),
+                amount: Uint128::new(uosmo_contribution_amount),
             },
+            denom_to_pfm_map: BTreeMap::new(),
+            fallback_address: None,
         }),
         covenant_type: CovenantType::Share,
         ragequit_config: Some(RagequitConfig::Enabled(RagequitTerms {
             penalty: Decimal::from_str("0.1").unwrap(),
             state: None,
         })),
-        deposit_deadline: Expiration::AtHeight(current_block_height + 110),
+        deposit_deadline: Expiration::AtHeight(current_block_height + 180),
         party_a_share: Decimal::percent(50),
         party_b_share: Decimal::percent(50),
         pool_price_config: PoolPriceConfig {
@@ -373,16 +450,16 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 SplitConfig {
                     receivers: BTreeMap::from([
                         (ACC1_ADDRESS_GAIA.to_string(), Decimal::percent(50)),
-                        (ACC2_ADDRESS_NEUTRON.to_string(), Decimal::percent(50)),
+                        (ACC2_ADDRESS_OSMO.to_string(), Decimal::percent(50)),
                     ]),
                 },
             ),
             (
-                neutron_denom.clone(),
+                osmo_on_neutron.clone(),
                 SplitConfig {
                     receivers: BTreeMap::from([
                         (ACC1_ADDRESS_GAIA.to_string(), Decimal::percent(50)),
-                        (ACC2_ADDRESS_NEUTRON.to_string(), Decimal::percent(50)),
+                        (ACC2_ADDRESS_OSMO.to_string(), Decimal::percent(50)),
                     ]),
                 },
             ),
@@ -394,10 +471,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 pool_pair_type: PairType::Stable {},
                 pool_address: pool_addr.to_string(),
                 asset_a_denom: atom_on_neutron.clone(),
-                asset_b_denom: neutron_denom.clone(),
+                asset_b_denom: osmo_on_neutron.clone(),
                 single_side_lp_limits: SingleSideLpLimits {
                     asset_a_limit: Uint128::new(100000),
-                    asset_b_limit: Uint128::new(100000),
+                    asset_b_limit: Uint128::new(1000000),
                 },
             },
         ),
@@ -467,14 +544,16 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         let forwarder_a_state =
             query_contract_state(neutron_request_builder, &party_a_ibc_forwarder_address);
+        let forwarder_b_state =
+            query_contract_state(neutron_request_builder, &party_b_ibc_forwarder_address);
         info!(target: target,"Forwarder A state: {:?}", forwarder_a_state);
-        if forwarder_a_state == "ica_created" {
+        info!(target: target,"Forwarder B state: {:?}", forwarder_b_state);
+        if forwarder_a_state == "ica_created" && forwarder_b_state == "ica_created" {
             party_a_deposit_address = covenant.query_deposit_address("party_a".to_string());
             party_b_deposit_address = covenant.query_deposit_address("party_b".to_string());
             break;
         }
     }
-
     info!(target: target,"Party A deposit address: {}", party_a_deposit_address);
     info!(target: target,"Party B deposit address: {}", party_b_deposit_address);
 
@@ -494,15 +573,15 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
     send(
-        neutron_request_builder,
+        osmosis_request_builder,
         ACC_0_KEY,
         &party_b_deposit_address,
         &[Coin {
-            denom: neutron_denom.clone(),
-            amount: Uint128::new(untrn_contribution_amount),
+            denom: osmo_denom.clone(),
+            amount: Uint128::new(uosmo_contribution_amount),
         }],
         &Coin {
-            denom: neutron_denom.clone(),
+            denom: osmo_denom.clone(),
             amount: Uint128::new(5000),
         },
     )
@@ -516,9 +595,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             c.denom == atom_on_neutron.clone()
                 && c.amount >= Uint128::new(uatom_contribution_amount)
         }) && holder_balance.iter().any(|c| {
-            c.denom == neutron_denom.clone() && c.amount >= Uint128::new(untrn_contribution_amount)
+            c.denom == osmo_on_neutron.clone()
+                && c.amount >= Uint128::new(uosmo_contribution_amount)
         }) {
-            info!(target: target,"Holder received ATOM & NTRN");
+            info!(target: target,"Holder received ATOM & OSMO");
             break;
         } else if holder_state == "active" {
             info!(target: target,"Holder is active");
@@ -536,7 +616,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             denom: atom_on_neutron.clone(),
         },
         AssetInfo::NativeToken {
-            denom: neutron_denom.clone(),
+            denom: osmo_on_neutron.clone(),
         },
     );
 
@@ -546,6 +626,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             &lp_token_address,
             &liquid_pooler_address,
         );
+
         if balance == "0" {
             tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         } else {
@@ -566,10 +647,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     info!(target: target,"Party A claims and router receives the funds");
     let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
     info!(target: target,"Router A balances: {:?}", router_a_balances);
-    let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!(target: target,"Router B balances: {:?}", router_b_balances);
-    let holder_balances = get_balance(neutron_request_builder, &holder_address);
-    info!(target: target,"Holder balances: {:?}", holder_balances);
 
     thread::sleep(Duration::from_secs(10));
     contract_execute(
@@ -584,30 +661,18 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
 
     let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
     info!(target: target,"Router A balances: {:?}", router_a_balances);
-    let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!(target: target,"Router B balances: {:?}", router_b_balances);
-    let holder_balances = get_balance(neutron_request_builder, &holder_address);
-    info!(target: target,"Holder balances: {:?}", holder_balances);
 
     info!(target: target,"Tick until party A claim is distributed");
     info!(target: target,"Hub receiver address: {}", ACC1_ADDRESS_GAIA);
     loop {
-        let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-        info!(target: target,"Router A balances: {:?}", router_a_balances);
-        let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-        info!(target: target,"Router B balances: {:?}", router_b_balances);
-        let holder_balances = get_balance(neutron_request_builder, &holder_address);
-        info!(target: target,"Holder balances: {:?}", holder_balances);
         let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
         info!(target: target,"Hub receiver balances: {:?}", hub_receiver_balances);
-        let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!(target: target,"Neutron receiver balances: {:?}", neutron_receiver_balances);
         if hub_receiver_balances
             .iter()
             .any(|c| c.denom == atom_denom.clone())
             && hub_receiver_balances
                 .iter()
-                .any(|c| c.denom == neutron_on_atom.clone())
+                .any(|c| c.denom == osmo_on_gaia_via_neutron.clone())
         {
             break;
         } else {
@@ -628,18 +693,21 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     .unwrap();
     thread::sleep(Duration::from_secs(5));
 
+    let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
+    info!(target: target,"Router B balances: {:?}", router_b_balances);
+
     info!(target: target,"Tick until both parties receive their funds");
     loop {
         let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
         info!(target: target,"Hub receiver balances: {:?}", hub_receiver_balances);
-        let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!(target: target,"Neutron receiver balances: {:?}", neutron_receiver_balances);
-        if neutron_receiver_balances
+        let osmo_receiver_balances = get_balance(osmosis_request_builder, ACC2_ADDRESS_OSMO);
+        info!(target: target,"Osmosis receiver balances: {:?}", osmo_receiver_balances);
+        if osmo_receiver_balances
             .iter()
-            .any(|c| c.denom == neutron_denom.clone())
-            && neutron_receiver_balances
+            .any(|c| c.denom == osmo_denom.clone())
+            && osmo_receiver_balances
                 .iter()
-                .any(|c| c.denom == atom_on_neutron.clone())
+                .any(|c| c.denom == atom_on_osmo_via_neutron.clone())
         {
             break;
         } else {
@@ -670,22 +738,22 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             .unwrap();
         }
     }
-    let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-    for coin in neutron_receiver_balances {
-        if coin.denom != neutron_denom.clone() {
+    let osmo_receiver_balances = get_balance(osmosis_request_builder, ACC2_ADDRESS_OSMO);
+    for coin in osmo_receiver_balances {
+        if coin.denom != osmo_denom.clone() {
             ibc_send(
-                neutron_request_builder,
+                osmosis_request_builder,
                 ACC_2_KEY,
-                &test_ctx.get_admin_addr().src(GAIA_CHAIN).get(),
+                &neutron_admin_acc,
                 coin,
                 Coin {
-                    denom: neutron_denom.clone(),
+                    denom: osmo_denom.clone(),
                     amount: Uint128::new(5000),
                 },
                 &test_ctx
                     .get_transfer_channels()
-                    .src(NEUTRON_CHAIN)
-                    .dest(GAIA_CHAIN)
+                    .src(OSMOSIS_CHAIN)
+                    .dest(NEUTRON_CHAIN)
                     .get(),
                 None,
             )
@@ -694,8 +762,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     }
 
     let current_block_height = chain.get_height();
-    let target = "Two party POL native share based ragequit path";
-    info!(target: target,"Starting Two party POL share based ragequit path tests...");
+
+    let target = "Two party share based POL ragequit path";
+    info!(target: target,"Starting Two party share based POL ragequit test...");
+
     let covenant_instantiate_msg = valence_covenant_two_party_pol::msg::InstantiateMsg {
         label: "two-party-pol-covenant-ragequit".to_string(),
         timeouts: Timeouts {
@@ -719,7 +789,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 .src(NEUTRON_CHAIN)
                 .dest(GAIA_CHAIN)
                 .get(),
-            ibc_transfer_timeout: Uint64::new(10000),
+            ibc_transfer_timeout: Uint64::new(100),
             party_to_host_chain_channel_id: test_ctx
                 .get_transfer_channels()
                 .src(GAIA_CHAIN)
@@ -740,14 +810,33 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             denom_to_pfm_map: BTreeMap::new(),
             fallback_address: None,
         }),
-        party_b_config: CovenantPartyConfig::Native(NativeCovenantParty {
-            party_receiver_addr: ACC2_ADDRESS_NEUTRON.to_string(),
-            native_denom: neutron_denom.clone(),
+        party_b_config: CovenantPartyConfig::Interchain(InterchainCovenantParty {
+            party_receiver_addr: ACC2_ADDRESS_OSMO.to_string(),
+            party_chain_connection_id: test_ctx
+                .get_connections()
+                .src(NEUTRON_CHAIN)
+                .dest(OSMOSIS_CHAIN)
+                .get(),
+            ibc_transfer_timeout: Uint64::new(100),
+            party_to_host_chain_channel_id: test_ctx
+                .get_transfer_channels()
+                .src(OSMOSIS_CHAIN)
+                .dest(NEUTRON_CHAIN)
+                .get(),
+            host_to_party_chain_channel_id: test_ctx
+                .get_transfer_channels()
+                .src(NEUTRON_CHAIN)
+                .dest(OSMOSIS_CHAIN)
+                .get(),
+            remote_chain_denom: osmo_denom.clone(),
             addr: ACC2_ADDRESS_NEUTRON.to_string(),
+            native_denom: osmo_on_neutron.clone(),
             contribution: Coin {
-                denom: neutron_denom.clone(),
-                amount: Uint128::new(untrn_contribution_amount),
+                denom: osmo_denom.clone(),
+                amount: Uint128::new(uosmo_contribution_amount),
             },
+            denom_to_pfm_map: BTreeMap::new(),
+            fallback_address: None,
         }),
         covenant_type: CovenantType::Share,
         ragequit_config: Some(RagequitConfig::Enabled(RagequitTerms {
@@ -767,16 +856,16 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 SplitConfig {
                     receivers: BTreeMap::from([
                         (ACC1_ADDRESS_GAIA.to_string(), Decimal::percent(50)),
-                        (ACC2_ADDRESS_NEUTRON.to_string(), Decimal::percent(50)),
+                        (ACC2_ADDRESS_OSMO.to_string(), Decimal::percent(50)),
                     ]),
                 },
             ),
             (
-                neutron_denom.clone(),
+                osmo_on_neutron.clone(),
                 SplitConfig {
                     receivers: BTreeMap::from([
                         (ACC1_ADDRESS_GAIA.to_string(), Decimal::percent(50)),
-                        (ACC2_ADDRESS_NEUTRON.to_string(), Decimal::percent(50)),
+                        (ACC2_ADDRESS_OSMO.to_string(), Decimal::percent(50)),
                     ]),
                 },
             ),
@@ -788,7 +877,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 pool_pair_type: PairType::Stable {},
                 pool_address: pool_addr.to_string(),
                 asset_a_denom: atom_on_neutron.clone(),
-                asset_b_denom: neutron_denom.clone(),
+                asset_b_denom: osmo_on_neutron.clone(),
                 single_side_lp_limits: SingleSideLpLimits {
                     asset_a_limit: Uint128::new(100000),
                     asset_b_limit: Uint128::new(100000),
@@ -854,20 +943,23 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         .unwrap();
     }
 
+    info!(target: target,"Tick until forwarders create ICA...");
     let party_a_deposit_address;
     let party_b_deposit_address;
     loop {
         tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         let forwarder_a_state =
             query_contract_state(neutron_request_builder, &party_a_ibc_forwarder_address);
+        let forwarder_b_state =
+            query_contract_state(neutron_request_builder, &party_b_ibc_forwarder_address);
         info!(target: target,"Forwarder A state: {:?}", forwarder_a_state);
-        if forwarder_a_state == "ica_created" {
+        info!(target: target,"Forwarder B state: {:?}", forwarder_b_state);
+        if forwarder_a_state == "ica_created" && forwarder_b_state == "ica_created" {
             party_a_deposit_address = covenant.query_deposit_address("party_a".to_string());
             party_b_deposit_address = covenant.query_deposit_address("party_b".to_string());
             break;
         }
     }
-
     info!(target: target,"Party A deposit address: {}", party_a_deposit_address);
     info!(target: target,"Party B deposit address: {}", party_b_deposit_address);
 
@@ -887,15 +979,15 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
     send(
-        neutron_request_builder,
+        osmosis_request_builder,
         ACC_0_KEY,
         &party_b_deposit_address,
         &[Coin {
-            denom: neutron_denom.clone(),
-            amount: Uint128::new(untrn_contribution_amount),
+            denom: osmo_denom.clone(),
+            amount: Uint128::new(uosmo_contribution_amount),
         }],
         &Coin {
-            denom: neutron_denom.clone(),
+            denom: osmo_denom.clone(),
             amount: Uint128::new(5000),
         },
     )
@@ -909,9 +1001,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             c.denom == atom_on_neutron.clone()
                 && c.amount >= Uint128::new(uatom_contribution_amount)
         }) && holder_balance.iter().any(|c| {
-            c.denom == neutron_denom.clone() && c.amount >= Uint128::new(untrn_contribution_amount)
+            c.denom == osmo_on_neutron.clone()
+                && c.amount >= Uint128::new(uosmo_contribution_amount)
         }) {
-            info!(target: target,"Holder received ATOM & NTRN");
+            info!(target: target,"Holder received ATOM & OSMO");
             break;
         } else if holder_state == "active" {
             info!(target: target,"Holder is active");
@@ -929,7 +1022,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             denom: atom_on_neutron.clone(),
         },
         AssetInfo::NativeToken {
-            denom: neutron_denom.clone(),
+            denom: osmo_on_neutron.clone(),
         },
     );
 
@@ -939,6 +1032,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             &lp_token_address,
             &liquid_pooler_address,
         );
+
         if balance == "0" {
             tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         } else {
@@ -970,18 +1064,21 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     .unwrap();
     thread::sleep(Duration::from_secs(5));
 
-    info!(target: target,"Tick routers until both parties receive their funds");
+    let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
+    info!(target: target,"Router B balances: {:?}", router_b_balances);
+
+    info!(target: target,"Tick until both parties receive their funds");
     loop {
         let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
         info!(target: target,"Hub receiver balances: {:?}", hub_receiver_balances);
-        let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!(target: target,"Neutron receiver balances: {:?}", neutron_receiver_balances);
-        if neutron_receiver_balances
+        let osmo_receiver_balances = get_balance(osmosis_request_builder, ACC2_ADDRESS_OSMO);
+        info!(target: target,"Osmosis receiver balances: {:?}", osmo_receiver_balances);
+        if hub_receiver_balances
             .iter()
-            .any(|c| c.denom == neutron_denom.clone())
-            && neutron_receiver_balances
+            .any(|c| c.denom == osmo_on_gaia_via_neutron.clone())
+            && osmo_receiver_balances
                 .iter()
-                .any(|c| c.denom == atom_on_neutron.clone())
+                .any(|c| c.denom == atom_on_osmo_via_neutron.clone())
         {
             break;
         } else {
@@ -1012,22 +1109,22 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             .unwrap();
         }
     }
-    let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-    for coin in neutron_receiver_balances {
-        if coin.denom != neutron_denom.clone() {
+    let osmo_receiver_balances = get_balance(osmosis_request_builder, ACC2_ADDRESS_OSMO);
+    for coin in osmo_receiver_balances {
+        if coin.denom != osmo_denom.clone() {
             ibc_send(
-                neutron_request_builder,
+                osmosis_request_builder,
                 ACC_2_KEY,
-                &test_ctx.get_admin_addr().src(GAIA_CHAIN).get(),
+                &neutron_admin_acc,
                 coin,
                 Coin {
-                    denom: neutron_denom.clone(),
+                    denom: osmo_denom.clone(),
                     amount: Uint128::new(5000),
                 },
                 &test_ctx
                     .get_transfer_channels()
-                    .src(NEUTRON_CHAIN)
-                    .dest(GAIA_CHAIN)
+                    .src(OSMOSIS_CHAIN)
+                    .dest(NEUTRON_CHAIN)
                     .get(),
                 None,
             )
@@ -1036,8 +1133,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     }
 
     let current_block_height = chain.get_height();
-    let target = "Two party POL native side based ragequit path";
-    info!(target: target,"Starting Two party POL side based ragequit path tests...");
+
+    let target = "Two party side based POL ragequit path";
+    info!(target: target,"Starting Two party side based POL ragequit test...");
+
     let covenant_instantiate_msg = valence_covenant_two_party_pol::msg::InstantiateMsg {
         label: "two-party-pol-covenant-side-ragequit".to_string(),
         timeouts: Timeouts {
@@ -1061,7 +1160,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 .src(NEUTRON_CHAIN)
                 .dest(GAIA_CHAIN)
                 .get(),
-            ibc_transfer_timeout: Uint64::new(10000),
+            ibc_transfer_timeout: Uint64::new(100),
             party_to_host_chain_channel_id: test_ctx
                 .get_transfer_channels()
                 .src(GAIA_CHAIN)
@@ -1082,14 +1181,33 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             denom_to_pfm_map: BTreeMap::new(),
             fallback_address: None,
         }),
-        party_b_config: CovenantPartyConfig::Native(NativeCovenantParty {
-            party_receiver_addr: ACC2_ADDRESS_NEUTRON.to_string(),
-            native_denom: neutron_denom.clone(),
+        party_b_config: CovenantPartyConfig::Interchain(InterchainCovenantParty {
+            party_receiver_addr: ACC2_ADDRESS_OSMO.to_string(),
+            party_chain_connection_id: test_ctx
+                .get_connections()
+                .src(NEUTRON_CHAIN)
+                .dest(OSMOSIS_CHAIN)
+                .get(),
+            ibc_transfer_timeout: Uint64::new(100),
+            party_to_host_chain_channel_id: test_ctx
+                .get_transfer_channels()
+                .src(OSMOSIS_CHAIN)
+                .dest(NEUTRON_CHAIN)
+                .get(),
+            host_to_party_chain_channel_id: test_ctx
+                .get_transfer_channels()
+                .src(NEUTRON_CHAIN)
+                .dest(OSMOSIS_CHAIN)
+                .get(),
+            remote_chain_denom: osmo_denom.clone(),
             addr: ACC2_ADDRESS_NEUTRON.to_string(),
+            native_denom: osmo_on_neutron.clone(),
             contribution: Coin {
-                denom: neutron_denom.clone(),
-                amount: Uint128::new(untrn_contribution_amount),
+                denom: osmo_denom.clone(),
+                amount: Uint128::new(uosmo_contribution_amount),
             },
+            denom_to_pfm_map: BTreeMap::new(),
+            fallback_address: None,
         }),
         covenant_type: CovenantType::Side,
         ragequit_config: Some(RagequitConfig::Enabled(RagequitTerms {
@@ -1109,16 +1227,16 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 SplitConfig {
                     receivers: BTreeMap::from([
                         (ACC1_ADDRESS_GAIA.to_string(), Decimal::percent(100)),
-                        (ACC2_ADDRESS_NEUTRON.to_string(), Decimal::percent(0)),
+                        (ACC2_ADDRESS_OSMO.to_string(), Decimal::percent(0)),
                     ]),
                 },
             ),
             (
-                neutron_denom.clone(),
+                osmo_on_neutron.clone(),
                 SplitConfig {
                     receivers: BTreeMap::from([
                         (ACC1_ADDRESS_GAIA.to_string(), Decimal::percent(0)),
-                        (ACC2_ADDRESS_NEUTRON.to_string(), Decimal::percent(100)),
+                        (ACC2_ADDRESS_OSMO.to_string(), Decimal::percent(100)),
                     ]),
                 },
             ),
@@ -1130,10 +1248,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 pool_pair_type: PairType::Stable {},
                 pool_address: pool_addr.to_string(),
                 asset_a_denom: atom_on_neutron.clone(),
-                asset_b_denom: neutron_denom.clone(),
+                asset_b_denom: osmo_on_neutron.clone(),
                 single_side_lp_limits: SingleSideLpLimits {
-                    asset_a_limit: Uint128::new(100000),
-                    asset_b_limit: Uint128::new(100000),
+                    asset_a_limit: Uint128::new(1000000),
+                    asset_b_limit: Uint128::new(1000000),
                 },
             },
         ),
@@ -1196,20 +1314,23 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         .unwrap();
     }
 
+    info!(target: target,"Tick until forwarders create ICA...");
     let party_a_deposit_address;
     let party_b_deposit_address;
     loop {
         tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         let forwarder_a_state =
             query_contract_state(neutron_request_builder, &party_a_ibc_forwarder_address);
+        let forwarder_b_state =
+            query_contract_state(neutron_request_builder, &party_b_ibc_forwarder_address);
         info!(target: target,"Forwarder A state: {:?}", forwarder_a_state);
-        if forwarder_a_state == "ica_created" {
+        info!(target: target,"Forwarder B state: {:?}", forwarder_b_state);
+        if forwarder_a_state == "ica_created" && forwarder_b_state == "ica_created" {
             party_a_deposit_address = covenant.query_deposit_address("party_a".to_string());
             party_b_deposit_address = covenant.query_deposit_address("party_b".to_string());
             break;
         }
     }
-
     info!(target: target,"Party A deposit address: {}", party_a_deposit_address);
     info!(target: target,"Party B deposit address: {}", party_b_deposit_address);
 
@@ -1229,15 +1350,15 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
     send(
-        neutron_request_builder,
+        osmosis_request_builder,
         ACC_0_KEY,
         &party_b_deposit_address,
         &[Coin {
-            denom: neutron_denom.clone(),
-            amount: Uint128::new(untrn_contribution_amount),
+            denom: osmo_denom.clone(),
+            amount: Uint128::new(uosmo_contribution_amount),
         }],
         &Coin {
-            denom: neutron_denom.clone(),
+            denom: osmo_denom.clone(),
             amount: Uint128::new(5000),
         },
     )
@@ -1251,9 +1372,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             c.denom == atom_on_neutron.clone()
                 && c.amount >= Uint128::new(uatom_contribution_amount)
         }) && holder_balance.iter().any(|c| {
-            c.denom == neutron_denom.clone() && c.amount >= Uint128::new(untrn_contribution_amount)
+            c.denom == osmo_on_neutron.clone()
+                && c.amount >= Uint128::new(uosmo_contribution_amount)
         }) {
-            info!(target: target,"Holder received ATOM & NTRN");
+            info!(target: target,"Holder received ATOM & OSMO");
             break;
         } else if holder_state == "active" {
             info!(target: target,"Holder is active");
@@ -1271,7 +1393,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             denom: atom_on_neutron.clone(),
         },
         AssetInfo::NativeToken {
-            denom: neutron_denom.clone(),
+            denom: osmo_on_neutron.clone(),
         },
     );
 
@@ -1281,6 +1403,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             &lp_token_address,
             &liquid_pooler_address,
         );
+
         if balance == "0" {
             tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         } else {
@@ -1288,7 +1411,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }
     }
 
-    let previous_balance = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
+    let previous_balance = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
     info!(target: target,"Party A ragequits...");
     contract_execute(
         neutron_request_builder,
@@ -1300,20 +1423,16 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
 
-    info!(target: target,"Tick routers until both parties receive their funds");
+    info!(target: target,"Tick until both parties receive their funds");
     loop {
-        let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-        info!(target: target,"Router A balances: {:?}", router_a_balances);
-        let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-        info!(target: target,"Router B balances: {:?}", router_b_balances);
         let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
         info!(target: target,"Hub receiver balances: {:?}", hub_receiver_balances);
-        let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!(target: target,"Neutron receiver balances: {:?}", neutron_receiver_balances);
-        if previous_balance != neutron_receiver_balances
-            && neutron_receiver_balances
+        let osmo_receiver_balances = get_balance(osmosis_request_builder, ACC2_ADDRESS_OSMO);
+        info!(target: target,"Osmosis receiver balances: {:?}", osmo_receiver_balances);
+        if previous_balance != hub_receiver_balances
+            && osmo_receiver_balances
                 .iter()
-                .any(|c| c.denom == atom_on_neutron.clone())
+                .any(|c| c.denom == atom_on_osmo_via_neutron.clone())
         {
             break;
         } else {
@@ -1344,22 +1463,22 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             .unwrap();
         }
     }
-    let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-    for coin in neutron_receiver_balances {
-        if coin.denom != neutron_denom.clone() {
+    let osmo_receiver_balances = get_balance(osmosis_request_builder, ACC2_ADDRESS_OSMO);
+    for coin in osmo_receiver_balances {
+        if coin.denom != osmo_denom.clone() {
             ibc_send(
-                neutron_request_builder,
+                osmosis_request_builder,
                 ACC_2_KEY,
-                &test_ctx.get_admin_addr().src(GAIA_CHAIN).get(),
+                &neutron_admin_acc,
                 coin,
                 Coin {
-                    denom: neutron_denom.clone(),
+                    denom: osmo_denom.clone(),
                     amount: Uint128::new(5000),
                 },
                 &test_ctx
                     .get_transfer_channels()
-                    .src(NEUTRON_CHAIN)
-                    .dest(GAIA_CHAIN)
+                    .src(OSMOSIS_CHAIN)
+                    .dest(NEUTRON_CHAIN)
                     .get(),
                 None,
             )
@@ -1368,8 +1487,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     }
 
     let current_block_height = chain.get_height();
-    let target = "Two party POL native side based happy path";
-    info!(target: target,"Starting Two party POL side based happy path tests");
+
+    let target = "Two party POL side based happy path";
+    info!(target: target,"Starting Two party POL side based happy path test...");
+
     let covenant_instantiate_msg = valence_covenant_two_party_pol::msg::InstantiateMsg {
         label: "two-party-pol-covenant-side-happy".to_string(),
         timeouts: Timeouts {
@@ -1385,7 +1506,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             liquid_pooler_code: valence_liquid_pooler_code_id,
         },
         clock_tick_max_gas: None,
-        lockup_config: Expiration::AtHeight(current_block_height + 200),
+        lockup_config: Expiration::AtHeight(current_block_height + 230),
         party_a_config: CovenantPartyConfig::Interchain(InterchainCovenantParty {
             party_receiver_addr: ACC1_ADDRESS_GAIA.to_string(),
             party_chain_connection_id: test_ctx
@@ -1393,7 +1514,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 .src(NEUTRON_CHAIN)
                 .dest(GAIA_CHAIN)
                 .get(),
-            ibc_transfer_timeout: Uint64::new(10000),
+            ibc_transfer_timeout: Uint64::new(100),
             party_to_host_chain_channel_id: test_ctx
                 .get_transfer_channels()
                 .src(GAIA_CHAIN)
@@ -1414,21 +1535,40 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             denom_to_pfm_map: BTreeMap::new(),
             fallback_address: None,
         }),
-        party_b_config: CovenantPartyConfig::Native(NativeCovenantParty {
-            party_receiver_addr: ACC2_ADDRESS_NEUTRON.to_string(),
-            native_denom: neutron_denom.clone(),
+        party_b_config: CovenantPartyConfig::Interchain(InterchainCovenantParty {
+            party_receiver_addr: ACC2_ADDRESS_OSMO.to_string(),
+            party_chain_connection_id: test_ctx
+                .get_connections()
+                .src(NEUTRON_CHAIN)
+                .dest(OSMOSIS_CHAIN)
+                .get(),
+            ibc_transfer_timeout: Uint64::new(100),
+            party_to_host_chain_channel_id: test_ctx
+                .get_transfer_channels()
+                .src(OSMOSIS_CHAIN)
+                .dest(NEUTRON_CHAIN)
+                .get(),
+            host_to_party_chain_channel_id: test_ctx
+                .get_transfer_channels()
+                .src(NEUTRON_CHAIN)
+                .dest(OSMOSIS_CHAIN)
+                .get(),
+            remote_chain_denom: osmo_denom.clone(),
             addr: ACC2_ADDRESS_NEUTRON.to_string(),
+            native_denom: osmo_on_neutron.clone(),
             contribution: Coin {
-                denom: neutron_denom.clone(),
-                amount: Uint128::new(untrn_contribution_amount),
+                denom: osmo_denom.clone(),
+                amount: Uint128::new(uosmo_contribution_amount),
             },
+            denom_to_pfm_map: BTreeMap::new(),
+            fallback_address: None,
         }),
         covenant_type: CovenantType::Side,
         ragequit_config: Some(RagequitConfig::Enabled(RagequitTerms {
             penalty: Decimal::from_str("0.1").unwrap(),
             state: None,
         })),
-        deposit_deadline: Expiration::AtHeight(current_block_height + 180),
+        deposit_deadline: Expiration::AtHeight(current_block_height + 210),
         party_a_share: Decimal::percent(50),
         party_b_share: Decimal::percent(50),
         pool_price_config: PoolPriceConfig {
@@ -1441,16 +1581,16 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 SplitConfig {
                     receivers: BTreeMap::from([
                         (ACC1_ADDRESS_GAIA.to_string(), Decimal::percent(100)),
-                        (ACC2_ADDRESS_NEUTRON.to_string(), Decimal::percent(0)),
+                        (ACC2_ADDRESS_OSMO.to_string(), Decimal::percent(0)),
                     ]),
                 },
             ),
             (
-                neutron_denom.clone(),
+                osmo_on_neutron.clone(),
                 SplitConfig {
                     receivers: BTreeMap::from([
                         (ACC1_ADDRESS_GAIA.to_string(), Decimal::percent(0)),
-                        (ACC2_ADDRESS_NEUTRON.to_string(), Decimal::percent(100)),
+                        (ACC2_ADDRESS_OSMO.to_string(), Decimal::percent(100)),
                     ]),
                 },
             ),
@@ -1462,10 +1602,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
                 pool_pair_type: PairType::Stable {},
                 pool_address: pool_addr.to_string(),
                 asset_a_denom: atom_on_neutron.clone(),
-                asset_b_denom: neutron_denom.clone(),
+                asset_b_denom: osmo_on_neutron.clone(),
                 single_side_lp_limits: SingleSideLpLimits {
-                    asset_a_limit: Uint128::new(100000),
-                    asset_b_limit: Uint128::new(100000),
+                    asset_a_limit: Uint128::new(1000000),
+                    asset_b_limit: Uint128::new(10000000),
                 },
             },
         ),
@@ -1535,14 +1675,16 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         let forwarder_a_state =
             query_contract_state(neutron_request_builder, &party_a_ibc_forwarder_address);
+        let forwarder_b_state =
+            query_contract_state(neutron_request_builder, &party_b_ibc_forwarder_address);
         info!(target: target,"Forwarder A state: {:?}", forwarder_a_state);
-        if forwarder_a_state == "ica_created" {
+        info!(target: target,"Forwarder B state: {:?}", forwarder_b_state);
+        if forwarder_a_state == "ica_created" && forwarder_b_state == "ica_created" {
             party_a_deposit_address = covenant.query_deposit_address("party_a".to_string());
             party_b_deposit_address = covenant.query_deposit_address("party_b".to_string());
             break;
         }
     }
-
     info!(target: target,"Party A deposit address: {}", party_a_deposit_address);
     info!(target: target,"Party B deposit address: {}", party_b_deposit_address);
 
@@ -1562,15 +1704,15 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     )
     .unwrap();
     send(
-        neutron_request_builder,
+        osmosis_request_builder,
         ACC_0_KEY,
         &party_b_deposit_address,
         &[Coin {
-            denom: neutron_denom.clone(),
-            amount: Uint128::new(untrn_contribution_amount),
+            denom: osmo_denom.clone(),
+            amount: Uint128::new(uosmo_contribution_amount),
         }],
         &Coin {
-            denom: neutron_denom.clone(),
+            denom: osmo_denom.clone(),
             amount: Uint128::new(5000),
         },
     )
@@ -1584,9 +1726,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             c.denom == atom_on_neutron.clone()
                 && c.amount >= Uint128::new(uatom_contribution_amount)
         }) && holder_balance.iter().any(|c| {
-            c.denom == neutron_denom.clone() && c.amount >= Uint128::new(untrn_contribution_amount)
+            c.denom == osmo_on_neutron.clone()
+                && c.amount >= Uint128::new(uosmo_contribution_amount)
         }) {
-            info!(target: target,"Holder received ATOM & NTRN");
+            info!(target: target,"Holder received ATOM & OSMO");
             break;
         } else if holder_state == "active" {
             info!(target: target,"Holder is active");
@@ -1604,7 +1747,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             denom: atom_on_neutron.clone(),
         },
         AssetInfo::NativeToken {
-            denom: neutron_denom.clone(),
+            denom: osmo_on_neutron.clone(),
         },
     );
 
@@ -1614,6 +1757,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             &lp_token_address,
             &liquid_pooler_address,
         );
+
         if balance == "0" {
             tick(neutron_request_builder, ACC_0_KEY, &clock_address);
         } else {
@@ -1631,22 +1775,9 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }
     }
 
-    info!(target: target,"Party A claims and router receives the funds");
-    let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-    info!(target: target,"Router A balances: {:?}", router_a_balances);
-    let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!(target: target,"Router B balances: {:?}", router_b_balances);
-    let hub_receiver_balances_before_claim = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
-    info!(target: target,
-        "Hub receiver balances before claim: {:?}",
-        hub_receiver_balances_before_claim
-    );
-    let neutron_receiver_balances_before_claim =
-        get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-    info!(target: target,
-        "Neutron receiver balances before claim: {:?}",
-        neutron_receiver_balances_before_claim
-    );
+    let previous_balance_gaia = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
+    let previous_balance_osmosis = get_balance(osmosis_request_builder, ACC2_ADDRESS_OSMO);
+    info!(target: target,"Party A claims");
 
     thread::sleep(Duration::from_secs(10));
     contract_execute(
@@ -1659,19 +1790,14 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     .unwrap();
     thread::sleep(Duration::from_secs(5));
 
-    let router_a_balances = get_balance(neutron_request_builder, &party_a_router_address);
-    info!(target: target,"Router A balances: {:?}", router_a_balances);
-    let router_b_balances = get_balance(neutron_request_builder, &party_b_router_address);
-    info!(target: target,"Router B balances: {:?}", router_b_balances);
-
     info!(target: target,"Tick until both parties receive their funds");
     loop {
         let hub_receiver_balances = get_balance(gaia_request_builder, ACC1_ADDRESS_GAIA);
         info!(target: target,"Hub receiver balances: {:?}", hub_receiver_balances);
-        let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-        info!(target: target,"Neutron receiver balances: {:?}", neutron_receiver_balances);
-        if hub_receiver_balances_before_claim != hub_receiver_balances
-            && neutron_receiver_balances_before_claim != neutron_receiver_balances
+        let osmo_receiver_balances = get_balance(osmosis_request_builder, ACC2_ADDRESS_OSMO);
+        info!(target: target,"Osmosis receiver balances: {:?}", osmo_receiver_balances);
+        if previous_balance_gaia != hub_receiver_balances
+            && previous_balance_osmosis != osmo_receiver_balances
         {
             break;
         } else {
@@ -1702,22 +1828,22 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             .unwrap();
         }
     }
-    let neutron_receiver_balances = get_balance(neutron_request_builder, ACC2_ADDRESS_NEUTRON);
-    for coin in neutron_receiver_balances {
-        if coin.denom != neutron_denom.clone() {
+    let osmo_receiver_balances = get_balance(osmosis_request_builder, ACC2_ADDRESS_OSMO);
+    for coin in osmo_receiver_balances {
+        if coin.denom != osmo_denom.clone() {
             ibc_send(
-                neutron_request_builder,
+                osmosis_request_builder,
                 ACC_2_KEY,
-                &test_ctx.get_admin_addr().src(GAIA_CHAIN).get(),
+                &neutron_admin_acc,
                 coin,
                 Coin {
-                    denom: neutron_denom.clone(),
+                    denom: osmo_denom.clone(),
                     amount: Uint128::new(5000),
                 },
                 &test_ctx
                     .get_transfer_channels()
-                    .src(NEUTRON_CHAIN)
-                    .dest(GAIA_CHAIN)
+                    .src(OSMOSIS_CHAIN)
+                    .dest(NEUTRON_CHAIN)
                     .get(),
                 None,
             )
@@ -1725,7 +1851,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         }
     }
 
-    info!("Finished two party POL native tests!");
+    info!("Finished two party POL tests!");
 
     Ok(())
 }
