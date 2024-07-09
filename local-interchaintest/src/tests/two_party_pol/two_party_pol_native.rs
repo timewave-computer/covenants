@@ -32,14 +32,14 @@ use valence_covenant_two_party_pol::msg::{CovenantContractCodeIds, CovenantParty
 use valence_two_party_pol_holder::msg::{CovenantType, RagequitConfig, RagequitTerms};
 
 use crate::{
+    helpers::constants::{
+        ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC_1_KEY, ACC_2_KEY,
+        ASTROPORT_PATH, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH,
+    },
     helpers::{
         astroport::{get_lp_token_address, get_lp_token_balance, get_pool_address},
         common::{query_contract_state, tick},
         covenant::Covenant,
-    },
-    utils::constants::{
-        ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC_1_KEY, ACC_2_KEY,
-        ASTROPORT_PATH, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH,
     },
 };
 
@@ -1011,6 +1011,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         .unwrap();
     }
 
+    info!(target: target,"Tick until forwarders create ICA...");
     let party_a_deposit_address;
     let party_b_deposit_address;
     loop {

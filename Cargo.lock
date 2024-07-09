@@ -559,7 +559,7 @@ dependencies = [
  "cw-utils 1.0.3",
  "cw20 0.15.1",
  "neutron-sdk",
- "polytone",
+ "polytone 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "prost 0.11.9",
  "serde-json-wasm 0.4.1",
  "sha2 0.10.8",
@@ -1479,12 +1479,16 @@ dependencies = [
  "localic-std",
  "localic-utils",
  "log",
+ "polytone-note",
+ "polytone-voice",
  "reqwest",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "valence-astroport-liquid-pooler",
  "valence-covenant-two-party-pol",
+ "valence-osmo-liquid-pooler",
+ "valence-outpost-osmo-liquid-pooler",
  "valence-two-party-pol-holder",
 ]
 
@@ -1503,7 +1507,7 @@ dependencies = [
 [[package]]
 name = "localic-utils"
 version = "0.1.0"
-source = "git+https://github.com/timewave-computer/localic-utils?branch=keyne/extend#631ec378b2c10bd2dd0c3da8914062227e0a793d"
+source = "git+https://github.com/timewave-computer/localic-utils?branch=main#c4277a9ffeb3b038c118c92be79d99faa8b63724"
 dependencies = [
  "astroport 5.2.0",
  "cosmwasm-std",
@@ -1835,6 +1839,61 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus 1.2.0",
+ "thiserror",
+]
+
+[[package]]
+name = "polytone"
+version = "1.0.0"
+source = "git+https://github.com/DA0-DA0/polytone?rev=a94feae#a94feae54ee20cb51d8533d79229296e52164859"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 1.2.0",
+ "thiserror",
+]
+
+[[package]]
+name = "polytone-note"
+version = "1.0.0"
+source = "git+https://github.com/DA0-DA0/polytone?rev=a94feae#a94feae54ee20cb51d8533d79229296e52164859"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "polytone 1.0.0 (git+https://github.com/DA0-DA0/polytone?rev=a94feae)",
+ "thiserror",
+]
+
+[[package]]
+name = "polytone-proxy"
+version = "1.0.0"
+source = "git+https://github.com/DA0-DA0/polytone?rev=a94feae#a94feae54ee20cb51d8533d79229296e52164859"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "polytone 1.0.0 (git+https://github.com/DA0-DA0/polytone?rev=a94feae)",
+ "thiserror",
+]
+
+[[package]]
+name = "polytone-voice"
+version = "1.0.0"
+source = "git+https://github.com/DA0-DA0/polytone?rev=a94feae#a94feae54ee20cb51d8533d79229296e52164859"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.3",
+ "cw2 1.1.2",
+ "polytone 1.0.0 (git+https://github.com/DA0-DA0/polytone?rev=a94feae)",
+ "polytone-proxy",
+ "sha2 0.10.8",
  "thiserror",
 ]
 
@@ -3102,7 +3161,7 @@ dependencies = [
  "cw20 0.15.1",
  "neutron-sdk",
  "osmosis-std 0.20.1",
- "polytone",
+ "polytone 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "prost 0.11.9",
  "schemars",
  "serde",
