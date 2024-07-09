@@ -8,8 +8,8 @@ use local_ictest_e2e::tests::two_party_pol::{
 
 use localic_std::polling::poll_for_start;
 use localic_utils::{
-    utils::setup::stride::set_up_host_zone, ConfigChainBuilder, TestContextBuilder,
-    GAIA_CHAIN_NAME, LOCAL_IC_API_URL, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME, STRIDE_CHAIN_NAME,
+    ConfigChainBuilder, TestContextBuilder, GAIA_CHAIN_NAME, LOCAL_IC_API_URL, NEUTRON_CHAIN_NAME,
+    OSMOSIS_CHAIN_NAME, STRIDE_CHAIN_NAME,
 };
 use reqwest::blocking::Client;
 
@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .with_transfer_channels(STRIDE_CHAIN_NAME, NEUTRON_CHAIN_NAME)
         .build()?;
 
-    set_up_host_zone(&mut test_ctx, GAIA_CHAIN_NAME);
+    test_ctx.set_up_stride_host_zone(GAIA_CHAIN_NAME);
 
     test_two_party_pol_native(&mut test_ctx);
     test_two_party_pol(&mut test_ctx);
