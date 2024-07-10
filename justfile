@@ -37,3 +37,10 @@ local-e2e TEST PATTERN='.*':
   cp -R interchaintest/wasms/astroport/*.wasm interchaintest/{{TEST}}/wasms
   cp -R artifacts/*.wasm interchaintest/{{TEST}}/wasms
   cd interchaintest/{{TEST}} && go clean -testcache && go test -timeout 60m -v -run '{{PATTERN}}'
+
+start-local-ic:
+  cd local-interchaintest && local-ic start neutron_gaia_osmosis_stride --api-port 42069
+
+run-e2e: optimize
+  export RUST_LOG=debug
+  cargo run --package local-ictest-e2e --bin local-ictest-e2e
