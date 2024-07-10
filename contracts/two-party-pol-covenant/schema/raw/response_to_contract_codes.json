@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CovenantContractCodes",
+  "type": "object",
+  "required": [
+    "clock",
+    "holder",
+    "liquid_pooler",
+    "party_a_forwarder",
+    "party_a_router",
+    "party_b_forwarder",
+    "party_b_router"
+  ],
+  "properties": {
+    "clock": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "holder": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "liquid_pooler": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "party_a_forwarder": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "party_a_router": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "party_b_forwarder": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "party_b_router": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false
+}

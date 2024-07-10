@@ -1,21 +1,17 @@
 {
   "contract_name": "valence-native-router",
-  "contract_version": "1.0.0",
+  "contract_version": "0.1.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
-      "clock_address",
       "denoms",
+      "op_mode_cfg",
       "receiver_address"
     ],
     "properties": {
-      "clock_address": {
-        "description": "address for the clock. this contract verifies that only the clock can execute ticks",
-        "type": "string"
-      },
       "denoms": {
         "description": "specified denoms to route",
         "type": "array",
@@ -24,12 +20,42 @@
         },
         "uniqueItems": true
       },
+      "op_mode_cfg": {
+        "$ref": "#/definitions/ContractOperationModeConfig"
+      },
       "receiver_address": {
         "description": "receiver address on local chain",
         "type": "string"
       }
     },
-    "additionalProperties": false
+    "additionalProperties": false,
+    "definitions": {
+      "ContractOperationModeConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
   },
   "execute": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -106,13 +132,12 @@
         "additionalProperties": false
       },
       {
-        "description": "Returns the associated clock address authorized to submit ticks",
         "type": "object",
         "required": [
-          "clock_address"
+          "operation_mode"
         ],
         "properties": {
-          "clock_address": {
+          "operation_mode": {
             "type": "object",
             "additionalProperties": false
           }
@@ -134,10 +159,14 @@
           "update_config": {
             "type": "object",
             "properties": {
-              "clock_addr": {
-                "type": [
-                  "string",
-                  "null"
+              "op_mode": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ContractOperationModeConfig"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               },
               "receiver_address": {
@@ -191,16 +220,72 @@
       "Binary": {
         "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
         "type": "string"
+      },
+      "ContractOperationModeConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       }
     }
   },
   "sudo": null,
   "responses": {
-    "clock_address": {
+    "operation_mode": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Addr",
-      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
-      "type": "string"
+      "title": "ContractOperationMode",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "permissionless"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "permissioned"
+          ],
+          "properties": {
+            "permissioned": {
+              "$ref": "#/definitions/PrivilegedAccounts"
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "PrivilegedAccounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Addr"
+          },
+          "uniqueItems": true
+        }
+      }
     },
     "receiver_config": {
       "$schema": "http://json-schema.org/draft-07/schema#",

@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IbcConfig",
+  "type": "object",
+  "required": [
+    "osmo_ibc_timeout",
+    "osmo_to_neutron_channel_id",
+    "party_1_chain_info",
+    "party_2_chain_info"
+  ],
+  "properties": {
+    "osmo_ibc_timeout": {
+      "$ref": "#/definitions/Uint64"
+    },
+    "osmo_to_neutron_channel_id": {
+      "type": "string"
+    },
+    "party_1_chain_info": {
+      "$ref": "#/definitions/PartyChainInfo"
+    },
+    "party_2_chain_info": {
+      "$ref": "#/definitions/PartyChainInfo"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "ForwardMetadata": {
+      "type": "object",
+      "required": [
+        "channel",
+        "port",
+        "receiver"
+      ],
+      "properties": {
+        "channel": {
+          "type": "string"
+        },
+        "port": {
+          "type": "string"
+        },
+        "receiver": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PartyChainInfo": {
+      "type": "object",
+      "required": [
+        "ibc_timeout",
+        "neutron_to_party_chain_channel",
+        "party_chain_to_neutron_channel"
+      ],
+      "properties": {
+        "ibc_timeout": {
+          "$ref": "#/definitions/Uint64"
+        },
+        "inwards_pfm": {
+          "description": "pfm configuration used to route funds from osmosis to local chain via origin chain",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ForwardMetadata"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "neutron_to_party_chain_channel": {
+          "description": "channel id to route funds from local chain to party chain",
+          "type": "string"
+        },
+        "outwards_pfm": {
+          "description": "pfm configuration used to route funds from local chain to osmosis via origin chain",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ForwardMetadata"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "party_chain_to_neutron_channel": {
+          "description": "channel id to route funds from party chain to local chain",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Uint64": {
+      "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+      "type": "string"
+    }
+  }
+}

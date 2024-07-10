@@ -1,6 +1,6 @@
 {
   "contract_name": "valence-covenant-swap",
-  "contract_version": "1.0.0",
+  "contract_version": "0.1.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -10,6 +10,7 @@
       "contract_codes",
       "label",
       "lockup_config",
+      "operation_mode",
       "party_a_config",
       "party_b_config",
       "splits",
@@ -51,6 +52,9 @@
       "lockup_config": {
         "$ref": "#/definitions/Expiration"
       },
+      "operation_mode": {
+        "$ref": "#/definitions/ContractOperationModeConfig"
+      },
       "party_a_config": {
         "$ref": "#/definitions/CovenantPartyConfig"
       },
@@ -83,6 +87,31 @@
             "type": "string"
           }
         }
+      },
+      "ContractOperationModeConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "CovenantPartyConfig": {
         "oneOf": [
@@ -652,6 +681,31 @@
         "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
         "type": "string"
       },
+      "ContractOperationModeConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "CovenantContractCodes": {
         "type": "object",
         "required": [
@@ -999,12 +1053,6 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
                   "covenant_terms": {
                     "anyOf": [
                       {
@@ -1031,7 +1079,17 @@
                       "null"
                     ]
                   },
-                  "parites_config": {
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "parties_config": {
                     "anyOf": [
                       {
                         "$ref": "#/definitions/CovenantPartiesConfig"
@@ -1095,16 +1153,20 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
                   "fallback_split": {
                     "anyOf": [
                       {
                         "$ref": "#/definitions/SplitConfig"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
                       },
                       {
                         "type": "null"
@@ -1164,16 +1226,20 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
                   "destination_config": {
                     "anyOf": [
                       {
                         "$ref": "#/definitions/DestinationConfig"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
                       },
                       {
                         "type": "null"
@@ -1233,10 +1299,14 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
-                    "type": [
-                      "string",
-                      "null"
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   },
                   "receiver_address": {
@@ -1298,12 +1368,6 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
                   "fallback_address": {
                     "anyOf": [
                       {
@@ -1318,6 +1382,16 @@
                     "type": [
                       "string",
                       "null"
+                    ]
+                  },
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   },
                   "remote_chain_info": {

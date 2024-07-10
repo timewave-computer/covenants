@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "InstantiateMsg",
+  "type": "object",
+  "required": [
+    "denoms",
+    "op_mode_cfg",
+    "receiver_address"
+  ],
+  "properties": {
+    "denoms": {
+      "description": "specified denoms to route",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "op_mode_cfg": {
+      "$ref": "#/definitions/ContractOperationModeConfig"
+    },
+    "receiver_address": {
+      "description": "receiver address on local chain",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "ContractOperationModeConfig": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "permissionless"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "permissioned"
+          ],
+          "properties": {
+            "permissioned": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}
