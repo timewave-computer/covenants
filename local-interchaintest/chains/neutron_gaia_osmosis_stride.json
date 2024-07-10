@@ -247,14 +247,13 @@
       "binary": "osmosisd",
       "bech32_prefix": "osmo",
       "docker_image": {
-        "version": "v25.0.4",
+        "version": "v21.0.0",
         "repository": "ghcr.io/strangelove-ventures/heighliner/osmosis"
       },
-      "gas_prices": "0.0025%DENOM%",
       "chain_type": "cosmos",
       "coin_type": 118,
       "trusting_period": "336h",
-      "gas_adjustment": 2,
+      "gas_adjustment": 3.0,
       "number_vals": 1,
       "number_node": 0,
       "ibc_paths": ["neutron-osmosis", "osmosis-gaia"],
@@ -273,6 +272,22 @@
           {
             "key": "app_state.gov.params.min_deposit.0.denom",
             "value": "uosmo"
+          },
+          {
+            "key": "app_state.interchainaccounts.host_genesis_state.params.allow_messages",
+            "value": [
+              "/cosmos.bank.v1beta1.MsgSend",
+              "/cosmos.bank.v1beta1.MsgMultiSend",
+              "/cosmos.staking.v1beta1.MsgDelegate",
+              "/cosmos.staking.v1beta1.MsgUndelegate",
+              "/cosmos.staking.v1beta1.MsgBeginRedelegate",
+              "/cosmos.staking.v1beta1.MsgRedeemTokensforShares",
+              "/cosmos.staking.v1beta1.MsgTokenizeShares",
+              "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+              "/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+              "/ibc.applications.transfer.v1.MsgTransfer",
+              "/ibc.applications.interchain_accounts.v1.InterchainAccount"
+            ]
           }
         ],
         "accounts": [
