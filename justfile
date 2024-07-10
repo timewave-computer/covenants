@@ -9,9 +9,14 @@ lint:
 
 schema:
   #!/usr/bin/env sh
-  ./schemagen.sh
+  for dir in contracts/*; do
+    if [ -d "$dir" ]; then
+      echo "Generating schema for $dir"
+      (cd "$dir" && cargo schema)
+    fi
+  done
 
-optimize:
+optimize: build
   #!/usr/bin/env sh
   ./optimize.sh
   if [[ $(uname -m) =~ "arm64" ]]; then
