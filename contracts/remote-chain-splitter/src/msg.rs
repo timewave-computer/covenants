@@ -7,10 +7,8 @@ use covenant_macros::{
 };
 
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    neutron::RemoteChainInfo,
-    op_mode::{ContractOperationMode, ContractOperationModeConfig},
-    split::SplitConfig,
+    instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo,
+    op_mode::ContractOperationModeConfig, split::SplitConfig,
 };
 
 #[cw_serde]
@@ -82,7 +80,7 @@ pub enum QueryMsg {
     TransferAmount {},
     #[returns(Option<String>)]
     FallbackAddress {},
-    #[returns(ContractOperationMode)]
+    #[returns(covenant_utils::op_mode::ContractOperationMode)]
     OperationMode {},
 }
 

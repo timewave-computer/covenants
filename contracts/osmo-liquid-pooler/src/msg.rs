@@ -2,13 +2,12 @@ use std::collections::HashMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    to_json_binary, Addr, Attribute, Binary, Coin, CosmosMsg, Decimal, StdResult, Uint128, Uint64,
+    to_json_binary, Attribute, Binary, Coin, CosmosMsg, Decimal, StdResult, Uint128, Uint64,
     WasmMsg,
 };
 use covenant_macros::{clocked, covenant_deposit_address, covenant_lper_withdraw};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    instantiate2_helper::Instantiate2HelperConfig, op_mode::ContractOperationModeConfig,
     ForwardMetadata, PoolPriceConfig, SingleSideLpLimits,
 };
 use cw_utils::{Duration, Expiration};
@@ -295,7 +294,7 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(ContractState)]
     ContractState {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     HolderAddress {},
     #[returns(LiquidityProvisionConfig)]
     LiquidityProvisionConfig {},
@@ -305,7 +304,7 @@ pub enum QueryMsg {
     ProxyAddress {},
     #[returns(Vec<String>)]
     Callbacks {},
-    #[returns(ContractOperationMode)]
+    #[returns(covenant_utils::op_mode::ContractOperationMode)]
     OperationMode {},
 }
 

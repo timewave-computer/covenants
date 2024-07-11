@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Decimal, StdResult, Uint128, Uint64, WasmMsg};
+use cosmwasm_std::{Binary, Decimal, StdResult, Uint128, Uint64, WasmMsg};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, op_mode::ContractOperationModeConfig,
     CovenantParty, DestinationConfig, InterchainCovenantParty, NativeCovenantParty,
@@ -168,21 +168,21 @@ impl Default for Timeouts {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     ClockAddress {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     HolderAddress {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     IbcForwarderAddress { ty: String },
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     LiquidPoolerAddress {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     LiquidStakerAddress {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     SplitterAddress {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     PartyDepositAddress {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     InterchainRouterAddress {},
     #[returns(CovenantContractCodeIds)]
     ContractCodes {},

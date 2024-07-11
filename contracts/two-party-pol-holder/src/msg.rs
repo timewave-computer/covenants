@@ -2,8 +2,8 @@ use std::{collections::BTreeMap, fmt};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
-    ensure, to_json_binary, Addr, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut,
-    StdError, StdResult, SubMsg, WasmMsg,
+    ensure, to_json_binary, Api, Attribute, Binary, Coin, CosmosMsg, Decimal, DepsMut, StdError,
+    StdResult, SubMsg, WasmMsg,
 };
 use covenant_macros::{
     clocked, covenant_deposit_address, covenant_holder_distribute,
@@ -471,9 +471,9 @@ pub enum QueryMsg {
     Config {},
     #[returns(DenomSplits)]
     DenomSplits {},
-    #[returns(Option<Addr>)]
+    #[returns(Option<cosmwasm_std::Addr>)]
     EmergencyCommittee {},
-    #[returns(ContractOperationMode)]
+    #[returns(covenant_utils::op_mode::ContractOperationMode)]
     OperationMode {},
 }
 

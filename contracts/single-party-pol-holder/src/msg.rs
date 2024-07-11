@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{to_json_binary, Addr, Binary, StdResult, WasmMsg};
+use cosmwasm_std::{to_json_binary, Binary, StdResult, WasmMsg};
 use covenant_macros::{covenant_holder_distribute, covenant_holder_emergency_withdraw};
 use covenant_utils::instantiate2_helper::Instantiate2HelperConfig;
 use cw_utils::Expiration;
@@ -49,14 +49,14 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 pub enum QueryMsg {
     // Queries the withdrawer address
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     Withdrawer {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     WithdrawTo {},
     // Queries the pooler address
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     PoolerAddress {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     EmergencyCommitteeAddr {},
     #[returns(Expiration)]
     LockupConfig {},
