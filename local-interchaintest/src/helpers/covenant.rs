@@ -5,18 +5,26 @@ pub enum Covenant<'a> {
         rb: &'a ChainRequestBuilder,
         contract_address: &'a str,
     },
+    Swap {
+        rb: &'a ChainRequestBuilder,
+        contract_address: &'a str,
+    },
 }
 
 impl<'a> Covenant<'a> {
     fn get_rb(&self) -> &ChainRequestBuilder {
         match self {
             Covenant::TwoPartyPol { rb, .. } => rb,
+            Covenant::Swap { rb, .. } => rb,
         }
     }
 
     fn get_contract_address(&self) -> &str {
         match self {
             Covenant::TwoPartyPol {
+                contract_address, ..
+            } => contract_address,
+            Covenant::Swap {
                 contract_address, ..
             } => contract_address,
         }
@@ -32,61 +40,101 @@ impl<'a> Covenant<'a> {
 
     pub fn query_clock_address(&self) -> String {
         let query_msg = match self {
-            Covenant::TwoPartyPol { .. } => {
-                &valence_covenant_two_party_pol::msg::QueryMsg::ClockAddress {}
+            Covenant::TwoPartyPol { .. } => &serde_json::to_string(
+                &valence_covenant_two_party_pol::msg::QueryMsg::ClockAddress {},
+            )
+            .unwrap(),
+            Covenant::Swap { .. } => {
+                &serde_json::to_string(&valence_covenant_swap::msg::QueryMsg::ClockAddress {})
+                    .unwrap()
             }
         };
 
-        self.query(&serde_json::to_string(query_msg).unwrap())
+        self.query(query_msg)
     }
 
     pub fn query_holder_address(&self) -> String {
         let query_msg = match self {
-            Covenant::TwoPartyPol { .. } => {
-                &valence_covenant_two_party_pol::msg::QueryMsg::HolderAddress {}
+            Covenant::TwoPartyPol { .. } => &serde_json::to_string(
+                &valence_covenant_two_party_pol::msg::QueryMsg::HolderAddress {},
+            )
+            .unwrap(),
+            Covenant::Swap { .. } => {
+                &serde_json::to_string(&valence_covenant_swap::msg::QueryMsg::HolderAddress {})
+                    .unwrap()
             }
         };
 
-        self.query(&serde_json::to_string(query_msg).unwrap())
+        self.query(query_msg)
     }
 
     pub fn query_liquid_pooler_address(&self) -> String {
         let query_msg = match self {
-            Covenant::TwoPartyPol { .. } => {
-                &valence_covenant_two_party_pol::msg::QueryMsg::LiquidPoolerAddress {}
+            Covenant::TwoPartyPol { .. } => &serde_json::to_string(
+                &valence_covenant_two_party_pol::msg::QueryMsg::LiquidPoolerAddress {},
+            )
+            .unwrap(),
+            Covenant::Swap { .. } => return String::new(),
+        };
+
+        self.query(query_msg)
+    }
+
+    pub fn query_splitter_address(&self) -> String {
+        let query_msg = match self {
+            Covenant::TwoPartyPol { .. } => return String::new(),
+            Covenant::Swap { .. } => {
+                &serde_json::to_string(&valence_covenant_swap::msg::QueryMsg::SplitterAddress {})
+                    .unwrap()
             }
         };
 
-        self.query(&serde_json::to_string(query_msg).unwrap())
+        self.query(query_msg)
     }
 
     pub fn query_interchain_router_address(&self, party: String) -> String {
         let query_msg = match self {
-            Covenant::TwoPartyPol { .. } => {
-                &valence_covenant_two_party_pol::msg::QueryMsg::InterchainRouterAddress { party }
-            }
+            Covenant::TwoPartyPol { .. } => &serde_json::to_string(
+                &valence_covenant_two_party_pol::msg::QueryMsg::InterchainRouterAddress { party },
+            )
+            .unwrap(),
+            Covenant::Swap { .. } => &serde_json::to_string(
+                &valence_covenant_swap::msg::QueryMsg::InterchainRouterAddress { party },
+            )
+            .unwrap(),
         };
 
-        self.query(&serde_json::to_string(query_msg).unwrap())
+        self.query(query_msg)
     }
 
     pub fn query_ibc_forwarder_address(&self, party: String) -> String {
-        let query_msg = match self {
-            Covenant::TwoPartyPol { .. } => {
-                &valence_covenant_two_party_pol::msg::QueryMsg::IbcForwarderAddress { party }
-            }
-        };
+        let query_msg =
+            match self {
+                Covenant::TwoPartyPol { .. } => &serde_json::to_string(
+                    &valence_covenant_two_party_pol::msg::QueryMsg::IbcForwarderAddress { party },
+                )
+                .unwrap(),
+                Covenant::Swap { .. } => &serde_json::to_string(
+                    &valence_covenant_swap::msg::QueryMsg::IbcForwarderAddress { party },
+                )
+                .unwrap(),
+            };
 
-        self.query(&serde_json::to_string(query_msg).unwrap())
+        self.query(query_msg)
     }
 
     pub fn query_deposit_address(&self, party: String) -> String {
-        let query_msg = match self {
-            Covenant::TwoPartyPol { .. } => {
-                &valence_covenant_two_party_pol::msg::QueryMsg::PartyDepositAddress { party }
-            }
-        };
-
-        self.query(&serde_json::to_string(query_msg).unwrap())
+        let query_msg =
+            match self {
+                Covenant::TwoPartyPol { .. } => &serde_json::to_string(
+                    &valence_covenant_two_party_pol::msg::QueryMsg::PartyDepositAddress { party },
+                )
+                .unwrap(),
+                Covenant::Swap { .. } => &serde_json::to_string(
+                    &valence_covenant_swap::msg::QueryMsg::PartyDepositAddress { party },
+                )
+                .unwrap(),
+            };
+        self.query(query_msg)
     }
 }
