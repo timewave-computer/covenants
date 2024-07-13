@@ -1,5 +1,4 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Uint64;
 
 #[cw_serde]
 pub enum Mode {
@@ -24,6 +23,6 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     /// Gets the number of times the clock has received a tick and not
     /// errored in response.
-    #[returns(Uint64)]
+    #[returns(cosmwasm_std::Uint64)]
     TickCount {},
 }

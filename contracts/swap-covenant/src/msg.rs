@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Binary, Coin, StdResult, Uint64, WasmMsg};
+use cosmwasm_std::{Binary, Coin, StdResult, Uint64, WasmMsg};
 use covenant_utils::{
     instantiate2_helper::Instantiate2HelperConfig, op_mode::ContractOperationModeConfig,
     split::SplitConfig, CovenantParty, DestinationConfig, InterchainCovenantParty,
@@ -180,17 +180,17 @@ pub enum ExecuteMsg {}
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     ClockAddress {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     HolderAddress {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     SplitterAddress {},
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     InterchainRouterAddress { party: String },
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     IbcForwarderAddress { party: String },
-    #[returns(Addr)]
+    #[returns(cosmwasm_std::Addr)]
     PartyDepositAddress { party: String },
     #[returns(CovenantContractCodes)]
     ContractCodes {},

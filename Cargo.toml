@@ -5,6 +5,7 @@ members = [
   "unit-tests/",
   "local-interchaintest",
 ]
+default-members = ["contracts/*"]
 resolver = "2"
 
 [workspace.package]
@@ -13,13 +14,6 @@ license    = "Apache-2.0"
 version    = "0.1.0"
 repository = "https://github.com/timewave-computer/covenants"
 # rust-version = "1.71.0"
-
-[workspace.metadata.scripts]
-optimize = """docker run --rm -v "$(pwd)":/code \
-  --mount type=volume,source="$(basename "$(pwd)")_cache",target=/target \
-  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-  cosmwasm/optimizer:0.15.1
-"""
 
 [profile.release]
 codegen-units    = 1
@@ -103,5 +97,5 @@ astroport-factory              = { git = "https://github.com/astroport-fi/astrop
 astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-pair-concentrated    = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
-astroport-pair             = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
-unit-tests = { path = "unit-tests" }
+astroport-pair                 = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+unit-tests                     = { path = "unit-tests" }

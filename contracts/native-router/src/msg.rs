@@ -4,9 +4,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{to_json_binary, Binary, StdResult, WasmMsg};
 use covenant_macros::clocked;
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    op_mode::{ContractOperationMode, ContractOperationModeConfig},
-    ReceiverConfig,
+    instantiate2_helper::Instantiate2HelperConfig, op_mode::ContractOperationModeConfig,
 };
 
 #[cw_serde]
@@ -49,11 +47,11 @@ pub enum ExecuteMsg {
 #[derive(QueryResponses)]
 #[cw_serde]
 pub enum QueryMsg {
-    #[returns(ReceiverConfig)]
+    #[returns(covenant_utils::ReceiverConfig)]
     ReceiverConfig {},
     #[returns(BTreeSet<String>)]
     TargetDenoms {},
-    #[returns(ContractOperationMode)]
+    #[returns(covenant_utils::op_mode::ContractOperationMode)]
     OperationMode {},
 }
 

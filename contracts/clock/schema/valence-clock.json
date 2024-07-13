@@ -1,15 +1,23 @@
 {
   "contract_name": "valence-clock",
-  "contract_version": "1.0.0",
+  "contract_version": "0.1.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
+      "initial_queue",
       "whitelist"
     ],
     "properties": {
+      "initial_queue": {
+        "description": "Initial list of contracts to be enqueued (so they don't need to call `Enqueue` themselves)",
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
       "tick_max_gas": {
         "description": "The max gas that may be used by a tick receiver. If more than this amount of gas is used, the tick will be treated as if it errored, and it will be sent to the back of the queue.\n\nAt the most, this should be no larger than 100_000 gas less the chain's block max gas. This overhead is needed so the clock always has enough gas after executing the tick to handle its failure.\n\nThis value may be updated later by the contract admin.",
         "anyOf": [

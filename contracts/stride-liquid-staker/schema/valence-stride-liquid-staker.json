@@ -1,25 +1,21 @@
 {
   "contract_name": "valence-stride-liquid-staker",
-  "contract_version": "1.0.0",
+  "contract_version": "0.1.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
-      "clock_address",
       "ibc_transfer_timeout",
       "ica_timeout",
       "ls_denom",
       "neutron_stride_ibc_connection_id",
       "next_contract",
+      "op_mode_cfg",
       "stride_neutron_ibc_transfer_channel_id"
     ],
     "properties": {
-      "clock_address": {
-        "description": "Address for the clock. This contract verifies that only the clock can execute Ticks",
-        "type": "string"
-      },
       "ibc_transfer_timeout": {
         "description": "Timeout in seconds. This is used to craft a timeout timestamp that will be attached to the IBC transfer message from the ICA on the host chain (Stride) to its destination. Typically this timeout should be greater than the ICA timeout, otherwise if the ICA times out, the destination chain receiving the funds will also receive the IBC packet with an expired timestamp.",
         "allOf": [
@@ -48,6 +44,9 @@
         "description": "Address of the next contract to query for the deposit address",
         "type": "string"
       },
+      "op_mode_cfg": {
+        "$ref": "#/definitions/ContractOperationModeConfig"
+      },
       "stride_neutron_ibc_transfer_channel_id": {
         "description": "IBC transfer channel on Stride for Neutron This is used to IBC transfer stuatom on Stride to the LP contract",
         "type": "string"
@@ -55,6 +54,31 @@
     },
     "additionalProperties": false,
     "definitions": {
+      "ContractOperationModeConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "Uint64": {
         "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
         "type": "string"
@@ -140,13 +164,12 @@
         "additionalProperties": false
       },
       {
-        "description": "Returns the associated clock address authorized to submit ticks",
         "type": "object",
         "required": [
-          "clock_address"
+          "operation_mode"
         ],
         "properties": {
-          "clock_address": {
+          "operation_mode": {
             "type": "object",
             "additionalProperties": false
           }
@@ -210,16 +233,20 @@
           "update_config": {
             "type": "object",
             "properties": {
-              "clock_addr": {
+              "next_contract": {
                 "type": [
                   "string",
                   "null"
                 ]
               },
-              "next_contract": {
-                "type": [
-                  "string",
-                  "null"
+              "op_mode": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ContractOperationModeConfig"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               },
               "remote_chain_info": {
@@ -269,6 +296,31 @@
         "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
         "type": "string"
       },
+      "ContractOperationModeConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "RemoteChainInfo": {
         "type": "object",
         "required": [
@@ -306,12 +358,6 @@
   },
   "sudo": null,
   "responses": {
-    "clock_address": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Addr",
-      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
-      "type": "string"
-    },
     "contract_state": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ContractState",
@@ -341,6 +387,43 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "String",
       "type": "string"
+    },
+    "operation_mode": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ContractOperationMode",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "permissionless"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "permissioned"
+          ],
+          "properties": {
+            "permissioned": {
+              "$ref": "#/definitions/PrivilegedAccounts"
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "PrivilegedAccounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Addr"
+          },
+          "uniqueItems": true
+        }
+      }
     },
     "remote_chain_info": {
       "$schema": "http://json-schema.org/draft-07/schema#",

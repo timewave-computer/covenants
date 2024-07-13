@@ -4,9 +4,8 @@ use covenant_macros::{
     clocked, covenant_deposit_address, covenant_ica_address, covenant_remote_chain,
 };
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    neutron::RemoteChainInfo,
-    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    instantiate2_helper::Instantiate2HelperConfig, neutron::RemoteChainInfo,
+    op_mode::ContractOperationModeConfig,
 };
 
 #[cw_serde]
@@ -80,7 +79,7 @@ pub enum QueryMsg {
     ContractState {},
     #[returns(String)]
     NextMemo {},
-    #[returns(ContractOperationMode)]
+    #[returns(covenant_utils::op_mode::ContractOperationMode)]
     OperationMode {},
 }
 

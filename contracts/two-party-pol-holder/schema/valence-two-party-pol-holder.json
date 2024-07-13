@@ -1,25 +1,21 @@
 {
   "contract_name": "valence-two-party-pol-holder",
-  "contract_version": "1.0.0",
+  "contract_version": "0.1.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
-      "clock_address",
       "covenant_config",
       "deposit_deadline",
       "lockup_config",
       "next_contract",
+      "op_mode_cfg",
       "ragequit_config",
       "splits"
     ],
     "properties": {
-      "clock_address": {
-        "description": "address of authorized clock",
-        "type": "string"
-      },
       "covenant_config": {
         "description": "config describing the covenant dynamics",
         "allOf": [
@@ -66,6 +62,9 @@
         "description": "liquid pooler address",
         "type": "string"
       },
+      "op_mode_cfg": {
+        "$ref": "#/definitions/ContractOperationModeConfig"
+      },
       "ragequit_config": {
         "description": "config describing early exit dynamics",
         "allOf": [
@@ -98,6 +97,31 @@
             "type": "string"
           }
         }
+      },
+      "ContractOperationModeConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "CovenantType": {
         "type": "string",
@@ -560,13 +584,12 @@
         "additionalProperties": false
       },
       {
-        "description": "Returns the associated clock address authorized to submit ticks",
         "type": "object",
         "required": [
-          "clock_address"
+          "operation_mode"
         ],
         "properties": {
-          "clock_address": {
+          "operation_mode": {
             "type": "object",
             "additionalProperties": false
           }
@@ -616,12 +639,6 @@
           "update_config": {
             "type": "object",
             "properties": {
-              "clock_addr": {
-                "type": [
-                  "string",
-                  "null"
-                ]
-              },
               "covenant_config": {
                 "anyOf": [
                   {
@@ -681,6 +698,16 @@
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "op_mode": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ContractOperationModeConfig"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               },
               "ragequit_config": {
@@ -744,6 +771,31 @@
             "type": "string"
           }
         }
+      },
+      "ContractOperationModeConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "CovenantType": {
         "type": "string",
@@ -971,12 +1023,6 @@
   },
   "sudo": null,
   "responses": {
-    "clock_address": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Addr",
-      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
-      "type": "string"
-    },
     "config": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "TwoPartyPolCovenantConfig",
@@ -1371,9 +1417,21 @@
     },
     "emergency_committee": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Addr",
-      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
-      "type": "string"
+      "title": "Nullable_Addr",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        }
+      }
     },
     "lockup_config": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1445,6 +1503,43 @@
         "string",
         "null"
       ]
+    },
+    "operation_mode": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ContractOperationMode",
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "permissionless"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "permissioned"
+          ],
+          "properties": {
+            "permissioned": {
+              "$ref": "#/definitions/PrivilegedAccounts"
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "PrivilegedAccounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Addr"
+          },
+          "uniqueItems": true
+        }
+      }
     },
     "ragequit_config": {
       "$schema": "http://json-schema.org/draft-07/schema#",

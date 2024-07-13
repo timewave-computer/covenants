@@ -8,8 +8,7 @@ use cosmwasm_std::{
 };
 use covenant_macros::{clocked, covenant_deposit_address, covenant_lper_withdraw};
 use covenant_utils::{
-    instantiate2_helper::Instantiate2HelperConfig,
-    op_mode::{ContractOperationMode, ContractOperationModeConfig},
+    instantiate2_helper::Instantiate2HelperConfig, op_mode::ContractOperationModeConfig,
     PoolPriceConfig, SingleSideLpLimits,
 };
 
@@ -204,7 +203,7 @@ pub enum QueryMsg {
     LpConfig {},
     #[returns(ProvidedLiquidityInfo)]
     ProvidedLiquidityInfo {},
-    #[returns(ContractOperationMode)]
+    #[returns(covenant_utils::op_mode::ContractOperationMode)]
     OperationMode {},
 }
 

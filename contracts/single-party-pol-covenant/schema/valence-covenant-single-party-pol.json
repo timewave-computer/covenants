@@ -1,6 +1,6 @@
 {
   "contract_name": "valence-covenant-single-party-pol",
-  "contract_version": "1.0.0",
+  "contract_version": "0.1.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -15,6 +15,7 @@
       "lp_forwarder_config",
       "ls_forwarder_config",
       "ls_info",
+      "operation_mode",
       "pool_price_config",
       "remote_chain_splitter_config",
       "timeouts"
@@ -59,6 +60,9 @@
       },
       "ls_info": {
         "$ref": "#/definitions/LsInfo"
+      },
+      "operation_mode": {
+        "$ref": "#/definitions/ContractOperationModeConfig"
       },
       "pool_price_config": {
         "$ref": "#/definitions/PoolPriceConfig"
@@ -114,6 +118,31 @@
             "type": "string"
           }
         }
+      },
+      "ContractOperationModeConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "CovenantContractCodeIds": {
         "type": "object",
@@ -1070,6 +1099,31 @@
           }
         }
       },
+      "ContractOperationModeConfig": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "permissionless"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "permissioned"
+            ],
+            "properties": {
+              "permissioned": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "CovenantContractCodeIds": {
         "type": "object",
         "required": [
@@ -1708,12 +1762,6 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
                   "fallback_address": {
                     "anyOf": [
                       {
@@ -1728,6 +1776,16 @@
                     "type": [
                       "string",
                       "null"
+                    ]
+                  },
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   },
                   "remote_chain_info": {
@@ -1794,16 +1852,20 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
                   "fallback_address": {
                     "anyOf": [
                       {
                         "$ref": "#/definitions/FallbackAddressUpdateConfig2"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
                       },
                       {
                         "type": "null"
@@ -1873,12 +1935,6 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
                   "holder_address": {
                     "type": [
                       "string",
@@ -1909,6 +1965,16 @@
                     "type": [
                       "string",
                       "null"
+                    ]
+                  },
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   }
                 },
@@ -1955,12 +2021,6 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
                   "holder_address": {
                     "type": [
                       "string",
@@ -1971,6 +2031,16 @@
                     "anyOf": [
                       {
                         "$ref": "#/definitions/LpConfig"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
                       },
                       {
                         "type": "null"
@@ -2021,16 +2091,20 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
+                  "next_contract": {
                     "type": [
                       "string",
                       "null"
                     ]
                   },
-                  "next_contract": {
-                    "type": [
-                      "string",
-                      "null"
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
+                      },
+                      {
+                        "type": "null"
+                      }
                     ]
                   },
                   "remote_chain_info": {
@@ -2087,16 +2161,20 @@
               "update_config": {
                 "type": "object",
                 "properties": {
-                  "clock_addr": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
                   "destination_config": {
                     "anyOf": [
                       {
                         "$ref": "#/definitions/DestinationConfig"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "op_mode": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ContractOperationModeConfig"
                       },
                       {
                         "type": "null"

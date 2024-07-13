@@ -1,5 +1,4 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Addr;
 
 use cosmwasm_std::to_json_binary;
 use cosmwasm_std::Binary;
@@ -73,7 +72,7 @@ pub enum QueryMsg {
     /// elements in asending order by address in the form (address,
     /// timestamp) where timestamp is the nanosecond unix timestamp at
     /// which address was added to the queue.
-    #[returns(Vec<(Addr, u64)>)]
+    #[returns(Vec<(cosmwasm_std::Addr, u64)>)]
     Queue {
         start_after: Option<String>,
         limit: Option<u32>,
@@ -87,7 +86,7 @@ pub enum QueryMsg {
     Paused {},
 
     /// Queries if the contract is paused.
-    #[returns(Vec<Addr>)]
+    #[returns(Vec<cosmwasm_std::Addr>)]
     Whitelist {},
 }
 
