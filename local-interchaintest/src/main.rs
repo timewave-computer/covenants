@@ -4,6 +4,7 @@ use std::error::Error;
 
 use local_ictest_e2e::tests::{
     single_party_pol::single_party_pol_stride::test_single_party_pol_stride,
+    swap::token_swap::test_token_swap,
     two_party_pol::{
         two_party_pol_native::test_two_party_pol_native,
         two_party_pol_not_native::test_two_party_pol, two_party_pol_osmo::test_two_party_pol_osmo,
@@ -40,6 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     test_ctx.set_up_stride_host_zone(GAIA_CHAIN_NAME);
 
     test_single_party_pol_stride(&mut test_ctx);
+    test_token_swap(&mut test_ctx);
     test_two_party_pol_osmo(&mut test_ctx);
     test_two_party_pol_native(&mut test_ctx);
     test_two_party_pol(&mut test_ctx);

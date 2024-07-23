@@ -22,6 +22,7 @@ polytone-voice = { git = "https://github.com/DA0-DA0/polytone", rev = "a94feae" 
 cw-utils = { workspace = true }
 valence-covenant-two-party-pol = { workspace = true }
 valence-covenant-single-party-pol = { workspace = true }
+valence-covenant-swap = { workspace = true }
 valence-two-party-pol-holder = { workspace = true }
 valence-single-party-pol-holder = { workspace = true }
 valence-astroport-liquid-pooler = { workspace = true }
