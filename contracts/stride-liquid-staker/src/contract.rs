@@ -240,19 +240,7 @@ pub fn query(deps: QueryDeps, env: Env, msg: QueryMsg) -> NeutronResult<Binary> 
             )?
             .0;
 
-            let autopilot = Autopilot {
-                autopilot: AutopilotConfig {
-                    receiver: ica.to_string(),
-                    stakeibc: crate::helpers::Stakeibc {
-                        action: "LiquidStake".to_string(),
-                        stride_address: ica,
-                    },
-                },
-            };
-
-            let autopilot_str = to_json_string(&autopilot)?;
-
-            Ok(to_json_binary(&autopilot_str)?)
+            Ok(to_json_binary(&ica)?)
         }
         QueryMsg::RemoteChainInfo {} => {
             Ok(to_json_binary(&REMOTE_CHAIN_INFO.may_load(deps.storage)?)?)

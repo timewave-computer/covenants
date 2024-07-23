@@ -21,13 +21,16 @@ use localic_utils::{
 use log::info;
 use valence_covenant_swap::msg::{CovenantPartyConfig, SwapCovenantContractCodeIds, Timeouts};
 
-use crate::helpers::{
-    common::{query_contract_state, tick},
-    constants::{
-        ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC_1_KEY, ACC_2_KEY,
-        LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH,
+use crate::{
+    helpers::{
+        common::{query_contract_state, tick},
+        constants::{
+            ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC_1_KEY, ACC_2_KEY,
+            LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH,
+        },
+        covenant::Covenant,
     },
-    covenant::Covenant,
+    send_non_native_balances,
 };
 
 pub fn test_token_swap(test_ctx: &mut TestContext) -> Result<(), LocalError> {
@@ -434,43 +437,23 @@ pub fn test_token_swap(test_ctx: &mut TestContext) -> Result<(), LocalError> {
     }
 
     // Send the balances back so we have a fresh start for the next test
-    let hub_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN_NAME),
+    send_non_native_balances(
+        test_ctx,
+        GAIA_CHAIN_NAME,
+        ACC_1_KEY,
         ACC1_ADDRESS_GAIA,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &atom_denom,
     );
-    for coin in hub_receiver_balances {
-        if coin.denom != atom_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(GAIA_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(NEUTRON_CHAIN_ADMIN_ADDR)
-                .with_denom(&coin.denom)
-                .with_key(ACC_1_KEY)
-                .send()
-                .unwrap();
-        }
-    }
-    let neutron_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
+
+    send_non_native_balances(
+        test_ctx,
+        NEUTRON_CHAIN_NAME,
+        ACC_2_KEY,
         ACC2_ADDRESS_NEUTRON,
+        GAIA_CHAIN_ADMIN_ADDR,
+        &neutron_denom,
     );
-    for coin in neutron_receiver_balances {
-        if coin.denom != neutron_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_amount(coin.amount.u128())
-                .with_recipient(GAIA_CHAIN_ADMIN_ADDR)
-                .with_denom(&coin.denom)
-                .with_key(ACC_2_KEY)
-                .send()
-                .unwrap();
-        }
-    }
 
     info!("Finished swap covenant test!");
 
