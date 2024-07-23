@@ -27,14 +27,17 @@ use valence_covenant_single_party_pol::msg::{
     RemoteChainSplitterConfig, Timeouts,
 };
 
-use crate::helpers::{
-    astroport::{get_lp_token_address, get_lp_token_balance, get_pool_address},
-    common::{query_contract_state, tick},
-    constants::{
-        ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC_1_KEY, ASTROPORT_PATH,
-        EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH,
+use crate::{
+    helpers::{
+        astroport::{get_lp_token_address, get_lp_token_balance, get_pool_address},
+        common::{query_contract_state, tick},
+        constants::{
+            ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC_1_KEY,
+            ASTROPORT_PATH, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH,
+        },
+        covenant::Covenant,
     },
-    covenant::Covenant,
+    send_non_native_balances,
 };
 
 const NATIVE_STATOM_DENOM: &str = "stuatom";
@@ -985,25 +988,14 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
     }
 
     // Send the balances back so we have a fresh start for the next test
-    let hub_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN_NAME),
+    send_non_native_balances(
+        test_ctx,
+        GAIA_CHAIN_NAME,
+        ACC_1_KEY,
         ACC1_ADDRESS_GAIA,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &atom_denom,
     );
-    for coin in hub_receiver_balances {
-        if coin.denom != atom_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(GAIA_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(NEUTRON_CHAIN_ADMIN_ADDR)
-                .with_denom(&coin.denom)
-                .with_key(ACC_1_KEY)
-                .send()
-                .unwrap();
-        }
-    }
 
     info!("Finished single party POL stride tests!");
 

@@ -25,7 +25,7 @@ use localic_std::{
 };
 use localic_utils::{
     types::ibc::get_multihop_ibc_denom, utils::test_context::TestContext, DEFAULT_KEY,
-    GAIA_CHAIN_NAME, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME,
+    GAIA_CHAIN_NAME, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME,
 };
 use log::info;
 use valence_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
@@ -33,16 +33,17 @@ use valence_covenant_two_party_pol::msg::{CovenantContractCodeIds, CovenantParty
 use valence_two_party_pol_holder::msg::{CovenantType, RagequitConfig, RagequitTerms};
 
 use crate::{
-    helpers::constants::{
-        ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC2_ADDRESS_OSMO,
-        ACC_1_KEY, ACC_2_KEY, ASTROPORT_PATH, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH,
-        VALENCE_PATH,
-    },
     helpers::{
         astroport::{get_lp_token_address, get_lp_token_balance, get_pool_address},
         common::{query_contract_state, tick},
+        constants::{
+            ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC2_ADDRESS_OSMO,
+            ACC_1_KEY, ACC_2_KEY, ASTROPORT_PATH, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH,
+            VALENCE_PATH,
+        },
         covenant::Covenant,
     },
+    send_non_native_balances,
 };
 
 pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> {
@@ -836,44 +837,23 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
     }
 
     // Send the balances back so we have a fresh start for the next test
-    let hub_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN_NAME),
+    send_non_native_balances(
+        test_ctx,
+        GAIA_CHAIN_NAME,
+        ACC_1_KEY,
         ACC1_ADDRESS_GAIA,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &atom_denom,
     );
-    for coin in hub_receiver_balances {
-        if coin.denom != atom_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(GAIA_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_1_KEY)
-                .send()
-                .unwrap();
-        }
-    }
-    let osmo_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(OSMOSIS_CHAIN_NAME),
+
+    send_non_native_balances(
+        test_ctx,
+        OSMOSIS_CHAIN_NAME,
+        ACC_2_KEY,
         ACC2_ADDRESS_OSMO,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &osmo_denom,
     );
-    for coin in osmo_receiver_balances {
-        if coin.denom != osmo_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(OSMOSIS_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_2_KEY)
-                .send()
-                .unwrap();
-        }
-    }
 
     let current_block_height = Chain::new(
         test_ctx
@@ -1286,45 +1266,23 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
     }
 
     // Send the balances back so we have a fresh start for the next test
-    let hub_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN_NAME),
+    send_non_native_balances(
+        test_ctx,
+        GAIA_CHAIN_NAME,
+        ACC_1_KEY,
         ACC1_ADDRESS_GAIA,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &atom_denom,
     );
-    for coin in hub_receiver_balances {
-        if coin.denom != atom_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(GAIA_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_1_KEY)
-                .send()
-                .unwrap();
-        }
-    }
-    let osmo_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(OSMOSIS_CHAIN_NAME),
-        ACC2_ADDRESS_OSMO,
-    );
-    for coin in osmo_receiver_balances {
-        if coin.denom != osmo_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(OSMOSIS_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_2_KEY)
-                .send()
-                .unwrap();
-        }
-    }
 
+    send_non_native_balances(
+        test_ctx,
+        OSMOSIS_CHAIN_NAME,
+        ACC_2_KEY,
+        ACC2_ADDRESS_OSMO,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &osmo_denom,
+    );
     let current_block_height = Chain::new(
         test_ctx
             .get_request_builder()
@@ -1712,44 +1670,23 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
     }
 
     // Send the balances back so we have a fresh start for the next test
-    let hub_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN_NAME),
+    send_non_native_balances(
+        test_ctx,
+        GAIA_CHAIN_NAME,
+        ACC_1_KEY,
         ACC1_ADDRESS_GAIA,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &atom_denom,
     );
-    for coin in hub_receiver_balances {
-        if coin.denom != atom_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(GAIA_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_1_KEY)
-                .send()
-                .unwrap();
-        }
-    }
-    let osmo_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(OSMOSIS_CHAIN_NAME),
+
+    send_non_native_balances(
+        test_ctx,
+        OSMOSIS_CHAIN_NAME,
+        ACC_2_KEY,
         ACC2_ADDRESS_OSMO,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &osmo_denom,
     );
-    for coin in osmo_receiver_balances {
-        if coin.denom != osmo_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(OSMOSIS_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_2_KEY)
-                .send()
-                .unwrap();
-        }
-    }
 
     let current_block_height = Chain::new(
         test_ctx
@@ -2165,44 +2102,24 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
     }
 
     // Send the balances back so we have a fresh start for the next test
-    let hub_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN_NAME),
+    send_non_native_balances(
+        test_ctx,
+        GAIA_CHAIN_NAME,
+        ACC_1_KEY,
         ACC1_ADDRESS_GAIA,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &atom_denom,
     );
-    for coin in hub_receiver_balances {
-        if coin.denom != atom_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(GAIA_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_1_KEY)
-                .send()
-                .unwrap();
-        }
-    }
-    let osmo_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(OSMOSIS_CHAIN_NAME),
+
+    send_non_native_balances(
+        test_ctx,
+        OSMOSIS_CHAIN_NAME,
+        ACC_2_KEY,
         ACC2_ADDRESS_OSMO,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &osmo_denom,
     );
-    for coin in osmo_receiver_balances {
-        if coin.denom != osmo_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(OSMOSIS_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_2_KEY)
-                .send()
-                .unwrap();
-        }
-    }
+
     info!("Finished two party POL tests!");
 
     Ok(())

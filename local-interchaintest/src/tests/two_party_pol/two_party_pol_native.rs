@@ -24,7 +24,8 @@ use localic_std::{
     node::Chain,
 };
 use localic_utils::{
-    utils::test_context::TestContext, DEFAULT_KEY, GAIA_CHAIN_NAME, NEUTRON_CHAIN_NAME,
+    utils::test_context::TestContext, DEFAULT_KEY, GAIA_CHAIN_ADMIN_ADDR, GAIA_CHAIN_NAME,
+    NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
 };
 use log::info;
 use valence_astroport_liquid_pooler::msg::AstroportLiquidPoolerConfig;
@@ -32,15 +33,16 @@ use valence_covenant_two_party_pol::msg::{CovenantContractCodeIds, CovenantParty
 use valence_two_party_pol_holder::msg::{CovenantType, RagequitConfig, RagequitTerms};
 
 use crate::{
-    helpers::constants::{
-        ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC_1_KEY, ACC_2_KEY,
-        ASTROPORT_PATH, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH,
-    },
     helpers::{
         astroport::{get_lp_token_address, get_lp_token_balance, get_pool_address},
         common::{query_contract_state, tick},
+        constants::{
+            ACC1_ADDRESS_GAIA, ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ACC_1_KEY, ACC_2_KEY,
+            ASTROPORT_PATH, EXECUTE_FLAGS, LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH,
+        },
         covenant::Covenant,
     },
+    send_non_native_balances,
 };
 
 pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), LocalError> {
@@ -85,11 +87,8 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         .get("astroport_factory")
         .unwrap();
 
-    let neutron_admin_acc = test_ctx.get_admin_addr().src(NEUTRON_CHAIN_NAME).get();
-    let gaia_admin_acc = test_ctx.get_admin_addr().src(GAIA_CHAIN_NAME).get();
-
     let native_coin_registry_instantiate_msg = NativeCoinRegistryInstantiateMsg {
-        owner: neutron_admin_acc.clone(),
+        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
     };
     let native_coin_registry_contract = contract_instantiate(
         test_ctx
@@ -139,7 +138,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         token_code_id: astroport_token_code_id,
         fee_address: None,
         generator_address: None,
-        owner: neutron_admin_acc.clone(),
+        owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         whitelist_code_id: astroport_whitelist_code_id,
         coin_registry_address: native_coin_registry_contract.address.to_string(),
     };
@@ -191,7 +190,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             .build_tx_transfer()
             .with_chain_name(GAIA_CHAIN_NAME)
             .with_amount(amount_to_send)
-            .with_recipient(&neutron_admin_acc)
+            .with_recipient(NEUTRON_CHAIN_ADMIN_ADDR)
             .with_denom(&atom_denom)
             .send()
             .unwrap();
@@ -202,7 +201,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             test_ctx
                 .get_request_builder()
                 .get_request_builder(NEUTRON_CHAIN_NAME),
-            &neutron_admin_acc,
+            NEUTRON_CHAIN_ADMIN_ADDR,
         );
         if balance
             .iter()
@@ -245,7 +244,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         ],
         slippage_tolerance: Some(Decimal::percent(1)),
         auto_stake: Some(false),
-        receiver: Some(neutron_admin_acc.clone()),
+        receiver: Some(NEUTRON_CHAIN_ADMIN_ADDR.to_string()),
     };
 
     contract_execute(
@@ -800,43 +799,23 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     }
 
     // Send the balances back so we have a fresh start for the next test
-    let hub_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN_NAME),
+    send_non_native_balances(
+        test_ctx,
+        GAIA_CHAIN_NAME,
+        ACC_1_KEY,
         ACC1_ADDRESS_GAIA,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &atom_denom,
     );
-    for coin in hub_receiver_balances {
-        if coin.denom != atom_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(GAIA_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_1_KEY)
-                .send()
-                .unwrap();
-        }
-    }
-    let neutron_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
+
+    send_non_native_balances(
+        test_ctx,
+        NEUTRON_CHAIN_NAME,
+        ACC_2_KEY,
         ACC2_ADDRESS_NEUTRON,
+        GAIA_CHAIN_ADMIN_ADDR,
+        &neutron_denom,
     );
-    for coin in neutron_receiver_balances {
-        if coin.denom != neutron_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_amount(coin.amount.u128())
-                .with_recipient(&gaia_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_2_KEY)
-                .send()
-                .unwrap();
-        }
-    }
 
     let current_block_height = Chain::new(
         test_ctx
@@ -1213,43 +1192,23 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     }
 
     // Send the balances back so we have a fresh start for the next test
-    let hub_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN_NAME),
+    send_non_native_balances(
+        test_ctx,
+        GAIA_CHAIN_NAME,
+        ACC_1_KEY,
         ACC1_ADDRESS_GAIA,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &atom_denom,
     );
-    for coin in hub_receiver_balances {
-        if coin.denom != atom_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(GAIA_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_1_KEY)
-                .send()
-                .unwrap();
-        }
-    }
-    let neutron_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
+
+    send_non_native_balances(
+        test_ctx,
+        NEUTRON_CHAIN_NAME,
+        ACC_2_KEY,
         ACC2_ADDRESS_NEUTRON,
+        GAIA_CHAIN_ADMIN_ADDR,
+        &neutron_denom,
     );
-    for coin in neutron_receiver_balances {
-        if coin.denom != neutron_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_amount(coin.amount.u128())
-                .with_recipient(&gaia_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_2_KEY)
-                .send()
-                .unwrap();
-        }
-    }
 
     let current_block_height = Chain::new(
         test_ctx
@@ -1623,43 +1582,23 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     }
 
     // Send the balances back so we have a fresh start for the next test
-    let hub_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN_NAME),
+    send_non_native_balances(
+        test_ctx,
+        GAIA_CHAIN_NAME,
+        ACC_1_KEY,
         ACC1_ADDRESS_GAIA,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &atom_denom,
     );
-    for coin in hub_receiver_balances {
-        if coin.denom != atom_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(GAIA_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_1_KEY)
-                .send()
-                .unwrap();
-        }
-    }
-    let neutron_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
+
+    send_non_native_balances(
+        test_ctx,
+        NEUTRON_CHAIN_NAME,
+        ACC_2_KEY,
         ACC2_ADDRESS_NEUTRON,
+        GAIA_CHAIN_ADMIN_ADDR,
+        &neutron_denom,
     );
-    for coin in neutron_receiver_balances {
-        if coin.denom != neutron_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_amount(coin.amount.u128())
-                .with_recipient(&gaia_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_2_KEY)
-                .send()
-                .unwrap();
-        }
-    }
 
     let current_block_height = Chain::new(
         test_ctx
@@ -2084,43 +2023,23 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     }
 
     // Send the balances back so we have a fresh start for the next test
-    let hub_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(GAIA_CHAIN_NAME),
+    send_non_native_balances(
+        test_ctx,
+        GAIA_CHAIN_NAME,
+        ACC_1_KEY,
         ACC1_ADDRESS_GAIA,
+        NEUTRON_CHAIN_ADMIN_ADDR,
+        &atom_denom,
     );
-    for coin in hub_receiver_balances {
-        if coin.denom != atom_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_chain_name(GAIA_CHAIN_NAME)
-                .with_amount(coin.amount.u128())
-                .with_recipient(&neutron_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_1_KEY)
-                .send()
-                .unwrap();
-        }
-    }
-    let neutron_receiver_balances = get_balance(
-        test_ctx
-            .get_request_builder()
-            .get_request_builder(NEUTRON_CHAIN_NAME),
+
+    send_non_native_balances(
+        test_ctx,
+        NEUTRON_CHAIN_NAME,
+        ACC_2_KEY,
         ACC2_ADDRESS_NEUTRON,
+        GAIA_CHAIN_ADMIN_ADDR,
+        &neutron_denom,
     );
-    for coin in neutron_receiver_balances {
-        if coin.denom != neutron_denom.clone() {
-            test_ctx
-                .build_tx_transfer()
-                .with_amount(coin.amount.u128())
-                .with_recipient(&gaia_admin_acc)
-                .with_denom(&coin.denom)
-                .with_key(ACC_2_KEY)
-                .send()
-                .unwrap();
-        }
-    }
 
     info!("Finished two party POL native tests!");
 

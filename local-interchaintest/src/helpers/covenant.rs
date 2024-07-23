@@ -94,6 +94,7 @@ impl<'a> Covenant<'a> {
                 &valence_covenant_single_party_pol::msg::QueryMsg::LiquidPoolerAddress {},
             )
             .unwrap(),
+            Covenant::Swap { .. } => return String::new(),
         };
 
         self.query(query_msg)
@@ -106,6 +107,7 @@ impl<'a> Covenant<'a> {
                 &valence_covenant_single_party_pol::msg::QueryMsg::LiquidStakerAddress {},
             )
             .unwrap(),
+            Covenant::Swap { .. } => return String::new(),
         };
 
         self.query(query_msg)
@@ -118,14 +120,6 @@ impl<'a> Covenant<'a> {
                 &valence_covenant_single_party_pol::msg::QueryMsg::SplitterAddress {},
             )
             .unwrap(),
-            Covenant::Swap { .. } => return String::new(),
-        };
-        self.query(query_msg)
-    }
-
-    pub fn query_splitter_address(&self) -> String {
-        let query_msg = match self {
-            Covenant::TwoPartyPol { .. } => return String::new(),
             Covenant::Swap { .. } => {
                 &serde_json::to_string(&valence_covenant_swap::msg::QueryMsg::SplitterAddress {})
                     .unwrap()
@@ -143,7 +137,8 @@ impl<'a> Covenant<'a> {
             .unwrap(),
             Covenant::SinglePartyPol { .. } => &serde_json::to_string(
                 &valence_covenant_single_party_pol::msg::QueryMsg::InterchainRouterAddress {},
-            ),
+            )
+            .unwrap(),
             Covenant::Swap { .. } => &serde_json::to_string(
                 &valence_covenant_swap::msg::QueryMsg::InterchainRouterAddress { party },
             )
