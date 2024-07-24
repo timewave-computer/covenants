@@ -43,6 +43,7 @@ valence-interchain-router          = { path = "contracts/interchain-router" }
 valence-two-party-pol-holder       = { path = "contracts/two-party-pol-holder" }
 valence-covenant-two-party-pol     = { path = "contracts/two-party-pol-covenant" }
 valence-astroport-liquid-pooler    = { path = "contracts/astroport-liquid-pooler" }
+valence-astroport-tf-liquid-pooler    = { path = "contracts/astroport-tf-liquid-pooler" }
 valence-native-router              = { path = "contracts/native-router" }
 valence-osmo-liquid-pooler         = { path = "contracts/osmo-liquid-pooler" }
 valence-outpost-osmo-liquid-pooler = { path = "contracts/outpost-osmo-liquid-pooler" }
