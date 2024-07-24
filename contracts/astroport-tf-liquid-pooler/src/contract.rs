@@ -9,12 +9,14 @@ use cw2::set_contract_version;
 use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use astroport::{
-    asset::{Asset, PairInfo},
+    asset::{Asset, AssetInfo, PairInfo},
     factory::PairType,
-    pair::{Cw20HookMsg, ExecuteMsg::ProvideLiquidity, PoolResponse, SimulationResponse},
+    pair::{
+        ExecuteMsg::{ProvideLiquidity, WithdrawLiquidity as WithdrawAstroLiquidity},
+        PoolResponse, SimulationResponse,
+    },
     DecimalCheckedOps,
 };
-use cw20::Cw20ExecuteMsg;
 
 use crate::{
     error::ContractError,
@@ -176,29 +178,34 @@ fn try_withdraw(
     };
 
     // Clculate the withdrawn amount of A and B tokens from the shares we have
-    let withdrawn_coins = deps
-        .querier
-        .query_wasm_smart::<Vec<Asset>>(
-            lp_config.pool_address.to_string(),
-            &astroport::pair::QueryMsg::Share {
-                amount: withdraw_shares_amount,
-            },
-        )?
-        .iter()
-        .map(|asset| asset.to_coin())
-        .collect::<Result<Vec<Coin>, _>>()?;
+    let withdrawn_assets: Vec<Asset> = deps.querier.query_wasm_smart::<Vec<Asset>>(
+        lp_config.pool_address.to_string(),
+        &astroport::pair::QueryMsg::Share {
+            amount: withdraw_shares_amount,
+        },
+    )?;
 
     // exit pool and withdraw funds with the shares calculated
-    let withdraw_liquidity_hook = &Cw20HookMsg::WithdrawLiquidity { assets: vec![] };
-    let withdraw_msg = WasmMsg::Execute {
-        contract_addr: lp_token_info.pair_info.liquidity_token.to_string(),
-        msg: to_json_binary(&Cw20ExecuteMsg::Send {
-            contract: lp_config.pool_address.to_string(),
+    let withdraw_msg = WithdrawAstroLiquidity {
+        assets: vec![Asset {
+            info: AssetInfo::NativeToken {
+                denom: lp_token_info.pair_info.liquidity_token.to_string(),
+            },
             amount: withdraw_shares_amount,
-            msg: to_json_binary(withdraw_liquidity_hook)?,
-        })?,
+        }],
+        min_assets_to_receive: Some(withdrawn_assets.clone()),
+    };
+
+    let wasm_withdraw_msg = WasmMsg::Execute {
+        contract_addr: lp_config.pool_address.to_string(),
+        msg: to_json_binary(&withdraw_msg)?,
         funds: vec![],
     };
+
+    let withdrawn_coins = withdrawn_assets
+        .into_iter()
+        .map(|asset| asset.as_coin())
+        .collect::<Result<Vec<Coin>, _>>()?;
 
     // send message to holder that we finished with the withdrawal
     // with the funds we withdrew from the pool
@@ -209,7 +216,7 @@ fn try_withdraw(
     };
 
     Ok(Response::default()
-        .add_message(withdraw_msg)
+        .add_message(wasm_withdraw_msg)
         .add_message(to_holder_msg))
 }
 
@@ -354,8 +361,8 @@ fn try_get_double_side_lp_submsg(
             .to_tuple(token_a.amount, ratio.checked_mul_uint128(token_a.amount)?)
     };
 
-    let a_coin = asset_a_double_sided.to_coin()?;
-    let b_coin = asset_b_double_sided.to_coin()?;
+    let a_coin = asset_a_double_sided.as_coin()?;
+    let b_coin = asset_b_double_sided.as_coin()?;
 
     // craft a ProvideLiquidity message with the determined assets
     let double_sided_liq_msg = ProvideLiquidity {
@@ -363,6 +370,7 @@ fn try_get_double_side_lp_submsg(
         slippage_tolerance: lp_config.slippage_tolerance,
         auto_stake: Some(false),
         receiver: Some(env.contract.address.to_string()),
+        min_lp_to_receive: None,
     };
 
     // update the provided amounts and leftover assets
@@ -410,7 +418,7 @@ fn try_get_single_side_lp_submsg(
             };
 
             let (offer_asset, offer_coin, mut ask_asset) = {
-                if assets[0].to_coin()?.denom == halved_coin.denom {
+                if assets[0].as_coin()?.denom == halved_coin.denom {
                     assets[0].amount = halved_coin.amount;
                     (assets[0].clone(), halved_coin, assets[1].clone())
                 } else {
@@ -428,7 +436,7 @@ fn try_get_single_side_lp_submsg(
                 },
             )?;
             ask_asset.amount = simulation.return_amount;
-            let ask_coin = ask_asset.to_coin()?;
+            let ask_coin = ask_asset.as_coin()?;
 
             let swap_wasm_msg: CosmosMsg = WasmMsg::Execute {
                 contract_addr: lp_config.pool_address.to_string(),
@@ -465,6 +473,7 @@ fn try_get_single_side_lp_submsg(
                     slippage_tolerance: lp_config.slippage_tolerance,
                     auto_stake: Some(false),
                     receiver: Some(env.contract.address.to_string()),
+                    min_lp_to_receive: None,
                 })?,
                 funds: vec![offer_coin, ask_coin],
             }
@@ -482,6 +491,7 @@ fn try_get_single_side_lp_submsg(
                 slippage_tolerance: lp_config.slippage_tolerance,
                 auto_stake: Some(false),
                 receiver: Some(env.contract.address.to_string()),
+                min_lp_to_receive: None,
             };
 
             // update the provided liquidity info
@@ -519,7 +529,7 @@ fn get_pool_asset_amounts(
     let (mut a_bal, mut b_bal) = (Uint128::zero(), Uint128::zero());
 
     for asset in assets {
-        let coin = asset.to_coin()?;
+        let coin = asset.as_coin()?;
         if coin.denom == b_denom {
             // found b balance
             b_bal = coin.amount;
