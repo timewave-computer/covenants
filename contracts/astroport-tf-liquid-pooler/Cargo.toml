@@ -38,6 +38,21 @@ sha2           = { workspace = true }
 neutron-sdk    = { workspace = true }
 schemars       = { workspace = true }
 bech32         = { workspace = true }
-astroport = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+
+
+astroport                      = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-maker                = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-whitelist            = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-factory              = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-pair-concentrated    = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-pair                 = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+
 cw20           = { workspace = true }
 covenant-utils = { workspace = true }
+
+[dev-dependencies]
+cw-multi-test  = { workspace = true }
+anyhow         = { workspace = true }
+valence-single-party-pol-holder = { workspace = true }

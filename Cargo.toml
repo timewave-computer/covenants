@@ -97,6 +97,8 @@ astroport = { git = "https://github.com/astroport-fi/astroport-core.git", rev = 
 cw-multi-test                  = { git = "https://github.com/Art3miX/cw-multi-test", branch = "main", features = ["cosmwasm_1_2"] }
 anyhow                         = { version = "1.0.51" }
 cw1-whitelist                  = "0.15"
+unit-tests = { path = "unit-tests" }
+
 astroport-token                = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-whitelist            = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-factory              = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
@@ -104,4 +106,3 @@ astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astrop
 astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-pair-concentrated    = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-pair             = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
-unit-tests = { path = "unit-tests" }
