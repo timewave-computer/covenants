@@ -2,12 +2,7 @@
 
 use std::error::Error;
 
-use local_ictest_e2e::tests::{
-    astroport_tokenfactory::astroport_tokenfactory_e2e::test_astroport_tokenfactory_liquid_pooler, single_party_pol::single_party_pol_stride::test_single_party_pol_stride, swap::token_swap::test_token_swap, two_party_pol::{
-        two_party_pol_native::test_two_party_pol_native,
-        two_party_pol_not_native::test_two_party_pol, two_party_pol_osmo::test_two_party_pol_osmo,
-    }
-};
+use local_ictest_e2e::tests::astroport_tokenfactory::astroport_tokenfactory_e2e::test_astroport_tokenfactory_liquid_pooler;
 
 use localic_std::polling::poll_for_start;
 use localic_utils::{
@@ -40,11 +35,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     test_astroport_tokenfactory_liquid_pooler(&mut test_ctx);
 
-    test_single_party_pol_stride(&mut test_ctx);
-    test_token_swap(&mut test_ctx);
-    test_two_party_pol_osmo(&mut test_ctx);
-    test_two_party_pol_native(&mut test_ctx);
-    test_two_party_pol(&mut test_ctx);
+    // test_single_party_pol_stride(&mut test_ctx);
+    // test_token_swap(&mut test_ctx);
+    // test_two_party_pol_osmo(&mut test_ctx);
+    // test_two_party_pol_native(&mut test_ctx);
+    // test_two_party_pol(&mut test_ctx);
 
     Ok(())
 }

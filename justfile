@@ -46,6 +46,6 @@ local-e2e TEST PATTERN='.*':
 start-local-ic:
   cd local-interchaintest && local-ic start neutron_gaia_osmosis_stride --api-port 42069
 
-run-e2e: optimize
+run-e2e:
   export RUST_LOG=debug
   cargo run --package local-ictest-e2e --bin local-ictest-e2e

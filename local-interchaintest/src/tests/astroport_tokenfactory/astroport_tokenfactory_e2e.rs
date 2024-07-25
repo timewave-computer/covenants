@@ -43,7 +43,9 @@ use crate::{
 
 const NATIVE_STATOM_DENOM: &str = "stuatom";
 
-pub fn test_astroport_tokenfactory_liquid_pooler(test_ctx: &mut TestContext) -> Result<(), LocalError> {
+pub fn test_astroport_tokenfactory_liquid_pooler(
+    test_ctx: &mut TestContext,
+) -> Result<(), LocalError> {
     let mut uploader = test_ctx.build_tx_upload_contracts();
 
     uploader
@@ -366,7 +368,7 @@ pub fn test_astroport_tokenfactory_liquid_pooler(test_ctx: &mut TestContext) -> 
     let code_id_astroport_liquid_pooler = *test_ctx
         .get_chain(NEUTRON_CHAIN_NAME)
         .contract_codes
-        .get("valence_astroport_liquid_pooler")
+        .get("valence_astroport_tf_liquid_pooler")
         .unwrap();
 
     let code_id_stride_liquid_staker = *test_ctx
@@ -868,6 +870,7 @@ pub fn test_astroport_tokenfactory_liquid_pooler(test_ctx: &mut TestContext) -> 
 
     info!("Tick until liquid pooler provides liquidity...");
     loop {
+        // TODO: change to native balance query of the tokenfactory token
         let liquid_pooler_lp_balance = get_lp_token_balance(
             test_ctx
                 .get_request_builder()
