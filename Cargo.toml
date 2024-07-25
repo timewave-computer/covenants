@@ -3,6 +3,7 @@ members = [
   "packages/*",
   "contracts/*",
   "unit-tests/",
+  "local-interchaintest",
 ]
 resolver = "2"
 
@@ -105,4 +106,4 @@ astroport-factory              = { git = "https://github.com/astroport-fi/astrop
 astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
 astroport-pair-concentrated    = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
-astroport-pair             = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
+astroport-pair                 = { git = "https://github.com/astroport-fi/astroport-core.git", rev = "700f66d" }
