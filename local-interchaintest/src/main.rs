@@ -3,12 +3,10 @@
 use std::error::Error;
 
 use local_ictest_e2e::tests::{
-    single_party_pol::single_party_pol_stride::test_single_party_pol_stride,
-    swap::token_swap::test_token_swap,
-    two_party_pol::{
+    astroport_tokenfactory::astroport_tokenfactory_e2e::test_astroport_tokenfactory_liquid_pooler, single_party_pol::single_party_pol_stride::test_single_party_pol_stride, swap::token_swap::test_token_swap, two_party_pol::{
         two_party_pol_native::test_two_party_pol_native,
         two_party_pol_not_native::test_two_party_pol, two_party_pol_osmo::test_two_party_pol_osmo,
-    },
+    }
 };
 
 use localic_std::polling::poll_for_start;
@@ -39,6 +37,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         .build()?;
 
     test_ctx.set_up_stride_host_zone(GAIA_CHAIN_NAME);
+
+    test_astroport_tokenfactory_liquid_pooler(&mut test_ctx);
 
     test_single_party_pol_stride(&mut test_ctx);
     test_token_swap(&mut test_ctx);
