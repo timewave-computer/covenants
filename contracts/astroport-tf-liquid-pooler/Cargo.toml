@@ -20,8 +20,8 @@ backtraces = ["cosmwasm-std/backtraces"]
 library = []
 
 [dependencies]
-covenant-macros = { workspace = true }
-valence-clock  = { workspace = true, features = ["library"] }
+covenant-macros = { git = "https://github.com/timewave-computer/covenants", tag = "v0.1.0" }
+valence-clock  = { git = "https://github.com/timewave-computer/covenants", tag = "v0.1.0", features = ["library"] }
 
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
@@ -42,7 +42,6 @@ bech32         = { workspace = true }
 
 astroport                      = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
 astroport-xastro-token         = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
-astroport-whitelist            = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
 astroport-factory              = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
 astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
 astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
@@ -50,12 +49,4 @@ astroport-pair-concentrated    = { git = "https://github.com/astroport-fi/astrop
 astroport-pair                 = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
 
 cw20           = { workspace = true }
-covenant-utils = { workspace = true }
-
-[dev-dependencies]
-cw-multi-test  = { workspace = true }
-anyhow         = { workspace = true }
-valence-single-party-pol-holder = { workspace = true }
-# unit-tests     = { workspace = true }
-# neutron-sdk      = { workspace = true }
-cw1-whitelist = { version = "1.1", features = ["library"] }
+covenant-utils = { git = "https://github.com/timewave-computer/covenants", tag = "v0.1.0" }
