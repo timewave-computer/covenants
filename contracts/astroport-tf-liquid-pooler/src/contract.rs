@@ -1,8 +1,7 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
+    coin, coins, ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg
 };
 use covenant_utils::{astroport::query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
 use cw2::set_contract_version;
@@ -131,14 +130,15 @@ fn try_withdraw(
 
     // Query LP position of the LPer
     let lp_config = LP_CONFIG.load(deps.storage)?;
-    let lp_token_info = query_astro_pool_token(
-        deps.querier,
-        lp_config.pool_address.to_string(),
-        env.contract.address.to_string(),
-    )?;
+    
+    // first we query the pair info of our configured pool to obtain the tokenfactory denom
+    let pair_info: PairInfo = deps.querier.query_wasm_smart(lp_config.pool_address.clone(), &astroport::pair::QueryMsg::Pair {})?;
 
+    // now we query our own balance of the lp token
+    let lp_token_bal = deps.querier.query_balance(env.contract.address.clone(), pair_info.liquidity_token)?;
+    
     // if no lp tokens are available, we attempt to withdraw any available denoms
-    if lp_token_info.balance_response.balance.is_zero() {
+    if lp_token_bal.amount.is_zero() {
         let asset_a_bal = deps.querier.query_balance(
             env.contract.address.to_string(),
             lp_config.asset_data.asset_a_denom.as_str(),
@@ -170,16 +170,16 @@ fn try_withdraw(
     // If percentage is 100%, use the whole balance
     // If percentage is less than 100%, calculate the percentage of share we want to withdraw
     let withdraw_shares_amount = if percent == Decimal::one() {
-        lp_token_info.balance_response.balance
+        lp_token_bal.amount
     } else {
-        Decimal::from_atomics(lp_token_info.balance_response.balance, 0)?
+        Decimal::from_atomics(lp_token_bal.amount, 0)?
             .checked_mul(percent)?
             .to_uint_floor()
     };
 
-    // Clculate the withdrawn amount of A and B tokens from the shares we have
+    // Calculate the withdrawn amount of A and B tokens from the shares we have
     let withdrawn_assets: Vec<Asset> = deps.querier.query_wasm_smart::<Vec<Asset>>(
-        lp_config.pool_address.to_string(),
+        lp_config.pool_address.clone(),
         &astroport::pair::QueryMsg::Share {
             amount: withdraw_shares_amount,
         },
@@ -189,7 +189,7 @@ fn try_withdraw(
     let withdraw_msg = WithdrawAstroLiquidity {
         assets: vec![Asset {
             info: AssetInfo::NativeToken {
-                denom: lp_token_info.pair_info.liquidity_token.to_string(),
+                denom: lp_token_bal.denom.to_string(),
             },
             amount: withdraw_shares_amount,
         }],
@@ -199,7 +199,7 @@ fn try_withdraw(
     let wasm_withdraw_msg = WasmMsg::Execute {
         contract_addr: lp_config.pool_address.to_string(),
         msg: to_json_binary(&withdraw_msg)?,
-        funds: vec![],
+        funds: coins(withdraw_shares_amount.u128(), lp_token_bal.denom.as_str()),
     };
 
     let withdrawn_coins = withdrawn_assets
