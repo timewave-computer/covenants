@@ -918,7 +918,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         emergency_committee: None,
         liquid_pooler_config: valence_covenant_two_party_pol::msg::LiquidPoolerConfig::Astroport(
             AstroportLiquidPoolerConfig {
-                pool_pair_type: PairType::Stable {},
+                pool_pair_type: astroport_old::factory::PairType::Stable {},
                 pool_address: pool_addr.to_string(),
                 asset_a_denom: atom_on_neutron.clone(),
                 asset_b_denom: neutron_denom.clone(),
@@ -1311,7 +1311,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         emergency_committee: None,
         liquid_pooler_config: valence_covenant_two_party_pol::msg::LiquidPoolerConfig::Astroport(
             AstroportLiquidPoolerConfig {
-                pool_pair_type: PairType::Stable {},
+                pool_pair_type: astroport_old::factory::PairType::Stable {},
                 pool_address: pool_addr.to_string(),
                 asset_a_denom: atom_on_neutron.clone(),
                 asset_b_denom: neutron_denom.clone(),

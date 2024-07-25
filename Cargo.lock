@@ -1700,6 +1700,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "valence-astroport-liquid-pooler",
+ "valence-astroport-tf-liquid-pooler",
  "valence-covenant-single-party-pol",
  "valence-covenant-swap",
  "valence-covenant-two-party-pol",
