@@ -866,7 +866,10 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
         let liquid_pooler_lp_balance = balance
             .iter()
             .find(|c| c.denom.starts_with("factory"))
-            .unwrap()
+            .unwrap_or(&Coin {
+                denom: "".to_string(),
+                amount: Uint128::zero(),
+            })
             .amount;
 
         info!(
@@ -884,7 +887,10 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
         let holder_lp_balance = balance
             .iter()
             .find(|c| c.denom.starts_with("factory"))
-            .unwrap()
+            .unwrap_or(&Coin {
+                denom: "".to_string(),
+                amount: Uint128::zero(),
+            })
             .amount;
 
         info!("Holder LP token balance: {}", holder_lp_balance);
@@ -899,7 +905,10 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
         let neutron_user_lp_balance = balance
             .iter()
             .find(|c| c.denom.starts_with("factory"))
-            .unwrap()
+            .unwrap_or(&Coin {
+                denom: "".to_string(),
+                amount: Uint128::zero(),
+            })
             .amount;
 
         info!("Neutron User LP token balance: {}", neutron_user_lp_balance);

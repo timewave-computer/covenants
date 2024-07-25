@@ -587,7 +587,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         let liquid_pooler_lp_balance = balance
             .iter()
             .find(|c| c.denom.starts_with("factory"))
-            .unwrap()
+            .unwrap_or(&Coin {
+                denom: "".to_string(),
+                amount: Uint128::zero(),
+            })
             .amount;
 
         if liquid_pooler_lp_balance.is_zero() {
@@ -1095,7 +1098,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         let liquid_pooler_lp_balance = balance
             .iter()
             .find(|c| c.denom.starts_with("factory"))
-            .unwrap()
+            .unwrap_or(&Coin {
+                denom: "".to_string(),
+                amount: Uint128::zero(),
+            })
             .amount;
 
         if liquid_pooler_lp_balance.is_zero() {
@@ -1480,7 +1486,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         let liquid_pooler_lp_balance = balance
             .iter()
             .find(|c| c.denom.starts_with("factory"))
-            .unwrap()
+            .unwrap_or(&Coin {
+                denom: "".to_string(),
+                amount: Uint128::zero(),
+            })
             .amount;
 
         if liquid_pooler_lp_balance.is_zero() {
@@ -1864,7 +1873,10 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         let liquid_pooler_lp_balance = balance
             .iter()
             .find(|c| c.denom.starts_with("factory"))
-            .unwrap()
+            .unwrap_or(&Coin {
+                denom: "".to_string(),
+                amount: Uint128::zero(),
+            })
             .amount;
 
         if liquid_pooler_lp_balance.is_zero() {
