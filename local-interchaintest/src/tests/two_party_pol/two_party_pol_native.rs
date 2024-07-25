@@ -134,6 +134,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             maker_fee_bps: 0,
             is_disabled: false,
             is_generator_disabled: true,
+            permissioned: false,
         }],
         token_code_id: astroport_token_code_id,
         fee_address: None,
@@ -141,6 +142,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         whitelist_code_id: astroport_whitelist_code_id,
         coin_registry_address: native_coin_registry_contract.address.to_string(),
+        tracker_config: None,
     };
     let factory_contract = contract_instantiate(
         test_ctx
@@ -245,6 +247,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         slippage_tolerance: Some(Decimal::percent(1)),
         auto_stake: Some(false),
         receiver: Some(NEUTRON_CHAIN_ADMIN_ADDR.to_string()),
+        min_lp_to_receive: None,
     };
 
     contract_execute(
@@ -399,7 +402,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         emergency_committee: None,
         liquid_pooler_config: valence_covenant_two_party_pol::msg::LiquidPoolerConfig::Astroport(
             AstroportLiquidPoolerConfig {
-                pool_pair_type: PairType::Stable {},
+                pool_pair_type: astroport_old::factory::PairType::Stable {},
                 pool_address: pool_addr.to_string(),
                 asset_a_denom: atom_on_neutron.clone(),
                 asset_b_denom: neutron_denom.clone(),
@@ -1698,7 +1701,7 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
         emergency_committee: None,
         liquid_pooler_config: valence_covenant_two_party_pol::msg::LiquidPoolerConfig::Astroport(
             AstroportLiquidPoolerConfig {
-                pool_pair_type: PairType::Stable {},
+                pool_pair_type: astroport_old::factory::PairType::Stable {},
                 pool_address: pool_addr.to_string(),
                 asset_a_denom: atom_on_neutron.clone(),
                 asset_b_denom: neutron_denom.clone(),

@@ -108,6 +108,7 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
             maker_fee_bps: 0,
             is_disabled: false,
             is_generator_disabled: true,
+            permissioned: false,
         }],
         token_code_id: astroport_token_code_id,
         fee_address: None,
@@ -115,6 +116,7 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
         owner: NEUTRON_CHAIN_ADMIN_ADDR.to_string(),
         whitelist_code_id: astroport_whitelist_code_id,
         coin_registry_address: native_coin_registry_contract.address.to_string(),
+        tracker_config: None,
     };
 
     let factory_contract = contract_instantiate(
@@ -303,6 +305,7 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
         slippage_tolerance: Some(Decimal::percent(1)),
         auto_stake: Some(false),
         receiver: Some(NEUTRON_CHAIN_ADMIN_ADDR.to_string()),
+        min_lp_to_receive: None,
     };
 
     contract_execute(
@@ -535,7 +538,7 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
             fallback_address: None,
         },
         liquid_pooler_config: LiquidPoolerConfig::Astroport(AstroportLiquidPoolerConfig {
-            pool_pair_type: PairType::Stable {},
+            pool_pair_type: astroport_old::factory::PairType::Stable {},
             pool_address: pool_addr.to_string(),
             asset_a_denom: statom_on_neutron.clone(),
             asset_b_denom: atom_on_neutron.clone(),

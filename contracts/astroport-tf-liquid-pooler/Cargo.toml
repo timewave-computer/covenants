@@ -42,7 +42,6 @@ bech32         = { workspace = true }
 
 astroport                      = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
 astroport-xastro-token         = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
-astroport-whitelist            = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
 astroport-factory              = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
 astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
 astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }

@@ -379,21 +379,8 @@ dependencies = [
  "astroport 2.9.5",
  "cosmwasm-schema",
  "cosmwasm-std",
- "cw1-whitelist 0.15.1",
+ "cw1-whitelist",
  "cw2 0.15.1",
- "thiserror",
-]
-
-[[package]]
-name = "astroport-whitelist"
-version = "2.0.0"
-source = "git+https://github.com/astroport-fi/astroport-core.git?tag=v5.0.0#4b3bff8626d33ef5cc3ce40f68939cb84b50fda1"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw1-whitelist 1.1.2",
- "cw2 1.1.2",
- "neutron-sdk 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
 ]
 
@@ -738,7 +725,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw20 0.15.1",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "polytone 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "prost 0.11.9",
  "serde-json-wasm 0.4.1",
@@ -760,7 +747,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw20 0.15.1",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "polytone 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "prost 0.11.9",
  "serde-json-wasm 0.4.1",
@@ -943,18 +930,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw1"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1605722190afd93bfea6384b88224d1cfe50ebf70d2e10641535da79fa70e83"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "cw1-whitelist"
 version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -964,25 +939,8 @@ dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 0.15.1",
  "cw-utils 0.15.1",
- "cw1 0.15.1",
+ "cw1",
  "cw2 0.15.1",
- "schemars",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "cw1-whitelist"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81bb3e9dc87f4ff26547f4e27e0ba3c82034372f21b2f55527fb52b542637d8d"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw1 1.1.2",
- "cw2 1.1.2",
  "schemars",
  "serde",
  "thiserror",
@@ -1726,6 +1684,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "astroport 2.9.5",
+ "astroport 5.0.0",
  "cosmwasm-std",
  "covenant-utils 0.1.0",
  "cw-utils 1.0.3",
@@ -1844,27 +1803,6 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
-]
-
-[[package]]
-name = "neutron-sdk"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46f60e477bd71007d9ff78ae020ec1c6b3b47798578af6151429434d86472efc"
-dependencies = [
- "bech32",
- "cosmos-sdk-proto 0.20.0",
- "cosmwasm-schema",
- "cosmwasm-std",
- "prost 0.12.6",
- "prost-types 0.12.6",
- "protobuf 3.5.0",
- "schemars",
- "serde",
- "serde-json-wasm 1.0.1",
- "speedate",
- "tendermint-proto 0.34.1",
- "thiserror",
 ]
 
 [[package]]
@@ -3145,7 +3083,7 @@ dependencies = [
  "astroport-pair-concentrated 1.2.13",
  "astroport-pair-stable 2.1.4",
  "astroport-token",
- "astroport-whitelist 1.0.1",
+ "astroport-whitelist",
  "colored",
  "const_format",
  "cosmos-sdk-proto 0.14.0",
@@ -3155,10 +3093,10 @@ dependencies = [
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
- "cw1-whitelist 0.15.1",
+ "cw1-whitelist",
  "cw20 0.15.1",
  "cw20-base",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "osmosis-std 0.13.2",
  "prost 0.11.9",
  "prost-types 0.11.9",
@@ -3218,7 +3156,7 @@ dependencies = [
  "cw-utils 1.0.3",
  "cw2 1.1.2",
  "cw20 0.15.1",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "schemars",
  "serde",
  "sha2 0.10.8",
@@ -3235,7 +3173,6 @@ dependencies = [
  "astroport-pair 2.0.0",
  "astroport-pair-concentrated 4.0.0",
  "astroport-pair-stable 4.0.0",
- "astroport-whitelist 2.0.0",
  "astroport-xastro-token",
  "bech32",
  "cosmwasm-schema",
@@ -3246,7 +3183,7 @@ dependencies = [
  "cw-utils 1.0.3",
  "cw2 1.1.2",
  "cw20 0.15.1",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "schemars",
  "serde",
  "sha2 0.10.8",
@@ -3266,7 +3203,7 @@ dependencies = [
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "serde",
  "thiserror",
  "valence-clock-tester",
@@ -3283,7 +3220,7 @@ dependencies = [
  "cw-fifo 0.1.0 (git+https://github.com/timewave-computer/covenants?tag=v0.1.0)",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "serde",
  "thiserror",
 ]
@@ -3312,7 +3249,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "prost 0.11.9",
  "prost-types 0.11.9",
  "schemars",
@@ -3342,7 +3279,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "prost 0.11.9",
  "prost-types 0.11.9",
  "schemars",
@@ -3371,7 +3308,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "prost 0.11.9",
  "prost-types 0.11.9",
  "schemars",
@@ -3401,7 +3338,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "prost 0.11.9",
  "prost-types 0.11.9",
  "schemars",
@@ -3426,7 +3363,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "prost 0.11.9",
  "prost-types 0.11.9",
  "schemars",
@@ -3448,7 +3385,7 @@ dependencies = [
  "covenant-utils 0.1.0",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "prost 0.11.9",
  "prost-types 0.11.9",
  "schemars",
@@ -3485,7 +3422,7 @@ dependencies = [
  "cw-utils 1.0.3",
  "cw2 1.1.2",
  "cw20 0.15.1",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "osmosis-std 0.20.1",
  "polytone 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "prost 0.11.9",
@@ -3524,7 +3461,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -3557,7 +3494,7 @@ dependencies = [
  "covenant-utils 0.1.0",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "schemars",
  "serde",
  "serde-json-wasm 0.4.1",
@@ -3576,7 +3513,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "neutron-sdk 0.8.0 (git+https://github.com/neutron-org/neutron-sdk?tag=v0.8.0)",
+ "neutron-sdk",
  "serde",
  "thiserror",
 ]
