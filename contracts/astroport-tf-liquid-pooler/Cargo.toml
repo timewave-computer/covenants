@@ -1,0 +1,53 @@
+[package]
+name        = "valence-astroport-tf-liquid-pooler"
+authors     = ["benskey bekauz@protonmail.com"]
+description = "Astroport tokenfactory liquid pooler contract for covenants"
+license     = { workspace = true }
+repository  = { workspace = true }
+version     = { workspace = true }
+edition     = { workspace = true }
+# rust-version = { workspace = true }
+
+exclude = ["contract.wasm", "hash.txt"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+# use library feature to disable all instantiate/execute/query exports
+library = []
+
+[dependencies]
+covenant-macros = { git = "https://github.com/timewave-computer/covenants", tag = "v0.1.0" }
+valence-clock  = { git = "https://github.com/timewave-computer/covenants", tag = "v0.1.0", features = ["library"] }
+
+cosmwasm-schema = { workspace = true }
+cosmwasm-std    = { workspace = true }
+cw-storage-plus = { workspace = true }
+cw-utils        = { workspace = true }
+cw2             = { workspace = true }
+serde           = { workspace = true }
+thiserror       = { workspace = true }
+# the sha2 version here is the same as the one used by
+# cosmwasm-std. when bumping cosmwasm-std, this should also be
+# updated. to find cosmwasm_std's sha function:
+# ```cargo tree --package cosmwasm-std```
+sha2           = { workspace = true }
+neutron-sdk    = { workspace = true }
+schemars       = { workspace = true }
+bech32         = { workspace = true }
+
+
+astroport                      = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-xastro-token         = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-whitelist            = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-factory              = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-native-coin-registry = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-pair-stable          = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-pair-concentrated    = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+astroport-pair                 = { git = "https://github.com/astroport-fi/astroport-core.git", tag = "v5.0.0" }
+
+cw20           = { workspace = true }
+covenant-utils = { git = "https://github.com/timewave-computer/covenants", tag = "v0.1.0" }
