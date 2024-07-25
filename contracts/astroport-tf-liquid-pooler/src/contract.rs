@@ -1,14 +1,15 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    coin, coins, ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg
+    coin, coins, ensure, to_json_binary, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Reply, Response, StdError, StdResult, SubMsg, SubMsgResult, Uint128, WasmMsg,
 };
-use covenant_utils::{astroport::query_astro_pool_token, withdraw_lp_helper::WithdrawLPMsgs};
+use covenant_utils::withdraw_lp_helper::WithdrawLPMsgs;
 use cw2::set_contract_version;
 use valence_clock::helpers::{enqueue_msg, verify_clock};
 
 use astroport::{
-    asset::{Asset, AssetInfo, PairInfo},
+    asset::{Asset, PairInfo},
     factory::PairType,
     pair::{
         ExecuteMsg::{ProvideLiquidity, WithdrawLiquidity as WithdrawAstroLiquidity},
@@ -130,13 +131,18 @@ fn try_withdraw(
 
     // Query LP position of the LPer
     let lp_config = LP_CONFIG.load(deps.storage)?;
-    
+
     // first we query the pair info of our configured pool to obtain the tokenfactory denom
-    let pair_info: PairInfo = deps.querier.query_wasm_smart(lp_config.pool_address.clone(), &astroport::pair::QueryMsg::Pair {})?;
+    let pair_info: PairInfo = deps.querier.query_wasm_smart(
+        lp_config.pool_address.clone(),
+        &astroport::pair::QueryMsg::Pair {},
+    )?;
 
     // now we query our own balance of the lp token
-    let lp_token_bal = deps.querier.query_balance(env.contract.address.clone(), pair_info.liquidity_token)?;
-    
+    let lp_token_bal = deps
+        .querier
+        .query_balance(env.contract.address.clone(), pair_info.liquidity_token)?;
+
     // if no lp tokens are available, we attempt to withdraw any available denoms
     if lp_token_bal.amount.is_zero() {
         let asset_a_bal = deps.querier.query_balance(
@@ -187,12 +193,7 @@ fn try_withdraw(
 
     // exit pool and withdraw funds with the shares calculated
     let withdraw_msg = WithdrawAstroLiquidity {
-        assets: vec![Asset {
-            info: AssetInfo::NativeToken {
-                denom: lp_token_bal.denom.to_string(),
-            },
-            amount: withdraw_shares_amount,
-        }],
+        assets: vec![],
         min_assets_to_receive: Some(withdrawn_assets.clone()),
     };
 
