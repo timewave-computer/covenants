@@ -539,7 +539,6 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
                 asset_b_limit: Uint128::new(1000000),
             },
         }),
-        operation_mode: covenant_utils::op_mode::ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(
@@ -953,7 +952,7 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
             test_ctx
                 .get_request_builder()
                 .get_request_builder(GAIA_CHAIN_NAME),
-            &ACC1_ADDRESS_GAIA,
+            ACC1_ADDRESS_GAIA,
         );
 
         let liquid_pooler_balance = get_balance(

@@ -11,8 +11,8 @@ use astroport::{
 };
 use cosmwasm_std::{Binary, Coin, Decimal, Uint128, Uint64};
 use covenant_utils::{
-    op_mode::ContractOperationModeConfig, split::SplitConfig, InterchainCovenantParty,
-    NativeCovenantParty, PoolPriceConfig, SingleSideLpLimits,
+    split::SplitConfig, InterchainCovenantParty, NativeCovenantParty, PoolPriceConfig,
+    SingleSideLpLimits,
 };
 use cw_utils::Expiration;
 use localic_std::{
@@ -413,7 +413,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             },
         ),
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(
@@ -923,7 +922,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             },
         ),
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(
@@ -1309,7 +1307,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             },
         ),
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(
@@ -1693,7 +1690,6 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
             },
         ),
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(

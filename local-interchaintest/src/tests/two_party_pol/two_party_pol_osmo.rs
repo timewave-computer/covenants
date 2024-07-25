@@ -3,8 +3,8 @@ use std::{collections::BTreeMap, env, path::Path, str::FromStr, thread, time::Du
 use anyhow::Error;
 use cosmwasm_std::{Coin, Decimal, Uint128, Uint64};
 use covenant_utils::{
-    op_mode::ContractOperationModeConfig, split::SplitConfig, ForwardMetadata,
-    InterchainCovenantParty, PacketForwardMiddlewareConfig, PoolPriceConfig, SingleSideLpLimits,
+    split::SplitConfig, ForwardMetadata, InterchainCovenantParty, PacketForwardMiddlewareConfig,
+    PoolPriceConfig, SingleSideLpLimits,
 };
 use cw_utils::Expiration;
 use localic_std::{
@@ -495,7 +495,6 @@ pub fn test_two_party_pol_osmo(test_ctx: &mut TestContext) -> Result<(), Error> 
             }),
         ),
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(
@@ -1105,7 +1104,6 @@ pub fn test_two_party_pol_osmo(test_ctx: &mut TestContext) -> Result<(), Error> 
             }),
         ),
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(

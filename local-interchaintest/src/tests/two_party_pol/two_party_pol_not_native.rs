@@ -11,8 +11,7 @@ use astroport::{
 };
 use cosmwasm_std::{Binary, Coin, Decimal, Uint128, Uint64};
 use covenant_utils::{
-    op_mode::ContractOperationModeConfig, split::SplitConfig, InterchainCovenantParty,
-    PoolPriceConfig, SingleSideLpLimits,
+    split::SplitConfig, InterchainCovenantParty, PoolPriceConfig, SingleSideLpLimits,
 };
 use cw_utils::Expiration;
 use localic_std::{
@@ -349,10 +348,10 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
         .get("valence_native_router")
         .unwrap();
 
-    let valence_liquid_pooler_code_id = *test_ctx
+    let valence_astroport_tf_liquid_pooler_code_id = *test_ctx
         .get_chain(NEUTRON_CHAIN_NAME)
         .contract_codes
-        .get("valence_astroport_liquid_pooler")
+        .get("valence_astroport_tf_liquid_pooler")
         .unwrap();
 
     let valence_covenant_two_party_pol_code_id = *test_ctx
@@ -384,7 +383,7 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
             clock_code: valence_clock_code_id,
             interchain_router_code: valence_interchain_router_code_id,
             native_router_code: valence_native_router_code_id,
-            liquid_pooler_code: valence_liquid_pooler_code_id,
+            liquid_pooler_code: valence_astroport_tf_liquid_pooler_code_id,
         },
         clock_tick_max_gas: None,
         lockup_config: Expiration::AtHeight(current_block_height + 200),
@@ -491,7 +490,6 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
             },
         ),
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(
@@ -873,7 +871,7 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
             clock_code: valence_clock_code_id,
             interchain_router_code: valence_interchain_router_code_id,
             native_router_code: valence_native_router_code_id,
-            liquid_pooler_code: valence_liquid_pooler_code_id,
+            liquid_pooler_code: valence_astroport_tf_liquid_pooler_code_id,
         },
         clock_tick_max_gas: None,
         lockup_config: Expiration::AtHeight(current_block_height + 300),
@@ -980,7 +978,6 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
             },
         ),
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(
@@ -1294,7 +1291,7 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
             clock_code: valence_clock_code_id,
             interchain_router_code: valence_interchain_router_code_id,
             native_router_code: valence_native_router_code_id,
-            liquid_pooler_code: valence_liquid_pooler_code_id,
+            liquid_pooler_code: valence_astroport_tf_liquid_pooler_code_id,
         },
         clock_tick_max_gas: None,
         lockup_config: Expiration::AtHeight(current_block_height + 300),
@@ -1401,7 +1398,6 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
             },
         ),
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(
@@ -1692,7 +1688,7 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
             clock_code: valence_clock_code_id,
             interchain_router_code: valence_interchain_router_code_id,
             native_router_code: valence_native_router_code_id,
-            liquid_pooler_code: valence_liquid_pooler_code_id,
+            liquid_pooler_code: valence_astroport_tf_liquid_pooler_code_id,
         },
         clock_tick_max_gas: None,
         lockup_config: Expiration::AtHeight(current_block_height + 230),
@@ -1799,7 +1795,6 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
             },
         ),
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(

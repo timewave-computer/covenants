@@ -1,10 +1,7 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{Coin, Decimal, Uint128, Uint64};
-use covenant_utils::{
-    op_mode::ContractOperationModeConfig, split::SplitConfig, InterchainCovenantParty,
-    NativeCovenantParty,
-};
+use covenant_utils::{split::SplitConfig, InterchainCovenantParty, NativeCovenantParty};
 use cw_utils::Expiration;
 use localic_std::{
     errors::LocalError,
@@ -175,7 +172,6 @@ pub fn test_token_swap(test_ctx: &mut TestContext) -> Result<(), LocalError> {
         ]),
         fallback_split: None,
         fallback_address: None,
-        operation_mode: ContractOperationModeConfig::Permissioned(vec![]),
     };
 
     let covenant_contract = contract_instantiate(
