@@ -9,7 +9,7 @@ use neutron_sdk::bindings::{msg::NeutronMsg, query::NeutronQuery};
 /// Turn a neutron response into an empty response
 /// This is fine because the contract return an empty response, but our testing enviroment expects a neutron response
 /// the contract that uses this function will never emit a neutron response anyways
-pub(crate) fn execute_into_neutron<E: Display>(
+pub fn execute_into_neutron<E: Display>(
     into: Result<Response, E>,
 ) -> Result<Response<NeutronMsg>, E> {
     into.map(|r| {
@@ -49,7 +49,7 @@ pub(crate) fn execute_into_neutron<E: Display>(
 }
 
 /// Turn neutron DepsMut into empty DepsMut
-pub(crate) fn get_empty_depsmut(deps: DepsMut<NeutronQuery>) -> DepsMut<'_, Empty> {
+pub fn get_empty_depsmut(deps: DepsMut<NeutronQuery>) -> DepsMut<'_, Empty> {
     DepsMut {
         storage: deps.storage,
         api: deps.api,
