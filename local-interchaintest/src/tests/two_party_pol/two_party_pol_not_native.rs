@@ -120,13 +120,13 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
         vec![
             &test_ctx
                 .get_transfer_channels()
-                .src(NEUTRON_CHAIN_NAME)
-                .dest(OSMOSIS_CHAIN_NAME)
+                .src(OSMOSIS_CHAIN_NAME)
+                .dest(NEUTRON_CHAIN_NAME)
                 .get(),
             &test_ctx
                 .get_transfer_channels()
-                .src(GAIA_CHAIN_NAME)
-                .dest(NEUTRON_CHAIN_NAME)
+                .src(NEUTRON_CHAIN_NAME)
+                .dest(GAIA_CHAIN_NAME)
                 .get(),
         ],
     );
@@ -135,13 +135,13 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
         vec![
             &test_ctx
                 .get_transfer_channels()
-                .src(NEUTRON_CHAIN_NAME)
-                .dest(GAIA_CHAIN_NAME)
+                .src(GAIA_CHAIN_NAME)
+                .dest(NEUTRON_CHAIN_NAME)
                 .get(),
             &test_ctx
                 .get_transfer_channels()
-                .src(OSMOSIS_CHAIN_NAME)
-                .dest(NEUTRON_CHAIN_NAME)
+                .src(NEUTRON_CHAIN_NAME)
+                .dest(OSMOSIS_CHAIN_NAME)
                 .get(),
         ],
     );
