@@ -144,13 +144,13 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
         vec![
             &test_ctx
                 .get_transfer_channels()
-                .src(NEUTRON_CHAIN_NAME)
-                .dest(GAIA_CHAIN_NAME)
+                .src(GAIA_CHAIN_NAME)
+                .dest(NEUTRON_CHAIN_NAME)
                 .get(),
             &test_ctx
                 .get_transfer_channels()
-                .src(STRIDE_CHAIN_NAME)
-                .dest(NEUTRON_CHAIN_NAME)
+                .src(NEUTRON_CHAIN_NAME)
+                .dest(STRIDE_CHAIN_NAME)
                 .get(),
         ],
     );
