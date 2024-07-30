@@ -65,7 +65,7 @@ jobs:
           path: /tmp
 
       - name: Make local-ic executable
-        run: chmod +x /tmp/local-ic && local-ic -h
+        run: chmod +x /tmp/local-ic
 
       - name: Compile contract
         timeout-minutes: 40
