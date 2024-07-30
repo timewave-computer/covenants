@@ -1,6 +1,9 @@
 # contract-e2e.yml
 name: local-ictest
 
+permissions:
+  contents: write
+
 on:
   push:
     # branches: [ main ]
@@ -39,9 +42,9 @@ jobs:
     needs: build
     name: contract e2e
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./local-interchaintest
+    # defaults:
+    #   run:
+    #     working-directory: ./local-interchaintest
 
     steps:
       - name: checkout this repo (contracts)
@@ -62,7 +65,7 @@ jobs:
           path: /tmp
 
       - name: Make local-ic executable
-        run: chmod +x /tmp/local-ic
+        run: chmod +x /tmp/local-ic && local-ic -h
 
       - name: Compile contract
         timeout-minutes: 40
