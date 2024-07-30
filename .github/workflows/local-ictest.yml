@@ -16,6 +16,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: build
+    defaults:
+      run:
+        working-directory: ./local-interchaintest
     steps:
       - name: Checkout interchaintest
         uses: actions/checkout@v4
@@ -30,7 +33,7 @@ jobs:
             go-version: ${{ env.GO_VERSION }}
 
       - name: build local-interchain
-        run: cd interchaintest/local-interchain && go mod tidy && make install
+        run: go mod tidy && make install
 
       - name: Upload localic artifact
         uses: actions/upload-artifact@v3
@@ -42,13 +45,13 @@ jobs:
     needs: build
     name: contract e2e
     runs-on: ubuntu-latest
-    # defaults:
-    #   run:
-    #     working-directory: ./local-interchaintest
+    defaults:
+      run:
+        working-directory: ./local-interchaintest
 
     steps:
       - name: checkout this repo (contracts)
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install latest toolchain
         uses: actions-rs/toolchain@v1
@@ -71,9 +74,9 @@ jobs:
         timeout-minutes: 40
         run: |
           docker run --rm -v "$(pwd)":/code \
-            --mount type=volume,source="$(basename "$(pwd)")_cache",target=/target \
-            --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-            cosmwasm/optimizer:0.16.0
+              --mount type=volume,source="$(basename "$(pwd)")_cache",target=/target \
+              --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+              --platform linux/amd64 cosmwasm/optimizer:0.16.0
 
       - name: upload contracts
         uses: actions/upload-artifact@v3
@@ -82,7 +85,7 @@ jobs:
           path: artifacts/
 
       - name: Start background ibc local-interchain
-        run: ICTEST_HOME=./interchaintest /tmp/local-ic start neutron_gaia_osmosis_stride --api-port 42069 &
+        run: /tmp/local-ic start neutron_gaia_osmosis_stride --api-port 42069 &
 
       - name: Run Rust E2E Script
         run: cargo run --package local-ictest-e2e --bin local-ictest-e2e
