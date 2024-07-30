@@ -16,9 +16,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     name: build
-    # defaults:
-    #   run:
-    #     working-directory: ./local-interchaintest
     steps:
       - name: Checkout interchaintest
         uses: actions/checkout@v4
@@ -45,10 +42,6 @@ jobs:
     needs: build
     name: contract e2e
     runs-on: ubuntu-latest
-    # defaults:
-    #   run:
-    #     working-directory: ./local-interchaintest
-
     steps:
       - name: checkout this repo (contracts)
         uses: actions/checkout@v4
@@ -70,13 +63,33 @@ jobs:
       - name: Make local-ic executable
         run: chmod +x /tmp/local-ic
 
-      - name: Compile contract
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: install tar for cache
+        run: |
+          sudo apt-get update
+          sudo apt-get install tar
+
+      - name: set up cargo cache
+        uses: actions/cache@v3
+        with:
+            path: |
+                ~/.cargo/registry/bin/
+                ~/.cargo/registry/index/
+                ~/.cargo/registry/cache/
+                ~/.cargo/git/db/
+                target/
+            key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: build artifacts
         timeout-minutes: 40
         run: |
           docker run --rm -v "$(pwd)":/code \
-              --mount type=volume,source="$(basename "$(pwd)")_cache",target=/target \
-              --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-              --platform linux/amd64 cosmwasm/optimizer:0.16.0
+            --mount type=volume,source="$(basename "$(pwd)")_cache",target=/code/target \
+            --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+            cosmwasm/optimizer:0.16.0
 
       - name: upload contracts
         uses: actions/upload-artifact@v3
@@ -85,7 +98,7 @@ jobs:
           path: artifacts/
 
       - name: Start background ibc local-interchain
-        run: cd ./local-interchaintest && /tmp/local-ic start neutron_gaia_osmosis_stride --api-port 42069 &
+        run: ls && cd ./local-interchaintest && /tmp/local-ic start neutron_gaia_osmosis_stride --api-port 42069 &
 
       - name: Run Rust E2E Script
         run: cargo run --package local-ictest-e2e --bin local-ictest-e2e
