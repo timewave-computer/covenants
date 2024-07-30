@@ -1,8 +1,27 @@
 [workspace]
 members = [
   "packages/*",
-  "contracts/*",
+  "contracts/astroport-liquid-pooler",
+  "contracts/clock",
+  "contracts/clock-tester",
+  "contracts/ibc-forwarder",
+  "contracts/interchain-router",
+  "contracts/native-router",
+  "contracts/native-splitter",
+  "contracts/osmo-liquid-pooler",
+  "contracts/outpost-osmo-liquid-pooler",
+  "contracts/remote-chain-splitter",
+  "contracts/single-party-pol-covenant",
+  "contracts/single-party-pol-holder",
+  "contracts/stride-liquid-staker",
+  "contracts/swap-covenant",
+  "contracts/swap-holder",
+  "contracts/two-party-pol-covenant",
+  "contracts/two-party-pol-holder",
   "unit-tests/",
+]
+exclude = [
+  "contracts/astroport-tf-liquid-pooler",
   "local-interchaintest",
 ]
 resolver = "2"
@@ -19,6 +38,11 @@ optimize = """docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="$(basename "$(pwd)")_cache",target=/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/optimizer:0.15.1
+"""
+optimize_astroport_tf_lper = """docker run --rm -v "$(pwd)":/code \
+  --mount type=volume,source="astroport-tf-liquid-pooler",target=/code/contracts/astroport-tf-liquid-pooler/target \
+  --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+  cosmwasm/optimizer:0.15.1 ./contracts/astroport-tf-liquid-pooler
 """
 
 [profile.release]
