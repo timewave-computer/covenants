@@ -22,7 +22,6 @@ jobs:
         with:
             repository: strangelove-ventures/interchaintest
             path: interchaintest
-            ref: 'v8.3.0'
 
       - name: Setup go ${{ env.GO_VERSION }}
         uses: actions/setup-go@v5
@@ -97,8 +96,8 @@ jobs:
           name: contracts
           path: artifacts/
 
-      - name: Start background ibc local-interchain
-        run: cd local-interchaintest && /tmp/local-ic start neutron_gaia_osmosis_stride --api-port 42069 & & curl --head -X GET --retry 200 --retry-connrefused --retry-delay 1 http://localhost:42069 && cargo run --package local-ictest-e2e --bin local-ictest-e2e
+      - name: Start background ibc local-interchain & run tests
+        run: cd local-interchaintest && /tmp/local-ic start neutron_gaia_osmosis_stride --api-port 42069 & curl --head -X GET --retry 200 --retry-connrefused --retry-delay 1 http://localhost:42069 && cargo run --package local-ictest-e2e --bin local-ictest-e2e
 
       - name: Cleanup
         run: killall local-ic && exit 0
