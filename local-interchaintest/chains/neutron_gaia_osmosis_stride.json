@@ -185,8 +185,8 @@
       "binary": "strided",
       "bech32_prefix": "stride",
       "docker_image": {
-        "version": "non-ics",
-        "repository": "stride"
+        "version": "v9.2.1",
+        "repository": "ghcr.io/strangelove-ventures/heighliner/stride"
       },
       "gas_prices": "0.0ustrd",
       "chain_type": "cosmos",
