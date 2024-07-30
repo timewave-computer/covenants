@@ -101,7 +101,7 @@ jobs:
         run: cd local-interchaintest && ICTEST_HOME=./local-interchaintest /tmp/local-ic start neutron_gaia_osmosis_stride --api-port 42069 &
 
       - name: Run Rust E2E Script
-        run: cd local-interchaintest && cargo run --package local-ictest-e2e --bin local-ictest-e2e
+        run: cd local-interchaintest && sleep 2m && cargo run --package local-ictest-e2e --bin local-ictest-e2e
 
       - name: Cleanup
         run: killall local-ic && exit 0
