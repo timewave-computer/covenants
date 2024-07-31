@@ -7,7 +7,7 @@ use localic_std::{
 use localic_utils::{
     utils::test_context::TestContext, DEFAULT_KEY, GAIA_CHAIN_NAME, NEUTRON_CHAIN_NAME,
 };
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, process::Command};
 use valence_covenant_single_party_pol::msg::DEFAULT_TIMEOUT;
 
 use log::info;
@@ -15,7 +15,14 @@ use log::info;
 use crate::helpers::constants::{ASTROPORT_PATH, LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH};
 
 pub fn test_remote_chain_splitter(test_ctx: &mut TestContext) -> Result<(), LocalError> {
-    test_remote_chain_splitter_timeout(test_ctx)
+    info!("Starting remote chain splitter tests...");
+
+    test_remote_chain_splitter_timeout(test_ctx);
+    test_remote_chain_splitter_ok(test_ctx);
+
+    info!("Finished remote chain splitter tests!");
+
+    Ok(())
 }
 
 fn get_remote_chain_splitter(test_ctx: &mut TestContext) -> Result<CosmWasm, LocalError> {
@@ -28,8 +35,6 @@ fn get_remote_chain_splitter(test_ctx: &mut TestContext) -> Result<CosmWasm, Loc
     uploader
         .send_with_local_cache(ASTROPORT_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
-
-    info!("Starting remote chain splitter tests...");
 
     let atom_denom = test_ctx.get_native_denom().src(GAIA_CHAIN_NAME).get();
     let uatom_contribution_amount: u128 = 5_000_000_000;
@@ -85,15 +90,20 @@ fn test_remote_chain_splitter_timeout(test_ctx: &mut TestContext) -> Result<(), 
 
     let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
 
+    // Get the relayer PID
+    let pid = Command::new("docker")
+        .arg("ps")
+        .arg("-q")
+        .arg("--filter")
+        .arg("ancestor=ghcr.io/cosmos/relayer:latest")
+        .output()
+        .unwrap();
+
     // Stop the relayer
-    reqwest::blocking::Client::default()
-        .post(neutron.rb.api)
-        .json(&serde_json::json!({
-            chain_id: neutron.rb.chain_id,
-            action: "relayer-exec",
-            cmd: "shutdown now",
-        }))
-        .send()
+    let _ = Command::new("docker")
+        .arg("stop")
+        .arg(pid)
+        .output()
         .unwrap();
 
     // The state should be instantiated
@@ -112,7 +122,32 @@ fn test_remote_chain_splitter_timeout(test_ctx: &mut TestContext) -> Result<(), 
         .get("instantiated")
         .is_some());
 
-    info!("Finished remote chain splitter tests!");
+    Ok(())
+}
+
+fn test_remote_chain_splitter_ok(test_ctx: &mut TestContext) -> Result<(), LocalError> {
+    let remote_chain_splitter = get_remote_chain_splitter(test_ctx);
+
+    // Advance the splitter.
+    // This should trigger SudoMsg::OpenAck, which will set the ContractState to IcaCreated
+
+    let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
+
+    // The state should be IcaCreated
+    remote_chain_splitter
+        .execute(
+            DEFAULT_KEY,
+            serde_json::to_string(&valence_remote_chain_splitter::msg::ExecuteMsg::Tick {})
+                .unwrap()
+                .as_str(),
+            "",
+        )
+        .unwrap();
+
+    assert!(remote_chain_splitter
+        .query(&valence_remote_chain_splitter::msg::QueryMsg::ContractState {})
+        .get("ica_created")
+        .is_some());
 
     Ok(())
 }
