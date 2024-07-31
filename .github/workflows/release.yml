@@ -30,7 +30,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: run-script
-          args: optimize
+          args: optimize-astroport-tf-lper
       
       - name: Export checksums to json
         run: |
