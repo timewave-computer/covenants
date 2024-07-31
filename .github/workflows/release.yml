@@ -26,6 +26,12 @@ jobs:
           command: run-script
           args: optimize
       
+      - name: Run cargo optimize for Astroport TF LPer
+        uses: actions-rs/cargo@v1
+        with:
+          command: run-script
+          args: optimize
+      
       - name: Export checksums to json
         run: |
           jq -cR 'split("  ") | {"code_hash":.[0], "contract":.[1]}' ./artifacts/checksums.txt | jq -cs '.' > checksums.json

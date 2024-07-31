@@ -39,7 +39,7 @@ optimize = """docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/optimizer:0.15.1
 """
-optimize_astroport_tf_lper = """docker run --rm -v "$(pwd)":/code \
+optimize-astroport-tf-lper = """docker run --rm -v "$(pwd)":/code \
   --mount type=volume,source="astroport-tf-liquid-pooler",target=/code/contracts/astroport-tf-liquid-pooler/target \
   --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
   cosmwasm/optimizer:0.15.1 ./contracts/astroport-tf-liquid-pooler
