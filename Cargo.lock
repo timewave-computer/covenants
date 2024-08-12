@@ -1705,6 +1705,7 @@ dependencies = [
  "valence-ibc-forwarder",
  "valence-osmo-liquid-pooler",
  "valence-outpost-osmo-liquid-pooler",
+ "valence-remote-chain-splitter",
  "valence-single-party-pol-holder",
  "valence-stride-liquid-staker",
  "valence-two-party-pol-holder",
