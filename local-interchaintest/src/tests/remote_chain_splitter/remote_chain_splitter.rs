@@ -1,10 +1,9 @@
 use crate::helpers::constants::{
-    ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, ASTROPORT_PATH, LOCAL_CODE_ID_CACHE_PATH,
-    VALENCE_PATH,
+    ACC1_ADDRESS_NEUTRON, ACC2_ADDRESS_NEUTRON, LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH,
 };
-use cosmwasm_std::{Decimal, Uint128, Uint64};
+use cosmwasm_std::{Coin, Decimal, Uint128, Uint64};
 use covenant_utils::{op_mode::ContractOperationModeConfig, split::SplitConfig};
-use localic_std::{errors::LocalError, modules::cosmwasm::CosmWasm};
+use localic_std::{errors::LocalError, modules::bank, modules::cosmwasm::CosmWasm};
 use localic_utils::{
     utils::test_context::TestContext, DEFAULT_KEY, GAIA_CHAIN_NAME, NEUTRON_CHAIN_ID,
     NEUTRON_CHAIN_NAME,
@@ -17,11 +16,6 @@ use std::{
 use valence_covenant_single_party_pol::msg::DEFAULT_TIMEOUT;
 
 use log::info;
-
-struct ContractInfo {
-    code_id: u64,
-    contract_addr: String,
-}
 
 /// How long we will wait until the ICA must have been created, or timed out
 const ICA_TIMEOUT: Duration = Duration::from_secs(30);
@@ -96,28 +90,22 @@ fn upload_contracts(test_ctx: &mut TestContext) -> Result<(), LocalError> {
         .send_with_local_cache(VALENCE_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
 
-    uploader
-        .send_with_local_cache(ASTROPORT_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
-        .unwrap();
-
-    uploader.send().unwrap();
-
     Ok(())
 }
 
-fn make_remote_chain_splitter(test_ctx: &mut TestContext) -> Result<ContractInfo, LocalError> {
+fn make_remote_chain_splitter(test_ctx: &mut TestContext) -> Result<String, LocalError> {
     let atom_denom = test_ctx.get_native_denom().src(GAIA_CHAIN_NAME).get();
     let uatom_contribution_amount: u128 = 5_000_000_000;
 
-    let split_config: Vec<(String, SplitConfig)> = vec![(
+    let split_config: BTreeMap<String, SplitConfig> = BTreeMap::from([(
         atom_denom.clone(),
         SplitConfig {
-            receivers: BTreeMap::from_iter(vec![
+            receivers: BTreeMap::from([
                 (ACC1_ADDRESS_NEUTRON.to_owned(), Decimal::percent(50)),
                 (ACC2_ADDRESS_NEUTRON.to_owned(), Decimal::percent(50)),
             ]),
         },
-    )];
+    )]);
 
     let mut remote_chain_splitter = test_ctx
         .get_contract("valence_remote_chain_splitter")
@@ -140,7 +128,7 @@ fn make_remote_chain_splitter(test_ctx: &mut TestContext) -> Result<ContractInfo
                     .get(),
                 denom: atom_denom.clone(),
                 amount: Uint128::from(uatom_contribution_amount),
-                splits: BTreeMap::from_iter(split_config),
+                splits: split_config,
                 ica_timeout: Uint64::new(DEFAULT_TIMEOUT),
                 ibc_transfer_timeout: Uint64::new(DEFAULT_TIMEOUT),
                 fallback_address: None,
@@ -153,28 +141,23 @@ fn make_remote_chain_splitter(test_ctx: &mut TestContext) -> Result<ContractInfo
         )
         .unwrap();
 
-    Ok(ContractInfo {
-        contract_addr: remote_chain_splitter.contract_addr.unwrap(),
-        code_id: remote_chain_splitter.code_id.unwrap(),
-    })
+    Ok(remote_chain_splitter.contract_addr.unwrap())
 }
 
 fn fund_remote_chain_splitter(
     test_ctx: &mut TestContext,
-    remote_chain_splitter: &ContractInfo,
+    remote_chain_splitter_addr: &str,
 ) -> Result<(), LocalError> {
     let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
 
-    neutron
-        .rb
-        .tx(
-            &format!(
-                "tx bank send acc0 {} 1000000untrn",
-                &remote_chain_splitter.contract_addr
-            ),
-            true,
-        )
-        .unwrap();
+    bank::send(
+        &neutron.rb,
+        "acc0",
+        remote_chain_splitter_addr,
+        &[Coin::new(1000000, "untrn")],
+        &Coin::new(4206942, "untrn"),
+    )
+    .unwrap();
 
     Ok(())
 }
@@ -183,7 +166,7 @@ fn fund_remote_chain_splitter(
 /// Leaves the relayer intact after its execution.
 fn test_remote_chain_splitter_timeout(
     test_ctx: &mut TestContext,
-    remote_chain_splitter: &ContractInfo,
+    remote_chain_splitter: &str,
 ) -> Result<(), LocalError> {
     // Stop the relayer
     stop_relayer(test_ctx);
@@ -193,8 +176,8 @@ fn test_remote_chain_splitter_timeout(
     let remote_chain_splitter_contract = CosmWasm::new_from_existing(
         &neutron.rb,
         None,
-        Some(remote_chain_splitter.code_id),
-        Some(remote_chain_splitter.contract_addr.clone()),
+        None,
+        Some(remote_chain_splitter.to_owned()),
     );
 
     // Kill the relayer and advance the splitter.
@@ -235,7 +218,7 @@ fn test_remote_chain_splitter_timeout(
 /// Tests that the splitter advances after 2nd tick after a packet timeout.
 fn test_remote_chain_splitter_timeout_recover(
     test_ctx: &mut TestContext,
-    remote_chain_splitter: &ContractInfo,
+    remote_chain_splitter: &str,
 ) -> Result<(), LocalError> {
     // Stop the relayer and ensure the splitter does not advance beyond instantiated
     stop_relayer(test_ctx);
@@ -252,7 +235,7 @@ fn test_remote_chain_splitter_timeout_recover(
 
 fn test_remote_chain_splitter_ok(
     test_ctx: &mut TestContext,
-    remote_chain_splitter: &ContractInfo,
+    remote_chain_splitter: &str,
 ) -> Result<(), LocalError> {
     let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
 
@@ -263,8 +246,8 @@ fn test_remote_chain_splitter_ok(
     let remote_chain_splitter_contract = CosmWasm::new_from_existing(
         &neutron.rb,
         None,
-        Some(remote_chain_splitter.code_id),
-        Some(remote_chain_splitter.contract_addr.clone()),
+        None,
+        Some(remote_chain_splitter.to_owned()),
     );
 
     with_poll_timeout! {
