@@ -98,7 +98,7 @@ fn make_liquid_staker(test_ctx: &mut TestContext) -> Result<String, LocalError> 
             DEFAULT_KEY,
             &serde_json::to_string(&valence_outpost_osmo_liquid_pooler::msg::InstantiateMsg {})
                 .unwrap(),
-            "valence_liquid_pooler",
+            "valence_outpost_osmo_liquid_pooler",
             None,
             "",
         )
