@@ -1,4 +1,5 @@
 pub mod osmo_liquid_pooler;
+pub mod liquid_staker;
 pub mod remote_chain_splitter;
 pub mod single_party_pol;
 pub mod swap;
