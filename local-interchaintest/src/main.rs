@@ -3,6 +3,7 @@
 use std::error::Error;
 
 use local_ictest_e2e::tests::{
+    liquid_staker::liquid_staker::test_liquid_staker,
     remote_chain_splitter::remote_chain_splitter::test_remote_chain_splitter,
     single_party_pol::single_party_pol_stride::test_single_party_pol_stride,
     swap::token_swap::test_token_swap,
@@ -47,6 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     test_two_party_pol_native(&mut test_ctx);
     test_two_party_pol(&mut test_ctx);
     test_remote_chain_splitter(&mut test_ctx);
+    test_liquid_staker(&mut test_ctx);
 
     Ok(())
 }
