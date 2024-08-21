@@ -1,3 +1,4 @@
+pub mod ibc_forwarder;
 pub mod liquid_staker;
 pub mod remote_chain_splitter;
 pub mod single_party_pol;
