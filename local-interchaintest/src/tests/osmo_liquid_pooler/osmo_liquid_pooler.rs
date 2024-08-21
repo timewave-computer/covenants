@@ -78,26 +78,6 @@ pub fn test_osmo_liquid_pooler(test_ctx: &mut TestContext) -> Result<(), LocalEr
     Ok(())
 }
 
-fn start_relayer(test_ctx: &mut TestContext) {
-    let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
-
-    reqwest::blocking::Client::default()
-        .post(&neutron.rb.api)
-        .json(&serde_json::json!({ "chain_id": NEUTRON_CHAIN_ID, "action": "start-relayer"}))
-        .send()
-        .unwrap();
-}
-
-fn stop_relayer(test_ctx: &mut TestContext) {
-    let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
-
-    reqwest::blocking::Client::default()
-        .post(&neutron.rb.api)
-        .json(&serde_json::json!({ "chain_id": NEUTRON_CHAIN_ID, "action": "stop-relayer"}))
-        .send()
-        .unwrap();
-}
-
 fn upload_contracts(test_ctx: &mut TestContext) -> Result<(), LocalError> {
     let mut uploader = test_ctx.build_tx_upload_contracts();
 
@@ -346,7 +326,7 @@ fn make_pooler(
 /// Leaves the relayer intact after its execution.
 fn test_pooler_timeout(test_ctx: &mut TestContext, pooler: &str) -> Result<(), LocalError> {
     // Stop the relayer
-    stop_relayer(test_ctx);
+    test_ctx.stop_relayer();
 
     let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
 
@@ -383,7 +363,7 @@ fn test_pooler_timeout(test_ctx: &mut TestContext, pooler: &str) -> Result<(), L
             == Some(&Value::String("instantiated".to_owned()))
     );
 
-    start_relayer(test_ctx);
+    test_ctx.start_relayer();
 
     Ok(())
 }
@@ -391,12 +371,12 @@ fn test_pooler_timeout(test_ctx: &mut TestContext, pooler: &str) -> Result<(), L
 /// Tests that the pooler advances after 2nd tick after a packet timeout.
 fn test_pooler_timeout_recover(test_ctx: &mut TestContext, pooler: &str) -> Result<(), LocalError> {
     // Stop the relayer and ensure the pooler does not advance beyond instantiated
-    stop_relayer(test_ctx);
+    test_ctx.stop_relayer();
 
     test_pooler_timeout(test_ctx, pooler)?;
 
     // Ensure that the pooler recovers after the relayer is started again
-    start_relayer(test_ctx);
+    test_ctx.start_relayer();
 
     test_pooler_ok(test_ctx, pooler)?;
 
