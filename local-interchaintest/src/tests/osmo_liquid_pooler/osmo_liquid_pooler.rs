@@ -1,17 +1,22 @@
-use crate::helpers::constants::{
-    ACC1_ADDRESS_NEUTRON, LOCAL_CODE_ID_CACHE_PATH, LOCAL_CODE_ID_CACHE_PATH_OSMO, OSMOSIS_FEES,
-    POLYTONE_PATH, VALENCE_PATH,
+use crate::helpers::{
+    common,
+    constants::{
+        ACC1_ADDRESS_NEUTRON, LOCAL_CODE_ID_CACHE_PATH, LOCAL_CODE_ID_CACHE_PATH_OSMO,
+        OSMOSIS_FEES, POLYTONE_PATH, VALENCE_PATH,
+    },
 };
 use cosmwasm_std::{Coin, Decimal, Uint128, Uint64};
 use covenant_utils::{op_mode::ContractOperationModeConfig, PoolPriceConfig, SingleSideLpLimits};
 use cw_utils::{Duration as CwDuration, Expiration};
 use localic_std::{errors::LocalError, modules::cosmwasm::CosmWasm, relayer::Relayer};
 use localic_utils::{
-    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID,
-    NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME,
+    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_NAME,
+    OSMOSIS_CHAIN_NAME,
 };
-use serde_json::Value;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::{
+    thread,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
 use valence_covenant_single_party_pol::msg::DEFAULT_TIMEOUT;
 use valence_osmo_liquid_pooler::msg::{PartyChainInfo, PartyDenomInfo};
 
@@ -26,6 +31,8 @@ macro_rules! with_poll_timeout {
 
         while Instant::now().duration_since(start) < ICA_TIMEOUT {
             $body
+
+            thread::sleep(Duration::from_secs(2));
         }
     };
 }
@@ -330,37 +337,19 @@ fn test_pooler_timeout(test_ctx: &mut TestContext, pooler: &str) -> Result<(), L
 
     let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
 
-    let pooler_contract =
-        CosmWasm::new_from_existing(&neutron.rb, None, None, Some(pooler.to_owned()));
-
     // Kill the relayer and advance the pooler.
     // This should trigger SudoMsg::Timeout, which returns the state to instantiated
 
     // Continuously tick the pooler until the state advances to timed out (after we expect the timeout)
     with_poll_timeout! {
         {
-            pooler_contract
-                .execute(
-                    DEFAULT_KEY,
-                    serde_json::to_string(&valence_osmo_liquid_pooler::msg::ExecuteMsg::Tick {})
-                        .unwrap()
-                        .as_str(),
-                    "--gas 42069420",
-                )
-                .unwrap();
+            common::tick(&neutron.rb, DEFAULT_KEY, pooler);
         }
     }
 
-    assert!(
-        pooler_contract
-            .query(
-                &serde_json::to_string(
-                    &valence_osmo_liquid_pooler::msg::QueryMsg::ContractState {}
-                )
-                .unwrap()
-            )
-            .get("data")
-            == Some(&Value::String("instantiated".to_owned()))
+    assert_eq!(
+        common::query_contract_state(&neutron.rb, pooler),
+        "instantiated".to_owned()
     );
 
     test_ctx.start_relayer();
@@ -387,30 +376,12 @@ fn test_pooler_ok(test_ctx: &mut TestContext, pooler: &str) -> Result<(), LocalE
     let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
 
     // Advance the pooler.
-    // This should trigger SudoMsg::OpenAck, which will set the ContractState to IcaCreated
-
     // The state should be ProxyCreated
-    let pooler_contract =
-        CosmWasm::new_from_existing(&neutron.rb, None, None, Some(pooler.to_owned()));
-
     with_poll_timeout! {
         {
-             pooler_contract
-                .execute(
-                    DEFAULT_KEY,
-                    serde_json::to_string(&valence_osmo_liquid_pooler::msg::ExecuteMsg::Tick {})
-                        .unwrap()
-                        .as_str(),
-                    "--gas 42069420",
-                )
-                .unwrap();
+             common::tick(&neutron.rb, DEFAULT_KEY, pooler);
 
-            if pooler_contract
-                .query(
-                    &serde_json::to_string(&valence_osmo_liquid_pooler::msg::QueryMsg::ContractState {})
-                        .unwrap(),
-                )
-                .get("data") == Some(&Value::String("proxy_created".to_owned()))
+            if common::query_contract_state(&neutron.rb,pooler)  == "proxy_created".to_owned()
             {
                 break;
             }
@@ -418,15 +389,8 @@ fn test_pooler_ok(test_ctx: &mut TestContext, pooler: &str) -> Result<(), LocalE
     }
 
     assert_eq!(
-        pooler_contract
-            .query(
-                &serde_json::to_string(
-                    &valence_osmo_liquid_pooler::msg::QueryMsg::ContractState {}
-                )
-                .unwrap()
-            )
-            .get("data"),
-        Some(&Value::String("proxy_created".to_owned()))
+        common::query_contract_state(&neutron.rb, pooler),
+        "proxy_created".to_owned()
     );
 
     Ok(())
