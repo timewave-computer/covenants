@@ -11,9 +11,6 @@ pub const POLYTONE_PATH: &str = "local-interchaintest/contracts/polytone";
 pub const EXECUTE_FLAGS: &str = "--gas=auto --gas-adjustment=3.0";
 pub const OSMOSIS_FEES: &str = "--fees=100000uosmo";
 
-pub const ACC0_ADDRESS_GAIA: &str = "cosmos1hj5fveer5cjtn4wd6wstzugjfdxzl0xpxvjjvr";
-pub const ACC0_ADDRESS_NEUTRON: &str = "neutron1hj5fveer5cjtn4wd6wstzugjfdxzl0xpznmsky";
-pub const ACC0_ADDRESS_OSMO: &str = "osmo1hj5fveer5cjtn4wd6wstzugjfdxzl0xpwhpz63";
 pub const ACC1_ADDRESS_GAIA: &str = "cosmos1kljf09rj77uxeu5lye7muejx6ajsu55cc3re5h";
 pub const ACC1_ADDRESS_NEUTRON: &str = "neutron1kljf09rj77uxeu5lye7muejx6ajsu55cuw2mws";
 pub const ACC1_ADDRESS_OSMO: &str = "osmo1kljf09rj77uxeu5lye7muejx6ajsu55cs2sfz9";

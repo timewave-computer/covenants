@@ -1,14 +1,14 @@
 use crate::helpers::constants::{
-    ACC0_ADDRESS_NEUTRON, ACC1_ADDRESS_NEUTRON, LOCAL_CODE_ID_CACHE_PATH,
-    LOCAL_CODE_ID_CACHE_PATH_OSMO, OSMOSIS_FEES, POLYTONE_PATH, VALENCE_PATH,
+    ACC1_ADDRESS_NEUTRON, LOCAL_CODE_ID_CACHE_PATH, LOCAL_CODE_ID_CACHE_PATH_OSMO, OSMOSIS_FEES,
+    POLYTONE_PATH, VALENCE_PATH,
 };
 use cosmwasm_std::{Coin, Decimal, Uint128, Uint64};
 use covenant_utils::{op_mode::ContractOperationModeConfig, PoolPriceConfig, SingleSideLpLimits};
 use cw_utils::{Duration as CwDuration, Expiration};
 use localic_std::{errors::LocalError, modules::cosmwasm::CosmWasm, relayer::Relayer};
 use localic_utils::{
-    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ID, NEUTRON_CHAIN_NAME,
-    OSMOSIS_CHAIN_NAME,
+    utils::test_context::TestContext, DEFAULT_KEY, NEUTRON_CHAIN_ADMIN_ADDR, NEUTRON_CHAIN_ID,
+    NEUTRON_CHAIN_NAME, OSMOSIS_CHAIN_NAME,
 };
 use serde_json::Value;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -131,13 +131,13 @@ fn make_holder(
 
     let pooler_address = test_ctx
         .get_built_contract_address()
-        .creator(ACC0_ADDRESS_NEUTRON)
+        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
         .contract("valence_osmo_liquid_pooler")
         .salt_hex_encoded(&hex::encode(salt))
         .get();
     let holder_address = test_ctx
         .get_built_contract_address()
-        .creator(ACC0_ADDRESS_NEUTRON)
+        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
         .contract("valence_single_party_pol_holder")
         .salt_hex_encoded(&hex::encode(salt))
         .get();
@@ -176,7 +176,7 @@ fn make_pooler(
         .unwrap();
     let pooler_address = test_ctx
         .get_built_contract_address()
-        .creator(ACC0_ADDRESS_NEUTRON)
+        .creator(NEUTRON_CHAIN_ADMIN_ADDR)
         .contract("valence_osmo_liquid_pooler")
         .salt_hex_encoded(&hex::encode(salt))
         .get();
