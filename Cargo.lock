@@ -1714,7 +1714,7 @@ dependencies = [
 [[package]]
 name = "localic-std"
 version = "0.0.1"
-source = "git+https://github.com/strangelove-ventures/interchaintest?branch=main#e0c90b0b996bcea788868accdd04aca070b0a8bd"
+source = "git+https://github.com/strangelove-ventures/interchaintest?branch=main#ed1e4366839bb3b8a36e2be74fd00161b058f016"
 dependencies = [
  "cosmwasm-std",
  "reqwest",
@@ -1726,7 +1726,7 @@ dependencies = [
 [[package]]
 name = "localic-utils"
 version = "0.1.0"
-source = "git+https://github.com/timewave-computer/localic-utils?branch=main#3082374a363a3393cb704d8b21992f7512cd23aa"
+source = "git+https://github.com/timewave-computer/localic-utils?branch=main#e2801c6549a7e33599e6c8e5363a4f22942d37fd"
 dependencies = [
  "astroport 5.2.0",
  "cosmwasm-std",
