@@ -41,7 +41,7 @@ pub fn test_two_party_pol_osmo(test_ctx: &mut TestContext) -> Result<(), Error> 
     let mut uploader = test_ctx.build_tx_upload_contracts();
 
     uploader
-        .send_with_local_cache(VALENCE_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
+        .send_with_local_cache(VALENCE_PATH, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
 
     // Store only the ones we need for the test
@@ -98,11 +98,30 @@ pub fn test_two_party_pol_osmo(test_ctx: &mut TestContext) -> Result<(), Error> 
     let atom_denom = test_ctx.get_native_denom().src(GAIA_CHAIN_NAME).get();
     let neutron_denom = test_ctx.get_native_denom().src(NEUTRON_CHAIN_NAME).get();
     let osmo_denom = test_ctx.get_native_denom().src(OSMOSIS_CHAIN_NAME).get();
-    let osmo_on_neutron =
-        test_ctx.get_ibc_denom(&osmo_denom, OSMOSIS_CHAIN_NAME, NEUTRON_CHAIN_NAME);
-    let osmo_on_gaia = test_ctx.get_ibc_denom(&osmo_denom, OSMOSIS_CHAIN_NAME, GAIA_CHAIN_NAME);
-    let atom_on_neutron = test_ctx.get_ibc_denom(&atom_denom, GAIA_CHAIN_NAME, NEUTRON_CHAIN_NAME);
-    let atom_on_osmosis = test_ctx.get_ibc_denom(&atom_denom, GAIA_CHAIN_NAME, OSMOSIS_CHAIN_NAME);
+    let osmo_on_neutron = test_ctx
+        .get_ibc_denom()
+        .base_denom(osmo_denom.to_owned())
+        .src(OSMOSIS_CHAIN_NAME)
+        .dest(NEUTRON_CHAIN_NAME)
+        .get();
+    let osmo_on_gaia = test_ctx
+        .get_ibc_denom()
+        .base_denom(osmo_denom.to_owned())
+        .src(OSMOSIS_CHAIN_NAME)
+        .dest(GAIA_CHAIN_NAME)
+        .get();
+    let atom_on_neutron = test_ctx
+        .get_ibc_denom()
+        .base_denom(atom_denom.to_owned())
+        .src(GAIA_CHAIN_NAME)
+        .dest(NEUTRON_CHAIN_NAME)
+        .get();
+    let atom_on_osmosis = test_ctx
+        .get_ibc_denom()
+        .base_denom(atom_denom.to_owned())
+        .src(GAIA_CHAIN_NAME)
+        .dest(OSMOSIS_CHAIN_NAME)
+        .get();
 
     // Send some ATOM to Osmosis to feed the pool
     let uatom_liquidity = 40_000_000_000;
@@ -142,7 +161,10 @@ pub fn test_two_party_pol_osmo(test_ctx: &mut TestContext) -> Result<(), Error> 
         .with_swap_fee(Decimal::from_str("0.003").unwrap())
         .send()?;
 
-    let pool_id = test_ctx.get_osmo_pool(osmo_denom.clone(), atom_on_osmosis.clone())?;
+    let pool_id = test_ctx
+        .get_osmo_pool()
+        .denoms(osmo_denom.to_owned(), atom_on_osmosis.to_owned())
+        .get_u64();
 
     info!("Instantiate Osmosis outpost contract");
     let osmo_liquid_pooler_instantiate_msg =

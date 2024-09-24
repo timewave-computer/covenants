@@ -49,11 +49,11 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
     let mut uploader = test_ctx.build_tx_upload_contracts();
 
     uploader
-        .send_with_local_cache(VALENCE_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
+        .send_with_local_cache(VALENCE_PATH, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
 
     uploader
-        .send_with_local_cache(ASTROPORT_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
+        .send_with_local_cache(ASTROPORT_PATH, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
 
     info!("Starting two party POL native tests...");
@@ -108,9 +108,18 @@ pub fn test_two_party_pol_native(test_ctx: &mut TestContext) -> Result<(), Local
 
     let atom_denom = test_ctx.get_native_denom().src(GAIA_CHAIN_NAME).get();
     let neutron_denom = test_ctx.get_native_denom().src(NEUTRON_CHAIN_NAME).get();
-    let atom_on_neutron = test_ctx.get_ibc_denom(&atom_denom, GAIA_CHAIN_NAME, NEUTRON_CHAIN_NAME);
-    let neutron_on_atom =
-        test_ctx.get_ibc_denom(&neutron_denom, NEUTRON_CHAIN_NAME, GAIA_CHAIN_NAME);
+    let atom_on_neutron = test_ctx
+        .get_ibc_denom()
+        .base_denom(atom_denom.clone())
+        .src(GAIA_CHAIN_NAME)
+        .dest(NEUTRON_CHAIN_NAME)
+        .get();
+    let neutron_on_atom = test_ctx
+        .get_ibc_denom()
+        .base_denom(neutron_denom.clone())
+        .src(NEUTRON_CHAIN_NAME)
+        .dest(GAIA_CHAIN_NAME)
+        .get();
 
     let add_to_registry_msg = NativeCoinRegistryExecuteMsg::Add {
         native_coins: vec![(atom_on_neutron.clone(), 6), (neutron_denom.clone(), 6)],

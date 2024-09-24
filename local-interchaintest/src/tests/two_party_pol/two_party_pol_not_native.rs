@@ -50,11 +50,11 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
     let mut uploader = test_ctx.build_tx_upload_contracts();
 
     uploader
-        .send_with_local_cache(VALENCE_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
+        .send_with_local_cache(VALENCE_PATH, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
 
     uploader
-        .send_with_local_cache(ASTROPORT_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
+        .send_with_local_cache(ASTROPORT_PATH, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
 
     info!("Starting two party POL tests...");
@@ -112,9 +112,18 @@ pub fn test_two_party_pol(test_ctx: &mut TestContext) -> Result<(), LocalError> 
     let atom_denom = test_ctx.get_native_denom().src(GAIA_CHAIN_NAME).get();
     let neutron_denom = test_ctx.get_native_denom().src(NEUTRON_CHAIN_NAME).get();
     let osmo_denom = test_ctx.get_native_denom().src(OSMOSIS_CHAIN_NAME).get();
-    let atom_on_neutron = test_ctx.get_ibc_denom(&atom_denom, GAIA_CHAIN_NAME, NEUTRON_CHAIN_NAME);
-    let osmo_on_neutron =
-        test_ctx.get_ibc_denom(&osmo_denom, OSMOSIS_CHAIN_NAME, NEUTRON_CHAIN_NAME);
+    let atom_on_neutron = test_ctx
+        .get_ibc_denom()
+        .base_denom(atom_denom.to_owned())
+        .src(GAIA_CHAIN_NAME)
+        .dest(NEUTRON_CHAIN_NAME)
+        .get();
+    let osmo_on_neutron = test_ctx
+        .get_ibc_denom()
+        .base_denom(osmo_denom.to_owned())
+        .src(OSMOSIS_CHAIN_NAME)
+        .dest(NEUTRON_CHAIN_NAME)
+        .get();
 
     let atom_on_osmo_via_neutron = get_multihop_ibc_denom(
         &atom_denom,

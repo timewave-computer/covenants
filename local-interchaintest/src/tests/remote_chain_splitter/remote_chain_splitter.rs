@@ -87,7 +87,7 @@ fn upload_contracts(test_ctx: &mut TestContext) -> Result<(), LocalError> {
     let mut uploader = test_ctx.build_tx_upload_contracts();
 
     uploader
-        .send_with_local_cache(VALENCE_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
+        .send_with_local_cache(VALENCE_PATH, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
 
     Ok(())
@@ -108,8 +108,9 @@ fn make_remote_chain_splitter(test_ctx: &mut TestContext) -> Result<String, Loca
     )]);
 
     let mut remote_chain_splitter = test_ctx
-        .get_contract("valence_remote_chain_splitter")
-        .unwrap();
+        .get_contract()
+        .contract("valence_remote_chain_splitter")
+        .get_cw();
 
     remote_chain_splitter
         .instantiate(

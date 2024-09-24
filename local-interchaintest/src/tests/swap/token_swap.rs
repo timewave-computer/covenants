@@ -37,14 +37,19 @@ pub fn test_token_swap(test_ctx: &mut TestContext) -> Result<(), LocalError> {
     let mut uploader = test_ctx.build_tx_upload_contracts();
 
     uploader
-        .send_with_local_cache(VALENCE_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
+        .send_with_local_cache(VALENCE_PATH, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
 
     let atom_denom = test_ctx.get_native_denom().src(GAIA_CHAIN_NAME).get();
     let neutron_denom = test_ctx.get_native_denom().src(NEUTRON_CHAIN_NAME).get();
-    let atom_on_neutron = test_ctx.get_ibc_denom(&atom_denom, GAIA_CHAIN_NAME, NEUTRON_CHAIN_NAME);
-    let neutron_on_gaia =
-        test_ctx.get_ibc_denom(&neutron_denom, NEUTRON_CHAIN_NAME, GAIA_CHAIN_NAME);
+    let atom_on_neutron = test_ctx
+        .get_ibc_denom()
+        .denoms(atom_denom.to_owned(), GAIA_CHAIN_NAME.to_owned())
+        .get();
+    let neutron_on_gaia = test_ctx
+        .get_ibc_denom()
+        .denoms(neutron_denom.to_owned(), GAIA_CHAIN_NAME.to_owned())
+        .get();
 
     let valence_ibc_forwarder_code_id = *test_ctx
         .get_chain(NEUTRON_CHAIN_NAME)

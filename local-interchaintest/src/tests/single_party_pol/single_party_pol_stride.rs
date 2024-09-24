@@ -46,11 +46,11 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
     let mut uploader = test_ctx.build_tx_upload_contracts();
 
     uploader
-        .send_with_local_cache(VALENCE_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
+        .send_with_local_cache(VALENCE_PATH, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
 
     uploader
-        .send_with_local_cache(ASTROPORT_PATH, NEUTRON_CHAIN_NAME, LOCAL_CODE_ID_CACHE_PATH)
+        .send_with_local_cache(ASTROPORT_PATH, LOCAL_CODE_ID_CACHE_PATH)
         .unwrap();
 
     info!("Starting single party POL tests...");
@@ -131,12 +131,22 @@ pub fn test_single_party_pol_stride(test_ctx: &mut TestContext) -> Result<(), Lo
 
     let atom_denom = test_ctx.get_native_denom().src(GAIA_CHAIN_NAME).get();
     let neutron_denom = test_ctx.get_native_denom().src(NEUTRON_CHAIN_NAME).get();
-    let atom_on_stride = test_ctx.get_ibc_denom(&atom_denom, GAIA_CHAIN_NAME, STRIDE_CHAIN_NAME);
+    let atom_on_stride = test_ctx
+        .get_ibc_denom()
+        .denoms(atom_denom.to_owned(), GAIA_CHAIN_NAME.to_owned())
+        .src(STRIDE_CHAIN_NAME)
+        .get();
     // Add the coins to the registry
-    let statom_on_neutron =
-        test_ctx.get_ibc_denom(NATIVE_STATOM_DENOM, STRIDE_CHAIN_NAME, NEUTRON_CHAIN_NAME);
+    let statom_on_neutron = test_ctx
+        .get_ibc_denom()
+        .denoms(NATIVE_STATOM_DENOM.to_owned(), STRIDE_CHAIN_NAME.to_owned())
+        .get();
 
-    let atom_on_neutron = test_ctx.get_ibc_denom(&atom_denom, GAIA_CHAIN_NAME, NEUTRON_CHAIN_NAME);
+    let atom_on_neutron = test_ctx
+        .get_ibc_denom()
+        .denoms(atom_denom.to_owned(), GAIA_CHAIN_NAME.to_owned())
+        .get();
+
     let statom_on_gaia_via_neutron = get_multihop_ibc_denom(
         NATIVE_STATOM_DENOM,
         vec![

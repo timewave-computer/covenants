@@ -1,5 +1,5 @@
 use crate::helpers::constants::{LOCAL_CODE_ID_CACHE_PATH, VALENCE_PATH};
-use cosmwasm_std::{Coin, Uint64};
+use cosmwasm_std::{Coin, Uint128, Uint64};
 use covenant_utils::op_mode::ContractOperationModeConfig;
 use localic_std::{errors::LocalError, modules::bank, modules::cosmwasm::CosmWasm};
 use localic_utils::{
@@ -25,35 +25,35 @@ macro_rules! with_poll_timeout {
     };
 }
 
-/// Tests that the liquid staker correctly handles
+/// Tests that the ibc forwarder correctly handles
 /// - Normal case
 /// - Timeouts (does not advance to ica_created)
 /// - Timeout recovery (advances after on 2nd tick after a packet timeout)
-pub fn test_liquid_staker(test_ctx: &mut TestContext) -> Result<(), LocalError> {
-    info!("Starting liquid staker tests...");
+pub fn test_ibc_forwarder(test_ctx: &mut TestContext) -> Result<(), LocalError> {
+    info!("Starting IBC forwarder tests...");
 
     upload_contracts(test_ctx)?;
 
-    // See above: 3 tests, each with a different staker
-    let stakers = (
-        make_liquid_staker(test_ctx)?,
-        make_liquid_staker(test_ctx)?,
-        make_liquid_staker(test_ctx)?,
+    // See above: 3 tests, each with a different forwarder
+    let forwarders = (
+        make_forwarder(test_ctx)?,
+        make_forwarder(test_ctx)?,
+        make_forwarder(test_ctx)?,
     );
-    fund_liquid_staker(test_ctx, &stakers.0)?;
-    fund_liquid_staker(test_ctx, &stakers.1)?;
-    fund_liquid_staker(test_ctx, &stakers.2)?;
+    fund_forwarder(test_ctx, &forwarders.0)?;
+    fund_forwarder(test_ctx, &forwarders.1)?;
+    fund_forwarder(test_ctx, &forwarders.2)?;
 
-    // Separate tests: ensure that the staker can handle the happy case
+    // Separate tests: ensure that the forwarder can handle the happy case
     // and a timeout (independently)
-    test_staker_ok(test_ctx, &stakers.0)?;
-    test_staker_timeout(test_ctx, &stakers.1)?;
+    test_forwarder_ok(test_ctx, &forwarders.0)?;
+    test_forwarder_timeout(test_ctx, &forwarders.1)?;
 
-    // Combined test: runs test_timeout and test_ok in sequence with the same staker
-    // to ensure that the staker can recover from a timeout
-    test_staker_timeout_recover(test_ctx, &stakers.2)?;
+    // Combined test: runs test_timeout and test_ok in sequence with the same forwarder
+    // to ensure that the forwarder can recover from a timeout
+    test_forwarder_timeout_recover(test_ctx, &forwarders.2)?;
 
-    info!("Finished liquid staker tests!");
+    info!("Finished IBC forwarder tests!");
 
     Ok(())
 }
@@ -88,7 +88,7 @@ fn upload_contracts(test_ctx: &mut TestContext) -> Result<(), LocalError> {
     Ok(())
 }
 
-fn make_liquid_staker(test_ctx: &mut TestContext) -> Result<String, LocalError> {
+fn make_forwarder(test_ctx: &mut TestContext) -> Result<String, LocalError> {
     let mut liquid_pooler = test_ctx
         .get_contract()
         .contract("valence_outpost_osmo_liquid_pooler")
@@ -105,12 +105,12 @@ fn make_liquid_staker(test_ctx: &mut TestContext) -> Result<String, LocalError> 
         )
         .unwrap();
 
-    let mut liquid_staker = test_ctx
+    let mut forwarder = test_ctx
         .get_contract()
-        .contract("valence_stride_liquid_staker")
+        .contract("valence_ibc_forwarder")
         .get_cw();
 
-    let stride_neutron = test_ctx
+    let neutron_stride = test_ctx
         .get_transfer_channels()
         .src(NEUTRON_CHAIN_NAME)
         .dest(STRIDE_CHAIN_NAME)
@@ -121,36 +121,38 @@ fn make_liquid_staker(test_ctx: &mut TestContext) -> Result<String, LocalError> 
         .dest(STRIDE_CHAIN_NAME)
         .get();
 
-    liquid_staker
+    forwarder
         .instantiate(
             DEFAULT_KEY,
-            serde_json::to_string(&valence_stride_liquid_staker::msg::InstantiateMsg {
+            serde_json::to_string(&valence_ibc_forwarder::msg::InstantiateMsg {
                 op_mode_cfg: ContractOperationModeConfig::Permissionless,
-                stride_neutron_ibc_transfer_channel_id: stride_neutron,
-                neutron_stride_ibc_connection_id: neutron_stride_conn_id,
+                remote_chain_channel_id: neutron_stride,
+                remote_chain_connection_id: neutron_stride_conn_id,
                 next_contract: liquid_pooler.contract_addr.unwrap(),
-                ls_denom: String::from("stuatom"),
+                denom: String::from("stuatom"),
+                amount: Uint128::zero(),
                 ica_timeout: Uint64::new(DEFAULT_TIMEOUT),
                 ibc_transfer_timeout: Uint64::new(DEFAULT_TIMEOUT),
+                fallback_address: None,
             })
             .unwrap()
             .as_str(),
-            "valence_liquid_staker",
+            "valence_ibc_forwarder",
             None,
             "",
         )
         .unwrap();
 
-    Ok(liquid_staker.contract_addr.unwrap())
+    Ok(forwarder.contract_addr.unwrap())
 }
 
-fn fund_liquid_staker(test_ctx: &mut TestContext, staker_addr: &str) -> Result<(), LocalError> {
+fn fund_forwarder(test_ctx: &mut TestContext, forwarder_addr: &str) -> Result<(), LocalError> {
     let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
 
     bank::send(
         &neutron.rb,
         "acc0",
-        staker_addr,
+        forwarder_addr,
         &[Coin::new(1000000, "untrn")],
         &Coin::new(4206942, "untrn"),
     )
@@ -159,27 +161,30 @@ fn fund_liquid_staker(test_ctx: &mut TestContext, staker_addr: &str) -> Result<(
     Ok(())
 }
 
-/// Tests that the staker does not advance when there is no relayer available.
+/// Tests that the forwarder does not advance when there is no relayer available.
 /// Leaves the relayer intact after its execution.
-fn test_staker_timeout(test_ctx: &mut TestContext, staker_addr: &str) -> Result<(), LocalError> {
+fn test_forwarder_timeout(
+    test_ctx: &mut TestContext,
+    forwarder_addr: &str,
+) -> Result<(), LocalError> {
     // Stop the relayer
     stop_relayer(test_ctx);
 
     let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
 
-    let staker_contract =
-        CosmWasm::new_from_existing(&neutron.rb, None, None, Some(staker_addr.to_owned()));
+    let forwarder_contract =
+        CosmWasm::new_from_existing(&neutron.rb, None, None, Some(forwarder_addr.to_owned()));
 
-    // Kill the relayer and advance the staker.
+    // Kill the relayer and advance the forwarder.
     // This should trigger SudoMsg::Timeout, which returns the state to instantiated
 
-    // Continuously tick the staker until the state advances to timed out (after we expect the timeout)
+    // Continuously tick the forwarder until the state advances to timed out (after we expect the timeout)
     with_poll_timeout! {
         {
-            staker_contract
+            forwarder_contract
                 .execute(
                     DEFAULT_KEY,
-                    serde_json::to_string(&valence_stride_liquid_staker::msg::ExecuteMsg::Tick {})
+                    serde_json::to_string(&valence_ibc_forwarder::msg::ExecuteMsg::Tick {})
                         .unwrap()
                         .as_str(),
                     "--gas 42069420",
@@ -189,12 +194,10 @@ fn test_staker_timeout(test_ctx: &mut TestContext, staker_addr: &str) -> Result<
     }
 
     assert!(
-        staker_contract
+        forwarder_contract
             .query(
-                &serde_json::to_string(
-                    &valence_stride_liquid_staker::msg::QueryMsg::ContractState {}
-                )
-                .unwrap()
+                &serde_json::to_string(&valence_ibc_forwarder::msg::QueryMsg::ContractState {})
+                    .unwrap()
             )
             .get("data")
             == Some(&Value::String("instantiated".to_owned()))
@@ -205,49 +208,49 @@ fn test_staker_timeout(test_ctx: &mut TestContext, staker_addr: &str) -> Result<
     Ok(())
 }
 
-/// Tests that the staker advances after 2nd tick after a packet timeout.
-fn test_staker_timeout_recover(
+/// Tests that the forwarder advances after 2nd tick after a packet timeout.
+fn test_forwarder_timeout_recover(
     test_ctx: &mut TestContext,
-    staker_addr: &str,
+    forwarder_addr: &str,
 ) -> Result<(), LocalError> {
-    // Stop the relayer and ensure the staker does not advance beyond instantiated
+    // Stop the relayer and ensure the forwarder does not advance beyond instantiated
     stop_relayer(test_ctx);
 
-    test_staker_timeout(test_ctx, staker_addr)?;
+    test_forwarder_timeout(test_ctx, forwarder_addr)?;
 
-    // Ensure that the staker recovers after the relayer is started again
+    // Ensure that the forwarder recovers after the relayer is started again
     start_relayer(test_ctx);
 
-    test_staker_ok(test_ctx, staker_addr)?;
+    test_forwarder_ok(test_ctx, forwarder_addr)?;
 
     Ok(())
 }
 
-fn test_staker_ok(test_ctx: &mut TestContext, staker_addr: &str) -> Result<(), LocalError> {
+fn test_forwarder_ok(test_ctx: &mut TestContext, forwarder_addr: &str) -> Result<(), LocalError> {
     let neutron = test_ctx.get_chain(NEUTRON_CHAIN_NAME);
 
-    // Advance the staker.
+    // Advance the forwarder.
     // This should trigger SudoMsg::OpenAck, which will set the ContractState to IcaCreated
 
     // The state should be IcaCreated
-    let staker_contract =
-        CosmWasm::new_from_existing(&neutron.rb, None, None, Some(staker_addr.to_owned()));
+    let forwarder_contract =
+        CosmWasm::new_from_existing(&neutron.rb, None, None, Some(forwarder_addr.to_owned()));
 
     with_poll_timeout! {
         {
-             staker_contract
+             forwarder_contract
                 .execute(
                     DEFAULT_KEY,
-                    serde_json::to_string(&valence_stride_liquid_staker::msg::ExecuteMsg::Tick {})
+                    serde_json::to_string(&valence_ibc_forwarder::msg::ExecuteMsg::Tick {})
                         .unwrap()
                         .as_str(),
                     "--gas 42069420",
                 )
                 .unwrap();
 
-            if staker_contract
+            if forwarder_contract
                 .query(
-                    &serde_json::to_string(&valence_stride_liquid_staker::msg::QueryMsg::ContractState {})
+                    &serde_json::to_string(&valence_ibc_forwarder::msg::QueryMsg::ContractState {})
                         .unwrap(),
                 )
                 .get("data") == Some(&Value::String("ica_created".to_owned()))
@@ -258,12 +261,10 @@ fn test_staker_ok(test_ctx: &mut TestContext, staker_addr: &str) -> Result<(), L
     }
 
     assert_eq!(
-        staker_contract
+        forwarder_contract
             .query(
-                &serde_json::to_string(
-                    &valence_stride_liquid_staker::msg::QueryMsg::ContractState {}
-                )
-                .unwrap()
+                &serde_json::to_string(&valence_ibc_forwarder::msg::QueryMsg::ContractState {})
+                    .unwrap()
             )
             .get("data"),
         Some(&Value::String("ica_created".to_owned()))

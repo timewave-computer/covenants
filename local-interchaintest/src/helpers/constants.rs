@@ -1,4 +1,5 @@
 pub const LOCAL_CODE_ID_CACHE_PATH: &str = "local-interchaintest/code_id_cache.json";
+pub const LOCAL_CODE_ID_CACHE_PATH_OSMO: &str = "local-interchaintest/code_id_cache_osmo.json";
 
 pub const ACC_1_KEY: &str = "acc1";
 pub const ACC_2_KEY: &str = "acc2";

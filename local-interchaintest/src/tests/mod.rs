@@ -1,3 +1,4 @@
+pub mod ibc_forwarder;
 pub mod liquid_staker;
 pub mod osmo_liquid_pooler;
 pub mod osmo_lp_outpost;
